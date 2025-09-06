@@ -1,0 +1,271 @@
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/yalla_london/app/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  posts         BlogPost[]
+  
+  @@map(name: "users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map(name: "accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map(name: "sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map(name: "verificationtokens")
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name_en     String
+  name_ar     String
+  slug        String     @unique
+  description_en String?
+  description_ar String?
+  image_url   String?
+  posts       BlogPost[]
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+}
+
+model BlogPost {
+  id           String   @id @default(cuid())
+  title_en     String
+  title_ar     String
+  slug         String   @unique
+  excerpt_en   String?
+  excerpt_ar   String?
+  content_en   String
+  content_ar   String
+  featured_image String?
+  published    Boolean  @default(false)
+  category_id  String
+  author_id    String
+  meta_title_en String?
+  meta_title_ar String?
+  meta_description_en String?
+  meta_description_ar String?
+  tags         String[]
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  
+  category     Category @relation(fields: [category_id], references: [id])
+  author       User     @relation(fields: [author_id], references: [id])
+}
+
+model Recommendation {
+  id           String   @id @default(cuid())
+  name_en      String
+  name_ar      String
+  type         String   // hotel, restaurant, attraction
+  category     String   // luxury, mid-range, budget
+  description_en String
+  description_ar String
+  address_en   String
+  address_ar   String
+  phone        String?
+  website      String?
+  price_range  String?
+  rating       Float?
+  images       String[]
+  features_en  String[]
+  features_ar  String[]
+  booking_url  String?
+  latitude     Float?
+  longitude    Float?
+  published    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+}
+
+model ContentGeneration {
+  id         String   @id @default(cuid())
+  prompt     String
+  response   String
+  type       String   // blog_topic, blog_content, recommendation
+  language   String   // en, ar
+  used       Boolean  @default(false)
+  created_at DateTime @default(now())
+}
+
+model ScheduledContent {
+  id             String   @id @default(cuid())
+  title          String
+  content        String   @db.Text
+  content_type   String   // blog_post, instagram_post, tiktok_video
+  language       String   // en, ar
+  category       String?
+  tags           String[]
+  metadata       Json?
+  scheduled_time DateTime
+  published_time DateTime?
+  status         String   @default("pending") // pending, published, failed, cancelled
+  platform       String?  // blog, instagram, tiktok
+  published      Boolean  @default(false)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+}
+
+// Phase 3.2 - Social Media Embeds
+model SocialEmbed {
+  id           String   @id @default(cuid())
+  platform     String   // instagram, tiktok, facebook, youtube
+  url          String   // Original social media URL
+  embed_id     String   // Extracted ID from URL
+  thumbnail    String?  // Cloud storage path to thumbnail image
+  title        String?
+  description  String?
+  author       String?
+  aspect_ratio String   @default("16:9") // For CLS prevention
+  metadata     Json?    // Additional platform-specific data
+  status       String   @default("active") // active, archived, error
+  usage_count  Int      @default(0) // Track where it's used
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+}
+
+// Phase 3.3 - Media Library
+model MediaAsset {
+  id              String   @id @default(cuid())
+  filename        String
+  original_name   String
+  cloud_storage_path String // S3 key - never store local paths
+  url             String   // Public URL for serving
+  file_type       String   // image, video, document
+  mime_type       String
+  file_size       Int      // Size in bytes
+  width           Int?
+  height          Int?
+  alt_text        String?
+  title           String?
+  description     String?
+  tags            String[]
+  license_info    String?  // Rights/attribution info
+  responsive_urls Json?    // Different sizes (WebP, AVIF variants)
+  usage_map       Json?    // Track where asset is used
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  
+  // Relations
+  homepage_blocks HomepageBlock[]
+}
+
+// Phase 3.4 - Homepage Builder
+model HomepageBlock {
+  id          String   @id @default(cuid())
+  type        String   // hero, featured-experiences, events, testimonials, blog-grid, cta
+  title_en    String?
+  title_ar    String?
+  content_en  String?  @db.Text
+  content_ar  String?  @db.Text
+  config      Json?    // Block-specific configuration
+  media_id    String?  // Reference to MediaAsset
+  position    Int      // Order on page
+  enabled     Boolean  @default(true)
+  version     String   @default("draft") // draft, published
+  language    String   @default("both") // en, ar, both
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  media       MediaAsset? @relation(fields: [media_id], references: [id])
+}
+
+model HomepageVersion {
+  id          String   @id @default(cuid())
+  version_id  String   @unique
+  title       String
+  blocks_data Json     // Snapshot of all blocks at this version
+  published   Boolean  @default(false)
+  created_at  DateTime @default(now())
+}
+
+// Phase 3.5 - Database Backups & System
+model DatabaseBackup {
+  id             String   @id @default(cuid())
+  backup_name    String
+  backup_size    String   // Human readable size
+  cloud_storage_path String // S3 path to backup file
+  backup_type    String   // scheduled, manual, pre-migration
+  tables_count   Int?
+  records_count  Int?
+  status         String   // completed, failed, in-progress
+  error_message  String?
+  created_at     DateTime @default(now())
+}
+
+model ApiSettings {
+  id         String   @id @default(cuid())
+  key_name   String   @unique // openai_api_key, google_analytics_id, etc.
+  key_value  String
+  is_active  Boolean  @default(true)
+  last_tested DateTime?
+  test_status String?  // success, failed, not_tested
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model ContentScheduleRule {
+  id                    String   @id @default(cuid())
+  name                  String
+  content_type          String   // blog_post, social_post
+  language              String   // en, ar, both
+  frequency_hours       Int      @default(24) // Generate every X hours
+  auto_publish          Boolean  @default(false)
+  min_hours_between     Int      @default(6)
+  max_posts_per_day     Int      @default(4)
+  preferred_times       String[] // ["09:00", "15:00", "21:00"]
+  categories            String[] // Categories to generate content for
+  is_active             Boolean  @default(true)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+}

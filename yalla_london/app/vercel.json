@@ -1,0 +1,37 @@
+
+{
+  "framework": "nextjs",
+  "buildCommand": "yarn build",
+  "outputDirectory": ".next",
+  "installCommand": "yarn install",
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "NEXTAUTH_SECRET": "@nextauth_secret",
+    "NEXTAUTH_URL": "@nextauth_url",
+    "AWS_BUCKET_NAME": "@aws_bucket_name",
+    "AWS_FOLDER_PREFIX": "@aws_folder_prefix", 
+    "AWS_ACCESS_KEY_ID": "@aws_access_key_id",
+    "AWS_SECRET_ACCESS_KEY": "@aws_secret_access_key",
+    "AWS_REGION": "@aws_region",
+    "ABACUSAI_API_KEY": "@abacusai_api_key",
+    "FEATURE_SEO": "1",
+    "FEATURE_EMBEDS": "1", 
+    "FEATURE_MEDIA": "1",
+    "FEATURE_HOMEPAGE_BUILDER": "1"
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    }
+  ]
+}

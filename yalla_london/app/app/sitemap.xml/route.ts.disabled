@@ -1,0 +1,4 @@
+
+// This file has been moved to avoid conflicts with Next.js built-in sitemap.ts
+// The enhanced sitemap functionality is available via the sitemap generator utility
+// You can use /api/sitemap/advanced for additional sitemap features

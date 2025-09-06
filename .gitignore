@@ -2,3 +2,7 @@ node_modules/
 .next/
 .env*
 *.zip
+node_modules/
+.next/
+.env*
+*.zip

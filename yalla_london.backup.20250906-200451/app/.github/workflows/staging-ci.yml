@@ -1,0 +1,259 @@
+
+name: Staging CI/CD Pipeline
+
+on:
+  push:
+    branches: [staging, develop]
+  pull_request:
+    branches: [staging]
+
+env:
+  NODE_VERSION: '18'
+  STAGING_URL: ${{ secrets.STAGING_URL }}
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & TypeCheck
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        
+      - name: Run TypeScript check
+        run: yarn tsc --noEmit
+        
+      - name: Run ESLint
+        run: yarn lint
+        
+      - name: Check Prisma schema
+        run: yarn prisma validate
+
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        
+      - name: Generate Prisma client
+        run: yarn prisma generate
+        
+      - name: Build application
+        run: yarn build
+        env:
+          DATABASE_URL: "postgresql://test:test@localhost:5432/test"
+          NEXTAUTH_SECRET: "test-secret-for-build-only-32-characters"
+          NEXTAUTH_URL: "http://localhost:3000"
+          AWS_BUCKET_NAME: "test-bucket"
+          AWS_ACCESS_KEY_ID: "test"
+          AWS_SECRET_ACCESS_KEY: "test"
+          AWS_REGION: "us-east-1"
+          ABACUSAI_API_KEY: "test"
+          
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-files
+          path: .next/
+          retention-days: 1
+
+  lighthouse-ci:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: github.ref == 'refs/heads/staging'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-files
+          path: .next/
+          
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.12.x
+        
+      - name: Run Lighthouse CI
+        run: lhci autorun --config=lighthouserc-staging.js
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+          LHCI_SERVER_BASE_URL: ${{ secrets.LHCI_SERVER_BASE_URL }}
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+
+  api-tests:
+    name: API Integration Tests
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: github.ref == 'refs/heads/staging' && vars.STAGING_URL
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        
+      - name: Install Playwright
+        run: npx playwright install chromium
+        
+      - name: Run API tests
+        run: yarn playwright test tests/api-staging.spec.ts
+        env:
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: api-test-results
+          path: test-results/
+          retention-days: 3
+
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: [build-test]
+    if: github.ref == 'refs/heads/staging' && vars.STAGING_URL
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        
+      - name: Install Playwright browsers
+        run: npx playwright install
+        
+      - name: Run E2E tests
+        run: yarn playwright test tests/e2e-staging.spec.ts
+        env:
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: e2e-test-results
+          path: test-results/
+          retention-days: 3
+          
+      - name: Upload trace files
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: playwright-traces
+          path: playwright-report/
+          retention-days: 3
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run security audit
+        run: yarn audit --level moderate
+        
+      - name: Check for secrets in code
+        run: |
+          if grep -r -i "password\|secret\|key" --include="*.ts" --include="*.tsx" --include="*.js" --exclude-dir=node_modules .; then
+            echo "❌ Potential secrets found in code"
+            exit 1
+          else
+            echo "✅ No hardcoded secrets detected"
+          fi
+
+  deployment-ready:
+    name: Deployment Ready Check
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, build-test, security-scan]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Verify deployment files
+        run: |
+          echo "Checking deployment configuration..."
+          test -f vercel-staging.json && echo "✅ Vercel config found"
+          test -f .env.staging.example && echo "✅ Environment template found"
+          test -f scripts/seed-staging.ts && echo "✅ Staging seed script found"
+          test -f README-STAGING.md && echo "✅ Staging documentation found"
+          
+      - name: Validate environment template
+        run: |
+          echo "Validating environment variables template..."
+          if grep -q "your-staging" .env.staging.example; then
+            echo "✅ Environment template contains placeholders"
+          else
+            echo "❌ Environment template missing placeholders"
+            exit 1
+          fi
+
+  notify-success:
+    name: Notify Success
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, build-test, lighthouse-ci, api-tests, e2e-tests, security-scan]
+    if: success() && github.ref == 'refs/heads/staging'
+    
+    steps:
+      - name: Success notification
+        run: |
+          echo "🎉 Staging CI/CD pipeline completed successfully!"
+          echo "✅ TypeScript compilation passed"
+          echo "✅ Build completed successfully"  
+          echo "✅ Lighthouse CI scores above thresholds"
+          echo "✅ API tests passed"
+          echo "✅ E2E tests passed"
+          echo "✅ Security scan clean"
+          echo ""
+          echo "🚀 Ready for staging deployment!"

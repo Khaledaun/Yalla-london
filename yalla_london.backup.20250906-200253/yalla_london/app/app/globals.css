@@ -1,0 +1,253 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dynamic Brand Theming System */
+:root {
+  /* Default colors - will be overridden by brand config */
+  --color-primary: #7C3AED;
+  --color-secondary: #EAB308;
+  --color-accent: #EC4899;
+  --color-background: #FFFFFF;
+  --color-text: #1F2937;
+  --color-muted: #6B7280;
+  
+  /* Semantic color mappings */
+  --color-brand-primary: var(--color-primary);
+  --color-brand-secondary: var(--color-secondary);
+  --color-brand-accent: var(--color-accent);
+}
+
+/* Platform-specific brand classes */
+.brand-primary { color: var(--color-primary); }
+.bg-brand-primary { background-color: var(--color-primary); }
+.border-brand-primary { border-color: var(--color-primary); }
+.text-brand-primary { color: var(--color-primary); }
+
+.brand-secondary { color: var(--color-secondary); }
+.bg-brand-secondary { background-color: var(--color-secondary); }
+.border-brand-secondary { border-color: var(--color-secondary); }
+.text-brand-secondary { color: var(--color-secondary); }
+
+.brand-accent { color: var(--color-accent); }
+.bg-brand-accent { background-color: var(--color-accent); }
+.border-brand-accent { border-color: var(--color-accent); }
+.text-brand-accent { color: var(--color-accent); }
+
+/* Dynamic gradient backgrounds */
+.gradient-brand {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+}
+
+.gradient-brand-text {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Tajawal Font */
+@font-face {
+  font-family: 'Tajawal';
+  src: url('/fonts/Tajawal-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tajawal';
+  src: url('/fonts/Tajawal-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tajawal';
+  src: url('/fonts/Tajawal-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tajawal';
+  src: url('/fonts/Tajawal-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tajawal';
+  src: url('/fonts/Tajawal-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tajawal';
+  src: url('/fonts/Tajawal-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tajawal';
+  src: url('/fonts/Tajawal-ExtraLight.ttf') format('truetype');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-tajawal: 'Tajawal', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
+  --font-prestige: 'Tajawal', 'Georgia', 'Times New Roman', serif;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  html[dir="rtl"] {
+    direction: rtl;
+  }
+  
+  html[dir="rtl"] .rtl-flip {
+    transform: scaleX(-1);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .font-tajawal {
+    font-family: var(--font-tajawal);
+  }
+  
+  .font-prestige {
+    font-family: var(--font-prestige);
+  }
+  
+  /* Accessibility improvements */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in,
+    .animate-slide-up,
+    .animate-bounce,
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .gradient-text {
+      @apply text-purple-900 bg-none;
+    }
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-purple-900 to-yellow-700 bg-clip-text text-transparent;
+  }
+  
+  /* Improved contrast for buttons and interactive elements */
+  .btn-primary {
+    @apply bg-purple-800 hover:bg-purple-900 focus:ring-purple-700 focus:ring-4 focus:ring-opacity-50;
+  }
+  
+  .btn-secondary {
+    @apply bg-yellow-600 hover:bg-yellow-700 text-gray-900 focus:ring-yellow-500 focus:ring-4 focus:ring-opacity-50;
+  }
+
+  .luxury-shadow {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  }
+
+  .hero-blur {
+    backdrop-filter: blur(10px);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.8s ease-out;
+}
+
+.animate-count-up {
+  animation: countUp 2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0; 
+    transform: translateY(30px);
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0);
+  }
+}
+
+@keyframes countUp {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400;
+}
+
+/* RTL specific styles */
+[dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+  margin-right: calc(1rem * var(--tw-space-x-reverse));
+  margin-left: calc(1rem * calc(1 - var(--tw-space-x-reverse)));
+}
+
+[dir="rtl"] .space-x-6 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+  margin-right: calc(1.5rem * var(--tw-space-x-reverse));
+  margin-left: calc(1.5rem * calc(1 - var(--tw-space-x-reverse)));
+}
+
+[dir="rtl"] .space-x-8 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+  margin-right: calc(2rem * var(--tw-space-x-reverse));
+  margin-left: calc(2rem * calc(1 - var(--tw-space-x-reverse)));
+}

@@ -1,0 +1,459 @@
+
+### Yalla London CMS - API Test Collection
+### Use with VS Code REST Client extension or similar tools
+
+@baseUrl = {{$dotenv STAGING_URL}}
+@contentType = application/json
+
+###############################################################################
+# HEALTH CHECK
+###############################################################################
+
+### Health Check
+GET {{baseUrl}}/api/health
+
+### 
+
+###############################################################################
+# SOCIAL EMBEDS (Phase 3.2)
+###############################################################################
+
+### Get All Social Embeds
+GET {{baseUrl}}/api/social-embeds
+
+###
+
+### Create Instagram Embed
+POST {{baseUrl}}/api/social-embeds
+Content-Type: {{contentType}}
+
+{
+  "platform": "instagram",
+  "url": "https://www.instagram.com/p/C1234567890/",
+  "title": "Luxury afternoon tea at Claridges",
+  "author": "@yallalondon"
+}
+
+###
+
+### Create TikTok Embed  
+POST {{baseUrl}}/api/social-embeds
+Content-Type: {{contentType}}
+
+{
+  "platform": "tiktok", 
+  "url": "https://www.tiktok.com/@user/video/1234567890123456789",
+  "title": "Hidden gems of Covent Garden",
+  "author": "@londonfoodie"
+}
+
+###
+
+### Create YouTube Embed
+POST {{baseUrl}}/api/social-embeds
+Content-Type: {{contentType}}
+
+{
+  "platform": "youtube",
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", 
+  "title": "Best luxury restaurants in London 2024",
+  "author": "Yalla London"
+}
+
+###
+
+### Create Facebook Embed
+POST {{baseUrl}}/api/social-embeds
+Content-Type: {{contentType}}
+
+{
+  "platform": "facebook",
+  "url": "https://www.facebook.com/watch?v=1234567890123456",
+  "title": "London Fashion Week highlights", 
+  "author": "London Fashion Week"
+}
+
+###
+
+### Get Social Embed by ID
+GET {{baseUrl}}/api/social-embeds/{{embedId}}
+
+###
+
+### Update Social Embed
+PATCH {{baseUrl}}/api/social-embeds/{{embedId}}
+Content-Type: {{contentType}}
+
+{
+  "title": "Updated: Luxury afternoon tea at Claridges",
+  "author": "@yallalondon_official",
+  "status": "active"
+}
+
+###
+
+### Track Embed Usage
+POST {{baseUrl}}/api/social-embeds/{{embedId}}/track-usage
+
+###
+
+### Delete Social Embed
+DELETE {{baseUrl}}/api/social-embeds/{{embedId}}
+
+###
+
+###############################################################################
+# MEDIA LIBRARY (Phase 3.3)
+###############################################################################
+
+### Get All Media Assets
+GET {{baseUrl}}/api/media
+
+###
+
+### Get Media Assets by Type
+GET {{baseUrl}}/api/media?fileType=image&limit=20
+
+###
+
+### Upload Media File (multipart/form-data)
+POST {{baseUrl}}/api/media/upload
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="london-hero.jpg"
+Content-Type: image/jpeg
+
+< ./test-assets/london-hero.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+### Get Media Asset by ID
+GET {{baseUrl}}/api/media/{{assetId}}
+
+###
+
+### Update Media Asset Metadata
+PATCH {{baseUrl}}/api/media/{{assetId}}
+Content-Type: {{contentType}}
+
+{
+  "title": "London Skyline at Sunset",
+  "altText": "Panoramic view of London skyline during golden hour with Thames river",
+  "description": "Beautiful sunset view of London's iconic skyline featuring modern skyscrapers and historic architecture along the Thames river",
+  "tags": ["london", "skyline", "sunset", "thames", "city", "architecture"],
+  "licenseInfo": "Creative Commons Attribution 4.0"
+}
+
+###
+
+### Set Media Asset Role
+POST {{baseUrl}}/api/media/{{assetId}}/set-role
+Content-Type: {{contentType}}
+
+{
+  "role": "hero-image"
+}
+
+###
+
+### Delete Media Asset
+DELETE {{baseUrl}}/api/media/{{assetId}}
+
+###
+
+###############################################################################
+# HOMEPAGE BUILDER (Phase 3.4)
+###############################################################################
+
+### Get All Homepage Blocks
+GET {{baseUrl}}/api/homepage-blocks
+
+###
+
+### Get Homepage Blocks by Version
+GET {{baseUrl}}/api/homepage-blocks?version=published
+
+###
+
+### Create Homepage Block
+POST {{baseUrl}}/api/homepage-blocks
+Content-Type: {{contentType}}
+
+{
+  "type": "hero",
+  "title_en": "Discover Luxury London",
+  "title_ar": "اكتشف لندن الفاخرة", 
+  "content_en": "Your curated guide to the finest luxury experiences in London",
+  "content_ar": "دليلك المنسق لأفضل التجارب الفاخرة في لندن",
+  "config": {
+    "backgroundColor": "#1a1a1a",
+    "textColor": "#ffffff",
+    "buttonColor": "#d4af37",
+    "layout": "centered"
+  },
+  "media_id": "{{heroImageId}}",
+  "position": 0,
+  "enabled": true,
+  "language": "both"
+}
+
+###
+
+### Create Featured Experiences Block
+POST {{baseUrl}}/api/homepage-blocks
+Content-Type: {{contentType}}
+
+{
+  "type": "featured-experiences",
+  "title_en": "Featured Experiences",
+  "title_ar": "التجارب المميزة",
+  "content_en": "Hand-picked luxury experiences in London",
+  "content_ar": "تجارب فاخرة مختارة بعناية في لندن",
+  "config": {
+    "maxItems": 6,
+    "layout": "grid",
+    "showPrice": true,
+    "showRating": true
+  },
+  "position": 1,
+  "enabled": true,
+  "language": "both"
+}
+
+###
+
+### Create Events Block
+POST {{baseUrl}}/api/homepage-blocks
+Content-Type: {{contentType}}
+
+{
+  "type": "events",
+  "title_en": "Upcoming Events",
+  "title_ar": "الفعاليات القادمة",
+  "content_en": "Don't miss these exclusive London events",
+  "content_ar": "لا تفوت هذه الفعاليات الحصرية في لندن",
+  "config": {
+    "maxItems": 4,
+    "layout": "carousel",
+    "showDate": true,
+    "showLocation": true
+  },
+  "position": 2,
+  "enabled": true,
+  "language": "both"
+}
+
+###
+
+### Get Homepage Block by ID
+GET {{baseUrl}}/api/homepage-blocks/{{blockId}}
+
+###
+
+### Update Homepage Block
+PATCH {{baseUrl}}/api/homepage-blocks/{{blockId}}
+Content-Type: {{contentType}}
+
+{
+  "title_en": "Updated: Discover Luxury London",
+  "config": {
+    "backgroundColor": "#2a2a2a",
+    "textColor": "#ffffff", 
+    "buttonColor": "#ffd700"
+  },
+  "enabled": true
+}
+
+###
+
+### Reorder Homepage Blocks
+POST {{baseUrl}}/api/homepage-blocks/reorder
+Content-Type: {{contentType}}
+
+{
+  "blocks": [
+    {"id": "{{blockId1}}", "position": 0},
+    {"id": "{{blockId2}}", "position": 1},
+    {"id": "{{blockId3}}", "position": 2}
+  ]
+}
+
+###
+
+### Publish Homepage Blocks
+POST {{baseUrl}}/api/homepage-blocks/publish
+Content-Type: {{contentType}}
+
+{
+  "blocks": [
+    {
+      "id": "{{blockId1}}",
+      "type": "hero",
+      "title_en": "Discover Luxury London",
+      "title_ar": "اكتشف لندن الفاخرة",
+      "content_en": "Your curated guide to luxury experiences",
+      "content_ar": "دليلك للتجارب الفاخرة",
+      "config": {"backgroundColor": "#1a1a1a"},
+      "media_id": "{{heroImageId}}",
+      "position": 0,
+      "enabled": true
+    }
+  ]
+}
+
+###
+
+### Delete Homepage Block
+DELETE {{baseUrl}}/api/homepage-blocks/{{blockId}}
+
+###
+
+###############################################################################
+# DATABASE BACKUPS (Phase 3.5)  
+###############################################################################
+
+### Get All Database Backups
+GET {{baseUrl}}/api/database/backups
+
+###
+
+### Create Manual Backup
+POST {{baseUrl}}/api/database/backups
+Content-Type: {{contentType}}
+
+{
+  "backupName": "staging-test-backup",
+  "backupType": "manual"
+}
+
+###
+
+### Get Database Stats
+GET {{baseUrl}}/api/database/stats
+
+###
+
+### Get Backup by ID
+GET {{baseUrl}}/api/database/backups/{{backupId}}
+
+###
+
+### Download Backup
+GET {{baseUrl}}/api/database/backups/{{backupId}}/download
+
+###
+
+### Restore Database (CAREFUL!)
+POST {{baseUrl}}/api/database/backups/{{backupId}}/restore
+Content-Type: {{contentType}}
+
+{}
+
+###
+
+### Delete Backup
+DELETE {{baseUrl}}/api/database/backups/{{backupId}}
+
+###
+
+###############################################################################
+# ADMIN ENDPOINTS
+###############################################################################
+
+### Get Admin Settings
+GET {{baseUrl}}/api/admin/settings
+
+###
+
+### Update Admin Settings  
+POST {{baseUrl}}/api/admin/settings
+Content-Type: {{contentType}}
+
+{
+  "seoSettings": {
+    "metaTitle": "Yalla London - Luxury London Guide",
+    "metaDescription": "Your curated guide to the finest luxury experiences in London",
+    "googleAnalyticsId": "G-STAGING123"
+  },
+  "brandSettings": {
+    "primaryColor": "#d4af37",
+    "secondaryColor": "#1a1a1a"
+  }
+}
+
+###
+
+### Test Integration
+POST {{baseUrl}}/api/admin/test-integration
+Content-Type: {{contentType}}
+
+{
+  "service": "s3",
+  "action": "test-upload"
+}
+
+###
+
+### Get Scheduled Content
+GET {{baseUrl}}/api/admin/scheduled-content?status=pending
+
+###
+
+###############################################################################
+# SEO & CONTENT ENDPOINTS
+###############################################################################
+
+### Generate SEO Meta
+POST {{baseUrl}}/api/seo/generate-meta
+Content-Type: {{contentType}}
+
+{
+  "content": "This is a luxury restaurant review for the best fine dining in London",
+  "language": "en",
+  "contentType": "blog_post"
+}
+
+###
+
+### Analyze Content for SEO
+POST {{baseUrl}}/api/seo/analyze-content
+Content-Type: {{contentType}}
+
+{
+  "title": "Best Luxury Hotels in London 2024",
+  "content": "London offers some of the world's most prestigious hotels...",
+  "targetKeywords": ["luxury hotels London", "best hotels London", "5 star hotels"]
+}
+
+###
+
+### Generate Sitemap
+GET {{baseUrl}}/api/sitemap/generate
+
+###
+
+### Generate Content
+POST {{baseUrl}}/api/generate-content
+Content-Type: {{contentType}}
+
+{
+  "topic": "luxury shopping in london",
+  "contentType": "blog_post",
+  "language": "en",
+  "targetAudience": "luxury travelers"
+}
+
+###
+
+###############################################################################
+# VARIABLES FOR REFERENCE
+###############################################################################
+
+# Replace these with actual IDs from your staging data:
+# @embedId = clp123abc456def789ghi012
+# @assetId = clm456def789ghi012jkl345  
+# @blockId = clq789ghi012jkl345mno678
+# @backupId = cls012jkl345mno678pqr901
+# @heroImageId = clt345mno678pqr901stu234

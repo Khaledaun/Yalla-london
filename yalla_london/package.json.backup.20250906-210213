@@ -7,7 +7,10 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "echo 'skip prisma generate on install'",
-    "prebuild": "env -i PATH=$PATH PWD=$(pwd) HOME=.home XDG_CACHE_HOME=.cache XDG_CONFIG_HOME=.config PRISMA_CLI_QUERY_ENGINE_TYPE=binary PRISMA_ENGINES_CACHE_DIR=.prisma/cache TMPDIR=.tmp npm_config_cache=.npm-cache prisma generate --schema prisma/schema.prisma"
+    "prebuild": "HOME=.home XDG_CACHE_HOME=.cache XDG_CONFIG_HOME=.config PRISMA_ENGINES_CACHE_DIR=.prisma/cache TMPDIR=.tmp prisma generate --schema prisma/schema.prisma"
+  },
+  "prisma": {
+    "seed": "tsx --require dotenv/config scripts/seed.ts"
   },
   "devDependencies": {
     "@next/swc-wasm-nodejs": "13.5.1",

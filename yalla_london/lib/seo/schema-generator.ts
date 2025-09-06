@@ -478,7 +478,7 @@ export class SchemaGenerator {
     }
 
     if (place.amenities && place.amenities.length > 0) {
-      schema.amenityFeature = place.amenities.map(amenity => ({
+      schema.amenityFeature = place.amenities.map((amenity: any) => ({
         '@type': 'PropertyValue',
         name: amenity,
         value: true
@@ -492,7 +492,7 @@ export class SchemaGenerator {
     return {
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
-      mainEntity: faqs.map(faq => ({
+      mainEntity: faqs.map((faq: any) => ({
         '@type': 'Question',
         name: faq.question,
         acceptedAnswer: {
@@ -520,7 +520,7 @@ export class SchemaGenerator {
       '@type': 'HowTo',
       name: howTo.name,
       description: howTo.description,
-      step: howTo.steps.map(step => ({
+      step: howTo.steps.map((step: any) => ({
         '@type': 'HowToStep',
         name: step.name,
         text: step.text,

@@ -203,17 +203,17 @@ async function analyzeInternalLinks(): Promise<NextResponse> {
 
   // Find orphaned pages (no inbound links)
   analysis.orphanedPages = mockPages
-    .filter(page => page.inboundLinks.length === 0 && page.url !== `${baseUrl}/`)
-    .map(page => page.url);
+    .filter((page: any) => page.inboundLinks.length === 0 && page.url !== `${baseUrl}/`)
+    .map((page: any) => page.url);
 
   // Identify strongly and weakly linked pages
   const pagesByInboundLinks = mockPages
-    .map(page => ({ url: page.url, linkCount: page.inboundLinks.length }))
+    .map((page: any) => ({ url: page.url, linkCount: page.inboundLinks.length }))
     .sort((a, b) => b.linkCount - a.linkCount);
 
   analysis.stronglyLinkedPages = pagesByInboundLinks.slice(0, 3);
   analysis.weaklyLinkedPages = pagesByInboundLinks
-    .filter(page => page.linkCount <= 1 && page.url !== `${baseUrl}/`)
+    .filter((page: any) => page.linkCount <= 1 && page.url !== `${baseUrl}/`)
     .slice(0, 5);
 
   // Generate link suggestions
@@ -395,7 +395,7 @@ async function fixBrokenLinks(brokenLinks: any[]): Promise<NextResponse> {
     return NextResponse.json({
       success: true,
       message: `Fixed ${brokenLinks.length} broken links`,
-      fixed: brokenLinks.map(link => ({
+      fixed: brokenLinks.map((link: any) => ({
         original: link.url,
         status: 'redirected',
         action: 'Created 301 redirect'
@@ -424,7 +424,7 @@ async function implementLinkSuggestions(suggestions: InternalLink[]): Promise<Ne
     return NextResponse.json({
       success: true,
       message: `Implemented ${suggestions.length} link suggestions`,
-      implemented: suggestions.map(suggestion => ({
+      implemented: suggestions.map((suggestion: any) => ({
         fromUrl: suggestion.fromUrl,
         toUrl: suggestion.toUrl,
         anchorText: suggestion.anchorText,
@@ -445,13 +445,13 @@ function generateLinkSuggestions(pages: PageContent[]): InternalLink[] {
   const suggestions: InternalLink[] = [];
   
   // Simple algorithm to suggest internal links based on keyword matching
-  pages.forEach(fromPage => {
-    pages.forEach(toPage => {
+  pages.forEach((fromPage: any) => {
+    pages.forEach((toPage: any) => {
       if (fromPage.url === toPage.url) return;
       if (fromPage.internalLinks.includes(toPage.url)) return;
       
       // Calculate relevance based on keyword overlap
-      const commonKeywords = fromPage.keywords.filter(keyword => 
+      const commonKeywords = fromPage.keywords.filter((keyword: any) => 
         toPage.keywords.includes(keyword) || toPage.title.toLowerCase().includes(keyword)
       );
       

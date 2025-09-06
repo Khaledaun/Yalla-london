@@ -77,7 +77,7 @@ export class ContentScheduler {
   // Align to preferred posting times
   private alignToPreferredTime(date: Date): Date {
     const hours = date.getHours();
-    const preferredHours = this.publishingRules.preferredTimes.map(time => parseInt(time.split(':')[0]));
+    const preferredHours = this.publishingRules.preferredTimes.map((time: any) => parseInt(time.split(':')[0]));
     
     // Find the next preferred hour
     const nextPreferredHour = preferredHours.find(hour => hour >= hours) || preferredHours[0];

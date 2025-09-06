@@ -113,7 +113,7 @@ function generateSitemapIndex() {
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${sitemaps.map(sitemap => `  <sitemap>
+${sitemaps.map((sitemap: any) => `  <sitemap>
     <loc>${baseUrl}/api/sitemap/enhanced-generate?type=${sitemap.path.replace('sitemap-', '').replace('.xml', '')}</loc>
     <lastmod>${sitemap.lastmod}</lastmod>
   </sitemap>`).join('\n')}
@@ -344,7 +344,7 @@ function generateXmlResponse(urls: SitemapUrl[], type: 'standard' | 'image' | 'v
         xmlns:xhtml="http://www.w3.org/1999/xhtml">\n`;
   }
 
-  urls.forEach(url => {
+  urls.forEach((url: any) => {
     xml += `  <url>\n`;
     xml += `    <loc>${escapeXml(url.loc)}</loc>\n`;
     
@@ -362,14 +362,14 @@ function generateXmlResponse(urls: SitemapUrl[], type: 'standard' | 'image' | 'v
 
     // Add hreflang alternates
     if (url.alternates) {
-      url.alternates.forEach(alt => {
+      url.alternates.forEach((alt: any) => {
         xml += `    <xhtml:link rel="alternate" hreflang="${alt.hreflang}" href="${escapeXml(alt.href)}" />\n`;
       });
     }
 
     // Add images
     if (url.images) {
-      url.images.forEach(img => {
+      url.images.forEach((img: any) => {
         xml += `    <image:image>\n`;
         xml += `      <image:loc>${escapeXml(img.loc)}</image:loc>\n`;
         if (img.title) {
@@ -384,7 +384,7 @@ function generateXmlResponse(urls: SitemapUrl[], type: 'standard' | 'image' | 'v
 
     // Add videos
     if (url.videos) {
-      url.videos.forEach(video => {
+      url.videos.forEach((video: any) => {
         xml += `    <video:video>\n`;
         xml += `      <video:thumbnail_loc>${escapeXml(video.thumbnail_loc)}</video:thumbnail_loc>\n`;
         xml += `      <video:title>${escapeXml(video.title)}</video:title>\n`;

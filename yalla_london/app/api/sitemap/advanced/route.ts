@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     
     // Example: Add blog posts
     // const blogPosts = await getBlogPosts()
-    // blogPosts.forEach(post => {
+    // blogPosts.forEach((post: any) => {
     //   sitemapGenerator.addBlogPost({
     //     slug: post.slug,
     //     lastModified: post.updatedAt,

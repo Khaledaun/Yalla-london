@@ -32,9 +32,9 @@ export async function POST(request: NextRequest) {
 }
 
 function analyzeContent(content: string, title: string, keywords: string[], language: 'en' | 'ar') {
-  const words = content.split(/\s+/).filter(w => w.length > 0)
+  const words = content.split(/\s+/).filter((w: any) => w.length > 0)
   const wordCount = words.length
-  const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0)
+  const sentences = content.split(/[.!?]+/).filter((s: any) => s.trim().length > 0)
   const avgWordsPerSentence = wordCount / sentences.length
 
   // Calculate readability (simplified Flesch score)
@@ -44,7 +44,7 @@ function analyzeContent(content: string, title: string, keywords: string[], lang
 
   // Calculate keyword density
   const keywordDensity: { [key: string]: number } = {}
-  keywords.forEach(keyword => {
+  keywords.forEach((keyword: any) => {
     const regex = new RegExp(keyword.toLowerCase(), 'gi')
     const matches = content.toLowerCase().match(regex) || []
     keywordDensity[keyword] = matches.length / wordCount

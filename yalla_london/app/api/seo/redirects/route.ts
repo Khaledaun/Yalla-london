@@ -206,9 +206,9 @@ async function getRedirects(): Promise<NextResponse> {
     data: {
       redirects: mockRedirects,
       total: mockRedirects.length,
-      active: mockRedirects.filter(r => r.isActive).length,
-      permanent: mockRedirects.filter(r => r.statusCode === 301).length,
-      temporary: mockRedirects.filter(r => r.statusCode !== 301).length
+      active: mockRedirects.filter((r: any) => r.isActive).length,
+      permanent: mockRedirects.filter((r: any) => r.statusCode === 301).length,
+      temporary: mockRedirects.filter((r: any) => r.statusCode !== 301).length
     },
     timestamp: new Date().toISOString()
   });
@@ -319,9 +319,9 @@ async function validateRedirects(): Promise<NextResponse> {
 
   const summary = {
     total: validationResults.length,
-    valid: validationResults.filter(r => r.valid).length,
-    invalid: validationResults.filter(r => !r.valid).length,
-    warnings: validationResults.filter(r => r.redirectChain > 1).length
+    valid: validationResults.filter((r: any) => r.valid).length,
+    invalid: validationResults.filter((r: any) => !r.valid).length,
+    warnings: validationResults.filter((r: any) => r.redirectChain > 1).length
   };
 
   return NextResponse.json({

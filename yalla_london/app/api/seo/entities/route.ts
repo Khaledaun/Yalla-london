@@ -67,11 +67,11 @@ export async function GET(request: NextRequest) {
     let filteredEntities = mockEntities;
     
     if (type && type !== 'all') {
-      filteredEntities = filteredEntities.filter(entity => entity.type === type);
+      filteredEntities = filteredEntities.filter((entity: any) => entity.type === type);
     }
     
     if (search) {
-      filteredEntities = filteredEntities.filter(entity =>
+      filteredEntities = filteredEntities.filter((entity: any) =>
         entity.name.toLowerCase().includes(search.toLowerCase()) ||
         entity.description.toLowerCase().includes(search.toLowerCase())
       );

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform to camelCase for frontend
-    const transformedContent = scheduledContent.map(content => ({
+    const transformedContent = scheduledContent.map((content: any) => ({
       id: content.id,
       title: content.title,
       content: content.content,

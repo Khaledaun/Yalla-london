@@ -80,7 +80,7 @@ async function generateSitemapIndex(baseUrl: string): Promise<string> {
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${sitemaps.map(sitemap => `  <sitemap>
+${sitemaps.map((sitemap: any) => `  <sitemap>
     <loc>${baseUrl}/sitemap-${sitemap.name}.xml</loc>
     <lastmod>${sitemap.lastmod}</lastmod>
   </sitemap>`).join('\n')}
@@ -105,7 +105,7 @@ async function generatePagesSitemap(baseUrl: string): Promise<string> {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
-${staticPages.map(page => `  <url>
+${staticPages.map((page: any) => `  <url>
     <loc>${baseUrl}${page.url}</loc>
     <lastmod>${new Date().toISOString()}</lastmod>
     <changefreq>${page.changefreq}</changefreq>
@@ -138,7 +138,7 @@ async function generateArticlesSitemap(baseUrl: string): Promise<string> {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
-${articles.map(article => `  <url>
+${articles.map((article: any) => `  <url>
     <loc>${baseUrl}/blog/${article.slug}</loc>
     <lastmod>${article.updated_at.toISOString()}</lastmod>
     <changefreq>weekly</changefreq>
@@ -190,7 +190,7 @@ async function generatePlacesSitemap(baseUrl: string): Promise<string> {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
-${places.map(place => `  <url>
+${places.map((place: any) => `  <url>
     <loc>${baseUrl}/recommendations/${place.id}</loc>
     <lastmod>${place.updated_at.toISOString()}</lastmod>
     <changefreq>monthly</changefreq>
@@ -233,7 +233,7 @@ async function generateNewsSitemap(baseUrl: string): Promise<string> {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
-${newsArticles.map(article => `  <url>
+${newsArticles.map((article: any) => `  <url>
     <loc>${baseUrl}/blog/${article.slug}</loc>
     <news:news>
       <news:publication>

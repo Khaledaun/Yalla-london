@@ -259,7 +259,7 @@ async function testSMTP(keyName: string): Promise<TestResult> {
     });
 
     const settings: Record<string, string> = {};
-    smtpSettings.forEach(s => {
+    smtpSettings.forEach((s: any) => {
       settings[s.key_name] = s.key_value;
     });
 

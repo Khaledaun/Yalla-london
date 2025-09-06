@@ -78,7 +78,7 @@ export class InternalLinkingEngine {
       const matches = contentLower.match(keywordRegex);
       
       if (matches) {
-        urls.forEach(url => {
+        urls.forEach((url: any) => {
           // Don't link to current page
           if (url !== currentUrl) {
             const relevanceScore = this.calculateRelevanceScore(keyword, content, url);
@@ -95,7 +95,7 @@ export class InternalLinkingEngine {
     });
 
     // Find semantic links based on content entities
-    this.entities.forEach(entity => {
+    this.entities.forEach((entity: any) => {
       if (entity.url !== currentUrl && entity.language === language) {
         const semanticScore = this.calculateSemanticSimilarity(content, entity.content);
         if (semanticScore > 0.3) {
@@ -123,7 +123,7 @@ export class InternalLinkingEngine {
     // Take top suggestions up to maxLinks
     const topSuggestions = suggestions.slice(0, maxLinks);
 
-    topSuggestions.forEach(suggestion => {
+    topSuggestions.forEach((suggestion: any) => {
       if (linksAdded < maxLinks) {
         const linkRegex = new RegExp(`\\b${suggestion.anchor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
         
@@ -144,7 +144,7 @@ export class InternalLinkingEngine {
   generateRelatedContent(currentEntity: ContentEntity, limit: number = 6): ContentEntity[] {
     const related: Array<{entity: ContentEntity, score: number}> = [];
 
-    this.entities.forEach(entity => {
+    this.entities.forEach((entity: any) => {
       if (entity.id !== currentEntity.id && entity.language === currentEntity.language) {
         const score = this.calculateContentSimilarity(currentEntity, entity);
         if (score > 0.2) {
@@ -156,7 +156,7 @@ export class InternalLinkingEngine {
     return related
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
-      .map(item => item.entity);
+      .map((item: any) => item.entity);
   }
 
   // Generate topic clusters for SEO
@@ -164,9 +164,9 @@ export class InternalLinkingEngine {
     const clusters = new Map<string, ContentEntity[]>();
     const categories = ['events', 'restaurants', 'hotels', 'attractions', 'shopping', 'nightlife'];
 
-    categories.forEach(category => {
+    categories.forEach((category: any) => {
       const categoryEntities = Array.from(this.entities.values())
-        .filter(entity => entity.category === category && entity.language === language);
+        .filter((entity: any) => entity.category === category && entity.language === language);
       
       if (categoryEntities.length > 0) {
         clusters.set(category, categoryEntities);
@@ -242,10 +242,10 @@ export class InternalLinkingEngine {
 
   private calculateSemanticSimilarity(content1: string, content2: string): number {
     // Simple keyword overlap similarity
-    const words1 = content1.toLowerCase().split(/\W+/).filter(w => w.length > 3);
-    const words2 = content2.toLowerCase().split(/\W+/).filter(w => w.length > 3);
+    const words1 = content1.toLowerCase().split(/\W+/).filter((w: any) => w.length > 3);
+    const words2 = content2.toLowerCase().split(/\W+/).filter((w: any) => w.length > 3);
     
-    const overlap = words1.filter(word => words2.includes(word));
+    const overlap = words1.filter((word: any) => words2.includes(word));
     return overlap.length / Math.max(words1.length, words2.length);
   }
 
@@ -256,7 +256,7 @@ export class InternalLinkingEngine {
     if (entity1.category === entity2.category) score += 0.4;
 
     // Keyword overlap
-    const keywordOverlap = entity1.keywords.filter(k => entity2.keywords.includes(k));
+    const keywordOverlap = entity1.keywords.filter((k: any) => entity2.keywords.includes(k));
     score += (keywordOverlap.length / Math.max(entity1.keywords.length, entity2.keywords.length)) * 0.6;
 
     return score;
@@ -282,7 +282,7 @@ export class InternalLinkingEngine {
   private deduplicateAndSort(suggestions: InternalLink[]): InternalLink[] {
     const seen = new Set();
     return suggestions
-      .filter(suggestion => {
+      .filter((suggestion: any) => {
         const key = `${suggestion.anchor}-${suggestion.url}`;
         if (seen.has(key)) return false;
         seen.add(key);

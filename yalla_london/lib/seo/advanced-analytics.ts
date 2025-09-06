@@ -47,7 +47,7 @@ export class AdvancedAnalytics {
         (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100
       );
 
-      milestones.forEach(milestone => {
+      milestones.forEach((milestone: any) => {
         if (scrollPercent >= milestone && maxScroll < milestone) {
           maxScroll = milestone;
           this.trackSEOEvent('scroll_depth', {
@@ -70,7 +70,7 @@ export class AdvancedAnalytics {
     const startTime = Date.now();
     const intervals = [30, 60, 120, 300]; // 30s, 1m, 2m, 5m
 
-    intervals.forEach(seconds => {
+    intervals.forEach((seconds: any) => {
       setTimeout(() => {
         if (document.visibilityState === 'visible') {
           this.trackSEOEvent('time_on_page', {
@@ -322,7 +322,7 @@ export class AEOAnalytics {
     const schemaCount = scriptTags.length;
     
     let validSchemas = 0;
-    scriptTags.forEach(script => {
+    scriptTags.forEach((script: any) => {
       try {
         JSON.parse(script.textContent || '');
         validSchemas++;

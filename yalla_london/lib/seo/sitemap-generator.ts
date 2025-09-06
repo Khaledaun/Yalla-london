@@ -57,7 +57,7 @@ export class SitemapGenerator {
       }
     ];
 
-    staticPages.forEach(page => {
+    staticPages.forEach((page: any) => {
       // English version
       this.addEntry({
         url: `${this.baseUrl}${page.path}`,
@@ -98,7 +98,7 @@ export class SitemapGenerator {
     const enUrl = `${this.baseUrl}/blog/${post.slug}`;
     const arUrl = `${this.baseUrl}/ar/blog/${post.slug}`;
 
-    const imageEntries = post.images?.map(img => ({
+    const imageEntries = post.images?.map((img: any) => ({
       url: img,
       title: post.title,
       caption: post.title
@@ -133,7 +133,7 @@ export class SitemapGenerator {
     const isUpcoming = eventDate > new Date();
     const priority = isUpcoming ? 0.9 : 0.6;
 
-    const imageEntries = event.images?.map(img => ({
+    const imageEntries = event.images?.map((img: any) => ({
       url: img,
       title: event.title,
       caption: event.title
@@ -163,7 +163,7 @@ export class SitemapGenerator {
     const enUrl = `${this.baseUrl}/recommendations/${recommendation.category}/${recommendation.slug}`;
     const arUrl = `${this.baseUrl}/ar/recommendations/${recommendation.category}/${recommendation.slug}`;
 
-    const imageEntries = recommendation.images?.map(img => ({
+    const imageEntries = recommendation.images?.map((img: any) => ({
       url: img,
       title: recommendation.title,
       caption: recommendation.title
@@ -184,7 +184,7 @@ export class SitemapGenerator {
 
   // Generate main sitemap XML
   generateSitemapXML(): string {
-    const urlEntries = this.entries.map(entry => {
+    const urlEntries = this.entries.map((entry: any) => {
       let urlXml = `  <url>
     <loc>${entry.url}</loc>
     <lastmod>${entry.lastModified}</lastmod>
@@ -193,7 +193,7 @@ export class SitemapGenerator {
 
       // Add alternate language links
       if (entry.alternateUrls) {
-        entry.alternateUrls.forEach(alt => {
+        entry.alternateUrls.forEach((alt: any) => {
           urlXml += `
     <xhtml:link rel="alternate" hreflang="${alt.lang}" href="${alt.href}" />`;
         });
@@ -201,7 +201,7 @@ export class SitemapGenerator {
 
       // Add image entries
       if (entry.images) {
-        entry.images.forEach(image => {
+        entry.images.forEach((image: any) => {
           urlXml += `
     <image:image>
       <image:loc>${image.url}</image:loc>
@@ -226,7 +226,7 @@ ${urlEntries}
 
   // Generate sitemap index for large sites
   generateSitemapIndex(sitemaps: string[]): string {
-    const sitemapEntries = sitemaps.map(sitemap => `  <sitemap>
+    const sitemapEntries = sitemaps.map((sitemap: any) => `  <sitemap>
     <loc>${this.baseUrl}/${sitemap}</loc>
     <lastmod>${new Date().toISOString()}</lastmod>
   </sitemap>`).join('\n');
@@ -283,13 +283,13 @@ Host: ${this.baseUrl}`;
     keywords?: string[];
   }>): string {
     const newsEntries = articles
-      .filter(article => {
+      .filter((article: any) => {
         // Only include articles from last 2 days for news sitemap
         const articleDate = new Date(article.publishDate);
         const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
         return articleDate >= twoDaysAgo;
       })
-      .map(article => `  <url>
+      .map((article: any) => `  <url>
     <loc>${article.url}</loc>
     <news:news>
       <news:publication>
@@ -320,7 +320,7 @@ ${newsEntries}
     publishDate?: string;
     tags?: string[];
   }>): string {
-    const videoEntries = videos.map(video => `  <url>
+    const videoEntries = videos.map((video: any) => `  <url>
     <loc>${video.pageUrl}</loc>
     <video:video>
       <video:thumbnail_loc>${video.thumbnailUrl}</video:thumbnail_loc>

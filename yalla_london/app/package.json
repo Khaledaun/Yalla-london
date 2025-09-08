@@ -10,6 +10,10 @@
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"
   },
+  "scripts_phase4a": {
+    "seed-phase4a": "tsx --require dotenv/config scripts/seed-phase4a-initial.ts",
+    "test-phase4a-schema": "tsx --require dotenv/config scripts/test-phase4a-schema.ts"
+  },
   "devDependencies": {
     "@next/swc-wasm-nodejs": "13.5.1",
     "@types/node": "20.6.2",

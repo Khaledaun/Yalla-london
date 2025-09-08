@@ -22,6 +22,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   posts         BlogPost[]
+  siteMembers   SiteMember[]
   
   @@map(name: "users")
 }
@@ -99,8 +100,18 @@ model BlogPost {
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
   
+  // Phase 4A extensions
+  pageType     String?  // guide, place, event, list, faq, news, itinerary
+  keywordsJson Json?    // SEO keywords data
+  questionsJson Json?   // FAQ/questions data
+  seoScore     Int?     // SEO audit score 0-100
+  ogImageId    String?  // Open Graph image reference
+  placeId      String?  // Related place reference
+  
   category     Category @relation(fields: [category_id], references: [id])
   author       User     @relation(fields: [author_id], references: [id])
+  ogImage      ImageAsset? @relation("BlogPostOGImage", fields: [ogImageId], references: [id])
+  place        Place?   @relation(fields: [placeId], references: [id])
 }
 
 model Recommendation {
@@ -154,6 +165,17 @@ model ScheduledContent {
   published      Boolean  @default(false)
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
+  
+  // Phase 4A extensions
+  pageType       String?  // guide, place, event, list, faq, news, itinerary
+  keywordsJson   Json?    // SEO keywords data
+  questionsJson  Json?    // FAQ/questions data
+  seoScore       Int?     // SEO audit score 0-100
+  ogImageId      String?  // Open Graph image reference
+  placeId        String?  // Related place reference
+  
+  ogImage        ImageAsset? @relation("ScheduledContentOGImage", fields: [ogImageId], references: [id])
+  place          Place?   @relation(fields: [placeId], references: [id])
 }
 
 // Phase 3.2 - Social Media Embeds
@@ -268,4 +290,187 @@ model ContentScheduleRule {
   is_active             Boolean  @default(true)
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
+}
+
+// Phase 4A - Content Automation Models
+
+model TopicProposal {
+  id                    String   @id @default(cuid())
+  locale                String   // en, ar
+  primaryKeyword        String
+  longtails             Json     // Array of longtail keywords
+  featuredLongtails     Json     // Featured longtail keywords
+  questions             Json     // Array of questions
+  authorityLinks        Json     // Array of {url, title, domain}
+  intent                String   // informational, commercial, navigational, transactional
+  suggestedPageType     String   // guide, place, event, list, faq, news, itinerary
+  suggestedWindowStart  DateTime?
+  suggestedWindowEnd    DateTime?
+  sourceWeights         Json     // Weighting for different sources
+  status                String   @default("pending") // pending, approved, rejected, used
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@index([locale, status])
+}
+
+model RulebookVersion {
+  id                    String   @id @default(cuid())
+  version               String   @unique // e.g., "2024.09.1"
+  changelog             String   @db.Text
+  weights               Json     // Scoring weights for content evaluation
+  schemaRequirements    Json     // Schema.org requirements per page type
+  prompts               Json     // AI prompts and templates
+  isActive              Boolean  @default(false)
+  created_at            DateTime @default(now())
+}
+
+model PageTypeRecipe {
+  id                    String   @id @default(cuid())
+  type                  String   @unique // guide, place, event, list, faq, news, itinerary
+  requiredBlocks        Json     // Required content blocks
+  optionalBlocks        Json     // Optional content blocks
+  schemaPlan            Json     // Schema.org structure plan
+  minWordCount          Int      @default(800)
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+}
+
+model Place {
+  id                    String   @id @default(cuid())
+  slug                  String   @unique
+  name                  String
+  category              String   // attraction, restaurant, hotel, etc.
+  address               String?
+  latitude              Float?
+  longitude             Float?
+  description           String?  @db.Text
+  website               String?
+  phone                 String?
+  openingHours          Json?    // Operating hours structure
+  priceRange            String?  // £, ££, £££, ££££
+  rating                Float?
+  images                String[] // Array of image URLs
+  tags                  String[] // Array of tags
+  metadata              Json?    // Additional place-specific data
+  status                String   @default("active") // active, inactive, pending
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  // Relations
+  scheduledContent      ScheduledContent[]
+  blogPosts             BlogPost[]
+  imageAssets           ImageAsset[]
+  videoAssets           VideoAsset[]
+}
+
+model ImageAsset {
+  id                    String   @id @default(cuid())
+  url                   String
+  width                 Int?
+  height                Int?
+  fileSize              Int?     // Size in bytes
+  mimeType              String?
+  attribution           String?  // Credit/attribution info
+  altText               String?
+  title                 String?
+  tags                  Json?    // Array of tags
+  placeId               String?  // Optional relation to Place
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  place                 Place?   @relation(fields: [placeId], references: [id])
+  blogPostsOG           BlogPost[] @relation("BlogPostOGImage")
+  scheduledContentOG    ScheduledContent[] @relation("ScheduledContentOGImage")
+}
+
+model VideoAsset {
+  id                    String   @id @default(cuid())
+  url                   String
+  duration              Int?     // Duration in seconds
+  width                 Int?
+  height                Int?
+  fileSize              Int?     // Size in bytes
+  mimeType              String?
+  attribution           String?  // Credit/attribution info
+  title                 String?
+  description           String?
+  tags                  Json?    // Array of tags
+  placeId               String?  // Optional relation to Place
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  place                 Place?   @relation(fields: [placeId], references: [id])
+}
+
+model AnalyticsSnapshot {
+  id                    String   @id @default(cuid())
+  date                  DateTime
+  range                 String   // 7d, 28d
+  ga                    Json     // Google Analytics data
+  gsc                   Json     // Google Search Console data
+  indexedPages          Int      // Number of indexed pages
+  created_at            DateTime @default(now())
+
+  @@unique([date, range])
+}
+
+model SeoAuditResult {
+  id                    String   @id @default(cuid())
+  contentId             String   // ID of the content being audited
+  contentType           String   // blog_post, scheduled_content, etc.
+  score                 Int      // SEO score 0-100
+  breakdown             Json     // Detailed scoring breakdown
+  suggestions           Json     // Array of improvement suggestions
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@index([contentId, contentType])
+}
+
+// Phase 4A - White-label/Multi-site scaffolding
+
+model Site {
+  id                    String   @id @default(cuid())
+  slug                  String   @unique
+  name                  String
+  domain                String?  @unique
+  description           String?
+  locale                String   @default("en") // Primary locale
+  supportedLocales      String[] @default(["en"]) // Supported locales
+  themeId               String?
+  status                String   @default("active") // active, inactive, pending
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  theme                 SiteTheme? @relation(fields: [themeId], references: [id])
+  members               SiteMember[]
+}
+
+model SiteTheme {
+  id                    String   @id @default(cuid())
+  name                  String
+  colors                Json     // Color scheme configuration
+  fonts                 Json     // Font configuration
+  layout                Json     // Layout preferences
+  customCSS             String?  @db.Text
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  sites                 Site[]
+}
+
+model SiteMember {
+  id                    String   @id @default(cuid())
+  siteId                String
+  userId                String
+  role                  String   @default("editor") // admin, editor, viewer
+  permissions           Json?    // Granular permissions
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  site                  Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, userId])
 }

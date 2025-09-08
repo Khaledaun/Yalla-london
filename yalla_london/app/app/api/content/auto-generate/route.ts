@@ -218,7 +218,7 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        content: generatedContent.map(item => ({
+        content: generatedContent.map((item: any) => ({
           id: item.id,
           type: item.type,
           language: item.language,

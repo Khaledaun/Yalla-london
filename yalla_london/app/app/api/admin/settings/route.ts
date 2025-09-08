@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform to camelCase for frontend
-    const transformedSettings = settings.map(setting => ({
+    const transformedSettings = settings.map((setting: any) => ({
       id: setting.id,
       keyName: setting.key_name,
       keyValue: setting.key_value,

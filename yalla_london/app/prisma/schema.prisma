@@ -99,8 +99,23 @@ model BlogPost {
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
   
+  // Phase 4+ Extensions
+  page_type                String?  // guide, place, event, list, faq, news, itinerary
+  keywords_json            Json?    // Primary + long-tail keywords
+  questions_json           Json?    // PAA-style questions
+  authority_links_json     Json?    // Authority source links used (3-4 links)
+  featured_longtails_json  Json?    // EXACTLY 2 featured long-tails
+  seo_score                Int?     // SEO audit score (0-100)
+  og_image_id              String?  // Reference to generated OG image
+  place_id                 String?  // Reference to Place if location-based
+  
   category     Category @relation(fields: [category_id], references: [id])
   author       User     @relation(fields: [author_id], references: [id])
+  place        Place?   @relation(fields: [place_id], references: [id])
+  
+  @@index([page_type])
+  @@index([place_id])
+  @@index([seo_score])
 }
 
 model Recommendation {
@@ -154,6 +169,21 @@ model ScheduledContent {
   published      Boolean  @default(false)
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
+  
+  // Phase 4+ Extensions
+  page_type              String?  // guide, place, event, list, faq, news, itinerary
+  topic_proposal_id      String?  // Reference to TopicProposal
+  seo_score              Int?     // SEO audit score (0-100)
+  generation_source      String?  // manual, topic_proposal, discovery_prompt
+  authority_links_used   Json?    // Track which authority links were used
+  longtails_used         Json?    // Track which long-tails were used
+
+  topic_proposal TopicProposal? @relation(fields: [topic_proposal_id], references: [id])
+
+  @@index([page_type])
+  @@index([topic_proposal_id])
+  @@index([seo_score])
+  @@index([generation_source])
 }
 
 // Phase 3.2 - Social Media Embeds
@@ -268,4 +298,231 @@ model ContentScheduleRule {
   is_active             Boolean  @default(true)
   created_at            DateTime @default(now())
   updated_at            DateTime @updatedAt
+}
+
+// =============================================================================
+// PHASE 4A: DATABASE SCHEMA ADDITIONS
+// =============================================================================
+
+// =============================================================================
+// PHASE 4B: TOPIC RESEARCH & CONTENT PIPELINE MODELS
+// =============================================================================
+
+// Weekly Topic Research with Authority Links & Featured Long-tails  
+model TopicProposal {
+  id                      String   @id @default(cuid())
+  locale                  String   // en, ar
+  primary_keyword         String
+  longtails               String[] // All long-tail keywords discovered (≥5)
+  featured_longtails      String[] // EXACTLY 2 selected for emphasis in articles
+  questions               String[] // PAA-style questions
+  authority_links_json    Json     // 3-4 items: {url, title, sourceDomain}
+  intent                  String   // info, transactional, event
+  suggested_page_type     String   // guide, place, event, list, faq, news, itinerary
+  suggested_window_start  DateTime?
+  suggested_window_end    DateTime?
+  source_weights_json     Json     // Citation weights and provenance
+  status                  String   @default("proposed") // proposed, approved, snoozed, rejected
+  confidence_score        Float?   // 0.0 - 1.0
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+  
+  // Relations
+  scheduled_content       ScheduledContent[]
+  
+  @@index([locale, status])
+  @@index([suggested_window_start, suggested_window_end])
+  @@index([status, confidence_score])
+}
+
+// Bi-monthly SEO/AEO Rulebook Management
+model RulebookVersion {
+  id                        String   @id @default(cuid())
+  version                   String   @unique // e.g., "2024.09.1"  
+  changelog                 String   @db.Text
+  weights_json              Json     // SEO scoring weights
+  schema_requirements_json  Json     // Required schema per page type
+  prompts_json              Json     // Generation prompt templates
+  is_active                 Boolean  @default(false)
+  created_at                DateTime @default(now())
+  
+  @@index([is_active])
+  @@index([created_at])
+}
+
+// Page Type Templates with Required/Optional Blocks
+model PageTypeRecipe {
+  id                String   @id @default(cuid())
+  type              String   @unique // guide, place, event, list, faq, news, itinerary
+  required_blocks   String[] // FAQ, Map, KeyFacts, etc.
+  optional_blocks   String[] // Gallery, Video, Social, etc.
+  schema_plan_json  Json     // Required JSON-LD schemas
+  min_word_count    Int      @default(800)
+  template_prompts_json Json // Generation prompts per locale
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+}
+
+// =============================================================================
+// PHASE 4F: ENHANCED MEDIA & PLACES MODELS
+// =============================================================================
+
+// Enhanced Image Assets (optimized for places & content)
+model ImageAsset {
+  id               String   @id @default(cuid())
+  url              String
+  cloud_storage_path String // S3 key - matches your MediaAsset pattern
+  width            Int
+  height           Int
+  attribution      String?
+  tags             String[]
+  place_id         String?
+  alt_text         String?
+  title            String?
+  responsive_variants_json Json? // Different sizes and formats
+  usage_count      Int      @default(0)
+  seo_keywords     String[] // SEO-relevant keywords for this image
+  auto_assigned    Boolean  @default(false) // Was this auto-assigned?
+  created_at       DateTime @default(now())
+  
+  place            Place?   @relation(fields: [place_id], references: [id])
+  
+  @@index([place_id])
+  @@index([tags])
+  @@index([auto_assigned])
+}
+
+model VideoAsset {
+  id               String   @id @default(cuid())
+  url              String
+  cloud_storage_path String // S3 key
+  duration_sec     Int?
+  poster_url       String?
+  attribution      String?
+  tags             String[]
+  place_id         String?
+  title            String?
+  description      String?
+  usage_count      Int      @default(0)
+  auto_assigned    Boolean  @default(false)
+  created_at       DateTime @default(now())
+  
+  place            Place?   @relation(fields: [place_id], references: [id])
+  
+  @@index([place_id])
+  @@index([tags])
+  @@index([auto_assigned])
+}
+
+// Places Database (30 London Places + expansion capability)
+model Place {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  category      String   // attraction, restaurant, hotel, stadium, market, etc.
+  lat           Float?
+  lng           Float?
+  address       String?
+  official_url  String?
+  short_desc    String?
+  tags          String[]
+  metadata_json Json?    // Additional place-specific data
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  
+  // Relations
+  blog_posts    BlogPost[]
+  image_assets  ImageAsset[]
+  video_assets  VideoAsset[]
+  
+  @@index([category])
+  @@index([tags])
+  @@index([slug])
+}
+
+// =============================================================================
+// PHASE 4E: ANALYTICS & PERFORMANCE TRACKING
+// =============================================================================
+
+// Analytics Snapshot Caching (GA4 & GSC data)
+model AnalyticsSnapshot {
+  id               String   @id @default(cuid())
+  site_id          String?  // For future multi-site support
+  date_range       String   // 7d, 28d
+  data_json        Json     // GA4 & GSC aggregated data
+  indexed_pages    Int      @default(0) // From GSC - triggers backlink offers at ≥40
+  top_queries      Json     // Top search queries
+  performance_metrics Json  // CTR, impressions, etc.
+  created_at       DateTime @default(now())
+  
+  @@index([date_range])
+  @@index([created_at])
+  @@index([indexed_pages])
+}
+
+// SEO Audit Results with Auto-fixes & Internal Link Offers
+model SeoAuditResult {
+  id                String   @id @default(cuid())
+  content_id        String   // BlogPost or ScheduledContent ID
+  content_type      String   // blog_post, scheduled_content
+  score             Int      // Overall SEO score (0-100)
+  breakdown_json    Json     // Detailed scoring breakdown
+  suggestions       Json     // Array of suggestions
+  quick_fixes       Json     // Auto-applicable fixes
+  internal_link_offers Json? // When indexed_pages >= 40
+  authority_links_used Json? // Track authority link usage
+  longtails_coverage Json?  // Track featured long-tail usage
+  audit_version     String   @default("1.0")
+  created_at        DateTime @default(now())
+  
+  @@index([content_id, content_type])
+  @@index([score])
+  @@index([created_at])
+}
+
+// =============================================================================
+// PHASE 4G: MULTI-SITE ARCHITECTURE (PREPARATORY)
+// =============================================================================
+
+// Multi-Site Support (extends your existing brand system)
+model Site {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  domain      String?  @unique
+  theme_id    String?
+  settings_json Json   // Site-specific configuration
+  logo_url    String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  // Relations
+  site_members SiteMember[]
+  site_themes  SiteTheme?   @relation(fields: [theme_id], references: [id])
+  
+  @@index([is_active])
+  @@index([slug])
+}
+
+model SiteTheme {
+  id           String   @id @default(cuid())
+  name         String
+  tokens_json  Json     // CSS variables and theme tokens (extends your brand system)
+  preview_url  String?
+  created_at   DateTime @default(now())
+  
+  // Relations
+  sites        Site[]
+}
+
+model SiteMember {
+  id      String   @id @default(cuid())
+  site_id String
+  user_id String
+  role    String   // OWNER, MANAGER, WORKER, ANALYST
+  
+  site    Site     @relation(fields: [site_id], references: [id], onDelete: Cascade)
+  
+  @@unique([site_id, user_id])
 }

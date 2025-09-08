@@ -1,6 +1,0 @@
-{
-  "framework": "nextjs",
-  "installCommand": "cd yalla_london/app && yarn install",
-  "buildCommand": "cd yalla_london/app && yarn build",
-  "outputDirectory": "yalla_london/app/.next"
-}

@@ -56,7 +56,7 @@ export class AutoContentScheduler {
         where: { is_active: true }
       });
 
-      return rules.map(rule => ({
+      return rules.map((rule: any) => ({
         id: rule.id,
         name: rule.name,
         contentType: rule.content_type,

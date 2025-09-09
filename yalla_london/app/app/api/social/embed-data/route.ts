@@ -1,7 +1,9 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 
 import { NextRequest, NextResponse } from 'next/server';
 
-export const dynamic = 'force-dynamic';
 
 // Get embed data for social media URLs
 export async function POST(request: NextRequest) {

@@ -1,9 +1,11 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { contentEngine } from '@/lib/content-automation/content-generator';
 
-export const dynamic = 'force-dynamic';
 
 // Schedule content for automatic publishing
 export async function POST(request: NextRequest) {

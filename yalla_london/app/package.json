@@ -80,6 +80,7 @@
     "@types/react-dropzone": "^5.1.0",
     "@types/react-plotly.js": "2.6.3",
     "autoprefixer": "10.4.15",
+    "axios": "^1.11.0",
     "bcryptjs": "2.4.3",
     "chart.js": "4.4.9",
     "class-variance-authority": "0.7.0",

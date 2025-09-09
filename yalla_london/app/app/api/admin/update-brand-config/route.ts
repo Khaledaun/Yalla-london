@@ -1,9 +1,11 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
 
-export const dynamic = 'force-dynamic';
 
 // Update brand configuration (this would typically update environment variables or config files)
 export async function POST(request: NextRequest) {

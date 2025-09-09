@@ -1,5 +1,7 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-export const dynamic = "force-dynamic";
+
 
 import { NextRequest, NextResponse } from 'next/server'
 import { searchConsole } from '@/lib/integrations/google-search-console'

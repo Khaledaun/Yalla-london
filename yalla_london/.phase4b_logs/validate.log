@@ -1,0 +1,42 @@
+prisma:config:loadConfigFromFile No config file found in the current working directory /workspaces/Yalla-london/yalla_london/app +19ms
+prisma:engines binaries to download libquery-engine, schema-engine +280ms
+prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +3ms
+prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.1.1 +2ms
+prisma:get-platform The parsed libssl version is: 1.1.x +0ms
+prisma:loadEnv project root found at /workspaces/Yalla-london/yalla_london/app/package.json +456ms
+prisma:getSchema prismaConfig {
+  "data": {
+    "seed": "tsx --require dotenv/config scripts/seed.ts"
+  },
+  "packagePath": "/workspaces/Yalla-london/yalla_london/app/package.json"
+} +1ms
+prisma:tryLoadEnv Environment variables loaded from /workspaces/Yalla-london/yalla_london/app/.env +1ms
+Environment variables loaded from .env
+prisma:getSchema Reading schema from single file /workspaces/Yalla-london/yalla_london/app/prisma/schema.prisma +1ms
+Prisma schema loaded from prisma/schema.prisma
+prisma:validate Using validate Wasm +25ms
+prisma:getConfig Using getConfig Wasm +12ms
+prisma:getConfig config data retrieved without errors in getConfig Wasm +8ms
+prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +6ms
+prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.1.1 +2ms
+prisma:get-platform The parsed libssl version is: 1.1.x +0ms
+prisma:cli:bin Execution time for executing "await cli.parse(commandArray)": 230.24585199999996 ms +1ms
+The schema at prisma/schema.prisma is valid 🚀
+prisma:getSchema Reading schema from single file /workspaces/Yalla-london/yalla_london/app/prisma/schema.prisma +1ms
+prisma:getSchema Reading schema from single file /workspaces/Yalla-london/yalla_london/app/prisma/schema.prisma +0ms
+prisma:getConfig Using getConfig Wasm +1ms
+prisma:getConfig config data retrieved without errors in getConfig Wasm +4ms
+prisma:cli:checkpoint runCheckpointClientCheck(): Execution time for getting info: 5.95775500000002 ms +0ms
+prisma:cli:checkpoint runCheckpointClientCheck(): Execution time for "await checkpoint.check(data)": 28.290967000000023 ms +29ms

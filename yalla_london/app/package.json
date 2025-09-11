@@ -13,7 +13,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:reset": "prisma migrate reset --force",
-    "validate-build": "next build && next lint"
+    "validate-build": "next build && next lint",
+    "validate-phase4b": "node scripts/validate-phase4b.js"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"

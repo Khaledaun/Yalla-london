@@ -91,3 +91,12 @@ export const isFeatureEnabled = (feature: keyof FeatureFlags): boolean => {
 export const withFeature = <T>(feature: keyof FeatureFlags, component: T, fallback: T | null = null): T | null => {
   return isFeatureEnabled(feature) ? component : fallback;
 };
+
+// Helper function for conditional rendering (Phase 4B compatible)
+export const withFeatureFlag = <T>(
+  feature: keyof FeatureFlags,
+  component: T,
+  fallback?: T
+): T | undefined => {
+  return isFeatureEnabled(feature) ? component : fallback;
+};

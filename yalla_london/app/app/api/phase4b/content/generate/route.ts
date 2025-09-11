@@ -4,7 +4,7 @@
  * Automated content creation with topic research integration
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { isFeatureEnabled } from '@/lib/feature-flags';
+import { isFeatureEnabled, getFeatureFlags } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 import { getBrandConfig } from '@/config/brand-config';
 

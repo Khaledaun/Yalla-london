@@ -184,7 +184,7 @@ async function triggerAuditScan(auditType: string, scanScope: string) {
     scope: scanScope,
     started_at: new Date().toISOString(),
     status: 'completed',
-    findings: []
+    findings: [] as string[]
   };
 
   switch (auditType) {

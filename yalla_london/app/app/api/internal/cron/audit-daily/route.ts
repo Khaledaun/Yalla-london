@@ -39,7 +39,11 @@ export async function POST(request: NextRequest) {
       audit_id: `daily_audit_${Date.now()}`,
       started_at: new Date().toISOString(),
       audit_type: 'daily_automated',
-      results: {}
+      results: {} as any,
+      completed_at: '',
+      status: '',
+      overall_health_score: 0,
+      critical_issues: [] as string[]
     };
 
     console.log('📊 Running daily audit checks...');

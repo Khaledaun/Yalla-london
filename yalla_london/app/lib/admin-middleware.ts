@@ -101,7 +101,7 @@ export async function getCurrentAdminUser(request: NextRequest): Promise<{
     }
 
     return {
-      id: session.user.id || session.user.email,
+      id: (session.user as any).id || session.user.email,
       email: session.user.email,
       name: session.user.name || undefined
     };

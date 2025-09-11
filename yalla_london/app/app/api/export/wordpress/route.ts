@@ -69,7 +69,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
           limit,
           offset
         },
-        content: content.map(item => ({
+        content: content.map((item: any) => ({
           id: item.id,
           title: item.title,
           content: item.content,

@@ -1,8 +1,10 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 
 import { NextRequest, NextResponse } from 'next/server';
 import { autoContentScheduler } from '@/lib/content-automation/auto-scheduler';
 
-export const dynamic = 'force-dynamic';
 
 // Cron endpoint for automatic content generation
 export async function POST(request: NextRequest) {

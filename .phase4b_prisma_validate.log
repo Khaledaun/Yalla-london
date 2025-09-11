@@ -1,0 +1,52 @@
+prisma:cli:bin Failed to initialize the command state: Error: ENOENT: no such file or directory, open '/home/codespace/.config/prisma-nodejs/commands.json' +885ms
+prisma:config:loadConfigFromFile Config file loaded in 302.47ms +1054ms
+prisma:config:loadConfigFromFile No config file found in the current working directory /workspaces/Yalla-london +0ms
+prisma:getSchema Reading schema from single file /workspaces/Yalla-london/yalla_london/app/prisma/schema.prisma +307ms
+prisma:getConfig Using getConfig Wasm +1ms
+prisma:cli Failed to read schema information. Using default values: '{\n  "name": "GetConfigError"\n}' +15ms
+prisma:engines binaries to download schema-engine, libquery-engine +1206ms
+prisma:getSchema Reading schema from single file /workspaces/Yalla-london/yalla_london/app/prisma/schema.prisma +2ms
+prisma:getSchema Reading schema from single file /workspaces/Yalla-london/yalla_london/app/prisma/schema.prisma +0ms
+prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +1ms
+prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+prisma:getConfig Using getConfig Wasm +2ms
+prisma:getConfig config data retrieved without errors in getConfig Wasm +4ms
+prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.1.1 +14ms
+prisma:get-platform The parsed libssl version is: 1.1.x +1ms
+prisma:get-platform Found distro info:
+{
+  "targetDistro": "debian",
+  "familyDistro": "debian",
+  "originalDistro": "ubuntu"
+} +2ms
+prisma:get-platform Trying platform-specific paths for "debian" (and "ubuntu") +0ms
+prisma:get-platform Found libssl.so file using platform-specific paths: libssl.so.1.1 +4ms
+prisma:get-platform The parsed libssl version is: 1.1.x +0ms
+prisma:cli:checkpoint runCheckpointClientCheck(): Execution time for getting info: 29.428774000000203 ms +0ms
+prisma:cli:checkpoint runCheckpointClientCheck(): Execution time for "await checkpoint.check(data)": 70.45579399999997 ms +71ms
+prisma:getSchema prismaConfig null +178ms
+prisma:tryLoadEnv Environment variables not found at null +1ms
+prisma:tryLoadEnv Environment variables loaded from ./.env +0ms
+Environment variables loaded from .env
+prisma:getSchema Reading schema from single file /workspaces/Yalla-london/yalla_london/app/prisma/schema.prisma +1ms
+Prisma schema loaded from yalla_london/app/prisma/schema.prisma
+prisma:validate Using validate Wasm +19ms
+prisma:getConfig Using getConfig Wasm +4ms
+Error: Prisma schema validation - (get-config wasm)
+Error code: P1012
+error: Environment variable not found: DIRECT_URL.
+  -->  yalla_london/app/prisma/schema.prisma:12
+   | 
+11 |     url      = env("DATABASE_URL")
+12 |   directUrl = env("DIRECT_URL")
+   | 
+
+Validation Error Count: 1
+[Context: getConfig]
+
+Prisma CLI Version : 6.15.0

@@ -1,7 +1,9 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 
 import { NextRequest, NextResponse } from 'next/server';
 
-export const dynamic = 'force-dynamic';
 
 // Mock data - in real implementation, this would use database
 const mockLayouts = [

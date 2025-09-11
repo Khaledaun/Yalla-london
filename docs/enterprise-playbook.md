@@ -159,6 +159,46 @@ curl -X GET /api/phase4/status \
 }
 ```
 
+#### Feature Flag Refresh Endpoint
+
+**Endpoint**: `POST /api/feature-flags/refresh`
+**Access**: Admin-only  
+**Purpose**: Reloads feature flags from environment variables at runtime
+
+This endpoint allows administrators to refresh feature flags without restarting the application, useful for runtime configuration changes and testing different feature combinations.
+
+```bash
+# Refresh feature flags
+curl -X POST /api/feature-flags/refresh \
+  -H "Authorization: Bearer <admin-token>"
+```
+
+**Response Format**:
+```json
+{
+  "status": "success",
+  "message": "Feature flags refreshed successfully",
+  "timestamp": "2025-01-01T00:00:00.000Z",
+  "refresh_details": {
+    "total_flags": 10,
+    "flags_enabled": 7,
+    "flags_disabled": 3,
+    "changes": {
+      "flags_changed": true,
+      "before": { "total": 10, "enabled": 6, "disabled": 4 },
+      "after": { "total": 10, "enabled": 7, "disabled": 3 }
+    }
+  }
+}
+```
+
+**Usage & Troubleshooting**:
+- **Runtime Updates**: Change environment variables and call this endpoint to apply changes immediately
+- **Testing**: Verify feature flag changes in staging before production deployment  
+- **Validation**: Use `GET /api/phase4/status` after refresh to confirm changes
+- **Rollback**: Set environment variables back to previous values and refresh again
+- **Monitoring**: All refresh operations are logged for audit purposes
+
 ## API Endpoint Reference
 
 ### Admin Endpoints
@@ -282,6 +322,406 @@ DIRECT_URL=postgresql://...
 - [ ] SSL certificates valid
 - [ ] Rate limiting configured
 - [ ] Monitoring and logging enabled
+
+## Environment Bootstrap
+
+### Overview
+
+This section provides step-by-step instructions for creating and configuring new environments for the Yalla London platform. Follow this guide when setting up development, staging, or production environments.
+
+### Step 1: Environment Setup
+
+#### 1.1 Create Environment File
+
+1. Copy the template environment file:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Generate secure secrets:
+   ```bash
+   # Generate NextAuth secret (32+ characters)
+   openssl rand -base64 32
+   
+   # Generate cron secret
+   openssl rand -base64 32
+   ```
+
+3. Set basic configuration:
+   ```bash
+   # Required for all environments
+   NEXTAUTH_SECRET=<generated-secret-32-chars>
+   NEXTAUTH_URL=<your-domain-or-localhost>
+   NODE_ENV=<development|staging|production>
+   ```
+
+#### 1.2 Database Configuration
+
+1. **Development Environment**:
+   ```bash
+   # Local PostgreSQL setup
+   DATABASE_URL=postgresql://localhost:5432/yalla_london_dev
+   DIRECT_URL=postgresql://localhost:5432/yalla_london_dev
+   ```
+
+2. **Staging/Production Environment**:
+   ```bash
+   # Use managed database service (AWS RDS, DigitalOcean, etc.)
+   DATABASE_URL=postgresql://user:pass@host:5432/yalla_london
+   DIRECT_URL=postgresql://user:pass@host:5432/yalla_london
+   SHADOW_DATABASE_URL=postgresql://user:pass@host:5432/yalla_london_shadow
+   ```
+
+3. **Initialize Database**:
+   ```bash
+   # Run migrations
+   yarn prisma migrate deploy
+   
+   # Generate Prisma client
+   yarn prisma generate
+   
+   # Seed database (optional)
+   yarn prisma db seed
+   ```
+
+### Step 2: Security Configuration
+
+#### 2.1 Admin Access Setup
+
+1. Configure admin emails:
+   ```bash
+   ADMIN_EMAILS=admin@yourcompany.com,owner@yourcompany.com
+   ```
+
+2. Set cron security:
+   ```bash
+   CRON_SECRET=<generated-secure-secret>
+   ```
+
+3. Verify admin access:
+   ```bash
+   # Test admin endpoint access
+   curl -X GET /api/phase4/status
+   ```
+
+#### 2.2 AWS Storage Setup
+
+1. Create AWS IAM user with S3 permissions
+2. Create S3 bucket with appropriate CORS settings  
+3. Configure environment:
+   ```bash
+   AWS_ACCESS_KEY_ID=<your-access-key>
+   AWS_SECRET_ACCESS_KEY=<your-secret-key>
+   AWS_BUCKET_NAME=<your-bucket-name>
+   AWS_REGION=<your-region>
+   ```
+
+### Step 3: Feature Flag Configuration
+
+#### 3.1 Environment-Specific Flag Setup
+
+1. **Development Environment** (enable all features for testing):
+   ```bash
+   FEATURE_PHASE4B_ENABLED=true
+   FEATURE_AUTO_PUBLISHING=false  # Usually disabled in dev
+   FEATURE_CONTENT_ANALYTICS=true
+   FEATURE_SEO_OPTIMIZATION=true
+   FEATURE_SOCIAL_MEDIA_INTEGRATION=true
+   FEATURE_ADVANCED_TOPICS=true
+   FEATURE_EXPORT_WORDPRESS=true
+   FEATURE_AUDIT_SYSTEM=true
+   FEATURE_ENTERPRISE_FEATURES=true
+   FEATURE_ADVANCED_CRON=false  # Usually disabled in dev
+   ```
+
+2. **Staging Environment** (mirror production with safe defaults):
+   ```bash
+   FEATURE_PHASE4B_ENABLED=true
+   FEATURE_AUTO_PUBLISHING=false  # Keep disabled for safety
+   FEATURE_CONTENT_ANALYTICS=true
+   FEATURE_SEO_OPTIMIZATION=true
+   FEATURE_SOCIAL_MEDIA_INTEGRATION=false  # Avoid accidental posts
+   FEATURE_ADVANCED_TOPICS=true
+   FEATURE_EXPORT_WORDPRESS=false  # Avoid accidental exports
+   FEATURE_AUDIT_SYSTEM=true
+   FEATURE_ENTERPRISE_FEATURES=true
+   FEATURE_ADVANCED_CRON=true
+   ```
+
+3. **Production Environment** (enable based on business requirements):
+   ```bash
+   # Configure based on your specific needs
+   # Start with conservative settings and enable features gradually
+   ```
+
+#### 3.2 Runtime Flag Management
+
+1. **Check current status**:
+   ```bash
+   curl -X GET /api/phase4/status
+   ```
+
+2. **Update flags without restart**:
+   ```bash
+   # Update environment variables, then:
+   curl -X POST /api/feature-flags/refresh
+   ```
+
+### Step 4: Integration Setup
+
+#### 4.1 Email Service Configuration
+
+Choose and configure email provider:
+
+**Option A: SendGrid**
+```bash
+EMAIL_PROVIDER=sendgrid
+SENDGRID_API_KEY=<your-sendgrid-key>
+SENDGRID_FROM_EMAIL=noreply@yourcompany.com
+```
+
+**Option B: Mailgun**  
+```bash
+EMAIL_PROVIDER=mailgun
+MAILGUN_API_KEY=<your-mailgun-key>
+MAILGUN_DOMAIN=mg.yourcompany.com
+```
+
+#### 4.2 Social Media Integration (Optional)
+
+Configure only if `FEATURE_SOCIAL_MEDIA_INTEGRATION=true`:
+
+```bash
+# Twitter/X
+TWITTER_API_KEY=<your-twitter-key>
+TWITTER_API_SECRET=<your-twitter-secret>
+TWITTER_ACCESS_TOKEN=<your-access-token>
+TWITTER_ACCESS_TOKEN_SECRET=<your-token-secret>
+
+# Facebook/Meta
+FACEBOOK_APP_ID=<your-facebook-app-id>
+FACEBOOK_APP_SECRET=<your-facebook-secret>
+FACEBOOK_ACCESS_TOKEN=<your-page-token>
+
+# LinkedIn
+LINKEDIN_CLIENT_ID=<your-linkedin-id>
+LINKEDIN_CLIENT_SECRET=<your-linkedin-secret>
+```
+
+#### 4.3 Google Services Integration (Optional)
+
+Configure for SEO and analytics features:
+
+```bash
+# Google Search Console (for SEO features)
+GOOGLE_SEARCH_CONSOLE_CLIENT_ID=<your-client-id>
+GOOGLE_SEARCH_CONSOLE_CLIENT_SECRET=<your-client-secret>
+
+# Google Analytics (for analytics features)
+GOOGLE_ANALYTICS_TRACKING_ID=GA-XXXXX-X
+GOOGLE_ANALYTICS_CLIENT_EMAIL=<service-account-email>
+GOOGLE_ANALYTICS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----..."
+```
+
+### Step 5: Testing & Validation
+
+#### 5.1 Environment Health Check
+
+Run comprehensive validation:
+
+```bash
+# 1. Test database connectivity
+yarn prisma migrate status
+
+# 2. Check feature flag status
+curl -X GET /api/phase4/status
+
+# 3. Test admin access
+curl -X GET /api/audits
+
+# 4. Verify file uploads (if AWS configured)
+curl -X POST /api/media/upload -F "file=@test-image.jpg"
+
+# 5. Test email functionality
+curl -X POST /api/newsletter/test
+
+# 6. Check external integrations
+curl -X GET /api/social/status
+```
+
+#### 5.2 Feature-Specific Testing
+
+Test enabled features individually:
+
+```bash
+# Content generation (if FEATURE_PHASE4B_ENABLED=true)
+curl -X POST /api/generate-content
+
+# Analytics (if FEATURE_CONTENT_ANALYTICS=true)  
+curl -X GET /api/analytics/dashboard
+
+# SEO tools (if FEATURE_SEO_OPTIMIZATION=true)
+curl -X GET /api/seo/audit
+
+# Export functionality (if FEATURE_EXPORT_WORDPRESS=true)
+curl -X GET /api/export/wordpress?format=json&limit=1
+```
+
+### Step 6: Troubleshooting
+
+#### 6.1 Common Issues & Solutions
+
+**Issue: Database connection failed**
+```bash
+# Check database URL format
+echo $DATABASE_URL | grep postgresql://
+
+# Test direct connection
+psql "$DATABASE_URL" -c "SELECT 1;"
+
+# Verify network connectivity and credentials
+```
+
+**Issue: Admin access denied**
+```bash
+# Verify admin email configuration
+echo $ADMIN_EMAILS
+
+# Check NextAuth session
+curl -X GET /api/auth/session
+
+# Verify user authentication flow
+```
+
+**Issue: Feature flags not updating**
+```bash
+# Check environment variables are set
+env | grep FEATURE_
+
+# Refresh flags manually
+curl -X POST /api/feature-flags/refresh
+
+# Verify flag status
+curl -X GET /api/phase4/status
+```
+
+**Issue: AWS/S3 upload failures**
+```bash
+# Test AWS credentials
+aws s3 ls s3://$AWS_BUCKET_NAME
+
+# Check bucket permissions and CORS
+aws s3api get-bucket-cors --bucket $AWS_BUCKET_NAME
+
+# Verify IAM permissions
+```
+
+#### 6.2 Environment Validation Checklist
+
+Before going live with any environment:
+
+**Database & Core Services**
+- [ ] Database migrations applied successfully
+- [ ] Database connection pool configured appropriately  
+- [ ] Admin user accounts created and tested
+- [ ] Authentication flow working end-to-end
+- [ ] File upload/storage working correctly
+
+**Security & Access Control**
+- [ ] NEXTAUTH_SECRET is secure and unique (32+ characters)
+- [ ] ADMIN_EMAILS contains only authorized administrators
+- [ ] CRON_SECRET is secure and not shared publicly
+- [ ] All API keys and secrets are environment-specific
+- [ ] No hardcoded credentials in codebase
+
+**Feature Flag Configuration**  
+- [ ] All required feature flags are set appropriately
+- [ ] Feature flag refresh endpoint working
+- [ ] Disabled features are properly gated and don't cause errors
+- [ ] Feature flag changes logged for audit trail
+
+**External Integrations**
+- [ ] Email service configured and tested
+- [ ] AWS S3 bucket accessible with correct permissions
+- [ ] Social media integrations tested (if enabled)
+- [ ] Google services authenticated (if enabled)
+- [ ] WordPress export tested (if enabled)
+
+**Performance & Monitoring**
+- [ ] Health check endpoints responding correctly
+- [ ] Error logging and monitoring configured
+- [ ] Performance metrics collection enabled
+- [ ] Database query performance acceptable
+- [ ] CDN configured for static assets (production)
+
+**Environment-Specific Checks**
+- [ ] NODE_ENV matches environment type
+- [ ] External service URLs point to correct instances
+- [ ] Rate limiting configured appropriately
+- [ ] Backup and recovery procedures tested
+- [ ] SSL certificates valid and properly configured
+
+#### 6.3 Emergency Procedures
+
+**Rollback Feature Flags**
+```bash
+# Disable problematic feature immediately
+export FEATURE_PROBLEMATIC_FEATURE=false
+curl -X POST /api/feature-flags/refresh
+```
+
+**Database Rollback**  
+```bash
+# Rollback last migration (emergency only)
+yarn prisma migrate reset --force
+yarn prisma migrate deploy --to <previous-migration-id>
+```
+
+**Application Recovery**
+```bash
+# Restart application with safe defaults
+export FEATURE_PHASE4B_ENABLED=false
+export FEATURE_AUTO_PUBLISHING=false
+# Restart application service
+```
+
+### Step 7: Ongoing Maintenance
+
+#### 7.1 Regular Tasks
+
+**Weekly**:
+- Review feature flag usage and performance impact
+- Check error logs and resolve any issues
+- Verify backup systems are working correctly
+
+**Monthly**:
+- Update environment variables for rotating secrets
+- Review and update feature flag settings based on usage
+- Audit admin access and remove unnecessary permissions
+
+**Quarterly**:
+- Review all integrations and API key expiration dates
+- Update dependencies and security patches
+- Full environment security audit
+
+#### 7.2 Feature Flag Lifecycle Management
+
+1. **New Feature Development**:
+   - Create feature flag (default: disabled)
+   - Test in development with flag enabled
+   - Deploy to staging with flag enabled  
+   - Enable in production after validation
+
+2. **Feature Rollout**:
+   - Enable for internal users first
+   - Gradual rollout to larger user base
+   - Monitor metrics and error rates
+   - Full rollout after validation
+
+3. **Feature Cleanup**:
+   - Remove feature flag code after feature is stable
+   - Archive old feature flags
+   - Update documentation
 
 ## Monitoring and Alerting
 

@@ -1,0 +1,186 @@
+/**
+ * Feature Flag Registry
+ * Loads feature flags from environment variables and provides a centralized registry
+ */
+
+export interface FeatureFlag {
+  key: string;
+  enabled: boolean;
+  description: string;
+  category: string;
+}
+
+export interface FeatureFlagRegistry {
+  [key: string]: FeatureFlag;
+}
+
+/**
+ * Load feature flags from environment variables
+ * Environment variables should follow the pattern: FEATURE_FLAG_NAME=true/false
+ */
+function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
+  const flags: FeatureFlagRegistry = {};
+
+  // Phase 4B Features
+  flags.PHASE4B_ENABLED = {
+    key: 'PHASE4B_ENABLED',
+    enabled: process.env.FEATURE_PHASE4B_ENABLED === 'true',
+    description: 'Enable Phase 4B content generation and management features',
+    category: 'content'
+  };
+
+  flags.AUTO_PUBLISHING = {
+    key: 'AUTO_PUBLISHING',
+    enabled: process.env.FEATURE_AUTO_PUBLISHING === 'true',
+    description: 'Enable automatic daily content publishing',
+    category: 'automation'
+  };
+
+  flags.CONTENT_ANALYTICS = {
+    key: 'CONTENT_ANALYTICS',
+    enabled: process.env.FEATURE_CONTENT_ANALYTICS === 'true',
+    description: 'Enable advanced content analytics and reporting',
+    category: 'analytics'
+  };
+
+  flags.SEO_OPTIMIZATION = {
+    key: 'SEO_OPTIMIZATION',
+    enabled: process.env.FEATURE_SEO_OPTIMIZATION === 'true',
+    description: 'Enable SEO optimization tools and features',
+    category: 'seo'
+  };
+
+  flags.SOCIAL_MEDIA_INTEGRATION = {
+    key: 'SOCIAL_MEDIA_INTEGRATION',
+    enabled: process.env.FEATURE_SOCIAL_MEDIA_INTEGRATION === 'true',
+    description: 'Enable social media content generation and posting',
+    category: 'social'
+  };
+
+  flags.ADVANCED_TOPICS = {
+    key: 'ADVANCED_TOPICS',
+    enabled: process.env.FEATURE_ADVANCED_TOPICS === 'true',
+    description: 'Enable advanced topic research and suggestion engine',
+    category: 'content'
+  };
+
+  flags.EXPORT_WORDPRESS = {
+    key: 'EXPORT_WORDPRESS',
+    enabled: process.env.FEATURE_EXPORT_WORDPRESS === 'true',
+    description: 'Enable WordPress export functionality',
+    category: 'export'
+  };
+
+  flags.AUDIT_SYSTEM = {
+    key: 'AUDIT_SYSTEM',
+    enabled: process.env.FEATURE_AUDIT_SYSTEM === 'true',
+    description: 'Enable comprehensive audit and compliance system',
+    category: 'compliance'
+  };
+
+  flags.ENTERPRISE_FEATURES = {
+    key: 'ENTERPRISE_FEATURES',
+    enabled: process.env.FEATURE_ENTERPRISE_FEATURES === 'true',
+    description: 'Enable enterprise-grade features and controls',
+    category: 'enterprise'
+  };
+
+  flags.ADVANCED_CRON = {
+    key: 'ADVANCED_CRON',
+    enabled: process.env.FEATURE_ADVANCED_CRON === 'true',
+    description: 'Enable advanced cron job management and monitoring',
+    category: 'automation'
+  };
+
+  return flags;
+}
+
+// Global feature flag registry
+let featureFlags: FeatureFlagRegistry | null = null;
+
+/**
+ * Get the feature flag registry
+ * Loads from environment variables on first call
+ */
+export function getFeatureFlags(): FeatureFlagRegistry {
+  if (!featureFlags) {
+    featureFlags = loadFeatureFlagsFromEnv();
+  }
+  return featureFlags;
+}
+
+/**
+ * Check if a specific feature flag is enabled
+ */
+export function isFeatureEnabled(flagKey: string): boolean {
+  const flags = getFeatureFlags();
+  return flags[flagKey]?.enabled ?? false;
+}
+
+/**
+ * Get a specific feature flag
+ */
+export function getFeatureFlag(flagKey: string): FeatureFlag | null {
+  const flags = getFeatureFlags();
+  return flags[flagKey] ?? null;
+}
+
+/**
+ * Get all feature flags grouped by category
+ */
+export function getFeatureFlagsByCategory(): Record<string, FeatureFlag[]> {
+  const flags = getFeatureFlags();
+  const grouped: Record<string, FeatureFlag[]> = {};
+
+  Object.values(flags).forEach(flag => {
+    if (!grouped[flag.category]) {
+      grouped[flag.category] = [];
+    }
+    grouped[flag.category].push(flag);
+  });
+
+  return grouped;
+}
+
+/**
+ * Get feature flag statistics
+ */
+export function getFeatureFlagStats(): {
+  total: number;
+  enabled: number;
+  disabled: number;
+  byCategory: Record<string, { total: number; enabled: number; disabled: number }>;
+} {
+  const flags = getFeatureFlags();
+  const allFlags = Object.values(flags);
+  
+  const stats = {
+    total: allFlags.length,
+    enabled: allFlags.filter(f => f.enabled).length,
+    disabled: allFlags.filter(f => !f.enabled).length,
+    byCategory: {} as Record<string, { total: number; enabled: number; disabled: number }>
+  };
+
+  // Calculate stats by category
+  allFlags.forEach(flag => {
+    if (!stats.byCategory[flag.category]) {
+      stats.byCategory[flag.category] = { total: 0, enabled: 0, disabled: 0 };
+    }
+    stats.byCategory[flag.category].total++;
+    if (flag.enabled) {
+      stats.byCategory[flag.category].enabled++;
+    } else {
+      stats.byCategory[flag.category].disabled++;
+    }
+  });
+
+  return stats;
+}
+
+/**
+ * Refresh feature flags from environment (useful for runtime updates)
+ */
+export function refreshFeatureFlags(): FeatureFlagRegistry {
+  featureFlags = loadFeatureFlagsFromEnv();
+  return featureFlags;
+}

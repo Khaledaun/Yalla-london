@@ -1,0 +1,13 @@
+{
+  "name": "yalla-london-root",
+  "private": true,
+  "scripts": {
+    "build": "cd yalla_london/app && npm run build",
+    "dev": "cd yalla_london/app && npm run dev",
+    "start": "cd yalla_london/app && npm run start",
+    "install-app": "cd yalla_london/app && npm install"
+  },
+  "workspaces": [
+    "yalla_london/app"
+  ]
+}

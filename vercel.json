@@ -1,0 +1,8 @@
+{
+  "buildCommand": "cd yalla_london/app && npm run build",
+  "devCommand": "cd yalla_london/app && npm run dev",
+  "installCommand": "cd yalla_london/app && npm install",
+  "outputDirectory": "yalla_london/app/.next",
+  "framework": "nextjs",
+  "rootDirectory": "yalla_london/app"
+}

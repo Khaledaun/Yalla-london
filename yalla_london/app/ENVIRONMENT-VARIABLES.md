@@ -8,6 +8,7 @@ Complete reference for all environment variables used in the Yalla London CMS.
 | Variable | Description | Example | Required | Default |
 |----------|-------------|---------|----------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` | ✅ | - |
+| `DIRECT_URL` | Direct PostgreSQL connection (for connection pooling) | `postgresql://user:pass@host:5432/db` | ⚠️ | Same as DATABASE_URL |
 | `NEXTAUTH_SECRET` | NextAuth.js secret (32+ chars) | `abcd1234efgh5678...` | ✅ | - |
 | `NEXTAUTH_URL` | Application base URL | `https://yalla-london.com` | ✅ | - |
 | `AWS_BUCKET_NAME` | S3 bucket name | `yalla-london-production` | ✅ | - |
@@ -44,6 +45,7 @@ Complete reference for all environment variables used in the Yalla London CMS.
 ### Development (.env.local)
 ```bash
 DATABASE_URL="postgresql://localhost:5432/yalla_london_dev"
+DIRECT_URL="postgresql://localhost:5432/yalla_london_dev"
 NEXTAUTH_URL="http://localhost:3000"
 AWS_BUCKET_NAME="yalla-london-dev"
 NODE_ENV="development"
@@ -52,6 +54,7 @@ NODE_ENV="development"
 ### Staging (.env.staging)
 ```bash
 DATABASE_URL="postgresql://staging-db.neon.tech:5432/yalla_london_staging"
+DIRECT_URL="postgresql://staging-db.neon.tech:5432/yalla_london_staging"
 NEXTAUTH_URL="https://yalla-london-staging.vercel.app"
 AWS_BUCKET_NAME="yalla-london-staging"
 AWS_FOLDER_PREFIX="staging/"
@@ -61,6 +64,7 @@ NODE_ENV="staging"
 ### Production (.env.production)
 ```bash
 DATABASE_URL="postgresql://prod-db.neon.tech:5432/yalla_london_prod"
+DIRECT_URL="postgresql://prod-db.neon.tech:5432/yalla_london_prod"
 NEXTAUTH_URL="https://yalla-london.com"
 AWS_BUCKET_NAME="yalla-london-production"
 AWS_FOLDER_PREFIX="production/"
@@ -93,7 +97,7 @@ NODE_ENV="production"
 ```bash
 # Verify all required variables are set
 node -e "
-const required = ['DATABASE_URL', 'NEXTAUTH_SECRET', 'NEXTAUTH_URL', 'AWS_BUCKET_NAME'];
+const required = ['DATABASE_URL', 'DIRECT_URL', 'NEXTAUTH_SECRET', 'NEXTAUTH_URL', 'AWS_BUCKET_NAME'];
 const missing = required.filter(key => !process.env[key]);
 if (missing.length) {
   console.error('❌ Missing required variables:', missing.join(', '));

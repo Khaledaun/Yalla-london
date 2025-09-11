@@ -41,6 +41,9 @@ jobs:
       - name: Validate Prisma schema
         working-directory: ${{ env.APP_DIR }}
         run: yarn prisma validate
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
 
   migration-check:
     name: Database Migration Check
@@ -135,6 +138,7 @@ jobs:
         env:
           # Test environment variables
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
           NEXTAUTH_SECRET: "test-secret-key-for-ci-builds-only-32-chars"
           NEXTAUTH_URL: "http://localhost:3000"
           AWS_BUCKET_NAME: "test-bucket"
@@ -177,6 +181,7 @@ jobs:
         run: yarn build
         env:
           DATABASE_URL: "postgresql://test:test@localhost:5432/test"
+          DIRECT_URL: "postgresql://test:test@localhost:5432/test"
           NEXTAUTH_SECRET: "test-secret-key-for-ci-builds-only-32-chars"
           NEXTAUTH_URL: "http://localhost:3000"
           AWS_BUCKET_NAME: "test-bucket"
@@ -351,6 +356,7 @@ jobs:
         run: yarn build
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
           NEXTAUTH_SECRET: "test-secret-key-for-ci-builds-only-32-chars"
           NEXTAUTH_URL: "http://localhost:3000"
           AWS_BUCKET_NAME: "test-bucket"
@@ -368,6 +374,7 @@ jobs:
           sleep 15
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
           NEXTAUTH_SECRET: "test-secret-key-for-ci-builds-only-32-chars"
           NEXTAUTH_URL: "http://localhost:3000"
           

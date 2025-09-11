@@ -17,11 +17,22 @@ export interface FeatureFlagRegistry {
 /**
  * Load feature flags from environment variables
  * Environment variables should follow the pattern: FEATURE_FLAG_NAME=true/false
+ * 
+ * All major platform features are controlled by environment-driven feature flags:
+ * - Publishing: Automated content publishing and scheduling
+ * - Analytics: Advanced content analytics and performance tracking  
+ * - SEO: Search engine optimization tools and automation
+ * - Social: Social media integration and cross-posting
+ * - Export: Content export functionality (WordPress, etc.)
+ * - Cron: Advanced job scheduling and monitoring
+ * - Compliance: Audit system and regulatory compliance
+ * - Enterprise: Enterprise-grade controls and features
  */
 function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
   const flags: FeatureFlagRegistry = {};
 
-  // Phase 4B Features
+  // CONTENT GENERATION & MANAGEMENT FLAGS
+  // Master toggle for Phase 4B content generation pipeline
   flags.PHASE4B_ENABLED = {
     key: 'PHASE4B_ENABLED',
     enabled: process.env.FEATURE_PHASE4B_ENABLED === 'true',
@@ -29,13 +40,17 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
     category: 'content'
   };
 
+  // PUBLISHING FLAGS
+  // Automated daily content publishing to multiple channels
   flags.AUTO_PUBLISHING = {
     key: 'AUTO_PUBLISHING',
     enabled: process.env.FEATURE_AUTO_PUBLISHING === 'true',
     description: 'Enable automatic daily content publishing',
-    category: 'automation'
+    category: 'publishing'
   };
 
+  // ANALYTICS FLAGS  
+  // Advanced content performance analytics and reporting dashboard
   flags.CONTENT_ANALYTICS = {
     key: 'CONTENT_ANALYTICS',
     enabled: process.env.FEATURE_CONTENT_ANALYTICS === 'true',
@@ -43,6 +58,8 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
     category: 'analytics'
   };
 
+  // SEO FLAGS
+  // SEO optimization tools, meta generation, and search performance tracking
   flags.SEO_OPTIMIZATION = {
     key: 'SEO_OPTIMIZATION',
     enabled: process.env.FEATURE_SEO_OPTIMIZATION === 'true',
@@ -50,6 +67,8 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
     category: 'seo'
   };
 
+  // SOCIAL FLAGS
+  // Social media content generation, posting, and cross-platform integration
   flags.SOCIAL_MEDIA_INTEGRATION = {
     key: 'SOCIAL_MEDIA_INTEGRATION',
     enabled: process.env.FEATURE_SOCIAL_MEDIA_INTEGRATION === 'true',
@@ -57,6 +76,7 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
     category: 'social'
   };
 
+  // Enhanced topic research and AI-powered content suggestions
   flags.ADVANCED_TOPICS = {
     key: 'ADVANCED_TOPICS',
     enabled: process.env.FEATURE_ADVANCED_TOPICS === 'true',
@@ -64,6 +84,8 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
     category: 'content'
   };
 
+  // EXPORT FLAGS
+  // Content export functionality for external platforms (WordPress, CMS, etc.)
   flags.EXPORT_WORDPRESS = {
     key: 'EXPORT_WORDPRESS',
     enabled: process.env.FEATURE_EXPORT_WORDPRESS === 'true',
@@ -71,6 +93,8 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
     category: 'export'
   };
 
+  // COMPLIANCE FLAGS
+  // Comprehensive audit system for regulatory compliance and content governance
   flags.AUDIT_SYSTEM = {
     key: 'AUDIT_SYSTEM',
     enabled: process.env.FEATURE_AUDIT_SYSTEM === 'true',
@@ -78,6 +102,8 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
     category: 'compliance'
   };
 
+  // ENTERPRISE FLAGS
+  // Enterprise-grade features: multi-tenancy, advanced permissions, SSO, etc.
   flags.ENTERPRISE_FEATURES = {
     key: 'ENTERPRISE_FEATURES',
     enabled: process.env.FEATURE_ENTERPRISE_FEATURES === 'true',
@@ -85,11 +111,13 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
     category: 'enterprise'
   };
 
+  // CRON FLAGS  
+  // Advanced job scheduling, monitoring, and automated workflow management
   flags.ADVANCED_CRON = {
     key: 'ADVANCED_CRON',
     enabled: process.env.FEATURE_ADVANCED_CRON === 'true',
     description: 'Enable advanced cron job management and monitoring',
-    category: 'automation'
+    category: 'cron'
   };
 
   return flags;

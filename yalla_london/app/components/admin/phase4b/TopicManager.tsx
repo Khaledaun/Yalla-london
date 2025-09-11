@@ -18,7 +18,6 @@ import {
   Plus, Edit, Trash2, ArrowUp, ArrowDown, ExternalLink, Calendar, Globe
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { isFeatureEnabled } from '@/lib/feature-flags';
 
 interface TopicProposal {
   id: string;
@@ -78,9 +77,9 @@ export function TopicManager() {
   const [reasonDialog, setReasonDialog] = useState<{ topicId: string; category: string } | null>(null);
   const [statusChangeReason, setStatusChangeReason] = useState('');
 
-  // Check if features are enabled
-  const isPhase4BEnabled = isFeatureEnabled('PHASE4B_ENABLED');
-  const isTopicResearchEnabled = isFeatureEnabled('TOPIC_RESEARCH');
+  // Check if features are enabled directly
+  const isPhase4BEnabled = process.env.NEXT_PUBLIC_FEATURE_PHASE4B_ENABLED === 'true';
+  const isTopicResearchEnabled = process.env.NEXT_PUBLIC_FEATURE_TOPIC_RESEARCH === 'true';
 
   useEffect(() => {
     if (isPhase4BEnabled) {

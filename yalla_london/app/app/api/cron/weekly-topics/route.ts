@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeatureFlags } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 
 /**
@@ -25,9 +24,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const flags = getFeatureFlags();
+    // Check feature flags directly
+    const phase4bEnabled = process.env.FEATURE_PHASE4B_ENABLED === 'true';
+    const topicResearchEnabled = process.env.FEATURE_TOPIC_RESEARCH === 'true';
     
-    if (!flags.PHASE4B_ENABLED || !flags.TOPIC_RESEARCH) {
+    if (!phase4bEnabled || !topicResearchEnabled) {
       console.log('⚠️ Phase 4B or topic research disabled');
       return NextResponse.json(
         { error: 'Topic research feature is disabled' },

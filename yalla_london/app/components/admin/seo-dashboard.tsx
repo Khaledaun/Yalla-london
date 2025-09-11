@@ -30,7 +30,6 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { isFeatureEnabled } from '@/lib/feature-flags';
 
 interface SeoData {
   title: string;
@@ -58,7 +57,9 @@ interface SerpPreview {
 }
 
 export function SeoManagementDashboard() {
-  if (!isFeatureEnabled('SEO')) {
+  // Check SEO feature flag directly
+  const seoEnabled = process.env.NEXT_PUBLIC_FEATURE_SEO === '1';
+  if (!seoEnabled) {
     return (
       <Card>
         <CardContent className="text-center py-12">

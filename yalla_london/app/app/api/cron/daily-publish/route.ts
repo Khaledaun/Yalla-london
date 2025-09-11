@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeatureFlags } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 
 /**
@@ -25,9 +24,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const flags = getFeatureFlags();
+    // Check feature flags directly
+    const phase4bEnabled = process.env.FEATURE_PHASE4B_ENABLED === 'true';
+    const autoPublishingEnabled = process.env.FEATURE_AUTO_PUBLISHING === 'true';
     
-    if (!flags.PHASE4B_ENABLED || !flags.AUTO_PUBLISHING) {
+    if (!phase4bEnabled || !autoPublishingEnabled) {
       console.log('⚠️ Phase 4B or auto publishing disabled');
       return NextResponse.json(
         { error: 'Auto publishing feature is disabled' },

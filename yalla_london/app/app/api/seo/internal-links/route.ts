@@ -4,7 +4,6 @@ export const revalidate = 0;
 
 
 import { NextRequest, NextResponse } from 'next/server';
-import { isFeatureEnabled } from '@/lib/feature-flags';
 
 interface InternalLink {
   fromUrl: string;
@@ -37,7 +36,9 @@ interface PageContent {
 }
 
 export async function GET(request: NextRequest) {
-  if (!isFeatureEnabled('SEO')) {
+  // Check SEO feature flag directly
+  const seoEnabled = process.env.FEATURE_SEO === '1';
+  if (!seoEnabled) {
     return NextResponse.json(
       { error: 'SEO features disabled' }, 
       { status: 403 }
@@ -80,7 +81,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isFeatureEnabled('SEO')) {
+  // Check SEO feature flag directly
+  const seoEnabled = process.env.FEATURE_SEO === '1';
+  if (!seoEnabled) {
     return NextResponse.json(
       { error: 'SEO features disabled' }, 
       { status: 403 }

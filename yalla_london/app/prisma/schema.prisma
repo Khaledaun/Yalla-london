@@ -525,3 +525,67 @@ model SiteMember {
   
   @@unique([site_id, user_id])
 }
+
+// =============================================================================
+// PHASE 4B: CONTENT AUTOMATION & TOPIC RESEARCH
+// =============================================================================
+
+// Topic Proposals (Perplexity Research Integration)
+model TopicProposal {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  category      String
+  priority      Int      @default(5)
+  keywords      String[]
+  searchIntent  String?
+  locale        String   @default("en")
+  status        String   @default("pending") // pending, approved, rejected, used
+  source        String   @default("manual") // manual, perplexity, ai
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([status])
+  @@index([category])
+  @@index([locale])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+// SEO Audits Table
+model SeoAudit {
+  id              String   @id @default(cuid())
+  contentId       String?
+  url             String?
+  score           Int
+  grade           String
+  issues          Json?
+  recommendations Json?
+  metrics         Json?
+  passed          Boolean  @default(false)
+  auditType       String   @default("content")
+  createdAt       DateTime @default(now())
+  
+  @@index([contentId])
+  @@index([score])
+  @@index([passed])
+  @@index([createdAt])
+}
+
+// Activity Log (Enhanced for Phase 4B)
+model ActivityLog {
+  id          String   @id @default(cuid())
+  action      String
+  entityType  String?
+  entityId    String?
+  details     Json?
+  performedBy String
+  createdAt   DateTime @default(now())
+  
+  @@index([action])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([performedBy])
+  @@index([createdAt])
+}

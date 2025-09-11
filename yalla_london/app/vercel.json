@@ -1,0 +1,53 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "framework": "nextjs",
+  "installCommand": "yarn install",
+  "crons": [],
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "DIRECT_URL": "@direct_url",
+    "NEXTAUTH_SECRET": "@nextauth_secret",
+    "NEXTAUTH_URL": "@nextauth_url",
+    "AWS_BUCKET_NAME": "@aws_bucket_name",
+    "AWS_ACCESS_KEY_ID": "@aws_access_key_id",
+    "AWS_SECRET_ACCESS_KEY": "@aws_secret_access_key",
+    "AWS_REGION": "@aws_region",
+    "PERPLEXITY_API_KEY": "@perplexity_api_key",
+    "FEATURE_PHASE4B_ENABLED": "false",
+    "FEATURE_TOPIC_RESEARCH": "false",
+    "FEATURE_AUTO_CONTENT_GENERATION": "false",
+    "FEATURE_AUTO_PUBLISHING": "false",
+    "FEATURE_SEO_AUTOMATION": "false",
+    "PIPELINE_POSTS_PER_DAY": "2",
+    "PIPELINE_QUALITY_THRESHOLD": "70",
+    "LOG_LEVEL": "info"
+  },
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    },
+    "app/api/phase4b/**/*.ts": {
+      "maxDuration": 60
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ]
+}

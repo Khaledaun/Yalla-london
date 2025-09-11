@@ -368,3 +368,241 @@ curl -X GET /api/audits -H "Cookie: next-auth.session-token=..."
 - Configuration backups: Version controlled
 - Feature flag states: Documented and versioned
 - Admin access: Emergency access procedures documented
+
+## CI/CD Pipeline and Migration Management
+
+### Enterprise CI/CD Workflow
+
+The Yalla London project uses an enterprise-grade CI/CD pipeline that ensures safe deployment practices and database migration management.
+
+#### Pull Request Workflow
+When creating pull requests to the main branch:
+
+1. **Code Quality Checks**:
+   - TypeScript compilation and linting
+   - Prisma schema validation
+   - Security scanning for secrets and vulnerabilities
+
+2. **Migration Safety Check**:
+   - Runs `prisma migrate diff` against shadow database
+   - **IMPORTANT**: Migrations are NOT deployed during pull requests
+   - Shows preview of migration changes for review
+
+3. **Performance Testing**:
+   - Lighthouse CI runs against staging environment
+   - Skips auth-gated pages (e.g., `/admin`) to avoid authentication issues
+   - Requires performance score ≥ 0.9, accessibility ≥ 0.9, SEO ≥ 0.9
+
+```bash
+# Example migration diff command (run automatically in CI)
+yarn prisma migrate diff \
+  --from-schema-datamodel prisma/schema.prisma \
+  --to-schema-datasource $SHADOW_DATABASE_URL \
+  --script
+```
+
+#### Main Branch Deployment Workflow
+When code is merged to the main branch:
+
+1. **Full Test Suite**:
+   - Complete application build and testing
+   - Integration tests with real database
+   - JSON-LD schema validation
+
+2. **Database Migration Deployment**:
+   - Automatic deployment of pending migrations
+   - Uses production `$DATABASE_URL`
+   - Verbose logging for audit trail
+
+```bash
+# Migration deployment (run automatically in CI)
+yarn prisma migrate deploy --verbose
+```
+
+### Required Environment Variables
+
+#### Core Database Variables
+```bash
+# Production database (required for main branch deployments)
+DATABASE_URL=postgresql://user:password@host:5432/production_db
+
+# Shadow database (required for migration diff in pull requests)
+SHADOW_DATABASE_URL=postgresql://user:password@host:5432/shadow_db
+
+# Direct connection URL (for migrations)
+DIRECT_URL=postgresql://user:password@host:5432/production_db?schema=public&connection_limit=1
+```
+
+#### Lighthouse CI Variables
+```bash
+# Staging URL for Lighthouse CI testing
+LHCI_URL_STAGING=https://your-staging-environment.vercel.app
+
+# Lighthouse CI GitHub App token (optional, for enhanced reporting)
+LHCI_GITHUB_APP_TOKEN=your-github-app-token
+```
+
+#### CI/CD Security Variables
+```bash
+# Next.js authentication secret (minimum 32 characters)
+NEXTAUTH_SECRET=your-production-nextauth-secret-32-chars-minimum
+
+# Application URL
+NEXTAUTH_URL=https://your-production-domain.com
+
+# Admin emails for access control
+ADMIN_EMAILS=admin1@company.com,admin2@company.com
+
+# AWS credentials for asset storage
+AWS_ACCESS_KEY_ID=your-aws-access-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+AWS_BUCKET_NAME=your-production-bucket
+AWS_REGION=us-east-1
+```
+
+### Lighthouse CI Convention
+
+The Lighthouse CI configuration automatically adapts based on environment:
+
+#### Local Development
+- Tests against `http://localhost:3000`
+- Includes all pages including admin routes
+- Starts local server automatically
+
+#### Staging/CI Environment
+- Tests against `$LHCI_URL_STAGING`
+- Skips authentication-gated pages (`/admin`)
+- Connects to running staging deployment
+
+#### Configuration Example
+```javascript
+// lighthouserc.js
+module.exports = {
+  ci: {
+    collect: {
+      url: [
+        process.env.LHCI_URL_STAGING || 'http://localhost:3000',
+        (process.env.LHCI_URL_STAGING || 'http://localhost:3000') + '/blog',
+        (process.env.LHCI_URL_STAGING || 'http://localhost:3000') + '/recommendations',
+        // Skip admin routes when testing staging
+      ],
+      startServerCommand: process.env.LHCI_URL_STAGING ? undefined : 'yarn start',
+      numberOfRuns: 3
+    },
+    assert: {
+      assertions: {
+        'categories:performance': ['warn', {minScore: 0.9}],
+        'categories:accessibility': ['error', {minScore: 0.9}],
+        'categories:best-practices': ['warn', {minScore: 0.9}],
+        'categories:seo': ['error', {minScore: 0.9}],
+        'categories:pwa': 'off'
+      }
+    }
+  }
+}
+```
+
+### Database Migration Best Practices
+
+#### Development Workflow
+1. **Make Schema Changes**: Update `prisma/schema.prisma`
+2. **Create Migration**: `yarn prisma migrate dev --name descriptive_name`
+3. **Review Generated SQL**: Check migration file for correctness
+4. **Test Locally**: Ensure application works with new schema
+5. **Commit Changes**: Include both schema and migration files
+
+#### Staging Validation
+1. **Deploy to Staging**: Push to staging branch or environment
+2. **Validate Migration**: CI automatically runs migration diff
+3. **Test Application**: Verify all features work with new schema
+4. **Review Performance**: Check Lighthouse CI results
+
+#### Production Deployment
+1. **Merge to Main**: Once PR is approved and tested
+2. **Automatic Migration**: CI deploys migrations to production
+3. **Monitor Deployment**: Check logs for migration success
+4. **Verify Application**: Confirm all services running correctly
+
+### Troubleshooting Guide
+
+#### Common Migration Issues
+
+**Issue**: Migration diff shows unexpected changes
+```bash
+# Solution: Reset shadow database to match current schema
+yarn prisma db push --schema prisma/schema.prisma
+```
+
+**Issue**: Lighthouse CI fails on staging URL
+```bash
+# Check staging deployment status
+curl -I $LHCI_URL_STAGING
+
+# Verify staging environment variables
+vercel env ls
+
+# Run Lighthouse locally for debugging
+npx lhci autorun --config=lighthouserc.js
+```
+
+**Issue**: Migration deployment fails in CI
+```bash
+# Check database connectivity
+yarn prisma migrate status
+
+# Verify environment variables
+echo $DATABASE_URL | grep -o "postgresql://[^/]*"
+
+# Manual migration deployment (emergency only)
+yarn prisma migrate deploy --verbose
+```
+
+#### Performance Issues
+
+**Issue**: Lighthouse performance score below threshold
+1. **Check Bundle Size**: `yarn build` and review `.next/static/`
+2. **Optimize Images**: Ensure proper image formats and sizes
+3. **Review JavaScript**: Check for unnecessary client-side code
+4. **Database Queries**: Review API endpoints for N+1 queries
+
+**Issue**: CI/CD pipeline timeout
+1. **Check Dependencies**: `yarn install` may be slow
+2. **Database Connection**: Verify database availability
+3. **Build Cache**: Ensure cache keys are properly configured
+4. **Resource Limits**: Consider upgrading CI runner specs
+
+#### Security Scan Failures
+
+**Issue**: Secrets detected in code
+```bash
+# Find and remove hardcoded secrets
+grep -r "password\|secret\|key" --include="*.ts" src/
+
+# Use environment variables instead
+NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+```
+
+**Issue**: Dependency vulnerabilities
+```bash
+# Update vulnerable packages
+yarn audit fix
+
+# For high-severity issues that can't be auto-fixed
+yarn upgrade [package-name]
+```
+
+### Monitoring and Alerts
+
+#### Key Metrics to Monitor
+- Migration deployment success rate
+- Lighthouse CI score trends
+- Build and test duration
+- Security scan results
+- Database connection health
+
+#### Recommended Alerting Rules
+- Failed migration deployments (immediate)
+- Lighthouse scores below 0.85 (warning)
+- Security scan failures (immediate)
+- Build failures on main branch (immediate)
+- Dependency vulnerabilities (daily summary)

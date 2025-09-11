@@ -3,12 +3,13 @@ module.exports = {
   ci: {
     collect: {
       url: [
-        'http://localhost:3000',
-        'http://localhost:3000/blog',
-        'http://localhost:3000/recommendations',
-        'http://localhost:3000/admin'
+        process.env.LHCI_URL_STAGING || 'http://localhost:3000',
+        (process.env.LHCI_URL_STAGING || 'http://localhost:3000') + '/blog',
+        (process.env.LHCI_URL_STAGING || 'http://localhost:3000') + '/recommendations',
+        // Skip auth-gated pages when running in CI with staging URL
+        ...(process.env.LHCI_URL_STAGING ? [] : [(process.env.LHCI_URL_STAGING || 'http://localhost:3000') + '/admin'])
       ],
-      startServerCommand: 'yarn start',
+      startServerCommand: process.env.LHCI_URL_STAGING ? undefined : 'yarn start',
       numberOfRuns: 3
     },
     assert: {

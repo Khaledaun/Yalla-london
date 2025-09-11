@@ -31,7 +31,8 @@ import {
   Eye,
   Palette,
   Calendar,
-  Settings
+  Settings,
+  BookOpen
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { SeoManagementDashboard } from '@/components/admin/seo-dashboard'
@@ -45,6 +46,7 @@ import { SocialEmbedsManager } from '@/components/admin/social-embeds-manager'
 import { MediaLibrary } from '@/components/admin/media-library'
 import { HomepageBuilder } from '@/components/admin/homepage-builder'
 import { DatabaseBackupManager } from '@/components/admin/database-backup-manager'
+import { TopicManager } from '@/components/admin/phase4b/TopicManager'
 
 interface GeneratedContent {
   id: string
@@ -184,10 +186,14 @@ export function EnhancedAdminDashboard() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-6">
         <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12 mb-8">
+          <TabsList className="grid w-full grid-cols-6 lg:grid-cols-13 mb-8">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               {language === 'en' ? 'Overview' : 'نظرة عامة'}
+            </TabsTrigger>
+            <TabsTrigger value="topics" className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              {language === 'en' ? 'Topics' : 'المواضيع'}
             </TabsTrigger>
             <TabsTrigger value="automation" className="flex items-center gap-2">
               <Sparkles className="h-4 w-4" />
@@ -566,6 +572,10 @@ export function EnhancedAdminDashboard() {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="topics">
+            <TopicManager />
           </TabsContent>
 
           <TabsContent value="automation">

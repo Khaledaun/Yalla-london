@@ -27,7 +27,6 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { isFeatureEnabled } from '@/lib/feature-flags';
 import { SeoManagementDashboard } from './seo-dashboard';
 
 interface SeoStats {
@@ -57,7 +56,9 @@ interface InternalLinkIssue {
 }
 
 export function ComprehensiveSeoPanel() {
-  if (!isFeatureEnabled('SEO')) {
+  // Check SEO feature flag directly  
+  const seoEnabled = process.env.NEXT_PUBLIC_FEATURE_SEO === '1';
+  if (!seoEnabled) {
     return (
       <Card>
         <CardContent className="text-center py-12">

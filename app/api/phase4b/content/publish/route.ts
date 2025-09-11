@@ -4,8 +4,8 @@
  * Automated publishing with SEO validation
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeatureFlags } from '@/config/feature-flags';
-import { prisma } from '@/lib/prisma';
+import { getFeatureFlags } from '@/lib/feature-flags';
+import { prisma } from '@/lib/db';
 
 interface PublishRequest {
   contentId: string;

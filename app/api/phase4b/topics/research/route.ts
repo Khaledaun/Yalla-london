@@ -41,7 +41,30 @@ const PERPLEXITY_BASE_URL = 'https://api.perplexity.ai/chat/completions';
 
 // Enhanced topic research prompt templates for comprehensive SEO/AEO optimization
 const TOPIC_PROMPTS = {
-  weekly_mixed: `Generate 30 London-focused topics for content planning (15 date-relevant for next 2 weeks, 15 evergreen). Include comprehensive SEO/AEO data:
+  weekly_mixed: (locale: 'en' | 'ar') => locale === 'ar' ? 
+    `أنشئ 30 موضوعًا متعلقًا بلندن لتخطيط المحتوى (15 موضوعًا مرتبطًا بالتاريخ للأسبوعين القادمين، 15 موضوعًا دائم الخضرة). يشمل بيانات SEO/AEO شاملة:
+
+المواضيع المرتبطة بالتاريخ (15): التركيز على الأحداث القادمة، المعالم الموسمية، الأحداث الجارية
+المواضيع دائمة الخضرة (15): محتوى لندن الخالد - الجواهر المخفية، التجارب الثقافية، أدلة السفر
+
+لكل موضوع، قدم:
+- title: عنوان محسن لـ SEO
+- description: ملخص من 2-3 جمل
+- category: london_travel, london_events, london_football, london_dining, london_culture, london_shopping, إلخ
+- priority: 1-10 (مرتبط بالتاريخ = 8-10، دائم الخضرة = 5-8)
+- keywords: مصفوفة من 5-8 كلمات مفتاحية أساسية وطويلة الذيل
+- searchIntent: informational, commercial, navigational, أو local
+- locale: 'ar'
+- authorityLinks: مصفوفة من 3-4 مصادر موثقة [{url, title, sourceDomain}]
+- longtails: مصفوفة من 5+ كلمات مفتاحية طويلة الذيل
+- questions: مصفوفة من 3-5 أسئلة يطرحها الناس عادة
+- suggestedPageType: guide, place, event, list, faq, news, itinerary
+- confidenceScore: 0.7-1.0 حسب حجم البحث/الصلة
+- picanticDescription: للمحتوى الرياضي فقط - تحليل مفصل للمباراة/اللاعب
+
+تنسيق كمصفوفة JSON صالحة. إعطاء الأولوية للمحتوى الفريد والقابل للبحث والخاص بلندن.` :
+    
+    `Generate 30 London-focused topics for content planning (15 date-relevant for next 2 weeks, 15 evergreen). Include comprehensive SEO/AEO data:
 
 Date-relevant topics (15): Focus on upcoming events, seasonal attractions, current happenings
 Evergreen topics (15): Timeless London content - hidden gems, cultural experiences, travel guides
@@ -53,7 +76,7 @@ For each topic, provide:
 - priority: 1-10 (date-relevant = 8-10, evergreen = 5-8)
 - keywords: Array of 5-8 primary & long-tail keywords
 - searchIntent: informational, commercial, navigational, or local
-- locale: 'en' or 'ar'
+- locale: 'en'
 - authorityLinks: Array of 3-4 authority sources [{url, title, sourceDomain}]
 - longtails: Array of 5+ long-tail keyword variations
 - questions: Array of 3-5 PAA-style questions people ask
@@ -63,7 +86,19 @@ For each topic, provide:
 
 Format as valid JSON array. Prioritize unique, searchable, and London-specific content.`,
 
-  london_travel: `Find 15 trending London travel topics for ${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}. Focus on:
+  london_travel: (locale: 'en' | 'ar') => locale === 'ar' ?
+    `ابحث عن 15 موضوعًا رائجًا للسفر في لندن لشهر ${new Date().toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' })}. التركيز على:
+- الجواهر المخفية والأسرار المحلية
+- المعالم والأحداث الموسمية
+- الأنشطة صديقة الميزانية
+- التجارب الثقافية
+- اتجاهات الطعام والمطاعم
+
+لكل موضوع قدم: title, description, category, priority (1-10), keywords (مصفوفة), searchIntent, locale, authorityLinks (3-4 مصادر), longtails (5+ كلمات مفتاحية), questions (3-5 PAA), suggestedPageType, confidenceScore.
+
+تنسيق كمصفوفة JSON مع التركيز على تحسين SEO/AEO.` :
+    
+    `Find 15 trending London travel topics for ${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}. Focus on:
 - Hidden gems and local secrets
 - Seasonal attractions and events  
 - Budget-friendly activities
@@ -74,7 +109,19 @@ For each topic provide: title, description, category, priority (1-10), keywords 
 
 Format as JSON array with SEO/AEO optimization focus.`,
 
-  london_events: `Research 15 upcoming London events and cultural happenings for the next 2 weeks. Include:
+  london_events: (locale: 'en' | 'ar') => locale === 'ar' ?
+    `ابحث عن 15 حدثًا قادمًا في لندن والأحداث الثقافية للأسبوعين القادمين. يشمل:
+- معارض الفن والعروض المتحفية
+- العروض المسرحية والموسيقية
+- مهرجانات الطعام والأسواق
+- الأحداث المجتمعية واللقاءات
+- الاحتفالات الموسمية
+
+لكل موضوع قدم: title, description, category, priority (1-10), keywords (مصفوفة), searchIntent, locale, authorityLinks (3-4 مصادر), longtails (5+ كلمات مفتاحية), questions (3-5 PAA), suggestedPageType, confidenceScore.
+
+تنسيق كمصفوفة JSON مع التركيز على تحسين SEO/AEO.` :
+    
+    `Research 15 upcoming London events and cultural happenings for the next 2 weeks. Include:
 - Art exhibitions and museum shows
 - Theatre and music performances
 - Food festivals and markets
@@ -85,7 +132,19 @@ For each topic provide: title, description, category, priority (1-10), keywords 
 
 Format as JSON array with SEO/AEO optimization focus.`,
 
-  london_football: `Find 15 current London football stories and upcoming matches. Cover:
+  london_football: (locale: 'en' | 'ar') => locale === 'ar' ?
+    `ابحث عن 15 قصة كرة قدم حالية في لندن والمباريات القادمة. يشمل:
+- أندية لندن في الدوري الإنجليزي الممتاز (أرسنال، تشيلسي، توتنهام، إلخ)
+- معاينات المباريات والتحليل
+- أخبار اللاعبين والانتقالات
+- تجارب المشجعين وأدلة يوم المباراة
+- اللحظات التاريخية والمنافسات
+
+لكل موضوع قدم: title, description, category, priority (1-10), keywords (مصفوفة), searchIntent, locale, authorityLinks (3-4 مصادر), longtails (5+ كلمات مفتاحية), questions (3-5 PAA), suggestedPageType, confidenceScore, picanticDescription (تحليل رياضي مفصل).
+
+تنسيق كمصفوفة JSON مع التركيز على تحسين SEO/AEO.` :
+    
+    `Find 15 current London football stories and upcoming matches. Cover:
 - Premier League London clubs (Arsenal, Chelsea, Tottenham, etc.)
 - Match previews and analysis
 - Player news and transfers
@@ -96,7 +155,19 @@ For each topic provide: title, description, category, priority (1-10), keywords 
 
 Format as JSON array with SEO/AEO optimization focus.`,
 
-  london_hidden_gems: `Discover 15 lesser-known London attractions and experiences. Include:
+  london_hidden_gems: (locale: 'en' | 'ar') => locale === 'ar' ?
+    `اكتشف 15 معلمًا أقل شهرة في لندن وتجارب. يشمل:
+- الحدائق السرية والأماكن الهادئة
+- المتاجر والبوتيكات المستقلة
+- الحانات المحلية ذات الطابع الخاص
+- الثقافة تحت الأرض والثقافات الفرعية
+- الجواهر المعمارية ونقاط المشاهدة
+
+لكل موضوع قدم: title, description, category, priority (1-10), keywords (مصفوفة), searchIntent, locale, authorityLinks (3-4 مصادر), longtails (5+ كلمات مفتاحية), questions (3-5 PAA), suggestedPageType, confidenceScore.
+
+تنسيق كمصفوفة JSON مع التركيز على تحسين SEO/AEO.` :
+    
+    `Discover 15 lesser-known London attractions and experiences. Include:
 - Secret gardens and quiet spaces
 - Independent shops and boutiques
 - Local pubs with character
@@ -191,7 +262,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Get appropriate prompt
-    const prompt = TOPIC_PROMPTS[category as keyof typeof TOPIC_PROMPTS];
+    const promptFunction = TOPIC_PROMPTS[category as keyof typeof TOPIC_PROMPTS];
+    if (!promptFunction) {
+      return NextResponse.json(
+        { error: 'Invalid category specified' },
+        { status: 400 }
+      );
+    }
+    
+    const prompt = typeof promptFunction === 'function' 
+      ? promptFunction(locale as 'en' | 'ar' || 'en')
+      : promptFunction;
     
     // Call Perplexity API
     const suggestions = await callPerplexityAPI(prompt);

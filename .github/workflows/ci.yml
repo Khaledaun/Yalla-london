@@ -304,9 +304,9 @@ jobs:
           fi
           
           # Check for hardcoded credentials but exclude legitimate config patterns
-          if grep -rE "(password|secret|token|credential)\s*[:=]\s*['\"][^'\"]{8,}" \
+          SCAN_RESULTS=$(grep -rE "(password|secret|token|credential)\s*[:=]\s*['\"][^'\"]{8,}" \
                --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
-               ${{ env.APP_DIR }} | \
+               --exclude-dir=node_modules --exclude-dir=.next ${{ env.APP_DIR }} | \
                grep -v ".example" | \
                grep -v "test-secret" | \
                grep -v "@types" | \
@@ -317,8 +317,11 @@ jobs:
                grep -v "console.error" | \
                grep -v "key.*labelEn" | \
                grep -v "key.*href" | \
-               grep -v "key.*ENABLED" | head -5; then
+               grep -v "key.*ENABLED" | head -5)
+          
+          if [ -n "$SCAN_RESULTS" ]; then
             echo "❌ Found potential hardcoded credentials!"
+            echo "$SCAN_RESULTS"
             exit 1
           fi
           

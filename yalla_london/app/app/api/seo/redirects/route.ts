@@ -27,7 +27,7 @@ interface RedirectRule {
 }
 
 export async function GET(request: NextRequest) {
-  if (!process.env.FEATURE_SEO === '1') {
+  if (process.env.FEATURE_SEO !== '1') {
     return NextResponse.json(
       { error: 'SEO features disabled' }, 
       { status: 403 }
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  if (!process.env.FEATURE_SEO === '1') {
+  if (process.env.FEATURE_SEO !== '1') {
     return NextResponse.json(
       { error: 'SEO features disabled' }, 
       { status: 403 }
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  if (!process.env.FEATURE_SEO === '1') {
+  if (process.env.FEATURE_SEO !== '1') {
     return NextResponse.json(
       { error: 'SEO features disabled' }, 
       { status: 403 }
@@ -133,7 +133,7 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  if (!process.env.FEATURE_SEO === '1') {
+  if (process.env.FEATURE_SEO !== '1') {
     return NextResponse.json(
       { error: 'SEO features disabled' }, 
       { status: 403 }

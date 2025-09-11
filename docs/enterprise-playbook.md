@@ -1000,10 +1000,25 @@ yarn prisma migrate deploy --verbose
 #### Performance Issues
 
 **Issue**: Lighthouse performance score below threshold
+
+The Lighthouse CI is configured with balanced thresholds for this luxury content platform:
+- **Performance**: ≥0.75 (content-heavy pages with rich visuals)
+- **Accessibility**: ≥0.85 (high standards with flexibility)
+- **Best Practices**: ≥0.85 (realistic for modern web apps)
+- **SEO**: ≥0.9 (maintain high discoverability standards)
+
+**Troubleshooting steps**:
 1. **Check Bundle Size**: `yarn build` and review `.next/static/`
 2. **Optimize Images**: Ensure proper image formats and sizes
 3. **Review JavaScript**: Check for unnecessary client-side code
 4. **Database Queries**: Review API endpoints for N+1 queries
+5. **Feature Flags**: Disable non-essential features during testing:
+   ```bash
+   FEATURE_ANALYTICS_ENABLED=false
+   FEATURE_SOCIAL_EMBEDS=false
+   FEATURE_ADVANCED_ANIMATIONS=false
+   ```
+6. **CI Configuration**: Lighthouse config in `.github/workflows/ci.yml` under `Configure Lighthouse CI for staging`
 
 **Issue**: CI/CD pipeline timeout
 1. **Check Dependencies**: `yarn install` may be slow
@@ -1042,7 +1057,11 @@ yarn upgrade [package-name]
 
 #### Recommended Alerting Rules
 - Failed migration deployments (immediate)
-- Lighthouse scores below 0.85 (warning)
+- Lighthouse scores below thresholds:
+  - Performance <0.75 (warning)
+  - Accessibility <0.85 (critical)
+  - Best Practices <0.85 (warning)
+  - SEO <0.9 (critical)
 - Security scan failures (immediate)
 - Build failures on main branch (immediate)
 - Dependency vulnerabilities (daily summary)

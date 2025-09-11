@@ -4,8 +4,8 @@
  * Automated analytics data collection and reporting
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeatureFlags } from '@/config/feature-flags';
-import { prisma } from '@/lib/prisma';
+import { getFeatureFlags } from '@/lib/feature-flags';
+import { prisma } from '@/lib/db';
 
 interface AnalyticsMetrics {
   pageViews: number;

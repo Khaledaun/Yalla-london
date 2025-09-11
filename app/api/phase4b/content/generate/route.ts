@@ -4,8 +4,8 @@
  * AI-powered content creation from approved topics
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeatureFlags } from '@/config/feature-flags';
-import { prisma } from '@/lib/prisma';
+import { getFeatureFlags } from '@/lib/feature-flags';
+import { prisma } from '@/lib/db';
 import { getBrandConfig } from '@/lib/brand-config';
 
 interface ContentGenerationRequest {

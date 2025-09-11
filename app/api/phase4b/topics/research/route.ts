@@ -4,8 +4,8 @@
  * Perplexity-powered topic discovery for London content
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeatureFlags } from '@/config/feature-flags';
-import { prisma } from '@/lib/prisma';
+import { getFeatureFlags } from '@/lib/feature-flags';
+import { prisma } from '@/lib/db';
 
 interface PerplexityResponse {
   choices: Array<{
@@ -23,47 +23,89 @@ interface TopicSuggestion {
   keywords: string[];
   searchIntent: 'informational' | 'commercial' | 'navigational' | 'local';
   locale: 'en' | 'ar';
+  authorityLinks?: Array<{
+    url: string;
+    title: string;
+    sourceDomain: string;
+  }>;
+  picanticDescription?: string; // For sports content
+  longtails?: string[]; // Long-tail keywords
+  questions?: string[]; // PAA-style questions
+  suggestedPageType?: string; // guide, place, event, list, faq, news, itinerary
+  confidenceScore?: number; // 0.0 - 1.0
+  // Additional fields for future schema extension
+  [key: string]: any;
 }
 
 const PERPLEXITY_BASE_URL = 'https://api.perplexity.ai/chat/completions';
 
-// Topic research prompt templates
+// Enhanced topic research prompt templates for comprehensive SEO/AEO optimization
 const TOPIC_PROMPTS = {
-  london_travel: `Find 5 trending London travel topics for ${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}. Focus on:
+  weekly_mixed: `Generate 30 London-focused topics for content planning (15 date-relevant for next 2 weeks, 15 evergreen). Include comprehensive SEO/AEO data:
+
+Date-relevant topics (15): Focus on upcoming events, seasonal attractions, current happenings
+Evergreen topics (15): Timeless London content - hidden gems, cultural experiences, travel guides
+
+For each topic, provide:
+- title: SEO-optimized title
+- description: 2-3 sentence summary
+- category: london_travel, london_events, london_football, london_dining, london_culture, london_shopping, etc.
+- priority: 1-10 (date-relevant = 8-10, evergreen = 5-8)
+- keywords: Array of 5-8 primary & long-tail keywords
+- searchIntent: informational, commercial, navigational, or local
+- locale: 'en' or 'ar'
+- authorityLinks: Array of 3-4 authority sources [{url, title, sourceDomain}]
+- longtails: Array of 5+ long-tail keyword variations
+- questions: Array of 3-5 PAA-style questions people ask
+- suggestedPageType: guide, place, event, list, faq, news, itinerary
+- confidenceScore: 0.7-1.0 based on search volume/relevance
+- picanticDescription: For sports content only - detailed match/player analysis
+
+Format as valid JSON array. Prioritize unique, searchable, and London-specific content.`,
+
+  london_travel: `Find 15 trending London travel topics for ${new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}. Focus on:
 - Hidden gems and local secrets
 - Seasonal attractions and events  
 - Budget-friendly activities
 - Cultural experiences
 - Food and dining trends
 
-Format as JSON array with: title, description, category, priority (1-10), keywords (array), searchIntent, locale.`,
+For each topic provide: title, description, category, priority (1-10), keywords (array), searchIntent, locale, authorityLinks (3-4 sources), longtails (5+ keywords), questions (3-5 PAA), suggestedPageType, confidenceScore.
 
-  london_events: `Research upcoming London events and cultural happenings for the next 2 weeks. Include:
+Format as JSON array with SEO/AEO optimization focus.`,
+
+  london_events: `Research 15 upcoming London events and cultural happenings for the next 2 weeks. Include:
 - Art exhibitions and museum shows
 - Theatre and music performances
 - Food festivals and markets
 - Community events and meetups
 - Seasonal celebrations
 
-Format as JSON array with: title, description, category, priority (1-10), keywords (array), searchIntent, locale.`,
+For each topic provide: title, description, category, priority (1-10), keywords (array), searchIntent, locale, authorityLinks (3-4 sources), longtails (5+ keywords), questions (3-5 PAA), suggestedPageType, confidenceScore.
 
-  london_football: `Find current London football stories and upcoming matches. Cover:
+Format as JSON array with SEO/AEO optimization focus.`,
+
+  london_football: `Find 15 current London football stories and upcoming matches. Cover:
 - Premier League London clubs (Arsenal, Chelsea, Tottenham, etc.)
 - Match previews and analysis
 - Player news and transfers
 - Fan experiences and matchday guides
 - Historical moments and rivalries
 
-Format as JSON array with: title, description, category, priority (1-10), keywords (array), searchIntent, locale.`,
+For each topic provide: title, description, category, priority (1-10), keywords (array), searchIntent, locale, authorityLinks (3-4 sources), longtails (5+ keywords), questions (3-5 PAA), suggestedPageType, confidenceScore, picanticDescription (detailed sports analysis).
 
-  london_hidden_gems: `Discover lesser-known London attractions and experiences. Include:
+Format as JSON array with SEO/AEO optimization focus.`,
+
+  london_hidden_gems: `Discover 15 lesser-known London attractions and experiences. Include:
 - Secret gardens and quiet spaces
 - Independent shops and boutiques
 - Local pubs with character
 - Underground culture and subcultures
 - Architectural gems and viewpoints
 
-Format as JSON array with: title, description, category, priority (1-10), keywords (array), searchIntent, locale.`
+For each topic provide: title, description, category, priority (1-10), keywords (array), searchIntent, locale, authorityLinks (3-4 sources), longtails (5+ keywords), questions (3-5 PAA), suggestedPageType, confidenceScore.
+
+Format as JSON array with SEO/AEO optimization focus.`
 };
 
 async function callPerplexityAPI(prompt: string): Promise<TopicSuggestion[]> {
@@ -137,7 +179,10 @@ export async function POST(request: NextRequest) {
     const { category, locale } = await request.json();
     
     // Validate category
-    const validCategories = ['london_travel', 'london_events', 'london_football', 'london_hidden_gems'];
+    const validCategories = [
+      'weekly_mixed', 'london_travel', 'london_events', 'london_football', 
+      'london_hidden_gems', 'london_dining', 'london_culture', 'london_shopping'
+    ];
     if (!validCategories.includes(category)) {
       return NextResponse.json(
         { error: 'Invalid category specified' },
@@ -151,24 +196,29 @@ export async function POST(request: NextRequest) {
     // Call Perplexity API
     const suggestions = await callPerplexityAPI(prompt);
     
-    // Save suggestions to database
+    // Save suggestions to database with enhanced field mapping
     const savedTopics = [];
     for (const suggestion of suggestions) {
       try {
         const topic = await prisma.topicProposal.create({
           data: {
-            title: suggestion.title,
-            description: suggestion.description,
-            category: suggestion.category,
-            priority: suggestion.priority,
-            keywords: suggestion.keywords,
-            searchIntent: suggestion.searchIntent,
-            locale: locale || 'en',
-            status: 'pending',
-            source: 'perplexity',
-            metadata: {
+            locale: locale || suggestion.locale || 'en',
+            primary_keyword: suggestion.title, // Using title as primary keyword for now
+            longtails: suggestion.longtails || suggestion.keywords || [],
+            featured_longtails: suggestion.longtails ? suggestion.longtails.slice(0, 2) : suggestion.keywords?.slice(0, 2) || [],
+            questions: suggestion.questions || [],
+            authority_links_json: suggestion.authorityLinks || [],
+            intent: suggestion.searchIntent || 'informational',
+            suggested_page_type: suggestion.suggestedPageType || 'guide',
+            confidence_score: suggestion.confidenceScore || 0.8,
+            status: 'proposed',
+            source_weights_json: {
+              source: 'perplexity',
+              category: category,
               generated_at: new Date().toISOString(),
-              prompt_category: category,
+              priority: suggestion.priority,
+              // Store all original suggestion data for extensibility
+              original_data: suggestion,
             },
           },
         });
@@ -223,8 +273,8 @@ export async function GET(request: NextRequest) {
     const topics = await prisma.topicProposal.findMany({
       where: whereClause,
       orderBy: [
-        { priority: 'desc' },
-        { createdAt: 'desc' }
+        { confidence_score: 'desc' },
+        { created_at: 'desc' }
       ],
       take: limit,
     });

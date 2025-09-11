@@ -1,10 +1,12 @@
 node_modules/
 .next/
 .env*
+!.env.example
 *.zip
 node_modules/
 .next/
 .env*
+!.env.example
 *.zip
 
 # local caches / tooling

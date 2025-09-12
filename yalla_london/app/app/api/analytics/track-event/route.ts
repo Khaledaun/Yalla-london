@@ -1,9 +1,8 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-
-
 import { NextRequest, NextResponse } from 'next/server'
+import { analyticsService } from '@/lib/analytics';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +12,8 @@ export async function POST(request: NextRequest) {
       label, 
       value,
       userId,
-      sessionId 
+      sessionId,
+      properties 
     } = await request.json()
 
     if (!event) {
@@ -23,21 +23,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Log event for server-side tracking
-    console.log('Analytics Event:', {
-      event,
+    // Track event using enterprise analytics service
+    await analyticsService.trackEvent({
+      eventName: event,
       category,
       label,
       value,
       userId,
       sessionId,
-      timestamp: new Date().toISOString(),
-      userAgent: request.headers.get('user-agent'),
-      referer: request.headers.get('referer'),
-    })
-
-    // Here you could send to additional analytics services
-    // such as Mixpanel, Amplitude, or your own analytics database
+      properties
+    }, request);
 
     return NextResponse.json({
       success: true,

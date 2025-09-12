@@ -181,11 +181,11 @@ async function getUsageStatistics(startDate: Date, endDate: Date) {
       user: {
         totalLogins: userLogins
       },
-      topContent: topContent.map(item => ({
+      topContent: topContent.map((item: any) => ({
         page: (item.properties as any)?.page || 'unknown',
         views: item._count.id
       })),
-      featureUsage: featureUsage.map(item => ({
+      featureUsage: featureUsage.map((item: any) => ({
         feature: item.eventName,
         usage: item._count.id
       }))

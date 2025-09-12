@@ -128,27 +128,27 @@ async function getErrorStatistics(startDate: Date, endDate: Date, severity?: str
     const errorRate = (totalErrors / totalRequestCount) * 100;
 
     // Analyze error patterns
-    const errorsByAction = failedAudits.reduce((acc, log) => {
+    const errorsByAction = failedAudits.reduce((acc: Record<string, number>, log: any) => {
       acc[log.action] = (acc[log.action] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
 
-    const errorsByEvent = systemErrors.reduce((acc, event) => {
+    const errorsByEvent = systemErrors.reduce((acc: Record<string, number>, event: any) => {
       acc[event.eventName] = (acc[event.eventName] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
 
     const topErrorTypes = [
       ...Object.entries(errorsByAction).map(([type, count]) => ({ type: `audit_${type}`, count })),
       ...Object.entries(errorsByEvent).map(([type, count]) => ({ type, count }))
     ]
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => (b.count as number) - (a.count as number))
       .slice(0, 10);
 
     // Get affected users
     const affectedUserIds = new Set([
-      ...failedAudits.map(log => log.userId).filter(Boolean),
-      ...systemErrors.map(event => event.userId).filter(Boolean)
+      ...failedAudits.map((log: any) => log.userId).filter(Boolean),
+      ...systemErrors.map((event: any) => event.userId).filter(Boolean)
     ]);
 
     // Calculate daily error trends
@@ -173,7 +173,7 @@ async function getErrorStatistics(startDate: Date, endDate: Date, severity?: str
       affectedUsers: affectedUserIds.size,
       systemAvailability,
       details: {
-        auditFailures: failedAudits.slice(0, 50).map(log => ({
+        auditFailures: failedAudits.slice(0, 50).map((log: any) => ({
           timestamp: log.timestamp,
           action: log.action,
           resource: log.resource,
@@ -181,7 +181,7 @@ async function getErrorStatistics(startDate: Date, endDate: Date, severity?: str
           errorMessage: log.errorMessage,
           ipAddress: log.ipAddress
         })),
-        systemErrors: systemErrors.slice(0, 50).map(event => ({
+        systemErrors: systemErrors.slice(0, 50).map((event: any) => ({
           timestamp: event.timestamp,
           eventName: event.eventName,
           category: event.category,

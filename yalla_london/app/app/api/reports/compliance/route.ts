@@ -121,11 +121,11 @@ async function getComplianceData(startDate: Date, endDate: Date, complianceType?
     }
 
     // Analyze access patterns
-    const userAccessEvents = auditEvents.filter(event => 
+    const userAccessEvents = auditEvents.filter((event: any) => 
       ['login', 'logout', 'access'].includes(event.action)
     );
 
-    const dataExportEvents = auditEvents.filter(event => 
+    const dataExportEvents = auditEvents.filter((event: any) => 
       event.action === 'export' || event.resource?.includes('report')
     );
 
@@ -154,7 +154,7 @@ async function getComplianceData(startDate: Date, endDate: Date, complianceType?
       privilegeEscalations: privilegeEscalations.length,
       suspiciousActivities: suspiciousActivities.length,
       complianceScore,
-      auditTrail: filteredEvents.slice(0, 100).map(event => ({
+      auditTrail: filteredEvents.slice(0, 100).map((event: any) => ({
         timestamp: event.timestamp,
         action: event.action,
         resource: event.resource,
@@ -217,20 +217,20 @@ function detectPrivilegeEscalations(events: any[]) {
   const escalations = [];
   
   // Group events by user
-  const userEvents = events.reduce((acc, event) => {
+  const userEvents = events.reduce((acc: Record<string, any[]>, event: any) => {
     if (event.userId) {
       if (!acc[event.userId]) acc[event.userId] = [];
       acc[event.userId].push(event);
     }
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {});
 
   for (const [userId, userEventList] of Object.entries(userEvents)) {
     // Look for access denied followed by successful access to admin resources
-    const accessDenied = userEventList.filter(e => 
+    const accessDenied = (userEventList as any[]).filter((e: any) => 
       e.action === 'access_denied' || e.success === false
     );
-    const adminAccess = userEventList.filter(e => 
+    const adminAccess = (userEventList as any[]).filter((e: any) => 
       e.resource?.includes('admin') || e.action === 'manage_system'
     );
 
@@ -243,7 +243,7 @@ function detectPrivilegeEscalations(events: any[]) {
     }
 
     // Look for multiple failed attempts followed by success
-    const failures = userEventList.filter(e => e.success === false);
+    const failures = (userEventList as any[]).filter((e: any) => e.success === false);
     if (failures.length >= 3) {
       escalations.push({
         userId,
@@ -260,33 +260,34 @@ function detectSuspiciousActivities(events: any[]) {
   const suspicious = [];
 
   // Detect unusual access patterns
-  const ipGroups = events.reduce((acc, event) => {
+  const ipGroups = events.reduce((acc: Record<string, any[]>, event: any) => {
     if (event.ipAddress && event.ipAddress !== 'unknown') {
       if (!acc[event.ipAddress]) acc[event.ipAddress] = [];
       acc[event.ipAddress].push(event);
     }
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {});
 
   // Flag IPs with high activity
   for (const [ip, ipEvents] of Object.entries(ipGroups)) {
-    if (ipEvents.length > 100) { // Threshold for suspicious activity
+    const ipEventList = ipEvents as any[];
+    if (ipEventList.length > 100) { // Threshold for suspicious activity
       suspicious.push({
         type: 'high_activity_ip',
         ip,
-        eventCount: ipEvents.length,
-        events: ipEvents.slice(0, 10)
+        eventCount: ipEventList.length,
+        events: ipEventList.slice(0, 10)
       });
     }
 
     // Flag multiple user accounts from same IP
-    const uniqueUsers = new Set(ipEvents.map(e => e.userId).filter(Boolean));
+    const uniqueUsers = new Set(ipEventList.map((e: any) => e.userId).filter(Boolean));
     if (uniqueUsers.size > 5) {
       suspicious.push({
         type: 'multiple_users_same_ip',
         ip,
         userCount: uniqueUsers.size,
-        events: ipEvents.slice(0, 10)
+        events: ipEventList.slice(0, 10)
       });
     }
   }
@@ -340,13 +341,13 @@ async function getAccessControlSummary(startDate: Date, endDate: Date) {
     }
   });
 
-  const roleDistribution = users.reduce((acc, user) => {
+  const roleDistribution = users.reduce((acc: Record<string, number>, user: any) => {
     acc[user.role] = (acc[user.role] || 0) + 1;
     return acc;
-  }, {} as Record<string, number>);
+  }, {});
 
-  const inactiveUsers = users.filter(user => !user.isActive).length;
-  const staleUsers = users.filter(user => 
+  const inactiveUsers = users.filter((user: any) => !user.isActive).length;
+  const staleUsers = users.filter((user: any) => 
     !user.lastLoginAt || user.lastLoginAt < new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
   ).length;
 

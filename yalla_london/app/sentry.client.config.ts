@@ -73,34 +73,12 @@ if (SENTRY_DSN) {
     
     // Client-side integrations
     integrations: [
-      // Browser integrations
-      new Sentry.Integrations.BrowserTracing({
-        // Performance monitoring for navigation
-        routingInstrumentation: Sentry.nextRouterInstrumentation({
-          // Add custom route labeling
-          instrumentPageLoad: true,
-          instrumentNavigation: true
-        }),
-        
-        // Enhanced request tracking
-        traceFetch: true,
-        traceXHR: true,
-        
-        // Custom instrumentation
-        beforeNavigate: context => {
-          return {
-            ...context,
-            tags: {
-              ...context.tags,
-              page_type: context.name?.includes('/admin/') ? 'admin' : 'public'
-            }
-          };
-        }
-      }),
+      // Browser integrations - simplified for compatibility
+      Sentry.browserTracingIntegration(),
       
       // Session replay integration (if enabled)
       ...(parseFloat(process.env.NEXT_PUBLIC_SENTRY_REPLAY_SAMPLE_RATE || '0') > 0 ? [
-        new Sentry.Replay({
+        Sentry.replayIntegration({
           // Mask sensitive data
           maskAllText: true,
           maskAllInputs: true,
@@ -141,11 +119,7 @@ if (SENTRY_DSN) {
     // Debug mode for development
     debug: process.env.NODE_ENV === 'development',
     
-    // Capture unhandled promise rejections
-    captureUnhandledRejections: true,
-    
-    // Additional client configuration
-    autoSessionTracking: true,
+    // Additional client configuration - removed deprecated options for v8 compatibility
     
     // Custom event processors
     beforeSendTransaction(event) {

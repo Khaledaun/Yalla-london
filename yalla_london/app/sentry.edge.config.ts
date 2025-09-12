@@ -45,8 +45,7 @@ if (SENTRY_DSN) {
     
     // Lightweight integrations for edge runtime
     integrations: [
-      new Sentry.Integrations.Http({
-        tracing: true,
+      Sentry.httpIntegration({
         breadcrumbs: false // Reduce overhead
       })
     ],

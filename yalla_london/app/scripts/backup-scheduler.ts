@@ -10,7 +10,7 @@ import { promisify } from 'util';
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import path from 'path';
 import { logAuditEvent } from '../lib/rbac';
-import { performanceMonitor } from '../lib/performance-monitoring';
+import { captureError, performanceMonitor } from '../lib/performance-monitoring';
 
 const execAsync = promisify(exec);
 
@@ -19,7 +19,7 @@ interface BackupConfig {
   s3Bucket?: string;
   s3Prefix?: string;
   retentionDays: number;
-  environment: 'development' | 'staging' | 'production';
+  environment: 'development' | 'staging' | 'production' | 'test';
 }
 
 interface BackupSchedule {
@@ -36,6 +36,11 @@ interface BackupSchedule {
   production: {
     incremental: string;
     full: string;
+    retention: number;
+    enabled: boolean;
+  };
+  test: {
+    frequency: string;
     retention: number;
     enabled: boolean;
   };
@@ -81,6 +86,11 @@ class BackupScheduler {
         full: '0 0 * * 0', // Weekly on Sunday at midnight
         retention: 365 * 7, // 7 years for compliance
         enabled: process.env.BACKUP_ENABLED !== 'false'
+      },
+      test: {
+        frequency: '0 3 * * *', // Daily at 3 AM  
+        retention: 1,
+        enabled: false // Disabled by default in test environment
       }
     };
 
@@ -90,7 +100,7 @@ class BackupScheduler {
   }
 
   private getRetentionDays(): number {
-    const env = process.env.NODE_ENV;
+    const env = process.env.NODE_ENV as 'development' | 'staging' | 'production' | 'test' | undefined;
     const customRetention = process.env.BACKUP_RETENTION_DAYS;
     
     if (customRetention) {
@@ -102,6 +112,8 @@ class BackupScheduler {
         return 365 * 7; // 7 years
       case 'staging':
         return 30;
+      case 'test':
+        return 1;
       default:
         return 7;
     }
@@ -131,28 +143,31 @@ class BackupScheduler {
       this.log('❌ DATABASE_URL not configured, backup scheduler disabled', 'error');
       return;
     }
-
-    const envConfig = this.schedule[this.config.environment];
     
     if (this.config.environment === 'production') {
       // Production has both incremental and full backups
-      if (envConfig.enabled) {
+      const prodConfig = this.schedule.production;
+      if (prodConfig.enabled) {
         this.log(`🚀 Initializing production backup scheduler...`);
-        this.log(`📅 Incremental backups: ${envConfig.incremental}`);
-        this.log(`📅 Full backups: ${envConfig.full}`);
+        this.log(`📅 Incremental backups: ${prodConfig.incremental}`);
+        this.log(`📅 Full backups: ${prodConfig.full}`);
         
         // Incremental backups
-        cron.schedule(envConfig.incremental, () => {
+        cron.schedule(prodConfig.incremental, () => {
           this.runScheduledBackup('incremental');
         });
         
         // Full backups
-        cron.schedule(envConfig.full, () => {
+        cron.schedule(prodConfig.full, () => {
           this.runScheduledBackup('full');
         });
       }
     } else {
-      // Development and staging use simple daily backups
+      // Development, staging, and test use simple daily backups
+      const envConfig = this.config.environment === 'development' ? this.schedule.development :
+                       this.config.environment === 'staging' ? this.schedule.staging :
+                       this.schedule.test;
+      
       if (envConfig.enabled) {
         this.log(`🚀 Initializing ${this.config.environment} backup scheduler...`);
         this.log(`📅 Backup frequency: ${envConfig.frequency}`);
@@ -233,7 +248,7 @@ class BackupScheduler {
         });
 
         // Send error to monitoring
-        await performanceMonitor.captureError(
+        await captureError(
           new Error(`Backup failed: ${result.error}`),
           {
             backup_type: type,

@@ -71,22 +71,19 @@ if (SENTRY_DSN) {
     // Integration configurations
     integrations: [
       // Enhanced HTTP integration for API monitoring
-      new Sentry.Integrations.Http({
-        tracing: true,
+      Sentry.httpIntegration({
         breadcrumbs: true
       }),
       
       // Console integration for capturing logs
-      new Sentry.Integrations.Console({
-        levels: ['error', 'warn']
-      }),
+      Sentry.consoleIntegration(),
       
       // Enhanced Node.js integrations
-      new Sentry.Integrations.OnUncaughtException({
+      Sentry.onUncaughtExceptionIntegration({
         exitEvenIfOtherHandlersAreRegistered: false
       }),
       
-      new Sentry.Integrations.OnUnhandledRejection({
+      Sentry.onUnhandledRejectionIntegration({
         mode: 'warn'
       })
     ],

@@ -23,7 +23,7 @@ export interface AnalyticsEvent {
   value?: number;
   userId?: string;
   sessionId?: string;
-  properties?: Record<string, any>;
+  properties?: any;
 }
 
 export interface PageView {
@@ -302,7 +302,7 @@ class EnterpriseAnalyticsService {
     metricName: string,
     value: number,
     unit?: string,
-    tags?: Record<string, any>
+    tags?: any
   ): Promise<void> {
     try {
       await prisma.systemMetrics.create({

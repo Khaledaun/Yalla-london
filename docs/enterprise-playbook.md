@@ -268,19 +268,359 @@ curl -X POST /api/internal/cron/audit-daily \
 3. **Admin Endpoints**: NextAuth session + admin role required
 4. **Internal Cron**: Bearer token with `CRON_SECRET`
 
+### Enhanced Role-Based Access Control (RBAC)
+
+The application implements a comprehensive RBAC system with three primary roles and granular permissions.
+
+#### Role Hierarchy
+
+**Admin (admin)**
+- Full system access and management
+- User management capabilities
+- All content and analytics permissions
+- System configuration and feature flag management
+- Audit log access and compliance reporting
+
+**Editor (editor)**
+- Content creation and editing
+- Content publishing capabilities
+- Analytics viewing
+- Limited user viewing (no management)
+
+**Viewer (viewer)**
+- Analytics viewing only
+- Report access
+- No content modification capabilities
+
+#### Permission System
+
+The system uses granular permissions that can be assigned to roles or individual users:
+
+**Content Management Permissions:**
+- `create_content` - Create new content
+- `edit_content` - Edit existing content
+- `delete_content` - Delete content
+- `publish_content` - Publish/unpublish content
+
+**User Management Permissions:**
+- `manage_users` - Create, edit, delete users and manage roles
+- `view_users` - View user information
+
+**System Administration Permissions:**
+- `manage_system` - System configuration and administration
+- `view_audit_logs` - Access to audit logs and compliance data
+- `manage_permissions` - Modify user roles and permissions
+- `manage_features` - Control feature flags and system features
+
+**Analytics and Reporting Permissions:**
+- `view_analytics` - Access to analytics dashboards
+- `export_data` - Export data and generate reports
+- `view_reports` - Access to usage, error, and compliance reports
+
+#### RBAC Implementation
+
+```typescript
+// Check user permission
+import { requirePermission, PERMISSIONS } from '@/lib/rbac';
+
+export const GET = async (request: NextRequest) => {
+  const authResult = await requirePermission(request, PERMISSIONS.VIEW_ANALYTICS);
+  if (authResult instanceof NextResponse) return authResult;
+  
+  const { user } = authResult;
+  // Continue with authorized request
+};
+```
+
+#### User Role Management
+
+Users are assigned roles in the database with the following schema:
+
+```sql
+-- User table includes RBAC fields
+ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'viewer';
+ALTER TABLE users ADD COLUMN permissions TEXT[] DEFAULT '{}';
+ALTER TABLE users ADD COLUMN isActive BOOLEAN DEFAULT true;
+ALTER TABLE users ADD COLUMN lastLoginAt TIMESTAMP;
+```
+
 ### Admin Access Control
 
+**Legacy Admin Control (Backward Compatible):**
 Admins are defined by email addresses in the `ADMIN_EMAILS` environment variable:
 
 ```bash
 ADMIN_EMAILS=admin@company.com,owner@company.com,super@company.com
 ```
 
+**New RBAC Admin Control:**
+Admins are users with `role = 'admin'` in the database. The system supports both methods for backward compatibility.
+
+### Session Security Enhancements
+
+**Session Configuration:**
+- Session duration: 24 hours (configurable)
+- JWT strategy with secure token handling
+- Automatic session renewal on activity
+- Session invalidation on logout
+
+**Security Features:**
+- IP address tracking and logging
+- User agent tracking for session security
+- Failed login attempt monitoring
+- Suspicious activity detection
+
+### Audit Trail and Compliance
+
+**Comprehensive Audit Logging:**
+All user actions are logged with the following information:
+- User ID and email
+- Action performed
+- Resource accessed
+- Success/failure status
+- IP address and user agent
+- Timestamp and additional context
+
+**Audit Log Categories:**
+- Authentication events (login, logout, failed attempts)
+- Authorization events (access granted/denied)
+- Data access and modification
+- Administrative actions
+- Export and reporting activities
+
+**Compliance Features:**
+- GDPR compliance tracking
+- Data export audit trails
+- User permission change history
+- Security event monitoring
+- Automated compliance reporting
+
 ### Rate Limiting
 
-- Admin endpoints: Higher rate limits
-- Public endpoints: Standard rate limits
+- Admin endpoints: Higher rate limits (500 requests/hour)
+- User endpoints: Standard rate limits (100 requests/hour)
+- Public endpoints: Basic rate limits (50 requests/hour)
 - Cron endpoints: No rate limiting (internal only)
+
+## Enterprise Analytics & Reporting
+
+### Analytics Integration
+
+**Google Analytics 4 (GA4) Integration:**
+- Configurable GA4 measurement ID
+- Custom event tracking
+- E-commerce tracking support
+- Privacy-compliant data collection
+
+**Google Tag Manager (GTM) Support:**
+- Container-based tag management
+- Custom event forwarding
+- Advanced tracking configuration
+
+**Custom Analytics Platform:**
+- Server-side event tracking
+- Custom metrics and dimensions
+- Real-time analytics processing
+- Data retention policy enforcement
+
+#### Analytics Configuration
+
+```bash
+# Analytics Environment Variables
+GA4_MEASUREMENT_ID=G-XXXXXXXXXX
+GA4_API_SECRET=your-ga4-api-secret
+GTM_CONTAINER_ID=GTM-XXXXXXX
+FEATURE_CONTENT_ANALYTICS=true
+ANALYTICS_PERSONALIZATION=false
+ANALYTICS_RETENTION_DAYS=365
+ANALYTICS_ANONYMIZE_IP=true
+ANALYTICS_REQUIRE_CONSENT=true
+```
+
+#### Analytics Privacy Controls
+
+**Data Privacy Features:**
+- IP address anonymization
+- Cookie consent management
+- Data retention policy enforcement
+- User opt-out capabilities
+- GDPR compliance features
+
+**Privacy Configuration:**
+- Automatic IP anonymization for EU users
+- Configurable data retention periods
+- Cookie consent requirement
+- User data export capabilities
+- Right to be forgotten implementation
+
+### Reporting API Endpoints
+
+#### 1. Usage Reports
+
+**Endpoint:** `GET /api/reports/usage`
+**Permission:** `view_reports`
+**Description:** Comprehensive usage analytics and system metrics
+
+**Parameters:**
+- `start_date` (optional): ISO date string (default: 30 days ago)
+- `end_date` (optional): ISO date string (default: today)
+- `format` (optional): `json` or `csv` (default: json)
+
+**Response includes:**
+- User activity metrics (total, active, new users)
+- Content performance (page views, top content)
+- System performance (requests, response times, uptime)
+- Feature usage statistics
+
+```bash
+# Get usage report for last 30 days
+curl -X GET "/api/reports/usage" \
+  -H "Authorization: Bearer <session-token>"
+
+# Export as CSV for specific date range
+curl -X GET "/api/reports/usage?start_date=2024-01-01&end_date=2024-01-31&format=csv"
+```
+
+#### 2. Error Reports
+
+**Endpoint:** `GET /api/reports/errors`
+**Permission:** `view_reports`
+**Description:** Error tracking and system health reporting
+
+**Parameters:**
+- `start_date` (optional): ISO date string (default: 7 days ago)
+- `end_date` (optional): ISO date string (default: today)
+- `severity` (optional): Filter by severity level
+- `format` (optional): `json` or `csv`
+
+**Response includes:**
+- Error rate and trends
+- Top error types and patterns
+- Affected user count
+- System availability metrics
+- Error details and stack traces
+
+```bash
+# Get error report for last week
+curl -X GET "/api/reports/errors" \
+  -H "Authorization: Bearer <session-token>"
+
+# Get high-severity errors only
+curl -X GET "/api/reports/errors?severity=error"
+```
+
+#### 3. Compliance Reports
+
+**Endpoint:** `GET /api/reports/compliance`
+**Permission:** `view_audit_logs`
+**Description:** Compliance and audit reporting for regulatory requirements
+
+**Parameters:**
+- `start_date` (optional): ISO date string (default: 30 days ago)
+- `end_date` (optional): ISO date string (default: today)
+- `type` (optional): `gdpr`, `security`, `access`, `data_retention`, or `all`
+- `format` (optional): `json` or `csv`
+
+**Response includes:**
+- Audit trail summary
+- Access control events
+- Data governance metrics
+- Security incidents
+- Compliance score and recommendations
+
+```bash
+# Get general compliance report
+curl -X GET "/api/reports/compliance" \
+  -H "Authorization: Bearer <admin-token>"
+
+# Get GDPR-specific compliance data
+curl -X GET "/api/reports/compliance?type=gdpr&format=csv"
+```
+
+#### 4. Analytics Configuration
+
+**Endpoint:** `GET /api/analytics/config`
+**Permission:** `view_analytics`
+**Description:** Retrieve current analytics configuration
+
+**Endpoint:** `POST /api/analytics/config`
+**Permission:** `manage_features`
+**Description:** Update analytics configuration
+
+```bash
+# Get current analytics configuration
+curl -X GET "/api/analytics/config" \
+  -H "Authorization: Bearer <session-token>"
+
+# Update analytics settings
+curl -X POST "/api/analytics/config" \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enableAnalytics": true,
+    "anonymizeIp": true,
+    "ga4MeasurementId": "G-XXXXXXXXXX"
+  }'
+```
+
+### Analytics Event Tracking
+
+**Enhanced Event Tracking:**
+The analytics system supports custom event tracking with the following capabilities:
+
+**Event Types:**
+- Page views and navigation
+- User interactions (clicks, form submissions)
+- Content engagement (time on page, scroll depth)
+- E-commerce events (purchases, cart actions)
+- Custom business events
+
+**Event Structure:**
+```typescript
+interface AnalyticsEvent {
+  eventName: string;        // Required event identifier
+  category?: string;        // Event category (default: 'engagement')
+  label?: string;          // Event label for categorization
+  value?: number;          // Numeric value for the event
+  userId?: string;         // Associated user ID
+  sessionId?: string;      // Session identifier
+  properties?: object;     // Additional event properties
+}
+```
+
+**Usage Example:**
+```typescript
+// Track page view
+await analyticsService.trackPageView({
+  page: '/blog/article-title',
+  title: 'Article Title',
+  userId: 'user-123',
+  sessionId: 'session-456'
+});
+
+// Track custom event
+await analyticsService.trackEvent({
+  eventName: 'newsletter_signup',
+  category: 'conversion',
+  label: 'footer_form',
+  userId: 'user-123'
+});
+```
+
+### Data Retention and Cleanup
+
+**Automated Data Cleanup:**
+- Configurable retention periods (default: 365 days)
+- Automatic cleanup of old analytics events
+- System metrics archival
+- Audit log retention policies
+
+**Manual Data Management:**
+```bash
+# Trigger manual cleanup (admin only)
+curl -X POST "/api/analytics/cleanup" \
+  -H "Authorization: Bearer <admin-token>"
+```
 
 ## Deployment Configuration
 

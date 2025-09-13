@@ -1,6 +1,260 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="37" failures="0" errors="0" time="0.763">
-  <testsuite name="RBAC System" errors="0" failures="0" skipped="0" timestamp="2025-09-13T04:41:46" time="0.221" tests="21">
+<testsuites name="jest tests" tests="78" failures="13" errors="0" time="7.171">
+  <testsuite name="Feature Flag System" errors="0" failures="2" skipped="0" timestamp="2025-09-13T05:14:51" time="0.287" tests="22">
+    <testcase classname="Feature Flag System › Feature Flag Coverage" name="should have all required major feature categories covered" time="0.007">
+    </testcase>
+    <testcase classname="Feature Flag System › Feature Flag Coverage" name="should have comprehensive flag coverage for all major features" time="0.004">
+    </testcase>
+    <testcase classname="Feature Flag System › Feature Flag Coverage" name="should properly categorize feature flags" time="0.002">
+    </testcase>
+    <testcase classname="Feature Flag System › Feature Flag Coverage" name="should have proper flag descriptions and metadata" time="0.002">
+      <failure>Error: expect(received).toMatch(expected)
+
+Expected pattern: /^[A-Z_]+$/
+Received string:  &quot;PHASE4B_ENABLED&quot;
+    at toMatch (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/feature-flags.spec.ts:137:26)
+    at Array.forEach (&lt;anonymous&gt;)
+    at Object.forEach (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/feature-flags.spec.ts:126:28)
+    at Promise.finally.completed (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+    at _callCircusTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+    at _runTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+    at run (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+    at runAndTransformResultsToJestFormat (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+    at jestAdapter (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/runner.js:101:19)
+    at runTestInternal (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-runner/build/index.js:275:16)
+    at runTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-runner/build/index.js:343:7)</failure>
+    </testcase>
+    <testcase classname="Feature Flag System › Feature Flag Reading" name="should correctly read enabled flags from environment" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag System › Feature Flag Reading" name="should correctly read disabled flags from environment" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag System › Feature Flag Reading" name="should return false for non-existent flags" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag System › Feature Flag Reading" name="should get individual flag details" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag System › Feature Flag Reading" name="should return null for non-existent flag" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag System › Feature Flag Statistics" name="should calculate correct statistics" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag System › Feature Flag Statistics" name="should calculate statistics by category" time="0.004">
+    </testcase>
+    <testcase classname="Feature Flag System › Runtime Refresh Logic" name="should refresh flags from updated environment" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag System › Runtime Refresh Logic" name="should handle environment variable removal" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag System › Runtime Refresh Logic" name="should handle invalid environment values" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag System › Runtime Refresh Logic" name="should maintain flag consistency after multiple refreshes" time="0.001">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 4
+Received: 7
+    at Object.toBe (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/feature-flags.spec.ts:256:34)
+    at Promise.finally.completed (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+    at _callCircusTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+    at _runTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+    at run (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+    at runAndTransformResultsToJestFormat (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+    at jestAdapter (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/runner.js:101:19)
+    at runTestInternal (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-runner/build/index.js:275:16)
+    at runTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-runner/build/index.js:343:7)</failure>
+    </testcase>
+    <testcase classname="Feature Flag System › Flag Management Edge Cases" name="should handle empty environment gracefully" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag System › Flag Management Edge Cases" name="should preserve flag structure during refresh" time="0.002">
+    </testcase>
+    <testcase classname="Feature Flag System › Flag Management Edge Cases" name="should handle rapid successive refreshes" time="0.098">
+    </testcase>
+    <testcase classname="Feature Flag System › Integration with Environment Variables" name="should follow correct environment variable naming convention" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag System › Integration with Environment Variables" name="should handle case sensitivity correctly" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag API Integration" name="should provide complete flag information for API responses" time="0.001">
+    </testcase>
+    <testcase classname="Feature Flag API Integration" name="should support refresh functionality needed by API endpoint" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="Enterprise Analytics Service" errors="0" failures="11" skipped="0" timestamp="2025-09-13T05:14:53" time="0.242" tests="19">
+    <testcase classname="Enterprise Analytics Service › Configuration Management" name="should load configuration from environment variables" time="0.003">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: true
+Received: false
+    at Object.toBe (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/analytics.spec.ts:45:38)
+    at Promise.finally.completed (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+    at _callCircusTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+    at _runTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+    at run (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+    at runAndTransformResultsToJestFormat (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+    at jestAdapter (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/runner.js:101:19)
+    at runTestInternal (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-runner/build/index.js:275:16)
+    at runTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-runner/build/index.js:343:7)</failure>
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Configuration Management" name="should disable analytics when feature flag is false" time="0">
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Configuration Management" name="should handle missing environment variables gracefully" time="0.001">
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Event Tracking" name="should track basic analytics event" time="0.002">
+      <failure>Error: expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+Expected: {&quot;data&quot;: ObjectContaining {&quot;category&quot;: &quot;navigation&quot;, &quot;eventName&quot;: &quot;page_view&quot;, &quot;label&quot;: &quot;/test-page&quot;, &quot;sessionId&quot;: &quot;session-456&quot;, &quot;userId&quot;: &quot;user-123&quot;}}
+
+Number of calls: 0
+    at Object.toHaveBeenCalledWith (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/analytics.spec.ts:81:44)</failure>
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Event Tracking" name="should track page view event" time="0.001">
+      <failure>Error: expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+Expected: {&quot;data&quot;: ObjectContaining {&quot;category&quot;: &quot;navigation&quot;, &quot;eventName&quot;: &quot;page_view&quot;, &quot;label&quot;: &quot;/blog/test-article&quot;, &quot;properties&quot;: ObjectContaining {&quot;page&quot;: &quot;/blog/test-article&quot;, &quot;title&quot;: &quot;Test Article&quot;}}}
+
+Number of calls: 0
+    at Object.toHaveBeenCalledWith (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/analytics.spec.ts:105:44)</failure>
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Event Tracking" name="should not track events when analytics is disabled" time="0">
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Event Tracking" name="should anonymize IP addresses when enabled" time="0">
+      <failure>Error: expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+Expected: {&quot;data&quot;: ObjectContaining {&quot;ipAddress&quot;: &quot;192.168.1.0&quot;}}
+
+Number of calls: 0
+    at Object.toHaveBeenCalledWith (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/analytics.spec.ts:150:44)</failure>
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Metrics Reporting" name="should get user metrics" time="0.03">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 100
+Received: 0
+    at Object.toBe (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/analytics.spec.ts:180:34)</failure>
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Metrics Reporting" name="should get content metrics" time="0.005">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 3
+Received: 0
+    at Object.toBe (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/analytics.spec.ts:220:33)</failure>
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Metrics Reporting" name="should get system metrics" time="0.005">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 2500
+Received: 0
+    at Object.toBe (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/analytics.spec.ts:245:36)</failure>
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › System Performance Recording" name="should record system metrics" time="0.008">
+      <failure>Error: expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+Expected: {&quot;data&quot;: {&quot;metricName&quot;: &quot;request_count&quot;, &quot;metricUnit&quot;: &quot;requests&quot;, &quot;metricValue&quot;: 100, &quot;tags&quot;: {&quot;endpoint&quot;: &quot;/api/test&quot;}}}
+
+Number of calls: 0
+    at Object.toHaveBeenCalledWith (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/analytics.spec.ts:258:43)</failure>
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Data Retention" name="should clean up old analytics data" time="0">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;mockResolvedValue&apos;)
+    at Object.mockResolvedValue (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/analytics.spec.ts:272:40)
+    at Promise.finally.completed (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+    at _callCircusTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+    at _runTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+    at run (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+    at runAndTransformResultsToJestFormat (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+    at jestAdapter (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/runner.js:101:19)
+    at runTestInternal (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-runner/build/index.js:275:16)
+    at runTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-runner/build/index.js:343:7)</failure>
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Privacy Controls" name="should anonymize IPv4 addresses correctly" time="0.001">
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Privacy Controls" name="should anonymize IPv6 addresses correctly" time="0.001">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: &quot;fe80::&quot;
+Received: &quot;fe80::1&quot;
+    at Object.toBe (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/analytics.spec.ts:317:42)
+    at Promise.finally.completed (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1556:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1496:10)
+    at _callCircusTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1006:40)
+    at _runTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:946:3)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:839:13)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+    at _runTestsForDescribeBlock (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:829:11)
+    at run (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:757:3)
+    at runAndTransformResultsToJestFormat (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/jestAdapterInit.js:1917:21)
+    at jestAdapter (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-circus/build/runner.js:101:19)
+    at runTestInternal (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-runner/build/index.js:275:16)
+    at runTest (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/node_modules/jest-runner/build/index.js:343:7)</failure>
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Privacy Controls" name="should handle unknown IP addresses" time="0.001">
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Error Handling" name="should handle database errors gracefully" time="0.001">
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › Error Handling" name="should return default metrics when database fails" time="0.003">
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › GA4 Integration" name="should send events to GA4 when configured" time="0.001">
+      <failure>Error: expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+Expected: StringContaining &quot;google-analytics.com/mp/collect&quot;, ObjectContaining {&quot;body&quot;: StringContaining &quot;purchase&quot;, &quot;headers&quot;: {&quot;Content-Type&quot;: &quot;application/json&quot;}, &quot;method&quot;: &quot;POST&quot;}
+
+Number of calls: 0
+    at Object.toHaveBeenCalledWith (/home/runner/work/Yalla-london/Yalla-london/yalla_london/app/tests/analytics.spec.ts:377:28)</failure>
+    </testcase>
+    <testcase classname="Enterprise Analytics Service › GA4 Integration" name="should skip GA4 when not configured" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="Automated Security Testing" errors="0" failures="0" skipped="0" timestamp="2025-09-13T05:14:56" time="0.154" tests="16">
+    <testcase classname="Automated Security Testing › Privilege Escalation Prevention" name="should prevent horizontal privilege escalation" time="0.002">
+    </testcase>
+    <testcase classname="Automated Security Testing › Privilege Escalation Prevention" name="should prevent vertical privilege escalation" time="0.001">
+    </testcase>
+    <testcase classname="Automated Security Testing › Privilege Escalation Prevention" name="should enforce role hierarchy boundaries" time="0.001">
+    </testcase>
+    <testcase classname="Automated Security Testing › Access Control Matrix Validation" name="should enforce correct permissions for admin" time="0.002">
+    </testcase>
+    <testcase classname="Automated Security Testing › Access Control Matrix Validation" name="should enforce correct permissions for editor" time="0.001">
+    </testcase>
+    <testcase classname="Automated Security Testing › Access Control Matrix Validation" name="should enforce correct permissions for viewer" time="0.004">
+    </testcase>
+    <testcase classname="Automated Security Testing › Session Security Validation" name="should reject inactive users" time="0">
+    </testcase>
+    <testcase classname="Automated Security Testing › Session Security Validation" name="should validate user object structure" time="0.001">
+    </testcase>
+    <testcase classname="Automated Security Testing › Audit Event Logging Security" name="should log security-sensitive operations" time="0.001">
+    </testcase>
+    <testcase classname="Automated Security Testing › Audit Event Logging Security" name="should handle malformed audit events gracefully" time="0.016">
+    </testcase>
+    <testcase classname="Automated Security Testing › Compliance Validation" name="should validate GDPR data access controls" time="0">
+    </testcase>
+    <testcase classname="Automated Security Testing › Compliance Validation" name="should validate SOC2 access logging requirements" time="0.004">
+    </testcase>
+    <testcase classname="Automated Security Testing › Security Boundary Testing" name="should prevent permission tampering" time="0">
+    </testcase>
+    <testcase classname="Automated Security Testing › Security Boundary Testing" name="should validate role consistency" time="0.001">
+    </testcase>
+    <testcase classname="Security Integration Tests › API Endpoint Security" name="should validate admin endpoint protection" time="0">
+    </testcase>
+    <testcase classname="Security Integration Tests › Feature Flag Security" name="should validate feature flag access controls" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="RBAC System" errors="0" failures="0" skipped="0" timestamp="2025-09-13T05:14:56" time="0.131" tests="21">
     <testcase classname="RBAC System › Role and Permission Definitions" name="should have all required roles defined" time="0.002">
     </testcase>
     <testcase classname="RBAC System › Role and Permission Definitions" name="should have all required permissions defined" time="0.001">
@@ -15,67 +269,33 @@
     </testcase>
     <testcase classname="RBAC System › Permission Checking Functions › hasAnyPermission" name="should return false when user has none of the required permissions" time="0">
     </testcase>
-    <testcase classname="RBAC System › Permission Checking Functions › hasAllPermissions" name="should return true when user has all required permissions" time="0.001">
+    <testcase classname="RBAC System › Permission Checking Functions › hasAllPermissions" name="should return true when user has all required permissions" time="0.003">
     </testcase>
-    <testcase classname="RBAC System › Permission Checking Functions › hasAllPermissions" name="should return false when user is missing any required permission" time="0.001">
+    <testcase classname="RBAC System › Permission Checking Functions › hasAllPermissions" name="should return false when user is missing any required permission" time="0">
     </testcase>
     <testcase classname="RBAC System › Role Hierarchy" name="admin should have more permissions than editor" time="0.001">
     </testcase>
     <testcase classname="RBAC System › Role Hierarchy" name="editor should have more permissions than viewer" time="0">
     </testcase>
-    <testcase classname="RBAC System › Security Boundaries" name="viewer should not have any admin permissions" time="0.001">
+    <testcase classname="RBAC System › Security Boundaries" name="viewer should not have any admin permissions" time="0">
     </testcase>
     <testcase classname="RBAC System › Security Boundaries" name="editor should not have system administration permissions" time="0.001">
     </testcase>
     <testcase classname="RBAC System › Security Boundaries" name="only admin should have system management permissions" time="0.001">
     </testcase>
-    <testcase classname="RBAC System › Permission Validation" name="should validate all permissions are strings" time="0.004">
+    <testcase classname="RBAC System › Permission Validation" name="should validate all permissions are strings" time="0.003">
     </testcase>
-    <testcase classname="RBAC System › Permission Validation" name="should validate all roles are strings" time="0.003">
+    <testcase classname="RBAC System › Permission Validation" name="should validate all roles are strings" time="0.001">
     </testcase>
     <testcase classname="RBAC System › Permission Validation" name="should validate role permissions mapping is complete" time="0.001">
     </testcase>
-    <testcase classname="RBAC System › Permission Categories" name="should have content management permissions" time="0.001">
+    <testcase classname="RBAC System › Permission Categories" name="should have content management permissions" time="0">
     </testcase>
     <testcase classname="RBAC System › Permission Categories" name="should have user management permissions" time="0">
     </testcase>
-    <testcase classname="RBAC System › Permission Categories" name="should have system administration permissions" time="0.001">
+    <testcase classname="RBAC System › Permission Categories" name="should have system administration permissions" time="0">
     </testcase>
     <testcase classname="RBAC System › Permission Categories" name="should have analytics and reporting permissions" time="0">
-    </testcase>
-  </testsuite>
-  <testsuite name="Automated Security Testing" errors="0" failures="0" skipped="0" timestamp="2025-09-13T04:41:47" time="0.176" tests="16">
-    <testcase classname="Automated Security Testing › Privilege Escalation Prevention" name="should prevent horizontal privilege escalation" time="0.002">
-    </testcase>
-    <testcase classname="Automated Security Testing › Privilege Escalation Prevention" name="should prevent vertical privilege escalation" time="0.001">
-    </testcase>
-    <testcase classname="Automated Security Testing › Privilege Escalation Prevention" name="should enforce role hierarchy boundaries" time="0.003">
-    </testcase>
-    <testcase classname="Automated Security Testing › Access Control Matrix Validation" name="should enforce correct permissions for admin" time="0.001">
-    </testcase>
-    <testcase classname="Automated Security Testing › Access Control Matrix Validation" name="should enforce correct permissions for editor" time="0">
-    </testcase>
-    <testcase classname="Automated Security Testing › Access Control Matrix Validation" name="should enforce correct permissions for viewer" time="0.001">
-    </testcase>
-    <testcase classname="Automated Security Testing › Session Security Validation" name="should reject inactive users" time="0">
-    </testcase>
-    <testcase classname="Automated Security Testing › Session Security Validation" name="should validate user object structure" time="0">
-    </testcase>
-    <testcase classname="Automated Security Testing › Audit Event Logging Security" name="should log security-sensitive operations" time="0">
-    </testcase>
-    <testcase classname="Automated Security Testing › Audit Event Logging Security" name="should handle malformed audit events gracefully" time="0.045">
-    </testcase>
-    <testcase classname="Automated Security Testing › Compliance Validation" name="should validate GDPR data access controls" time="0">
-    </testcase>
-    <testcase classname="Automated Security Testing › Compliance Validation" name="should validate SOC2 access logging requirements" time="0.001">
-    </testcase>
-    <testcase classname="Automated Security Testing › Security Boundary Testing" name="should prevent permission tampering" time="0.001">
-    </testcase>
-    <testcase classname="Automated Security Testing › Security Boundary Testing" name="should validate role consistency" time="0">
-    </testcase>
-    <testcase classname="Security Integration Tests › API Endpoint Security" name="should validate admin endpoint protection" time="0">
-    </testcase>
-    <testcase classname="Security Integration Tests › Feature Flag Security" name="should validate feature flag access controls" time="0">
     </testcase>
   </testsuite>
 </testsuites>

@@ -314,7 +314,12 @@ export function withAdminAuth(
  * Log audit events for compliance
  */
 export async function logAuditEvent(event: any) {
-  if (!event || typeof event !== 'object' || !event.action) {
+  if (
+    !event ||
+    typeof event !== 'object' ||
+    typeof event.action !== 'string' ||
+    event.action.trim() === ''
+  ) {
     console.error('Failed to log audit event: invalid or missing event object');
     return;
   }

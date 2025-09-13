@@ -130,9 +130,14 @@ jobs:
             UNWANTED_FILES="$UNWANTED_FILES\n- IDE configuration directories found"
           fi
           
-          # Check for temp files
-          if find . -name "*.tmp" -o -name "*.temp" -o -name "*.log" -not -path "./node_modules/*" -not -path "./.next/*" | head -1 | grep -q .; then
+          # Check for temp files (excluding legitimate build artifacts)
+          if find . -name "*.tmp" -o -name "*.temp" -not -path "./node_modules/*" -not -path "./.next/*" | head -1 | grep -q .; then
             UNWANTED_FILES="$UNWANTED_FILES\n- Temporary files found"
+          fi
+          
+          # Check for log files (excluding legitimate CI build logs)
+          if find . -name "*.log" -not -path "./node_modules/*" -not -path "./.next/*" -not -name "install.log" -not -name "typescript-check.log" -not -name "schema-validate.log" -not -name "schema-warnings.log" -not -name "npm-audit-report.log" -not -name "yarn-audit-report.log" -not -name "eslint-security-report.log" | head -1 | grep -q .; then
+            UNWANTED_FILES="$UNWANTED_FILES\n- Unexpected log files found (excluding CI build logs)"
           fi
           
           # Check for environment files (except .env.example)

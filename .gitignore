@@ -47,6 +47,8 @@ schema-warnings.log
 prisma-generate.log
 security-install.log
 install.log
+typescript-check.log
+schema-validate.log
 yarn-debug.log*
 yarn-error.log*
 npm-debug.log*
@@ -63,8 +65,14 @@ npm-debug.log*
 # Temporary files (comprehensive patterns)  
 *.tmp
 *.temp
+*.bak
+*.bak.*
+*.backup
 .tmp/
 temp/
+
+# TypeScript build cache
+*.tsbuildinfo
 
 # Package manager lock files (enforce Yarn consistency)
 package-lock.json

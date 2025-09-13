@@ -36,6 +36,8 @@ coverage/
 .coverage/
 *.coverage
 *.lcov
+*.html
+*.xml
 junit.xml
 test-results.xml
 coverage-*.json
@@ -58,11 +60,12 @@ npm-debug.log*
 .vscode/
 .idea/
 .vs/
+*.iml
 *.swp
 *.swo
 *~
 
-# Temporary files (comprehensive patterns)  
+# Temporary files and OS artifacts (comprehensive patterns)  
 *.tmp
 *.temp
 *.bak
@@ -70,6 +73,12 @@ npm-debug.log*
 *.backup
 .tmp/
 temp/
+.DS_Store
+Thumbs.db
+
+# Additional system files
+*.sublime-workspace
+*.sublime-project
 
 # TypeScript build cache
 *.tsbuildinfo

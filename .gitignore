@@ -12,17 +12,19 @@ yalla_london/app/.healthcheck-logs/
 yalla_london/app/coverage/
 yalla_london/app/rbac-test-results.json
 
-# Development and build artifacts
+# Development and build artifacts (comprehensive)
 *.log
 *.tmp
 *.temp
+*.lcov
 .phase4b*
 yalla_london/.phase4b_logs/
 
-# Test and coverage reports
+# Test and coverage reports (comprehensive)
 coverage/
 .coverage/
 *.coverage
+*.lcov
 junit.xml
 test-results.xml
 npm-audit-report.json
@@ -38,7 +40,9 @@ install.log
 .idea/
 .vs/
 
-# Environment files (additional protection)
+# Environment files (comprehensive protection)
+.env*
+!.env.example
 .env
 .env.local
 .env.development

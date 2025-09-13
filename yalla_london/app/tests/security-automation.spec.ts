@@ -280,7 +280,7 @@ describe('Automated Security Testing', () => {
         id: 'tamper-test',
         email: 'tamper@test.com',
         role: ROLES.VIEWER,
-        permissions: ROLE_PERMISSIONS[ROLES.VIEWER],
+        permissions: [...ROLE_PERMISSIONS[ROLES.VIEWER]], // Create a copy to avoid mutation
         isActive: true
       };
 
@@ -300,7 +300,7 @@ describe('Automated Security Testing', () => {
         id: 'inconsistent',
         email: 'inconsistent@test.com',
         role: ROLES.VIEWER,
-        permissions: ROLE_PERMISSIONS[ROLES.ADMIN], // Inconsistent!
+        permissions: [...ROLE_PERMISSIONS[ROLES.ADMIN]], // Inconsistent! (using copy to avoid mutation)
         isActive: true
       };
 

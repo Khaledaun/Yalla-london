@@ -65,6 +65,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   [ROLES.EDITOR]: [
     PERMISSIONS.CREATE_CONTENT,
     PERMISSIONS.EDIT_CONTENT,
+    PERMISSIONS.DELETE_CONTENT,
     PERMISSIONS.PUBLISH_CONTENT,
     PERMISSIONS.VIEW_USERS,
     PERMISSIONS.VIEW_ANALYTICS,
@@ -129,22 +130,37 @@ export async function getUserWithPermissions(email: string): Promise<Authenticat
 /**
  * Check if user has required permission
  */
-export function hasPermission(user: AuthenticatedUser, permission: Permission): boolean {
-  return user.permissions.includes(permission);
+export function hasPermission(user: any, permission: Permission): boolean {
+  if (!user || !user.isActive || !user.role) return false;
+  
+  // Get permissions based on role only (prevents tampering with user.permissions array)
+  const rolePermissions = ROLE_PERMISSIONS[user.role as Role] || [];
+  
+  return rolePermissions.includes(permission);
 }
 
 /**
  * Check if user has any of the required permissions
  */
-export function hasAnyPermission(user: AuthenticatedUser, permissions: Permission[]): boolean {
-  return permissions.some(permission => user.permissions.includes(permission));
+export function hasAnyPermission(user: any, permissions: Permission[]): boolean {
+  if (!user || !user.isActive || !user.role) return false;
+  
+  // Get permissions based on role only (prevents tampering with user.permissions array)
+  const rolePermissions = ROLE_PERMISSIONS[user.role as Role] || [];
+  
+  return permissions.some(permission => rolePermissions.includes(permission));
 }
 
 /**
  * Check if user has all required permissions
  */
-export function hasAllPermissions(user: AuthenticatedUser, permissions: Permission[]): boolean {
-  return permissions.every(permission => user.permissions.includes(permission));
+export function hasAllPermissions(user: any, permissions: Permission[]): boolean {
+  if (!user || !user.isActive || !user.role) return false;
+  
+  // Get permissions based on role only (prevents tampering with user.permissions array)
+  const rolePermissions = ROLE_PERMISSIONS[user.role as Role] || [];
+  
+  return permissions.every(permission => rolePermissions.includes(permission));
 }
 
 /**
@@ -297,17 +313,12 @@ export function withAdminAuth(
 /**
  * Log audit events for compliance
  */
-export async function logAuditEvent(event: {
-  userId?: string;
-  action: string;
-  resource?: string;
-  resourceId?: string;
-  details?: any;
-  success?: boolean;
-  errorMessage?: string;
-  ipAddress?: string;
-  userAgent?: string;
-}) {
+export async function logAuditEvent(event: any) {
+  if (!event || typeof event !== 'object' || !event.action) {
+    console.error('Failed to log audit event: invalid or missing event object');
+    return;
+  }
+  
   try {
     await prisma.auditLog.create({
       data: {

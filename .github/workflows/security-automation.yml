@@ -28,11 +28,11 @@ jobs:
         cache: 'yarn'
         cache-dependency-path: 'yalla_london/app/yarn.lock'
 
-    - name: Install dependencies with error handling
+    - name: Install dependencies with comprehensive validation
       working-directory: yalla_london/app
       run: |
         set -e
-        echo "📦 Installing dependencies for SAST scanning..."
+        echo "📦 Installing dependencies with comprehensive validation for SAST scanning..."
         
         # Check for conflicting package managers
         if [ -f "package-lock.json" ]; then
@@ -40,8 +40,38 @@ jobs:
           rm -f package-lock.json
         fi
         
-        yarn install --frozen-lockfile --network-timeout 300000
-        echo "✅ Dependencies installed successfully"
+        # Validate package.json integrity
+        echo "🔍 Validating package.json integrity..."
+        if ! jq empty package.json; then
+          echo "❌ package.json is not valid JSON"
+          exit 1
+        fi
+        
+        # Check security dependencies
+        echo "🔍 Validating security dependencies..."
+        if ! jq -e '.devDependencies."eslint-plugin-security"' package.json >/dev/null; then
+          echo "❌ eslint-plugin-security missing from package.json"
+          echo "💡 Add eslint-plugin-security to devDependencies"
+          exit 1
+        fi
+        
+        echo "✅ Security dependencies validated"
+        
+        # Install dependencies with enhanced error handling
+        if ! yarn install --frozen-lockfile --network-timeout 300000 2>&1 | tee security-install.log; then
+          echo "❌ yarn install failed for security scanning"
+          echo "📋 Install log:"
+          cat security-install.log
+          exit 1
+        fi
+        
+        # Validate security tools are available
+        if ! yarn list eslint-plugin-security >/dev/null 2>&1; then
+          echo "❌ eslint-plugin-security not properly installed"
+          exit 1
+        fi
+        
+        echo "✅ Dependencies installed and validated successfully"
 
     - name: Run ESLint Security Scan with comprehensive analysis
       working-directory: yalla_london/app

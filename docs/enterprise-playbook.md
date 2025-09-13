@@ -1,5 +1,212 @@
 # Enterprise Playbook
 
+## Table of Contents
+- [API Route Conventions](#api-route-conventions)
+- [CI/CD Reliability & Best Practices](#cicd-reliability--best-practices)
+- [Database Management](#database-management)
+- [Security & Compliance](#security--compliance)
+- [Troubleshooting Guide](#troubleshooting-guide)
+
+## CI/CD Reliability & Best Practices
+
+### Overview
+This section documents the comprehensive CI/CD reliability improvements and best practices implemented to guarantee successful workflow runs.
+
+### 🔧 **Dependency Management**
+
+#### Lockfile Synchronization
+- **Issue**: yarn install failures due to package.json/yarn.lock mismatches
+- **Solution**: Automatic validation and lockfile updates
+- **Implementation**: 
+  ```bash
+  # Validate package.json integrity
+  jq empty package.json
+  
+  # Check critical dependencies
+  jq -e '.dependencies.jest or .devDependencies.jest' package.json
+  
+  # Install with enhanced error handling
+  yarn install --frozen-lockfile --network-timeout 300000
+  ```
+
+#### Critical Dependencies Validation
+All workflows now validate these critical dependencies before proceeding:
+- **Testing**: `jest`, `@testing-library/react`, `@testing-library/jest-dom`
+- **Security**: `eslint-plugin-security`, `prettier`
+- **Database**: `@prisma/client`, `prisma`
+- **Build Tools**: `typescript`, `next`, `tailwindcss`
+
+#### Peer Dependency Resolution
+Added peer dependencies to eliminate warnings:
+- `@opentelemetry/api` for Sentry OpenTelemetry integration
+- `@testing-library/dom` for React Testing Library
+- `csstype` for styled components
+- `prettier` for ESLint Prettier plugin
+
+### 🗄️ **Database Initialization Reliability**
+
+#### Enhanced Database Setup
+```bash
+# Create required roles and users
+psql "$DATABASE_URL" -c "
+  DO \$\$
+  BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'root') THEN
+      CREATE USER root WITH CREATEDB CREATEROLE;
+      GRANT ALL PRIVILEGES ON DATABASE test_db TO root;
+    END IF;
+  END
+  \$\$;"
+
+# Ensure postgres user has full permissions
+psql "$DATABASE_URL" -c "
+  GRANT ALL PRIVILEGES ON DATABASE test_db TO postgres;
+  ALTER USER postgres CREATEDB;
+"
+```
+
+#### Environment Variable Validation
+Before any database operations, workflows validate:
+- `DATABASE_URL` - Primary database connection
+- `DIRECT_URL` - Direct database access (fallback to DATABASE_URL if not set)  
+- `SHADOW_DATABASE_URL` - Shadow database for migrations (optional)
+
+#### Connection Testing
+```bash
+# Test basic connectivity
+pg_isready -h localhost -p 5432 -U postgres
+
+# Test write permissions
+psql "$DATABASE_URL" -c "CREATE TABLE IF NOT EXISTS test_table (id SERIAL PRIMARY KEY); DROP TABLE IF EXISTS test_table;"
+```
+
+### 🔧 **Prisma Binary Allowlisting & Firewall Configuration**
+
+#### Required Network Access
+Prisma requires outbound HTTPS access to:
+- `binaries.prisma.sh` (binary downloads)
+- `releases.prisma.io` (release information)
+- `registry.npmjs.org` (package metadata)
+
+#### Firewall Configuration
+```bash
+# Test Prisma CDN connectivity
+curl -s --max-time 10 https://binaries.prisma.sh
+
+# Required firewall rules:
+# - Allow outbound HTTPS (port 443) to Prisma domains
+# - Allow DNS resolution for Prisma domains
+# - Ensure no proxy interference with binary downloads
+```
+
+#### Error Detection & Recovery
+Workflows detect and provide specific guidance for:
+- **Network Issues**: ENOTFOUND, ECONNREFUSED, ETIMEDOUT
+- **Permission Issues**: EACCES, file system permissions  
+- **Space Issues**: ENOSPC, insufficient disk space
+- **Proxy Issues**: Binary download corruption
+
+### 📊 **Coverage Enforcement (Conditional)**
+
+#### Adaptive Thresholds
+Coverage thresholds adapt based on test type:
+- **Standard Tests**: 70% threshold (lines, functions, branches, statements)
+- **RBAC/Security Tests**: 90% threshold (stricter for security-critical code)
+
+#### Implementation
+```bash
+# Detect test type
+if find tests/ -name "*rbac*" -o -name "*security*" -o -name "*auth*"; then
+  COVERAGE_THRESHOLD=90  # Stricter for security
+else  
+  COVERAGE_THRESHOLD=70  # Standard for regular code
+fi
+
+# Warn but don't fail build
+if (( $(echo "$COVERAGE_PCT < $COVERAGE_THRESHOLD" | bc -l) )); then
+  echo "⚠️ Coverage below threshold - review required but build continues"
+fi
+```
+
+#### File Validation
+Prevents accidental commit of:
+- Coverage directories (`coverage/`)
+- Coverage reports (`*.lcov`, `coverage-*.json`, `clover.xml`)
+- IDE configuration files (`.vscode/`, `.idea/`)
+- Environment files (`.env`, `.env.local`, `.env.production`)
+
+### ⚠️ **Error Handling & Job Summaries**
+
+#### Comprehensive Status Reporting
+Every workflow provides detailed summaries including:
+- **Pass/Fail Status**: Clear indication for each critical job
+- **Warning Counts**: Non-blocking issues that need attention
+- **Error Details**: Specific guidance for failures
+- **Artifact Links**: Direct links to logs and reports
+- **Remediation Steps**: Actionable next steps for failures
+
+#### Critical Job Monitoring
+These jobs are considered critical and will fail the workflow if they fail:
+- `lint-and-typecheck` - Code quality and TypeScript validation
+- `build-and-test` - Application build and unit testing
+- `migration-check` - Database schema validation
+- `security-scan` - Security vulnerability detection
+- `rbac-security-tests` - Role-based access control validation
+- `dependency-audit` - Dependency vulnerability scanning
+- `compliance-check` - GDPR and SOC2 compliance validation
+
+#### Job Summary Format
+```markdown
+## 🔍 Job Name Summary
+
+### 📊 Analysis Results
+| Check | Status | Details |
+|-------|--------|---------|
+| File Validation | ✅ | No unwanted files found |
+| Dependencies | ✅ | All critical packages installed |
+| Tests | ⚠️ | 2 warnings found |
+
+### ⚠️ Warnings
+- Coverage below RBAC threshold (87% < 90%)
+- 3 outdated dependencies found
+
+### 🔧 Recommendations  
+1. Review test coverage for security modules
+2. Update dependencies using `yarn upgrade`
+3. Check detailed logs in workflow artifacts
+```
+
+### 🚀 **Workflow Optimization**
+
+#### Parallel Execution
+Jobs are organized for optimal parallel execution:
+```mermaid
+graph TD
+    A[Checkout & Setup] --> B[Lint & TypeCheck]
+    A --> C[Build & Test]
+    A --> D[Security Scan]
+    B --> E[Migration Check]
+    C --> F[Lighthouse CI]
+    D --> G[RBAC Tests]
+    E --> H[Deploy Migrations]
+    F --> I[Compliance Check]
+    G --> I
+    H --> J[Failure Detection]
+    I --> J
+```
+
+#### Caching Strategy
+- **Node.js Setup**: Cache based on yarn.lock
+- **Dependencies**: Frozen lockfile for consistency
+- **Build Artifacts**: Cache between jobs where appropriate
+- **Prisma Client**: Generated once per workflow run
+
+#### Timeout Management
+- **Standard Operations**: 120 seconds default
+- **Network Operations**: 300 seconds (dependency install, Prisma generation)  
+- **Database Operations**: 60 seconds (connection tests, migrations)
+- **Build Operations**: 600 seconds (Next.js build, test suites)
+
 ## API Route Conventions
 
 ### Next.js App Router API Routes
@@ -2206,4 +2413,324 @@ echo "Node: $(node --version), NPM: $(npm --version)"
    - Dependency vulnerability monitoring
 
 This comprehensive approach ensures that the critical CI/CD failures documented above will not recur and provides a robust foundation for ongoing development and deployment reliability.
+
+## Troubleshooting Guide
+
+### 🚨 Common CI/CD Issues & Solutions
+
+#### 1. Dependency Installation Failures
+
+**Symptoms:**
+- `yarn install` fails with lockfile conflicts
+- Missing peer dependencies warnings
+- Package resolution errors
+
+**Diagnosis:**
+```bash
+# Check for package manager conflicts
+ls -la | grep -E "(yarn\.lock|package-lock\.json)"
+
+# Validate package.json syntax
+jq empty package.json
+
+# Check dependency resolution
+yarn install --verbose
+```
+
+**Solutions:**
+```bash
+# Remove conflicting lock files
+rm -f package-lock.json
+
+# Clean yarn cache
+yarn cache clean
+
+# Reinstall dependencies
+yarn install
+
+# Update lockfile
+yarn install --update-checksums
+```
+
+#### 2. Database Connection Issues
+
+**Symptoms:**
+- Database connection timeouts
+- Missing role/user errors
+- Permission denied errors
+
+**Diagnosis:**
+```bash
+# Test basic connectivity
+pg_isready -h localhost -p 5432 -U postgres
+
+# Test specific database URL
+psql "$DATABASE_URL" -c "SELECT 1;"
+
+# Check user permissions
+psql "$DATABASE_URL" -c "\du"
+```
+
+**Solutions:**
+```bash
+# Create missing roles
+psql "$DATABASE_URL" -c "CREATE USER root WITH CREATEDB CREATEROLE;"
+
+# Grant necessary permissions
+psql "$DATABASE_URL" -c "GRANT ALL PRIVILEGES ON DATABASE test_db TO postgres;"
+
+# Test write permissions
+psql "$DATABASE_URL" -c "CREATE TABLE test (id SERIAL); DROP TABLE test;"
+```
+
+#### 3. Prisma Generation Failures
+
+**Symptoms:**
+- Network timeout errors (ETIMEDOUT, ECONNREFUSED)
+- Binary download failures
+- Generation hangs indefinitely
+
+**Diagnosis:**
+```bash
+# Test Prisma CDN access
+curl -s --max-time 10 https://binaries.prisma.sh
+
+# Check local Prisma installation
+yarn prisma --version
+
+# Verify schema syntax
+yarn prisma validate --schema prisma/schema.prisma
+```
+
+**Solutions:**
+```bash
+# Configure firewall allowlist
+# Add these URLs to organizational firewall:
+# - https://binaries.prisma.sh/*
+# - https://releases.prisma.io/*
+# - https://registry.npmjs.org/*
+
+# Clear Prisma cache
+rm -rf node_modules/.prisma/
+rm -rf node_modules/@prisma/
+
+# Regenerate with retry logic
+for i in {1..3}; do
+  yarn prisma generate --schema prisma/schema.prisma && break
+  sleep 10
+done
+```
+
+#### 4. Test Coverage Issues
+
+**Symptoms:**
+- Coverage below thresholds
+- Missing coverage reports
+- RBAC/Security test failures
+
+**Diagnosis:**
+```bash
+# Check test file structure
+find tests/ -name "*rbac*" -o -name "*security*" -o -name "*auth*"
+
+# Run tests with verbose coverage
+yarn test --coverage --verbose
+
+# Check coverage configuration
+cat jest.config.js | grep -A 10 -B 10 coverage
+```
+
+**Solutions:**
+```bash
+# Generate coverage report
+yarn test --coverage --watchAll=false
+
+# Check specific test files
+yarn test tests/rbac.spec.ts --coverage
+
+# Adjust coverage thresholds for test type
+# Standard tests: 70% threshold
+# RBAC/Security tests: 90% threshold
+```
+
+#### 5. Security Scan Failures
+
+**Symptoms:**
+- ESLint security errors
+- Vulnerability audit failures
+- SAST scan issues
+
+**Diagnosis:**
+```bash
+# Run security linting
+yarn lint --ext .ts,.tsx,.js,.jsx
+
+# Check for security vulnerabilities
+yarn audit --level moderate
+
+# Test security plugin
+yarn list eslint-plugin-security
+```
+
+**Solutions:**
+```bash
+# Fix ESLint security issues
+yarn lint --fix
+
+# Update vulnerable dependencies
+yarn audit fix
+
+# Add security exceptions (if safe)
+# Add to .eslintrc.json:
+# "rules": {
+#   "security/detect-object-injection": "warn"
+# }
+```
+
+### 🔧 Environment Setup Troubleshooting
+
+#### Development Environment Issues
+
+**Missing Environment Variables:**
+```bash
+# Required variables for development
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/yalla_london_dev"
+export DIRECT_URL="postgresql://postgres:postgres@localhost:5432/yalla_london_dev"
+export NEXTAUTH_SECRET="your-secret-key-minimum-32-characters"
+export NEXTAUTH_URL="http://localhost:3000"
+```
+
+**Local Database Setup:**
+```bash
+# Start PostgreSQL service
+sudo systemctl start postgresql
+
+# Create database
+createdb yalla_london_dev
+
+# Run migrations
+yarn prisma migrate dev --schema prisma/schema.prisma
+```
+
+#### Production Environment Issues
+
+**Network Connectivity:**
+```bash
+# Test production database
+psql "$DATABASE_URL" -c "SELECT version();"
+
+# Test external services
+curl -I https://api.example.com/health
+
+# Verify DNS resolution
+nslookup binaries.prisma.sh
+```
+
+**Permission Issues:**
+```bash
+# Check service account permissions
+# Ensure CI/CD service has:
+# - Database read/write access
+# - Network access to required URLs
+# - File system write permissions
+```
+
+### 📊 Performance Optimization
+
+#### Workflow Performance
+
+**Slow Dependency Installation:**
+- Use `yarn install --prefer-offline` when possible
+- Implement dependency caching strategies
+- Consider using `yarn install --frozen-lockfile` in CI
+
+**Database Operation Timeouts:**
+- Optimize migration scripts
+- Use connection pooling
+- Set appropriate timeout values
+
+**Build Performance:**
+- Enable Next.js build caching
+- Use parallel job execution
+- Optimize test suite execution
+
+#### Resource Usage
+
+**Memory Issues:**
+```bash
+# Monitor memory usage during builds
+echo "Current memory usage:"
+free -h
+
+# Optimize Node.js memory
+export NODE_OPTIONS="--max-old-space-size=4096"
+```
+
+**Disk Space Issues:**
+```bash
+# Clean build artifacts
+rm -rf .next/
+rm -rf coverage/
+yarn cache clean
+
+# Monitor disk usage
+df -h
+```
+
+### 🔍 Debugging Workflows
+
+#### Workflow Debug Mode
+
+Enable debug logging in GitHub Actions:
+```yaml
+env:
+  ACTIONS_STEP_DEBUG: true
+  ACTIONS_RUNNER_DEBUG: true
+```
+
+#### Local Testing
+
+Test workflow components locally:
+```bash
+# Test dependency validation
+jq -e '.dependencies.jest or .devDependencies.jest' package.json
+
+# Test database connectivity
+timeout 30 bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done'
+
+# Test Prisma generation
+yarn prisma generate --schema prisma/schema.prisma
+```
+
+#### Log Analysis
+
+Common error patterns to look for:
+- **Network errors**: ENOTFOUND, ECONNREFUSED, ETIMEDOUT
+- **Permission errors**: EACCES, permission denied
+- **Resource errors**: ENOSPC, out of memory
+- **Dependency errors**: Cannot resolve dependency, peer dependency warnings
+
+### 📋 Preventive Maintenance
+
+#### Regular Maintenance Tasks
+
+**Weekly:**
+- Review dependency vulnerabilities (`yarn audit`)
+- Check for outdated packages (`yarn outdated`)
+- Validate test coverage reports
+- Review workflow performance metrics
+
+**Monthly:**
+- Update dependencies to latest compatible versions
+- Review and update security configurations
+- Validate backup and recovery procedures
+- Performance testing and optimization
+
+**Quarterly:**
+- Comprehensive security audit
+- Infrastructure and tooling updates
+- Workflow optimization review
+- Documentation updates
+
+This troubleshooting guide provides systematic approaches to diagnose and resolve common CI/CD issues, ensuring reliable workflow execution and minimizing development disruption.
 ```

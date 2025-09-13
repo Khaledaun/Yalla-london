@@ -291,10 +291,51 @@ jobs:
         
         echo "✓ Documentation validation completed"
 
+  detect-security-failures:
+    name: Detect Security Failures
+    runs-on: ubuntu-latest
+    needs: [sast-security-scan, rbac-security-tests, dependency-audit, compliance-check, dast-security-scan]
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Detect security failures and create issues
+      id: security-failure-detector
+      uses: ./.github/actions/failure-detector
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        workflow-name: 'Security and Compliance Automation'
+        run-id: ${{ github.run_id }}
+        critical-jobs: 'sast-security-scan,rbac-security-tests,dependency-audit,compliance-check,dast-security-scan'
+        
+    - name: Add security job summary
+      run: |
+        echo "## 🔒 Security Failure Detection Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Workflow:** Security and Compliance Automation" >> $GITHUB_STEP_SUMMARY
+        echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ steps.security-failure-detector.outputs.issue-created }}" == "true" ]; then
+          echo "🚨 **Security failure/skip detected!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📝 **Issue created:** ${{ steps.security-failure-detector.outputs.issue-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **Important:** Security issues require immediate attention!" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "✅ **No security failures or skips detected**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All security jobs completed successfully." >> $GITHUB_STEP_SUMMARY
+        fi
+
   security-summary:
     name: Security Summary Report
     runs-on: ubuntu-latest
-    needs: [sast-security-scan, rbac-security-tests, dependency-audit, compliance-check]
+    needs: [sast-security-scan, rbac-security-tests, dependency-audit, compliance-check, detect-security-failures]
     if: always()
     
     steps:
@@ -315,6 +356,7 @@ jobs:
         echo "- RBAC Security Tests: ${{ needs.rbac-security-tests.result }}" >> security-summary.md
         echo "- Dependency Audit: ${{ needs.dependency-audit.result }}" >> security-summary.md
         echo "- Compliance Check: ${{ needs.compliance-check.result }}" >> security-summary.md
+        echo "- Failure Detection: ${{ needs.detect-security-failures.result }}" >> security-summary.md
         
         echo "" >> security-summary.md
         echo "### Recommendations:" >> security-summary.md
@@ -329,6 +371,10 @@ jobs:
         
         if [ "${{ needs.rbac-security-tests.result }}" != "success" ]; then
           echo "- 🔴 Fix RBAC permission issues" >> security-summary.md
+        fi
+        
+        if [ "${{ needs.detect-security-failures.result }}" != "success" ]; then
+          echo "- 🔴 Check failure detection logs for critical security issues" >> security-summary.md
         fi
         
         echo "" >> security-summary.md

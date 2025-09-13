@@ -257,3 +257,52 @@ jobs:
           echo "✅ Security scan clean"
           echo ""
           echo "🚀 Ready for staging deployment!"
+
+  detect-staging-failures:
+    name: Detect Staging Failures
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, build-test, lighthouse-ci, api-tests, e2e-tests, security-scan, deployment-ready]
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        # Note: This references the main repo's action, but in staging we may need to copy it
+        
+      - name: Check if failure detector exists
+        id: check-detector
+        run: |
+          if [ -f "../../../.github/actions/failure-detector/action.yml" ]; then
+            echo "detector-exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "detector-exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Failure detector not found - using simplified detection"
+          fi
+        
+      - name: Detect staging failures (simplified)
+        if: steps.check-detector.outputs.detector-exists == 'false'
+        run: |
+          echo "## 🔍 Staging CI/CD Failure Detection" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Job Results:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Lint & TypeCheck: ${{ needs.lint-and-typecheck.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build & Test: ${{ needs.build-test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Lighthouse CI: ${{ needs.lighthouse-ci.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- API Tests: ${{ needs.api-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- E2E Tests: ${{ needs.e2e-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for critical failures
+          CRITICAL_FAILURES=""
+          [ "${{ needs.lint-and-typecheck.result }}" == "failure" ] && CRITICAL_FAILURES="$CRITICAL_FAILURES lint-and-typecheck"
+          [ "${{ needs.build-test.result }}" == "failure" ] && CRITICAL_FAILURES="$CRITICAL_FAILURES build-test"
+          [ "${{ needs.security-scan.result }}" == "failure" ] && CRITICAL_FAILURES="$CRITICAL_FAILURES security-scan"
+          
+          if [ -n "$CRITICAL_FAILURES" ]; then
+            echo "🚨 **Critical failures detected in:** $CRITICAL_FAILURES" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Manual Action Required:** Review failed jobs and create issue if needed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **No critical failures detected**" >> $GITHUB_STEP_SUMMARY
+          fi

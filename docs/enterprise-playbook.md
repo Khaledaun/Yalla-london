@@ -1675,6 +1675,67 @@ yarn audit fix
 yarn upgrade [package-name]
 ```
 
+### CI/CD Failure Detection and Automation
+
+#### Automated Issue Creation
+
+The Yalla London CI/CD pipeline includes automated failure detection that creates GitHub issues when critical jobs fail or are skipped.
+
+**Critical Jobs Monitored:**
+- `lint-and-typecheck` - Code quality and TypeScript validation
+- `build-and-test` - Application build and unit tests
+- `security-scan` - Security vulnerability detection
+- `migration-check` - Database migration validation
+- `deploy-migrations` - Production migration deployment
+- `full-test-suite` - Integration and E2E tests
+- `rbac-security-tests` - Role-based access control validation
+- `dependency-audit` - Dependency vulnerability scanning
+- `compliance-check` - Enterprise compliance validation
+
+**Automation Features:**
+- **Deduplication**: Only one issue per workflow run
+- **Rich Context**: Includes workflow details, run logs, and direct links
+- **Immediate Notification**: Issues created with `priority-high` label
+- **Job Summaries**: Workflow output shows detection results
+
+#### Issue Creation Logic
+
+```yaml
+# Example usage in workflow
+- name: Detect CI/CD failures
+  uses: ./.github/actions/failure-detector
+  with:
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    workflow-name: 'Enterprise CI/CD Pipeline'
+    run-id: ${{ github.run_id }}
+    critical-jobs: 'lint-and-typecheck,build-and-test,security-scan'
+```
+
+**Issue Template Created:**
+- **Title**: `CI/CD Critical Failure Detected - [Workflow Name] (Run #[ID])`
+- **Labels**: `ci-failure`, `automated`, `priority-high`
+- **Content**:
+  - Workflow name and run number
+  - Failed/skipped job names and IDs
+  - Direct link to workflow run
+  - Commit SHA and branch information
+  - Timestamp of the run
+  - Next steps for resolution
+
+#### Testing Failure Detection
+
+Use the test workflow to validate the automation:
+
+```bash
+# Test failure simulation
+gh workflow run test-failure-detection.yml \
+  -f simulate_failure=test-job-1
+
+# Test skip simulation  
+gh workflow run test-failure-detection.yml \
+  -f simulate_skip=test-job-2
+```
+
 ### Monitoring and Alerts
 
 #### Key Metrics to Monitor
@@ -1683,6 +1744,8 @@ yarn upgrade [package-name]
 - Build and test duration
 - Security scan results
 - Database connection health
+- **CI/CD failure detection accuracy**
+- **Issue creation and resolution times**
 
 #### Recommended Alerting Rules
 - Failed migration deployments (immediate)
@@ -1694,3 +1757,5 @@ yarn upgrade [package-name]
 - Security scan failures (immediate)
 - Build failures on main branch (immediate)
 - Dependency vulnerabilities (daily summary)
+- **Critical CI/CD job failures (automated via GitHub issues)**
+- **Multiple consecutive workflow failures (review required)**

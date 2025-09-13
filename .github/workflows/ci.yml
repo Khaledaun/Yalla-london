@@ -454,10 +454,51 @@ jobs:
             echo "⚠️ Shadow database URL not documented"
           fi
 
+  detect-failures:
+    name: Detect CI/CD Failures
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, build-and-test, security-scan, enterprise-compliance, migration-check, lighthouse-ci, deploy-migrations, full-test-suite]
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Detect critical failures and create issues
+        id: failure-detector
+        uses: ./.github/actions/failure-detector
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: 'Enterprise CI/CD Pipeline'
+          run-id: ${{ github.run_id }}
+          critical-jobs: 'lint-and-typecheck,build-and-test,security-scan,enterprise-compliance,migration-check,deploy-migrations,full-test-suite'
+          
+      - name: Add job summary
+        run: |
+          echo "## 🔍 CI/CD Failure Detection Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow:** Enterprise CI/CD Pipeline" >> $GITHUB_STEP_SUMMARY
+          echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.failure-detector.outputs.issue-created }}" == "true" ]; then
+            echo "🚨 **Critical failure/skip detected!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📝 **Issue created:** ${{ steps.failure-detector.outputs.issue-url }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please review the issue for details and next steps." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **No critical failures or skips detected**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All critical jobs completed successfully or as expected." >> $GITHUB_STEP_SUMMARY
+          fi
+
   notify-completion:
     name: Notify Pipeline Completion
     runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, build-and-test, security-scan, enterprise-compliance]
+    needs: [lint-and-typecheck, build-and-test, security-scan, enterprise-compliance, detect-failures]
     if: always()
     
     steps:
@@ -490,16 +531,25 @@ jobs:
             echo "❌ Enterprise Compliance: FAILED"
           fi
           
+          echo ""
+          if [ "${{ needs.detect-failures.result }}" == "success" ]; then
+            echo "🔍 Failure Detection: COMPLETED"
+          else
+            echo "⚠️ Failure Detection: ERROR"
+          fi
+          
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             echo ""
             echo "📋 Pull Request Workflow:"
             echo "  - Migration diff checked (no deployment)"
             echo "  - Lighthouse CI executed on staging URL"
             echo "  - Auth-gated pages skipped in Lighthouse"
+            echo "  - Critical failure detection enabled"
           else
             echo ""
             echo "🚀 Main Branch Workflow:"
             echo "  - Full test suite executed"
             echo "  - Database migrations deployed"
             echo "  - Production-ready build validated"
+            echo "  - Critical failure detection enabled"
           fi

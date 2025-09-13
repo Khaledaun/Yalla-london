@@ -1,0 +1,201 @@
+name: 'CI/CD Failure Detector'
+description: 'Detects critical job failures/skips and creates GitHub issues for accountability'
+inputs:
+  github-token:
+    description: 'GitHub token for API access'
+    required: true
+  workflow-name:
+    description: 'Name of the workflow'
+    required: true
+  run-id:
+    description: 'GitHub workflow run ID'
+    required: true
+  critical-jobs:
+    description: 'Comma-separated list of critical job names to monitor'
+    required: true
+    default: 'lint-and-typecheck,build-and-test,migration-check,security-scan,full-test-suite,rbac-security-tests,dependency-audit,compliance-check'
+  
+outputs:
+  issue-created:
+    description: 'Whether an issue was created (true/false)'
+    value: ${{ steps.check-and-create.outputs.issue-created }}
+  issue-url:
+    description: 'URL of the created issue (if any)'
+    value: ${{ steps.check-and-create.outputs.issue-url }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check job statuses and create issue if needed
+      id: check-and-create
+      shell: bash
+      run: |
+        set -e
+        
+        # Configuration
+        REPO="${{ github.repository }}"
+        RUN_ID="${{ inputs.run-id }}"
+        WORKFLOW_NAME="${{ inputs.workflow-name }}"
+        CRITICAL_JOBS="${{ inputs.critical-jobs }}"
+        BRANCH="${{ github.ref_name }}"
+        COMMIT_SHA="${{ github.sha }}"
+        RUN_URL="https://github.com/$REPO/actions/runs/$RUN_ID"
+        
+        echo "🔍 Checking critical job statuses for workflow: $WORKFLOW_NAME"
+        echo "Critical jobs to monitor: $CRITICAL_JOBS"
+        
+        # Get workflow run details
+        echo "📡 Fetching workflow run details..."
+        RUN_RESPONSE=$(curl -s \
+          -H "Authorization: token ${{ inputs.github-token }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID")
+        
+        # Extract run information
+        RUN_STATUS=$(echo "$RUN_RESPONSE" | jq -r '.status')
+        RUN_CONCLUSION=$(echo "$RUN_RESPONSE" | jq -r '.conclusion // "null"')
+        RUN_CREATED_AT=$(echo "$RUN_RESPONSE" | jq -r '.created_at')
+        
+        echo "Run status: $RUN_STATUS, conclusion: $RUN_CONCLUSION"
+        
+        # Get jobs for this run
+        echo "📡 Fetching jobs for run $RUN_ID..."
+        JOBS_RESPONSE=$(curl -s \
+          -H "Authorization: token ${{ inputs.github-token }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/$REPO/actions/runs/$RUN_ID/jobs")
+        
+        # Parse critical jobs
+        IFS=',' read -ra CRITICAL_JOB_ARRAY <<< "$CRITICAL_JOBS"
+        
+        FAILED_JOBS=""
+        SKIPPED_JOBS=""
+        FAILED_COUNT=0
+        SKIPPED_COUNT=0
+        
+        # Check each critical job
+        for job_name in "${CRITICAL_JOB_ARRAY[@]}"; do
+          job_name=$(echo "$job_name" | xargs) # trim whitespace
+          
+          # Find job by name
+          JOB_INFO=$(echo "$JOBS_RESPONSE" | jq -r --arg name "$job_name" \
+            '.jobs[] | select(.name == $name) | "\(.status)|\(.conclusion // "null")|\(.id)"')
+          
+          if [ -n "$JOB_INFO" ] && [ "$JOB_INFO" != "null" ]; then
+            IFS='|' read -r job_status job_conclusion job_id <<< "$JOB_INFO"
+            
+            echo "Job: $job_name - Status: $job_status, Conclusion: $job_conclusion"
+            
+            if [ "$job_conclusion" == "failure" ]; then
+              FAILED_JOBS="$FAILED_JOBS- **$job_name** (ID: $job_id)\n"
+              FAILED_COUNT=$((FAILED_COUNT + 1))
+            elif [ "$job_conclusion" == "skipped" ] || [ "$job_status" == "skipped" ]; then
+              SKIPPED_JOBS="$SKIPPED_JOBS- **$job_name** (ID: $job_id)\n"
+              SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+            fi
+          else
+            echo "⚠️ Critical job '$job_name' not found in workflow run"
+          fi
+        done
+        
+        # Determine if we need to create an issue
+        SHOULD_CREATE_ISSUE=false
+        ISSUE_TYPE=""
+        
+        if [ $FAILED_COUNT -gt 0 ] && [ $SKIPPED_COUNT -gt 0 ]; then
+          SHOULD_CREATE_ISSUE=true
+          ISSUE_TYPE="Critical Failure and Skip"
+        elif [ $FAILED_COUNT -gt 0 ]; then
+          SHOULD_CREATE_ISSUE=true
+          ISSUE_TYPE="Critical Failure"
+        elif [ $SKIPPED_COUNT -gt 0 ]; then
+          SHOULD_CREATE_ISSUE=true
+          ISSUE_TYPE="Critical Skip"
+        fi
+        
+        echo "Failed jobs: $FAILED_COUNT, Skipped jobs: $SKIPPED_COUNT"
+        echo "Should create issue: $SHOULD_CREATE_ISSUE"
+        
+        if [ "$SHOULD_CREATE_ISSUE" == "true" ]; then
+          # Check if issue already exists for this run
+          EXISTING_ISSUE=$(curl -s \
+            -H "Authorization: token ${{ inputs.github-token }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$REPO/issues?state=open&labels=ci-failure" | \
+            jq -r --arg run_id "$RUN_ID" '.[] | select(.body | contains("Run ID: " + $run_id)) | .html_url')
+          
+          if [ -n "$EXISTING_ISSUE" ] && [ "$EXISTING_ISSUE" != "null" ]; then
+            echo "ℹ️ Issue already exists for this run: $EXISTING_ISSUE"
+            echo "issue-created=false" >> $GITHUB_OUTPUT
+            echo "issue-url=$EXISTING_ISSUE" >> $GITHUB_OUTPUT
+          else
+            echo "🚨 Creating GitHub issue for $ISSUE_TYPE detected"
+            
+            # Prepare issue body
+            ISSUE_BODY="## CI/CD $ISSUE_TYPE Detected
+            
+            **Workflow Information:**
+            - **Workflow Name:** $WORKFLOW_NAME
+            - **Run ID:** $RUN_ID
+            - **Branch:** $BRANCH
+            - **Commit SHA:** $COMMIT_SHA
+            - **Timestamp:** $RUN_CREATED_AT
+            - **Run URL:** $RUN_URL
+            
+            **Status Summary:**
+            - Failed Critical Jobs: $FAILED_COUNT
+            - Skipped Critical Jobs: $SKIPPED_COUNT"
+        
+            if [ $FAILED_COUNT -gt 0 ]; then
+              ISSUE_BODY="$ISSUE_BODY
+            
+            **Failed Jobs:**
+            $FAILED_JOBS"
+            fi
+        
+            if [ $SKIPPED_COUNT -gt 0 ]; then
+              ISSUE_BODY="$ISSUE_BODY
+            
+            **Skipped Jobs:**
+            $SKIPPED_JOBS"
+            fi
+        
+            ISSUE_BODY="$ISSUE_BODY
+            
+            **Next Steps:**
+            1. Review the [workflow run]($RUN_URL) for detailed logs
+            2. Investigate and fix the root cause of the failure/skip
+            3. Re-run the workflow or create a new commit to resolve
+            4. Close this issue once resolved
+            
+            **Automation Note:** This issue was automatically created by the CI/CD failure detection system."
+        
+            # Create the issue
+            TITLE="CI/CD $ISSUE_TYPE Detected - $WORKFLOW_NAME (Run #$RUN_ID)"
+            LABELS="ci-failure,automated,priority-high"
+            
+            ISSUE_RESPONSE=$(curl -s \
+              -X POST \
+              -H "Authorization: token ${{ inputs.github-token }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/$REPO/issues" \
+              -d "{\"title\": \"$TITLE\", \"body\": $(echo "$ISSUE_BODY" | jq -Rs .), \"labels\": [\"ci-failure\", \"automated\", \"priority-high\"]}")
+        
+            ISSUE_URL=$(echo "$ISSUE_RESPONSE" | jq -r '.html_url')
+            
+            if [ "$ISSUE_URL" != "null" ] && [ -n "$ISSUE_URL" ]; then
+              echo "✅ Issue created successfully: $ISSUE_URL"
+              echo "issue-created=true" >> $GITHUB_OUTPUT
+              echo "issue-url=$ISSUE_URL" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Failed to create issue"
+              echo "Response: $ISSUE_RESPONSE"
+              echo "issue-created=false" >> $GITHUB_OUTPUT
+              echo "issue-url=" >> $GITHUB_OUTPUT
+            fi
+          fi
+        else
+          echo "✅ No critical failures or skips detected"
+          echo "issue-created=false" >> $GITHUB_OUTPUT
+          echo "issue-url=" >> $GITHUB_OUTPUT
+        fi

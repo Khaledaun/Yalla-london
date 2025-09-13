@@ -210,6 +210,9 @@ describe('Automated Security Testing', () => {
     });
 
     test('should handle malformed audit events gracefully', async () => {
+      // Mock console.error to prevent test output pollution
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      
       const malformedEvents = [
         null,
         undefined,
@@ -224,6 +227,9 @@ describe('Automated Security Testing', () => {
       for (const event of malformedEvents) {
         expect(async () => await logAuditEvent(event as any)).not.toThrow();
       }
+      
+      // Restore console.error
+      consoleSpy.mockRestore();
     });
   });
 

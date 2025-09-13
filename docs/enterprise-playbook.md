@@ -1888,7 +1888,40 @@ gh workflow run test-failure-detection.yml \
 
 This section documents the recent critical CI/CD deployment failures and the comprehensive fixes implemented to prevent similar issues.
 
-#### Issue 1: Prisma Environment Variable Timing ✅ FIXED
+#### Issue 1: Package Manager Conflicts ✅ FIXED
+
+**Problem:**
+- `package-lock.json` file conflicting with Yarn workflows causing infinite dependency resolution loops
+- SIGKILL termination during `yarn add @prisma/client@6.7.0 --silent` commands
+- Mixed package manager warnings causing installation instability
+
+**Root Cause:**
+Mixed package managers (npm lock file present in Yarn-based workflows) causing dependency resolution conflicts and timeout issues.
+
+**Solution Implemented:**
+```bash
+# Removed conflicting package-lock.json
+rm -f yalla_london/app/package-lock.json
+
+# Enhanced .gitignore to prevent future conflicts
+# Package manager lock files (enforce Yarn consistency)
+package-lock.json
+npm-shrinkwrap.json
+
+# Added runtime detection and cleanup
+if [ -f "package-lock.json" ]; then
+  echo "⚠️ package-lock.json found - removing to prevent Yarn conflicts"
+  rm -f package-lock.json
+fi
+```
+
+**Prevention Measures:**
+- Enhanced `.gitignore` patterns to prevent future package manager conflicts
+- Runtime detection and automatic removal of conflicting lock files
+- Standardized on Yarn with frozen lockfile for consistency
+- Dependency validation checks before critical operations
+
+#### Issue 2: Prisma Environment Variable Timing ✅ FIXED
 
 **Problem:**
 - Prisma CLI was called before `DIRECT_URL` environment variable was available
@@ -1922,7 +1955,7 @@ Environment variables were defined at the end of workflow steps but Prisma CLI n
 - Consistent database configuration across all workflow jobs
 - Documentation updated to emphasize environment variable ordering
 
-#### Issue 2: Prisma Client Generator Configuration ✅ FIXED
+#### Issue 3: Prisma Client Generator Configuration ✅ FIXED
 
 **Problem:**
 - Missing output path in Prisma client generator caused warnings
@@ -1952,7 +1985,7 @@ generator client {
 - Schema best practices documented and enforced
 - Regular schema validation includes completeness checks
 
-#### Issue 3: Node.js Version Compatibility ✅ VERIFIED
+#### Issue 4: Node.js Version Compatibility ✅ VERIFIED
 
 **Analysis:**
 - All workflows already correctly configured with Node.js 20.17.0
@@ -1978,7 +2011,33 @@ steps:
 
 ### Prevention Strategies Implemented
 
-#### 1. Environment Variable Best Practices
+#### 1. Package Manager Standardization
+
+**Conflict Prevention:**
+```bash
+# Standard pattern for all dependency installations
+- name: Install dependencies
+  env:
+    DATABASE_URL: "postgresql://..."
+    DIRECT_URL: "postgresql://..."
+  run: |
+    # Check for conflicting package managers
+    if [ -f "package-lock.json" ]; then
+      echo "⚠️ package-lock.json found - removing to prevent Yarn conflicts"
+      rm -f package-lock.json
+    fi
+    
+    yarn install --frozen-lockfile --network-timeout 300000
+```
+
+**Enhanced .gitignore:**
+```gitignore
+# Package manager lock files (enforce Yarn consistency)
+package-lock.json
+npm-shrinkwrap.json
+```
+
+#### 2. Environment Variable Best Practices
 
 **Consistent Ordering:**
 ```yaml
@@ -2003,7 +2062,7 @@ fi
 echo "✅ Required environment variables validated"
 ```
 
-#### 2. Prisma Configuration Standards
+#### 3. Prisma Configuration Standards
 
 **Complete Generator Configuration:**
 ```prisma
@@ -2026,7 +2085,7 @@ datasource db {
 - Primary key validation for all models
 - Relationship integrity verification
 
-#### 3. CI/CD Workflow Robustness
+#### 4. CI/CD Workflow Robustness
 
 **Enhanced Error Detection:**
 ```yaml
@@ -2057,6 +2116,18 @@ echo "📦 NPM Version: $(npm --version)"
 ```
 
 ### Troubleshooting Quick Reference
+
+#### Package Manager Conflicts
+```bash
+# Check for conflicting lock files
+ls -la package-lock.json yarn.lock
+
+# Remove conflicting npm files
+rm -f package-lock.json npm-shrinkwrap.json
+
+# Clean install with Yarn only
+yarn install --frozen-lockfile
+```
 
 #### Environment Variable Issues
 ```bash
@@ -2097,6 +2168,7 @@ echo "Node: $(node --version), NPM: $(npm --version)"
 ### Monitoring and Prevention
 
 #### Automated Monitoring
+- Package manager conflict detection in all installation steps
 - Environment variable availability checks before critical operations
 - Prisma schema validation in all workflow steps
 - Node.js version compatibility verification
@@ -2104,6 +2176,7 @@ echo "Node: $(node --version), NPM: $(npm --version)"
 
 #### Documentation Updates
 - Workflow files include references to troubleshooting guide
+- Package manager standardization requirements clearly documented
 - Environment variable requirements clearly documented
 - Prisma configuration best practices enforced
 - Prevention measures integrated into development workflow
@@ -2118,6 +2191,7 @@ echo "Node: $(node --version), NPM: $(npm --version)"
 
 1. **Automated Environment Validation:**
    - Pre-flight checks before workflow execution
+   - Package manager conflict detection and automatic resolution
    - Environment variable dependency mapping
    - Validation scripts for local development
 

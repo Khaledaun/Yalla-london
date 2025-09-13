@@ -28,3 +28,7 @@ yalla_london/.phase4b_logs/
 .env.local
 .env.development
 .env.production
+
+# Package manager lock files (enforce Yarn consistency)
+package-lock.json
+npm-shrinkwrap.json

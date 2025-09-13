@@ -28,9 +28,19 @@ jobs:
           
       - name: Install dependencies
         working-directory: ${{ env.APP_DIR }}
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
         run: |
           set -e
           echo "📦 Installing dependencies..."
+          
+          # Check for conflicting package managers
+          if [ -f "package-lock.json" ]; then
+            echo "⚠️ package-lock.json found - removing to prevent Yarn conflicts"
+            rm -f package-lock.json
+          fi
+          
           yarn install --frozen-lockfile --network-timeout 300000
           echo "✅ Dependencies installed successfully"
         
@@ -220,9 +230,19 @@ jobs:
           
       - name: Install dependencies
         working-directory: ${{ env.APP_DIR }}
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
         run: |
           set -e
           echo "📦 Installing dependencies..."
+          
+          # Check for conflicting package managers
+          if [ -f "package-lock.json" ]; then
+            echo "⚠️ package-lock.json found - removing to prevent Yarn conflicts"
+            rm -f package-lock.json
+          fi
+          
           yarn install --frozen-lockfile --network-timeout 300000
           echo "✅ Dependencies installed successfully"
           

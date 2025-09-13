@@ -1440,112 +1440,215 @@ curl -X GET /api/audits -H "Cookie: next-auth.session-token=..."
 
 ## CI/CD Pipeline and Migration Management
 
-### Enterprise CI/CD Workflow
+### Enterprise CI/CD Workflow with Comprehensive Automation
 
-The Yalla London project uses an enterprise-grade CI/CD pipeline that ensures safe deployment practices and database migration management.
+The Yalla London project uses an enterprise-grade CI/CD pipeline with robust error handling, comprehensive monitoring, and automated GitHub issue creation for critical failures.
 
-#### Pull Request Workflow
+#### Enhanced Workflow Features
+
+**🔍 Robust Error Handling:**
+- Retry logic for network-dependent operations (Prisma binary downloads, dependency installation)
+- Detailed error categorization with troubleshooting guidance
+- Environment variable validation before critical operations
+- Comprehensive logging and artifact collection for debugging
+
+**📊 Job Summaries and Reporting:**
+- Rich GitHub step summaries with detailed status tables
+- Build metrics including time, size, and test coverage
+- Vulnerability analysis with severity breakdown
+- Migration deployment tracking with backup points
+- Security scan results with actionable recommendations
+
+**🔒 File Validation and Security:**
+- Prevents accidentally committed coverage directories, IDE files, temporary files
+- Validates environment files aren't committed (security risk)
+- Checks for config file integrity and build artifacts
+- Enhanced secret detection with categorized warnings
+
+**🗄️ Prisma Binary and Database Management:**
+- Firewall/allowlist detection for binaries.prisma.sh access
+- Network error handling with retry logic
+- Environment validation before migration operations
+- Production backup points before critical deployments
+
+**📈 Coverage Enforcement:**
+- Coverage warnings that don't fail builds (warn, don't break)
+- Different thresholds for security modules (90%) vs regular code (70%)
+- Detailed coverage reporting in job summaries
+- Coverage trend analysis and artifact storage
+
+#### Pull Request Workflow (Enhanced)
+
 When creating pull requests to the main branch:
 
-1. **Code Quality Checks**:
-   - TypeScript compilation and linting
-   - Prisma schema validation
-   - Security scanning for secrets and vulnerabilities
+1. **Comprehensive Code Quality Checks**:
+   ```bash
+   # File Validation
+   ✅ No unwanted files (coverage/, .vscode/, *.tmp, .env)
+   ✅ Config file integrity validation
+   ✅ Build artifact validation
+   
+   # TypeScript & Linting
+   ✅ TypeScript compilation with detailed error reporting
+   ✅ ESLint with security plugin (max 10 warnings allowed)
+   ✅ Code quality metrics and trend analysis
+   ```
 
-2. **Migration Safety Check**:
-   - Runs `prisma migrate diff` against shadow database
-   - **IMPORTANT**: Migrations are NOT deployed during pull requests
-   - Shows preview of migration changes for review
+2. **Enhanced Migration Safety Check**:
+   ```bash
+   # Prisma Binary Validation
+   ✅ Prisma CLI accessibility with firewall detection
+   ✅ Network connectivity validation with retry logic
+   ✅ Environment variable validation before operations
+   
+   # Migration Analysis
+   ✅ Schema syntax validation with best practice checks
+   ✅ Migration diff against shadow database (if configured)
+   ✅ Destructive operation warnings (DROP/DELETE/TRUNCATE)
+   ✅ Performance impact analysis (index changes)
+   
+   # Migration Complexity Reporting
+   📊 Line count of SQL changes
+   ⚠️ Warnings for high-risk operations
+   ℹ️ Information about performance impacts
+   ```
 
-3. **Performance Testing**:
-   - Lighthouse CI runs against staging environment
-   - Skips auth-gated pages (e.g., `/admin`) to avoid authentication issues
-   - Requires performance score ≥ 0.9, accessibility ≥ 0.9, SEO ≥ 0.9
+3. **Comprehensive Security Scanning**:
+   ```bash
+   # Dependency Vulnerability Analysis
+   🔍 npm audit with detailed severity breakdown
+   🔍 yarn audit for cross-validation
+   📦 Outdated package detection and recommendations
+   
+   # Secret and Credential Detection
+   🔒 API key pattern detection with categorized warnings
+   🔒 Hardcoded credential scanning with false positive filtering
+   🔒 Environment file validation
+   
+   # Additional Security Checks
+   🛡️ eval() usage detection (security risk)
+   🛡️ innerHTML usage analysis (XSS potential)
+   🛡️ TypeScript strict mode verification
+   🛡️ Unsafe dependency version detection
+   ```
 
-```bash
-# Example migration diff command (run automatically in CI)
-yarn prisma migrate diff \
-  --from-schema-datamodel prisma/schema.prisma \
-  --to-schema-datasource $SHADOW_DATABASE_URL \
-  --script
-```
+4. **Performance Testing**:
+   ```bash
+   # Lighthouse CI with Adaptive Configuration
+   ⚡ Performance: ≥75% (content-heavy luxury platform)
+   ♿ Accessibility: ≥85% (high standards with flexibility)
+   📋 Best Practices: ≥85% (realistic for modern web apps)
+   🔍 SEO: ≥90% (maintain high discoverability)
+   
+   # Environment-Specific Testing
+   🏠 Local: Tests all pages including /admin routes
+   🎭 Staging: Skips auth-gated pages, uses staging URL
+   📊 Adaptive thresholds based on page complexity
+   ```
 
-#### Main Branch Deployment Workflow
+#### Main Branch Deployment Workflow (Enhanced)
+
 When code is merged to the main branch:
 
-1. **Full Test Suite**:
-   - Complete application build and testing
-   - Integration tests with real database
-   - JSON-LD schema validation
+1. **Enhanced Test Suite with Coverage Analysis**:
+   ```bash
+   # Comprehensive Testing
+   🧪 Unit tests with coverage collection
+   🧪 Integration tests with database validation
+   🧪 JSON-LD schema validation
+   🧪 API endpoint testing
+   
+   # Coverage Analysis (warn, don't fail)
+   📊 Lines: ≥70% (warn if below, don't block)
+   📊 Functions: ≥70% (with detailed reporting)
+   📊 Branches: ≥70% (trend analysis)
+   📊 Statements: ≥70% (artifact storage)
+   
+   # Security Module Higher Thresholds
+   🔒 RBAC modules: ≥90% coverage required
+   🔒 Security modules: ≥80% coverage required
+   ```
 
-2. **Database Migration Deployment**:
-   - Automatic deployment of pending migrations
-   - Uses production `$DATABASE_URL`
-   - Verbose logging for audit trail
+2. **Production Migration Deployment with Safety**:
+   ```bash
+   # Pre-deployment Validation
+   🔐 Production environment variable validation
+   🗄️ Database connectivity testing with timeout
+   🔧 Prisma binary availability with network validation
+   
+   # Migration Status Analysis
+   📋 Current migration status check
+   📊 Pending migration count and complexity analysis
+   💾 Backup point creation with unique identifier
+   📝 Schema state recording before changes
+   
+   # Deployment with Monitoring
+   🚀 Migration deployment with verbose logging
+   ⏱️ Deployment time tracking and performance metrics
+   🔍 Post-deployment verification and testing
+   🗄️ Database operation validation
+   🔧 Fresh Prisma client generation test
+   
+   # Recovery Information
+   📝 Backup identifier for rollback: backup-YYYYMMDD-HHMMSS-{SHA}
+   🔗 Direct links to workflow run and commit details
+   ```
 
+### Required Environment Variables (Updated)
+
+#### Core Database Variables (Enhanced)
 ```bash
-# Migration deployment (run automatically in CI)
-yarn prisma migrate deploy --verbose
-```
-
-### Required Environment Variables
-
-#### Core Database Variables
-```bash
-# Production database (required for main branch deployments)
+# Production database with connection validation
 DATABASE_URL=postgresql://user:password@host:5432/production_db
+# Tested for connectivity before migration deployment
 
-# Shadow database (required for migration diff in pull requests)
+# Shadow database for migration validation in PRs
 SHADOW_DATABASE_URL=postgresql://user:password@host:5432/shadow_db
+# Used for migration diff analysis and destructive operation detection
 
-# Direct connection URL (for migrations)
+# Direct connection URL with connection limits
 DIRECT_URL=postgresql://user:password@host:5432/production_db?schema=public&connection_limit=1
+# Validated before critical operations
 ```
 
-#### Lighthouse CI Variables
+#### Enhanced Security Variables
 ```bash
-# Staging URL for Lighthouse CI testing
-LHCI_URL_STAGING=https://your-staging-environment.vercel.app
-
-# Lighthouse CI GitHub App token (optional, for enhanced reporting)
-LHCI_GITHUB_APP_TOKEN=your-github-app-token
-```
-
-#### CI/CD Security Variables
-```bash
-# Next.js authentication secret (minimum 32 characters)
+# Next.js authentication (minimum 32 characters, validated)
 NEXTAUTH_SECRET=your-production-nextauth-secret-32-chars-minimum
 
-# Application URL
+# Application URL with environment-specific validation
 NEXTAUTH_URL=https://your-production-domain.com
 
-# Admin emails for access control
+# Admin access control with email validation
 ADMIN_EMAILS=admin1@company.com,admin2@company.com
 
-# AWS credentials for asset storage
-AWS_ACCESS_KEY_ID=your-aws-access-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret-key
-AWS_BUCKET_NAME=your-production-bucket
-AWS_REGION=us-east-1
+# Cron security with strength validation  
+CRON_SECRET=generated-secure-secret-minimum-32-characters
 ```
 
-### Lighthouse CI Convention
+#### CI/CD Enhancement Variables
+```bash
+# Staging environment for Lighthouse CI
+LHCI_URL_STAGING=https://your-staging-environment.vercel.app
 
-The Lighthouse CI configuration automatically adapts based on environment:
+# Enhanced GitHub App integration
+LHCI_GITHUB_APP_TOKEN=your-github-app-token-for-enhanced-reporting
 
-#### Local Development
-- Tests against `http://localhost:3000`
-- Includes all pages including admin routes
-- Starts local server automatically
+# Security scanning integration
+SNYK_TOKEN=your-snyk-token-for-vulnerability-scanning
 
-#### Staging/CI Environment
-- Tests against `$LHCI_URL_STAGING`
-- Skips authentication-gated pages (`/admin`)
-- Connects to running staging deployment
+# Staging database for multi-environment support
+STAGING_DATABASE_URL=postgresql://staging:password@host:5432/staging_db
+STAGING_NEXTAUTH_URL=https://staging.your-domain.com
+```
 
-#### Configuration Example
+### Lighthouse CI Configuration (Enhanced)
+
+The Lighthouse CI now includes adaptive configuration based on environment and content type:
+
+#### Environment-Adaptive Testing
 ```javascript
-// lighthouserc.js
+// Enhanced lighthouserc.js with content-aware thresholds
 module.exports = {
   ci: {
     collect: {
@@ -1553,209 +1656,229 @@ module.exports = {
         process.env.LHCI_URL_STAGING || 'http://localhost:3000',
         (process.env.LHCI_URL_STAGING || 'http://localhost:3000') + '/blog',
         (process.env.LHCI_URL_STAGING || 'http://localhost:3000') + '/recommendations',
-        // Skip admin routes when testing staging
+        // Admin routes only tested locally (auth complications in staging)
       ],
       startServerCommand: process.env.LHCI_URL_STAGING ? undefined : 'yarn start',
       numberOfRuns: 3
     },
     assert: {
       assertions: {
-        'categories:performance': ['warn', {minScore: 0.9}],
-        'categories:accessibility': ['error', {minScore: 0.9}],
-        'categories:best-practices': ['warn', {minScore: 0.9}],
-        'categories:seo': ['error', {minScore: 0.9}],
-        'categories:pwa': 'off'
+        // Balanced thresholds for luxury content platform with rich visuals
+        'categories:performance': ['warn', {minScore: 0.75}],  // Content-heavy
+        'categories:accessibility': ['error', {minScore: 0.85}], // High standards
+        'categories:best-practices': ['warn', {minScore: 0.85}], // Realistic
+        'categories:seo': ['error', {minScore: 0.9}],           // Discoverability
+        'categories:pwa': 'off'  // Not applicable
       }
+    },
+    upload: {
+      target: 'temporary-public-storage'
     }
   }
 }
 ```
 
-### Database Migration Best Practices
+### Database Migration Best Practices (Enhanced)
 
-#### Development Workflow
-1. **Make Schema Changes**: Update `prisma/schema.prisma`
-2. **Create Migration**: `yarn prisma migrate dev --name descriptive_name`
-3. **Review Generated SQL**: Check migration file for correctness
-4. **Test Locally**: Ensure application works with new schema
-5. **Commit Changes**: Include both schema and migration files
-
-#### Staging Validation
-1. **Deploy to Staging**: Push to staging branch or environment
-2. **Validate Migration**: CI automatically runs migration diff
-3. **Test Application**: Verify all features work with new schema
-4. **Review Performance**: Check Lighthouse CI results
-
-#### Production Deployment
-1. **Merge to Main**: Once PR is approved and tested
-2. **Automatic Migration**: CI deploys migrations to production
-3. **Monitor Deployment**: Check logs for migration success
-4. **Verify Application**: Confirm all services running correctly
-
-### Troubleshooting Guide
-
-#### Common Migration Issues
-
-**Issue**: Migration diff shows unexpected changes
+#### Development Workflow with Validation
 ```bash
-# Solution: Reset shadow database to match current schema
-yarn prisma db push --schema prisma/schema.prisma
+# 1. Schema Changes with Validation
+yarn prisma migrate dev --name descriptive_name
+# ✅ Validates schema syntax and relationships
+# ✅ Checks for breaking changes and data compatibility
+# ✅ Generates migration with complexity analysis
+
+# 2. Local Testing with Safety Checks
+yarn prisma migrate status  # Check current state
+yarn prisma validate        # Validate schema syntax
+# ✅ Verify migration applies cleanly
+# ✅ Test application with new schema
+# ✅ Check for performance implications
+
+# 3. Commit with Validation
+git add prisma/schema.prisma prisma/migrations/
+# ✅ Both schema and migration files included
+# ✅ Migration reviewed for destructive operations
+# ✅ Documentation updated if needed
 ```
 
-**Issue**: Lighthouse CI fails on staging URL
+#### Production Deployment with Safety
 ```bash
-# Check staging deployment status
-curl -I $LHCI_URL_STAGING
+# Automatic production deployment process:
 
-# Verify staging environment variables
-vercel env ls
+# 1. Environment Validation
+✅ DATABASE_URL connectivity test with timeout
+✅ DIRECT_URL validation and connection limits
+✅ Prisma binary availability with network checks
+✅ Production environment variable validation
 
-# Run Lighthouse locally for debugging
-npx lhci autorun --config=lighthouserc.js
+# 2. Pre-deployment Analysis  
+📊 Migration status check and pending migration count
+💾 Backup point creation with unique identifier
+📝 Schema state recording for rollback capability
+⚠️ Destructive operation warnings and complexity analysis
+
+# 3. Deployment with Monitoring
+🚀 yarn prisma migrate deploy --verbose
+⏱️ Deployment time tracking and performance monitoring
+🔍 Real-time status updates with detailed logging
+
+# 4. Post-deployment Verification
+✅ Migration status confirmation
+✅ Database connectivity and operation testing
+✅ Fresh Prisma client generation validation
+🔗 Backup identifier for emergency rollback
 ```
 
-**Issue**: Migration deployment fails in CI
+### Troubleshooting Guide (Comprehensive)
+
+#### Enhanced Error Resolution
+
+**Migration Issues with Network Detection:**
 ```bash
-# Check database connectivity
-yarn prisma migrate status
+# Issue: Prisma binary download fails (firewall/allowlist)
+❌ Error: ENOTFOUND binaries.prisma.sh
 
-# Verify environment variables
-echo $DATABASE_URL | grep -o "postgresql://[^/]*"
+# Solution: Network access configuration
+1. Add binaries.prisma.sh to firewall allowlist
+2. Configure GitHub Actions runner network access
+3. Alternative: Use cached Prisma binaries in CI
+4. Verify: Test with curl https://binaries.prisma.sh
 
-# Manual migration deployment (emergency only)
-yarn prisma migrate deploy --verbose
+# Issue: Migration deployment fails with detailed analysis
+❌ Error: Migration failed with connection timeout
+
+# Enhanced Solution:
+1. Check DATABASE_URL format and connectivity
+2. Verify database server availability and load
+3. Check migration complexity and duration
+4. Review backup identifier for potential rollback
+5. Analyze migration logs for specific error patterns
 ```
 
-#### Performance Issues
-
-**Issue**: Lighthouse performance score below threshold
-
-The Lighthouse CI is configured with balanced thresholds for this luxury content platform:
-- **Performance**: ≥0.75 (content-heavy pages with rich visuals)
-- **Accessibility**: ≥0.85 (high standards with flexibility)
-- **Best Practices**: ≥0.85 (realistic for modern web apps)
-- **SEO**: ≥0.9 (maintain high discoverability standards)
-
-**Troubleshooting steps**:
-1. **Check Bundle Size**: `yarn build` and review `.next/static/`
-2. **Optimize Images**: Ensure proper image formats and sizes
-3. **Review JavaScript**: Check for unnecessary client-side code
-4. **Database Queries**: Review API endpoints for N+1 queries
-5. **Feature Flags**: Disable non-essential features during testing:
-   ```bash
-   FEATURE_ANALYTICS_ENABLED=false
-   FEATURE_SOCIAL_EMBEDS=false
-   FEATURE_ADVANCED_ANIMATIONS=false
-   ```
-6. **CI Configuration**: Lighthouse config in `.github/workflows/ci.yml` under `Configure Lighthouse CI for staging`
-
-**Issue**: CI/CD pipeline timeout
-1. **Check Dependencies**: `yarn install` may be slow
-2. **Database Connection**: Verify database availability
-3. **Build Cache**: Ensure cache keys are properly configured
-4. **Resource Limits**: Consider upgrading CI runner specs
-
-#### Security Scan Failures
-
-**Issue**: Secrets detected in code
+**Build and Test Issues with Coverage Guidance:**
 ```bash
-# Find and remove hardcoded secrets
-grep -r "password\|secret\|key" --include="*.ts" src/
+# Issue: Coverage below threshold (warns, doesn't fail)
+⚠️ Warning: Coverage below 70% threshold
 
-# Use environment variables instead
-NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+# Response Strategy:
+1. Review coverage report in job summary
+2. Identify uncovered code paths
+3. Add tests for critical functionality
+4. Note: Build continues with warning
+5. Security modules require higher coverage (90%)
+
+# Issue: TypeScript compilation with enhanced reporting
+❌ Error: TS2345 - Argument type mismatch
+
+# Enhanced Solution:
+1. Review detailed TypeScript error log
+2. Check for new strict mode requirements
+3. Verify type definitions are up to date
+4. Use TSC error codes for specific guidance
 ```
 
-**Issue**: Dependency vulnerabilities
+**Security and Compliance Issues:**
 ```bash
-# Update vulnerable packages
-yarn audit fix
+# Issue: Dependency vulnerabilities detected
+🚨 Critical: 3 critical vulnerabilities found
 
-# For high-severity issues that can't be auto-fixed
-yarn upgrade [package-name]
+# Enhanced Resolution:
+1. Review vulnerability report in job artifacts
+2. Run npm audit fix for automatic fixes
+3. Check for manual update requirements
+4. Verify fixes don't break functionality
+5. Critical issues require immediate attention
+
+# Issue: RBAC or compliance validation failures
+❌ Error: RBAC matrix validation failed
+
+# Enhanced Solution:
+1. Review RBAC configuration in lib/rbac.ts
+2. Validate role-permission mappings
+3. Check for missing admin permissions
+4. Verify compliance documentation completeness
+5. Update enterprise playbook as needed
 ```
 
-### CI/CD Failure Detection and Automation
+### CI/CD Failure Detection and Automation (New)
 
 #### Automated Issue Creation
 
-The Yalla London CI/CD pipeline includes automated failure detection that creates GitHub issues when critical jobs fail or are skipped.
+The CI/CD pipeline includes comprehensive failure detection that automatically creates GitHub issues when critical jobs fail or are skipped.
 
-**Critical Jobs Monitored:**
-- `lint-and-typecheck` - Code quality and TypeScript validation
-- `build-and-test` - Application build and unit tests
-- `security-scan` - Security vulnerability detection
-- `migration-check` - Database migration validation
-- `deploy-migrations` - Production migration deployment
-- `full-test-suite` - Integration and E2E tests
-- `rbac-security-tests` - Role-based access control validation
-- `dependency-audit` - Dependency vulnerability scanning
-- `compliance-check` - Enterprise compliance validation
+**Monitored Critical Jobs:**
+- **Main CI Pipeline**: `lint-and-typecheck`, `build-and-test`, `security-scan`, `migration-check`, `deploy-migrations`, `full-test-suite`, `enterprise-compliance`
+- **Security Automation**: `sast-security-scan`, `rbac-security-tests`, `dependency-audit`, `compliance-check`, `dast-security-scan`
+- **Staging Pipeline**: `staging-lint-and-build`, `staging-security-check` (with fallback detection)
 
-**Automation Features:**
-- **Deduplication**: Only one issue per workflow run
-- **Rich Context**: Includes workflow details, run logs, and direct links
-- **Immediate Notification**: Issues created with `priority-high` label
-- **Job Summaries**: Workflow output shows detection results
-
-#### Issue Creation Logic
-
+**Issue Creation Features:**
 ```yaml
-# Example usage in workflow
-- name: Detect CI/CD failures
-  uses: ./.github/actions/failure-detector
-  with:
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-    workflow-name: 'Enterprise CI/CD Pipeline'
-    run-id: ${{ github.run_id }}
-    critical-jobs: 'lint-and-typecheck,build-and-test,security-scan'
+# Automatic issue creation with rich context
+Title: "CI/CD Critical Failure Detected - [Workflow] (Run #[ID])"
+Labels: ["ci-failure", "automated", "priority-high"]
+
+Content Includes:
+- 📊 Workflow name, run number, and branch information
+- 🔍 Failed/skipped job names with IDs and links
+- 📋 Job summary data and metrics
+- 🔗 Direct link to workflow run for detailed logs
+- ⏰ Timestamp and commit SHA for tracking
+- 📝 Next steps and resolution guidance
+- 🚫 Deduplication prevents multiple issues per run
 ```
 
-**Issue Template Created:**
-- **Title**: `CI/CD Critical Failure Detected - [Workflow Name] (Run #[ID])`
-- **Labels**: `ci-failure`, `automated`, `priority-high`
-- **Content**:
-  - Workflow name and run number
-  - Failed/skipped job names and IDs
-  - Direct link to workflow run
-  - Commit SHA and branch information
-  - Timestamp of the run
-  - Next steps for resolution
+**Enhanced Issue Context:**
+- Build metrics (time, size, coverage percentages)
+- Security scan results (vulnerability counts by severity)
+- Migration deployment status and backup identifiers
+- Error categorization and troubleshooting hints
+- Links to relevant documentation sections
 
 #### Testing Failure Detection
 
-Use the test workflow to validate the automation:
-
+Use the test workflow to validate automation:
 ```bash
-# Test failure simulation
+# Test critical job failure detection
 gh workflow run test-failure-detection.yml \
   -f simulate_failure=test-job-1
 
-# Test skip simulation  
+# Test job skip detection  
 gh workflow run test-failure-detection.yml \
   -f simulate_skip=test-job-2
+
+# Verify issue creation with proper context
+# Check issue includes job summaries and metrics
+# Confirm deduplication works correctly
 ```
 
-### Monitoring and Alerts
+### Monitoring and Alerts (Enhanced)
 
-#### Key Metrics to Monitor
-- Migration deployment success rate
-- Lighthouse CI score trends
-- Build and test duration
-- Security scan results
-- Database connection health
-- **CI/CD failure detection accuracy**
-- **Issue creation and resolution times**
+#### Key Metrics with Automation
+- **Migration deployment success rate** with backup tracking
+- **Lighthouse CI score trends** with adaptive thresholds
+- **Build and test duration** with performance analysis
+- **Security scan results** with severity trending
+- **Database connection health** with timeout monitoring
+- **CI/CD failure detection accuracy** with issue tracking
+- **Issue creation and resolution times** with automation metrics
 
-#### Recommended Alerting Rules
-- Failed migration deployments (immediate)
-- Lighthouse scores below thresholds:
-  - Performance <0.75 (warning)
-  - Accessibility <0.85 (critical)
-  - Best Practices <0.85 (warning)
-  - SEO <0.9 (critical)
-- Security scan failures (immediate)
-- Build failures on main branch (immediate)
-- Dependency vulnerabilities (daily summary)
-- **Critical CI/CD job failures (automated via GitHub issues)**
-- **Multiple consecutive workflow failures (review required)**
+#### Enhanced Alerting Rules
+```yaml
+# Immediate Alerts (automated via GitHub issues)
+- Failed migration deployments → Automatic issue with backup ID
+- Critical security vulnerabilities → Issue with severity breakdown
+- Build failures on main branch → Issue with build metrics
+- Prisma binary access issues → Issue with network guidance
+
+# Warning Alerts (job summaries with recommendations)
+- Lighthouse scores below adaptive thresholds
+- Coverage below recommended levels (warn, don't fail)
+- Dependency vulnerabilities (moderate severity)
+- RBAC/compliance validation warnings
+
+# Trending Alerts (artifact analysis)
+- Build time increases → Performance regression tracking
+- Test coverage decreases → Coverage trend analysis
+- Security vulnerability increases → Vulnerability tracking
+```

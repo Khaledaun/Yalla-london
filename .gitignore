@@ -20,6 +20,9 @@ yalla_london/app/rbac-test-results.json
 .phase4b*
 yalla_london/.phase4b_logs/
 
+# Temporary files
+*.tmp
+
 # Test and coverage reports (comprehensive)
 coverage/
 .coverage/
@@ -35,10 +38,18 @@ prisma-generate.log
 security-install.log
 install.log
 
+# Coverage/test reports
+coverage/
+*.lcov
+
 # IDE configuration directories
 .vscode/
 .idea/
 .vs/
+
+# IDE config directories
+.vscode/
+.idea/
 
 # Environment files (comprehensive protection)
 .env*
@@ -47,6 +58,10 @@ install.log
 .env.local
 .env.development
 .env.production
+
+# Node environment files
+.env
+.env.local
 
 # Package manager lock files (enforce Yarn consistency)
 package-lock.json

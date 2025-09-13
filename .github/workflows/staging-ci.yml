@@ -1,0 +1,334 @@
+name: Staging CI/CD Pipeline
+
+on:
+  push:
+    branches: [ staging, develop ]
+  pull_request:
+    branches: [ staging ]
+
+env:
+  NODE_VERSION: '18'
+  APP_DIR: 'yalla_london/app'
+
+jobs:
+  staging-lint-and-build:
+    name: Staging Build & Quality Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          cache-dependency-path: ${{ env.APP_DIR }}/yarn.lock
+          
+      - name: Install dependencies with staging configuration
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -e
+          echo "📦 Installing dependencies for staging environment..."
+          yarn install --frozen-lockfile --network-timeout 300000
+          echo "✅ Dependencies installed successfully"
+          
+      - name: Validate staging environment variables
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -e
+          echo "🔐 Validating staging environment configuration..."
+          
+          # Check for staging-specific configurations
+          MISSING_STAGING_VARS=""
+          
+          if [ -z "$STAGING_DATABASE_URL" ]; then
+            echo "⚠️ STAGING_DATABASE_URL not set - using fallback"
+            MISSING_STAGING_VARS="$MISSING_STAGING_VARS\n- STAGING_DATABASE_URL"
+          fi
+          
+          if [ -z "$STAGING_NEXTAUTH_URL" ]; then
+            echo "⚠️ STAGING_NEXTAUTH_URL not set - using fallback"
+            MISSING_STAGING_VARS="$MISSING_STAGING_VARS\n- STAGING_NEXTAUTH_URL"
+          fi
+          
+          if [ -n "$MISSING_STAGING_VARS" ]; then
+            echo "⚠️ Missing staging environment variables:"
+            echo -e "$MISSING_STAGING_VARS"
+            echo "STAGING_CONFIG_WARNINGS=true" >> $GITHUB_ENV
+          else
+            echo "✅ Staging environment variables validated"
+            echo "STAGING_CONFIG_WARNINGS=false" >> $GITHUB_ENV
+          fi
+        env:
+          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          STAGING_NEXTAUTH_URL: ${{ secrets.STAGING_NEXTAUTH_URL }}
+          
+      - name: Run TypeScript and lint checks for staging
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -e
+          echo "🔧 Running TypeScript and lint checks for staging..."
+          
+          # TypeScript check
+          if ! yarn tsc --noEmit --pretty 2>&1 | tee staging-typescript.log; then
+            echo "❌ TypeScript compilation failed"
+            exit 1
+          fi
+          echo "✅ TypeScript check passed"
+          
+          # ESLint check with staging-specific configuration
+          ESLINT_EXIT_CODE=0
+          yarn lint --format=stylish --max-warnings=20 2>&1 | tee staging-eslint.log || ESLINT_EXIT_CODE=$?
+          
+          if [ $ESLINT_EXIT_CODE -ne 0 ]; then
+            echo "⚠️ ESLint found issues (staging allows more warnings)"
+            echo "STAGING_LINT_WARNINGS=true" >> $GITHUB_ENV
+          else
+            echo "✅ ESLint check passed"
+            echo "STAGING_LINT_WARNINGS=false" >> $GITHUB_ENV
+          fi
+          
+      - name: Build application for staging
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -e
+          echo "🏗️ Building application for staging environment..."
+          
+          BUILD_START=$(date +%s)
+          
+          if ! yarn build 2>&1 | tee staging-build.log; then
+            echo "❌ Staging build failed"
+            echo "📋 Build errors:"
+            cat staging-build.log
+            exit 1
+          fi
+          
+          BUILD_END=$(date +%s)
+          BUILD_TIME=$((BUILD_END - BUILD_START))
+          
+          echo "✅ Staging build completed in ${BUILD_TIME}s"
+          echo "STAGING_BUILD_TIME=${BUILD_TIME}" >> $GITHUB_ENV
+          
+          # Check build artifacts
+          if [ -d ".next" ]; then
+            BUILD_SIZE=$(du -sh .next | cut -f1)
+            echo "📦 Staging build size: $BUILD_SIZE"
+            echo "STAGING_BUILD_SIZE=$BUILD_SIZE" >> $GITHUB_ENV
+          fi
+        env:
+          DATABASE_URL: "postgresql://staging:staging@localhost:5432/staging_db"
+          DIRECT_URL: "postgresql://staging:staging@localhost:5432/staging_db"
+          NEXTAUTH_SECRET: "staging-secret-key-for-builds-32-chars-minimum"
+          NEXTAUTH_URL: "https://staging.example.com"
+          NODE_ENV: "production"
+          # Staging-optimized feature flags
+          FEATURE_SEO: "1"
+          FEATURE_ANALYTICS_ENABLED: "true"
+          FEATURE_SOCIAL_EMBEDS: "false"  # Disabled for safety
+          FEATURE_AUTO_PUBLISHING: "false"  # Disabled for safety
+          
+      - name: Add staging build summary
+        if: always()
+        run: |
+          echo "## 🎭 Staging Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 🏗️ Build Information" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Time | ${STAGING_BUILD_TIME:-Unknown}s | ℹ️ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Size | ${STAGING_BUILD_SIZE:-Unknown} | ℹ️ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Job Status | ${{ job.status }} | ${{ job.status == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          
+          # Configuration warnings
+          if [ "${STAGING_CONFIG_WARNINGS:-false}" == "true" ]; then
+            echo "| Config | Warnings | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Config | Valid | ✅ |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Lint warnings
+          if [ "${STAGING_LINT_WARNINGS:-false}" == "true" ]; then
+            echo "| Lint | Warnings | ⚠️ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Lint | Clean | ✅ |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Staging Notes" >> $GITHUB_STEP_SUMMARY
+          echo "- Staging builds allow more warnings than production" >> $GITHUB_STEP_SUMMARY
+          echo "- Social features and auto-publishing disabled for safety" >> $GITHUB_STEP_SUMMARY
+          echo "- Configuration warnings are acceptable in staging" >> $GITHUB_STEP_SUMMARY
+
+  staging-security-check:
+    name: Staging Security Check
+    runs-on: ubuntu-latest
+    needs: staging-lint-and-build
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          cache-dependency-path: ${{ env.APP_DIR }}/yarn.lock
+          
+      - name: Install dependencies
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -e
+          echo "📦 Installing dependencies for staging security check..."
+          yarn install --frozen-lockfile --network-timeout 300000
+          echo "✅ Dependencies installed successfully"
+          
+      - name: Run staging security scan
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -e
+          echo "🔍 Running staging security scan..."
+          
+          STAGING_SECURITY_WARNINGS=""
+          
+          # Quick dependency check
+          echo "📦 Checking dependencies for known vulnerabilities..."
+          if yarn audit --level moderate --json > staging-audit.json 2>&1; then
+            echo "✅ No moderate+ vulnerabilities found"
+          else
+            AUDIT_EXIT_CODE=$?
+            echo "⚠️ Staging dependency audit found issues (exit code: $AUDIT_EXIT_CODE)"
+            STAGING_SECURITY_WARNINGS="$STAGING_SECURITY_WARNINGS\n⚠️ Dependency vulnerabilities found"
+          fi
+          
+          # Check for staging-specific security issues
+          echo "🔍 Checking for staging environment security..."
+          
+          # Check for debug flags
+          if grep -r "debug.*true\|DEBUG.*true" --include="*.ts" --include="*.js" . 2>/dev/null | head -5; then
+            echo "⚠️ Debug flags found - review for staging appropriateness"
+            STAGING_SECURITY_WARNINGS="$STAGING_SECURITY_WARNINGS\n⚠️ Debug flags enabled"
+          fi
+          
+          # Check for test data exposure
+          if grep -r "test.*password\|demo.*user\|staging.*secret" --include="*.ts" --include="*.js" . 2>/dev/null | head -5; then
+            echo "⚠️ Potential test data or credentials found"
+            STAGING_SECURITY_WARNINGS="$STAGING_SECURITY_WARNINGS\n⚠️ Test credentials may be exposed"
+          fi
+          
+          if [ -n "$STAGING_SECURITY_WARNINGS" ]; then
+            echo "STAGING_SECURITY_WARNINGS<<EOF" >> $GITHUB_ENV
+            echo -e "$STAGING_SECURITY_WARNINGS" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          fi
+          
+          echo "✅ Staging security check completed"
+          
+      - name: Add staging security summary
+        if: always()
+        run: |
+          echo "## 🔒 Staging Security Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 🛡️ Security Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status | Notes |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Audit | Completed | Staging tolerates moderate issues |" >> $GITHUB_STEP_SUMMARY
+          echo "| Debug Flags | Checked | Review any findings |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Data | Scanned | Ensure no sensitive data exposed |" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -n "${STAGING_SECURITY_WARNINGS:-}" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ⚠️ Security Warnings" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "${STAGING_SECURITY_WARNINGS}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> **Note:** Staging environment warnings are acceptable but should be reviewed." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  detect-staging-failures:
+    name: Detect Staging CI Failures
+    runs-on: ubuntu-latest
+    needs: [staging-lint-and-build, staging-security-check]
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Detect staging failures with fallback
+        id: staging-failure-detector
+        run: |
+          echo "🔍 Detecting staging CI failures..."
+          
+          # Check if main failure detector action exists
+          if [ -f ".github/actions/failure-detector/action.yml" ]; then
+            echo "✅ Using main failure detector action"
+            echo "DETECTOR_AVAILABLE=true" >> $GITHUB_ENV
+          else
+            echo "⚠️ Main failure detector not available - using manual detection"
+            echo "DETECTOR_AVAILABLE=false" >> $GITHUB_ENV
+            
+            # Manual failure detection for staging
+            FAILED_JOBS=""
+            
+            if [ "${{ needs.staging-lint-and-build.result }}" == "failure" ]; then
+              FAILED_JOBS="$FAILED_JOBS- staging-lint-and-build\n"
+            fi
+            
+            if [ "${{ needs.staging-security-check.result }}" == "failure" ]; then
+              FAILED_JOBS="$FAILED_JOBS- staging-security-check\n"
+            fi
+            
+            if [ -n "$FAILED_JOBS" ]; then
+              echo "❌ Staging failures detected:"
+              echo -e "$FAILED_JOBS"
+              echo "issue-created=manual" >> $GITHUB_OUTPUT
+            else
+              echo "✅ No staging failures detected"
+              echo "issue-created=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+          
+      - name: Use main failure detector if available
+        if: env.DETECTOR_AVAILABLE == 'true'
+        uses: ./.github/actions/failure-detector
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          workflow-name: 'Staging CI/CD Pipeline'
+          run-id: ${{ github.run_id }}
+          critical-jobs: 'staging-lint-and-build,staging-security-check'
+          
+      - name: Add staging failure detection summary
+        run: |
+          echo "## 🎭 Staging Failure Detection Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow:** Staging CI/CD Pipeline" >> $GITHUB_STEP_SUMMARY
+          echo "**Run ID:** ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 📊 Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Staging Build | ${{ needs.staging-lint-and-build.result }} | ${{ needs.staging-lint-and-build.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Check | ${{ needs.staging-security-check.result }} | ${{ needs.staging-security-check.result == 'success' && '✅' || needs.staging-security-check.result == 'skipped' && '⏭️' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${DETECTOR_AVAILABLE:-false}" == "true" ]; then
+            echo "🔍 **Failure detection:** Using main detector action" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "🔍 **Failure detection:** Manual detection (fallback mode)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Staging Notes" >> $GITHUB_STEP_SUMMARY
+          echo "- Staging workflows are more permissive than production" >> $GITHUB_STEP_SUMMARY
+          echo "- Warnings are acceptable but should be reviewed" >> $GITHUB_STEP_SUMMARY
+          echo "- Security checks focus on major issues only" >> $GITHUB_STEP_SUMMARY

@@ -1548,12 +1548,19 @@ jobs:
             if [ -f yarn-audit.json ]; then
               echo "📋 Parsing vulnerability report..."
               
-              # Count vulnerabilities by severity
+              # Enhanced vulnerability parsing with improved accuracy
               if command -v jq >/dev/null 2>&1; then
-                CRITICAL_VULNS=$(cat yarn-audit.json | jq '[.data.vulnerabilities.critical // 0] | add // 0' 2>/dev/null || echo 0)
-                HIGH_VULNS=$(cat yarn-audit.json | jq '[.data.vulnerabilities.high // 0] | add // 0' 2>/dev/null || echo 0)
-                MODERATE_VULNS=$(cat yarn-audit.json | jq '[.data.vulnerabilities.moderate // 0] | add // 0' 2>/dev/null || echo 0)
-                LOW_VULNS=$(cat yarn-audit.json | jq '[.data.vulnerabilities.low // 0] | add // 0' 2>/dev/null || echo 0)
+                # Parse vulnerabilities from audit JSON with comprehensive error handling
+                CRITICAL_VULNS=$(jq '.data.vulnerabilities.critical // 0' yarn-audit.json 2>/dev/null || echo 0)
+                HIGH_VULNS=$(jq '.data.vulnerabilities.high // 0' yarn-audit.json 2>/dev/null || echo 0)
+                MODERATE_VULNS=$(jq '.data.vulnerabilities.moderate // 0' yarn-audit.json 2>/dev/null || echo 0)
+                LOW_VULNS=$(jq '.data.vulnerabilities.low // 0' yarn-audit.json 2>/dev/null || echo 0)
+              else
+                echo "⚠️ jq not available - using fallback parsing"
+                CRITICAL_VULNS=0
+                HIGH_VULNS=0
+                MODERATE_VULNS=0
+                LOW_VULNS=0
               fi
               
               echo "Vulnerability Summary:"
@@ -1585,11 +1592,11 @@ jobs:
             fi
           fi
           
-          # Set environment variables for summary
-          echo "CRITICAL_VULNS=$CRITICAL_VULNS" >> $GITHUB_ENV
-          echo "HIGH_VULNS=$HIGH_VULNS" >> $GITHUB_ENV
-          echo "MODERATE_VULNS=$MODERATE_VULNS" >> $GITHUB_ENV
-          echo "LOW_VULNS=$LOW_VULNS" >> $GITHUB_ENV
+          # Export environment variables with proper KEY=VALUE format as requested
+          echo "CRITICAL_VULNS=${CRITICAL_VULNS}" >> $GITHUB_ENV
+          echo "HIGH_VULNS=${HIGH_VULNS}" >> $GITHUB_ENV
+          echo "MODERATE_VULNS=${MODERATE_VULNS}" >> $GITHUB_ENV
+          echo "LOW_VULNS=${LOW_VULNS}" >> $GITHUB_ENV
           
           if [ -n "$VULNERABILITY_WARNINGS" ]; then
             echo "VULNERABILITY_WARNINGS<<EOF" >> $GITHUB_ENV

@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20.17.0'
   APP_DIR: 'yalla_london/app'
 
 jobs:
@@ -276,6 +276,8 @@ jobs:
             fi
           fi
         env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
           SHADOW_DATABASE_URL: ${{ secrets.SHADOW_DATABASE_URL }}
           
       - name: Generate Prisma client with firewall handling
@@ -321,6 +323,9 @@ jobs:
               fi
             fi
           done
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
           
       - name: Check for migration changes with enhanced validation
         working-directory: ${{ env.APP_DIR }}
@@ -436,6 +441,8 @@ jobs:
             echo "EOF" >> $GITHUB_ENV
           fi
         env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
           SHADOW_DATABASE_URL: ${{ secrets.SHADOW_DATABASE_URL }}
           
       - name: Add migration check summary

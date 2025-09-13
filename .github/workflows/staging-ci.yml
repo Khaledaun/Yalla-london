@@ -7,7 +7,7 @@ on:
     branches: [ staging ]
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20.17.0'
   APP_DIR: 'yalla_london/app'
 
 jobs:

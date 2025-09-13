@@ -3,11 +3,6 @@ node_modules/
 .env*
 !.env.example
 *.zip
-node_modules/
-.next/
-.env*
-!.env.example
-*.zip
 
 # local caches / tooling
 yalla_london/app/.cache/
@@ -16,3 +11,20 @@ yalla_london/app/tmp/
 yalla_london/app/.healthcheck-logs/
 yalla_london/app/coverage/
 yalla_london/app/rbac-test-results.json
+
+# Development and build artifacts
+*.log
+*.tmp
+*.temp
+.phase4b*
+yalla_london/.phase4b_logs/
+
+# IDE configuration directories
+.vscode/
+.idea/
+
+# Environment files (additional protection)
+.env
+.env.local
+.env.development
+.env.production

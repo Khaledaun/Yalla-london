@@ -14,3 +14,5 @@ yalla_london/app/.cache/
 yalla_london/app/.npm/
 yalla_london/app/tmp/
 yalla_london/app/.healthcheck-logs/
+yalla_london/app/coverage/
+yalla_london/app/rbac-test-results.json

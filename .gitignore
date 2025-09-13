@@ -20,8 +20,16 @@ yalla_london/app/rbac-test-results.json
 .phase4b*
 yalla_london/.phase4b_logs/
 
-# Temporary files
-*.tmp
+# Environment files (comprehensive protection)
+.env*
+!.env.example
+*.env
+*.env.local
+*.env.*
+.env
+.env.local
+.env.development
+.env.production
 
 # Test and coverage reports (comprehensive)
 coverage/
@@ -30,6 +38,8 @@ coverage/
 *.lcov
 junit.xml
 test-results.xml
+coverage-*.json
+clover.xml
 npm-audit-report.json
 yarn-audit-report.json
 eslint-security-report.json
@@ -37,31 +47,24 @@ schema-warnings.log
 prisma-generate.log
 security-install.log
 install.log
+yarn-debug.log*
+yarn-error.log*
+npm-debug.log*
+.nyc_output/
 
-# Coverage/test reports
-coverage/
-*.lcov
-
-# IDE configuration directories
+# IDE configuration directories (comprehensive)
 .vscode/
 .idea/
 .vs/
+*.swp
+*.swo
+*~
 
-# IDE config directories
-.vscode/
-.idea/
-
-# Environment files (comprehensive protection)
-.env*
-!.env.example
-.env
-.env.local
-.env.development
-.env.production
-
-# Node environment files
-.env
-.env.local
+# Temporary files (comprehensive patterns)  
+*.tmp
+*.temp
+.tmp/
+temp/
 
 # Package manager lock files (enforce Yarn consistency)
 package-lock.json

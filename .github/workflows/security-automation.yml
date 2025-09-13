@@ -923,28 +923,43 @@ jobs:
           echo "📊 Analyzing npm audit results..."
           
           if command -v jq >/dev/null 2>&1; then
-            # Extract vulnerability counts
-            CRITICAL_VULNS=$(cat npm-audit-report.json | jq '.metadata.vulnerabilities.critical // 0')
-            HIGH_VULNS=$(cat npm-audit-report.json | jq '.metadata.vulnerabilities.high // 0')
-            MODERATE_VULNS=$(cat npm-audit-report.json | jq '.metadata.vulnerabilities.moderate // 0')
-            LOW_VULNS=$(cat npm-audit-report.json | jq '.metadata.vulnerabilities.low // 0')
-            INFO_VULNS=$(cat npm-audit-report.json | jq '.metadata.vulnerabilities.info // 0')
-            TOTAL_VULNS=$(cat npm-audit-report.json | jq '.metadata.vulnerabilities.total // 0')
-            
-            echo "npm Audit Summary:"
-            echo "- Critical: $CRITICAL_VULNS"
-            echo "- High: $HIGH_VULNS"
-            echo "- Moderate: $MODERATE_VULNS"
-            echo "- Low: $LOW_VULNS"
-            echo "- Info: $INFO_VULNS"
-            echo "- Total: $TOTAL_VULNS"
-            
-            # Set environment variables
-            echo "NPM_CRITICAL=$CRITICAL_VULNS" >> $GITHUB_ENV
-            echo "NPM_HIGH=$HIGH_VULNS" >> $GITHUB_ENV
-            echo "NPM_MODERATE=$MODERATE_VULNS" >> $GITHUB_ENV
-            echo "NPM_LOW=$LOW_VULNS" >> $GITHUB_ENV
-            echo "NPM_TOTAL=$TOTAL_VULNS" >> $GITHUB_ENV
+            # Validate JSON before parsing
+            if jq empty npm-audit-report.json 2>/dev/null; then
+              # Extract vulnerability counts
+              CRITICAL_VULNS=$(jq '.metadata.vulnerabilities.critical // 0' npm-audit-report.json)
+              HIGH_VULNS=$(jq '.metadata.vulnerabilities.high // 0' npm-audit-report.json)
+              MODERATE_VULNS=$(jq '.metadata.vulnerabilities.moderate // 0' npm-audit-report.json)
+              LOW_VULNS=$(jq '.metadata.vulnerabilities.low // 0' npm-audit-report.json)
+              INFO_VULNS=$(jq '.metadata.vulnerabilities.info // 0' npm-audit-report.json)
+              TOTAL_VULNS=$(jq '.metadata.vulnerabilities.total // 0' npm-audit-report.json)
+              
+              echo "npm Audit Summary:"
+              echo "- Critical: $CRITICAL_VULNS"
+              echo "- High: $HIGH_VULNS"
+              echo "- Moderate: $MODERATE_VULNS"
+              echo "- Low: $LOW_VULNS"
+              echo "- Info: $INFO_VULNS"
+              echo "- Total: $TOTAL_VULNS"
+              
+              # Set environment variables
+              echo "NPM_CRITICAL=$CRITICAL_VULNS" >> $GITHUB_ENV
+              echo "NPM_HIGH=$HIGH_VULNS" >> $GITHUB_ENV
+              echo "NPM_MODERATE=$MODERATE_VULNS" >> $GITHUB_ENV
+              echo "NPM_LOW=$LOW_VULNS" >> $GITHUB_ENV
+              echo "NPM_INFO=$INFO_VULNS" >> $GITHUB_ENV
+              echo "NPM_TOTAL=$TOTAL_VULNS" >> $GITHUB_ENV
+            else
+              echo "⚠️ npm audit report is not valid JSON - parsing raw output"
+              echo "📋 Raw audit output:"
+              cat npm-audit-report.json
+              
+              # Fallback to text parsing
+              if grep -q "found.*vulnerabilities" npm-audit-report.json; then
+                echo "NPM_AUDIT_TEXT_RESULT=vulnerabilities_found" >> $GITHUB_ENV
+              else
+                echo "NPM_AUDIT_TEXT_RESULT=clean" >> $GITHUB_ENV
+              fi
+            fi
             
             # Generate human-readable report
             npm audit --audit-level=low > npm-audit-readable.txt 2>&1 || true

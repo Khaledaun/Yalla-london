@@ -19,9 +19,24 @@ yalla_london/app/rbac-test-results.json
 .phase4b*
 yalla_london/.phase4b_logs/
 
+# Test and coverage reports
+coverage/
+.coverage/
+*.coverage
+junit.xml
+test-results.xml
+npm-audit-report.json
+yarn-audit-report.json
+eslint-security-report.json
+schema-warnings.log
+prisma-generate.log
+security-install.log
+install.log
+
 # IDE configuration directories
 .vscode/
 .idea/
+.vs/
 
 # Environment files (additional protection)
 .env

@@ -228,6 +228,10 @@ jobs:
           
       - name: Validate Prisma binary and environment
         working-directory: ${{ env.APP_DIR }}
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          SHADOW_DATABASE_URL: ${{ secrets.SHADOW_DATABASE_URL }}
         run: |
           set -e
           echo "🔧 Validating Prisma binary and environment setup..."
@@ -275,10 +279,6 @@ jobs:
               echo "✅ Shadow database connection successful"
             fi
           fi
-        env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          SHADOW_DATABASE_URL: ${{ secrets.SHADOW_DATABASE_URL }}
           
       - name: Generate Prisma client with firewall handling
         working-directory: ${{ env.APP_DIR }}

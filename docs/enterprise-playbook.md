@@ -1,5 +1,212 @@
 # Enterprise Playbook
 
+## Table of Contents
+- [API Route Conventions](#api-route-conventions)
+- [CI/CD Reliability & Best Practices](#cicd-reliability--best-practices)
+- [Database Management](#database-management)
+- [Security & Compliance](#security--compliance)
+- [Troubleshooting Guide](#troubleshooting-guide)
+
+## CI/CD Reliability & Best Practices
+
+### Overview
+This section documents the comprehensive CI/CD reliability improvements and best practices implemented to guarantee successful workflow runs.
+
+### 🔧 **Dependency Management**
+
+#### Lockfile Synchronization
+- **Issue**: yarn install failures due to package.json/yarn.lock mismatches
+- **Solution**: Automatic validation and lockfile updates
+- **Implementation**: 
+  ```bash
+  # Validate package.json integrity
+  jq empty package.json
+  
+  # Check critical dependencies
+  jq -e '.dependencies.jest or .devDependencies.jest' package.json
+  
+  # Install with enhanced error handling
+  yarn install --frozen-lockfile --network-timeout 300000
+  ```
+
+#### Critical Dependencies Validation
+All workflows now validate these critical dependencies before proceeding:
+- **Testing**: `jest`, `@testing-library/react`, `@testing-library/jest-dom`
+- **Security**: `eslint-plugin-security`, `prettier`
+- **Database**: `@prisma/client`, `prisma`
+- **Build Tools**: `typescript`, `next`, `tailwindcss`
+
+#### Peer Dependency Resolution
+Added peer dependencies to eliminate warnings:
+- `@opentelemetry/api` for Sentry OpenTelemetry integration
+- `@testing-library/dom` for React Testing Library
+- `csstype` for styled components
+- `prettier` for ESLint Prettier plugin
+
+### 🗄️ **Database Initialization Reliability**
+
+#### Enhanced Database Setup
+```bash
+# Create required roles and users
+psql "$DATABASE_URL" -c "
+  DO \$\$
+  BEGIN
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'root') THEN
+      CREATE USER root WITH CREATEDB CREATEROLE;
+      GRANT ALL PRIVILEGES ON DATABASE test_db TO root;
+    END IF;
+  END
+  \$\$;"
+
+# Ensure postgres user has full permissions
+psql "$DATABASE_URL" -c "
+  GRANT ALL PRIVILEGES ON DATABASE test_db TO postgres;
+  ALTER USER postgres CREATEDB;
+"
+```
+
+#### Environment Variable Validation
+Before any database operations, workflows validate:
+- `DATABASE_URL` - Primary database connection
+- `DIRECT_URL` - Direct database access (fallback to DATABASE_URL if not set)  
+- `SHADOW_DATABASE_URL` - Shadow database for migrations (optional)
+
+#### Connection Testing
+```bash
+# Test basic connectivity
+pg_isready -h localhost -p 5432 -U postgres
+
+# Test write permissions
+psql "$DATABASE_URL" -c "CREATE TABLE IF NOT EXISTS test_table (id SERIAL PRIMARY KEY); DROP TABLE IF EXISTS test_table;"
+```
+
+### 🔧 **Prisma Binary Allowlisting & Firewall Configuration**
+
+#### Required Network Access
+Prisma requires outbound HTTPS access to:
+- `binaries.prisma.sh` (binary downloads)
+- `releases.prisma.io` (release information)
+- `registry.npmjs.org` (package metadata)
+
+#### Firewall Configuration
+```bash
+# Test Prisma CDN connectivity
+curl -s --max-time 10 https://binaries.prisma.sh
+
+# Required firewall rules:
+# - Allow outbound HTTPS (port 443) to Prisma domains
+# - Allow DNS resolution for Prisma domains
+# - Ensure no proxy interference with binary downloads
+```
+
+#### Error Detection & Recovery
+Workflows detect and provide specific guidance for:
+- **Network Issues**: ENOTFOUND, ECONNREFUSED, ETIMEDOUT
+- **Permission Issues**: EACCES, file system permissions  
+- **Space Issues**: ENOSPC, insufficient disk space
+- **Proxy Issues**: Binary download corruption
+
+### 📊 **Coverage Enforcement (Conditional)**
+
+#### Adaptive Thresholds
+Coverage thresholds adapt based on test type:
+- **Standard Tests**: 70% threshold (lines, functions, branches, statements)
+- **RBAC/Security Tests**: 90% threshold (stricter for security-critical code)
+
+#### Implementation
+```bash
+# Detect test type
+if find tests/ -name "*rbac*" -o -name "*security*" -o -name "*auth*"; then
+  COVERAGE_THRESHOLD=90  # Stricter for security
+else  
+  COVERAGE_THRESHOLD=70  # Standard for regular code
+fi
+
+# Warn but don't fail build
+if (( $(echo "$COVERAGE_PCT < $COVERAGE_THRESHOLD" | bc -l) )); then
+  echo "⚠️ Coverage below threshold - review required but build continues"
+fi
+```
+
+#### File Validation
+Prevents accidental commit of:
+- Coverage directories (`coverage/`)
+- Coverage reports (`*.lcov`, `coverage-*.json`, `clover.xml`)
+- IDE configuration files (`.vscode/`, `.idea/`)
+- Environment files (`.env`, `.env.local`, `.env.production`)
+
+### ⚠️ **Error Handling & Job Summaries**
+
+#### Comprehensive Status Reporting
+Every workflow provides detailed summaries including:
+- **Pass/Fail Status**: Clear indication for each critical job
+- **Warning Counts**: Non-blocking issues that need attention
+- **Error Details**: Specific guidance for failures
+- **Artifact Links**: Direct links to logs and reports
+- **Remediation Steps**: Actionable next steps for failures
+
+#### Critical Job Monitoring
+These jobs are considered critical and will fail the workflow if they fail:
+- `lint-and-typecheck` - Code quality and TypeScript validation
+- `build-and-test` - Application build and unit testing
+- `migration-check` - Database schema validation
+- `security-scan` - Security vulnerability detection
+- `rbac-security-tests` - Role-based access control validation
+- `dependency-audit` - Dependency vulnerability scanning
+- `compliance-check` - GDPR and SOC2 compliance validation
+
+#### Job Summary Format
+```markdown
+## 🔍 Job Name Summary
+
+### 📊 Analysis Results
+| Check | Status | Details |
+|-------|--------|---------|
+| File Validation | ✅ | No unwanted files found |
+| Dependencies | ✅ | All critical packages installed |
+| Tests | ⚠️ | 2 warnings found |
+
+### ⚠️ Warnings
+- Coverage below RBAC threshold (87% < 90%)
+- 3 outdated dependencies found
+
+### 🔧 Recommendations  
+1. Review test coverage for security modules
+2. Update dependencies using `yarn upgrade`
+3. Check detailed logs in workflow artifacts
+```
+
+### 🚀 **Workflow Optimization**
+
+#### Parallel Execution
+Jobs are organized for optimal parallel execution:
+```mermaid
+graph TD
+    A[Checkout & Setup] --> B[Lint & TypeCheck]
+    A --> C[Build & Test]
+    A --> D[Security Scan]
+    B --> E[Migration Check]
+    C --> F[Lighthouse CI]
+    D --> G[RBAC Tests]
+    E --> H[Deploy Migrations]
+    F --> I[Compliance Check]
+    G --> I
+    H --> J[Failure Detection]
+    I --> J
+```
+
+#### Caching Strategy
+- **Node.js Setup**: Cache based on yarn.lock
+- **Dependencies**: Frozen lockfile for consistency
+- **Build Artifacts**: Cache between jobs where appropriate
+- **Prisma Client**: Generated once per workflow run
+
+#### Timeout Management
+- **Standard Operations**: 120 seconds default
+- **Network Operations**: 300 seconds (dependency install, Prisma generation)  
+- **Database Operations**: 60 seconds (connection tests, migrations)
+- **Build Operations**: 600 seconds (Next.js build, test suites)
+
 ## API Route Conventions
 
 ### Next.js App Router API Routes
@@ -1440,112 +1647,215 @@ curl -X GET /api/audits -H "Cookie: next-auth.session-token=..."
 
 ## CI/CD Pipeline and Migration Management
 
-### Enterprise CI/CD Workflow
+### Enterprise CI/CD Workflow with Comprehensive Automation
 
-The Yalla London project uses an enterprise-grade CI/CD pipeline that ensures safe deployment practices and database migration management.
+The Yalla London project uses an enterprise-grade CI/CD pipeline with robust error handling, comprehensive monitoring, and automated GitHub issue creation for critical failures.
 
-#### Pull Request Workflow
+#### Enhanced Workflow Features
+
+**🔍 Robust Error Handling:**
+- Retry logic for network-dependent operations (Prisma binary downloads, dependency installation)
+- Detailed error categorization with troubleshooting guidance
+- Environment variable validation before critical operations
+- Comprehensive logging and artifact collection for debugging
+
+**📊 Job Summaries and Reporting:**
+- Rich GitHub step summaries with detailed status tables
+- Build metrics including time, size, and test coverage
+- Vulnerability analysis with severity breakdown
+- Migration deployment tracking with backup points
+- Security scan results with actionable recommendations
+
+**🔒 File Validation and Security:**
+- Prevents accidentally committed coverage directories, IDE files, temporary files
+- Validates environment files aren't committed (security risk)
+- Checks for config file integrity and build artifacts
+- Enhanced secret detection with categorized warnings
+
+**🗄️ Prisma Binary and Database Management:**
+- Firewall/allowlist detection for binaries.prisma.sh access
+- Network error handling with retry logic
+- Environment validation before migration operations
+- Production backup points before critical deployments
+
+**📈 Coverage Enforcement:**
+- Coverage warnings that don't fail builds (warn, don't break)
+- Different thresholds for security modules (90%) vs regular code (70%)
+- Detailed coverage reporting in job summaries
+- Coverage trend analysis and artifact storage
+
+#### Pull Request Workflow (Enhanced)
+
 When creating pull requests to the main branch:
 
-1. **Code Quality Checks**:
-   - TypeScript compilation and linting
-   - Prisma schema validation
-   - Security scanning for secrets and vulnerabilities
+1. **Comprehensive Code Quality Checks**:
+   ```bash
+   # File Validation
+   ✅ No unwanted files (coverage/, .vscode/, *.tmp, .env)
+   ✅ Config file integrity validation
+   ✅ Build artifact validation
+   
+   # TypeScript & Linting
+   ✅ TypeScript compilation with detailed error reporting
+   ✅ ESLint with security plugin (max 10 warnings allowed)
+   ✅ Code quality metrics and trend analysis
+   ```
 
-2. **Migration Safety Check**:
-   - Runs `prisma migrate diff` against shadow database
-   - **IMPORTANT**: Migrations are NOT deployed during pull requests
-   - Shows preview of migration changes for review
+2. **Enhanced Migration Safety Check**:
+   ```bash
+   # Prisma Binary Validation
+   ✅ Prisma CLI accessibility with firewall detection
+   ✅ Network connectivity validation with retry logic
+   ✅ Environment variable validation before operations
+   
+   # Migration Analysis
+   ✅ Schema syntax validation with best practice checks
+   ✅ Migration diff against shadow database (if configured)
+   ✅ Destructive operation warnings (DROP/DELETE/TRUNCATE)
+   ✅ Performance impact analysis (index changes)
+   
+   # Migration Complexity Reporting
+   📊 Line count of SQL changes
+   ⚠️ Warnings for high-risk operations
+   ℹ️ Information about performance impacts
+   ```
 
-3. **Performance Testing**:
-   - Lighthouse CI runs against staging environment
-   - Skips auth-gated pages (e.g., `/admin`) to avoid authentication issues
-   - Requires performance score ≥ 0.9, accessibility ≥ 0.9, SEO ≥ 0.9
+3. **Comprehensive Security Scanning**:
+   ```bash
+   # Dependency Vulnerability Analysis
+   🔍 npm audit with detailed severity breakdown
+   🔍 yarn audit for cross-validation
+   📦 Outdated package detection and recommendations
+   
+   # Secret and Credential Detection
+   🔒 API key pattern detection with categorized warnings
+   🔒 Hardcoded credential scanning with false positive filtering
+   🔒 Environment file validation
+   
+   # Additional Security Checks
+   🛡️ eval() usage detection (security risk)
+   🛡️ innerHTML usage analysis (XSS potential)
+   🛡️ TypeScript strict mode verification
+   🛡️ Unsafe dependency version detection
+   ```
 
-```bash
-# Example migration diff command (run automatically in CI)
-yarn prisma migrate diff \
-  --from-schema-datamodel prisma/schema.prisma \
-  --to-schema-datasource $SHADOW_DATABASE_URL \
-  --script
-```
+4. **Performance Testing**:
+   ```bash
+   # Lighthouse CI with Adaptive Configuration
+   ⚡ Performance: ≥75% (content-heavy luxury platform)
+   ♿ Accessibility: ≥85% (high standards with flexibility)
+   📋 Best Practices: ≥85% (realistic for modern web apps)
+   🔍 SEO: ≥90% (maintain high discoverability)
+   
+   # Environment-Specific Testing
+   🏠 Local: Tests all pages including /admin routes
+   🎭 Staging: Skips auth-gated pages, uses staging URL
+   📊 Adaptive thresholds based on page complexity
+   ```
 
-#### Main Branch Deployment Workflow
+#### Main Branch Deployment Workflow (Enhanced)
+
 When code is merged to the main branch:
 
-1. **Full Test Suite**:
-   - Complete application build and testing
-   - Integration tests with real database
-   - JSON-LD schema validation
+1. **Enhanced Test Suite with Coverage Analysis**:
+   ```bash
+   # Comprehensive Testing
+   🧪 Unit tests with coverage collection
+   🧪 Integration tests with database validation
+   🧪 JSON-LD schema validation
+   🧪 API endpoint testing
+   
+   # Coverage Analysis (warn, don't fail)
+   📊 Lines: ≥70% (warn if below, don't block)
+   📊 Functions: ≥70% (with detailed reporting)
+   📊 Branches: ≥70% (trend analysis)
+   📊 Statements: ≥70% (artifact storage)
+   
+   # Security Module Higher Thresholds
+   🔒 RBAC modules: ≥90% coverage required
+   🔒 Security modules: ≥80% coverage required
+   ```
 
-2. **Database Migration Deployment**:
-   - Automatic deployment of pending migrations
-   - Uses production `$DATABASE_URL`
-   - Verbose logging for audit trail
+2. **Production Migration Deployment with Safety**:
+   ```bash
+   # Pre-deployment Validation
+   🔐 Production environment variable validation
+   🗄️ Database connectivity testing with timeout
+   🔧 Prisma binary availability with network validation
+   
+   # Migration Status Analysis
+   📋 Current migration status check
+   📊 Pending migration count and complexity analysis
+   💾 Backup point creation with unique identifier
+   📝 Schema state recording before changes
+   
+   # Deployment with Monitoring
+   🚀 Migration deployment with verbose logging
+   ⏱️ Deployment time tracking and performance metrics
+   🔍 Post-deployment verification and testing
+   🗄️ Database operation validation
+   🔧 Fresh Prisma client generation test
+   
+   # Recovery Information
+   📝 Backup identifier for rollback: backup-YYYYMMDD-HHMMSS-{SHA}
+   🔗 Direct links to workflow run and commit details
+   ```
 
+### Required Environment Variables (Updated)
+
+#### Core Database Variables (Enhanced)
 ```bash
-# Migration deployment (run automatically in CI)
-yarn prisma migrate deploy --verbose
-```
-
-### Required Environment Variables
-
-#### Core Database Variables
-```bash
-# Production database (required for main branch deployments)
+# Production database with connection validation
 DATABASE_URL=postgresql://user:password@host:5432/production_db
+# Tested for connectivity before migration deployment
 
-# Shadow database (required for migration diff in pull requests)
+# Shadow database for migration validation in PRs
 SHADOW_DATABASE_URL=postgresql://user:password@host:5432/shadow_db
+# Used for migration diff analysis and destructive operation detection
 
-# Direct connection URL (for migrations)
+# Direct connection URL with connection limits
 DIRECT_URL=postgresql://user:password@host:5432/production_db?schema=public&connection_limit=1
+# Validated before critical operations
 ```
 
-#### Lighthouse CI Variables
+#### Enhanced Security Variables
 ```bash
-# Staging URL for Lighthouse CI testing
-LHCI_URL_STAGING=https://your-staging-environment.vercel.app
-
-# Lighthouse CI GitHub App token (optional, for enhanced reporting)
-LHCI_GITHUB_APP_TOKEN=your-github-app-token
-```
-
-#### CI/CD Security Variables
-```bash
-# Next.js authentication secret (minimum 32 characters)
+# Next.js authentication (minimum 32 characters, validated)
 NEXTAUTH_SECRET=your-production-nextauth-secret-32-chars-minimum
 
-# Application URL
+# Application URL with environment-specific validation
 NEXTAUTH_URL=https://your-production-domain.com
 
-# Admin emails for access control
+# Admin access control with email validation
 ADMIN_EMAILS=admin1@company.com,admin2@company.com
 
-# AWS credentials for asset storage
-AWS_ACCESS_KEY_ID=your-aws-access-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret-key
-AWS_BUCKET_NAME=your-production-bucket
-AWS_REGION=us-east-1
+# Cron security with strength validation  
+CRON_SECRET=generated-secure-secret-minimum-32-characters
 ```
 
-### Lighthouse CI Convention
+#### CI/CD Enhancement Variables
+```bash
+# Staging environment for Lighthouse CI
+LHCI_URL_STAGING=https://your-staging-environment.vercel.app
 
-The Lighthouse CI configuration automatically adapts based on environment:
+# Enhanced GitHub App integration
+LHCI_GITHUB_APP_TOKEN=your-github-app-token-for-enhanced-reporting
 
-#### Local Development
-- Tests against `http://localhost:3000`
-- Includes all pages including admin routes
-- Starts local server automatically
+# Security scanning integration
+SNYK_TOKEN=your-snyk-token-for-vulnerability-scanning
 
-#### Staging/CI Environment
-- Tests against `$LHCI_URL_STAGING`
-- Skips authentication-gated pages (`/admin`)
-- Connects to running staging deployment
+# Staging database for multi-environment support
+STAGING_DATABASE_URL=postgresql://staging:password@host:5432/staging_db
+STAGING_NEXTAUTH_URL=https://staging.your-domain.com
+```
 
-#### Configuration Example
+### Lighthouse CI Configuration (Enhanced)
+
+The Lighthouse CI now includes adaptive configuration based on environment and content type:
+
+#### Environment-Adaptive Testing
 ```javascript
-// lighthouserc.js
+// Enhanced lighthouserc.js with content-aware thresholds
 module.exports = {
   ci: {
     collect: {
@@ -1553,144 +1863,874 @@ module.exports = {
         process.env.LHCI_URL_STAGING || 'http://localhost:3000',
         (process.env.LHCI_URL_STAGING || 'http://localhost:3000') + '/blog',
         (process.env.LHCI_URL_STAGING || 'http://localhost:3000') + '/recommendations',
-        // Skip admin routes when testing staging
+        // Admin routes only tested locally (auth complications in staging)
       ],
       startServerCommand: process.env.LHCI_URL_STAGING ? undefined : 'yarn start',
       numberOfRuns: 3
     },
     assert: {
       assertions: {
-        'categories:performance': ['warn', {minScore: 0.9}],
-        'categories:accessibility': ['error', {minScore: 0.9}],
-        'categories:best-practices': ['warn', {minScore: 0.9}],
-        'categories:seo': ['error', {minScore: 0.9}],
-        'categories:pwa': 'off'
+        // Balanced thresholds for luxury content platform with rich visuals
+        'categories:performance': ['warn', {minScore: 0.75}],  // Content-heavy
+        'categories:accessibility': ['error', {minScore: 0.85}], // High standards
+        'categories:best-practices': ['warn', {minScore: 0.85}], // Realistic
+        'categories:seo': ['error', {minScore: 0.9}],           // Discoverability
+        'categories:pwa': 'off'  // Not applicable
       }
+    },
+    upload: {
+      target: 'temporary-public-storage'
     }
   }
 }
 ```
 
-### Database Migration Best Practices
+### Database Migration Best Practices (Enhanced)
 
-#### Development Workflow
-1. **Make Schema Changes**: Update `prisma/schema.prisma`
-2. **Create Migration**: `yarn prisma migrate dev --name descriptive_name`
-3. **Review Generated SQL**: Check migration file for correctness
-4. **Test Locally**: Ensure application works with new schema
-5. **Commit Changes**: Include both schema and migration files
-
-#### Staging Validation
-1. **Deploy to Staging**: Push to staging branch or environment
-2. **Validate Migration**: CI automatically runs migration diff
-3. **Test Application**: Verify all features work with new schema
-4. **Review Performance**: Check Lighthouse CI results
-
-#### Production Deployment
-1. **Merge to Main**: Once PR is approved and tested
-2. **Automatic Migration**: CI deploys migrations to production
-3. **Monitor Deployment**: Check logs for migration success
-4. **Verify Application**: Confirm all services running correctly
-
-### Troubleshooting Guide
-
-#### Common Migration Issues
-
-**Issue**: Migration diff shows unexpected changes
+#### Development Workflow with Validation
 ```bash
-# Solution: Reset shadow database to match current schema
-yarn prisma db push --schema prisma/schema.prisma
+# 1. Schema Changes with Validation
+yarn prisma migrate dev --name descriptive_name
+# ✅ Validates schema syntax and relationships
+# ✅ Checks for breaking changes and data compatibility
+# ✅ Generates migration with complexity analysis
+
+# 2. Local Testing with Safety Checks
+yarn prisma migrate status  # Check current state
+yarn prisma validate        # Validate schema syntax
+# ✅ Verify migration applies cleanly
+# ✅ Test application with new schema
+# ✅ Check for performance implications
+
+# 3. Commit with Validation
+git add prisma/schema.prisma prisma/migrations/
+# ✅ Both schema and migration files included
+# ✅ Migration reviewed for destructive operations
+# ✅ Documentation updated if needed
 ```
 
-**Issue**: Lighthouse CI fails on staging URL
+#### Production Deployment with Safety
 ```bash
-# Check staging deployment status
-curl -I $LHCI_URL_STAGING
+# Automatic production deployment process:
 
-# Verify staging environment variables
-vercel env ls
+# 1. Environment Validation
+✅ DATABASE_URL connectivity test with timeout
+✅ DIRECT_URL validation and connection limits
+✅ Prisma binary availability with network checks
+✅ Production environment variable validation
 
-# Run Lighthouse locally for debugging
-npx lhci autorun --config=lighthouserc.js
+# 2. Pre-deployment Analysis  
+📊 Migration status check and pending migration count
+💾 Backup point creation with unique identifier
+📝 Schema state recording for rollback capability
+⚠️ Destructive operation warnings and complexity analysis
+
+# 3. Deployment with Monitoring
+🚀 yarn prisma migrate deploy --verbose
+⏱️ Deployment time tracking and performance monitoring
+🔍 Real-time status updates with detailed logging
+
+# 4. Post-deployment Verification
+✅ Migration status confirmation
+✅ Database connectivity and operation testing
+✅ Fresh Prisma client generation validation
+🔗 Backup identifier for emergency rollback
 ```
 
-**Issue**: Migration deployment fails in CI
+### Troubleshooting Guide (Comprehensive)
+
+#### Enhanced Error Resolution
+
+**Migration Issues with Network Detection:**
 ```bash
-# Check database connectivity
-yarn prisma migrate status
+# Issue: Prisma binary download fails (firewall/allowlist)
+❌ Error: ENOTFOUND binaries.prisma.sh
 
-# Verify environment variables
-echo $DATABASE_URL | grep -o "postgresql://[^/]*"
+# Solution: Network access configuration
+1. Add binaries.prisma.sh to firewall allowlist
+2. Configure GitHub Actions runner network access
+3. Alternative: Use cached Prisma binaries in CI
+4. Verify: Test with curl https://binaries.prisma.sh
 
-# Manual migration deployment (emergency only)
-yarn prisma migrate deploy --verbose
+# Issue: Migration deployment fails with detailed analysis
+❌ Error: Migration failed with connection timeout
+
+# Enhanced Solution:
+1. Check DATABASE_URL format and connectivity
+2. Verify database server availability and load
+3. Check migration complexity and duration
+4. Review backup identifier for potential rollback
+5. Analyze migration logs for specific error patterns
 ```
 
-#### Performance Issues
-
-**Issue**: Lighthouse performance score below threshold
-
-The Lighthouse CI is configured with balanced thresholds for this luxury content platform:
-- **Performance**: ≥0.75 (content-heavy pages with rich visuals)
-- **Accessibility**: ≥0.85 (high standards with flexibility)
-- **Best Practices**: ≥0.85 (realistic for modern web apps)
-- **SEO**: ≥0.9 (maintain high discoverability standards)
-
-**Troubleshooting steps**:
-1. **Check Bundle Size**: `yarn build` and review `.next/static/`
-2. **Optimize Images**: Ensure proper image formats and sizes
-3. **Review JavaScript**: Check for unnecessary client-side code
-4. **Database Queries**: Review API endpoints for N+1 queries
-5. **Feature Flags**: Disable non-essential features during testing:
-   ```bash
-   FEATURE_ANALYTICS_ENABLED=false
-   FEATURE_SOCIAL_EMBEDS=false
-   FEATURE_ADVANCED_ANIMATIONS=false
-   ```
-6. **CI Configuration**: Lighthouse config in `.github/workflows/ci.yml` under `Configure Lighthouse CI for staging`
-
-**Issue**: CI/CD pipeline timeout
-1. **Check Dependencies**: `yarn install` may be slow
-2. **Database Connection**: Verify database availability
-3. **Build Cache**: Ensure cache keys are properly configured
-4. **Resource Limits**: Consider upgrading CI runner specs
-
-#### Security Scan Failures
-
-**Issue**: Secrets detected in code
+**Build and Test Issues with Coverage Guidance:**
 ```bash
-# Find and remove hardcoded secrets
-grep -r "password\|secret\|key" --include="*.ts" src/
+# Issue: Coverage below threshold (warns, doesn't fail)
+⚠️ Warning: Coverage below 70% threshold
 
-# Use environment variables instead
-NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+# Response Strategy:
+1. Review coverage report in job summary
+2. Identify uncovered code paths
+3. Add tests for critical functionality
+4. Note: Build continues with warning
+5. Security modules require higher coverage (90%)
+
+# Issue: TypeScript compilation with enhanced reporting
+❌ Error: TS2345 - Argument type mismatch
+
+# Enhanced Solution:
+1. Review detailed TypeScript error log
+2. Check for new strict mode requirements
+3. Verify type definitions are up to date
+4. Use TSC error codes for specific guidance
 ```
 
-**Issue**: Dependency vulnerabilities
+**Security and Compliance Issues:**
 ```bash
-# Update vulnerable packages
+# Issue: Dependency vulnerabilities detected
+🚨 Critical: 3 critical vulnerabilities found
+
+# Enhanced Resolution:
+1. Review vulnerability report in job artifacts
+2. Run npm audit fix for automatic fixes
+3. Check for manual update requirements
+4. Verify fixes don't break functionality
+5. Critical issues require immediate attention
+
+# Issue: RBAC or compliance validation failures
+❌ Error: RBAC matrix validation failed
+
+# Enhanced Solution:
+1. Review RBAC configuration in lib/rbac.ts
+2. Validate role-permission mappings
+3. Check for missing admin permissions
+4. Verify compliance documentation completeness
+5. Update enterprise playbook as needed
+```
+
+### CI/CD Failure Detection and Automation (New)
+
+#### Automated Issue Creation
+
+The CI/CD pipeline includes comprehensive failure detection that automatically creates GitHub issues when critical jobs fail or are skipped.
+
+**Monitored Critical Jobs:**
+- **Main CI Pipeline**: `lint-and-typecheck`, `build-and-test`, `security-scan`, `migration-check`, `deploy-migrations`, `full-test-suite`, `enterprise-compliance`
+- **Security Automation**: `sast-security-scan`, `rbac-security-tests`, `dependency-audit`, `compliance-check`, `dast-security-scan`
+- **Staging Pipeline**: `staging-lint-and-build`, `staging-security-check` (with fallback detection)
+
+**Issue Creation Features:**
+```yaml
+# Automatic issue creation with rich context
+Title: "CI/CD Critical Failure Detected - [Workflow] (Run #[ID])"
+Labels: ["ci-failure", "automated", "priority-high"]
+
+Content Includes:
+- 📊 Workflow name, run number, and branch information
+- 🔍 Failed/skipped job names with IDs and links
+- 📋 Job summary data and metrics
+- 🔗 Direct link to workflow run for detailed logs
+- ⏰ Timestamp and commit SHA for tracking
+- 📝 Next steps and resolution guidance
+- 🚫 Deduplication prevents multiple issues per run
+```
+
+**Enhanced Issue Context:**
+- Build metrics (time, size, coverage percentages)
+- Security scan results (vulnerability counts by severity)
+- Migration deployment status and backup identifiers
+- Error categorization and troubleshooting hints
+- Links to relevant documentation sections
+
+#### Testing Failure Detection
+
+Use the test workflow to validate automation:
+```bash
+# Test critical job failure detection
+gh workflow run test-failure-detection.yml \
+  -f simulate_failure=test-job-1
+
+# Test job skip detection  
+gh workflow run test-failure-detection.yml \
+  -f simulate_skip=test-job-2
+
+# Verify issue creation with proper context
+# Check issue includes job summaries and metrics
+# Confirm deduplication works correctly
+```
+
+### Monitoring and Alerts (Enhanced)
+
+#### Key Metrics with Automation
+- **Migration deployment success rate** with backup tracking
+- **Lighthouse CI score trends** with adaptive thresholds
+- **Build and test duration** with performance analysis
+- **Security scan results** with severity trending
+- **Database connection health** with timeout monitoring
+- **CI/CD failure detection accuracy** with issue tracking
+- **Issue creation and resolution times** with automation metrics
+
+#### Enhanced Alerting Rules
+```yaml
+# Immediate Alerts (automated via GitHub issues)
+- Failed migration deployments → Automatic issue with backup ID
+- Critical security vulnerabilities → Issue with severity breakdown
+- Build failures on main branch → Issue with build metrics
+- Prisma binary access issues → Issue with network guidance
+
+# Warning Alerts (job summaries with recommendations)
+- Lighthouse scores below adaptive thresholds
+- Coverage below recommended levels (warn, don't fail)
+- Dependency vulnerabilities (moderate severity)
+- RBAC/compliance validation warnings
+
+# Trending Alerts (artifact analysis)
+- Build time increases → Performance regression tracking
+- Test coverage decreases → Coverage trend analysis
+- Security vulnerability increases → Vulnerability tracking
+
+## Recent CI/CD Fixes and Prevention (December 2024)
+
+### Critical Deployment Failures Fixed
+
+This section documents the recent critical CI/CD deployment failures and the comprehensive fixes implemented to prevent similar issues.
+
+#### Issue 1: Package Manager Conflicts ✅ FIXED
+
+**Problem:**
+- `package-lock.json` file conflicting with Yarn workflows causing infinite dependency resolution loops
+- SIGKILL termination during `yarn add @prisma/client@6.7.0 --silent` commands
+- Mixed package manager warnings causing installation instability
+
+**Root Cause:**
+Mixed package managers (npm lock file present in Yarn-based workflows) causing dependency resolution conflicts and timeout issues.
+
+**Solution Implemented:**
+```bash
+# Removed conflicting package-lock.json
+rm -f yalla_london/app/package-lock.json
+
+# Enhanced .gitignore to prevent future conflicts
+# Package manager lock files (enforce Yarn consistency)
+package-lock.json
+npm-shrinkwrap.json
+
+# Added runtime detection and cleanup
+if [ -f "package-lock.json" ]; then
+  echo "⚠️ package-lock.json found - removing to prevent Yarn conflicts"
+  rm -f package-lock.json
+fi
+```
+
+**Prevention Measures:**
+- Enhanced `.gitignore` patterns to prevent future package manager conflicts
+- Runtime detection and automatic removal of conflicting lock files
+- Standardized on Yarn with frozen lockfile for consistency
+- Dependency validation checks before critical operations
+
+#### Issue 2: Prisma Environment Variable Timing ✅ FIXED
+
+**Problem:**
+- Prisma CLI was called before `DIRECT_URL` environment variable was available
+- Migration checks failed with "Environment variable not found: DIRECT_URL"
+- Schema validation triggered errors during CI execution
+
+**Root Cause:**
+Environment variables were defined at the end of workflow steps but Prisma CLI needed them from the start.
+
+**Solution Implemented:**
+```yaml
+# BEFORE (problematic)
+- name: Validate Prisma binary and environment
+  run: |
+    npx prisma --version  # ❌ No env vars available yet
+  env:
+    DIRECT_URL: "postgresql://..."  # ❌ Too late
+    
+# AFTER (fixed)  
+- name: Validate Prisma binary and environment
+  env:
+    DIRECT_URL: "postgresql://..."  # ✅ Available from start
+    DATABASE_URL: "postgresql://..."
+  run: |
+    npx prisma --version  # ✅ Env vars accessible
+```
+
+**Prevention Measures:**
+- All Prisma-related steps now have environment variables defined at the step level
+- Environment variable validation added before Prisma CLI calls
+- Consistent database configuration across all workflow jobs
+- Documentation updated to emphasize environment variable ordering
+
+#### Issue 3: Prisma Client Generator Configuration ✅ FIXED
+
+**Problem:**
+- Missing output path in Prisma client generator caused warnings
+- "Output path not set" warnings during client generation
+- Potential issues with client location and imports
+
+**Root Cause:**
+Prisma client generator configuration was minimal, missing explicit output specification.
+
+**Solution Implemented:**
+```prisma
+# BEFORE (minimal configuration)
+generator client {
+    provider = "prisma-client-js"
+}
+
+# AFTER (complete configuration)
+generator client {
+    provider = "prisma-client-js"
+    output   = "./node_modules/@prisma/client"
+}
+```
+
+**Prevention Measures:**
+- All Prisma generators now have complete configuration
+- Output path explicitly specified for consistency
+- Schema best practices documented and enforced
+- Regular schema validation includes completeness checks
+
+#### Issue 4: Node.js Version Compatibility ✅ VERIFIED
+
+**Analysis:**
+- All workflows already correctly configured with Node.js 20.17.0
+- Compatible with npm@11.6.0 requirements (Node.js ^20.17.0)
+- No changes required for version compatibility
+
+**Current Configuration:**
+```yaml
+env:
+  NODE_VERSION: '20.17.0'  # ✅ Meets npm@11.6.0 requirements
+
+steps:
+- uses: actions/setup-node@v4
+  with:
+    node-version: ${{ env.NODE_VERSION }}
+```
+
+**Prevention Measures:**
+- Centralized Node.js version configuration across all workflows
+- Version compatibility validated during dependency updates
+- CI pipeline tests against specified Node.js version
+- Documentation includes Node.js version requirements
+
+### Prevention Strategies Implemented
+
+#### 1. Package Manager Standardization
+
+**Conflict Prevention:**
+```bash
+# Standard pattern for all dependency installations
+- name: Install dependencies
+  env:
+    DATABASE_URL: "postgresql://..."
+    DIRECT_URL: "postgresql://..."
+  run: |
+    # Check for conflicting package managers
+    if [ -f "package-lock.json" ]; then
+      echo "⚠️ package-lock.json found - removing to prevent Yarn conflicts"
+      rm -f package-lock.json
+    fi
+    
+    yarn install --frozen-lockfile --network-timeout 300000
+```
+
+**Enhanced .gitignore:**
+```gitignore
+# Package manager lock files (enforce Yarn consistency)
+package-lock.json
+npm-shrinkwrap.json
+```
+
+#### 2. Environment Variable Best Practices
+
+**Consistent Ordering:**
+```yaml
+# Standard pattern for all database operations
+- name: Database Operation
+  env:
+    DATABASE_URL: "postgresql://..."
+    DIRECT_URL: "postgresql://..."
+    SHADOW_DATABASE_URL: ${{ secrets.SHADOW_DATABASE_URL }}
+  run: |
+    # All environment variables available from start
+```
+
+**Validation Before Use:**
+```bash
+# Environment validation pattern
+echo "🔐 Validating environment variables..."
+if [ -z "$DIRECT_URL" ]; then
+    echo "❌ DIRECT_URL not configured"
+    exit 1
+fi
+echo "✅ Required environment variables validated"
+```
+
+#### 3. Prisma Configuration Standards
+
+**Complete Generator Configuration:**
+```prisma
+generator client {
+    provider = "prisma-client-js"
+    output   = "./node_modules/@prisma/client"
+    binaryTargets = ["native", "linux-musl"]  # For Docker compatibility
+}
+
+datasource db {
+    provider  = "postgresql"
+    url       = env("DATABASE_URL")
+    directUrl = env("DIRECT_URL")
+}
+```
+
+**Schema Validation Enhancements:**
+- Syntax validation before all operations
+- Best practice checks for missing configurations
+- Primary key validation for all models
+- Relationship integrity verification
+
+#### 4. CI/CD Workflow Robustness
+
+**Enhanced Error Detection:**
+```yaml
+# Network connectivity validation
+if grep -q "ENOTFOUND\|ECONNREFUSED\|getaddrinfo" error.log; then
+    echo "🚫 Network connectivity issue detected"
+    echo "💡 Add binaries.prisma.sh to allowlist"
+fi
+
+# Retry logic with backoff
+RETRY_COUNT=0
+MAX_RETRIES=3
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if command_succeeds; then break; fi
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    sleep $((RETRY_COUNT * 10))
+done
+```
+
+**Comprehensive Logging:**
+```bash
+# Detailed status reporting
+echo "📊 Operation: $OPERATION_NAME"
+echo "🕐 Started: $(date -Iseconds)"
+echo "📍 Working Directory: $(pwd)"
+echo "🔧 Node Version: $(node --version)"
+echo "📦 NPM Version: $(npm --version)"
+```
+
+### Troubleshooting Quick Reference
+
+#### Package Manager Conflicts
+```bash
+# Check for conflicting lock files
+ls -la package-lock.json yarn.lock
+
+# Remove conflicting npm files
+rm -f package-lock.json npm-shrinkwrap.json
+
+# Clean install with Yarn only
+yarn install --frozen-lockfile
+```
+
+#### Environment Variable Issues
+```bash
+# Check if variables are set
+env | grep -E "(DATABASE_URL|DIRECT_URL)"
+
+# Validate database connectivity
+npx prisma db execute --stdin <<< "SELECT 1;"
+
+# Test Prisma CLI with environment
+DIRECT_URL="postgresql://..." npx prisma --version
+```
+
+#### Prisma Configuration Issues  
+```bash
+# Validate schema syntax
+npx prisma validate --schema prisma/schema.prisma
+
+# Check generator configuration
+grep -A5 "generator client" prisma/schema.prisma
+
+# Verify client generation
+npx prisma generate --schema prisma/schema.prisma
+```
+
+#### Node.js Version Issues
+```bash
+# Check current version
+node --version  # Should be v20.17.0+
+
+# Verify npm compatibility
+npm --version   # Should work with Node.js 20.17.0
+
+# Validate in CI environment
+echo "Node: $(node --version), NPM: $(npm --version)"
+```
+
+### Monitoring and Prevention
+
+#### Automated Monitoring
+- Package manager conflict detection in all installation steps
+- Environment variable availability checks before critical operations
+- Prisma schema validation in all workflow steps
+- Node.js version compatibility verification
+- Network connectivity monitoring for external dependencies
+
+#### Documentation Updates
+- Workflow files include references to troubleshooting guide
+- Package manager standardization requirements clearly documented
+- Environment variable requirements clearly documented
+- Prisma configuration best practices enforced
+- Prevention measures integrated into development workflow
+
+#### Developer Education
+- Clear error messages with resolution guidance
+- Links to relevant documentation sections
+- Troubleshooting commands for common issues
+- Best practices emphasized in code review process
+
+### Future Improvements
+
+1. **Automated Environment Validation:**
+   - Pre-flight checks before workflow execution
+   - Package manager conflict detection and automatic resolution
+   - Environment variable dependency mapping
+   - Validation scripts for local development
+
+2. **Enhanced Error Recovery:**
+   - Automatic retry with exponential backoff
+   - Fallback mechanisms for network issues
+   - Self-healing workflow capabilities
+
+3. **Proactive Monitoring:**
+   - Environment drift detection
+   - Configuration compliance checks
+   - Dependency vulnerability monitoring
+
+This comprehensive approach ensures that the critical CI/CD failures documented above will not recur and provides a robust foundation for ongoing development and deployment reliability.
+
+## Troubleshooting Guide
+
+### 🚨 Common CI/CD Issues & Solutions
+
+#### 1. Dependency Installation Failures
+
+**Symptoms:**
+- `yarn install` fails with lockfile conflicts
+- Missing peer dependencies warnings
+- Package resolution errors
+
+**Diagnosis:**
+```bash
+# Check for package manager conflicts
+ls -la | grep -E "(yarn\.lock|package-lock\.json)"
+
+# Validate package.json syntax
+jq empty package.json
+
+# Check dependency resolution
+yarn install --verbose
+```
+
+**Solutions:**
+```bash
+# Remove conflicting lock files
+rm -f package-lock.json
+
+# Clean yarn cache
+yarn cache clean
+
+# Reinstall dependencies
+yarn install
+
+# Update lockfile
+yarn install --update-checksums
+```
+
+#### 2. Database Connection Issues
+
+**Symptoms:**
+- Database connection timeouts
+- Missing role/user errors
+- Permission denied errors
+
+**Diagnosis:**
+```bash
+# Test basic connectivity
+pg_isready -h localhost -p 5432 -U postgres
+
+# Test specific database URL
+psql "$DATABASE_URL" -c "SELECT 1;"
+
+# Check user permissions
+psql "$DATABASE_URL" -c "\du"
+```
+
+**Solutions:**
+```bash
+# Create missing roles
+psql "$DATABASE_URL" -c "CREATE USER root WITH CREATEDB CREATEROLE;"
+
+# Grant necessary permissions
+psql "$DATABASE_URL" -c "GRANT ALL PRIVILEGES ON DATABASE test_db TO postgres;"
+
+# Test write permissions
+psql "$DATABASE_URL" -c "CREATE TABLE test (id SERIAL); DROP TABLE test;"
+```
+
+#### 3. Prisma Generation Failures
+
+**Symptoms:**
+- Network timeout errors (ETIMEDOUT, ECONNREFUSED)
+- Binary download failures
+- Generation hangs indefinitely
+
+**Diagnosis:**
+```bash
+# Test Prisma CDN access
+curl -s --max-time 10 https://binaries.prisma.sh
+
+# Check local Prisma installation
+yarn prisma --version
+
+# Verify schema syntax
+yarn prisma validate --schema prisma/schema.prisma
+```
+
+**Solutions:**
+```bash
+# Configure firewall allowlist
+# Add these URLs to organizational firewall:
+# - https://binaries.prisma.sh/*
+# - https://releases.prisma.io/*
+# - https://registry.npmjs.org/*
+
+# Clear Prisma cache
+rm -rf node_modules/.prisma/
+rm -rf node_modules/@prisma/
+
+# Regenerate with retry logic
+for i in {1..3}; do
+  yarn prisma generate --schema prisma/schema.prisma && break
+  sleep 10
+done
+```
+
+#### 4. Test Coverage Issues
+
+**Symptoms:**
+- Coverage below thresholds
+- Missing coverage reports
+- RBAC/Security test failures
+
+**Diagnosis:**
+```bash
+# Check test file structure
+find tests/ -name "*rbac*" -o -name "*security*" -o -name "*auth*"
+
+# Run tests with verbose coverage
+yarn test --coverage --verbose
+
+# Check coverage configuration
+cat jest.config.js | grep -A 10 -B 10 coverage
+```
+
+**Solutions:**
+```bash
+# Generate coverage report
+yarn test --coverage --watchAll=false
+
+# Check specific test files
+yarn test tests/rbac.spec.ts --coverage
+
+# Adjust coverage thresholds for test type
+# Standard tests: 70% threshold
+# RBAC/Security tests: 90% threshold
+```
+
+#### 5. Security Scan Failures
+
+**Symptoms:**
+- ESLint security errors
+- Vulnerability audit failures
+- SAST scan issues
+
+**Diagnosis:**
+```bash
+# Run security linting
+yarn lint --ext .ts,.tsx,.js,.jsx
+
+# Check for security vulnerabilities
+yarn audit --level moderate
+
+# Test security plugin
+yarn list eslint-plugin-security
+```
+
+**Solutions:**
+```bash
+# Fix ESLint security issues
+yarn lint --fix
+
+# Update vulnerable dependencies
 yarn audit fix
 
-# For high-severity issues that can't be auto-fixed
-yarn upgrade [package-name]
+# Add security exceptions (if safe)
+# Add to .eslintrc.json:
+# "rules": {
+#   "security/detect-object-injection": "warn"
+# }
 ```
 
-### Monitoring and Alerts
+### 🔧 Environment Setup Troubleshooting
 
-#### Key Metrics to Monitor
-- Migration deployment success rate
-- Lighthouse CI score trends
-- Build and test duration
-- Security scan results
-- Database connection health
+#### Development Environment Issues
 
-#### Recommended Alerting Rules
-- Failed migration deployments (immediate)
-- Lighthouse scores below thresholds:
-  - Performance <0.75 (warning)
-  - Accessibility <0.85 (critical)
-  - Best Practices <0.85 (warning)
-  - SEO <0.9 (critical)
-- Security scan failures (immediate)
-- Build failures on main branch (immediate)
-- Dependency vulnerabilities (daily summary)
+**Missing Environment Variables:**
+```bash
+# Required variables for development
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/yalla_london_dev"
+export DIRECT_URL="postgresql://postgres:postgres@localhost:5432/yalla_london_dev"
+export NEXTAUTH_SECRET="your-secret-key-minimum-32-characters"
+export NEXTAUTH_URL="http://localhost:3000"
+```
+
+**Local Database Setup:**
+```bash
+# Start PostgreSQL service
+sudo systemctl start postgresql
+
+# Create database
+createdb yalla_london_dev
+
+# Run migrations
+yarn prisma migrate dev --schema prisma/schema.prisma
+```
+
+#### Production Environment Issues
+
+**Network Connectivity:**
+```bash
+# Test production database
+psql "$DATABASE_URL" -c "SELECT version();"
+
+# Test external services
+curl -I https://api.example.com/health
+
+# Verify DNS resolution
+nslookup binaries.prisma.sh
+```
+
+**Permission Issues:**
+```bash
+# Check service account permissions
+# Ensure CI/CD service has:
+# - Database read/write access
+# - Network access to required URLs
+# - File system write permissions
+```
+
+### 📊 Performance Optimization
+
+#### Workflow Performance
+
+**Slow Dependency Installation:**
+- Use `yarn install --prefer-offline` when possible
+- Implement dependency caching strategies
+- Consider using `yarn install --frozen-lockfile` in CI
+
+**Database Operation Timeouts:**
+- Optimize migration scripts
+- Use connection pooling
+- Set appropriate timeout values
+
+**Build Performance:**
+- Enable Next.js build caching
+- Use parallel job execution
+- Optimize test suite execution
+
+#### Resource Usage
+
+**Memory Issues:**
+```bash
+# Monitor memory usage during builds
+echo "Current memory usage:"
+free -h
+
+# Optimize Node.js memory
+export NODE_OPTIONS="--max-old-space-size=4096"
+```
+
+**Disk Space Issues:**
+```bash
+# Clean build artifacts
+rm -rf .next/
+rm -rf coverage/
+yarn cache clean
+
+# Monitor disk usage
+df -h
+```
+
+### 🔍 Debugging Workflows
+
+#### Workflow Debug Mode
+
+Enable debug logging in GitHub Actions:
+```yaml
+env:
+  ACTIONS_STEP_DEBUG: true
+  ACTIONS_RUNNER_DEBUG: true
+```
+
+#### Local Testing
+
+Test workflow components locally:
+```bash
+# Test dependency validation
+jq -e '.dependencies.jest or .devDependencies.jest' package.json
+
+# Test database connectivity
+timeout 30 bash -c 'until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done'
+
+# Test Prisma generation
+yarn prisma generate --schema prisma/schema.prisma
+```
+
+#### Log Analysis
+
+Common error patterns to look for:
+- **Network errors**: ENOTFOUND, ECONNREFUSED, ETIMEDOUT
+- **Permission errors**: EACCES, permission denied
+- **Resource errors**: ENOSPC, out of memory
+- **Dependency errors**: Cannot resolve dependency, peer dependency warnings
+
+### 📋 Preventive Maintenance
+
+#### Regular Maintenance Tasks
+
+**Weekly:**
+- Review dependency vulnerabilities (`yarn audit`)
+- Check for outdated packages (`yarn outdated`)
+- Validate test coverage reports
+- Review workflow performance metrics
+
+**Monthly:**
+- Update dependencies to latest compatible versions
+- Review and update security configurations
+- Validate backup and recovery procedures
+- Performance testing and optimization
+
+**Quarterly:**
+- Comprehensive security audit
+- Infrastructure and tooling updates
+- Workflow optimization review
+- Documentation updates
+
+This troubleshooting guide provides systematic approaches to diagnose and resolve common CI/CD issues, ensuring reliable workflow execution and minimizing development disruption.
+```

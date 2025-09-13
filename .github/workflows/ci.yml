@@ -121,17 +121,17 @@ jobs:
           fi
           
           # Check for coverage report files
-          if find . -name "*.lcov" -o -name "coverage-*.json" -o -name "clover.xml" -o -name "junit.xml" -o -name "test-results.xml" -o -name "*.coverage" -not -path "./node_modules/*" | head -1 | grep -q .; then
+          if find . \( -name "*.lcov" -o -name "coverage-*.json" -o -name "clover.xml" -o -name "junit.xml" -o -name "test-results.xml" -o -name "*.coverage" \) -not -path "./node_modules/*" | head -1 | grep -q .; then
             UNWANTED_FILES="$UNWANTED_FILES\n- Coverage/test report files found (should be in .gitignore)"
           fi
           
           # Check for IDE files
-          if find . -name ".vscode" -o -name ".idea" -type d -not -path "./node_modules/*" | head -1 | grep -q .; then
+          if find . \( -name ".vscode" -o -name ".idea" \) -type d -not -path "./node_modules/*" | head -1 | grep -q .; then
             UNWANTED_FILES="$UNWANTED_FILES\n- IDE configuration directories found"
           fi
           
           # Check for temp files (excluding legitimate build artifacts)
-          if find . -name "*.tmp" -o -name "*.temp" -not -path "./node_modules/*" -not -path "./.next/*" | head -1 | grep -q .; then
+          if find . \( -name "*.tmp" -o -name "*.temp" \) -not -path "./node_modules/*" -not -path "./.next/*" | head -1 | grep -q .; then
             UNWANTED_FILES="$UNWANTED_FILES\n- Temporary files found"
           fi
           
@@ -141,7 +141,7 @@ jobs:
           fi
           
           # Check for environment files (except .env.example)
-          if find . -name ".env" -o -name ".env.local" -o -name ".env.development" -o -name ".env.production" -not -path "./node_modules/*" | head -1 | grep -q .; then
+          if find . \( -name ".env" -o -name ".env.local" -o -name ".env.development" -o -name ".env.production" \) -not -path "./node_modules/*" | head -1 | grep -q .; then
             UNWANTED_FILES="$UNWANTED_FILES\n- Environment files found (may contain secrets)"
           fi
           

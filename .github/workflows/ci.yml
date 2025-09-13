@@ -9,6 +9,9 @@ on:
 env:
   NODE_VERSION: '20.17.0'
   APP_DIR: 'yalla_london/app'
+  DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/test_db' }}
+  DIRECT_URL: ${{ secrets.DIRECT_URL || 'postgresql://postgres:postgres@localhost:5432/test_db' }}
+  NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'test-secret-key-for-ci-builds-only-32-chars' }}
 
 jobs:
   lint-and-typecheck:
@@ -28,9 +31,6 @@ jobs:
           
       - name: Install dependencies with comprehensive validation
         working-directory: ${{ env.APP_DIR }}
-        env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
         run: |
           set -e
           echo "📦 Installing dependencies with comprehensive validation..."
@@ -221,8 +221,8 @@ jobs:
           
           echo "✅ Prisma schema validation passed"
         env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
           
       - name: Check Prisma binary availability
         working-directory: ${{ env.APP_DIR }}
@@ -303,8 +303,8 @@ jobs:
       - name: Install dependencies
         working-directory: ${{ env.APP_DIR }}
         env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
         run: |
           set -e
           echo "📦 Installing dependencies..."
@@ -321,8 +321,8 @@ jobs:
       - name: Validate Prisma binary and environment
         working-directory: ${{ env.APP_DIR }}
         env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
           SHADOW_DATABASE_URL: ${{ secrets.SHADOW_DATABASE_URL }}
         run: |
           set -e
@@ -471,8 +471,8 @@ jobs:
             fi
           done
         env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
           
       - name: Check for migration changes with enhanced validation
         working-directory: ${{ env.APP_DIR }}
@@ -588,8 +588,8 @@ jobs:
             echo "EOF" >> $GITHUB_ENV
           fi
         env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
           SHADOW_DATABASE_URL: ${{ secrets.SHADOW_DATABASE_URL }}
           
       - name: Add migration check summary
@@ -762,17 +762,6 @@ jobs:
           # Create required roles and users
           echo "👥 Creating required database roles and users..."
           
-          # Create root user if needed (for some applications)
-          psql "$DATABASE_URL" -c "
-            DO \$\$
-            BEGIN
-              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'root') THEN
-                CREATE USER root WITH CREATEDB CREATEROLE;
-                GRANT ALL PRIVILEGES ON DATABASE test_db TO root;
-              END IF;
-            END
-            \$\$;" || echo "ℹ️ Root user creation skipped (may already exist)"
-          
           # Ensure postgres user has full permissions
           psql "$DATABASE_URL" -c "
             GRANT ALL PRIVILEGES ON DATABASE test_db TO postgres;
@@ -800,9 +789,9 @@ jobs:
           
           echo "✅ Database initialization completed successfully"
         env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          NEXTAUTH_SECRET: "test-secret-key-for-ci-builds-only-32-chars"
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
+          NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
           
       - name: Generate Prisma client with error handling
         working-directory: ${{ env.APP_DIR }}
@@ -874,9 +863,9 @@ jobs:
             echo "BUILD_SIZE=$BUILD_SIZE" >> $GITHUB_ENV
           fi
         env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          NEXTAUTH_SECRET: "test-secret-key-for-ci-builds-only-32-chars"
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
+          NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
           NEXTAUTH_URL: "http://localhost:3000"
           AWS_BUCKET_NAME: "test-bucket"
           AWS_ACCESS_KEY_ID: "test"
@@ -1588,10 +1577,11 @@ jobs:
               fi
             fi
             
-            # For now, warn but don't fail the build - can be made stricter later
+            # Fail build only on critical vulnerabilities
             if [ "$CRITICAL_VULNS" -gt 0 ]; then
-              echo "🚨 BUILD WARNING: Critical vulnerabilities detected but not failing build"
+              echo "🚨 BUILD WARNING: Critical vulnerabilities detected."
               echo "💡 Consider updating dependencies or applying security patches"
+              exit 1
             fi
           fi
           
@@ -1867,9 +1857,9 @@ jobs:
         working-directory: ${{ env.APP_DIR }}
         run: yarn build
         env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          NEXTAUTH_SECRET: "test-secret-key-for-ci-builds-only-32-chars"
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
+          NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
           NEXTAUTH_URL: "http://localhost:3000"
           AWS_BUCKET_NAME: "test-bucket"
           AWS_ACCESS_KEY_ID: "test"
@@ -1885,9 +1875,9 @@ jobs:
           echo $! > server.pid
           sleep 15
         env:
-          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-          NEXTAUTH_SECRET: "test-secret-key-for-ci-builds-only-32-chars"
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
+          NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
           NEXTAUTH_URL: "http://localhost:3000"
           
       - name: Run integration tests

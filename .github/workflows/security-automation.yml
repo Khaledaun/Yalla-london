@@ -49,10 +49,11 @@ jobs:
         set -e
         echo "🔍 Running ESLint security analysis..."
         
-        # Install security plugin if not already present
+        # Verify security plugin is available (should be pre-installed from package.json)
         if ! yarn list eslint-plugin-security >/dev/null 2>&1; then
-          echo "📦 Installing ESLint security plugin..."
-          yarn add --dev eslint-plugin-security --silent
+          echo "⚠️ eslint-plugin-security not found in dependencies"
+          echo "💡 Make sure it's listed in package.json devDependencies"
+          exit 1
         fi
         
         # Run ESLint with security rules

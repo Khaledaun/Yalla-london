@@ -1,0 +1,83 @@
+🔒 Enterprise Security & Monitoring Validation
+==============================================
+[0;34m📋 Checking Environment Configuration[0m
+--------------------------------------
+[0;32m✅ Environment file exists[0m
+[0;32m✅ ADMIN_EMAILS configured[0m
+[0;32m✅ NEXTAUTH_SECRET is secure (113 characters)[0m
+[0;32m✅ DATABASE_URL configured[0m
+
+[0;34m🔧 Checking Dependencies[0m
+-------------------------
+[0;32m✅ Sentry monitoring dependency installed[0m
+[0;32m✅ Backup scheduling dependency installed[0m
+[0;32m✅ Testing framework installed[0m
+
+[0;34m📁 Checking File Structure[0m
+----------------------------
+[0;32m✅ lib/rbac.ts exists[0m
+[0;32m✅ lib/performance-monitoring.ts exists[0m
+[0;32m✅ scripts/backup-scheduler.ts exists[0m
+[0;32m✅ scripts/backup-restore.ts exists[0m
+[0;32m✅ tests/rbac.spec.ts exists[0m
+[0;32m✅ tests/security-automation.spec.ts exists[0m
+[0;32m✅ sentry.server.config.ts exists[0m
+[0;32m✅ sentry.client.config.ts exists[0m
+[0;32m✅ sentry.edge.config.ts exists[0m
+[0;32m✅ enterprise-playbook.md exists[0m
+[0;32m✅ security-monitoring-setup.md exists[0m
+
+[0;34m🏗️  Checking Build Configuration[0m
+---------------------------------
+[1;33m⚠️  Project build has issues (may be due to missing dependencies)[0m
+[0;32m✅ Linting passes[0m
+
+[0;34m🧪 Running Security Tests[0m
+---------------------------
+[0;32m✅ Security automation tests pass[0m
+[0;32m✅ RBAC tests pass[0m
+
+[0;34m🔐 Checking Security Configuration[0m
+----------------------------------
+[0;32m✅ Security automation workflow configured[0m
+[0;32m✅ OWASP ZAP configuration exists[0m
+[0;32m✅ Audit logging schema configured[0m
+
+[0;34m💾 Checking Backup Configuration[0m
+--------------------------------
+[0;32m✅ Scripts directory exists[0m
+[0;32m✅ Backup restore script exists[0m
+[0;32m✅ Backup scheduler script exists[0m
+[0;32m✅ Logs directory exists[0m
+
+[0;34m📊 Checking Monitoring Setup[0m
+-----------------------------
+[0;32m✅ sentry.server.config.ts properly configured[0m
+[0;32m✅ sentry.client.config.ts properly configured[0m
+[0;32m✅ sentry.edge.config.ts properly configured[0m
+
+[0;34m📚 Checking Documentation[0m
+----------------------------
+[0;32m✅ Enterprise playbook contains GDPR documentation[0m
+[0;32m✅ Enterprise playbook contains SOC2 documentation[0m
+[0;32m✅ Enterprise playbook contains audit documentation[0m
+[0;32m✅ Enterprise playbook contains retention documentation[0m
+[0;32m✅ Enterprise playbook contains backup documentation[0m
+[0;32m✅ Enterprise playbook contains disaster documentation[0m
+
+[0;34m🎯 Validation Summary[0m
+====================
+Results:
+  [0;32m✅ Passed: 37[0m
+  [1;33m⚠️  Warnings: 1[0m
+  [0;31m❌ Failed: 0[0m
+
+[0;32m🎉 All critical checks passed![0m
+[1;33m⚠️  Please review warnings above[0m
+
+Next steps:
+1. Set up environment variables for your environment
+2. Configure Sentry DSN for monitoring
+3. Set up AWS S3 for backup storage
+4. Test backup and restore procedures
+5. Configure GitHub Actions secrets for security scanning

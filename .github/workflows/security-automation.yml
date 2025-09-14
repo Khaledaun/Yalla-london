@@ -388,7 +388,7 @@ jobs:
       env:
         DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
         DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/test_db"
-        NEXTAUTH_SECRET: "test-secret-key-for-rbac-tests-32-chars"
+        NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
         NEXTAUTH_URL: "http://localhost:3000"
 
     - name: Validate Permission Matrix with enhanced checking

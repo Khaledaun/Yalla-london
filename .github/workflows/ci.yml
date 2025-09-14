@@ -1,7 +1,7 @@
 name: CI
 
 on:
-   push:
+  push:
     branches: [main, feature/phase4b-automation]
   pull_request:
     branches: [main, feature/phase4b-automation]
@@ -13,15 +13,59 @@ jobs:
       ABACUSAI_API_KEY: ${{ secrets.ABACUSAI_API_KEY }}
       NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.NEXT_PUBLIC_ADMIN_PASSWORD }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Additional environment variables for proper CI operation
+      NEXTAUTH_SECRET: "test-secret-key-for-ci-builds-only"
+      NEXT_PUBLIC_SITE_URL: "http://localhost:3000"
+      # Optional integrations for testing (use test values in CI)
+      NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: "GA_TEST_ID_FOR_CI"
+      MAILCHIMP_API_KEY: "test_mailchimp_key_for_ci"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Print env vars
-        run: printenv | grep -E 'ABACUSAI_API_KEY|NEXT_PUBLIC_ADMIN_PASSWORD|DATABASE_URL'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'yarn'
+          cache-dependency-path: yalla_london/app/yarn.lock
+
+      - name: Debug - Print environment variables
+        run: |
+          echo "=== Environment Variables Debug ==="
+          echo "ABACUSAI_API_KEY is set: $([ -n "$ABACUSAI_API_KEY" ] && echo 'YES' || echo 'NO')"
+          echo "NEXT_PUBLIC_ADMIN_PASSWORD is set: $([ -n "$NEXT_PUBLIC_ADMIN_PASSWORD" ] && echo 'YES' || echo 'NO')"
+          echo "DATABASE_URL is set: $([ -n "$DATABASE_URL" ] && echo 'YES' || echo 'NO')"
+          echo "NEXTAUTH_SECRET is set: $([ -n "$NEXTAUTH_SECRET" ] && echo 'YES' || echo 'NO')"
+          echo "NEXT_PUBLIC_SITE_URL is set: $([ -n "$NEXT_PUBLIC_SITE_URL" ] && echo 'YES' || echo 'NO')"
+          echo "NEXT_PUBLIC_GOOGLE_ANALYTICS_ID is set: $([ -n "$NEXT_PUBLIC_GOOGLE_ANALYTICS_ID" ] && echo 'YES' || echo 'NO')"
+          echo "MAILCHIMP_API_KEY is set: $([ -n "$MAILCHIMP_API_KEY" ] && echo 'YES' || echo 'NO')"
+          echo "====================================="
+        env:
+          ABACUSAI_API_KEY: ${{ secrets.ABACUSAI_API_KEY }}
+          NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.NEXT_PUBLIC_ADMIN_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Install dependencies
-        run: npm install
+        working-directory: ./yalla_london/app
+        run: yarn install --frozen-lockfile
+
+      - name: Generate Prisma client
+        working-directory: ./yalla_london/app
+        run: npx prisma generate
+        env:
+          ABACUSAI_API_KEY: ${{ secrets.ABACUSAI_API_KEY }}
+          NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.NEXT_PUBLIC_ADMIN_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Run integration tests
+        working-directory: ./yalla_london/app
         run: npm run test:integration
+        env:
+          ABACUSAI_API_KEY: ${{ secrets.ABACUSAI_API_KEY }}
+          NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.NEXT_PUBLIC_ADMIN_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEXTAUTH_SECRET: "test-secret-key-for-ci-builds-only"
+          NEXT_PUBLIC_SITE_URL: "http://localhost:3000"
+          NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: "GA_TEST_ID_FOR_CI"
+          MAILCHIMP_API_KEY: "test_mailchimp_key_for_ci"

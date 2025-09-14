@@ -1185,7 +1185,8 @@ jobs:
           fi
           
           if [ -z "$DIRECT_URL" ]; then
-            echo "⚠️ DIRECT_URL not set, using DATABASE_URL"
+            echo "⚠️ DIRECT_URL not set, using DATABASE_URL as fallback"
+            export DIRECT_URL="$DATABASE_URL"
           fi
           
           if [ -n "$MISSING_VARS" ]; then
@@ -1215,7 +1216,7 @@ jobs:
           echo "✅ Production database connectivity confirmed"
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
           
       - name: Generate Prisma client for production
         working-directory: ${{ env.APP_DIR }}
@@ -1289,7 +1290,7 @@ jobs:
           fi
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
           
       - name: Create migration backup point
         if: env.MIGRATIONS_NEEDED == 'true'
@@ -1314,7 +1315,7 @@ jobs:
           fi
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
           
       - name: Deploy migrations to production database
         working-directory: ${{ env.APP_DIR }}
@@ -1371,7 +1372,7 @@ jobs:
           fi
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
           
       - name: Post-migration validation
         if: env.MIGRATION_SUCCESS == 'true'
@@ -1414,7 +1415,7 @@ jobs:
           echo "✅ Post-migration validation completed successfully"
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}
           
       - name: Add migration deployment summary
         if: always()

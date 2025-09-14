@@ -26,10 +26,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Setup Node.js 18
+    - name: Setup Node.js 20.17.0
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20.17.0'
         cache: 'yarn'
         cache-dependency-path: app/yarn.lock
         
@@ -109,10 +109,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Setup Node.js 18
+    - name: Setup Node.js 20.17.0
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20.17.0'
         cache: 'yarn'
         cache-dependency-path: app/yarn.lock
         
@@ -182,10 +182,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js 18
+    - name: Setup Node.js 20.17.0
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20.17.0'
         cache: 'yarn'
         cache-dependency-path: app/yarn.lock
 
@@ -240,6 +240,13 @@ jobs:
         fi
         
         echo "✅ Hreflang tests completed"
+
+    - name: Test integration script syntax
+      working-directory: ./app
+      run: |
+        echo "🔍 Testing integration script syntax..."
+        node --check scripts/test-integrations.js
+        echo "✅ Integration script syntax is valid"
 
     - name: Stop application
       working-directory: ./app

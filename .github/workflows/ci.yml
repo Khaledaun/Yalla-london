@@ -17,6 +17,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Print env vars
+        run: printenv | grep -E 'ABACUSAI_API_KEY|NEXT_PUBLIC_ADMIN_PASSWORD|DATABASE_URL'
+
       - name: Install dependencies
         run: npm install
 

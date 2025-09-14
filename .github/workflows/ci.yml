@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    env:
+      ABACUSAI_API_KEY: ${{ s2_76994d4977f045b4b3e582a5b2e5804a }}
+      NEXT_PUBLIC_ADMIN_PASSWORD: ${{ YallaLondon2024!}}
+      DATABASE_URL: ${{ postgres://postgres.czomaivdhsgbhwixiehz:bAG6QIeZiUsijG7E@aws-1-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require&pgbouncer=true&connection_limit=1&schema=public }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run integration tests
+        run: npm run test:integration

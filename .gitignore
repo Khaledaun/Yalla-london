@@ -2,13 +2,15 @@ node_modules/
 .next/
 .env*
 *.zip
-node_modules/
-.next/
-.env*
-*.zip
 
 # local caches / tooling
 yalla_london/app/.cache/
 yalla_london/app/.npm/
 yalla_london/app/tmp/
 yalla_london/app/.healthcheck-logs/
+
+# CI and build artifacts
+package-lock.json
+yarn-error.log
+.DS_Store
+*.log

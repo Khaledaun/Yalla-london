@@ -10,6 +10,9 @@ on:
 env:
   NODE_VERSION: '18'
   STAGING_URL: ${{ secrets.STAGING_URL }}
+  DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL || secrets.DATABASE_URL }}
+  NEXTAUTH_SECRET: ${{ secrets.STAGING_NEXTAUTH_SECRET || secrets.NEXTAUTH_SECRET }}
+  ABACUSAI_API_KEY: ${{ secrets.STAGING_ABACUSAI_API_KEY || secrets.ABACUSAI_API_KEY }}
 
 jobs:
   lint-and-typecheck:
@@ -19,6 +22,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        
+      - name: Debug - Check staging CI secrets availability
+        run: |
+          echo "🔐 Checking staging CI secrets availability..."
+          echo "STAGING_URL: $([[ -n "${{ secrets.STAGING_URL }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "DATABASE_URL: $([[ -n "${{ env.DATABASE_URL }}" ]] && echo "✅ configured" || echo "❌ not configured")"
+          echo "NEXTAUTH_SECRET: $([[ -n "${{ env.NEXTAUTH_SECRET }}" ]] && echo "✅ configured" || echo "❌ not configured")"
+          echo "ABACUSAI_API_KEY: $([[ -n "${{ env.ABACUSAI_API_KEY }}" ]] && echo "✅ configured" || echo "❌ not configured")"
+          echo ""
         
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -62,14 +74,14 @@ jobs:
       - name: Build application
         run: yarn build
         env:
-          DATABASE_URL: "postgresql://test:test@localhost:5432/test"
-          NEXTAUTH_SECRET: "test-secret-for-build-only-32-characters"
-          NEXTAUTH_URL: "http://localhost:3000"
-          AWS_BUCKET_NAME: "test-bucket"
-          AWS_ACCESS_KEY_ID: "test"
-          AWS_SECRET_ACCESS_KEY: "test"
-          AWS_REGION: "us-east-1"
-          ABACUSAI_API_KEY: "test"
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ env.STAGING_URL }}
+          AWS_BUCKET_NAME: ${{ secrets.STAGING_AWS_BUCKET_NAME || "staging-bucket" }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || "test" }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY || "test" }}
+          AWS_REGION: ${{ secrets.AWS_REGION || "us-east-1" }}
+          ABACUSAI_API_KEY: ${{ env.ABACUSAI_API_KEY }}
           
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3

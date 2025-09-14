@@ -10,12 +10,27 @@ on:
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  STAGING_URL: ${{ secrets.STAGING_URL }}
+  DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL || secrets.DATABASE_URL }}
+  NEXTAUTH_SECRET: ${{ secrets.STAGING_NEXTAUTH_SECRET || secrets.NEXTAUTH_SECRET }}
+  ABACUSAI_API_KEY: ${{ secrets.STAGING_ABACUSAI_API_KEY || secrets.ABACUSAI_API_KEY }}
 
 jobs:
   lint-and-typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Debug - Check staging deployment secrets
+        run: |
+          echo "🔐 Checking staging deployment secrets availability..."
+          echo "VERCEL_TOKEN: $([[ -n "${{ secrets.VERCEL_TOKEN }}" ]] && echo "✅ yes" || echo "❌ no - REQUIRED")"
+          echo "VERCEL_ORG_ID: $([[ -n "${{ secrets.VERCEL_ORG_ID }}" ]] && echo "✅ yes" || echo "❌ no - REQUIRED")"
+          echo "VERCEL_PROJECT_ID: $([[ -n "${{ secrets.VERCEL_PROJECT_ID }}" ]] && echo "✅ yes" || echo "❌ no - REQUIRED")"
+          echo "DATABASE_URL: $([[ -n "${{ env.DATABASE_URL }}" ]] && echo "✅ configured" || echo "❌ not configured")"
+          echo "LHCI_GITHUB_APP_TOKEN: $([[ -n "${{ secrets.LHCI_GITHUB_APP_TOKEN }}" ]] && echo "✅ yes" || echo "❌ no (optional)")"
+          echo ""
+          
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
@@ -43,6 +58,14 @@ jobs:
       - run: lhci autorun
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL: ${{ env.STAGING_URL }}
+          ABACUSAI_API_KEY: ${{ env.ABACUSAI_API_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || "test" }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY || "test" }}
+          AWS_BUCKET_NAME: ${{ secrets.STAGING_AWS_BUCKET_NAME || "staging-bucket" }}
+          AWS_REGION: ${{ secrets.AWS_REGION || "us-east-1" }}
           
   deploy-staging:
     runs-on: ubuntu-latest

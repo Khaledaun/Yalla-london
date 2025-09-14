@@ -12,6 +12,8 @@ env:
   DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/test_db' }}
   DIRECT_URL: ${{ secrets.DIRECT_URL || 'postgresql://postgres:postgres@localhost:5432/test_db' }}
   NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'test-secret-key-for-ci-builds-only-32-chars' }}
+  ABACUSAI_API_KEY: ${{ secrets.ABACUSAI_API_KEY || 'test-abacus-key-for-ci-builds' }}
+  NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.NEXT_PUBLIC_ADMIN_PASSWORD || 'test-admin-password-for-ci' }}
 
 jobs:
   lint-and-typecheck:
@@ -21,6 +23,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        
+      - name: Debug - Check secrets availability
+        run: |
+          echo "🔐 Checking required secrets availability..."
+          echo "DATABASE_URL: $([[ -n "${{ secrets.DATABASE_URL }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "DIRECT_URL: $([[ -n "${{ secrets.DIRECT_URL }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "NEXTAUTH_SECRET: $([[ -n "${{ secrets.NEXTAUTH_SECRET }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "ABACUSAI_API_KEY: $([[ -n "${{ secrets.ABACUSAI_API_KEY }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "NEXT_PUBLIC_ADMIN_PASSWORD: $([[ -n "${{ secrets.NEXT_PUBLIC_ADMIN_PASSWORD }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "SHADOW_DATABASE_URL: $([[ -n "${{ secrets.SHADOW_DATABASE_URL }}" ]] && echo "✅ yes" || echo "❌ no (optional)")"
+          echo ""
+          echo "💡 Note: All secret values are hidden for security. This only shows availability."
         
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -690,6 +704,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         
+      - name: Debug - Check secrets availability for build and test
+        run: |
+          echo "🔐 Validating critical secrets for build and test..."
+          echo "DATABASE_URL: $([[ -n "${{ secrets.DATABASE_URL }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "DIRECT_URL: $([[ -n "${{ secrets.DIRECT_URL }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "NEXTAUTH_SECRET: $([[ -n "${{ secrets.NEXTAUTH_SECRET }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "ABACUSAI_API_KEY: $([[ -n "${{ secrets.ABACUSAI_API_KEY }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "AWS_ACCESS_KEY_ID: $([[ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "AWS_SECRET_ACCESS_KEY: $([[ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo ""
+          echo "💡 Note: Build will continue with fallback values if secrets are missing."
+        
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -868,10 +894,10 @@ jobs:
           NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
           NEXTAUTH_URL: "http://localhost:3000"
           AWS_BUCKET_NAME: "test-bucket"
-          AWS_ACCESS_KEY_ID: "test"
-          AWS_SECRET_ACCESS_KEY: "test"
-          AWS_REGION: "us-east-1"
-          ABACUSAI_API_KEY: "test"
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || "test" }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY || "test" }}
+          AWS_REGION: ${{ secrets.AWS_REGION || "us-east-1" }}
+          ABACUSAI_API_KEY: ${{ env.ABACUSAI_API_KEY }}
           FEATURE_SEO: "0"
           FEATURE_EMBEDS: "0"
           FEATURE_MEDIA: "0"
@@ -1085,13 +1111,13 @@ jobs:
         env:
           DATABASE_URL: "postgresql://test:test@localhost:5432/test"
           DIRECT_URL: "postgresql://test:test@localhost:5432/test"
-          NEXTAUTH_SECRET: "test-secret-key-for-ci-builds-only-32-chars"
+          NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
           NEXTAUTH_URL: "http://localhost:3000"
           AWS_BUCKET_NAME: "test-bucket"
-          AWS_ACCESS_KEY_ID: "test"
-          AWS_SECRET_ACCESS_KEY: "test"
-          AWS_REGION: "us-east-1"
-          ABACUSAI_API_KEY: "test"
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || "test" }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY || "test" }}
+          AWS_REGION: ${{ secrets.AWS_REGION || "us-east-1" }}
+          ABACUSAI_API_KEY: ${{ env.ABACUSAI_API_KEY }}
           # Performance optimization flags for Lighthouse CI
           FEATURE_ANALYTICS_ENABLED: "false"
           FEATURE_SOCIAL_EMBEDS: "false"
@@ -1155,6 +1181,20 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        
+      - name: Debug - Check production secrets availability
+        run: |
+          echo "🔐 Validating production secrets for migration deployment..."
+          echo "DATABASE_URL: $([[ -n "${{ secrets.DATABASE_URL }}" ]] && echo "✅ yes" || echo "❌ no - REQUIRED FOR PRODUCTION")"
+          echo "DIRECT_URL: $([[ -n "${{ secrets.DIRECT_URL }}" ]] && echo "✅ yes" || echo "❌ no (will use DATABASE_URL)")"
+          echo "SHADOW_DATABASE_URL: $([[ -n "${{ secrets.SHADOW_DATABASE_URL }}" ]] && echo "✅ yes" || echo "❌ no (optional)")"
+          echo ""
+          if [[ -z "${{ secrets.DATABASE_URL }}" ]]; then
+            echo "🚨 CRITICAL: DATABASE_URL secret not configured for production!"
+            echo "Migration deployment requires production database access."
+            exit 1
+          fi
+          echo "✅ Required production secrets validated for migration deployment."
         
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -1870,10 +1910,10 @@ jobs:
           NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
           NEXTAUTH_URL: "http://localhost:3000"
           AWS_BUCKET_NAME: "test-bucket"
-          AWS_ACCESS_KEY_ID: "test"
-          AWS_SECRET_ACCESS_KEY: "test"
-          AWS_REGION: "us-east-1"
-          ABACUSAI_API_KEY: "test"
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID || "test" }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY || "test" }}
+          AWS_REGION: ${{ secrets.AWS_REGION || "us-east-1" }}
+          ABACUSAI_API_KEY: ${{ env.ABACUSAI_API_KEY }}
           FEATURE_SEO: "1"  # Enable SEO for full testing
           
       - name: Start application for testing

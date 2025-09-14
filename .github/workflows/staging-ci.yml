@@ -9,6 +9,9 @@ on:
 env:
   NODE_VERSION: '20.17.0'
   APP_DIR: 'yalla_london/app'
+  STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL || 'postgresql://staging:staging@localhost:5432/staging_db' }}
+  STAGING_NEXTAUTH_URL: ${{ secrets.STAGING_NEXTAUTH_URL || 'https://staging.example.com' }}
+  STAGING_ABACUSAI_API_KEY: ${{ secrets.STAGING_ABACUSAI_API_KEY || secrets.ABACUSAI_API_KEY || 'staging-test-key' }}
 
 jobs:
   staging-lint-and-build:
@@ -18,6 +21,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        
+      - name: Debug - Check staging secrets availability
+        run: |
+          echo "🔐 Checking staging secrets availability..."
+          echo "STAGING_DATABASE_URL: $([[ -n "${{ secrets.STAGING_DATABASE_URL }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "STAGING_NEXTAUTH_URL: $([[ -n "${{ secrets.STAGING_NEXTAUTH_URL }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+          echo "STAGING_ABACUSAI_API_KEY: $([[ -n "${{ secrets.STAGING_ABACUSAI_API_KEY }}" ]] && echo "✅ yes" || echo "❌ no (checking fallback)")"
+          echo "ABACUSAI_API_KEY (fallback): $([[ -n "${{ secrets.ABACUSAI_API_KEY }}" ]] && echo "✅ yes" || echo "❌ no (using test key)")"
+          echo "AWS_ACCESS_KEY_ID: $([[ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]] && echo "✅ yes" || echo "❌ no (using test)")"
+          echo "AWS_SECRET_ACCESS_KEY: $([[ -n "${{ secrets.AWS_SECRET_ACCESS_KEY }}" ]] && echo "✅ yes" || echo "❌ no (using test)")"
+          echo ""
+          echo "💡 Note: Staging environment allows fallback values for testing."
         
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -62,8 +77,8 @@ jobs:
             echo "STAGING_CONFIG_WARNINGS=false" >> $GITHUB_ENV
           fi
         env:
-          STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-          STAGING_NEXTAUTH_URL: ${{ secrets.STAGING_NEXTAUTH_URL }}
+          STAGING_DATABASE_URL: ${{ env.STAGING_DATABASE_URL }}
+          STAGING_NEXTAUTH_URL: ${{ env.STAGING_NEXTAUTH_URL }}
           
       - name: Run TypeScript and lint checks for staging
         working-directory: ${{ env.APP_DIR }}
@@ -118,11 +133,17 @@ jobs:
             echo "STAGING_BUILD_SIZE=$BUILD_SIZE" >> $GITHUB_ENV
           fi
         env:
-          DATABASE_URL: "postgresql://staging:staging@localhost:5432/staging_db"
-          DIRECT_URL: "postgresql://staging:staging@localhost:5432/staging_db"
-          NEXTAUTH_SECRET: "staging-secret-key-for-builds-32-chars-minimum"
-          NEXTAUTH_URL: "https://staging.example.com"
+          DATABASE_URL: ${{ env.STAGING_DATABASE_URL }}
+          DIRECT_URL: ${{ env.STAGING_DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.STAGING_NEXTAUTH_SECRET || secrets.NEXTAUTH_SECRET || "staging-secret-key-for-builds-32-chars-minimum" }}
+          NEXTAUTH_URL: ${{ env.STAGING_NEXTAUTH_URL }}
           NODE_ENV: "production"
+          # Staging AWS credentials with fallbacks
+          AWS_BUCKET_NAME: ${{ secrets.STAGING_AWS_BUCKET_NAME || "staging-bucket" }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.STAGING_AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID || "staging-test" }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.STAGING_AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY || "staging-test" }}
+          AWS_REGION: ${{ secrets.AWS_REGION || "us-east-1" }}
+          ABACUSAI_API_KEY: ${{ env.STAGING_ABACUSAI_API_KEY }}
           # Staging-optimized feature flags
           FEATURE_SEO: "1"
           FEATURE_ANALYTICS_ENABLED: "true"

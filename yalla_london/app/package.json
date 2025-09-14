@@ -3,8 +3,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "yarn build:prisma && next build",
-    "build:prisma": "node -e \"try { require('child_process').execSync('prisma generate --schema prisma/schema.prisma', {stdio: 'inherit'}); } catch (e) { console.log('Prisma generation skipped:', e.message); }\"",
+    "build": "yarn build:deps && next build",
+    "build:deps": "prisma generate --schema prisma/schema.prisma",
+    "build:prisma": "prisma generate --schema prisma/schema.prisma",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
@@ -12,7 +13,7 @@
     "test:security": "jest tests/rbac.spec.ts tests/security-automation.spec.ts",
     "backup": "tsx scripts/backup-restore.ts",
     "backup:schedule": "tsx scripts/backup-scheduler.ts",
-    "postinstall": "if [ \"$CI\" != \"true\" ]; then command -v prisma >/dev/null 2>&1 && prisma generate --schema prisma/schema.prisma || echo 'Prisma generation skipped (not available)'; else echo 'Prisma generation skipped in CI (run explicitly)'; fi",
+    "postinstall": "echo 'Postinstall complete - Prisma generation will be handled during build'",
     "phase4a:test2c": "bash -c 'set -e; if [ -f \"yalla_london/app/.env\" ] && [ -d \"yalla_london/app/prisma\" ]; then APP_DIR=\"yalla_london/app\"; elif [ -f \".env\" ] && [ -d \"prisma\" ]; then APP_DIR=\".\"; else echo \"❌ run from repo root or app dir\"; exit 1; fi; ENV_FILE=\"$APP_DIR/.env\"; DIRECT_URL=$(sed -n \"s/^DIRECT_URL=//p\" \"$ENV_FILE\" | tail -n1); command -v psql >/dev/null || (sudo apt-get update -y && sudo apt-get install -y postgresql-client); psql \"$DIRECT_URL\" -c \"select 1;\"; psql \"$DIRECT_URL\" -c \"select count(*) from \\\"Place\\\";\"; psql \"$DIRECT_URL\" -c \"select type, count(*) from \\\"PageTypeRecipe\\\" group by 1 order by 1;\"; psql \"$DIRECT_URL\" -c \"select version, is_active from \\\"RulebookVersion\\\" order by created_at desc limit 1;\"'"
   },
   "prisma": {
@@ -30,8 +31,8 @@
     "@types/node": "20.6.2",
     "@types/react": "18.2.22",
     "@types/react-dom": "18.2.7",
-    "@typescript-eslint/eslint-plugin": "7.0.0",
-    "@typescript-eslint/parser": "7.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "csstype": "^3.0.10",
     "eslint": "8.57.0",
     "eslint-config-next": "15.3.0",
@@ -154,7 +155,10 @@
   },
   "resolutions": {
     "postcss": "^8.4.31",
-    "next": "^14.2.32"
+    "next": "^14.2.32",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "chart.js": "^4.4.9"
   },
   "browserslist": [
     "ie >= 11",

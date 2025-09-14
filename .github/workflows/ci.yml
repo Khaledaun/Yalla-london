@@ -10,9 +10,9 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     env:
-      ABACUSAI_API_KEY: ${{ s2_76994d4977f045b4b3e582a5b2e5804a }}
-      NEXT_PUBLIC_ADMIN_PASSWORD: ${{ YallaLondon2024!}}
-      DATABASE_URL: ${{ postgres://postgres.czomaivdhsgbhwixiehz:bAG6QIeZiUsijG7E@aws-1-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require&pgbouncer=true&connection_limit=1&schema=public }}
+      ABACUSAI_API_KEY: ${{ secrets.ABACUSAI_API_KEY }}
+      NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.NEXT_PUBLIC_ADMIN_PASSWORD }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

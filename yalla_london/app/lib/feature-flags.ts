@@ -67,6 +67,14 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
     category: 'seo'
   };
 
+  // AI-powered SEO audit functionality
+  flags.FEATURE_AI_SEO_AUDIT = {
+    key: 'FEATURE_AI_SEO_AUDIT',
+    enabled: process.env.FEATURE_AI_SEO_AUDIT === 'true',
+    description: 'Enable AI-powered SEO audit and recommendations',
+    category: 'seo'
+  };
+
   // SOCIAL FLAGS
   // Social media content generation, posting, and cross-platform integration
   flags.SOCIAL_MEDIA_INTEGRATION = {
@@ -82,6 +90,39 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
     enabled: process.env.FEATURE_ADVANCED_TOPICS === 'true',
     description: 'Enable advanced topic research and suggestion engine',
     category: 'content'
+  };
+
+  // Content pipeline automation and management
+  flags.FEATURE_CONTENT_PIPELINE = {
+    key: 'FEATURE_CONTENT_PIPELINE',
+    enabled: process.env.FEATURE_CONTENT_PIPELINE === 'true',
+    description: 'Enable automated content pipeline and workflow management',
+    category: 'content'
+  };
+
+  // EDITOR FLAGS
+  // Internal linking suggestions and management
+  flags.FEATURE_INTERNAL_LINKS = {
+    key: 'FEATURE_INTERNAL_LINKS',
+    enabled: process.env.FEATURE_INTERNAL_LINKS === 'true',
+    description: 'Enable internal link suggestions and management',
+    category: 'editor'
+  };
+
+  // Rich text editor with advanced formatting
+  flags.FEATURE_RICH_EDITOR = {
+    key: 'FEATURE_RICH_EDITOR',
+    enabled: process.env.FEATURE_RICH_EDITOR === 'true',
+    description: 'Enable advanced rich text editor with enhanced formatting',
+    category: 'editor'
+  };
+
+  // Homepage builder and customization tools
+  flags.FEATURE_HOMEPAGE_BUILDER = {
+    key: 'FEATURE_HOMEPAGE_BUILDER',
+    enabled: process.env.FEATURE_HOMEPAGE_BUILDER === 'true',
+    description: 'Enable drag-and-drop homepage builder and customization',
+    category: 'editor'
   };
 
   // EXPORT FLAGS

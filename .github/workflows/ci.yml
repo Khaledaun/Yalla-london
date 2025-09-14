@@ -11,9 +11,17 @@ env:
   APP_DIR: 'yalla_london/app'
   DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/test_db' }}
   DIRECT_URL: ${{ secrets.DIRECT_URL || 'postgresql://postgres:postgres@localhost:5432/test_db' }}
+  SHADOW_DATABASE_URL: ${{ secrets.SHADOW_DATABASE_URL }}
   NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'test-secret-key-for-ci-builds-only-32-chars' }}
   ABACUSAI_API_KEY: ${{ secrets.ABACUSAI_API_KEY || 'test-abacus-key-for-ci-builds' }}
   NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.NEXT_PUBLIC_ADMIN_PASSWORD || 'test-admin-password-for-ci' }}
+  
+  # Production readiness flags
+  FEATURE_AI_SEO_AUDIT: 'false'
+  FEATURE_CONTENT_PIPELINE: 'false'
+  FEATURE_INTERNAL_LINKS: 'false'
+  FEATURE_RICH_EDITOR: 'false'
+  FEATURE_HOMEPAGE_BUILDER: 'false'
 
 jobs:
   lint-and-typecheck:

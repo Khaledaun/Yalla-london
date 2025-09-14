@@ -31,6 +31,13 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       audit_system: featureFlags.AUDIT_SYSTEM?.enabled || false,
       enterprise_features: featureFlags.ENTERPRISE_FEATURES?.enabled || false,
       advanced_cron: featureFlags.ADVANCED_CRON?.enabled || false,
+      
+      // New required production flags
+      ai_seo_audit: featureFlags.FEATURE_AI_SEO_AUDIT?.enabled || false,
+      content_pipeline: featureFlags.FEATURE_CONTENT_PIPELINE?.enabled || false,
+      internal_links: featureFlags.FEATURE_INTERNAL_LINKS?.enabled || false,
+      rich_editor: featureFlags.FEATURE_RICH_EDITOR?.enabled || false,
+      homepage_builder: featureFlags.FEATURE_HOMEPAGE_BUILDER?.enabled || false,
     };
 
     return NextResponse.json({

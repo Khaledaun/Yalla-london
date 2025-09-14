@@ -11,6 +11,8 @@ on:
 
 env:
   NODE_VERSION: '20.17.0'
+  ABACUSAI_API_KEY: ${{ secrets.ABACUSAI_API_KEY || 'test-abacus-key-for-security-tests' }}
+  NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'test-secret-key-for-security-tests-32-chars' }}
 
 jobs:
   sast-security-scan:
@@ -20,6 +22,15 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Debug - Check security testing secrets availability
+      run: |
+        echo "🔐 Checking security testing secrets availability..."
+        echo "SNYK_TOKEN: $([[ -n "${{ secrets.SNYK_TOKEN }}" ]] && echo "✅ yes" || echo "❌ no (Snyk scan will be skipped)")"
+        echo "ABACUSAI_API_KEY: $([[ -n "${{ secrets.ABACUSAI_API_KEY }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+        echo "NEXTAUTH_SECRET: $([[ -n "${{ secrets.NEXTAUTH_SECRET }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+        echo ""
+        echo "💡 Note: Security tests will continue with fallback values if secrets are missing."
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -238,6 +249,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Debug - Check RBAC testing secrets availability
+      run: |
+        echo "🔐 Checking RBAC testing secrets availability..."
+        echo "NEXTAUTH_SECRET: $([[ -n "${{ secrets.NEXTAUTH_SECRET }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+        echo "DATABASE_URL: Using test database (postgresql://postgres:postgres@localhost:5432/test_db)"
+        echo ""
+        echo "💡 Note: RBAC tests will use fallback values if secrets are missing."
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
@@ -289,7 +308,7 @@ jobs:
         echo "🔐 Configuring test environment variables..."
         export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/test_db"
         export DIRECT_URL="postgresql://postgres:postgres@localhost:5432/test_db"
-        export NEXTAUTH_SECRET="test-secret-key-for-rbac-tests-32-chars"
+        export NEXTAUTH_SECRET="${{ env.NEXTAUTH_SECRET }}"
         export NEXTAUTH_URL="http://localhost:3000"
         
         echo "✅ Test environment configured"
@@ -599,7 +618,7 @@ jobs:
         # Set essential environment variables for testing
         echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/test_db" >> .env
         echo "DIRECT_URL=postgresql://postgres:postgres@localhost:5432/test_db" >> .env
-        echo "NEXTAUTH_SECRET=test-secret-for-security-scan-32-chars-minimum" >> .env
+        echo "NEXTAUTH_SECRET=${{ env.NEXTAUTH_SECRET }}" >> .env
         echo "NEXTAUTH_URL=http://localhost:3000" >> .env
         echo "NODE_ENV=test" >> .env
         

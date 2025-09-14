@@ -5,8 +5,9 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { extractEmbedInfo } from '@/lib/social-embed-utils'
+import { withRateLimit, RateLimitPresets } from '@/lib/rate-limiting'
 
-export async function GET() {
+async function handleGET() {
   try {
     const embeds = await prisma.socialEmbed.findMany({
       orderBy: { created_at: 'desc' }
@@ -22,7 +23,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const body = await request.json()
     const { url, platform, embedId, aspectRatio, thumbnail, title, author } = body
@@ -74,3 +75,7 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+// Apply rate limiting to public endpoints
+export const GET = withRateLimit(RateLimitPresets.EMBEDS, handleGET)
+export const POST = withRateLimit(RateLimitPresets.EMBEDS, handlePOST)

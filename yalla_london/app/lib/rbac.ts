@@ -12,6 +12,7 @@ import { prisma } from '@/lib/db';
 export const ROLES = {
   ADMIN: 'admin',
   EDITOR: 'editor', 
+  REVIEWER: 'reviewer',
   VIEWER: 'viewer'
 } as const;
 
@@ -24,6 +25,8 @@ export const PERMISSIONS = {
   EDIT_CONTENT: 'edit_content',
   DELETE_CONTENT: 'delete_content',
   PUBLISH_CONTENT: 'publish_content',
+  REVIEW_CONTENT: 'review_content',
+  APPROVE_CONTENT: 'approve_content',
   
   // User management
   MANAGE_USERS: 'manage_users',
@@ -37,6 +40,7 @@ export const PERMISSIONS = {
   // Audit and compliance
   VIEW_AUDIT_LOGS: 'view_audit_logs',
   MANAGE_PERMISSIONS: 'manage_permissions',
+  CONDUCT_AUDITS: 'conduct_audits',
   
   // Feature flags and configuration
   MANAGE_FEATURES: 'manage_features',
@@ -52,6 +56,8 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.EDIT_CONTENT,
     PERMISSIONS.DELETE_CONTENT,
     PERMISSIONS.PUBLISH_CONTENT,
+    PERMISSIONS.REVIEW_CONTENT,
+    PERMISSIONS.APPROVE_CONTENT,
     PERMISSIONS.MANAGE_USERS,
     PERMISSIONS.VIEW_USERS,
     PERMISSIONS.MANAGE_SYSTEM,
@@ -59,6 +65,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.EXPORT_DATA,
     PERMISSIONS.VIEW_AUDIT_LOGS,
     PERMISSIONS.MANAGE_PERMISSIONS,
+    PERMISSIONS.CONDUCT_AUDITS,
     PERMISSIONS.MANAGE_FEATURES,
     PERMISSIONS.VIEW_REPORTS
   ],
@@ -67,8 +74,17 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     PERMISSIONS.EDIT_CONTENT,
     PERMISSIONS.DELETE_CONTENT,
     PERMISSIONS.PUBLISH_CONTENT,
+    PERMISSIONS.REVIEW_CONTENT,
     PERMISSIONS.VIEW_USERS,
     PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.CONDUCT_AUDITS,
+    PERMISSIONS.VIEW_REPORTS
+  ],
+  [ROLES.REVIEWER]: [
+    PERMISSIONS.REVIEW_CONTENT,
+    PERMISSIONS.APPROVE_CONTENT,
+    PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.CONDUCT_AUDITS,
     PERMISSIONS.VIEW_REPORTS
   ],
   [ROLES.VIEWER]: [

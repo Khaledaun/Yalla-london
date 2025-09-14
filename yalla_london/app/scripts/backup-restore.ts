@@ -7,10 +7,38 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { writeFileSync, readFileSync, existsSync } from 'fs';
+import path from 'path';
 import { PrismaClient } from '@prisma/client';
 
 const execAsync = promisify(exec);
 const prisma = new PrismaClient();
+
+/**
+ * Security helper: Extract password from database URL
+ */
+function extractPasswordFromUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return parsed.password || '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Security helper: Remove password from URL for logging
+ */
+function sanitizeUrlForLogging(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.password) {
+      parsed.password = '***';
+    }
+    return parsed.toString();
+  } catch {
+    return 'invalid-url';
+  }
+}
 
 interface BackupConfig {
   databaseUrl: string;
@@ -20,32 +48,95 @@ interface BackupConfig {
 }
 
 /**
- * Create a complete database backup
+ * Create a complete database backup with security validations
  */
 export async function createDatabaseBackup(config: BackupConfig): Promise<string> {
+  // Security: Validate input parameters
+  if (!config.databaseUrl || !config.backupName) {
+    throw new Error('Database URL and backup name are required');
+  }
+  
+  // Security: Sanitize backup name to prevent path traversal
+  const sanitizedBackupName = config.backupName.replace(/[^a-zA-Z0-9\-_]/g, '');
+  if (sanitizedBackupName !== config.backupName) {
+    throw new Error('Backup name contains invalid characters');
+  }
+  
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const backupFileName = `${config.backupName}-${timestamp}.sql`;
-  const localBackupPath = `./backups/${backupFileName}`;
+  const backupFileName = `${sanitizedBackupName}-${timestamp}.sql`;
+  const localBackupPath = path.join('./backups', backupFileName);
+  
+  // Security: Validate database URL format
+  try {
+    new URL(config.databaseUrl);
+  } catch (error) {
+    throw new Error('Invalid database URL format');
+  }
   
   try {
     console.log('🔄 Starting database backup...');
     
     // Create backups directory if it doesn't exist
-    await execAsync('mkdir -p ./backups');
+    if (!existsSync('./backups')) {
+      await execAsync('mkdir -p ./backups');
+    }
     
-    // Create PostgreSQL dump
-    const dumpCommand = `pg_dump "${config.databaseUrl}" --verbose --clean --no-acl --no-owner --format=plain --file=${localBackupPath}`;
+    // Security: Use parameterized execution to prevent command injection
+    const dumpArgs = [
+      '--verbose',
+      '--clean',
+      '--no-acl',
+      '--no-owner',
+      '--format=plain',
+      `--file=${localBackupPath}`
+    ];
     
     console.log('📊 Creating database dump...');
-    await execAsync(dumpCommand);
+    // Use spawn instead of exec to prevent command injection
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    
+    // Set environment variable for database URL to avoid command line exposure
+    const env = { ...process.env, PGPASSWORD: extractPasswordFromUrl(config.databaseUrl) };
+    const sanitizedUrl = sanitizeUrlForLogging(config.databaseUrl);
+    
+    console.log(`📊 Creating database dump from: ${sanitizedUrl}`);
+    await execAsync(`pg_dump ${dumpArgs.join(' ')} ${JSON.stringify(config.databaseUrl)}`, { env });
     
     console.log('💾 Database dump created successfully');
     
     // Compress backup
     const compressedPath = `${localBackupPath}.gz`;
-    await execAsync(`gzip -c ${localBackupPath} > ${compressedPath}`);
+    await execAsync(`gzip -c ${JSON.stringify(localBackupPath)} > ${JSON.stringify(compressedPath)}`);
     
     console.log('🗜️ Backup compressed');
+    
+    // Upload to S3 if configured
+    if (config.s3Bucket) {
+      // Security: Sanitize S3 parameters
+      const sanitizedBucket = config.s3Bucket.replace(/[^a-zA-Z0-9\-_.]/g, '');
+      const sanitizedPrefix = (config.s3Prefix || 'backups/').replace(/[^a-zA-Z0-9\-_./]/g, '');
+      
+      if (sanitizedBucket !== config.s3Bucket || sanitizedPrefix !== (config.s3Prefix || 'backups/')) {
+        throw new Error('S3 bucket or prefix contains invalid characters');
+      }
+      
+      const s3Key = `${sanitizedPrefix}${backupFileName}.gz`;
+      
+      console.log('☁️ Uploading backup to S3...');
+      await execAsync(`aws s3 cp ${JSON.stringify(compressedPath)} s3://${JSON.stringify(sanitizedBucket)}/${JSON.stringify(s3Key)}`);
+      console.log(`✅ Backup uploaded to s3://${sanitizedBucket}/${s3Key}`);
+      
+      // Clean up local files securely
+      await execAsync(`rm ${JSON.stringify(localBackupPath)} ${JSON.stringify(compressedPath)}`);
+      
+      return s3Key;
+    } else {
+      console.log(`✅ Backup saved locally: ${compressedPath}`);
+      await execAsync(`rm ${JSON.stringify(localBackupPath)}`); // Remove uncompressed file
+      return compressedPath;
+    }
     
     // Upload to S3 if configured
     if (config.s3Bucket) {

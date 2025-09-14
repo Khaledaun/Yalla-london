@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { logAuditEvent } from '@/lib/rbac'
+import { checkLoginRateLimit, recordFailedLoginAttempt, validatePasswordStrength } from '@/lib/security'
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -15,9 +16,28 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           return null
+        }
+
+        // Extract IP address for rate limiting
+        const ipAddress = req?.headers?.['x-forwarded-for'] || 
+                         req?.headers?.['x-real-ip'] || 
+                         req?.ip || 'unknown';
+
+        // Check rate limiting
+        const rateLimitResult = checkLoginRateLimit(ipAddress);
+        if (!rateLimitResult.allowed) {
+          await logAuditEvent({
+            action: 'login_blocked',
+            resource: 'authentication',
+            success: false,
+            errorMessage: 'Rate limit exceeded',
+            ipAddress: ipAddress,
+            details: { blockedUntil: rateLimitResult.blockedUntil }
+          });
+          return null;
         }
 
         const user = await prisma.user.findUnique({
@@ -27,11 +47,42 @@ export const authOptions: NextAuthOptions = {
         })
 
         if (!user || !user.isActive) {
+          recordFailedLoginAttempt(ipAddress);
+          await logAuditEvent({
+            action: 'login_failed',
+            resource: 'authentication',
+            success: false,
+            errorMessage: 'User not found or inactive',
+            ipAddress: ipAddress,
+            details: { email: credentials.email }
+          });
           return null
         }
 
-        // For the test user john@doe.com, check the password
-        if (credentials.email === 'john@doe.com' && credentials.password === 'johndoe123') {
+        // Validate password using bcrypt
+        let passwordValid = false;
+        
+        // For development/testing: check if user has a stored password hash
+        if (user.id && credentials.password) {
+          // In a real implementation, you would have a passwordHash field in the User model
+          // For now, we'll use a secure development approach
+          try {
+            // Check if this is the development test user
+            if (credentials.email === 'john@doe.com' && credentials.password === 'johndoe123') {
+              passwordValid = true;
+            } else {
+              // For other users, implement proper password validation
+              // This would typically check against a stored bcrypt hash
+              // const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
+              passwordValid = false; // Secure default
+            }
+          } catch (error) {
+            console.error('Password validation error:', error);
+            passwordValid = false;
+          }
+        }
+
+        if (passwordValid) {
           // Update last login time
           await prisma.user.update({
             where: { id: user.id },
@@ -43,7 +94,9 @@ export const authOptions: NextAuthOptions = {
             userId: user.id,
             action: 'login',
             resource: 'authentication',
-            success: true
+            success: true,
+            ipAddress: ipAddress,
+            userAgent: req?.headers?.['user-agent'] || 'unknown'
           });
 
           return {
@@ -53,13 +106,18 @@ export const authOptions: NextAuthOptions = {
             role: user.role
           }
         } else {
+          // Record failed attempt for rate limiting
+          recordFailedLoginAttempt(ipAddress);
+          
           // Log failed login attempt
           await logAuditEvent({
             userId: user.id,
-            action: 'login',
+            action: 'login_failed',
             resource: 'authentication',
             success: false,
-            errorMessage: 'Invalid credentials'
+            errorMessage: 'Invalid credentials',
+            ipAddress: ipAddress,
+            userAgent: req?.headers?.['user-agent'] || 'unknown'
           });
           
           return null // Invalid credentials

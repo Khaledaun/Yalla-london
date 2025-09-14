@@ -88,6 +88,8 @@ export interface AuthenticatedUser {
 
 /**
  * Get user with role and permissions from database
+ * SECURITY NOTE: User-specific permissions are only for display purposes.
+ * All permission checks are based solely on role to prevent privilege escalation.
  */
 export async function getUserWithPermissions(email: string): Promise<AuthenticatedUser | null> {
   try {
@@ -107,18 +109,30 @@ export async function getUserWithPermissions(email: string): Promise<Authenticat
       return null;
     }
 
-    // Get base permissions from role
+    // SECURITY: Only use role-based permissions for authorization
+    // User-specific permissions are for display/UI purposes only
     const rolePermissions = ROLE_PERMISSIONS[user.role as Role] || [];
     
-    // Combine with additional permissions
-    const allPermissions = [...new Set([...rolePermissions, ...user.permissions])];
+    // Validate that user role is a known role
+    if (!Object.values(ROLES).includes(user.role as Role)) {
+      console.error(`Invalid role detected for user ${user.email}: ${user.role}`);
+      await logAuditEvent({
+        userId: user.id,
+        action: 'invalid_role_detected',
+        resource: 'user_permissions',
+        success: false,
+        errorMessage: `Invalid role: ${user.role}`,
+        details: { email: user.email, role: user.role }
+      });
+      return null;
+    }
 
     return {
       id: user.id,
       email: user.email,
       name: user.name || undefined,
       role: user.role as Role,
-      permissions: allPermissions as Permission[],
+      permissions: rolePermissions, // SECURITY: Always use role-based permissions
       isActive: user.isActive
     };
   } catch (error) {
@@ -164,7 +178,7 @@ export function hasAllPermissions(user: any, permissions: Permission[]): boolean
 }
 
 /**
- * Enhanced authentication middleware with RBAC
+ * Enhanced authentication middleware with RBAC and security checks
  */
 export async function requireAuth(request: NextRequest): Promise<{ user: AuthenticatedUser } | NextResponse> {
   try {
@@ -177,11 +191,44 @@ export async function requireAuth(request: NextRequest): Promise<{ user: Authent
       );
     }
 
+    // Security: Validate session integrity
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    const ipAddress = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+
     const user = await getUserWithPermissions(session.user.email);
 
     if (!user) {
+      await logAuditEvent({
+        action: 'authentication_failed',
+        resource: 'session_validation',
+        success: false,
+        errorMessage: 'User not found or inactive during session validation',
+        ipAddress: ipAddress,
+        userAgent: userAgent,
+        details: { email: session.user.email }
+      });
+      
       return NextResponse.json(
         { error: 'User not found or inactive' },
+        { status: 401 }
+      );
+    }
+
+    // Security: Additional session validation
+    if (session.user.id && session.user.id !== user.id) {
+      await logAuditEvent({
+        userId: user.id,
+        action: 'session_id_mismatch',
+        resource: 'session_validation',
+        success: false,
+        errorMessage: 'Session user ID does not match database user ID',
+        ipAddress: ipAddress,
+        userAgent: userAgent,
+        details: { sessionUserId: session.user.id, dbUserId: user.id }
+      });
+      
+      return NextResponse.json(
+        { error: 'Session validation failed' },
         { status: 401 }
       );
     }
@@ -192,13 +239,22 @@ export async function requireAuth(request: NextRequest): Promise<{ user: Authent
       action: 'access',
       resource: request.url,
       success: true,
-      ipAddress: request.ip || request.headers.get('x-forwarded-for') || 'unknown',
-      userAgent: request.headers.get('user-agent') || 'unknown'
+      ipAddress: ipAddress,
+      userAgent: userAgent
     });
 
     return { user };
   } catch (error) {
     console.error('Authentication error:', error);
+    await logAuditEvent({
+      action: 'authentication_error',
+      resource: 'authentication',
+      success: false,
+      errorMessage: error instanceof Error ? error.message : 'Unknown authentication error',
+      ipAddress: request.ip || request.headers.get('x-forwarded-for') || 'unknown',
+      userAgent: request.headers.get('user-agent') || 'unknown'
+    });
+    
     return NextResponse.json(
       { error: 'Authentication failed' },
       { status: 500 }

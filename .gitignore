@@ -3,11 +3,6 @@ node_modules/
 .env*
 !.env.example
 *.zip
-node_modules/
-.next/
-.env*
-!.env.example
-*.zip
 
 # local caches / tooling
 yalla_london/app/.cache/
@@ -16,3 +11,78 @@ yalla_london/app/tmp/
 yalla_london/app/.healthcheck-logs/
 yalla_london/app/coverage/
 yalla_london/app/rbac-test-results.json
+
+# Development and build artifacts (comprehensive)
+*.log
+*.tmp
+*.temp
+*.lcov
+.phase4b*
+yalla_london/.phase4b_logs/
+
+# Environment files (comprehensive protection)
+.env*
+!.env.example
+*.env
+*.env.local
+*.env.*
+.env
+.env.local
+.env.development
+.env.production
+
+# Test and coverage reports (comprehensive)
+coverage/
+.coverage/
+*.coverage
+*.lcov
+*.html
+*.xml
+junit.xml
+test-results.xml
+coverage-*.json
+clover.xml
+npm-audit-report.json
+yarn-audit-report.json
+eslint-security-report.json
+schema-warnings.log
+prisma-generate.log
+security-install.log
+install.log
+typescript-check.log
+schema-validate.log
+yarn-debug.log*
+yarn-error.log*
+npm-debug.log*
+.nyc_output/
+
+# IDE configuration directories (comprehensive)
+.vscode/
+.idea/
+.vs/
+*.iml
+*.swp
+*.swo
+*~
+
+# Temporary files and OS artifacts (comprehensive patterns)  
+*.tmp
+*.temp
+*.bak
+*.bak.*
+*.backup
+.tmp/
+temp/
+.DS_Store
+Thumbs.db
+
+# Additional system files
+*.sublime-workspace
+*.sublime-project
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Package manager lock files (enforce Yarn consistency)
+package-lock.json
+npm-shrinkwrap.json

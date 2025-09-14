@@ -82,6 +82,13 @@ After adding secrets, check the workflow runs to see debug output showing secret
 
 *Note: The debug steps in workflows will show "✅ yes" or "❌ no" for each secret without revealing values.*
 
+You can also run the validation script locally:
+```bash
+./scripts/validate-secrets.sh
+```
+
+This script provides guidance on secret configuration and validation steps.
+
 ### 🐛 Troubleshooting Secrets
 
 #### Common Issues and Solutions

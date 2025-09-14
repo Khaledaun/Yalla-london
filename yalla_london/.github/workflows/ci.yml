@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://user:pass@localhost/db' }}
+  NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'test-secret-key-for-ci-builds-only-32-chars' }}
+  ABACUSAI_API_KEY: ${{ secrets.ABACUSAI_API_KEY || 'test-abacus-key-for-ci' }}
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
@@ -18,13 +23,22 @@ jobs:
       FEATURE_MEDIA: "0"
       FEATURE_HOMEPAGE_BUILDER: "0"
       # Required for build
-      NEXTAUTH_SECRET: "test-secret-key-for-ci-builds-only"
+      NEXTAUTH_SECRET: ${{ env.NEXTAUTH_SECRET }}
       NEXT_PUBLIC_SITE_URL: "http://localhost:3000"
-      DATABASE_URL: "postgresql://user:pass@localhost/db"
+      DATABASE_URL: ${{ env.DATABASE_URL }}
+      ABACUSAI_API_KEY: ${{ env.ABACUSAI_API_KEY }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Debug - Check build secrets availability
+      run: |
+        echo "🔐 Checking build secrets availability..."
+        echo "DATABASE_URL: $([[ -n "${{ secrets.DATABASE_URL }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+        echo "NEXTAUTH_SECRET: $([[ -n "${{ secrets.NEXTAUTH_SECRET }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+        echo "ABACUSAI_API_KEY: $([[ -n "${{ secrets.ABACUSAI_API_KEY }}" ]] && echo "✅ yes" || echo "❌ no (using fallback)")"
+        echo ""
     
     - name: Setup Node.js 20.17.0
       uses: actions/setup-node@v4

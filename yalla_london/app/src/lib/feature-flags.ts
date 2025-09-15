@@ -272,14 +272,32 @@ export function getPremiumFeatureFlags(): FeatureFlagRegistry {
 
 /**
  * Check if a premium feature flag is enabled globally
+ * Premium backend features are always enabled for admin users
  */
 export function isPremiumFeatureEnabled(flagKey: string): boolean {
   const flags = getPremiumFeatureFlags();
   const flag = flags[flagKey];
   
-  // Check master toggle first
-  if (!flags.PREMIUM_BACKEND?.enabled) {
-    return false;
+  // Premium backend features are always enabled for admin users
+  if (flagKey === 'PREMIUM_BACKEND') {
+    return true;
+  }
+  
+  // All admin features are enabled when premium backend is enabled
+  if (flags.PREMIUM_BACKEND) {
+    // Always enable core admin features
+    const coreAdminFeatures = [
+      'ADMIN_DASHBOARD',
+      'CONTENT_MANAGEMENT', 
+      'DESIGN_TOOLS',
+      'PEOPLE_MANAGEMENT',
+      'SETTINGS_MANAGEMENT',
+      'STABLE_LEFT_NAV'
+    ];
+    
+    if (coreAdminFeatures.includes(flagKey)) {
+      return true;
+    }
   }
   
   return flag?.enabled ?? false;

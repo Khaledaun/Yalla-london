@@ -509,6 +509,7 @@ model Site {
   domain      String?  @unique
   theme_id    String?
   settings_json Json   // Site-specific configuration
+  homepage_json Json?  // Homepage builder configuration
   logo_url    String?
   is_active   Boolean  @default(true)
   created_at  DateTime @default(now())

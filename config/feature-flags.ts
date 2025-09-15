@@ -33,6 +33,13 @@ export interface FeatureFlags {
   // Admin Features
   TOPIC_APPROVAL_WORKFLOW: boolean;
   PIPELINE_MONITORING: boolean;
+
+  // Phase 4C Features (All OFF by default)
+  FEATURE_TOPIC_POLICY: boolean;
+  FEATURE_BACKLINK_INSPECTOR: boolean;
+  FEATURE_CRM_MINIMAL: boolean;
+  FEATURE_EXIT_INTENT_IG: boolean;
+  FEATURE_LLM_ROUTER: boolean;
 }
 
 export const getFeatureFlags = (): FeatureFlags => {
@@ -65,6 +72,13 @@ export const getFeatureFlags = (): FeatureFlags => {
     // Admin features
     TOPIC_APPROVAL_WORKFLOW: process.env.FEATURE_TOPIC_APPROVAL_WORKFLOW === 'true',
     PIPELINE_MONITORING: process.env.FEATURE_PIPELINE_MONITORING === 'true',
+
+    // Phase 4C features (all OFF by default for safe rollout)
+    FEATURE_TOPIC_POLICY: process.env.FEATURE_TOPIC_POLICY === 'true',
+    FEATURE_BACKLINK_INSPECTOR: process.env.FEATURE_BACKLINK_INSPECTOR === 'true',
+    FEATURE_CRM_MINIMAL: process.env.FEATURE_CRM_MINIMAL === 'true',
+    FEATURE_EXIT_INTENT_IG: process.env.FEATURE_EXIT_INTENT_IG === 'true',
+    FEATURE_LLM_ROUTER: process.env.FEATURE_LLM_ROUTER === 'true',
   };
 };
 

@@ -161,6 +161,47 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
     category: 'cron'
   };
 
+  // PHASE 4C FLAGS (All OFF by default for safe rollout)
+  // Topic policy and quota management
+  flags.FEATURE_TOPIC_POLICY = {
+    key: 'FEATURE_TOPIC_POLICY',
+    enabled: process.env.FEATURE_TOPIC_POLICY === 'true',
+    description: 'Enable topic policy and quota management system',
+    category: 'topics'
+  };
+
+  // Backlink inspector and entity extraction
+  flags.FEATURE_BACKLINK_INSPECTOR = {
+    key: 'FEATURE_BACKLINK_INSPECTOR',
+    enabled: process.env.FEATURE_BACKLINK_INSPECTOR === 'true',
+    description: 'Enable backlink analysis and entity extraction',
+    category: 'seo'
+  };
+
+  // CRM and subscriber management
+  flags.FEATURE_CRM_MINIMAL = {
+    key: 'FEATURE_CRM_MINIMAL',
+    enabled: process.env.FEATURE_CRM_MINIMAL === 'true',
+    description: 'Enable CRM and subscriber management features',
+    category: 'crm'
+  };
+
+  // Exit intent tracking and analytics
+  flags.FEATURE_EXIT_INTENT_IG = {
+    key: 'FEATURE_EXIT_INTENT_IG',
+    enabled: process.env.FEATURE_EXIT_INTENT_IG === 'true',
+    description: 'Enable exit intent tracking and analytics',
+    category: 'analytics'
+  };
+
+  // LLM routing and management
+  flags.FEATURE_LLM_ROUTER = {
+    key: 'FEATURE_LLM_ROUTER',
+    enabled: process.env.FEATURE_LLM_ROUTER === 'true',
+    description: 'Enable LLM routing and provider management',
+    category: 'ai'
+  };
+
   return flags;
 }
 

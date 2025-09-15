@@ -41,6 +41,8 @@ import {
   Database,
   Globe
 } from 'lucide-react'
+import { DashboardErrorBoundary } from '@/src/components/admin/dashboard-error-boundary'
+import { AsyncActionManager, AsyncAction } from '@/src/components/admin/async-action-toast'
 import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'
 
 interface DashboardData {
@@ -119,29 +121,69 @@ export default function PremiumAdminDashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [timeRange, setTimeRange] = useState('7d')
+  const [asyncActions, setAsyncActions] = useState<AsyncAction[]>([])
   const { toast } = useToast()
 
   // Check feature flags
   const dashboardEnabled = isPremiumFeatureEnabled('ADMIN_DASHBOARD') || process.env.NODE_ENV === 'development'
   const stateTransparency = isPremiumFeatureEnabled('STATE_TRANSPARENCY')
+  const homepageBuilderEnabled = isPremiumFeatureEnabled('HOMEPAGE_BUILDER')
+  const adminRole = isPremiumFeatureEnabled('ADMIN_ROLE')
+  const editorRole = isPremiumFeatureEnabled('EDITOR_ROLE')
 
   useEffect(() => {
     loadDashboardData()
   }, [timeRange])
 
+  const addAsyncAction = (action: Omit<AsyncAction, 'id'>) => {
+    const id = Math.random().toString(36).substr(2, 9)
+    setAsyncActions(prev => [...prev, { ...action, id }])
+    return id
+  }
+
+  const updateAsyncAction = (id: string, updates: Partial<AsyncAction>) => {
+    setAsyncActions(prev => prev.map(action => 
+      action.id === id ? { ...action, ...updates } : action
+    ))
+  }
+
+  const removeAsyncAction = (id: string) => {
+    setAsyncActions(prev => prev.filter(action => action.id !== id))
+  }
+
   const loadDashboardData = async () => {
+    const actionId = addAsyncAction({
+      title: 'Loading dashboard data',
+      description: `Fetching metrics for ${timeRange} period`,
+      progress: 0,
+      status: 'in_progress'
+    })
+
     try {
       setIsLoading(true)
       setError(null)
       
+      updateAsyncAction(actionId, { progress: 25, description: 'Connecting to database...' })
+      
       const response = await fetch(`/api/admin/dashboard?timeRange=${timeRange}`)
+      
+      updateAsyncAction(actionId, { progress: 50, description: 'Processing metrics...' })
+      
       const result = await response.json()
+      
+      updateAsyncAction(actionId, { progress: 75, description: 'Updating dashboard...' })
       
       if (result.status === 'error') {
         setError(result.message)
         if (result.fallback) {
           setDashboardData(result.fallback)
         }
+        updateAsyncAction(actionId, { 
+          progress: 100, 
+          status: 'error', 
+          error: result.message,
+          description: 'Failed to load dashboard data'
+        })
         toast({
           title: "Dashboard Error",
           description: result.message,
@@ -149,9 +191,21 @@ export default function PremiumAdminDashboard() {
         })
       } else {
         setDashboardData(result.data)
+        updateAsyncAction(actionId, { 
+          progress: 100, 
+          status: 'completed',
+          description: 'Dashboard data loaded successfully'
+        })
       }
     } catch (err) {
-      setError('Failed to load dashboard data')
+      const errorMessage = 'Failed to load dashboard data'
+      setError(errorMessage)
+      updateAsyncAction(actionId, { 
+        progress: 100, 
+        status: 'error', 
+        error: errorMessage,
+        description: 'Connection failed'
+      })
       toast({
         title: "Connection Error",
         description: "Unable to load dashboard data. Please check your connection.",
@@ -171,14 +225,32 @@ export default function PremiumAdminDashboard() {
   }
 
   const handleConnectAnalytics = () => {
+    const actionId = addAsyncAction({
+      title: 'Opening Analytics Integration',
+      description: 'Redirecting to Google Analytics setup...',
+      progress: 100,
+      status: 'completed'
+    })
     window.open('/admin/integrations/analytics', '_blank')
   }
 
   const handleConnectSearchConsole = () => {
+    const actionId = addAsyncAction({
+      title: 'Opening Search Console Integration',
+      description: 'Redirecting to Google Search Console setup...',
+      progress: 100,
+      status: 'completed'
+    })
     window.open('/admin/integrations/seo', '_blank')
   }
 
   const handleConnectWordPress = () => {
+    const actionId = addAsyncAction({
+      title: 'Opening WordPress Integration',
+      description: 'Redirecting to WordPress connection setup...',
+      progress: 100,
+      status: 'completed'
+    })
     window.open('/admin/integrations/wordpress', '_blank')
   }
 
@@ -208,15 +280,16 @@ export default function PremiumAdminDashboard() {
       color: 'bg-purple-500 hover:bg-purple-600',
       badge: 'AI'
     },
-    {
+    // Show content builder only if feature flag is enabled
+    ...(homepageBuilderEnabled ? [{
       id: 'content-builder',
-      label: 'Content Builder',
-      description: 'Drag & drop content creation',
+      label: 'Homepage Builder',
+      description: 'Drag & drop homepage creation',
       icon: Edit,
-      href: '/admin/content/builder',
+      href: '/admin/design/homepage',
       color: 'bg-orange-500 hover:bg-orange-600',
-      badge: 'New'
-    },
+      badge: 'Feature'
+    }] : []),
     {
       id: 'ai-assistant',
       label: 'AI Assistant',
@@ -226,14 +299,15 @@ export default function PremiumAdminDashboard() {
       color: 'bg-violet-500 hover:bg-violet-600',
       badge: 'Premium'
     },
-    {
+    // Show settings only for admin role
+    ...(adminRole ? [{
       id: 'integrations',
       label: 'Integrations',
       description: 'Connect services and tools',
       icon: Settings,
       href: '/admin/integrations',
       color: 'bg-gray-500 hover:bg-gray-600'
-    }
+    }] : [])
   ]
 
   if (!dashboardEnabled) {
@@ -251,58 +325,66 @@ export default function PremiumAdminDashboard() {
   }
 
   return (
-    <PremiumAdminLayout 
-      title="Dashboard"
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Dashboard' }
-      ]}
-      actions={
-        <div className="flex items-center space-x-2">
-          <select 
-            value={timeRange} 
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-          >
-            <option value="24h">Last 24 hours</option>
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-          </select>
-          <Button 
-            onClick={handleRefreshData} 
-            disabled={isLoading}
-            className="flex items-center space-x-2 bg-violet-600 hover:bg-violet-700 text-white"
-          >
-            <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-            <span>Refresh</span>
-          </Button>
-        </div>
-      }
-    >
-      <div className="space-y-8">
-        {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-8 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold mb-2">Welcome back to Yalla London!</h1>
-              <p className="text-violet-100 text-lg">
-                Here&apos;s what&apos;s happening with your site today
-              </p>
-              {dashboardData && (
-                <div className="mt-2 text-sm text-violet-200">
-                  Last updated: {new Date(dashboardData.lastUpdated).toLocaleTimeString()}
-                </div>
-              )}
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold">
-                {dashboardData?.metrics.totalPageViews.toLocaleString() || '0'}
+    <DashboardErrorBoundary onRetry={handleRefreshData}>
+      <PremiumAdminLayout 
+        title="Dashboard"
+        breadcrumbs={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Dashboard' }
+        ]}
+        actions={
+          <div className="flex items-center space-x-2">
+            <select 
+              value={timeRange} 
+              onChange={(e) => setTimeRange(e.target.value)}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500"
+              aria-label="Select time range for dashboard metrics"
+            >
+              <option value="24h">Last 24 hours</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+            </select>
+            <Button 
+              onClick={handleRefreshData} 
+              disabled={isLoading}
+              className="flex items-center space-x-2 bg-violet-600 hover:bg-violet-700 text-white focus:ring-2 focus:ring-violet-500 focus:ring-offset-2"
+              aria-label="Refresh dashboard data"
+            >
+              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+              <span>Refresh</span>
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-8" dir="auto">
+          {/* Welcome Section */}
+          <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-8 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold mb-2">Welcome back to Yalla London!</h1>
+                <p className="text-violet-100 text-lg">
+                  Here&apos;s what&apos;s happening with your site today
+                </p>
+                {dashboardData && (
+                  <div className="mt-2 text-sm text-violet-200">
+                    Last updated: {new Date(dashboardData.lastUpdated).toLocaleTimeString()}
+                    {stateTransparency && (
+                      <span className="ml-2 px-2 py-1 bg-violet-400/30 rounded text-xs">
+                        Real-time data
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="text-violet-200">Total page views</div>
+              <div className="text-right">
+                <div className="text-3xl font-bold">
+                  {dashboardData?.metrics.totalPageViews.toLocaleString() || '0'}
+                </div>
+                <div className="text-violet-200">Total page views</div>
+              </div>
             </div>
           </div>
-        </div>
 
         {/* Above-the-fold: My Tasks / Pipeline Health / Connections & Flags */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -649,5 +731,19 @@ export default function PremiumAdminDashboard() {
         </div>
       </div>
     </PremiumAdminLayout>
+
+    {/* Async Action Manager for Progress Toasts */}
+    <AsyncActionManager
+      actions={asyncActions}
+      onDismiss={removeAsyncAction}
+      onRetry={(id) => {
+        const action = asyncActions.find(a => a.id === id)
+        if (action?.title.includes('dashboard')) {
+          loadDashboardData()
+        }
+        removeAsyncAction(id)
+      }}
+    />
+  </DashboardErrorBoundary>
   )
 }

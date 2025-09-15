@@ -3,7 +3,7 @@
  * Zod-validated, role-protected endpoints for topic policy CRUD
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeatureFlags } from '@/config/feature-flags';
+import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/rbac';
 import { z } from 'zod';
@@ -28,8 +28,8 @@ const UpdateTopicPolicySchema = TopicPolicySchema.partial();
 export async function GET(request: NextRequest) {
   try {
     // Feature flag check
-    const flags = getFeatureFlags();
-    if (!flags.FEATURE_TOPIC_POLICY) {
+    // Feature flag check removed
+    if (!isFeatureEnabled("FEATURE_TOPIC_POLICY")) {
       return NextResponse.json(
         { error: 'Topic policy feature is disabled' },
         { status: 403 }
@@ -38,11 +38,8 @@ export async function GET(request: NextRequest) {
 
     // Permission check
     const permissionCheck = await requirePermission(request, 'manage_system');
-    if (!permissionCheck.allowed) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      );
+    if (permissionCheck instanceof NextResponse) {
+      return permissionCheck;
     }
 
     const { searchParams } = new URL(request.url);
@@ -85,8 +82,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Feature flag check
-    const flags = getFeatureFlags();
-    if (!flags.FEATURE_TOPIC_POLICY) {
+    // Feature flag check removed
+    if (!isFeatureEnabled("FEATURE_TOPIC_POLICY")) {
       return NextResponse.json(
         { error: 'Topic policy feature is disabled' },
         { status: 403 }
@@ -95,11 +92,8 @@ export async function POST(request: NextRequest) {
 
     // Permission check
     const permissionCheck = await requirePermission(request, 'manage_system');
-    if (!permissionCheck.allowed) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      );
+    if (permissionCheck instanceof NextResponse) {
+      return permissionCheck;
     }
 
     const body = await request.json();

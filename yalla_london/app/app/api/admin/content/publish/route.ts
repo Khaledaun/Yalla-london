@@ -3,7 +3,7 @@
  * Enhanced publishing with automatic backlink inspection trigger
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeatureFlags } from '@/config/feature-flags';
+import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/rbac';
 import { backgroundJobService } from '@/lib/background-jobs';
@@ -25,11 +25,8 @@ export async function POST(request: NextRequest) {
   try {
     // Permission check
     const permissionCheck = await requirePermission(request, 'publish_content');
-    if (!permissionCheck.allowed) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      );
+    if (permissionCheck instanceof NextResponse) {
+      return permissionCheck;
     }
 
     const body = await request.json();
@@ -124,7 +121,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const flags = getFeatureFlags();
     const publishResult: any = {
       content_id,
       content_type,
@@ -135,7 +131,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Trigger backlink analysis if enabled and feature flag is on
-    if (trigger_backlink_analysis && flags.FEATURE_BACKLINK_INSPECTOR && publish_immediately) {
+    if (trigger_backlink_analysis && isFeatureEnabled('FEATURE_BACKLINK_INSPECTOR') && publish_immediately) {
       try {
         await backgroundJobService.executeJob('backlink_inspector', {
           content_id,
@@ -207,7 +203,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Notify subscribers if enabled and CRM feature is on
-    if (notify_subscribers && flags.FEATURE_CRM_MINIMAL && publish_immediately) {
+    if (notify_subscribers && isFeatureEnabled('FEATURE_CRM_MINIMAL') && publish_immediately) {
       try {
         // Get confirmed subscribers
         const subscribers = await prisma.subscriber.findMany({

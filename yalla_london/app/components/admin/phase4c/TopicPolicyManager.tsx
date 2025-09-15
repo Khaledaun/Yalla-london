@@ -508,7 +508,7 @@ export function TopicPolicyManager() {
                         {Object.entries((policy.quotas_json as any).category_distribution || {}).map(([cat, perc]) => (
                           <div key={cat} className="flex justify-between">
                             <span>{cat}</span>
-                            <span>{perc}%</span>
+                            <span>{String(perc)}%</span>
                           </div>
                         ))}
                       </div>

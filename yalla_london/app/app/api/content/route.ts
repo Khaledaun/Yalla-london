@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Transform response for public consumption
-    const transformedContent = content.map(post => ({
+    const transformedContent = content.map((post: any) => ({
       id: post.id,
       title: post[`title_${locale}` as keyof typeof post] as string,
       excerpt: post[`excerpt_${locale}` as keyof typeof post] as string,

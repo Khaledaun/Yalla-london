@@ -3,7 +3,7 @@
  * Auto-generate topics based on policies and content gaps
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeatureFlags } from '@/config/feature-flags';
+import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/rbac';
 import { z } from 'zod';
@@ -22,8 +22,8 @@ const TopicGenerationSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // Feature flag check
-    const flags = getFeatureFlags();
-    if (!flags.FEATURE_TOPIC_POLICY) {
+    // Feature flag check removed
+    if (!isFeatureEnabled("FEATURE_TOPIC_POLICY")) {
       return NextResponse.json(
         { error: 'Topic policy feature is disabled' },
         { status: 403 }
@@ -32,11 +32,8 @@ export async function POST(request: NextRequest) {
 
     // Permission check
     const permissionCheck = await requirePermission(request, 'create_content');
-    if (!permissionCheck.allowed) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      );
+    if (permissionCheck instanceof NextResponse) {
+      return permissionCheck;
     }
 
     const body = await request.json();
@@ -171,7 +168,9 @@ export async function POST(request: NextRequest) {
     // Log error in audit trail
     try {
       const permissionCheck = await requirePermission(request, 'create_content');
-      if (permissionCheck.allowed) {
+      if (permissionCheck instanceof NextResponse) {
+        // Don't log audit for failed permission check
+      } else {
         await prisma.auditLog.create({
           data: {
             userId: permissionCheck.user.id,

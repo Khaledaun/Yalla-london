@@ -3,7 +3,7 @@
  * Centralized job management and execution
  */
 import { prisma } from '@/lib/db';
-import { getFeatureFlags } from '@/config/feature-flags';
+import { isFeatureEnabled } from '@/lib/feature-flags';
 import cron from 'node-cron';
 
 export interface JobDefinition {
@@ -133,10 +133,10 @@ export class BackgroundJobService {
    * Register default Phase 4C jobs
    */
   private registerDefaultJobs(): void {
-    const flags = getFeatureFlags();
+    // Feature flags handled by isFeatureEnabled
 
     // Backlink Inspector Job
-    if (flags.FEATURE_BACKLINK_INSPECTOR) {
+    if (isFeatureEnabled("FEATURE_BACKLINK_INSPECTOR")) {
       this.registerJob({
         name: 'backlink_inspector',
         type: 'triggered',
@@ -147,7 +147,7 @@ export class BackgroundJobService {
     }
 
     // Topic Balancer Job
-    if (flags.FEATURE_TOPIC_POLICY) {
+    if (isFeatureEnabled("FEATURE_TOPIC_POLICY")) {
       this.registerJob({
         name: 'topic_balancer',
         type: 'scheduled',
@@ -273,8 +273,8 @@ export class BackgroundJobService {
           }
         });
 
-        const proposedCount = topicStats.find(s => s.status === 'proposed')?._count.id || 0;
-        const approvedCount = topicStats.find(s => s.status === 'approved')?._count.id || 0;
+        const proposedCount = topicStats.find((s: any) => s.status === 'proposed')?._count.id || 0;
+        const approvedCount = topicStats.find((s: any) => s.status === 'approved')?._count.id || 0;
 
         // Apply balancing logic
         const balanceResult = {

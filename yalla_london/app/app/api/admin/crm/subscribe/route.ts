@@ -3,7 +3,7 @@
  * Double opt-in subscription management with GDPR compliance
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeatureFlags } from '@/config/feature-flags';
+import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import crypto from 'crypto';
@@ -33,8 +33,7 @@ const SubscribeSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // Feature flag check
-    const flags = getFeatureFlags();
-    if (!flags.FEATURE_CRM_MINIMAL) {
+    if (!isFeatureEnabled('FEATURE_CRM_MINIMAL')) {
       return NextResponse.json(
         { error: 'CRM feature is disabled' },
         { status: 403 }
@@ -158,8 +157,7 @@ export async function POST(request: NextRequest) {
 // GET - Confirm subscription (double opt-in)
 export async function GET(request: NextRequest) {
   try {
-    const flags = getFeatureFlags();
-    if (!flags.FEATURE_CRM_MINIMAL) {
+    if (!isFeatureEnabled('FEATURE_CRM_MINIMAL')) {
       return NextResponse.json(
         { error: 'CRM feature is disabled' },
         { status: 403 }

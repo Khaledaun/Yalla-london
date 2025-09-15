@@ -3,7 +3,7 @@
  * Entity extraction and backlink analysis for published content
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { getFeatureFlags } from '@/config/feature-flags';
+import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/rbac';
 import { z } from 'zod';
@@ -22,8 +22,7 @@ const BacklinkInspectionSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     // Feature flag check
-    const flags = getFeatureFlags();
-    if (!flags.FEATURE_BACKLINK_INSPECTOR) {
+    if (!isFeatureEnabled('FEATURE_BACKLINK_INSPECTOR')) {
       return NextResponse.json(
         { error: 'Backlink inspector feature is disabled' },
         { status: 403 }
@@ -32,11 +31,8 @@ export async function POST(request: NextRequest) {
 
     // Permission check
     const permissionCheck = await requirePermission(request, 'manage_system');
-    if (!permissionCheck.allowed) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      );
+    if (permissionCheck instanceof NextResponse) {
+      return permissionCheck;
     }
 
     const body = await request.json();

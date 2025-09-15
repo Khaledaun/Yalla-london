@@ -265,14 +265,14 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     const safetyCheck = performSafetyCheck(prompt, content);
     
     if (!safetyCheck.passed) {
-      await performanceMonitor.captureError(
-        new Error('Content failed safety check'),
-        { 
+      await performanceMonitor.captureError({
+        error: new Error('Content failed safety check'),
+        context: { 
           prompt: prompt.substring(0, 100),
           flags: safetyCheck.flags,
           provider: providerUsed
         }
-      );
+      });
       
       return NextResponse.json(
         { 
@@ -319,13 +319,13 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   } catch (error) {
     const responseTime = Date.now() - startTime;
     
-    await performanceMonitor.captureError(
-      error instanceof Error ? error : new Error('Unknown AI generation error'),
-      {
+    await performanceMonitor.captureError({
+      error: error instanceof Error ? error : new Error('Unknown AI generation error'),
+      context: {
         endpoint: '/api/ai/generate',
         response_time: responseTime
       }
-    );
+    });
     
     console.error('AI generation error:', error);
     

@@ -283,14 +283,14 @@ export class TopicOrchestrator {
           safetyResults.flags.push(...safetyCheck.flags);
           
           // Log safety failure
-          await performanceMonitor.captureError(
-            new Error('Topic failed safety check'),
-            {
+          await performanceMonitor.captureError({
+            error: new Error('Topic failed safety check'),
+            context: {
               topic_title: enhancedTopic.title,
               flags: safetyCheck.flags,
               category: request.category
             }
-          );
+          });
         }
       }
       
@@ -325,14 +325,14 @@ export class TopicOrchestrator {
     } catch (error) {
       const responseTime = Date.now() - startTime;
       
-      await performanceMonitor.captureError(
-        error instanceof Error ? error : new Error('Unknown topic generation error'),
-        {
+      await performanceMonitor.captureError({
+        error: error instanceof Error ? error : new Error('Unknown topic generation error'),
+        context: {
           category: request.category,
           locale: request.locale,
           response_time: responseTime
         }
-      );
+      });
       
       return {
         success: false,
@@ -387,10 +387,10 @@ export class TopicOrchestrator {
       };
       
     } catch (error) {
-      await performanceMonitor.captureError(
-        error instanceof Error ? error : new Error('Topic approval failed'),
-        { topic_ids: topicIds, user_id: userId }
-      );
+      await performanceMonitor.captureError({
+        error: error instanceof Error ? error : new Error('Topic approval failed'),
+        context: { topic_ids: topicIds, user_id: userId }
+      });
       
       return {
         success: false,

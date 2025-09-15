@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { 
   LayoutDashboard, 
   FileText, 
@@ -38,6 +41,18 @@ import {
   Flag,
   Database,
   BookOpen,
+  Brain,
+  MessageSquare,
+  Calendar,
+  Edit,
+  Star,
+  TrendingUp,
+  Target,
+  Layers,
+  Building,
+  Map,
+  Link as LinkIcon,
+  Share2
 } from 'lucide-react'
 import { isPremiumFeatureEnabled, validatePremiumFeatureAccess } from '@/src/lib/feature-flags'
 

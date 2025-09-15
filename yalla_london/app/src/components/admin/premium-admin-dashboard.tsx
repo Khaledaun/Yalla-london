@@ -2,6 +2,13 @@
 
 import React, { useState, useEffect } from 'react'
 import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout'
+import { StatsWidget } from '@/src/components/admin/stats-widget'
+import { ActivityFeed, ActivityItem } from '@/src/components/admin/activity-feed'
+import { TaskManager, Task } from '@/src/components/admin/task-manager'
+import { IntegrationsPanel, Integration, defaultIntegrations } from '@/src/components/admin/integrations-panel'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { 
   BarChart3, 
   Users, 
@@ -20,7 +27,16 @@ import {
   ArrowDownRight,
   MoreHorizontal,
   Plus,
-  RefreshCw
+  RefreshCw,
+  Target,
+  ShoppingCart,
+  DollarSign,
+  Upload,
+  Edit,
+  Settings,
+  Brain,
+  Search,
+  MessageSquare
 } from 'lucide-react'
 import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'
 
@@ -31,6 +47,12 @@ interface DashboardMetric {
   changeType: 'increase' | 'decrease' | 'neutral'
   icon: React.ComponentType<any>
   href?: string
+  subtitle?: string
+  color?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'neutral'
+  trend?: {
+    data: number[]
+    period: string
+  }
 }
 
 interface RecentActivity {
@@ -53,11 +75,23 @@ interface ContentItem {
   views?: number
 }
 
+interface QuickAction {
+  id: string
+  label: string
+  description: string
+  icon: React.ComponentType<any>
+  href: string
+  color: string
+  badge?: string
+}
+
 export default function PremiumAdminDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [metrics, setMetrics] = useState<DashboardMetric[]>([])
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([])
   const [recentContent, setRecentContent] = useState<ContentItem[]>([])
+  const [upcomingTasks, setUpcomingTasks] = useState<Task[]>([])
+  const [integrations, setIntegrations] = useState<Integration[]>([])
   const [quickStats, setQuickStats] = useState({
     totalPageViews: 0,
     totalUsers: 0,
@@ -66,7 +100,7 @@ export default function PremiumAdminDashboard() {
   })
 
   // Check feature flags
-  const dashboardEnabled = isPremiumFeatureEnabled('ADMIN_DASHBOARD')
+  const dashboardEnabled = isPremiumFeatureEnabled('ADMIN_DASHBOARD') || process.env.NODE_ENV === 'development'
   const stateTransparency = isPremiumFeatureEnabled('STATE_TRANSPARENCY')
 
   useEffect(() => {
@@ -80,7 +114,13 @@ export default function PremiumAdminDashboard() {
           change: 12.5,
           changeType: 'increase',
           icon: Eye,
-          href: '/admin/integrations/analytics'
+          href: '/admin/integrations/analytics',
+          subtitle: 'This month',
+          color: 'primary',
+          trend: {
+            data: [120, 145, 167, 189, 234, 278, 312],
+            period: 'Last 7 days'
+          }
         },
         {
           label: 'Active Users',
@@ -88,7 +128,13 @@ export default function PremiumAdminDashboard() {
           change: 8.2,
           changeType: 'increase',
           icon: Users,
-          href: '/admin/people/members'
+          href: '/admin/people/members',
+          subtitle: 'Last 30 days',
+          color: 'success',
+          trend: {
+            data: [45, 52, 48, 61, 67, 74, 82],
+            period: 'Last 7 days'
+          }
         },
         {
           label: 'Published Articles',
@@ -96,51 +142,112 @@ export default function PremiumAdminDashboard() {
           change: 5.1,
           changeType: 'increase',
           icon: FileText,
-          href: '/admin/content/articles'
+          href: '/admin/content/articles',
+          subtitle: 'Total published',
+          color: 'secondary'
         },
         {
           label: 'Conversion Rate',
           value: '3.24%',
           change: -2.1,
           changeType: 'decrease',
+          icon: Target,
+          href: '/admin/integrations/analytics',
+          subtitle: 'This month',
+          color: 'warning'
+        },
+        {
+          label: 'Revenue',
+          value: '£12,847',
+          change: 15.3,
+          changeType: 'increase',
+          icon: DollarSign,
+          href: '/admin/integrations/analytics',
+          subtitle: 'This month',
+          color: 'success'
+        },
+        {
+          label: 'SEO Score',
+          value: '87%',
+          change: 4.2,
+          changeType: 'increase',
           icon: TrendingUp,
-          href: '/admin/integrations/analytics'
+          href: '/admin/content/seo',
+          subtitle: 'Average score',
+          color: 'primary'
         }
       ]
 
-      const mockActivity: RecentActivity[] = [
+      const mockActivity: ActivityItem[] = [
         {
           id: '1',
-          type: 'article',
+          type: 'content',
+          action: 'publish',
           title: 'New article published',
-          description: '"Best London Restaurants 2024" by John Doe',
+          description: '"Best London Restaurants 2024" has been published successfully',
           timestamp: new Date(Date.now() - 1000 * 60 * 15),
-          user: 'John Doe',
-          status: 'success'
+          user: {
+            name: 'John Doe',
+            email: 'john@yallalondon.com',
+            avatar: '/avatars/john.jpg'
+          },
+          status: 'success',
+          href: '/admin/content/articles/best-london-restaurants-2024'
         },
         {
           id: '2',
           type: 'user',
+          action: 'register',
           title: 'New user registered',
-          description: 'sarah@example.com joined the platform',
+          description: 'Sarah Wilson has joined the platform and completed onboarding',
           timestamp: new Date(Date.now() - 1000 * 60 * 30),
+          user: {
+            name: 'Sarah Wilson',
+            email: 'sarah@example.com'
+          },
           status: 'success'
         },
         {
           id: '3',
           type: 'content',
+          action: 'review',
           title: 'Content needs review',
-          description: '"London Events Guide" flagged by AI for review',
+          description: '"London Events Guide" has been flagged by AI for manual review',
           timestamp: new Date(Date.now() - 1000 * 60 * 45),
-          user: 'AI System',
-          status: 'warning'
+          user: {
+            name: 'AI System',
+            email: 'system@yallalondon.com'
+          },
+          status: 'warning',
+          metadata: {
+            contentId: 'london-events-guide',
+            reviewReason: 'Content quality check'
+          }
         },
         {
           id: '4',
           type: 'system',
+          action: 'backup',
           title: 'Backup completed',
-          description: 'Daily database backup completed successfully',
+          description: 'Daily database backup completed successfully (2.3GB)',
           timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
+          status: 'success',
+          metadata: {
+            backupSize: '2.3GB',
+            backupType: 'automated'
+          }
+        },
+        {
+          id: '5',
+          type: 'media',
+          action: 'upload',
+          title: 'Media uploaded',
+          description: '12 new images uploaded to media library',
+          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
+          user: {
+            name: 'Jane Smith',
+            email: 'jane@yallalondon.com'
+          },
           status: 'success'
         }
       ]
@@ -167,7 +274,7 @@ export default function PremiumAdminDashboard() {
         {
           id: '3',
           title: 'London Food Festival Preview',
-          type: 'Article',
+          type: 'Event',
           status: 'scheduled',
           author: 'Mike Johnson',
           updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 6),
@@ -184,12 +291,124 @@ export default function PremiumAdminDashboard() {
         }
       ]
 
+      const mockTasks: Task[] = [
+        {
+          id: 'task-1',
+          title: 'Review content for SEO optimization',
+          description: 'Optimize "London Restaurants" article for better search rankings',
+          type: 'seo',
+          status: 'pending',
+          priority: 'high',
+          dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24), // Tomorrow
+          assignee: {
+            name: 'John Doe',
+            email: 'john@yallalondon.com'
+          },
+          tags: ['SEO', 'Content'],
+          progress: 25,
+          estimatedTime: 45
+        },
+        {
+          id: 'task-2',
+          title: 'Publish weekly newsletter',
+          description: 'Compile and send the weekly Yalla London newsletter',
+          type: 'publish',
+          status: 'in_progress',
+          priority: 'medium',
+          dueDate: new Date(Date.now() + 1000 * 60 * 60 * 48), // Day after tomorrow
+          assignee: {
+            name: 'Jane Smith',
+            email: 'jane@yallalondon.com'
+          },
+          tags: ['Newsletter', 'Marketing'],
+          progress: 70,
+          estimatedTime: 30
+        },
+        {
+          id: 'task-3',
+          title: 'Update social media content',
+          description: 'Create and schedule social media posts for the week',
+          type: 'social',
+          status: 'pending',
+          priority: 'medium',
+          dueDate: new Date(Date.now() + 1000 * 60 * 60 * 12), // In 12 hours
+          assignee: {
+            name: 'Sarah Wilson',
+            email: 'sarah@yallalondon.com'
+          },
+          tags: ['Social Media', 'Content'],
+          estimatedTime: 60
+        },
+        {
+          id: 'task-4',
+          title: 'Conduct monthly site audit',
+          description: 'Perform comprehensive site audit and generate report',
+          type: 'audit',
+          status: 'pending',
+          priority: 'low',
+          dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // Next week
+          assignee: {
+            name: 'Mike Johnson',
+            email: 'mike@yallalondon.com'
+          },
+          tags: ['Audit', 'Analytics'],
+          estimatedTime: 120
+        }
+      ]
+
+      const mockIntegrations: Integration[] = [
+        {
+          id: 'ga4',
+          name: 'Google Analytics 4',
+          description: 'Website analytics and user behavior tracking',
+          category: 'analytics',
+          status: 'connected',
+          lastSync: new Date(Date.now() - 1000 * 60 * 30),
+          metrics: {
+            requests: 1247,
+            limit: 50000,
+            period: 'this month'
+          }
+        },
+        {
+          id: 'gsc',
+          name: 'Google Search Console',
+          description: 'Search performance and SEO insights',
+          category: 'seo',
+          status: 'connected',
+          lastSync: new Date(Date.now() - 1000 * 60 * 60 * 2)
+        },
+        {
+          id: 'openai',
+          name: 'OpenAI GPT',
+          description: 'AI-powered content generation',
+          category: 'ai',
+          status: 'connected',
+          isPremium: true,
+          metrics: {
+            requests: 156,
+            limit: 1000,
+            period: 'this month'
+          }
+        },
+        {
+          id: 'claude',
+          name: 'Claude AI',
+          description: 'Advanced AI assistant',
+          category: 'ai',
+          status: 'disconnected',
+          isPremium: true
+        }
+      ]
+
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       setMetrics(mockMetrics)
       setRecentActivity(mockActivity)
       setRecentContent(mockContent)
+      setUpcomingTasks(mockTasks)
+      setIntegrations(mockIntegrations)
       setQuickStats({
         totalPageViews: 247832,
         totalUsers: 5420,
@@ -202,18 +421,87 @@ export default function PremiumAdminDashboard() {
     loadDashboardData()
   }, [])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'published': return 'bg-green-100 text-green-800'
-      case 'draft': return 'bg-gray-100 text-gray-800'
-      case 'review': return 'bg-yellow-100 text-yellow-800'
-      case 'scheduled': return 'bg-blue-100 text-blue-800'
-      case 'success': return 'text-green-600'
-      case 'warning': return 'text-yellow-600'
-      case 'error': return 'text-red-600'
-      default: return 'bg-gray-100 text-gray-800'
-    }
+  // Event handlers
+  const handleRefreshData = async () => {
+    setIsLoading(true)
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    setIsLoading(false)
   }
+
+  const handleTaskComplete = (taskId: string) => {
+    setUpcomingTasks(prev => 
+      prev.map(task => 
+        task.id === taskId 
+          ? { ...task, status: 'completed' as const }
+          : task
+      )
+    )
+  }
+
+  const handleIntegrationConnect = (integration: Integration) => {
+    console.log('Connecting integration:', integration.name)
+    // Implement integration connection logic
+  }
+
+  const handleIntegrationDisconnect = (integration: Integration) => {
+    console.log('Disconnecting integration:', integration.name)
+    // Implement integration disconnection logic
+  }
+
+  const quickActions: QuickAction[] = [
+    {
+      id: 'new-article',
+      label: 'New Article',
+      description: 'Create a new blog post or article',
+      icon: FileText,
+      href: '/admin/content/articles/new',
+      color: 'bg-blue-500 hover:bg-blue-600'
+    },
+    {
+      id: 'upload-media',
+      label: 'Upload Media',
+      description: 'Add images, videos, or documents',
+      icon: Upload,
+      href: '/admin/content/media/upload',
+      color: 'bg-green-500 hover:bg-green-600'
+    },
+    {
+      id: 'seo-tools',
+      label: 'SEO Tools',
+      description: 'Optimize content for search engines',
+      icon: Search,
+      href: '/admin/content/seo',
+      color: 'bg-purple-500 hover:bg-purple-600',
+      badge: 'AI'
+    },
+    {
+      id: 'content-builder',
+      label: 'Content Builder',
+      description: 'Drag & drop content creation',
+      icon: Edit,
+      href: '/admin/content/builder',
+      color: 'bg-orange-500 hover:bg-orange-600',
+      badge: 'New'
+    },
+    {
+      id: 'ai-assistant',
+      label: 'AI Assistant',
+      description: 'Get help with content and SEO',
+      icon: Brain,
+      href: '/admin/ai/assistant',
+      color: 'bg-violet-500 hover:bg-violet-600',
+      badge: 'Premium'
+    },
+    {
+      id: 'social-scheduler',
+      label: 'Social Scheduler',
+      description: 'Schedule social media posts',
+      icon: MessageSquare,
+      href: '/admin/social/scheduler',
+      color: 'bg-pink-500 hover:bg-pink-600'
+    }
+  ]
 
   const formatTimeAgo = (date: Date) => {
     const now = new Date()
@@ -250,260 +538,236 @@ export default function PremiumAdminDashboard() {
         { label: 'Dashboard' }
       ]}
       actions={
-        <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-          <RefreshCw size={16} />
+        <Button 
+          onClick={handleRefreshData} 
+          disabled={isLoading}
+          className="flex items-center space-x-2 bg-violet-600 hover:bg-violet-700 text-white"
+        >
+          <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
           <span>Refresh</span>
-        </button>
+        </Button>
       }
     >
-      <div className="space-y-6">
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {isLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
-                    <div className="h-8 bg-gray-200 rounded w-16"></div>
-                  </div>
-                  <div className="h-8 w-8 bg-gray-200 rounded"></div>
-                </div>
-                <div className="mt-4 flex items-center">
-                  <div className="h-3 bg-gray-200 rounded w-12"></div>
-                </div>
-              </div>
-            ))
-          ) : (
-            metrics.map((metric, index) => {
-              const Icon = metric.icon
-              return (
-                <div key={index} className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">{metric.label}</p>
-                      <p className="text-2xl font-bold text-gray-900">{metric.value}</p>
-                    </div>
-                    <div className="flex-shrink-0">
-                      <Icon className="h-8 w-8 text-gray-400" />
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center">
-                    <div className={`flex items-center text-sm ${
-                      metric.changeType === 'increase' ? 'text-green-600' : 
-                      metric.changeType === 'decrease' ? 'text-red-600' : 
-                      'text-gray-600'
-                    }`}>
-                      {metric.changeType === 'increase' ? (
-                        <ArrowUpRight className="h-4 w-4 mr-1" />
-                      ) : metric.changeType === 'decrease' ? (
-                        <ArrowDownRight className="h-4 w-4 mr-1" />
-                      ) : null}
-                      <span>{Math.abs(metric.change)}%</span>
-                    </div>
-                    <span className="text-sm text-gray-500 ml-2">vs last month</span>
-                  </div>
-                  {metric.href && (
-                    <div className="mt-4">
-                      <a 
-                        href={metric.href}
-                        className="text-sm text-blue-600 hover:text-blue-500 font-medium"
-                      >
-                        View details →
-                      </a>
-                    </div>
-                  )}
-                </div>
-              )
-            })
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Activity */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900">Recent Activity</h3>
-                <a 
-                  href="/admin/people/access-logs"
-                  className="text-sm text-blue-600 hover:text-blue-500"
-                >
-                  View all
-                </a>
-              </div>
+      <div className="space-y-8">
+        {/* Welcome Section */}
+        <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-8 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold mb-2">Welcome back to Yalla London!</h1>
+              <p className="text-violet-100 text-lg">
+                Here's what's happening with your site today
+              </p>
             </div>
-            <div className="p-6">
-              {isLoading ? (
-                <div className="space-y-4">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="flex items-start space-x-3 animate-pulse">
-                      <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
-                      <div className="flex-1">
-                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-start space-x-3">
-                      <div className="flex-shrink-0">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          activity.status === 'success' ? 'bg-green-100' :
-                          activity.status === 'warning' ? 'bg-yellow-100' :
-                          activity.status === 'error' ? 'bg-red-100' :
-                          'bg-gray-100'
-                        }`}>
-                          {activity.type === 'article' && <FileText size={16} className={getStatusColor(activity.status || 'success')} />}
-                          {activity.type === 'user' && <Users size={16} className={getStatusColor(activity.status || 'success')} />}
-                          {activity.type === 'system' && <Activity size={16} className={getStatusColor(activity.status || 'success')} />}
-                          {activity.type === 'content' && <CheckCircle2 size={16} className={getStatusColor(activity.status || 'warning')} />}
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">{activity.title}</p>
-                        <p className="text-sm text-gray-500">{activity.description}</p>
-                        <p className="text-xs text-gray-400 mt-1">{formatTimeAgo(activity.timestamp)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="text-right">
+              <div className="text-3xl font-bold">{quickStats.totalPageViews.toLocaleString()}</div>
+              <div className="text-violet-200">Total page views</div>
             </div>
           </div>
+        </div>
 
-          {/* Recent Content */}
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900">Recent Content</h3>
-                <div className="flex items-center space-x-2">
-                  <a 
-                    href="/admin/content/articles/new"
-                    className="text-sm text-blue-600 hover:text-blue-500 flex items-center"
-                  >
-                    <Plus size={16} className="mr-1" />
-                    New
-                  </a>
-                  <a 
-                    href="/admin/content/articles"
-                    className="text-sm text-blue-600 hover:text-blue-500"
-                  >
-                    View all
-                  </a>
-                </div>
-              </div>
-            </div>
-            <div className="p-6">
-              {isLoading ? (
-                <div className="space-y-4">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="border-l-4 border-gray-200 pl-4 animate-pulse">
-                      <div className="flex items-center justify-between">
-                        <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-                        <div className="h-6 w-16 bg-gray-200 rounded-full"></div>
-                      </div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2 mt-2"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {recentContent.map((content) => (
-                    <div 
-                      key={content.id} 
-                      className={`border-l-4 pl-4 ${
-                        content.status === 'published' ? 'border-green-400' :
-                        content.status === 'review' ? 'border-yellow-400' :
-                        content.status === 'scheduled' ? 'border-blue-400' :
-                        'border-gray-300'
-                      }`}
+        {/* Key Metrics */}
+        <div>
+          <h2 className="text-xl font-semibold text-slate-900 mb-6">Performance Overview</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+            {metrics.map((metric, index) => (
+              <StatsWidget
+                key={index}
+                title={metric.label}
+                value={metric.value}
+                subtitle={metric.subtitle}
+                change={{
+                  value: metric.change,
+                  period: 'vs last month',
+                  type: metric.changeType
+                }}
+                icon={metric.icon}
+                color={metric.color}
+                loading={isLoading}
+                actions={metric.href ? [{
+                  label: 'View details',
+                  href: metric.href
+                }] : undefined}
+                trend={metric.trend}
+                size="md"
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Left Column - Tasks and Activity */}
+          <div className="xl:col-span-2 space-y-8">
+            {/* Task Manager */}
+            <TaskManager
+              tasks={upcomingTasks}
+              loading={isLoading}
+              title="Upcoming Tasks"
+              maxItems={6}
+              onTaskComplete={handleTaskComplete}
+              onTaskEdit={(task) => console.log('Edit task:', task)}
+              onTaskDelete={(taskId) => console.log('Delete task:', taskId)}
+              onCreateTask={() => console.log('Create new task')}
+              onViewAll={() => console.log('View all tasks')}
+            />
+
+            {/* Recent Activity */}
+            <ActivityFeed
+              activities={recentActivity}
+              loading={isLoading}
+              title="Recent Activity"
+              maxItems={8}
+              onViewAll={() => console.log('View all activity')}
+              onItemClick={(item) => console.log('Activity clicked:', item)}
+            />
+          </div>
+
+          {/* Right Column - Integrations and Quick Actions */}
+          <div className="space-y-8">
+            {/* Integrations Panel */}
+            <IntegrationsPanel
+              integrations={integrations}
+              loading={isLoading}
+              title="Connected Services"
+              onConnect={handleIntegrationConnect}
+              onDisconnect={handleIntegrationDisconnect}
+              onConfigure={(integration) => console.log('Configure:', integration)}
+              onViewAll={() => console.log('View all integrations')}
+              compact={true}
+              showMetrics={true}
+            />
+
+            {/* Recent Content */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-semibold text-slate-900">Recent Content</CardTitle>
+                  <div className="flex items-center space-x-2">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="text-violet-600 hover:text-violet-700"
+                      asChild
                     >
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium text-gray-900 hover:text-blue-600 cursor-pointer">
-                          {content.title}
-                        </h4>
-                        {stateTransparency && (
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(content.status)}`}>
-                            {content.status.charAt(0).toUpperCase() + content.status.slice(1)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <p className="text-xs text-gray-500">
-                          by {content.author} • {formatTimeAgo(content.updatedAt)}
-                        </p>
-                        {content.views !== undefined && content.views > 0 && (
-                          <div className="flex items-center text-xs text-gray-500">
-                            <Eye size={12} className="mr-1" />
-                            {content.views.toLocaleString()}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                      <a href="/admin/content/articles/new" className="flex items-center">
+                        <Plus size={16} className="mr-1" />
+                        New
+                      </a>
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="text-slate-600 hover:text-slate-700"
+                      asChild
+                    >
+                      <a href="/admin/content/articles">
+                        View all
+                      </a>
+                    </Button>
+                  </div>
                 </div>
-              )}
-            </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="border-l-4 border-slate-200 pl-4 animate-pulse">
+                        <div className="flex items-center justify-between">
+                          <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+                          <div className="h-6 w-16 bg-slate-200 rounded-full"></div>
+                        </div>
+                        <div className="h-3 bg-slate-200 rounded w-1/2 mt-2"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentContent.map((content) => (
+                      <div 
+                        key={content.id} 
+                        className={`border-l-4 pl-4 ${
+                          content.status === 'published' ? 'border-green-400' :
+                          content.status === 'review' ? 'border-yellow-400' :
+                          content.status === 'scheduled' ? 'border-blue-400' :
+                          'border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-slate-900 hover:text-violet-600 cursor-pointer">
+                            {content.title}
+                          </h4>
+                          {stateTransparency && (
+                            <Badge 
+                              variant="outline"
+                              className={`text-xs ${
+                                content.status === 'published' ? 'border-green-200 text-green-700 bg-green-50' :
+                                content.status === 'review' ? 'border-yellow-200 text-yellow-700 bg-yellow-50' :
+                                content.status === 'scheduled' ? 'border-blue-200 text-blue-700 bg-blue-50' :
+                                'border-slate-200 text-slate-700 bg-slate-50'
+                              }`}
+                            >
+                              {content.status.charAt(0).toUpperCase() + content.status.slice(1)}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-xs text-slate-500">
+                            by {content.author} • {formatTimeAgo(content.updatedAt)}
+                          </p>
+                          {content.views !== undefined && content.views > 0 && (
+                            <div className="flex items-center text-xs text-slate-500">
+                              <Eye size={12} className="mr-1" />
+                              {content.views.toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <a 
-              href="/admin/content/articles/new"
-              className="flex flex-col items-center p-4 text-center border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors group"
-            >
-              <Plus className="h-8 w-8 text-gray-400 group-hover:text-blue-500 mb-2" />
-              <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">New Article</span>
-            </a>
-            
-            <a 
-              href="/admin/content/media/upload"
-              className="flex flex-col items-center p-4 text-center border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors group"
-            >
-              <Plus className="h-8 w-8 text-gray-400 group-hover:text-blue-500 mb-2" />
-              <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">Upload Media</span>
-            </a>
-            
-            <a 
-              href="/admin/people/invite"
-              className="flex flex-col items-center p-4 text-center border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors group"
-            >
-              <Users className="h-8 w-8 text-gray-400 group-hover:text-blue-500 mb-2" />
-              <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">Invite User</span>
-            </a>
-            
-            <a 
-              href="/admin/design/homepage"
-              className="flex flex-col items-center p-4 text-center border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors group"
-            >
-              <Globe className="h-8 w-8 text-gray-400 group-hover:text-blue-500 mb-2" />
-              <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">Edit Homepage</span>
-            </a>
-            
-            <a 
-              href="/admin/integrations/analytics"
-              className="flex flex-col items-center p-4 text-center border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors group"
-            >
-              <BarChart3 className="h-8 w-8 text-gray-400 group-hover:text-blue-500 mb-2" />
-              <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">View Analytics</span>
-            </a>
-            
-            <a 
-              href="/admin/settings/feature-flags"
-              className="flex flex-col items-center p-4 text-center border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors group"
-            >
-              <Zap className="h-8 w-8 text-gray-400 group-hover:text-blue-500 mb-2" />
-              <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">Feature Flags</span>
-            </a>
-          </div>
-        </div>
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold text-slate-900">Quick Actions</CardTitle>
+            <p className="text-sm text-slate-600">Common tasks and shortcuts</p>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+              {quickActions.map((action) => {
+                const IconComponent = action.icon
+                return (
+                  <a
+                    key={action.id}
+                    href={action.href}
+                    className="group relative flex flex-col items-center p-6 text-center border-2 border-slate-200 rounded-xl hover:border-violet-300 hover:shadow-lg transition-all duration-200"
+                  >
+                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-white mb-3 ${action.color} transition-transform group-hover:scale-110`}>
+                      <IconComponent className="h-6 w-6" />
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">
+                        {action.label}
+                      </span>
+                      {action.badge && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+                          {action.badge}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 group-hover:text-slate-600">
+                      {action.description}
+                    </p>
+                  </a>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </PremiumAdminLayout>
   )

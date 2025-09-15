@@ -349,7 +349,7 @@ export function PremiumAdminNav({
     adminNavigation.forEach(item => {
       if (item.children) {
         const hasActiveChild = item.children.some(child => 
-          child.href && currentPath.startsWith(child.href)
+          child.href && currentPath && currentPath.startsWith(child.href)
         )
         if (hasActiveChild) {
           newExpanded.add(item.id)
@@ -384,7 +384,7 @@ export function PremiumAdminNav({
   }
 
   const isItemActive = (item: NavItem): boolean => {
-    if (item.href) {
+    if (item.href && pathname) {
       return pathname === item.href || pathname.startsWith(item.href + '/')
     }
     return false

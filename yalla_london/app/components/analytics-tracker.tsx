@@ -64,8 +64,8 @@ export function AnalyticsTracker() {
     advancedAnalytics.trackEnhancedPageView({
       page_title: document.title,
       page_location: window.location.href,
-      content_type: getContentType(pathname) as any,
-      content_category: getContentCategory(pathname),
+      content_type: getContentType(pathname || '/') as any,
+      content_category: getContentCategory(pathname || '/'),
       content_language: language,
       word_count: wordCount,
       has_schema: hasSchema,

@@ -110,6 +110,42 @@ export async function auditArticle(articleId: string): Promise<SeoAuditResult> {
 }
 
 /**
+ * Auto-run SEO audit on article publish/update
+ */
+export async function auditOnPublishUpdate(articleId: string, autoFix: boolean = true): Promise<SeoAuditResult> {
+  const auditResult = await auditArticle(articleId);
+  
+  if (autoFix && auditResult.score < 85) {
+    // Extract auto-fixable suggestions
+    const autoFixableSuggestions = auditResult.suggestions.filter(s => s.fix_type === 'automated');
+    
+    if (autoFixableSuggestions.length > 0) {
+      const fixes: AuditFix[] = autoFixableSuggestions.map(suggestion => ({
+        suggestion_id: suggestion.id,
+        fix_type: 'automated',
+        fix_data: suggestion.fix_data || {},
+        apply_immediately: true
+      }));
+      
+      const fixResult = await applyFixes(articleId, fixes);
+      
+      // Re-audit after applying fixes
+      if (fixResult.success && fixResult.applied_fixes.length > 0) {
+        const reAuditResult = await auditArticle(articleId);
+        reAuditResult.metadata = {
+          ...reAuditResult.metadata,
+          auto_fixes_applied: fixResult.applied_fixes.length,
+          score_improvement: reAuditResult.score - auditResult.score
+        };
+        return reAuditResult;
+      }
+    }
+  }
+  
+  return auditResult;
+}
+
+/**
  * Apply fixes to an article atomically
  */
 export async function applyFixes(articleId: string, fixes: AuditFix[]): Promise<{
@@ -478,8 +514,39 @@ async function auditTechnicalSeo(article: any, suggestions: SeoSuggestion[]): Pr
       severity: 'high',
       title: 'Add alt text to images',
       description: `${imagesWithoutAlt.length} images are missing alt text for accessibility and SEO.`,
-      fix_type: 'manual',
+      fix_type: 'automated',
+      fix_data: { fix_missing_alt: true },
       impact_score: 30
+    });
+  }
+
+  // Duplicate H1 check
+  const h1Matches = content.match(/<h1[^>]*>/gi) || [];
+  if (h1Matches.length > 1) {
+    score -= 25;
+    suggestions.push({
+      id: `duplicate_h1_${Date.now()}`,
+      category: 'technical',
+      severity: 'high',
+      title: 'Fix duplicate H1 tags',
+      description: `Found ${h1Matches.length} H1 tags. Use only one H1 per page for better SEO.`,
+      fix_type: 'automated',
+      fix_data: { fix_duplicate_h1: true },
+      impact_score: 25
+    });
+  }
+
+  // Missing H1 check
+  if (h1Matches.length === 0) {
+    score -= 20;
+    suggestions.push({
+      id: `missing_h1_${Date.now()}`,
+      category: 'technical',
+      severity: 'high',
+      title: 'Add H1 tag',
+      description: 'Page is missing an H1 tag. Add one for better SEO structure.',
+      fix_type: 'manual',
+      impact_score: 20
     });
   }
 
@@ -492,10 +559,42 @@ async function auditTechnicalSeo(article: any, suggestions: SeoSuggestion[]): Pr
       category: 'technical',
       severity: 'medium',
       title: 'Add internal links',
-      description: 'Article has no internal links. Add 2-3 relevant internal links.',
-      fix_type: 'automated',
+      description: 'No internal links found. Add 2-3 relevant internal links to improve SEO.',
+      fix_type: 'manual',
       fix_data: { min_internal_links: 2 },
       impact_score: 20
+    });
+  }
+
+  // Table of contents check for long content
+  const wordCount = countWords(content);
+  if (wordCount > 1000 && !content.includes('table-of-contents')) {
+    score -= 10;
+    suggestions.push({
+      id: `toc_${Date.now()}`,
+      category: 'technical',
+      severity: 'low',
+      title: 'Add table of contents',
+      description: 'Long articles benefit from a table of contents for better user experience.',
+      fix_type: 'automated',
+      fix_data: { generate_toc: true },
+      impact_score: 10
+    });
+  }
+
+  // Check for Open Graph tags
+  const seoData = article.seoData;
+  if (!seoData?.ogTitle || !seoData?.ogDescription) {
+    score -= 15;
+    suggestions.push({
+      id: `og_tags_${Date.now()}`,
+      category: 'technical',
+      severity: 'medium',
+      title: 'Add Open Graph tags',
+      description: 'Missing Open Graph tags. These improve social media sharing.',
+      fix_type: 'automated',
+      fix_data: { add_og_tags: true },
+      impact_score: 15
     });
   }
 
@@ -696,6 +795,69 @@ async function applyAutomatedFix(article: any, fix: AuditFix, tx: any): Promise<
         article_updates: { content: updatedContent }
       };
     }
+  }
+
+  if (fix_data?.fix_missing_alt) {
+    // Auto-add alt text to images
+    const content = article.content || '';
+    const updatedContent = content.replace(
+      /<img([^>]*?)src=["']([^"']*)["']([^>]*?)(?!alt=)>/gi,
+      (match: string, before: string, src: string, after: string) => {
+        const filename = src.split('/').pop()?.split('.')[0] || 'image';
+        const altText = filename.replace(/[-_]/g, ' ').toLowerCase();
+        return `<img${before}src="${src}"${after} alt="${altText}">`;
+      }
+    );
+    
+    if (updatedContent !== content) {
+      return {
+        success: true,
+        article_updates: { content: updatedContent }
+      };
+    }
+  }
+
+  if (fix_data?.fix_duplicate_h1) {
+    // Convert duplicate H1s to H2s
+    const content = article.content || '';
+    const h1Matches = content.match(/<h1[^>]*>/gi) || [];
+    
+    if (h1Matches.length > 1) {
+      // Keep first H1, convert others to H2
+      let h1Count = 0;
+      const updatedContent = content.replace(
+        /<h1([^>]*)>(.*?)<\/h1>/gi,
+        (match: string, attrs: string, text: string) => {
+          h1Count++;
+          if (h1Count === 1) {
+            return match; // Keep first H1
+          }
+          return `<h2${attrs}>${text}</h2>`;
+        }
+      );
+      
+      return {
+        success: true,
+        article_updates: { content: updatedContent }
+      };
+    }
+  }
+
+  if (fix_data?.add_og_tags) {
+    // Auto-generate Open Graph tags
+    const title = article.title || '';
+    const content = article.content || '';
+    const firstSentence = content.split('.')[0]?.replace(/<[^>]*>/g, '').trim();
+    const description = firstSentence?.slice(0, 160) || '';
+    
+    return {
+      success: true,
+      seo_updates: {
+        ogTitle: title,
+        ogDescription: description,
+        ogType: 'article'
+      }
+    };
   }
 
   return {

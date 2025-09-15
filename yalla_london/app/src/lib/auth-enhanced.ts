@@ -74,7 +74,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Initial admin user check
-        if (credentials.email === 'admin' && credentials.password === 'YallaLondon24!') {
+        if ((credentials.email === 'admin' || credentials.email === 'admin@yallalondon.com') && credentials.password === 'YallaLondon24!') {
           // Create or update admin user
           let adminUser = await prisma.user.findUnique({
             where: { email: 'admin@yallalondon.com' }

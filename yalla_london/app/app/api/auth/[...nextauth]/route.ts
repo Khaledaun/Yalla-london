@@ -4,7 +4,7 @@ export const revalidate = 0;
 
 
 import NextAuth from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/src/lib/auth-enhanced'
 
 const handler = NextAuth(authOptions)
 

@@ -53,7 +53,7 @@ All features are controlled by environment variables:
 
 ### Google Authentication Setup
 
-To enable Google SSO, you need to:
+To enable Google SSO for admin access, you need to:
 
 1. **Google Cloud Console Setup:**
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
@@ -62,7 +62,7 @@ To enable Google SSO, you need to:
    - Go to Credentials → Create Credentials → OAuth 2.0 Client IDs
 
 2. **Configure OAuth:**
-   - Set up the consent screen
+   - Set up the consent screen with your application details
    - Add authorized redirect URIs:
      - `https://yourdomain.com/api/auth/callback/google`
      - `http://localhost:3000/api/auth/callback/google` (for development)
@@ -80,6 +80,19 @@ To enable Google SSO, you need to:
    ```bash
    openssl rand -base64 32
    ```
+
+5. **Admin Login Methods:**
+   - **Username/Password:** Use 'admin' and 'YallaLondon24!' for initial access
+   - **Google Sign-in:** Click "Sign in with Google" button on the admin login page
+
+6. **Inviting Additional Users:**
+   - Users can sign in with their Google accounts if they have admin privileges
+   - To grant admin access to a Google user:
+     1. Have them sign in once with Google to create their account
+     2. Use the People → Members section in admin to assign roles
+     3. Set their role to 'admin', 'editor', or 'viewer' as appropriate
+
+Both login methods are available on the admin login page and can be configured per site/tenant as needed.
 
 ## Site Scoping
 

@@ -100,7 +100,7 @@ export default function PremiumAdminDashboard() {
   })
 
   // Check feature flags
-  const dashboardEnabled = isPremiumFeatureEnabled('ADMIN_DASHBOARD')
+  const dashboardEnabled = isPremiumFeatureEnabled('ADMIN_DASHBOARD') || process.env.NODE_ENV === 'development'
   const stateTransparency = isPremiumFeatureEnabled('STATE_TRANSPARENCY')
 
   useEffect(() => {

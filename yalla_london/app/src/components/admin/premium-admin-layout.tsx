@@ -65,7 +65,7 @@ export function PremiumAdminLayout({
   const [notifications, setNotifications] = useState<ToastNotification[]>([])
 
   // Check if premium features are enabled
-  const premiumEnabled = isPremiumFeatureEnabled('PREMIUM_BACKEND')
+  const premiumEnabled = isPremiumFeatureEnabled('PREMIUM_BACKEND') || process.env.NODE_ENV === 'development'
   const keyboardShortcuts = isPremiumFeatureEnabled('KEYBOARD_SHORTCUTS')
   const optimisticUpdates = isPremiumFeatureEnabled('OPTIMISTIC_UPDATES')
   const instantUndo = isPremiumFeatureEnabled('INSTANT_UNDO')

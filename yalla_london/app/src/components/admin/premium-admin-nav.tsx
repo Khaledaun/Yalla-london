@@ -413,46 +413,71 @@ export function PremiumAdminNav({
     const hasChildren = item.children && item.children.length > 0
 
     const Icon = item.icon
-    const paddingLeft = level * 16 + 16
+    const paddingLeft = level * 12 + 16
 
     const content = (
       <div
         className={`
-          flex items-center justify-between w-full px-3 py-2 text-sm rounded-lg transition-colors
+          flex items-center justify-between w-full px-4 py-3 text-sm rounded-xl transition-all duration-200 group
           ${isActive 
-            ? 'bg-blue-100 text-blue-900 dark:bg-blue-900/20 dark:text-blue-100' 
+            ? 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 shadow-purple border-l-4 border-purple-600 dark:from-purple-900/40 dark:to-purple-800/40 dark:text-purple-200' 
             : isAvailable 
-              ? 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+              ? 'text-gray-700 hover:bg-purple-50 hover:text-purple-700 dark:text-gray-300 dark:hover:bg-purple-900/20 dark:hover:text-purple-300'
               : 'text-gray-400 dark:text-gray-600'
           }
           ${!isAvailable ? 'cursor-not-allowed' : 'cursor-pointer'}
+          ${level > 0 ? 'ml-4 border-l-2 border-purple-100 dark:border-purple-800' : ''}
         `}
         style={{ paddingLeft }}
       >
         <div className="flex items-center space-x-3">
-          <Icon size={18} />
-          <span>{item.label}</span>
-          {item.badgeText && (
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
-              ${item.badgeVariant === 'default' ? 'bg-blue-100 text-blue-800' : ''}
-              ${item.badgeVariant === 'secondary' ? 'bg-gray-100 text-gray-800' : ''}
-              ${item.badgeVariant === 'outline' ? 'border border-gray-300 text-gray-700' : ''}
-            `}>
-              {item.badgeText}
-            </span>
-          )}
-          {item.comingSoon && (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border border-gray-300 text-gray-700">
-              Soon
-            </span>
-          )}
-          {!isAvailable && accessInfo?.reason && (
-            <AlertTriangle size={14} className="text-amber-500" />
-          )}
+          <div className={`
+            w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-200
+            ${isActive 
+              ? 'bg-purple-600 text-white shadow-purple' 
+              : isAvailable 
+                ? 'bg-gray-100 text-gray-600 group-hover:bg-purple-100 group-hover:text-purple-600 dark:bg-gray-700 dark:text-gray-400 dark:group-hover:bg-purple-900/50 dark:group-hover:text-purple-400'
+                : 'bg-gray-50 text-gray-400 dark:bg-gray-800'
+            }
+          `}>
+            <Icon size={16} />
+          </div>
+          <div className="flex-1">
+            <span className="font-medium">{item.label}</span>
+            {item.description && level === 0 && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                {item.description}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
+            {item.badgeText && (
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-all duration-200
+                ${item.badgeVariant === 'default' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300' : ''}
+                ${item.badgeVariant === 'secondary' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' : ''}
+                ${item.badgeVariant === 'outline' ? 'border border-purple-300 text-purple-700 dark:border-purple-600 dark:text-purple-300' : ''}
+              `}>
+                {item.badgeText}
+              </span>
+            )}
+            {item.comingSoon && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border border-orange-300 text-orange-700 bg-orange-50 dark:border-orange-600 dark:text-orange-300 dark:bg-orange-900/20">
+                Soon
+              </span>
+            )}
+            {!isAvailable && accessInfo?.reason && (
+              <AlertTriangle size={14} className="text-amber-500" />
+            )}
+          </div>
         </div>
         {hasChildren && (
-          <div className="ml-auto">
-            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          <div className="ml-2">
+            <div className={`
+              w-6 h-6 rounded-md flex items-center justify-center transition-all duration-200
+              ${isExpanded ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400' : 'text-gray-400 group-hover:text-purple-500'}
+            `}>
+              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </div>
           </div>
         )}
       </div>
@@ -479,7 +504,7 @@ export function PremiumAdminNav({
         )}
         
         {hasChildren && isExpanded && (
-          <div className="mt-1 space-y-1">
+          <div className="mt-2 space-y-1 animate-fade-in">
             {item.children?.map(child => renderNavItem(child, level + 1))}
           </div>
         )}
@@ -490,21 +515,26 @@ export function PremiumAdminNav({
   }
 
   return (
-    <nav className={`space-y-2 ${className}`}>
+    <nav className={`space-y-4 ${className}`}>
       {/* Site Switcher (if multi-site enabled) */}
       {siteContext?.canSwitchSites && (
-        <div className="mb-6 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl border border-purple-200/50 dark:border-purple-700/50">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                Current Site
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {siteContext.siteName}
-              </p>
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center">
+                <Globe size={16} className="text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Current Site
+                </p>
+                <p className="text-xs text-purple-600 dark:text-purple-400">
+                  {siteContext.siteName}
+                </p>
+              </div>
             </div>
             <button
-              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+              className="btn-ghost-modern text-xs py-1 px-3"
               onClick={() => {/* TODO: Implement site switcher */}}
             >
               Switch
@@ -514,36 +544,62 @@ export function PremiumAdminNav({
       )}
 
       {/* Navigation Items */}
-      <div className="space-y-1">
+      <div className="space-y-2">
         {adminNavigation.map(item => renderNavItem(item))}
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700">
-        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 px-3">
-          Quick Actions
-        </p>
-        <div className="space-y-1">
+      <div className="mt-8 pt-6 border-t border-purple-200/50 dark:border-gray-700">
+        <div className="mb-4 px-2">
+          <h3 className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+            Quick Actions
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Common tasks and shortcuts
+          </p>
+        </div>
+        <div className="space-y-2">
           <Link 
             href="/admin/content/articles/new"
-            className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
+            className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 dark:text-gray-300 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 rounded-xl transition-all duration-200 group"
           >
-            <FileText size={16} />
-            <span>New Article</span>
+            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 transition-colors">
+              <FileText size={16} className="text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <span className="font-medium">New Article</span>
+              <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-purple-600 dark:group-hover:text-purple-400">
+                Create blog post
+              </p>
+            </div>
           </Link>
           <Link 
             href="/admin/content/media/upload"
-            className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
+            className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 dark:text-gray-300 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 rounded-xl transition-all duration-200 group"
           >
-            <Upload size={16} />
-            <span>Upload Media</span>
+            <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center group-hover:bg-green-200 dark:group-hover:bg-green-800/50 transition-colors">
+              <Upload size={16} className="text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <span className="font-medium">Upload Media</span>
+              <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-purple-600 dark:group-hover:text-purple-400">
+                Add images & files
+              </p>
+            </div>
           </Link>
           <Link 
             href="/admin/people/invite"
-            className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
+            className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 dark:text-gray-300 dark:hover:bg-purple-900/20 dark:hover:text-purple-300 rounded-xl transition-all duration-200 group"
           >
-            <Users size={16} />
-            <span>Invite User</span>
+            <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center group-hover:bg-purple-200 dark:group-hover:bg-purple-800/50 transition-colors">
+              <Users size={16} className="text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <span className="font-medium">Invite User</span>
+              <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-purple-600 dark:group-hover:text-purple-400">
+                Add team member
+              </p>
+            </div>
           </Link>
         </div>
       </div>

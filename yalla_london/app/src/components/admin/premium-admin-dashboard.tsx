@@ -359,222 +359,355 @@ export default function PremiumAdminDashboard() {
       >
         <div className="space-y-8" dir="auto">
           {/* Welcome Section */}
-          <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-8 text-white">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold mb-2">Welcome back to Yalla London!</h1>
-                <p className="text-violet-100 text-lg">
-                  Here&apos;s what&apos;s happening with your site today
-                </p>
-                {dashboardData && (
-                  <div className="mt-2 text-sm text-violet-200">
-                    Last updated: {new Date(dashboardData.lastUpdated).toLocaleTimeString()}
-                    {stateTransparency && (
-                      <span className="ml-2 px-2 py-1 bg-violet-400/30 rounded text-xs">
-                        Real-time data
-                      </span>
-                    )}
+          <div className="relative overflow-hidden bg-gradient-to-br from-purple-600 via-purple-700 to-purple-800 rounded-2xl p-8 text-white shadow-luxury animate-fade-in">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-32 translate-x-32"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full translate-y-24 -translate-x-24"></div>
+            </div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                      <Activity size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <h1 className="text-3xl font-bold mb-1">Welcome back to Yalla London!</h1>
+                      <p className="text-purple-100 text-lg">
+                        Here&apos;s what&apos;s happening with your site today
+                      </p>
+                    </div>
                   </div>
-                )}
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold">
-                  {dashboardData?.metrics.totalPageViews.toLocaleString() || '0'}
+                  
+                  {dashboardData && (
+                    <div className="flex items-center space-x-4 text-sm text-purple-200">
+                      <div className="flex items-center space-x-2">
+                        <Clock size={16} />
+                        <span>Last updated: {new Date(dashboardData.lastUpdated).toLocaleTimeString()}</span>
+                      </div>
+                      {stateTransparency && (
+                        <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-medium backdrop-blur-sm">
+                          Real-time data
+                        </span>
+                      )}
+                      <span className="px-3 py-1 bg-green-500/20 text-green-200 rounded-full text-xs font-medium backdrop-blur-sm">
+                        Phase 3 Enhanced
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="text-violet-200">Total page views</div>
+                
+                <div className="text-right">
+                  <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                    <div className="text-4xl font-bold mb-2">
+                      {dashboardData?.metrics.totalPageViews.toLocaleString() || '0'}
+                    </div>
+                    <div className="text-purple-200 text-sm font-medium">Total Page Views</div>
+                    <div className="mt-2 flex items-center text-green-200 text-xs">
+                      <TrendingUp size={12} className="mr-1" />
+                      <span>+12% from last week</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
         {/* Above-the-fold: My Tasks / Pipeline Health / Connections & Flags */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in-up">
           {/* My Tasks Summary */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center space-x-2">
-                <CheckCircle2 className="h-5 w-5" />
-                <span>My Tasks</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div className="card-modern glow-on-hover">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/50 rounded-xl flex items-center justify-center">
+                  <CheckCircle2 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">My Tasks</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Current workload overview</p>
+                </div>
+              </div>
               {isLoading ? (
                 <div className="space-y-3">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={i} className="h-4 w-full" />
+                    <div key={i} className="shimmer-effect h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  ))}
+                </div>
+              ) : dashboardData ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl border border-purple-200/50 dark:border-purple-700/50">
+                      <div className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-1">
+                        {dashboardData.taskSummary.pending}
+                      </div>
+                      <div className="text-sm font-medium text-purple-700 dark:text-purple-300">Pending</div>
+                    </div>
+                    <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/50">
+                      <div className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-1">
+                        {dashboardData.taskSummary.inProgress}
+                      </div>
+                      <div className="text-sm font-medium text-blue-700 dark:text-blue-300">In Progress</div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Progress</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {Math.round((dashboardData.taskSummary.total - dashboardData.taskSummary.pending) / dashboardData.taskSummary.total * 100)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                      <div 
+                        className="bg-gradient-to-r from-purple-500 to-purple-600 h-3 rounded-full transition-all duration-500 ease-out"
+                        style={{ 
+                          width: `${(dashboardData.taskSummary.total - dashboardData.taskSummary.pending) / dashboardData.taskSummary.total * 100}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between text-sm pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <span className="text-gray-600 dark:text-gray-400">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{dashboardData.taskSummary.total}</span> total tasks
+                    </span>
+                    <span className="text-red-600 dark:text-red-400">
+                      <span className="font-medium">{dashboardData.taskSummary.highPriority}</span> high priority
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-8">
+                  <AlertTriangle className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                  <p>Unable to load tasks</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Pipeline Health */}
+          <div className="card-modern glow-on-hover">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/50 rounded-xl flex items-center justify-center">
+                  <Activity className="h-5 w-5 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Pipeline Health</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">System status overview</p>
+                </div>
+              </div>
+              {isLoading ? (
+                <div className="space-y-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="shimmer-effect h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                      <div className="shimmer-effect h-6 w-16 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+                    </div>
                   ))}
                 </div>
               ) : dashboardData ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {dashboardData.taskSummary.pending}
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border border-green-200/50 dark:border-green-700/50">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center">
+                        <FileText size={16} className="text-green-600 dark:text-green-400" />
                       </div>
-                      <div className="text-sm text-gray-500">Pending</div>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">Content Pipeline</span>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {dashboardData.taskSummary.inProgress}
-                      </div>
-                      <div className="text-sm text-gray-500">In Progress</div>
-                    </div>
-                  </div>
-                  <Progress 
-                    value={(dashboardData.taskSummary.total - dashboardData.taskSummary.pending) / dashboardData.taskSummary.total * 100} 
-                    className="h-2"
-                  />
-                  <div className="flex justify-between text-sm text-gray-500">
-                    <span>{dashboardData.taskSummary.total} total tasks</span>
-                    <span>{dashboardData.taskSummary.highPriority} high priority</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center text-gray-500">Unable to load tasks</div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Pipeline Health */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center space-x-2">
-                <Activity className="h-5 w-5" />
-                <span>Pipeline Health</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <Skeleton className="h-4 w-20" />
-                      <Skeleton className="h-4 w-12" />
-                    </div>
-                  ))}
-                </div>
-              ) : dashboardData ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Content Pipeline</span>
-                    <Badge variant={
-                      dashboardData.pipelineHealth.contentPipeline.status === 'healthy' ? 'default' :
-                      dashboardData.pipelineHealth.contentPipeline.status === 'warning' ? 'secondary' : 'destructive'
-                    }>
+                    <span className={`status-indicator ${
+                      dashboardData.pipelineHealth.contentPipeline.status === 'healthy' ? 'status-success' :
+                      dashboardData.pipelineHealth.contentPipeline.status === 'warning' ? 'status-warning' : 'status-error'
+                    }`}>
                       {dashboardData.pipelineHealth.contentPipeline.status}
-                    </Badge>
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">SEO Health</span>
-                    <Badge variant={
-                      dashboardData.pipelineHealth.seoHealth.status === 'healthy' ? 'default' :
-                      dashboardData.pipelineHealth.seoHealth.status === 'warning' ? 'secondary' : 'destructive'
-                    }>
+                  
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border border-blue-200/50 dark:border-blue-700/50">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
+                        <Search size={16} className="text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">SEO Health</span>
+                    </div>
+                    <span className={`status-indicator ${
+                      dashboardData.pipelineHealth.seoHealth.status === 'healthy' ? 'status-success' :
+                      dashboardData.pipelineHealth.seoHealth.status === 'warning' ? 'status-warning' : 'status-error'
+                    }`}>
                       {dashboardData.pipelineHealth.seoHealth.status}
-                    </Badge>
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">System Health</span>
-                    <Badge variant={
-                      dashboardData.pipelineHealth.systemHealth.status === 'healthy' ? 'default' :
-                      dashboardData.pipelineHealth.systemHealth.status === 'warning' ? 'secondary' : 'destructive'
-                    }>
+                  
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 rounded-xl border border-purple-200/50 dark:border-purple-700/50">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center">
+                        <Server size={16} className="text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">System Health</span>
+                    </div>
+                    <span className={`status-indicator ${
+                      dashboardData.pipelineHealth.systemHealth.status === 'healthy' ? 'status-success' :
+                      dashboardData.pipelineHealth.systemHealth.status === 'warning' ? 'status-warning' : 'status-error'
+                    }`}>
                       {dashboardData.pipelineHealth.systemHealth.status}
-                    </Badge>
+                    </span>
                   </div>
-                  <div className="mt-4 pt-3 border-t">
-                    <div className="text-xs text-gray-500">
-                      Draft: {dashboardData.pipelineHealth.contentPipeline.articlesInDraft} • 
-                      Review: {dashboardData.pipelineHealth.contentPipeline.articlesInReview} • 
-                      Scheduled: {dashboardData.pipelineHealth.contentPipeline.scheduledContent}
+                  
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                          {dashboardData.pipelineHealth.contentPipeline.articlesInDraft}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Draft</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                          {dashboardData.pipelineHealth.contentPipeline.articlesInReview}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Review</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                          {dashboardData.pipelineHealth.contentPipeline.scheduledContent}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Scheduled</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="text-center text-gray-500">Unable to load pipeline health</div>
+                <div className="text-center text-gray-500 py-8">
+                  <AlertTriangle className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                  <p>Unable to load pipeline health</p>
+                </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Connections & Flags */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center space-x-2">
-                <Wifi className="h-5 w-5" />
-                <span>Connections & Flags</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div className="card-modern glow-on-hover">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center">
+                  <Wifi className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Connections & Flags</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Integration status</p>
+                </div>
+              </div>
               {isLoading ? (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-4 w-16" />
+                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="shimmer-effect w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                        <div className="shimmer-effect h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                      </div>
+                      <div className="shimmer-effect h-6 w-16 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
                     </div>
                   ))}
                 </div>
               ) : dashboardData ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <BarChart3 className="h-4 w-4" />
-                      <span className="text-sm">Analytics</span>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl border border-orange-200/50 dark:border-orange-700/50">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/50 rounded-lg flex items-center justify-center">
+                        <BarChart3 className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">Analytics</span>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Google Analytics</p>
+                      </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       {dashboardData.connectionStates.analytics.connected ? (
-                        <Wifi className="h-4 w-4 text-green-500" />
+                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                       ) : (
-                        <WifiOff className="h-4 w-4 text-red-500" />
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                       )}
-                      <Badge variant={dashboardData.connectionStates.analytics.connected ? 'default' : 'destructive'}>
+                      <span className={`status-indicator ${
+                        dashboardData.connectionStates.analytics.connected ? 'status-success' : 'status-error'
+                      }`}>
                         {dashboardData.connectionStates.analytics.connected ? 'Connected' : 'Disconnected'}
-                      </Badge>
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Search className="h-4 w-4" />
-                      <span className="text-sm">Search Console</span>
+                  
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200/50 dark:border-blue-700/50">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center">
+                        <Search className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">Search Console</span>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Google Search Console</p>
+                      </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       {dashboardData.connectionStates.searchConsole.connected ? (
-                        <Wifi className="h-4 w-4 text-green-500" />
+                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                       ) : (
-                        <WifiOff className="h-4 w-4 text-red-500" />
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                       )}
-                      <Badge variant={dashboardData.connectionStates.searchConsole.connected ? 'default' : 'destructive'}>
+                      <span className={`status-indicator ${
+                        dashboardData.connectionStates.searchConsole.connected ? 'status-success' : 'status-error'
+                      }`}>
                         {dashboardData.connectionStates.searchConsole.connected ? 'Connected' : 'Disconnected'}
-                      </Badge>
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Globe className="h-4 w-4" />
-                      <span className="text-sm">WordPress</span>
+                  
+                  <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-200/50 dark:border-purple-700/50">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center">
+                        <Globe className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">WordPress</span>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Content Management</p>
+                      </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       {dashboardData.connectionStates.wordpress.connected ? (
-                        <Wifi className="h-4 w-4 text-green-500" />
+                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                       ) : (
-                        <WifiOff className="h-4 w-4 text-red-500" />
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                       )}
-                      <Badge variant={dashboardData.connectionStates.wordpress.connected ? 'default' : 'destructive'}>
+                      <span className={`status-indicator ${
+                        dashboardData.connectionStates.wordpress.connected ? 'status-success' : 'status-error'
+                      }`}>
                         {dashboardData.connectionStates.wordpress.connected ? 'Connected' : 'Disconnected'}
-                      </Badge>
+                      </span>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="text-center text-gray-500">Unable to load connections</div>
+                <div className="text-center text-gray-500 py-8">
+                  <AlertTriangle className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                  <p>Unable to load connections</p>
+                </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         {/* Key Metrics with Source Badges and Connection States */}
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900 mb-6">Performance Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+        <div className="animate-fade-in-up">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold gradient-purple-text">Performance Overview</h2>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">Key metrics and analytics insights</p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Live data</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             {isLoading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <MetricTileSkeleton key={i} />
@@ -688,45 +821,54 @@ export default function PremiumAdminDashboard() {
           {/* Right Column - Quick Actions */}
           <div className="space-y-8">
             {/* Quick Actions */}
-            <Card className="shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg font-semibold text-slate-900">Quick Actions</CardTitle>
-                <p className="text-sm text-slate-600">Common tasks and shortcuts</p>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="grid grid-cols-1 gap-4">
+            <div className="card-modern glow-on-hover">
+              <div className="p-6">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/50 rounded-xl flex items-center justify-center">
+                    <Zap className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Quick Actions</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Common tasks and shortcuts</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
                   {quickActions.map((action) => {
                     const IconComponent = action.icon
                     return (
                       <a
                         key={action.id}
                         href={action.href}
-                        className="group relative flex items-center p-4 text-left border-2 border-slate-200 rounded-xl hover:border-violet-300 hover:shadow-lg transition-all duration-200"
+                        className="group relative flex items-center p-4 text-left border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 dark:hover:border-purple-600 hover:shadow-purple transition-all duration-300 bg-gradient-to-r hover:from-purple-50 hover:to-purple-100/50 dark:hover:from-purple-900/20 dark:hover:to-purple-800/20"
                       >
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white mr-4 ${action.color} transition-transform group-hover:scale-110`}>
-                          <IconComponent className="h-5 w-5" />
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white mr-4 ${action.color} transition-all duration-300 group-hover:scale-110 shadow-lg group-hover:shadow-xl`}>
+                          <IconComponent className="h-6 w-6" />
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">
+                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-purple-700 dark:group-hover:text-purple-300 transition-colors">
                               {action.label}
                             </span>
                             {action.badge && (
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">
                                 {action.badge}
-                              </Badge>
+                              </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-500 group-hover:text-slate-600">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
                             {action.description}
                           </p>
+                        </div>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <ChevronRight className="h-4 w-4 text-purple-500" />
                         </div>
                       </a>
                     )
                   })}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       </div>

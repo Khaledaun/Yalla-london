@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { PremiumAdminNav } from './premium-admin-nav'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { 
   Menu,
   Search, 
@@ -21,7 +22,8 @@ import {
   Undo2,
   CheckCircle2,
   AlertCircle,
-  X
+  X,
+  Upload
 } from 'lucide-react'
 import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'
 
@@ -150,37 +152,45 @@ export function PremiumAdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-purple-900/20">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 lg:hidden bg-black bg-opacity-50"
+          className="fixed inset-0 z-40 lg:hidden bg-black bg-opacity-50 backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-200 ease-in-out
+        fixed inset-y-0 left-0 z-50 w-64 sidebar-modern dark:bg-gray-800 dark:border-gray-700 transform transition-all duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         lg:translate-x-0 lg:static lg:inset-0
       `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {siteContext?.siteName || 'Yalla London'} Admin
-            </h1>
+          <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-purple-600 to-purple-700">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                <span className="text-purple-600 font-bold text-lg">Y</span>
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-white">
+                  {siteContext?.siteName || 'Yalla London'}
+                </h1>
+                <p className="text-xs text-purple-200">Admin Dashboard</p>
+              </div>
+            </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-gray-400 hover:text-gray-600"
+              className="lg:hidden text-purple-200 hover:text-white transition-colors"
             >
               <X size={20} />
             </button>
           </div>
 
           {/* Navigation */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 bg-gradient-to-b from-white to-purple-50/30 dark:from-gray-800 dark:to-gray-900">
             <PremiumAdminNav 
               siteContext={siteContext}
               onSiteSwitch={(siteId) => {
@@ -189,17 +199,25 @@ export function PremiumAdminLayout({
               }}
             />
           </div>
+          
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-purple-50 dark:bg-gray-800">
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+              <p>Phase 3 UI Enhanced</p>
+              <p className="text-purple-600 dark:text-purple-400 font-medium">v2.0.0</p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Main content */}
       <div className={`flex-1 ${sidebarOpen ? 'lg:ml-64' : ''}`}>
         {/* Top bar */}
-        <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 h-16 flex items-center justify-between px-4">
+        <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-sm border-b border-purple-200/50 dark:border-gray-700 h-16 flex items-center justify-between px-6">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-gray-400 hover:text-gray-600 lg:hidden"
+              className="text-gray-400 hover:text-purple-600 lg:hidden transition-colors p-2 rounded-lg hover:bg-purple-50"
             >
               <Menu size={20} />
             </button>
@@ -210,16 +228,16 @@ export function PremiumAdminLayout({
                 <ol className="flex items-center space-x-2">
                   {breadcrumbs.map((crumb, index) => (
                     <li key={index} className="flex items-center">
-                      {index > 0 && <span className="text-gray-400 mx-2">/</span>}
+                      {index > 0 && <span className="text-purple-300 mx-2">/</span>}
                       {crumb.href ? (
                         <a 
                           href={crumb.href}
-                          className="text-sm text-gray-500 hover:text-gray-700"
+                          className="text-sm text-gray-500 hover:text-purple-600 transition-colors px-2 py-1 rounded-md hover:bg-purple-50"
                         >
                           {crumb.label}
                         </a>
                       ) : (
-                        <span className="text-sm text-gray-900 dark:text-gray-100">
+                        <span className="text-sm font-medium text-purple-700 dark:text-purple-300 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 rounded-md">
                           {crumb.label}
                         </span>
                       )}
@@ -230,22 +248,22 @@ export function PremiumAdminLayout({
             )}
 
             {title && !breadcrumbs && (
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              <h1 className="text-xl font-bold gradient-purple-text">
                 {title}
               </h1>
             )}
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             {/* Command palette trigger */}
             {keyboardShortcuts && (
               <button
                 onClick={() => setCommandPaletteOpen(true)}
-                className="flex items-center space-x-2 px-3 py-1 text-sm text-gray-500 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+                className="flex items-center space-x-2 px-4 py-2 text-sm text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:hover:bg-purple-900/50 transition-all duration-200 border border-purple-200 dark:border-purple-700"
               >
                 <Search size={16} />
-                <span>Search</span>
-                <kbd className="text-xs bg-gray-200 dark:bg-gray-600 px-1 rounded">⌘K</kbd>
+                <span className="hidden sm:inline">Search</span>
+                <kbd className="text-xs bg-purple-200 dark:bg-purple-700 text-purple-700 dark:text-purple-200 px-2 py-0.5 rounded font-mono">⌘K</kbd>
               </button>
             )}
 
@@ -253,18 +271,21 @@ export function PremiumAdminLayout({
             {instantUndo && (
               <button
                 onClick={handleUndo}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-2 text-gray-500 hover:text-purple-600 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all duration-200 glow-on-hover"
                 title="Undo last action (⌘Z)"
               >
                 <Undo2 size={18} />
               </button>
             )}
 
+            {/* Theme Toggle */}
+            <ThemeToggle />
+
             {/* Notifications */}
-            <button className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 relative">
+            <button className="p-2 text-gray-500 hover:text-purple-600 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/30 relative transition-all duration-200 glow-on-hover">
               <Bell size={18} />
               {notifications.length > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 h-5 w-5 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full flex items-center justify-center font-medium animate-pulse-glow">
                   {notifications.length}
                 </span>
               )}
@@ -281,54 +302,67 @@ export function PremiumAdminLayout({
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center space-x-2 p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="flex items-center space-x-2 p-2 text-gray-500 hover:text-purple-600 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all duration-200 border border-transparent hover:border-purple-200 dark:hover:border-purple-700"
               >
-                <User size={18} />
-                <ChevronDown size={14} />
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-medium text-sm">
+                  {session?.user?.name?.charAt(0) || 'U'}
+                </div>
+                <ChevronDown size={14} className="hidden sm:block" />
               </button>
 
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50 border border-gray-200 dark:border-gray-700">
-                  <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {session?.user?.name || 'User'}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {session?.user?.email}
-                    </p>
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-luxury py-2 z-50 border border-purple-200/50 dark:border-gray-700 animate-scale-in">
+                  <div className="px-4 py-3 border-b border-purple-100 dark:border-gray-700 bg-gradient-to-r from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/20 mx-2 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                        {session?.user?.name?.charAt(0) || 'U'}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          {session?.user?.name || 'User'}
+                        </p>
+                        <p className="text-xs text-purple-600 dark:text-purple-400">
+                          {session?.user?.email}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   
-                  <a
-                    href="/admin/profile"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    <User size={16} className="mr-3" />
-                    Profile
-                  </a>
-                  
-                  <a
-                    href="/admin/settings"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    <Settings size={16} className="mr-3" />
-                    Settings
-                  </a>
-                  
-                  <a
-                    href="/admin/help"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    <HelpCircle size={16} className="mr-3" />
-                    Help
-                  </a>
-                  
-                  <button
-                    onClick={handleSignOut}
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    <LogOut size={16} className="mr-3" />
-                    Sign out
-                  </button>
+                  <div className="py-2">
+                    <a
+                      href="/admin/profile"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:text-purple-700 dark:hover:text-purple-300 transition-all duration-200 mx-2 rounded-lg"
+                    >
+                      <User size={16} className="mr-3 text-purple-500" />
+                      Profile Settings
+                    </a>
+                    
+                    <a
+                      href="/admin/settings"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:text-purple-700 dark:hover:text-purple-300 transition-all duration-200 mx-2 rounded-lg"
+                    >
+                      <Settings size={16} className="mr-3 text-purple-500" />
+                      Admin Settings
+                    </a>
+                    
+                    <a
+                      href="/admin/help"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:text-purple-700 dark:hover:text-purple-300 transition-all duration-200 mx-2 rounded-lg"
+                    >
+                      <HelpCircle size={16} className="mr-3 text-purple-500" />
+                      Help & Support
+                    </a>
+                    
+                    <div className="border-t border-purple-100 dark:border-gray-700 my-2"></div>
+                    
+                    <button
+                      onClick={handleSignOut}
+                      className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-200 mx-2 rounded-lg"
+                    >
+                      <LogOut size={16} className="mr-3" />
+                      Sign Out
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -336,45 +370,63 @@ export function PremiumAdminLayout({
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6">
-          {children}
+        <main className="flex-1 p-6 animate-fade-in">
+          <div className="container-modern">
+            {children}
+          </div>
         </main>
       </div>
 
       {/* Toast Notifications */}
       {optimisticUpdates && notifications.length > 0 && (
-        <div className="fixed top-4 right-4 z-50 space-y-2">
+        <div className="fixed top-20 right-6 z-50 space-y-3">
           {notifications.map((notification) => (
             <div
               key={notification.id}
               className={`
-                max-w-sm w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5
-                ${notification.type === 'success' ? 'border-l-4 border-green-400' : ''}
-                ${notification.type === 'error' ? 'border-l-4 border-red-400' : ''}
-                ${notification.type === 'warning' ? 'border-l-4 border-yellow-400' : ''}
-                ${notification.type === 'info' ? 'border-l-4 border-blue-400' : ''}
+                max-w-sm w-full bg-white/95 dark:bg-gray-800/95 backdrop-blur-md shadow-luxury rounded-xl pointer-events-auto flex border animate-slide-in-right
+                ${notification.type === 'success' ? 'border-green-200 bg-gradient-to-r from-green-50 to-emerald-50' : ''}
+                ${notification.type === 'error' ? 'border-red-200 bg-gradient-to-r from-red-50 to-pink-50' : ''}
+                ${notification.type === 'warning' ? 'border-yellow-200 bg-gradient-to-r from-yellow-50 to-orange-50' : ''}
+                ${notification.type === 'info' ? 'border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50' : ''}
               `}
             >
               <div className="flex-1 w-0 p-4">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
-                    {notification.type === 'success' && <CheckCircle2 className="h-6 w-6 text-green-400" />}
-                    {notification.type === 'error' && <AlertCircle className="h-6 w-6 text-red-400" />}
-                    {notification.type === 'warning' && <AlertCircle className="h-6 w-6 text-yellow-400" />}
-                    {notification.type === 'info' && <AlertCircle className="h-6 w-6 text-blue-400" />}
+                    {notification.type === 'success' && (
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      </div>
+                    )}
+                    {notification.type === 'error' && (
+                      <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                        <AlertCircle className="h-5 w-5 text-red-600" />
+                      </div>
+                    )}
+                    {notification.type === 'warning' && (
+                      <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                        <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                      </div>
+                    )}
+                    {notification.type === 'info' && (
+                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                        <AlertCircle className="h-5 w-5 text-purple-600" />
+                      </div>
+                    )}
                   </div>
                   <div className="ml-3 w-0 flex-1 pt-0.5">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                       {notification.title}
                     </p>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
                       {notification.message}
                     </p>
                     {notification.action && (
                       <div className="mt-3">
                         <button
                           onClick={notification.action.onClick}
-                          className="text-sm bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          className="btn-ghost-modern text-xs py-1 px-3"
                         >
                           {notification.action.label}
                         </button>
@@ -384,7 +436,7 @@ export function PremiumAdminLayout({
                       <div className="mt-3">
                         <button
                           onClick={notification.undoAction}
-                          className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          className="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium transition-colors"
                         >
                           Undo
                         </button>
@@ -393,10 +445,10 @@ export function PremiumAdminLayout({
                   </div>
                 </div>
               </div>
-              <div className="flex border-l border-gray-200 dark:border-gray-700">
+              <div className="flex">
                 <button
                   onClick={() => removeNotification(notification.id)}
-                  className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="rounded-none rounded-r-xl p-3 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-700/50 transition-all duration-200"
                 >
                   <X size={16} />
                 </button>
@@ -411,36 +463,79 @@ export function PremiumAdminLayout({
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-start justify-center min-h-screen pt-16 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
             </div>
 
-            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div className="inline-block align-bottom bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-2xl text-left overflow-hidden shadow-luxury transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-purple-200/50 dark:border-gray-700 animate-scale-in">
+              <div className="bg-gradient-to-r from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/20 px-6 pt-6 pb-4">
                 <div className="flex items-center mb-4">
-                  <Command size={20} className="text-gray-400 mr-2" />
+                  <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/50 rounded-xl flex items-center justify-center mr-4">
+                    <Command size={20} className="text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Command Palette</h3>
+                    <p className="text-sm text-purple-600 dark:text-purple-400">Search for actions and navigate quickly</p>
+                  </div>
+                </div>
+                
+                <div className="relative">
+                  <Search size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-400" />
                   <input
                     type="text"
-                    placeholder="Search for actions..."
-                    className="flex-1 border-none outline-none text-gray-900 dark:text-gray-100 bg-transparent text-lg"
+                    placeholder="Search for actions, pages, or settings..."
+                    className="w-full pl-12 pr-4 py-3 border border-purple-200 dark:border-purple-700 rounded-xl bg-white/80 dark:bg-gray-800/80 text-gray-900 dark:text-gray-100 placeholder-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                     autoFocus
                   />
                 </div>
-                
-                <div className="space-y-2">
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 px-2">
-                    QUICK ACTIONS
+              </div>
+              
+              <div className="px-6 pb-6">
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-xs font-semibold text-purple-600 dark:text-purple-400 mb-2 px-2 uppercase tracking-wider">
+                      Quick Actions
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <button className="w-full text-left px-4 py-3 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center transition-all duration-200 group">
+                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                          <Plus size={16} className="text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">New Article</span>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Create a new blog post or article</p>
+                        </div>
+                        <kbd className="ml-auto text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded font-mono">⌘N</kbd>
+                      </button>
+                      
+                      <button className="w-full text-left px-4 py-3 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center transition-all duration-200 group">
+                        <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                          <Settings size={16} className="text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Site Settings</span>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Configure your site preferences</p>
+                        </div>
+                        <kbd className="ml-auto text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded font-mono">⌘,</kbd>
+                      </button>
+                      
+                      <button className="w-full text-left px-4 py-3 rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/30 flex items-center transition-all duration-200 group">
+                        <div className="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center mr-3 group-hover:scale-110 transition-transform">
+                          <Upload size={16} className="text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Upload Media</span>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Add images, videos, or documents</p>
+                        </div>
+                        <kbd className="ml-auto text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded font-mono">⌘U</kbd>
+                      </button>
+                    </div>
                   </div>
                   
-                  <div className="space-y-1">
-                    <button className="w-full text-left px-2 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
-                      <Plus size={16} className="mr-3 text-gray-400" />
-                      <span className="text-sm text-gray-900 dark:text-gray-100">New Article</span>
-                    </button>
-                    
-                    <button className="w-full text-left px-2 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
-                      <Settings size={16} className="mr-3 text-gray-400" />
-                      <span className="text-sm text-gray-900 dark:text-gray-100">Site Settings</span>
-                    </button>
+                  <div className="border-t border-purple-100 dark:border-gray-700 pt-4">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                      Press <kbd className="bg-gray-200 dark:bg-gray-700 px-1 rounded text-xs">Esc</kbd> to close
+                    </div>
                   </div>
                 </div>
               </div>

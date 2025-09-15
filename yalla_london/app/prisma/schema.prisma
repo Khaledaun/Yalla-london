@@ -36,6 +36,10 @@ model User {
   userSessions  UserSession[]
   topicPolicies TopicPolicy[]
   
+  // Premium backend relations
+  auditLogsPremium AuditLogPremium[]
+  siteMembershipsPremium SiteMemberPremium[]
+  
   @@map(name: "users")
 }
 
@@ -827,4 +831,389 @@ model UserExtended {
   
   @@index([user_id])
   @@index([last_activity_at])
+}
+
+// =============================================================================
+// PREMIUM BACKEND MODELS - PHASE 4 COMPLETE
+// =============================================================================
+
+// Enhanced Site model with premium features
+model SitePremium {
+  id                String   @id @default(cuid())
+  siteId            String   @unique // Maps to existing Site if multi-tenant
+  name              String
+  slug              String   @unique
+  domain            String?  @unique
+  theme_id          String?
+  settings_json     Json     // Site-specific configuration with feature flags
+  logo_url          String?
+  favicon_url       String?
+  is_active         Boolean  @default(true)
+  
+  // Premium settings
+  locale_settings   Json?    // Per-site locale configuration
+  brand_settings    Json?    // Brand colors, fonts, etc.
+  seo_settings      Json?    // Default SEO configuration
+  analytics_settings Json?   // GA4, GSC, other analytics
+  
+  // Metadata
+  createdById       String
+  updatedById       String
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  deleted_at        DateTime?
+  
+  // Relations
+  site_themes       SiteThemePremium? @relation(fields: [theme_id], references: [id])
+  site_members      SiteMemberPremium[]
+  homepage_versions HomepageVersionPremium[]
+  audit_logs        AuditLogPremium[]
+  changes           ChangePremium[]
+  affiliate_partners AffiliatePartner[]
+  agreements        Agreement[]
+  job_runs          JobRun[]
+  
+  @@index([is_active])
+  @@index([slug])
+  @@index([deleted_at])
+  @@index([createdById])
+}
+
+// Enhanced SiteTheme with live preview capability
+model SiteThemePremium {
+  id                String   @id @default(cuid())
+  siteId            String
+  name              String
+  tokens_json       Json     // CSS variables and theme tokens
+  preview_url       String?
+  is_active         Boolean  @default(false)
+  
+  // Versioning
+  version           String   @default("1.0.0")
+  parent_theme_id   String?
+  
+  // Metadata
+  createdById       String
+  updatedById       String
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  deleted_at        DateTime?
+  
+  // Relations
+  sites             SitePremium[]
+  parent_theme      SiteThemePremium? @relation("ThemeVersions", fields: [parent_theme_id], references: [id])
+  child_themes      SiteThemePremium[] @relation("ThemeVersions")
+  
+  @@index([siteId])
+  @@index([is_active])
+  @@index([deleted_at])
+}
+
+// Enhanced HomepageVersion with diff capability
+model HomepageVersionPremium {
+  id                String   @id @default(cuid())
+  siteId            String
+  version_id        String   @unique
+  title             String
+  blocks_data       Json     // Snapshot of all blocks at this version
+  diff_from_previous Json?   // Diff from previous version for rollback
+  published         Boolean  @default(false)
+  is_draft          Boolean  @default(true)
+  
+  // Metadata
+  createdById       String
+  updatedById       String
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  deleted_at        DateTime?
+  
+  // Relations
+  site              SitePremium @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  
+  @@index([siteId])
+  @@index([published])
+  @@index([is_draft])
+  @@index([deleted_at])
+}
+
+// Enhanced Audit Log with full traceability
+model AuditLogPremium {
+  id                String   @id @default(cuid())
+  siteId            String
+  userId            String?
+  action            String   // login, logout, create, update, delete, access, export
+  resource          String?  // table or endpoint accessed
+  resourceId        String?  // specific record ID
+  details           Json?    // additional context
+  ip_address        String?
+  user_agent        String?
+  success           Boolean  @default(true)
+  error_message     String?
+  trace_id          String?  // For distributed tracing
+  
+  // Reversibility
+  reversible        Boolean  @default(false)
+  reverse_operation Json?    // Data needed to reverse this operation
+  reversed_at       DateTime?
+  reversed_by       String?
+  
+  timestamp         DateTime @default(now())
+  
+  // Relations
+  site              SitePremium @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  user              User?     @relation(fields: [userId], references: [id])
+  
+  @@index([siteId])
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+  @@index([resource])
+  @@index([reversible])
+}
+
+// Change tracking for optimistic updates and undo
+model ChangePremium {
+  id                String   @id @default(cuid())
+  siteId            String
+  operation_id      String   @unique // Client-side operation ID
+  operation_type    String   // create, update, delete, bulk_update
+  table_name        String
+  record_id         String?
+  old_data          Json?    // Previous state
+  new_data          Json?    // New state
+  diff_data         Json?    // Specific changes
+  
+  // Status
+  status            String   @default("pending") // pending, applied, failed, reverted
+  applied_at        DateTime?
+  reverted_at       DateTime?
+  
+  // Metadata
+  createdById       String
+  created_at        DateTime @default(now())
+  
+  // Relations
+  site              SitePremium @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  
+  @@index([siteId])
+  @@index([operation_id])
+  @@index([status])
+  @@index([table_name])
+  @@index([created_at])
+}
+
+// Enhanced Site membership with premium roles
+model SiteMemberPremium {
+  id                String   @id @default(cuid())
+  siteId            String
+  userId            String
+  role              String   // OWNER, ADMIN, EDITOR, REVIEWER, VIEWER
+  permissions       Json?    // Additional granular permissions
+  access_level      String   @default("standard") // standard, elevated, admin
+  
+  // Access control
+  is_active         Boolean  @default(true)
+  invited_at        DateTime?
+  joined_at         DateTime?
+  last_access_at    DateTime?
+  
+  // Metadata
+  createdById       String
+  updatedById       String
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  deleted_at        DateTime?
+  
+  // Relations
+  site              SitePremium @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([siteId, userId])
+  @@index([siteId])
+  @@index([userId])
+  @@index([role])
+  @@index([is_active])
+}
+
+// Affiliate Partner Management
+model AffiliatePartner {
+  id                String   @id @default(cuid())
+  siteId            String
+  name              String
+  slug              String
+  partner_type      String   // hotel, restaurant, attraction, service
+  api_endpoint      String?
+  api_key_encrypted String?  @db.Text // AES-GCM encrypted
+  commission_rate   Float?
+  contact_info      Json?
+  
+  // Status
+  is_active         Boolean  @default(true)
+  last_sync_at      DateTime?
+  sync_status       String?  // success, failed, pending
+  
+  // Metadata
+  createdById       String
+  updatedById       String
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  deleted_at        DateTime?
+  
+  // Relations
+  site              SitePremium @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  widgets           AffiliateWidget[]
+  assignments       AffiliateAssignment[]
+  
+  @@unique([siteId, slug])
+  @@index([siteId])
+  @@index([partner_type])
+  @@index([is_active])
+}
+
+// Affiliate Widget Configuration
+model AffiliateWidget {
+  id                String   @id @default(cuid())
+  siteId            String
+  partner_id        String
+  name              String
+  widget_type       String   // banner, carousel, search, comparison
+  config_json       Json     // Widget-specific configuration
+  preview_url       String?
+  
+  // Placement
+  placement_rules   Json?    // Where widget can be placed
+  auto_placement    Boolean  @default(false)
+  
+  // Status
+  is_active         Boolean  @default(true)
+  
+  // Metadata
+  createdById       String
+  updatedById       String
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  deleted_at        DateTime?
+  
+  // Relations
+  partner           AffiliatePartner @relation(fields: [partner_id], references: [id], onDelete: Cascade)
+  assignments       AffiliateAssignment[]
+  
+  @@index([siteId])
+  @@index([partner_id])
+  @@index([widget_type])
+  @@index([is_active])
+}
+
+// Affiliate Assignment Matrix
+model AffiliateAssignment {
+  id                String   @id @default(cuid())
+  siteId            String
+  partner_id        String
+  widget_id         String?
+  content_id        String   // BlogPost, Place, etc.
+  content_type      String   // blog_post, place, page
+  
+  // Assignment rules
+  placement_data    Json?    // Specific placement within content
+  auto_assigned     Boolean  @default(false)
+  priority          Int      @default(1)
+  
+  // Performance
+  impressions       Int      @default(0)
+  clicks            Int      @default(0)
+  conversions       Int      @default(0)
+  revenue           Float    @default(0)
+  
+  // Status
+  is_active         Boolean  @default(true)
+  
+  // Metadata
+  createdById       String
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  
+  // Relations
+  partner           AffiliatePartner @relation(fields: [partner_id], references: [id], onDelete: Cascade)
+  widget            AffiliateWidget? @relation(fields: [widget_id], references: [id], onDelete: SetNull)
+  
+  @@index([siteId])
+  @@index([partner_id])
+  @@index([content_id, content_type])
+  @@index([is_active])
+}
+
+// Agreement and Contract Management
+model Agreement {
+  id                String   @id @default(cuid())
+  siteId            String
+  title             String
+  agreement_type    String   // affiliate, partnership, service, privacy, terms
+  content           String   @db.Text
+  version           String   @default("1.0")
+  
+  // Status
+  status            String   @default("draft") // draft, active, expired, superseded
+  effective_date    DateTime?
+  expiry_date       DateTime?
+  
+  // Signatures
+  signatures        Json?    // Digital signature data
+  signed_at         DateTime?
+  signed_by         String?
+  
+  // Metadata
+  createdById       String
+  updatedById       String
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  deleted_at        DateTime?
+  
+  // Relations
+  site              SitePremium @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  
+  @@index([siteId])
+  @@index([agreement_type])
+  @@index([status])
+  @@index([effective_date])
+}
+
+// Background Job Execution Tracking
+model JobRun {
+  id                String   @id @default(cuid())
+  siteId            String
+  job_name          String   // backlink_inspector, topic_balancer, analytics_sync
+  job_type          String   // scheduled, triggered, manual
+  schedule_cron     String?  // Cron expression for scheduled jobs
+  parameters_json   Json?    // Job-specific parameters
+  
+  // Execution
+  status            String   @default("pending") // pending, running, completed, failed, cancelled
+  started_at        DateTime?
+  completed_at      DateTime?
+  duration_ms       Int?
+  result_json       Json?    // Job results and metrics
+  error_message     String?  @db.Text
+  
+  // Retry logic
+  retry_count       Int      @default(0)
+  max_retries       Int      @default(3)
+  next_retry_at     DateTime?
+  
+  // Scheduling
+  next_run_at       DateTime?
+  
+  // Metadata
+  createdById       String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  
+  // Relations
+  site              SitePremium @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  
+  @@index([siteId])
+  @@index([job_name])
+  @@index([status])
+  @@index([next_run_at])
+  @@index([next_retry_at])
+  @@index([created_at])
 }

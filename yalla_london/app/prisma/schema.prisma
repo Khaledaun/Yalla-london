@@ -34,6 +34,7 @@ model User {
   posts         BlogPost[]
   auditLogs     AuditLog[]
   userSessions  UserSession[]
+  topicPolicies TopicPolicy[]
   
   @@map(name: "users")
 }
@@ -618,4 +619,212 @@ model UserSession {
   @@index([sessionToken])
   @@index([expiresAt])
   @@index([lastActivity])
+}
+
+// =============================================================================
+// PHASE 4C: UNIFIED BACKEND UX + FEATURE PLAN MODELS
+// =============================================================================
+
+// Topic Policy Management (balancer quotas, publishing rules)
+model TopicPolicy {
+  id                    String   @id @default(cuid())
+  site_id               String?  // Multi-tenant scoping
+  name                  String
+  policy_type           String   // quota_balancer, publishing_rules, content_quality
+  rules_json            Json     // Policy-specific rules and thresholds
+  quotas_json           Json?    // Daily/weekly content quotas by category
+  priorities_json       Json?    // Category priority weights
+  auto_approval_rules   Json?    // Auto-approval criteria
+  violation_actions     String[] // warn, reject, quarantine, escalate
+  is_active             Boolean  @default(true)
+  effective_from        DateTime @default(now())
+  effective_until       DateTime?
+  created_by            String
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+  
+  user                  User     @relation(fields: [created_by], references: [id])
+  
+  @@index([site_id])
+  @@index([policy_type])
+  @@index([is_active])
+  @@index([effective_from, effective_until])
+}
+
+// CRM Subscriber Management with Double Opt-in
+model Subscriber {
+  id                    String      @id @default(cuid())
+  site_id               String?     // Multi-tenant scoping
+  email                 String
+  status                SubscriberStatus @default(PENDING)
+  source                String?     // exit_intent, newsletter_signup, content_gate
+  preferences_json      Json?       // Newsletter preferences, frequency, topics
+  metadata_json         Json?       // UTM params, user agent, IP (anonymized)
+  double_optin_token    String?     @unique
+  double_optin_sent_at  DateTime?
+  confirmed_at          DateTime?
+  unsubscribed_at       DateTime?
+  unsubscribe_reason    String?
+  last_campaign_sent    DateTime?
+  engagement_score      Float?      // Calculated engagement metrics
+  created_at            DateTime    @default(now())
+  updated_at            DateTime    @updatedAt
+  
+  // Relations
+  consent_logs          ConsentLog[]
+  
+  @@unique([site_id, email])
+  @@index([site_id])
+  @@index([status])
+  @@index([source])
+  @@index([created_at])
+}
+
+enum SubscriberStatus {
+  PENDING
+  CONFIRMED
+  UNSUBSCRIBED
+  BOUNCED
+  COMPLAINED
+}
+
+// GDPR/Privacy Consent Logging
+model ConsentLog {
+  id                String   @id @default(cuid())
+  site_id           String?  // Multi-tenant scoping  
+  subscriber_id     String
+  consent_type      String   // newsletter, analytics, marketing, functional
+  consent_version   String   // Consent form version for compliance
+  action            String   // granted, withdrawn, updated
+  legal_basis       String   // consent, legitimate_interest, contract
+  processing_purposes String[] // marketing, analytics, personalization
+  data_categories   String[] // email, behavioral, preferences
+  consent_text      String?  @db.Text // Actual consent text shown to user
+  ip_address        String?  // For audit trail (anonymized after 30 days)
+  user_agent        String?
+  timestamp         DateTime @default(now())
+  
+  subscriber        Subscriber @relation(fields: [subscriber_id], references: [id], onDelete: Cascade)
+  
+  @@index([site_id])
+  @@index([subscriber_id])
+  @@index([consent_type])
+  @@index([action])
+  @@index([timestamp])
+}
+
+// LLM Provider Management (encrypted API keys)
+model ModelProvider {
+  id                String   @id @default(cuid())
+  site_id           String?  // Multi-tenant scoping
+  name              String   // openai, anthropic, google, perplexity
+  display_name      String   // "OpenAI GPT-4", "Claude 3.5 Sonnet"
+  provider_type     String   // llm, search, vision, embedding
+  api_endpoint      String?
+  api_key_encrypted String?  @db.Text // AES-GCM encrypted
+  api_version       String?
+  rate_limits_json  Json?    // Rate limiting configuration
+  cost_per_token    Float?   // For cost tracking
+  capabilities      String[] // text_generation, image_analysis, search
+  model_config_json Json?    // Model-specific parameters
+  is_active         Boolean  @default(true)
+  last_tested_at    DateTime?
+  test_status       String?  // success, failed, pending
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  
+  // Relations
+  model_routes      ModelRoute[]
+  
+  @@index([site_id])
+  @@index([provider_type])
+  @@index([is_active])
+}
+
+// LLM Request Routing and Load Balancing
+model ModelRoute {
+  id                  String   @id @default(cuid())
+  site_id             String?  // Multi-tenant scoping
+  route_name          String   // topic_research, content_generation, seo_audit
+  primary_provider_id String
+  fallback_provider_id String?
+  routing_rules_json  Json     // Load balancing, failover rules
+  cost_optimization   Boolean  @default(false)
+  quality_threshold   Float?   // Minimum quality score to accept
+  max_retries         Int      @default(3)
+  timeout_seconds     Int      @default(30)
+  is_active           Boolean  @default(true)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  
+  primary_provider    ModelProvider @relation(fields: [primary_provider_id], references: [id])
+  
+  @@index([site_id])
+  @@index([route_name])
+  @@index([is_active])
+}
+
+// Background Job Management and Monitoring
+model BackgroundJob {
+  id              String   @id @default(cuid())
+  site_id         String?  // Multi-tenant scoping
+  job_name        String   // backlink_inspector, topic_balancer, analytics_sync, cleanup
+  job_type        String   // scheduled, triggered, manual
+  schedule_cron   String?  // Cron expression for scheduled jobs
+  parameters_json Json?    // Job-specific parameters
+  status          String   @default("pending") // pending, running, completed, failed, cancelled
+  started_at      DateTime?
+  completed_at    DateTime?
+  duration_ms     Int?
+  result_json     Json?    // Job results and metrics
+  error_message   String?  @db.Text
+  retry_count     Int      @default(0)
+  max_retries     Int      @default(3)
+  next_run_at     DateTime?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  
+  @@index([site_id])
+  @@index([job_name])
+  @@index([status])
+  @@index([next_run_at])
+  @@index([created_at])
+}
+
+// Exit Intent and Engagement Tracking
+model ExitIntentImpression {
+  id                String   @id @default(cuid())
+  site_id           String?  // Multi-tenant scoping
+  session_id        String   // Anonymous session tracking
+  page_url          String
+  user_agent        String?
+  impression_type   String   // newsletter_modal, survey, special_offer
+  trigger_event     String   // mouse_leave, scroll_up, time_on_page
+  shown_at          DateTime @default(now())
+  action_taken      String?  // subscribed, dismissed, ignored
+  action_taken_at   DateTime?
+  conversion_value  Float?   // If converted, track value
+  ttl_expires_at    DateTime // Auto-cleanup after X days
+  
+  @@index([site_id])
+  @@index([session_id])
+  @@index([shown_at])
+  @@index([ttl_expires_at]) // For cleanup job
+}
+
+// Enhanced User model relations for Phase 4C
+// (Adding this to avoid schema conflicts - the User model already exists above)
+model UserExtended {
+  id                String   @id @default(cuid())
+  user_id           String   @unique // Reference to existing User
+  site_memberships  Json?    // Multi-site access control
+  feature_preferences Json?  // User-specific feature toggles
+  notification_settings Json? // Email, in-app notification preferences
+  last_activity_at  DateTime?
+  activity_streak   Int      @default(0)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  
+  @@index([user_id])
+  @@index([last_activity_at])
 }

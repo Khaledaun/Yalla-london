@@ -11,6 +11,7 @@ import { BrandThemeProvider } from '@/components/brand-theme-provider'
 import { StructuredData } from '@/components/structured-data'
 import { AnalyticsTracker } from '@/components/analytics-tracker'
 import { NextAuthSessionProvider } from '@/components/session-provider'
+import { CookieConsentBanner } from '@/components/cookie-consent-banner'
 import { brandConfig } from '@/config/brand-config'
 
 export const metadata: Metadata = {
@@ -75,6 +76,17 @@ export default function RootLayout({
         <StructuredData />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        
+        {/* PWA Meta Tags */}
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#fbbf24" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Yalla London" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        
+        {/* Other Meta Tags */}
         <meta name="geo.region" content="GB-LND" />
         <meta name="geo.placename" content="London" />
         <meta name="geo.position" content="51.5074;-0.1278" />
@@ -99,6 +111,7 @@ export default function RootLayout({
                   </main>
                   <Footer />
                 </div>
+                <CookieConsentBanner />
               </LanguageProvider>
             </ThemeProvider>
           </BrandThemeProvider>

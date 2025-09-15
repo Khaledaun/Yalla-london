@@ -56,6 +56,9 @@ yarn-error.log*
 npm-debug.log*
 .nyc_output/
 
+# Build execution markers
+.prisma-generation-attempt
+
 # IDE configuration directories (comprehensive)
 .vscode/
 .idea/

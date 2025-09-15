@@ -181,6 +181,7 @@ export interface HowToSchema extends SchemaBaseProps {
   estimatedCost?: MonetaryAmount;
   supply?: string[];
   tool?: string[];
+  inLanguage?: string;
 }
 
 export interface HowToStepSchema {
@@ -589,6 +590,260 @@ export class SchemaGenerator {
   // Generate JSON-LD script tag
   generateJsonLd(schema: SchemaBaseProps | SchemaBaseProps[]): string {
     return JSON.stringify(schema, null, 2);
+  }
+
+  /**
+   * Auto-generate FAQ schema from content
+   */
+  generateFAQFromContent(content: string, url: string): FAQPageSchema | null {
+    // Extract Q&A patterns from content
+    const questions = this.extractQuestions(content);
+    
+    if (questions.length === 0) {
+      return null;
+    }
+
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      '@id': `${url}#faq`,
+      name: 'Frequently Asked Questions',
+      url: url,
+      mainEntity: questions
+    };
+  }
+
+  /**
+   * Auto-generate HowTo schema from content
+   */
+  generateHowToFromContent(title: string, content: string, url: string): HowToSchema | null {
+    // Extract step-by-step instructions from content
+    const steps = this.extractSteps(content);
+    
+    if (steps.length < 2) {
+      return null;
+    }
+
+    // Extract time information if available
+    const timeMatch = content.match(/(\d+)\s*(minutes?|hours?|min|hr)/i);
+    const totalTime = timeMatch ? `PT${timeMatch[1]}${timeMatch[2].toLowerCase().startsWith('h') ? 'H' : 'M'}` : undefined;
+
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'HowTo',
+      '@id': `${url}#howto`,
+      name: title,
+      description: content.substring(0, 160),
+      url: url,
+      step: steps,
+      totalTime: totalTime,
+      inLanguage: 'en'
+    };
+  }
+
+  /**
+   * Auto-generate Review schema from content
+   */
+  generateReviewFromContent(article: {
+    title: string;
+    content: string;
+    author?: string;
+    publishedAt: string;
+    slug: string;
+    rating?: number;
+    reviewedItem?: {
+      name: string;
+      type: string;
+    };
+  }): ReviewSchema | null {
+    // Check if content contains review indicators
+    const hasReviewContent = /review|rating|stars|recommend|experience|verdict/i.test(article.content);
+    
+    if (!hasReviewContent && !article.rating) {
+      return null;
+    }
+
+    // Extract or default rating
+    const rating = article.rating || this.extractRatingFromContent(article.content) || 4;
+
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'Review',
+      '@id': `${this.baseUrl}/blog/${article.slug}#review`,
+      name: article.title,
+      reviewBody: article.content.substring(0, 500),
+      author: article.author ? {
+        '@context': 'https://schema.org',
+        '@type': 'Person',
+        name: article.author
+      } : this.defaultPerson,
+      datePublished: article.publishedAt,
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: rating,
+        bestRating: 5,
+        worstRating: 1
+      },
+      itemReviewed: article.reviewedItem ? {
+        '@context': 'https://schema.org',
+        '@type': article.reviewedItem.type,
+        name: article.reviewedItem.name
+      } : {
+        '@context': 'https://schema.org',
+        '@type': 'Thing',
+        name: article.title
+      }
+    };
+  }
+
+  /**
+   * Auto-generate schema based on page type
+   */
+  generateSchemaForPageType(pageType: string, data: any): SchemaBaseProps | SchemaBaseProps[] | null {
+    switch (pageType.toLowerCase()) {
+      case 'article':
+      case 'blog':
+        const schemas: SchemaBaseProps[] = [this.generateArticle(data)];
+        
+        // Add FAQ schema if Q&A content detected
+        const faqSchema = this.generateFAQFromContent(data.content, `${this.baseUrl}/blog/${data.slug}`);
+        if (faqSchema) schemas.push(faqSchema);
+        
+        // Add HowTo schema if step content detected
+        const howToSchema = this.generateHowToFromContent(data.title, data.content, `${this.baseUrl}/blog/${data.slug}`);
+        if (howToSchema) schemas.push(howToSchema);
+        
+        // Add Review schema if review content detected
+        const reviewSchema = this.generateReviewFromContent(data);
+        if (reviewSchema) schemas.push(reviewSchema);
+        
+        return schemas.length === 1 ? schemas[0] : schemas;
+
+      case 'event':
+        return this.generateEvent(data);
+
+      case 'place':
+      case 'restaurant':
+      case 'hotel':
+        return this.generatePlace(data);
+
+      case 'faq':
+        return this.generateFAQFromContent(data.content, data.url);
+
+      case 'howto':
+      case 'guide':
+        return this.generateHowToFromContent(data.title, data.content, data.url);
+
+      case 'review':
+        return this.generateReviewFromContent(data);
+
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * Extract questions from content
+   */
+  private extractQuestions(content: string): QuestionSchema[] {
+    const questions: QuestionSchema[] = [];
+    
+    // Pattern 1: Q: ... A: format
+    const qaPattern = /Q:\s*([^?]+\?)\s*A:\s*([^Q]+?)(?=Q:|$)/gi;
+    let match;
+    
+    while ((match = qaPattern.exec(content)) !== null) {
+      questions.push({
+        '@type': 'Question',
+        name: match[1].trim(),
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: match[2].trim()
+        }
+      });
+    }
+    
+    // Pattern 2: ## Question followed by answer paragraph
+    const headingPattern = /#{2,3}\s*([^#\n]+\?)\s*\n\s*([^#]+?)(?=#{2,3}|\n\n|$)/gi;
+    
+    while ((match = headingPattern.exec(content)) !== null) {
+      questions.push({
+        '@type': 'Question',
+        name: match[1].trim(),
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: match[2].trim()
+        }
+      });
+    }
+    
+    return questions;
+  }
+
+  /**
+   * Extract steps from content
+   */
+  private extractSteps(content: string): HowToStepSchema[] {
+    const steps: HowToStepSchema[] = [];
+    
+    // Pattern 1: Numbered steps (1. 2. 3.)
+    const numberedPattern = /(\d+\.\s*)([^0-9]+?)(?=\d+\.|$)/gi;
+    let match;
+    
+    while ((match = numberedPattern.exec(content)) !== null) {
+      const stepText = match[2].trim();
+      if (stepText.length > 10) { // Minimum step length
+        steps.push({
+          '@type': 'HowToStep',
+          name: `Step ${steps.length + 1}`,
+          text: stepText
+        });
+      }
+    }
+    
+    // Pattern 2: Step headings
+    if (steps.length === 0) {
+      const stepPattern = /#{2,3}\s*(?:Step\s*\d+|Step)\s*:?\s*([^#\n]+)\s*\n\s*([^#]+?)(?=#{2,3}|\n\n|$)/gi;
+      
+      while ((match = stepPattern.exec(content)) !== null) {
+        steps.push({
+          '@type': 'HowToStep',
+          name: match[1].trim(),
+          text: match[2].trim()
+        });
+      }
+    }
+    
+    return steps;
+  }
+
+  /**
+   * Extract rating from content
+   */
+  private extractRatingFromContent(content: string): number | null {
+    // Look for rating patterns like "4/5", "8/10", "4 out of 5", "★★★★☆"
+    const ratingPatterns = [
+      /(\d+)\/5/g,
+      /(\d+)\s*out\s*of\s*5/gi,
+      /(\d+)\s*\/\s*10/g,
+      /(\d+)\s*out\s*of\s*10/gi
+    ];
+    
+    for (const pattern of ratingPatterns) {
+      const match = content.match(pattern);
+      if (match) {
+        const rating = parseInt(match[1]);
+        return pattern.source.includes('10') ? Math.round(rating / 2) : rating;
+      }
+    }
+    
+    // Count star symbols
+    const starMatch = content.match(/★+/);
+    if (starMatch) {
+      return Math.min(starMatch[0].length, 5);
+    }
+    
+    return null;
   }
 }
 

@@ -262,6 +262,15 @@ export default function PremiumAdminDashboard() {
 
   const quickActions: QuickAction[] = [
     {
+      id: 'sync-test',
+      label: 'Test Real-time Sync',
+      description: 'Verify admin → database → public site pipeline',
+      icon: Zap,
+      href: '/admin/sync-test',
+      color: 'bg-purple-500 hover:bg-purple-600',
+      badge: 'NEW'
+    },
+    {
       id: 'new-article',
       label: 'New Article',
       description: 'Create a new blog post or article',

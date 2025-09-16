@@ -286,11 +286,11 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     
     if (moduleId) {
       // Get specific training module
-      const module = trainingModules.get(moduleId);
-      if (module) {
+      const trainingModule = trainingModules.get(moduleId);
+      if (trainingModule) {
         return NextResponse.json({
           status: 'success',
-          training_module: module
+          training_module: trainingModule
         });
       } else {
         return NextResponse.json(

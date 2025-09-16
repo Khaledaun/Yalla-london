@@ -1,10 +1,11 @@
 /**
  * Phase 4C Public Content API
- * Public endpoint for content listing and discovery
+ * Public endpoint for content listing and discovery with real-time cache management
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { unstable_cache } from 'next/cache';
 
 // Zod schemas for validation
 const ContentQuerySchema = z.object({
@@ -116,52 +117,63 @@ export async function GET(request: NextRequest) {
         break;
     }
 
-    // Fetch content with pagination
-    const [content, totalCount] = await Promise.all([
-      prisma.blogPost.findMany({
-        where,
-        select: {
-          id: true,
-          [`title_${locale}`]: true,
-          [`excerpt_${locale}`]: true,
-          slug: true,
-          featured_image: true,
-          page_type: true,
-          seo_score: true,
-          tags: true,
-          created_at: true,
-          updated_at: true,
-          category: {
-            select: {
-              name_en: true,
-              name_ar: true,
-              slug: true
-            }
-          },
-          place: {
+    // Fetch content with pagination - wrapped with cache tags
+    const getCachedContent = unstable_cache(
+      async () => {
+        return await Promise.all([
+          prisma.blogPost.findMany({
+            where,
             select: {
               id: true,
-              name: true,
+              [`title_${locale}`]: true,
+              [`excerpt_${locale}`]: true,
               slug: true,
-              category: true,
-              lat: true,
-              lng: true
-            }
-          },
-          author: {
-            select: {
-              id: true,
-              name: true,
-              image: true
-            }
-          }
-        },
-        orderBy,
-        skip: offset,
-        take: limit
-      }),
-      prisma.blogPost.count({ where })
-    ]);
+              featured_image: true,
+              page_type: true,
+              seo_score: true,
+              tags: true,
+              created_at: true,
+              updated_at: true,
+              category: {
+                select: {
+                  name_en: true,
+                  name_ar: true,
+                  slug: true
+                }
+              },
+              place: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  category: true,
+                  lat: true,
+                  lng: true
+                }
+              },
+              author: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true
+                }
+              }
+            },
+            orderBy,
+            skip: offset,
+            take: limit
+          }),
+          prisma.blogPost.count({ where })
+        ]);
+      },
+      [`content-${locale}-${category || 'all'}-${page_type || 'all'}-${sort}-${page}`],
+      {
+        tags: ['blog-posts'],
+        revalidate: 60 // Fallback revalidation every 60 seconds
+      }
+    );
+
+    const [content, totalCount] = await getCachedContent();
 
     // Transform response for public consumption
     const transformedContent = content.map((post: any) => ({
@@ -186,33 +198,44 @@ export async function GET(request: NextRequest) {
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
 
-    // Get featured content for homepage
+    // Get featured content for homepage - cached with tags
     let featuredContent = [];
     if (page === 1 && !search && !category) {
-      featuredContent = await prisma.blogPost.findMany({
-        where: {
-          published: true,
-          seo_score: { gte: 80 } // High SEO score content
-        },
-        select: {
-          id: true,
-          [`title_${locale}`]: true,
-          [`excerpt_${locale}`]: true,
-          slug: true,
-          featured_image: true,
-          page_type: true,
-          created_at: true,
-          category: {
+      const getFeaturedContent = unstable_cache(
+        async () => {
+          return await prisma.blogPost.findMany({
+            where: {
+              published: true,
+              seo_score: { gte: 80 } // High SEO score content
+            },
             select: {
-              name_en: true,
-              name_ar: true,
-              slug: true
-            }
-          }
+              id: true,
+              [`title_${locale}`]: true,
+              [`excerpt_${locale}`]: true,
+              slug: true,
+              featured_image: true,
+              page_type: true,
+              created_at: true,
+              category: {
+                select: {
+                  name_en: true,
+                  name_ar: true,
+                  slug: true
+                }
+              }
+            },
+            orderBy: { seo_score: 'desc' },
+            take: 3
+          });
         },
-        orderBy: { seo_score: 'desc' },
-        take: 3
-      });
+        [`featured-content-${locale}`],
+        {
+          tags: ['blog-posts', 'homepage-content'],
+          revalidate: 300 // Revalidate every 5 minutes
+        }
+      );
+      
+      featuredContent = await getFeaturedContent();
     }
 
     return NextResponse.json({

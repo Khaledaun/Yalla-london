@@ -1,13 +1,15 @@
-/* Premium Admin Layout - Enhanced CSS Module for Perfect Sidebar/Main Alignment */
+/* Premium Admin Layout - Enhanced CSS Module with Inter Font */
 
 .adminContainer {
   display: flex;
   min-height: 100vh;
-  background-color: #f9fafb;
+  background-color: #f8fafc;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
 .adminContainer.darkMode {
-  background-color: #111827;
+  background-color: #0f172a;
 }
 
 /* Sidebar Container */
@@ -19,15 +21,17 @@
   width: 16rem; /* 64 = 256px */
   height: 100vh;
   background-color: white;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   transform: translateX(-100%);
   transition: transform 200ms ease-in-out;
   display: flex;
   flex-direction: column;
+  border-right: 1px solid #e2e8f0;
 }
 
 .sidebarContainer.darkMode {
-  background-color: #1f2937;
+  background-color: #1e293b;
+  border-right-color: #334155;
 }
 
 .sidebarContainer.open {
@@ -123,20 +127,22 @@
 /* Top Header Bar */
 .topHeader {
   background-color: white;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  border-bottom: 1px solid #e5e7eb;
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid #e2e8f0;
   height: 4rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1rem;
-  position: relative;
+  padding: 0 1.5rem;
+  position: sticky;
+  top: 0;
   z-index: 30;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 
 .topHeader.darkMode {
-  background-color: #1f2937;
-  border-bottom-color: #374151;
+  background-color: rgba(30, 41, 59, 0.95);
+  border-bottom-color: #475569;
 }
 
 .topHeaderLeft {
@@ -286,8 +292,14 @@
 /* Main Content Area */
 .mainContent {
   flex: 1;
-  padding: 1.5rem;
+  padding: 2rem;
   overflow: auto;
+  background-color: #f8fafc;
+  min-height: calc(100vh - 4rem);
+}
+
+.mainContent.darkMode {
+  background-color: #0f172a;
 }
 
 /* User Menu Dropdown */

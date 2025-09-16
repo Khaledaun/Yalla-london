@@ -262,22 +262,31 @@ export function MediaUploadManager() {
           <div
             {...getRootProps()}
             className={`
-              border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-              ${isDragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
+              border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-all duration-200 
+              ${isDragActive 
+                ? 'border-blue-400 bg-gradient-to-br from-blue-50 to-blue-100 scale-105 shadow-lg' 
+                : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+              }
             `}
           >
             <input {...getInputProps()} />
-            <Upload className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-            <p className="text-lg font-medium text-gray-900 mb-2">
-              {isDragActive ? 'Drop files here' : 'Drag & drop files here'}
+            <div className={`transition-all duration-200 ${isDragActive ? 'scale-110' : ''}`}>
+              <Upload className={`h-16 w-16 mx-auto mb-6 transition-colors ${isDragActive ? 'text-blue-500' : 'text-gray-400'}`} />
+            </div>
+            <p className="admin-text-lg font-semibold text-gray-900 mb-2">
+              {isDragActive ? 'Drop files here!' : 'Drag & drop your media files'}
             </p>
-            <p className="text-gray-500 mb-4">
-              or <span className="text-blue-600 font-medium">browse</span> to choose files
+            <p className="admin-text-base text-gray-600 mb-6">
+              or <span className="text-blue-600 font-semibold hover:text-blue-700 cursor-pointer">click to browse</span> and select files
             </p>
-            <p className="text-sm text-gray-400">
-              Supports: Images (PNG, JPG, GIF, WebP), Videos (MP4, MOV, AVI, WebM), Documents (PDF)
-            </p>
-            <p className="text-sm text-gray-400">Maximum file size: 10MB</p>
+            <div className="space-y-2">
+              <p className="admin-text-sm text-gray-500">
+                📸 Images: PNG, JPG, GIF, WebP • 🎥 Videos: MP4, MOV, AVI, WebM • 📄 Documents: PDF
+              </p>
+              <p className="admin-text-sm text-gray-500 font-medium">
+                Maximum file size: 10MB per file
+              </p>
+            </div>
           </div>
 
           {/* Upload Progress */}
@@ -403,28 +412,30 @@ export function MediaUploadManager() {
         
         <CardContent>
           {/* Hero Image Selection */}
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mb-6 p-6 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl shadow-sm">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-medium text-blue-900">Current Hero Image</h3>
-                <p className="text-sm text-blue-700">
+                <h3 className="admin-heading text-lg text-blue-900">Current Hero Image</h3>
+                <p className="admin-text-sm text-blue-700 mt-1">
                   This image is displayed as the main hero image on your homepage
                 </p>
               </div>
               {heroImageId && (
-                <div className="flex items-center space-x-3">
-                  <div className="relative">
+                <div className="flex items-center space-x-4">
+                  <div className="relative group">
                     <Image
                       src={mediaAssets.find(a => a.id === heroImageId)?.thumbnailUrl || '/placeholder.jpg'}
                       alt="Current hero image"
-                      width={60}
-                      height={40}
-                      className="rounded object-cover border-2 border-blue-300"
+                      width={80}
+                      height={60}
+                      className="rounded-lg object-cover border-2 border-blue-300 shadow-md transition-transform group-hover:scale-105"
                     />
-                    <Star className="absolute -top-1 -right-1 h-4 w-4 text-yellow-500 fill-current" />
+                    <div className="absolute -top-2 -right-2 bg-yellow-500 rounded-full p-1 shadow-lg">
+                      <Star className="h-4 w-4 text-yellow-900 fill-current" />
+                    </div>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-blue-900">
+                    <p className="admin-text-sm font-semibold text-blue-900">
                       {mediaAssets.find(a => a.id === heroImageId)?.originalName}
                     </p>
                     <p className="text-xs text-blue-700">Hero Image</p>
@@ -436,32 +447,32 @@ export function MediaUploadManager() {
 
           {/* Media Grid/List */}
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {filteredAssets.map(asset => (
                 <div 
                   key={asset.id}
                   className={`
-                    relative group border rounded-lg overflow-hidden cursor-pointer transition-all
-                    ${selectedAssets.has(asset.id) ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-200 hover:border-gray-300'}
-                    ${asset.isHeroImage ? 'ring-2 ring-yellow-400' : ''}
+                    group relative bg-white border-2 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 overflow-hidden
+                    ${selectedAssets.has(asset.id) ? 'ring-2 ring-blue-500 border-blue-500 shadow-lg' : 'border-gray-200 hover:border-gray-300'}
+                    ${asset.isHeroImage ? 'ring-2 ring-yellow-400 border-yellow-400 shadow-yellow-100 shadow-lg' : ''}
                   `}
                   onClick={() => toggleAssetSelection(asset.id)}
                 >
                   {/* Hero Badge */}
                   {asset.isHeroImage && (
-                    <div className="absolute top-2 left-2 z-10">
-                      <Badge className="bg-yellow-500 text-yellow-900">
-                        <Star className="h-3 w-3 mr-1" />
+                    <div className="absolute top-3 left-3 z-10">
+                      <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 px-2 py-1 rounded-full text-xs font-semibold flex items-center shadow-md">
+                        <Star className="h-3 w-3 mr-1 fill-current" />
                         Hero
-                      </Badge>
+                      </div>
                     </div>
                   )}
                   
                   {/* Selection Checkbox */}
-                  <div className="absolute top-2 right-2 z-10">
+                  <div className="absolute top-3 right-3 z-10">
                     <div className={`
-                      w-5 h-5 rounded-full border-2 flex items-center justify-center
-                      ${selectedAssets.has(asset.id) ? 'bg-blue-500 border-blue-500' : 'bg-white border-gray-300'}
+                      w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shadow-md
+                      ${selectedAssets.has(asset.id) ? 'bg-blue-500 border-blue-500 scale-110' : 'bg-white border-gray-300 group-hover:border-blue-400'}
                     `}>
                       {selectedAssets.has(asset.id) && (
                         <Check className="h-3 w-3 text-white" />
@@ -470,64 +481,67 @@ export function MediaUploadManager() {
                   </div>
 
                   {/* Media Preview */}
-                  <div className="aspect-square bg-gray-100">
+                  <div className="aspect-square bg-gray-50">
                     {asset.type === 'image' ? (
                       <Image
                         src={asset.thumbnailUrl || asset.url}
                         alt={asset.altText || asset.originalName}
-                        width={200}
-                        height={200}
-                        className="w-full h-full object-cover"
+                        width={240}
+                        height={240}
+                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        {getFileIcon(asset.type)}
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+                        <div className="text-gray-400">
+                          {getFileIcon(asset.type)}
+                        </div>
                       </div>
                     )}
                   </div>
 
                   {/* Asset Info */}
-                  <div className="p-3">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                  <div className="p-4">
+                    <p className="admin-text-sm font-semibold text-gray-900 truncate mb-1">
                       {asset.originalName}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      {formatFileSize(asset.size)} • {asset.type}
-                    </p>
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                      <span>{formatFileSize(asset.size)}</span>
+                      <span className="capitalize font-medium">{asset.type}</span>
+                    </div>
                     {asset.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
+                      <div className="flex flex-wrap gap-1">
                         {asset.tags.slice(0, 2).map(tag => (
-                          <Badge key={tag} variant="outline" className="text-xs">
+                          <span key={tag} className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
                             {tag}
-                          </Badge>
+                          </span>
                         ))}
                         {asset.tags.length > 2 && (
-                          <Badge variant="outline" className="text-xs">
+                          <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
                             +{asset.tags.length - 2}
-                          </Badge>
+                          </span>
                         )}
                       </div>
                     )}
                   </div>
 
                   {/* Hover Actions */}
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-end justify-center pb-4">
                     <div className="flex space-x-2">
-                      <Button size="sm" variant="secondary" onClick={(e) => {
+                      <Button size="sm" className="bg-white/90 hover:bg-white text-gray-800 shadow-lg" onClick={(e) => {
                         e.stopPropagation()
                         // Preview functionality
                       }}>
                         <Eye className="h-4 w-4" />
                       </Button>
                       {asset.type === 'image' && !asset.isHeroImage && (
-                        <Button size="sm" variant="secondary" onClick={(e) => {
+                        <Button size="sm" className="bg-yellow-500/90 hover:bg-yellow-500 text-yellow-900 shadow-lg" onClick={(e) => {
                           e.stopPropagation()
                           setAsHeroImage(asset.id)
                         }}>
                           <Star className="h-4 w-4" />
                         </Button>
                       )}
-                      <Button size="sm" variant="secondary" onClick={(e) => {
+                      <Button size="sm" className="bg-white/90 hover:bg-white text-gray-800 shadow-lg" onClick={(e) => {
                         e.stopPropagation()
                         // Edit functionality
                       }}>

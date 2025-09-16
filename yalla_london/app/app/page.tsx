@@ -7,7 +7,7 @@ import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowRight, MapPin, Star, Calendar } from 'lucide-react'
+import { ArrowRight, MapPin, Star, Calendar, FileText } from 'lucide-react'
 import { motion, useInView } from 'framer-motion'
 import { useRef, useEffect, useState } from 'react'
 import { NewsletterSignup } from '@/components/newsletter-signup'
@@ -25,10 +25,30 @@ const categoryImages = {
   'uk-travel': 'https://media.houseandgarden.co.uk/photos/64de03217863f90371b7b1bf/16:9/w_2752,h_1548,c_limit/Shot-05-254.jpg'
 }
 
+interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  slug: string;
+  featured_image: string;
+  created_at: string;
+  category: {
+    name_en: string;
+    name_ar: string;
+    slug: string;
+  } | null;
+  author: {
+    name: string;
+  } | null;
+  url: string;
+}
+
 export default function Home() {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [latestPosts, setLatestPosts] = useState<BlogPost[]>([])
+  const [loadingPosts, setLoadingPosts] = useState(true)
   const heroRef = useRef(null)
   const isHeroInView = useInView(heroRef, { once: true })
 
@@ -39,6 +59,38 @@ export default function Home() {
     
     return () => clearInterval(interval)
   }, [])
+
+  // Fetch latest blog posts for homepage
+  useEffect(() => {
+    const fetchLatestPosts = async () => {
+      try {
+        setLoadingPosts(true)
+        
+        const params = new URLSearchParams({
+          locale: language,
+          limit: '3', // Get latest 3 posts for homepage
+          sort: 'newest'
+        })
+        
+        const response = await fetch(`/api/content?${params}`)
+        const data = await response.json()
+        
+        if (data.success) {
+          setLatestPosts(data.data)
+        } else {
+          console.error('Failed to fetch latest posts:', data.error)
+          setLatestPosts([]) // Graceful fallback to empty array
+        }
+      } catch (err) {
+        console.error('Error fetching latest posts:', err)
+        setLatestPosts([]) // Graceful fallback to empty array
+      } finally {
+        setLoadingPosts(false)
+      }
+    }
+
+    fetchLatestPosts()
+  }, [language])
 
   const featuredCategories = [
     {
@@ -423,51 +475,100 @@ export default function Home() {
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {[1, 2, 3].map((item, index) => (
+            {loadingPosts ? (
+              // Loading state
+              [1, 2, 3].map((item, index) => (
+                <motion.div
+                  key={`loading-${item}`}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: index * 0.2 }}
+                >
+                  <Card className="overflow-hidden border-0 luxury-shadow bg-white">
+                    <div className="relative aspect-video bg-gray-200 animate-pulse" />
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                        <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+                        <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                      </div>
+                      <div className="h-6 bg-gray-200 rounded mb-3 animate-pulse" />
+                      <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))
+            ) : latestPosts.length > 0 ? (
+              // Show real blog posts from database
+              latestPosts.map((post, index) => (
+                <motion.div
+                  key={post.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: index * 0.2 }}
+                  whileHover={{ scale: 1.02 }}
+                >
+                  <Link href={`/blog/${post.slug}`}>
+                    <Card className="overflow-hidden border-0 luxury-shadow hover:shadow-xl transition-all duration-300 bg-white cursor-pointer">
+                      <div className="relative aspect-video">
+                        <Image
+                          src={post.featured_image}
+                          alt={post.title}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <CardContent className="p-6">
+                        <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            {new Date(post.created_at).toLocaleDateString(
+                              language === 'en' ? 'en-US' : 'ar-SA',
+                              { year: 'numeric', month: 'long', day: 'numeric' }
+                            )}
+                          </span>
+                          {post.category && (
+                            <span className="flex items-center gap-1">
+                              <Star className="h-4 w-4" />
+                              {language === 'en' ? post.category.name_en : post.category.name_ar}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-xl font-semibold mb-3 text-gray-900 line-clamp-2">
+                          {post.title}
+                        </h3>
+                        <p className="text-gray-600 leading-relaxed line-clamp-3">
+                          {post.excerpt}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
+              ))
+            ) : (
+              // Fallback when no posts are available
               <motion.div
-                key={item}
+                className="col-span-3 text-center py-12"
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.2 }}
-                whileHover={{ scale: 1.02 }}
+                transition={{ duration: 0.8 }}
               >
-                <Card className="overflow-hidden border-0 luxury-shadow hover:shadow-xl transition-all duration-300 bg-white">
-                  <div className="relative aspect-video">
-                    <Image
-                      src={heroImages[index % heroImages.length]}
-                      alt="Blog post"
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        {language === 'en' ? 'Dec 25, 2024' : '٢٥ ديسمبر ٢٠٢٤'}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Star className="h-4 w-4" />
-                        {t('categories.food-drink')}
-                      </span>
-                    </div>
-                    <h3 className="text-xl font-semibold mb-3 text-gray-900">
-                      {language === 'en' 
-                        ? 'The Ultimate Guide to London\'s Hidden Gems'
-                        : 'الدليل الشامل للكنوز المخفية في لندن'
-                      }
-                    </h3>
-                    <p className="text-gray-600 leading-relaxed">
-                      {language === 'en'
-                        ? 'Discover the secret spots that only locals know about...'
-                        : 'اكتشف الأماكن السرية التي لا يعرفها سوى المحليون...'
-                      }
-                    </p>
-                  </CardContent>
-                </Card>
+                <div className="text-gray-500">
+                  <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {language === 'en' ? 'No Stories Yet' : 'لا توجد قصص بعد'}
+                  </h3>
+                  <p className="text-gray-600">
+                    {language === 'en' 
+                      ? 'New stories will appear here once published through the admin dashboard.'
+                      : 'ستظهر القصص الجديدة هنا بمجرد نشرها من خلال لوحة الإدارة.'
+                    }
+                  </p>
+                </div>
               </motion.div>
-            ))}
+            )}
           </div>
         </div>
       </section>

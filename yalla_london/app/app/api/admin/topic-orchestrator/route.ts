@@ -84,10 +84,10 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     });
     
   } catch (error) {
-    await performanceMonitor.captureError(
-      error instanceof Error ? error : new Error('Unknown topic orchestrator error'),
-      { endpoint: '/api/admin/topic-orchestrator' }
-    );
+    await performanceMonitor.captureError({
+      error: error instanceof Error ? error : new Error('Unknown topic orchestrator error'),
+      context: { endpoint: '/api/admin/topic-orchestrator' }
+    });
     
     console.error('Topic orchestrator error:', error);
     

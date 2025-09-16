@@ -158,7 +158,7 @@ export default function ArticlesPage() {
           // Extract unique categories
           const uniqueCategories = Array.from(new Set(
             data.data.map((article: BlogPostAdmin) => article.category?.name_en).filter(Boolean)
-          ))
+          )) as string[]
           setCategories(uniqueCategories)
         } else {
           throw new Error(data.error || 'Failed to fetch articles')

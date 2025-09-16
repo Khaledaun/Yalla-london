@@ -37,9 +37,19 @@ const BlogPostUpdateSchema = z.object({
  * GET /api/admin/blog-posts/[id]
  * Get a specific blog post by ID
  */
-export const GET = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
-    const { id } = params;
+    // Extract ID from URL pathname
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    const id = pathSegments[pathSegments.length - 1];
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Blog post ID is required' },
+        { status: 400 }
+      );
+    }
     
     const blogPost = await prisma.blogPost.findUnique({
       where: { id },
@@ -101,9 +111,20 @@ export const GET = withAdminAuth(async (request: NextRequest, { params }: { para
  * PUT /api/admin/blog-posts/[id]
  * Update a specific blog post
  */
-export const PUT = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const PUT = withAdminAuth(async (request: NextRequest) => {
   try {
-    const { id } = params;
+    // Extract ID from URL pathname
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    const id = pathSegments[pathSegments.length - 1];
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Blog post ID is required' },
+        { status: 400 }
+      );
+    }
+    
     const body = await request.json();
     
     const validation = BlogPostUpdateSchema.safeParse(body);
@@ -230,9 +251,19 @@ export const PUT = withAdminAuth(async (request: NextRequest, { params }: { para
  * DELETE /api/admin/blog-posts/[id]
  * Delete a specific blog post
  */
-export const DELETE = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const DELETE = withAdminAuth(async (request: NextRequest) => {
   try {
-    const { id } = params;
+    // Extract ID from URL pathname
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    const id = pathSegments[pathSegments.length - 1];
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Blog post ID is required' },
+        { status: 400 }
+      );
+    }
     
     // Check if blog post exists
     const existingPost = await prisma.blogPost.findUnique({
@@ -272,9 +303,20 @@ export const DELETE = withAdminAuth(async (request: NextRequest, { params }: { p
  * PATCH /api/admin/blog-posts/[id]
  * Toggle publish status or update specific fields
  */
-export const PATCH = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const PATCH = withAdminAuth(async (request: NextRequest) => {
   try {
-    const { id } = params;
+    // Extract ID from URL pathname
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    const id = pathSegments[pathSegments.length - 1];
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Blog post ID is required' },
+        { status: 400 }
+      );
+    }
+    
     const { action, ...data } = await request.json();
     
     // Check if blog post exists

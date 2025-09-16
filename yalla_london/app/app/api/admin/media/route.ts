@@ -112,7 +112,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const hasPrevPage = page > 1;
     
     // Transform data for frontend
-    const transformedData = mediaFiles.map(file => ({
+    const transformedData = mediaFiles.map((file: any) => ({
       id: file.id,
       filename: file.filename,
       url: file.url,
@@ -277,7 +277,7 @@ export const DELETE = withAdminAuth(async (request: NextRequest) => {
     if (filesInUse.length > 0) {
       return NextResponse.json({
         error: 'Some files are currently in use and cannot be deleted',
-        filesInUse: filesInUse.map(file => ({
+        filesInUse: filesInUse.map((file: any) => ({
           id: file.id,
           filename: file.filename,
           usageCount: file.usage_count

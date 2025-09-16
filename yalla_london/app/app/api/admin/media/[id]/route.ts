@@ -22,9 +22,19 @@ const MediaUpdateSchema = z.object({
  * GET /api/admin/media/[id]
  * Get a specific media file by ID
  */
-export const GET = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
-    const { id } = params;
+    // Extract ID from URL pathname
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    const id = pathSegments[pathSegments.length - 1];
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Media file ID is required' },
+        { status: 400 }
+      );
+    }
     
     const mediaFile = await prisma.media.findUnique({
       where: { id },
@@ -85,9 +95,20 @@ export const GET = withAdminAuth(async (request: NextRequest, { params }: { para
  * PUT /api/admin/media/[id]
  * Update a specific media file
  */
-export const PUT = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const PUT = withAdminAuth(async (request: NextRequest) => {
   try {
-    const { id } = params;
+    // Extract ID from URL pathname
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    const id = pathSegments[pathSegments.length - 1];
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Media file ID is required' },
+        { status: 400 }
+      );
+    }
+    
     const body = await request.json();
     
     const validation = MediaUpdateSchema.safeParse(body);
@@ -174,9 +195,19 @@ export const PUT = withAdminAuth(async (request: NextRequest, { params }: { para
  * DELETE /api/admin/media/[id]
  * Delete a specific media file
  */
-export const DELETE = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const DELETE = withAdminAuth(async (request: NextRequest) => {
   try {
-    const { id } = params;
+    // Extract ID from URL pathname
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    const id = pathSegments[pathSegments.length - 1];
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Media file ID is required' },
+        { status: 400 }
+      );
+    }
     
     // Check if media file exists and if it's in use
     const existingFile = await prisma.media.findUnique({
@@ -228,9 +259,20 @@ export const DELETE = withAdminAuth(async (request: NextRequest, { params }: { p
  * PATCH /api/admin/media/[id]
  * Update specific fields or perform actions on media file
  */
-export const PATCH = withAdminAuth(async (request: NextRequest, { params }: { params: { id: string } }) => {
+export const PATCH = withAdminAuth(async (request: NextRequest) => {
   try {
-    const { id } = params;
+    // Extract ID from URL pathname
+    const url = new URL(request.url);
+    const pathSegments = url.pathname.split('/');
+    const id = pathSegments[pathSegments.length - 1];
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Media file ID is required' },
+        { status: 400 }
+      );
+    }
+    
     const { action, ...data } = await request.json();
     
     // Check if media file exists

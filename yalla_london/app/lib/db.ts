@@ -15,12 +15,18 @@ try {
   const prismaModule = require('@prisma/client');
   PrismaClient = prismaModule.PrismaClient;
   
-  prismaInstance = globalThis.prisma ?? new PrismaClient({
-    log: ['query'],
-  });
-  
-  if (process.env.NODE_ENV !== 'production') {
-    globalThis.prisma = prismaInstance;
+  // Check if we have a valid database URL
+  if (process.env.DATABASE_URL && process.env.DATABASE_URL !== 'postgresql://demo:demo@localhost:5432/demo') {
+    prismaInstance = globalThis.prisma ?? new PrismaClient({
+      log: ['query'],
+    });
+    
+    if (process.env.NODE_ENV !== 'production') {
+      globalThis.prisma = prismaInstance;
+    }
+  } else {
+    console.log('Using enhanced mock client for demo/development mode');
+    prismaInstance = mockPrismaClient;
   }
 } catch (error) {
   console.warn('Prisma client not available, using mock client for build compatibility');

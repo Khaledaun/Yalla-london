@@ -11,53 +11,83 @@ import { Calendar, User, ArrowLeft, Share2, Heart, BookOpen } from 'lucide-react
 import { motion } from 'framer-motion'
 import { useParams } from 'next/navigation'
 
-const samplePost = {
-  id: '1',
-  title_en: 'The Ultimate Guide to Michelin-Starred Dining in London',
-  title_ar: 'الدليل الشامل لتناول الطعام في مطاعم لندن الحاصلة على نجمة ميشلان',
-  content_en: `
-    <p>London's culinary landscape has evolved into one of the world's most sophisticated dining scenes, with numerous restaurants earning the coveted Michelin stars. From intimate chef's tables to grand dining rooms, these establishments represent the pinnacle of culinary excellence.</p>
-    
-    <h2>Three-Star Excellence</h2>
-    <p>At the apex of London's dining scene sits Restaurant Gordon Ramsay, the city's only three-Michelin-starred establishment. Located in Chelsea, this restaurant offers an extraordinary tasting menu that showcases Chef Gordon Ramsay's innovative approach to modern European cuisine.</p>
-    
-    <h2>Two-Star Sensations</h2>
-    <p>The Ledbury, Alain Ducasse at The Dorchester, and Sketch (Lecture Room) represent London's two-star establishments. Each offers a unique perspective on fine dining, from The Ledbury's modern British cuisine to Alain Ducasse's refined French techniques.</p>
-    
-    <h2>One-Star Gems</h2>
-    <p>London boasts over 60 one-Michelin-starred restaurants, each offering exceptional cuisine and service. Notable mentions include Dishoom's elevated Indian cuisine, Core by Clare Smyth's British-focused menu, and Ikoyi's innovative West African flavors.</p>
-    
-    <h2>Making Reservations</h2>
-    <p>Securing a table at these prestigious establishments requires planning. Most Michelin-starred restaurants accept reservations 2-3 months in advance, and some operate on a ballot system for their most sought-after tables.</p>
-  `,
-  content_ar: `
-    <p>تطورت المناظر الطبيعية الطهوية في لندن لتصبح واحدة من أكثر مشاهد الطعام تطوراً في العالم، مع العديد من المطاعم التي تحصل على نجوم ميشلان المرغوبة. من طاولات الطهاة الحميمة إلى قاعات الطعام الكبرى، تمثل هذه المؤسسات قمة التميز في الطهي.</p>
-    
-    <h2>التميز بثلاث نجوم</h2>
-    <p>في قمة مشهد تناول الطعام في لندن يقع مطعم غوردون رامزي، المؤسسة الوحيدة في المدينة التي تحمل ثلاث نجوم ميشلان. يقع هذا المطعم في تشيلسي، ويقدم قائمة تذوق استثنائية تعرض نهج الشيف غوردون رامزي المبتكر للمأكولات الأوروبية الحديثة.</p>
-    
-    <h2>إحساس النجمتين</h2>
-    <p>يمثل The Ledbury وAlain Ducasse في فندق The Dorchester وSketch (Lecture Room) مؤسسات لندن ذات النجمتين. كل منها يقدم منظوراً فريداً للطعام الراقي، من المأكولات البريطانية الحديثة في The Ledbury إلى التقنيات الفرنسية المنقحة لآلان دوكاس.</p>
-    
-    <h2>جواهر النجمة الواحدة</h2>
-    <p>تفتخر لندن بأكثر من 60 مطعماً حاصلاً على نجمة ميشلان واحدة، كل منها يقدم مأكولات وخدمة استثنائية. تشمل الإشارات البارزة المأكولات الهندية المرتفعة في Dishoom، وقائمة Core by Clare Smyth المركزة على الطعام البريطاني، ونكهات Ikoyi المبتكرة لغرب أفريقيا.</p>
-    
-    <h2>إجراء الحجوزات</h2>
-    <p>يتطلب الحصول على طاولة في هذه المؤسسات المرموقة التخطيط. معظم المطاعم الحاصلة على نجمة ميشلان تقبل الحجوزات قبل 2-3 أشهر، وبعضها يعمل بنظام الاقتراع لطاولاتها الأكثر طلباً.</p>
-  `,
-  excerpt_en: 'Discover London\'s finest restaurants that have earned the prestigious Michelin stars, from innovative tasting menus to classic fine dining.',
-  excerpt_ar: 'اكتشف أفضل مطاعم لندن التي حصلت على نجوم ميشلان المرموقة، من قوائم التذوق المبتكرة إلى المأكولات الراقية الكلاسيكية.',
-  slug: 'michelin-starred-dining-london',
-  category: 'food-drink',
-  featured_image: 'https://www.thecityofldn.com/wp-content/uploads/2023/04/FM_Helen-Lowe_Resize.jpg',
-  created_at: '2024-12-20T10:00:00Z'
+interface BlogPost {
+  id: string;
+  title_en: string;
+  title_ar: string;
+  content_en: string;
+  content_ar: string;
+  excerpt_en: string;
+  excerpt_ar: string;
+  slug: string;
+  featured_image: string;
+  created_at: string;
+  updated_at: string;
+  published: boolean;
+  page_type: string;
+  seo_score: number;
+  tags: string[];
+  category: {
+    id: string;
+    name_en: string;
+    name_ar: string;
+    slug: string;
+  } | null;
+  author: {
+    id: string;
+    name: string;
+    email: string;
+    image: string;
+  } | null;
+  place: any;
 }
 
 export default function BlogPostPage() {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
   const params = useParams()
+  const [post, setPost] = useState<BlogPost | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [isLiked, setIsLiked] = useState(false)
+
+  // Fetch blog post data based on slug
+  useEffect(() => {
+    const fetchPost = async () => {
+      if (!params.slug) return
+
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const response = await fetch(`/api/content/blog/${params.slug}`)
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError('Post not found')
+          } else {
+            setError('Failed to load post')
+          }
+          return
+        }
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          setPost(data.data)
+        } else {
+          setError(data.error || 'Failed to load post')
+        }
+      } catch (err) {
+        console.error('Error fetching blog post:', err)
+        setError('Failed to load post')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPost()
+  }, [params.slug])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -77,11 +107,13 @@ export default function BlogPostPage() {
   }
 
   const handleShare = async () => {
+    if (!post) return
+    
     if (navigator.share) {
       try {
         await navigator.share({
-          title: language === 'en' ? samplePost.title_en : samplePost.title_ar,
-          text: language === 'en' ? samplePost.excerpt_en : samplePost.excerpt_ar,
+          title: language === 'en' ? post.title_en : post.title_ar,
+          text: language === 'en' ? post.excerpt_en : post.excerpt_ar,
           url: window.location.href,
         })
       } catch (error) {
@@ -93,14 +125,53 @@ export default function BlogPostPage() {
     }
   }
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className={`${isRTL ? 'rtl' : 'ltr'} min-h-screen flex items-center justify-center`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {language === 'en' ? 'Loading post...' : 'جاري تحميل المقال...'}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error || !post) {
+    return (
+      <div className={`${isRTL ? 'rtl' : 'ltr'} min-h-screen flex items-center justify-center`}>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            {language === 'en' ? 'Post Not Found' : 'المقال غير موجود'}
+          </h1>
+          <p className="text-gray-600 mb-6">
+            {language === 'en' 
+              ? 'The blog post you\'re looking for doesn\'t exist or has been removed.'
+              : 'المقال الذي تبحث عنه غير موجود أو تم حذفه.'
+            }
+          </p>
+          <Link href="/blog">
+            <Button className="bg-purple-900 hover:bg-purple-800">
+              <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
+              {language === 'en' ? 'Back to Stories' : 'العودة للقصص'}
+            </Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={`${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Hero Section */}
       <section className="relative h-96 overflow-hidden">
         <div className="absolute inset-0">
           <Image
-            src={samplePost.featured_image}
-            alt={language === 'en' ? samplePost.title_en : samplePost.title_ar}
+            src={post.featured_image}
+            alt={language === 'en' ? post.title_en : post.title_ar}
             fill
             className="object-cover"
             priority
@@ -117,20 +188,20 @@ export default function BlogPostPage() {
             >
               <div className="mb-4">
                 <span className="bg-yellow-500 text-gray-900 px-4 py-2 rounded-full text-sm font-medium">
-                  {t(`categories.${samplePost.category}`)}
+                  {post.category ? (language === 'en' ? post.category.name_en : post.category.name_ar) : ''}
                 </span>
               </div>
               <h1 className="text-4xl md:text-5xl font-playfair font-bold mb-6">
-                {language === 'en' ? samplePost.title_en : samplePost.title_ar}
+                {language === 'en' ? post.title_en : post.title_ar}
               </h1>
               <div className="flex items-center justify-center gap-6 text-gray-200">
                 <span className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
-                  {formatDate(samplePost.created_at)}
+                  {formatDate(post.created_at)}
                 </span>
                 <span className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  {language === 'en' ? 'Founder' : 'المؤسسة'}
+                  {post.author ? post.author.name : (language === 'en' ? 'Author' : 'الكاتب')}
                 </span>
                 <span className="flex items-center gap-2">
                   <BookOpen className="h-4 w-4" />
@@ -180,7 +251,7 @@ export default function BlogPostPage() {
             <div 
               className="text-gray-800 leading-relaxed"
               dangerouslySetInnerHTML={{ 
-                __html: language === 'en' ? samplePost.content_en : samplePost.content_ar 
+                __html: language === 'en' ? post.content_en : post.content_ar 
               }}
             />
           </motion.div>
@@ -195,53 +266,25 @@ export default function BlogPostPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
+            className="text-center"
           >
-            <h3 className="text-3xl font-playfair font-bold text-center mb-12 gradient-text">
+            <h3 className="text-3xl font-playfair font-bold mb-8 gradient-text">
               {language === 'en' ? 'More London Stories' : 'المزيد من حكايات لندن'}
             </h3>
             
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[1, 2, 3].map((item, index) => (
-                <motion.div
-                  key={item}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: index * 0.2 }}
-                  whileHover={{ scale: 1.02 }}
-                >
-                  <div className="bg-white rounded-lg overflow-hidden luxury-shadow hover:shadow-xl transition-all duration-300">
-                    <div className="relative aspect-video">
-                      <Image
-                        src={samplePost.featured_image}
-                        alt="Related post"
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="p-6">
-                      <h4 className="text-lg font-semibold mb-3 text-gray-900">
-                        {language === 'en' 
-                          ? 'Discover London\'s Hidden Gems'
-                          : 'اكتشف الكنوز المخفية في لندن'
-                        }
-                      </h4>
-                      <p className="text-gray-600 text-sm mb-4">
-                        {language === 'en'
-                          ? 'Explore the secret spots that only locals know about...'
-                          : 'استكشف الأماكن السرية التي لا يعرفها سوى المحليون...'
-                        }
-                      </p>
-                      <Button asChild variant="ghost" size="sm" className="p-0 h-auto text-purple-800">
-                        <Link href="/blog/sample-post">
-                          {t('readMore')}
-                          <ArrowLeft className={`ml-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+            <div className="bg-white rounded-lg p-8 luxury-shadow">
+              <p className="text-gray-600 mb-6">
+                {language === 'en' 
+                  ? 'Discover more curated London experiences and insider stories on our blog.'
+                  : 'اكتشف المزيد من التجارب المنسقة والقصص الداخلية في لندن على مدونتنا.'
+                }
+              </p>
+              <Button asChild className="bg-purple-900 hover:bg-purple-800">
+                <Link href="/blog">
+                  <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
+                  {language === 'en' ? 'View All Stories' : 'عرض جميع القصص'}
+                </Link>
+              </Button>
             </div>
           </motion.div>
         </div>

@@ -17,6 +17,37 @@ export interface MockPrismaClient {
 // Demo data for blog posts - this will be managed through admin dashboard
 let mockBlogPosts = [
   {
+    id: 'mock-post-3',
+    title_en: 'Luxury Christmas Markets in London 2024',
+    title_ar: 'أسواق عيد الميلاد الفاخرة في لندن 2024',
+    excerpt_en: 'Discover London\'s most enchanting Christmas markets featuring luxury crafts, gourmet food, and festive experiences.',
+    excerpt_ar: 'اكتشف أسواق عيد الميلاد الأكثر سحراً في لندن التي تتميز بالحرف الفاخرة والطعام الذواقة والتجارب الاحتفالية.',
+    content_en: 'London\'s Christmas markets transform the city into a winter wonderland, offering visitors an enchanting blend of luxury shopping, gourmet delicacies, and festive entertainment. From the elegant stalls at Covent Garden to the sophisticated Christmas market at Southbank Centre, these destinations showcase the finest in British and international craftsmanship.',
+    content_ar: 'تحول أسواق عيد الميلاد في لندن المدينة إلى أرض العجائب الشتوية، وتقدم للزوار مزيجاً ساحراً من التسوق الفاخر والأطعمة الذواقة والترفيه الاحتفالي.',
+    slug: 'luxury-christmas-markets-london-2024',
+    featured_image: 'https://images.unsplash.com/photo-1512389142860-9c449e58a543?w=800',
+    published: true,
+    page_type: 'guide',
+    seo_score: 88,
+    tags: ['christmas', 'markets', 'luxury', 'shopping', 'winter'],
+    created_at: new Date('2024-12-20'),
+    updated_at: new Date('2024-12-20'),
+    category_id: 'cat-shopping',
+    author_id: 'author-1',
+    category: {
+      id: 'cat-shopping',
+      name_en: 'Style & Shopping',
+      name_ar: 'الأناقة والتسوق',
+      slug: 'style-shopping'
+    },
+    author: {
+      id: 'author-1',
+      name: 'Sarah Johnson',
+      email: 'sarah@yallalondon.com',
+      image: 'https://images.unsplash.com/photo-1494790108755-2616b612b740?w=100&h=100&fit=crop&crop=face'
+    }
+  },
+  {
     id: 'mock-post-1',
     title_en: 'Luxury Shopping Guide: Harrods to Harvey Nichols',
     title_ar: 'دليل التسوق الفاخر: من هارودز إلى هارفي نيكولز',

@@ -6,6 +6,7 @@ import { MetricTile, MetricTileSkeleton } from '@/src/components/admin/metric-ti
 import { ActivityFeed, ActivityItem } from '@/src/components/admin/activity-feed'
 import { TaskManager, Task } from '@/src/components/admin/task-manager'
 import { IntegrationsPanel, Integration } from '@/src/components/admin/integrations-panel'
+import { ContentPipelinePanel } from '@/src/components/admin/content-pipeline-panel'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -728,6 +729,22 @@ export default function PremiumAdminDashboard() {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Content Pipeline Section */}
+        <div className="mt-8">
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
+                <Activity className="h-5 w-5" />
+                <span>Content Pipeline</span>
+              </CardTitle>
+              <p className="text-sm text-slate-600">Monitor content workflow and publishing status</p>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <ContentPipelinePanel />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </PremiumAdminLayout>

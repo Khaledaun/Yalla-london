@@ -11,6 +11,13 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from '@/components/ui/dialog';
+import { 
   Image as ImageIcon,
   Video,
   Upload,
@@ -20,8 +27,27 @@ import {
   MousePointer,
   Eye,
   Download,
-  Plus
+  Plus,
+  Star,
+  Trash2,
+  Edit,
+  Search,
+  Grid3X3,
+  List,
+  Filter
 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import Image from 'next/image';
+
+interface MediaAsset {
+  id: string
+  url: string
+  thumbnailUrl: string
+  filename: string
+  altText: string
+  type: 'image' | 'video'
+  isHeroImage: boolean
+}
 
 export interface HeroContent {
   title: string;
@@ -64,6 +90,39 @@ export interface HeroSectionEditorProps {
 export function HeroSectionEditor({ content, onUpdate }: HeroSectionEditorProps) {
   const [activeTab, setActiveTab] = useState('content');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
+  const { toast } = useToast();
+
+  // Mock media assets - in real app this would come from API
+  const [mediaAssets] = useState<MediaAsset[]>([
+    {
+      id: '1',
+      url: '/images/london-bridge.jpg',
+      thumbnailUrl: '/images/london-bridge-thumb.jpg',
+      filename: 'london-bridge-hero.jpg',
+      altText: 'Beautiful view of London Bridge at sunset',
+      type: 'image',
+      isHeroImage: true
+    },
+    {
+      id: '2',
+      url: '/images/london-markets.jpg',
+      thumbnailUrl: '/images/london-markets-thumb.jpg',
+      filename: 'london-markets.jpg',
+      altText: 'Busy London market with fresh produce and vendors',
+      type: 'image',
+      isHeroImage: false
+    },
+    {
+      id: '3',
+      url: '/images/london-skyline.jpg',
+      thumbnailUrl: '/images/london-skyline-thumb.jpg',
+      filename: 'london-skyline.jpg',
+      altText: 'London skyline at dusk',
+      type: 'image',
+      isHeroImage: false
+    }
+  ]);
 
   const handleImageUpload = async (file: File) => {
     setUploadingImage(true);
@@ -97,6 +156,21 @@ export function HeroSectionEditor({ content, onUpdate }: HeroSectionEditorProps)
       ...content,
       backgroundType: 'image',
       backgroundUrl: imageUrl
+    });
+  };
+
+  const selectImageFromLibrary = (asset: MediaAsset) => {
+    onUpdate({
+      ...content,
+      backgroundType: 'image',
+      backgroundUrl: asset.url
+    });
+    
+    setIsMediaLibraryOpen(false);
+    
+    toast({
+      title: "Hero Background Updated",
+      description: `Selected "${asset.filename}" as the new hero background.`,
     });
   };
 
@@ -261,6 +335,19 @@ export function HeroSectionEditor({ content, onUpdate }: HeroSectionEditorProps)
 
                 {/* Upload Options */}
                 <div className="grid grid-cols-1 gap-4">
+                  {/* Media Library Selection */}
+                  <div className="space-y-2">
+                    <Label>Select from Media Library</Label>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start"
+                      onClick={() => setIsMediaLibraryOpen(true)}
+                    >
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      Browse Media Library
+                    </Button>
+                  </div>
+
                   {/* File Upload */}
                   <div className="space-y-2">
                     <Label>Upload from Computer</Label>
@@ -514,6 +601,106 @@ export function HeroSectionEditor({ content, onUpdate }: HeroSectionEditorProps)
           </TabsContent>
         </Tabs>
       </CardContent>
+
+      {/* Media Library Modal */}
+      <Dialog open={isMediaLibraryOpen} onOpenChange={setIsMediaLibraryOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <ImageIcon className="h-5 w-5" />
+              <span>Select Hero Background</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Choose an image from your media library to set as the hero background
+              </p>
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsMediaLibraryOpen(false);
+                  // In real app, would navigate to media upload page
+                  window.open('/admin/content/media/upload', '_blank');
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Upload New
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {mediaAssets.filter(asset => asset.type === 'image').map(asset => (
+                <div 
+                  key={asset.id}
+                  className={`
+                    relative group border rounded-lg overflow-hidden cursor-pointer transition-all
+                    ${asset.isHeroImage ? 'ring-2 ring-yellow-400' : 'border-gray-200 hover:border-blue-300'}
+                  `}
+                  onClick={() => selectImageFromLibrary(asset)}
+                >
+                  {/* Current Hero Badge */}
+                  {asset.isHeroImage && (
+                    <div className="absolute top-2 left-2 z-10">
+                      <div className="bg-yellow-500 text-yellow-900 px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+                        <Star className="h-3 w-3" />
+                        <span>Current</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Image Preview */}
+                  <div className="aspect-video bg-gray-100">
+                    <Image
+                      src={asset.thumbnailUrl}
+                      alt={asset.altText}
+                      width={300}
+                      height={200}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  {/* Asset Info */}
+                  <div className="p-3">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {asset.filename}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {asset.altText}
+                    </p>
+                  </div>
+
+                  {/* Hover Actions */}
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <div className="flex space-x-2">
+                      <Button size="sm" variant="secondary">
+                        <Eye className="h-4 w-4 mr-2" />
+                        Select
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {mediaAssets.filter(asset => asset.type === 'image').length === 0 && (
+              <div className="text-center py-12">
+                <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No images found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Upload some images to use as hero backgrounds.
+                </p>
+                <Button className="mt-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Upload Images
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

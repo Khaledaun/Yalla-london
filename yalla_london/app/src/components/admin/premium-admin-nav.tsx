@@ -77,8 +77,8 @@ export interface SiteContext {
 }
 
 /**
- * Premium Admin Navigation Structure
- * Stable left navigation with comprehensive admin sections
+ * Premium Admin Navigation Structure - Enterprise Grade
+ * Aligned with Yalla London requirements
  */
 export const adminNavigation: NavItem[] = [
   {
@@ -87,196 +87,65 @@ export const adminNavigation: NavItem[] = [
     icon: LayoutDashboard,
     href: '/admin/dashboard',
     featureFlag: 'ADMIN_DASHBOARD',
-    description: 'Site overview with key metrics and quick actions'
+    description: 'KPIs, analytics, automation status'
   },
   {
-    id: 'content',
-    label: 'Content',
+    id: 'articles',
+    label: 'Articles',
     icon: FileText,
+    href: '/admin/articles',
     featureFlag: 'CONTENT_MANAGEMENT',
-    children: [
-      {
-        id: 'articles',
-        label: 'Articles',
-        icon: FileText,
-        href: '/admin/content/articles',
-        description: 'Manage blog posts and articles'
-      },
-      {
-        id: 'media',
-        label: 'Media Library',
-        icon: Image,
-        href: '/admin/content/media',
-        description: 'Manage images, videos, and other media assets'
-      },
-      {
-        id: 'pages',
-        label: 'Pages',
-        icon: FileText,
-        href: '/admin/content/pages',
-        description: 'Manage static pages like privacy, terms, etc.'
-      },
-      {
-        id: 'seo',
-        label: 'SEO',
-        icon: Search,
-        href: '/admin/content/seo',
-        description: 'SEO optimization and performance tracking'
-      },
-      {
-        id: 'review-queue',
-        label: 'Review Queue',
-        icon: CheckSquare,
-        href: '/admin/content/review-queue',
-        featureFlag: 'REVIEW_QUEUE',
-        badgeText: 'AI',
-        badgeVariant: 'secondary',
-        description: 'AI-powered content review and approval workflow'
-      }
-    ]
+    badgeText: 'Workflow',
+    badgeVariant: 'outline',
+    description: 'Drafts, generated, reviewed, ready-to-publish, published'
   },
   {
-    id: 'design',
-    label: 'Design',
-    icon: Palette,
-    featureFlag: 'DESIGN_TOOLS',
-    children: [
-      {
-        id: 'theme',
-        label: 'Theme',
-        icon: Palette,
-        href: '/admin/design/theme',
-        description: 'Customize site theme and branding'
-      },
-      {
-        id: 'logo',
-        label: 'Logo & Assets',
-        icon: Upload,
-        href: '/admin/design/logo',
-        description: 'Manage logos, favicons, and brand assets'
-      },
-      {
-        id: 'homepage-builder',
-        label: 'Homepage Builder',
-        icon: Home,
-        href: '/admin/design/homepage',
-        featureFlag: 'LIVE_PREVIEWS',
-        badgeText: 'Drag & Drop',
-        badgeVariant: 'outline',
-        description: 'Visual homepage builder with live preview'
-      }
-    ]
+    id: 'media',
+    label: 'Media',
+    icon: Image,
+    href: '/admin/media',
+    description: 'Upload/manage assets with progress %, metadata'
   },
   {
-    id: 'people',
-    label: 'People',
-    icon: Users,
-    featureFlag: 'PEOPLE_MANAGEMENT',
-    children: [
-      {
-        id: 'members-roles',
-        label: 'Members & Roles',
-        icon: Users,
-        href: '/admin/people/members',
-        description: 'Manage team members and their roles'
-      },
-      {
-        id: 'access-logs',
-        label: 'Access Logs',
-        icon: Shield,
-        href: '/admin/people/access-logs',
-        description: 'View user activity and access logs',
-        requiresElevated: true
-      }
-    ]
+    id: 'seo-audits',
+    label: 'SEO Audits',
+    icon: Search,
+    href: '/admin/seo-audits',
+    badgeText: 'AI',
+    badgeVariant: 'secondary',
+    description: 'Scoring, fixes, preview, history'
   },
   {
-    id: 'integrations',
-    label: 'Integrations',
-    icon: Zap,
-    featureFlag: 'INTEGRATIONS',
-    children: [
-      {
-        id: 'api-keys',
-        label: 'API Keys',
-        icon: Key,
-        href: '/admin/integrations/api-keys',
-        description: 'Manage API keys and external service credentials',
-        requiresElevated: true
-      },
-      {
-        id: 'analytics',
-        label: 'Analytics',
-        icon: BarChart3,
-        href: '/admin/integrations/analytics',
-        description: 'Connect Google Analytics, Search Console, and other analytics'
-      },
-      {
-        id: 'llms',
-        label: 'AI Models',
-        icon: Bot,
-        href: '/admin/integrations/llms',
-        featureFlag: 'FEATURE_LLM_ROUTER',
-        badgeText: 'Premium',
-        badgeVariant: 'default',
-        description: 'Configure AI models and LLM routing'
-      },
-      {
-        id: 'affiliates',
-        label: 'Affiliate Partners',
-        icon: DollarSign,
-        href: '/admin/integrations/affiliates',
-        featureFlag: 'AFFILIATE_HUB',
-        description: 'Manage affiliate partnerships and commissions'
-      }
-    ]
-  },
-  {
-    id: 'automations',
-    label: 'Automations',
-    icon: Activity,
-    featureFlag: 'AUTOMATIONS',
-    children: [
-      {
-        id: 'jobs',
-        label: 'Background Jobs',
-        icon: Clock,
-        href: '/admin/automations/jobs',
-        featureFlag: 'JOB_MONITORING',
-        description: 'Monitor and manage background job execution'
-      },
-      {
-        id: 'status',
-        label: 'System Status',
-        icon: Monitor,
-        href: '/admin/automations/status',
-        description: 'System health and performance monitoring'
-      },
-      {
-        id: 'cron',
-        label: 'Scheduled Tasks',
-        icon: Clock,
-        href: '/admin/automations/cron',
-        description: 'Manage cron jobs and scheduled tasks'
-      },
-      {
-        id: 'notifications',
-        label: 'Notifications',
-        icon: Bell,
-        href: '/admin/automations/notifications',
-        description: 'Configure system notifications and alerts'
-      }
-    ]
-  },
-  {
-    id: 'affiliate-hub',
-    label: 'Affiliate Hub',
-    icon: Briefcase,
-    href: '/admin/affiliate-hub',
-    featureFlag: 'AFFILIATE_HUB',
-    badgeText: 'Revenue',
+    id: 'topics-pipeline',
+    label: 'Topics & Pipeline',
+    icon: TrendingUp,
+    href: '/admin/topics-pipeline',
+    badgeText: 'Auto',
     badgeVariant: 'default',
-    description: 'Comprehensive affiliate management and revenue tracking'
+    description: 'Topic research, approval, content pipeline status'
+  },
+  {
+    id: 'prompts',
+    label: 'Prompts',
+    icon: Brain,
+    href: '/admin/prompts',
+    description: 'Editable, versioned prompt templates'
+  },
+  {
+    id: 'content-types',
+    label: 'Content Types',
+    icon: Layers,
+    href: '/admin/content-types',
+    description: 'Taxonomy management'
+  },
+  {
+    id: 'automation-hub',
+    label: 'Automation Hub',
+    icon: Bot,
+    href: '/admin/automation-hub',
+    badgeText: 'Jobs',
+    badgeVariant: 'outline',
+    description: 'Publishing schedules, jobs'
   },
   {
     id: 'settings',
@@ -285,63 +154,33 @@ export const adminNavigation: NavItem[] = [
     featureFlag: 'SETTINGS_MANAGEMENT',
     children: [
       {
+        id: 'theme',
+        label: 'Theme',
+        icon: Palette,
+        href: '/admin/settings/theme',
+        description: 'Theme, logo/colors'
+      },
+      {
+        id: 'api-keys',
+        label: 'API Keys',
+        icon: Key,
+        href: '/admin/settings/api-keys',
+        description: 'External service credentials',
+        requiresElevated: true
+      },
+      {
+        id: 'roles',
+        label: 'Roles',
+        icon: Users,
+        href: '/admin/settings/roles',
+        description: 'User roles and permissions'
+      },
+      {
         id: 'site',
         label: 'Site Settings',
         icon: Globe,
         href: '/admin/settings/site',
-        description: 'General site configuration and preferences'
-      },
-      {
-        id: 'languages',
-        label: 'Languages',
-        icon: Languages,
-        href: '/admin/settings/languages',
-        featureFlag: 'PER_SITE_LOCALES',
-        description: 'Manage site languages and localization'
-      },
-      {
-        id: 'feature-flags',
-        label: 'Feature Flags',
-        icon: Flag,
-        href: '/admin/settings/feature-flags',
-        description: 'Enable/disable features and preview upcoming functionality'
-      }
-    ]
-  },
-  {
-    id: 'health',
-    label: 'Health',
-    icon: Heart,
-    href: '/api/phase4/status',
-    description: 'API endpoint for system health monitoring',
-    badgeText: 'API',
-    badgeVariant: 'outline'
-  },
-  {
-    id: 'help',
-    label: 'Help',
-    icon: HelpCircle,
-    children: [
-      {
-        id: 'docs',
-        label: 'Documentation',
-        icon: BookOpen,
-        href: '/admin/help/docs',
-        description: 'Inline documentation and guides'
-      },
-      {
-        id: 'changelog',
-        label: 'Changelog',
-        icon: FileCheck,
-        href: '/admin/help/changelog',
-        description: 'Recent updates and new features'
-      },
-      {
-        id: 'support',
-        label: 'Support',
-        icon: HelpCircle,
-        href: '/admin/help/support',
-        description: 'Get help and contact support'
+        description: 'General site configuration'
       }
     ]
   }
@@ -532,32 +371,32 @@ export function PremiumAdminNav({
         </p>
         <div className="space-y-1">
           <Link 
-            href="/admin/content/articles/new"
+            href="/admin/articles/new"
             className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
           >
             <FileText size={16} />
             <span>New Article</span>
           </Link>
           <Link 
-            href="/admin/content/media/upload"
+            href="/admin/media/upload"
             className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
           >
             <Upload size={16} />
             <span>Upload Media</span>
           </Link>
           <Link 
-            href="/admin/design/homepage"
+            href="/admin/topics-pipeline/new"
             className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
           >
-            <Palette size={16} />
-            <span>Homepage Builder</span>
+            <TrendingUp size={16} />
+            <span>New Topic</span>
           </Link>
           <Link 
-            href="/admin/content/pages/privacy"
+            href="/admin/prompts/new"
             className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
           >
-            <Shield size={16} />
-            <span>Privacy Page</span>
+            <Brain size={16} />
+            <span>New Prompt</span>
           </Link>
         </div>
       </div>

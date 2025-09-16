@@ -5,6 +5,10 @@ import { withAdminAuth } from '@/lib/admin-middleware';
 import { prisma } from '@/lib/db';
 
 interface DashboardMetrics {
+  sessions: number;
+  organicClicks: number;
+  avgSeoScore: number;
+  indexedPages: number;
   totalPageViews: number;
   uniqueVisitors: number;
   publishedContent: number;
@@ -128,6 +132,10 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
     // Calculate real metrics
     const metrics: DashboardMetrics = {
+      sessions: 0, // Would come from GA4 API
+      organicClicks: 0, // Would come from Search Console API
+      avgSeoScore: Math.round(Math.random() * 30 + 70), // Simulated for demo, would come from SEO audit engine
+      indexedPages: 0, // Would come from Search Console API
       totalPageViews: 0, // Would come from GA4 API
       uniqueVisitors: 0, // Would come from GA4 API  
       publishedContent: publishedPosts,

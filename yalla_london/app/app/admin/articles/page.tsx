@@ -79,273 +79,171 @@ interface WorkflowStep {
   notes?: string
 }
 
-const mockArticles: Article[] = [
-  {
-    id: '1',
-    title: 'Best Halal Restaurants in London: A Complete Guide',
-    slug: 'best-halal-restaurants-london-guide',
-    excerpt: 'Discover London\'s finest halal dining destinations, from traditional Middle Eastern cuisine to contemporary fusion restaurants.',
-    content: 'Full article content here...',
-    status: 'published',
-    contentType: 'restaurant-guide',
-    author: {
-      id: 'user1',
-      name: 'Sarah Ahmed',
-      avatar: '/avatars/sarah.jpg'
-    },
-    seoScore: 87,
-    publishedAt: '2024-01-10T10:00:00Z',
-    createdAt: '2024-01-08T14:30:00Z',
-    updatedAt: '2024-01-10T09:45:00Z',
-    tags: ['halal', 'restaurants', 'london', 'dining', 'muslim'],
-    category: 'Food & Dining',
-    featured: true,
-    viewCount: 2547,
-    shareCount: 89,
-    commentCount: 23,
-    language: 'en',
-    workflow: {
-      currentStep: 6,
-      totalSteps: 6,
-      steps: [
-        { id: 'generate', name: 'Content Generation', status: 'completed', completedAt: '2024-01-08T14:30:00Z' },
-        { id: 'review', name: 'Human Review', status: 'completed', assignee: 'Sarah Ahmed', completedAt: '2024-01-08T16:00:00Z' },
-        { id: 'seo-audit', name: 'SEO Audit', status: 'completed', completedAt: '2024-01-09T09:00:00Z' },
-        { id: 'approve', name: 'Editorial Approval', status: 'completed', assignee: 'Editorial Team', completedAt: '2024-01-09T14:00:00Z' },
-        { id: 'schedule', name: 'Publishing Schedule', status: 'completed', completedAt: '2024-01-09T16:00:00Z' },
-        { id: 'publish', name: 'Published', status: 'completed', completedAt: '2024-01-10T10:00:00Z' }
-      ]
-    },
-    analytics: {
-      impressions: 15430,
-      clicks: 2547,
-      ctr: 16.5,
-      avgPosition: 3.2
-    }
-  },
-  {
-    id: '2',
-    title: 'London Bridge: Ultimate Visitor Guide 2024',
-    slug: 'london-bridge-visitor-guide-2024',
-    excerpt: 'Everything you need to know about visiting London Bridge, including top attractions, dining options, and insider tips.',
-    content: 'Full article content here...',
-    status: 'ready-to-publish',
-    contentType: 'travel-guide',
-    author: {
-      id: 'user2',
-      name: 'James Wilson',
-      avatar: '/avatars/james.jpg'
-    },
-    seoScore: 94,
-    scheduledAt: '2024-01-15T08:00:00Z',
-    createdAt: '2024-01-11T10:00:00Z',
-    updatedAt: '2024-01-12T15:30:00Z',
-    tags: ['london-bridge', 'attractions', 'tourism', 'guide'],
-    category: 'Travel & Tourism',
-    featured: false,
-    viewCount: 0,
-    shareCount: 0,
-    commentCount: 0,
-    language: 'en',
-    workflow: {
-      currentStep: 5,
-      totalSteps: 6,
-      steps: [
-        { id: 'generate', name: 'Content Generation', status: 'completed', completedAt: '2024-01-11T10:00:00Z' },
-        { id: 'review', name: 'Human Review', status: 'completed', assignee: 'James Wilson', completedAt: '2024-01-11T14:00:00Z' },
-        { id: 'seo-audit', name: 'SEO Audit', status: 'completed', completedAt: '2024-01-12T09:00:00Z' },
-        { id: 'approve', name: 'Editorial Approval', status: 'completed', assignee: 'Editorial Team', completedAt: '2024-01-12T15:30:00Z' },
-        { id: 'schedule', name: 'Publishing Schedule', status: 'completed', completedAt: '2024-01-12T16:00:00Z' },
-        { id: 'publish', name: 'Publish', status: 'pending' }
-      ]
-    },
-    analytics: {
-      impressions: 0,
-      clicks: 0,
-      ctr: 0,
-      avgPosition: 0
-    }
-  },
-  {
-    id: '3',
-    title: 'East London Food Scene: Hidden Gems and Local Favorites',
-    slug: 'east-london-food-scene-hidden-gems',
-    excerpt: 'Explore the vibrant culinary landscape of East London, from traditional curry houses to trendy pop-ups.',
-    content: 'AI-generated content in progress...',
-    status: 'reviewed',
-    contentType: 'food-guide',
-    author: {
-      id: 'user1',
-      name: 'Sarah Ahmed',
-      avatar: '/avatars/sarah.jpg'
-    },
-    seoScore: 72,
-    createdAt: '2024-01-12T11:00:00Z',
-    updatedAt: '2024-01-12T16:45:00Z',
-    tags: ['east-london', 'food', 'restaurants', 'hidden-gems'],
-    category: 'Food & Dining',
-    featured: false,
-    viewCount: 0,
-    shareCount: 0,
-    commentCount: 0,
-    language: 'en',
-    workflow: {
-      currentStep: 3,
-      totalSteps: 6,
-      steps: [
-        { id: 'generate', name: 'Content Generation', status: 'completed', completedAt: '2024-01-12T11:00:00Z' },
-        { id: 'review', name: 'Human Review', status: 'completed', assignee: 'Sarah Ahmed', completedAt: '2024-01-12T16:45:00Z' },
-        { id: 'seo-audit', name: 'SEO Audit', status: 'in-progress' },
-        { id: 'approve', name: 'Editorial Approval', status: 'pending' },
-        { id: 'schedule', name: 'Publishing Schedule', status: 'pending' },
-        { id: 'publish', name: 'Publish', status: 'pending' }
-      ]
-    },
-    analytics: {
-      impressions: 0,
-      clicks: 0,
-      ctr: 0,
-      avgPosition: 0
-    }
-  },
-  {
-    id: '4',
-    title: 'Weekend Events in London: January 2024',
-    slug: 'weekend-events-london-january-2024',
-    excerpt: 'Your complete guide to the best weekend events happening in London this January.',
-    content: 'AI content generation in progress...',
-    status: 'generated',
-    contentType: 'events-guide',
-    author: {
-      id: 'system',
-      name: 'AI Content Generator'
-    },
-    seoScore: 0,
-    createdAt: '2024-01-12T18:00:00Z',
-    updatedAt: '2024-01-12T18:00:00Z',
-    tags: ['events', 'weekend', 'london', 'january'],
-    category: 'Events',
-    featured: false,
-    viewCount: 0,
-    shareCount: 0,
-    commentCount: 0,
-    language: 'en',
-    workflow: {
-      currentStep: 1,
-      totalSteps: 6,
-      steps: [
-        { id: 'generate', name: 'Content Generation', status: 'completed', completedAt: '2024-01-12T18:00:00Z' },
-        { id: 'review', name: 'Human Review', status: 'pending' },
-        { id: 'seo-audit', name: 'SEO Audit', status: 'pending' },
-        { id: 'approve', name: 'Editorial Approval', status: 'pending' },
-        { id: 'schedule', name: 'Publishing Schedule', status: 'pending' },
-        { id: 'publish', name: 'Publish', status: 'pending' }
-      ]
-    },
-    analytics: {
-      impressions: 0,
-      clicks: 0,
-      ctr: 0,
-      avgPosition: 0
-    }
+interface BlogPostAdmin {
+  id: string
+  title_en: string
+  title_ar: string
+  slug: string
+  excerpt_en: string
+  excerpt_ar: string
+  content_en?: string
+  content_ar?: string
+  published: boolean
+  page_type: string
+  author: {
+    id: string
+    name: string
+    email: string
+    image?: string
   }
-]
+  category: {
+    id: string
+    name_en: string
+    name_ar: string
+    slug: string
+  }
+  place?: {
+    id: string
+    name: string
+    slug: string
+    category: string
+  }
+  seo_score: number
+  tags: string[]
+  featured_image?: string
+  meta_title_en?: string
+  meta_title_ar?: string
+  meta_description_en?: string
+  meta_description_ar?: string
+  created_at: string
+  updated_at: string
+}
 
 export default function ArticlesPage() {
-  const [articles, setArticles] = useState<Article[]>(mockArticles)
+  const [articles, setArticles] = useState<BlogPostAdmin[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
+  const [categories, setCategories] = useState<string[]>([])
+  const [selectedArticle, setSelectedArticle] = useState<BlogPostAdmin | null>(null)
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
 
-  const statusColors = {
-    'draft': 'bg-gray-100 text-gray-800',
-    'generated': 'bg-blue-100 text-blue-800',
-    'reviewed': 'bg-yellow-100 text-yellow-800',
-    'ready-to-publish': 'bg-green-100 text-green-800',
-    'published': 'bg-emerald-100 text-emerald-800',
-    'scheduled': 'bg-purple-100 text-purple-800'
+  // Fetch articles from backend
+  useEffect(() => {
+    const fetchArticles = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const params = new URLSearchParams({
+          limit: '100', // Get all articles for admin view
+          status: selectedStatus === 'all' ? '' : selectedStatus,
+          category: selectedCategory === 'all' ? '' : selectedCategory,
+          search: searchQuery
+        })
+        
+        // Remove empty parameters
+        const cleanParams = new URLSearchParams()
+        for (const [key, value] of params.entries()) {
+          if (value) cleanParams.set(key, value)
+        }
+        
+        const response = await fetch(`/api/admin/blog-posts?${cleanParams}`)
+        const data = await response.json()
+        
+        if (data.success) {
+          setArticles(data.data)
+          // Extract unique categories
+          const uniqueCategories = Array.from(new Set(
+            data.data.map((article: BlogPostAdmin) => article.category?.name_en).filter(Boolean)
+          ))
+          setCategories(uniqueCategories)
+        } else {
+          throw new Error(data.error || 'Failed to fetch articles')
+        }
+      } catch (err) {
+        console.error('Error fetching articles:', err)
+        setError('Failed to load articles. Please try again later.')
+        setArticles([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchArticles()
+  }, [selectedStatus, selectedCategory, searchQuery])
+
+  // Toggle publish status
+  const handleTogglePublish = async (articleId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`/api/admin/blog-posts/${articleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: currentStatus ? 'unpublish' : 'publish'
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        // Update local state
+        setArticles(prev => prev.map(article => 
+          article.id === articleId 
+            ? { ...article, published: !currentStatus, updated_at: new Date().toISOString() }
+            : article
+        ))
+      } else {
+        throw new Error(data.error || 'Failed to update article')
+      }
+    } catch (err) {
+      console.error('Error updating article:', err)
+      alert('Failed to update article status')
+    }
   }
 
-  const statusIcons = {
-    'draft': Edit,
-    'generated': PlayCircle,
-    'reviewed': Eye,
-    'ready-to-publish': CheckCircle2,
-    'published': Globe,
-    'scheduled': Calendar
-  }
-
-  const workflowStepColors = {
-    'pending': 'bg-gray-100 text-gray-600',
-    'in-progress': 'bg-blue-100 text-blue-600',
-    'completed': 'bg-green-100 text-green-600',
-    'skipped': 'bg-yellow-100 text-yellow-600'
+  // Delete article
+  const handleDeleteArticle = async (articleId: string) => {
+    if (!confirm('Are you sure you want to delete this article? This action cannot be undone.')) {
+      return
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/blog-posts/${articleId}`, {
+        method: 'DELETE'
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setArticles(prev => prev.filter(article => article.id !== articleId))
+      } else {
+        throw new Error(data.error || 'Failed to delete article')
+      }
+    } catch (err) {
+      console.error('Error deleting article:', err)
+      alert('Failed to delete article')
+    }
   }
 
   const filteredArticles = articles.filter(article => {
-    const matchesSearch = article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         article.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                         article.author.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = searchQuery === '' || 
+      article.title_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      article.title_ar.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      article.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      article.author.name.toLowerCase().includes(searchQuery.toLowerCase())
     
-    const matchesStatus = selectedStatus === 'all' || article.status === selectedStatus
-    const matchesCategory = selectedCategory === 'all' || article.category === selectedCategory
+    const matchesStatus = selectedStatus === 'all' || 
+      (selectedStatus === 'published' && article.published) ||
+      (selectedStatus === 'draft' && !article.published)
+    
+    const matchesCategory = selectedCategory === 'all' || 
+      article.category?.name_en === selectedCategory
     
     return matchesSearch && matchesStatus && matchesCategory
   })
-
-  const categories = Array.from(new Set(articles.map(article => article.category)))
-
-  const handleStatusChange = (articleId: string, newStatus: Article['status']) => {
-    setArticles(prev => prev.map(article => 
-      article.id === articleId 
-        ? { 
-            ...article, 
-            status: newStatus, 
-            updatedAt: new Date().toISOString(),
-            publishedAt: newStatus === 'published' ? new Date().toISOString() : article.publishedAt
-          }
-        : article
-    ))
-  }
-
-  const moveToNextStep = (articleId: string) => {
-    setArticles(prev => prev.map(article => {
-      if (article.id === articleId) {
-        const nextStep = article.workflow.currentStep + 1
-        if (nextStep <= article.workflow.totalSteps) {
-          const updatedSteps = article.workflow.steps.map((step, index) => {
-            if (index === nextStep - 1) {
-              return { ...step, status: 'in-progress' as const }
-            }
-            if (index === article.workflow.currentStep - 1) {
-              return { ...step, status: 'completed' as const, completedAt: new Date().toISOString() }
-            }
-            return step
-          })
-
-          // Update article status based on workflow step
-          let newStatus = article.status
-          if (nextStep === 2) newStatus = 'reviewed'
-          else if (nextStep === 5) newStatus = 'ready-to-publish'
-          else if (nextStep === 6) newStatus = 'published'
-
-          return {
-            ...article,
-            status: newStatus,
-            workflow: {
-              ...article.workflow,
-              currentStep: nextStep,
-              steps: updatedSteps
-            },
-            updatedAt: new Date().toISOString()
-          }
-        }
-      }
-      return article
-    }))
-  }
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-600'
@@ -405,7 +303,7 @@ export default function ArticlesPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Published</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {articles.filter(a => a.status === 'published').length}
+                    {articles.filter(a => a.published).length}
                   </p>
                 </div>
                 <Globe className="h-8 w-8 text-green-500" />
@@ -417,12 +315,12 @@ export default function ArticlesPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">In Review</p>
+                  <p className="text-sm font-medium text-gray-600">Drafts</p>
                   <p className="text-2xl font-bold text-yellow-600">
-                    {articles.filter(a => ['generated', 'reviewed'].includes(a.status)).length}
+                    {articles.filter(a => !a.published).length}
                   </p>
                 </div>
-                <Eye className="h-8 w-8 text-yellow-500" />
+                <Edit className="h-8 w-8 text-yellow-500" />
               </div>
             </CardContent>
           </Card>
@@ -431,12 +329,12 @@ export default function ArticlesPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Views</p>
+                  <p className="text-sm font-medium text-gray-600">Categories</p>
                   <p className="text-2xl font-bold text-purple-600">
-                    {formatNumber(articles.reduce((acc, a) => acc + a.viewCount, 0))}
+                    {categories.length}
                   </p>
                 </div>
-                <BarChart3 className="h-8 w-8 text-purple-500" />
+                <Tag className="h-8 w-8 text-purple-500" />
               </div>
             </CardContent>
           </Card>
@@ -447,11 +345,12 @@ export default function ArticlesPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600">Avg SEO Score</p>
                   <p className={`text-2xl font-bold ${getScoreColor(
-                    Math.round(articles.filter(a => a.seoScore > 0).reduce((acc, a) => acc + a.seoScore, 0) / 
-                    articles.filter(a => a.seoScore > 0).length || 0)
+                    Math.round(articles.filter(a => a.seo_score > 0).reduce((acc, a) => acc + a.seo_score, 0) / 
+                    articles.filter(a => a.seo_score > 0).length || 0)
                   )}`}>
-                    {Math.round(articles.filter(a => a.seoScore > 0).reduce((acc, a) => acc + a.seoScore, 0) / 
-                    articles.filter(a => a.seoScore > 0).length || 0)}%
+                    {articles.filter(a => a.seo_score > 0).length > 0 ? 
+                      Math.round(articles.filter(a => a.seo_score > 0).reduce((acc, a) => acc + a.seo_score, 0) / 
+                      articles.filter(a => a.seo_score > 0).length) : 0}%
                   </p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-orange-500" />
@@ -482,12 +381,8 @@ export default function ArticlesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="generated">Generated</SelectItem>
-                  <SelectItem value="reviewed">Reviewed</SelectItem>
-                  <SelectItem value="ready-to-publish">Ready to Publish</SelectItem>
                   <SelectItem value="published">Published</SelectItem>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
                 </SelectContent>
               </Select>
               
@@ -512,108 +407,167 @@ export default function ArticlesPage() {
             <CardTitle>Articles ({filteredArticles.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            {viewMode === 'cards' ? (
+            {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredArticles.map((article) => {
-                  const StatusIcon = statusIcons[article.status]
-                  return (
-                    <div key={article.id} className="border rounded-lg p-4 hover:shadow-lg transition-shadow">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <StatusIcon className="h-4 w-4" />
-                          <Badge className={statusColors[article.status]}>
-                            {article.status.replace('-', ' ')}
-                          </Badge>
-                          {article.featured && (
-                            <Badge variant="outline" className="text-xs">
-                              Featured
-                            </Badge>
-                          )}
-                        </div>
-                        {article.seoScore > 0 && (
-                          <div className={`text-sm font-bold ${getScoreColor(article.seoScore)}`}>
-                            {article.seoScore}%
-                          </div>
-                        )}
-                      </div>
-                      
-                      <h3 className="font-semibold text-lg mb-2 line-clamp-2">
-                        {article.title}
-                      </h3>
-                      
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                        {article.excerpt}
-                      </p>
-                      
-                      <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {article.author.name}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(article.updatedAt).toLocaleDateString()}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Tag className="h-3 w-3" />
-                          {article.contentType}
-                        </div>
-                      </div>
-                      
-                      {/* Workflow Progress */}
-                      <div className="mb-3">
-                        <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                          <span>Workflow Progress</span>
-                          <span>{article.workflow.currentStep}/{article.workflow.totalSteps}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${(article.workflow.currentStep / article.workflow.totalSteps) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Analytics */}
-                      {article.status === 'published' && (
-                        <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 mb-3">
-                          <div className="flex items-center gap-1">
-                            <Eye className="h-3 w-3" />
-                            {formatNumber(article.viewCount)}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Heart className="h-3 w-3" />
-                            {article.shareCount}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MessageSquare className="h-3 w-3" />
-                            {article.commentCount}
-                          </div>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <Edit className="h-3 w-3 mr-1" />
-                          Edit
-                        </Button>
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <Eye className="h-3 w-3 mr-1" />
-                          Preview
-                        </Button>
-                        {article.workflow.currentStep < article.workflow.totalSteps && (
-                          <Button 
-                            size="sm" 
-                            className="bg-blue-600 hover:bg-blue-700"
-                            onClick={() => moveToNextStep(article.id)}
-                          >
-                            <ArrowRight className="h-3 w-3" />
-                          </Button>
-                        )}
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="bg-gray-200 aspect-video rounded-t-lg"></div>
+                    <div className="p-6 space-y-4">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                      <div className="space-y-2">
+                        <div className="h-3 bg-gray-200 rounded"></div>
+                        <div className="h-3 bg-gray-200 rounded w-5/6"></div>
                       </div>
                     </div>
-                  )
-                })}
+                  </div>
+                ))}
+              </div>
+            ) : error ? (
+              <div className="text-center py-12">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+                  <p className="text-red-800 font-medium">Error Loading Articles</p>
+                  <p className="text-red-600 text-sm mt-2">{error}</p>
+                  <Button 
+                    onClick={() => window.location.reload()} 
+                    className="mt-4"
+                    variant="outline"
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              </div>
+            ) : filteredArticles.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No articles found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {articles.length === 0 
+                    ? "Get started by creating your first article."
+                    : "Try adjusting your search or filter criteria."
+                  }
+                </p>
+                <Button className="mt-4" onClick={() => {/* TODO: Add create article logic */}}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Article
+                </Button>
+              </div>
+            ) : viewMode === 'cards' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredArticles.map((article) => (
+                  <div key={article.id} className="border rounded-lg p-4 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        {article.published ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Edit className="h-4 w-4 text-gray-500" />
+                        )}
+                        <Badge className={article.published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                          {article.published ? 'Published' : 'Draft'}
+                        </Badge>
+                      </div>
+                      {article.seo_score > 0 && (
+                        <div className={`text-sm font-bold ${getScoreColor(article.seo_score)}`}>
+                          {article.seo_score}%
+                        </div>
+                      )}
+                    </div>
+                    
+                    <h3 className="font-semibold text-lg mb-2 line-clamp-2">
+                      {article.title_en}
+                    </h3>
+                    
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                      {article.excerpt_en}
+                    </p>
+                    
+                    <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        {article.author.name}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(article.updated_at).toLocaleDateString()}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Tag className="h-3 w-3" />
+                        {article.page_type}
+                      </div>
+                    </div>
+                    
+                    {/* Category */}
+                    {article.category && (
+                      <div className="mb-3">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {article.category.name_en}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Tags */}
+                    {article.tags.length > 0 && (
+                      <div className="mb-3">
+                        <div className="flex flex-wrap gap-1">
+                          {article.tags.slice(0, 3).map((tag, index) => (
+                            <span 
+                              key={index}
+                              className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-700"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                          {article.tags.length > 3 && (
+                            <span className="text-xs text-gray-500">
+                              +{article.tags.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center gap-2 mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => {/* TODO: Edit functionality */}}
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                      
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => window.open(`/blog/${article.slug}`, '_blank')}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        {article.published ? 'View' : 'Preview'}
+                      </Button>
+                      
+                      <Button
+                        size="sm"
+                        variant={article.published ? "secondary" : "default"}
+                        onClick={() => handleTogglePublish(article.id, article.published)}
+                        className={article.published ? "bg-orange-100 text-orange-800 hover:bg-orange-200" : "bg-green-600 hover:bg-green-700"}
+                      >
+                        {article.published ? 'Unpublish' : 'Publish'}
+                      </Button>
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteArticle(article.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -623,8 +577,8 @@ export default function ArticlesPage() {
                       <th className="text-left p-2">Title</th>
                       <th className="text-left p-2">Status</th>
                       <th className="text-left p-2">Author</th>
+                      <th className="text-left p-2">Category</th>
                       <th className="text-left p-2">SEO Score</th>
-                      <th className="text-left p-2">Views</th>
                       <th className="text-left p-2">Updated</th>
                       <th className="text-left p-2">Actions</th>
                     </tr>
@@ -634,46 +588,67 @@ export default function ArticlesPage() {
                       <tr key={article.id} className="border-b hover:bg-gray-50">
                         <td className="p-2">
                           <div>
-                            <h3 className="font-medium text-sm">{article.title}</h3>
-                            <p className="text-xs text-gray-500">{article.category}</p>
+                            <h3 className="font-medium text-sm">{article.title_en}</h3>
+                            <p className="text-xs text-gray-500">{article.page_type}</p>
                           </div>
                         </td>
                         <td className="p-2">
-                          <Badge className={statusColors[article.status]}>
-                            {article.status.replace('-', ' ')}
+                          <Badge className={article.published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                            {article.published ? 'Published' : 'Draft'}
                           </Badge>
                         </td>
                         <td className="p-2 text-sm">{article.author.name}</td>
+                        <td className="p-2 text-sm">
+                          {article.category ? article.category.name_en : '-'}
+                        </td>
                         <td className="p-2">
-                          {article.seoScore > 0 ? (
-                            <span className={`font-bold ${getScoreColor(article.seoScore)}`}>
-                              {article.seoScore}%
+                          {article.seo_score > 0 ? (
+                            <span className={`font-bold ${getScoreColor(article.seo_score)}`}>
+                              {article.seo_score}%
                             </span>
                           ) : (
                             <span className="text-gray-400">-</span>
                           )}
                         </td>
-                        <td className="p-2 text-sm">{formatNumber(article.viewCount)}</td>
                         <td className="p-2 text-sm">
-                          {new Date(article.updatedAt).toLocaleDateString()}
+                          {new Date(article.updated_at).toLocaleDateString()}
                         </td>
                         <td className="p-2">
                           <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => {/* TODO: Edit functionality */}}
+                            >
                               <Edit className="h-3 w-3" />
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => window.open(`/blog/${article.slug}`, '_blank')}
+                            >
                               <Eye className="h-3 w-3" />
                             </Button>
-                            {article.workflow.currentStep < article.workflow.totalSteps && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => moveToNextStep(article.id)}
-                              >
-                                <ArrowRight className="h-3 w-3" />
-                              </Button>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleTogglePublish(article.id, article.published)}
+                              className={article.published ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
+                            >
+                              {article.published ? (
+                                <XCircle className="h-3 w-3" />
+                              ) : (
+                                <CheckCircle2 className="h-3 w-3" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteArticle(article.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
                           </div>
                         </td>
                       </tr>

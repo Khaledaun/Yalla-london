@@ -24,6 +24,7 @@ import {
   X
 } from 'lucide-react'
 import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'
+import styles from './premium-admin-layout.module.css'
 
 interface PremiumAdminLayoutProps {
   children: React.ReactNode
@@ -150,102 +151,97 @@ export function PremiumAdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className={`${styles.adminContainer} ${premiumEnabled ? '' : styles.darkMode}`}>
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 lg:hidden bg-black bg-opacity-50"
+          className={styles.mobileBackdrop}
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-200 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:static lg:inset-0
+        ${styles.sidebarContainer} 
+        ${sidebarOpen ? styles.open : ''} 
+        ${premiumEnabled ? '' : styles.darkMode}
       `}>
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {siteContext?.siteName || 'Yalla London'} Admin
-            </h1>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden text-gray-400 hover:text-gray-600"
-            >
-              <X size={20} />
-            </button>
-          </div>
+        <div className={styles.sidebarHeader}>
+          <h1 className={`${styles.sidebarTitle} ${premiumEnabled ? '' : styles.darkMode}`}>
+            {siteContext?.siteName || 'Yalla London'} Admin
+          </h1>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className={styles.closeSidebarButton}
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-          {/* Navigation */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <PremiumAdminNav 
-              siteContext={siteContext}
-              onSiteSwitch={(siteId) => {
-                // TODO: Implement site switching
-                console.log('Switch to site:', siteId)
-              }}
-            />
-          </div>
+        {/* Navigation */}
+        <div className={styles.sidebarNav}>
+          <PremiumAdminNav 
+            siteContext={siteContext}
+            onSiteSwitch={(siteId) => {
+              // TODO: Implement site switching
+              console.log('Switch to site:', siteId)
+            }}
+          />
         </div>
       </div>
 
       {/* Main content */}
-      <div className={`flex-1 ${sidebarOpen ? 'lg:ml-64' : ''}`}>
+      <div className={styles.mainContainer}>
         {/* Top bar */}
-        <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 h-16 flex items-center justify-between px-4">
-          <div className="flex items-center space-x-4">
+        <header className={`${styles.topHeader} ${premiumEnabled ? '' : styles.darkMode}`}>
+          <div className={styles.topHeaderLeft}>
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="text-gray-400 hover:text-gray-600 lg:hidden"
+              className={styles.menuButton}
             >
               <Menu size={20} />
             </button>
 
             {/* Breadcrumbs */}
             {breadcrumbs && (
-              <nav className="flex" aria-label="Breadcrumb">
-                <ol className="flex items-center space-x-2">
-                  {breadcrumbs.map((crumb, index) => (
-                    <li key={index} className="flex items-center">
-                      {index > 0 && <span className="text-gray-400 mx-2">/</span>}
-                      {crumb.href ? (
-                        <a 
-                          href={crumb.href}
-                          className="text-sm text-gray-500 hover:text-gray-700"
-                        >
-                          {crumb.label}
-                        </a>
-                      ) : (
-                        <span className="text-sm text-gray-900 dark:text-gray-100">
-                          {crumb.label}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ol>
+              <nav className={styles.breadcrumb} aria-label="Breadcrumb">
+                {breadcrumbs.map((crumb, index) => (
+                  <div key={index} className="flex items-center">
+                    {index > 0 && <span className={styles.breadcrumbSeparator}>/</span>}
+                    {crumb.href ? (
+                      <a 
+                        href={crumb.href}
+                        className={styles.breadcrumbItem}
+                      >
+                        {crumb.label}
+                      </a>
+                    ) : (
+                      <span className={`${styles.breadcrumbItem} ${styles.current} ${premiumEnabled ? '' : styles.darkMode}`}>
+                        {crumb.label}
+                      </span>
+                    )}
+                  </div>
+                ))}
               </nav>
             )}
 
             {title && !breadcrumbs && (
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              <h1 className={`${styles.pageTitle} ${premiumEnabled ? '' : styles.darkMode}`}>
                 {title}
               </h1>
             )}
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className={styles.topHeaderRight}>
             {/* Command palette trigger */}
             {keyboardShortcuts && (
               <button
                 onClick={() => setCommandPaletteOpen(true)}
-                className="flex items-center space-x-2 px-3 py-1 text-sm text-gray-500 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+                className={`${styles.commandButton} ${premiumEnabled ? '' : styles.darkMode}`}
               >
                 <Search size={16} />
                 <span>Search</span>
-                <kbd className="text-xs bg-gray-200 dark:bg-gray-600 px-1 rounded">⌘K</kbd>
+                <kbd className={`${styles.commandKbd} ${premiumEnabled ? '' : styles.darkMode}`}>⌘K</kbd>
               </button>
             )}
 
@@ -253,7 +249,7 @@ export function PremiumAdminLayout({
             {instantUndo && (
               <button
                 onClick={handleUndo}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                className={styles.iconButton}
                 title="Undo last action (⌘Z)"
               >
                 <Undo2 size={18} />
@@ -261,10 +257,10 @@ export function PremiumAdminLayout({
             )}
 
             {/* Notifications */}
-            <button className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 relative">
+            <button className={styles.iconButton}>
               <Bell size={18} />
               {notifications.length > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                <span className={styles.notificationBadge}>
                   {notifications.length}
                 </span>
               )}
@@ -278,55 +274,55 @@ export function PremiumAdminLayout({
             )}
 
             {/* User menu */}
-            <div className="relative">
+            <div className={styles.userMenu}>
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center space-x-2 p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                className={`${styles.userMenuButton} ${premiumEnabled ? '' : styles.darkMode}`}
               >
                 <User size={18} />
                 <ChevronDown size={14} />
               </button>
 
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-50 border border-gray-200 dark:border-gray-700">
-                  <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                <div className={`${styles.userMenuDropdown} ${premiumEnabled ? '' : styles.darkMode}`}>
+                  <div className={`${styles.userMenuHeader} ${premiumEnabled ? '' : styles.darkMode}`}>
+                    <p className={`${styles.userMenuName} ${premiumEnabled ? '' : styles.darkMode}`}>
                       {session?.user?.name || 'User'}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className={`${styles.userMenuEmail} ${premiumEnabled ? '' : styles.darkMode}`}>
                       {session?.user?.email}
                     </p>
                   </div>
                   
                   <a
                     href="/admin/profile"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className={`${styles.userMenuItem} ${premiumEnabled ? '' : styles.darkMode}`}
                   >
-                    <User size={16} className="mr-3" />
+                    <User size={16} className={styles.userMenuItemIcon} />
                     Profile
                   </a>
                   
                   <a
                     href="/admin/settings"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className={`${styles.userMenuItem} ${premiumEnabled ? '' : styles.darkMode}`}
                   >
-                    <Settings size={16} className="mr-3" />
+                    <Settings size={16} className={styles.userMenuItemIcon} />
                     Settings
                   </a>
                   
                   <a
                     href="/admin/help"
-                    className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className={`${styles.userMenuItem} ${premiumEnabled ? '' : styles.darkMode}`}
                   >
-                    <HelpCircle size={16} className="mr-3" />
+                    <HelpCircle size={16} className={styles.userMenuItemIcon} />
                     Help
                   </a>
                   
                   <button
                     onClick={handleSignOut}
-                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className={`${styles.userMenuItem} ${premiumEnabled ? '' : styles.darkMode}`}
                   >
-                    <LogOut size={16} className="mr-3" />
+                    <LogOut size={16} className={styles.userMenuItemIcon} />
                     Sign out
                   </button>
                 </div>
@@ -336,55 +332,53 @@ export function PremiumAdminLayout({
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-6">
+        <main className={styles.mainContent}>
           {children}
         </main>
       </div>
 
       {/* Toast Notifications */}
       {optimisticUpdates && notifications.length > 0 && (
-        <div className="fixed top-4 right-4 z-50 space-y-2">
+        <div className={styles.toastContainer}>
           {notifications.map((notification) => (
             <div
               key={notification.id}
               className={`
-                max-w-sm w-full bg-white dark:bg-gray-800 shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5
-                ${notification.type === 'success' ? 'border-l-4 border-green-400' : ''}
-                ${notification.type === 'error' ? 'border-l-4 border-red-400' : ''}
-                ${notification.type === 'warning' ? 'border-l-4 border-yellow-400' : ''}
-                ${notification.type === 'info' ? 'border-l-4 border-blue-400' : ''}
+                ${styles.toast} 
+                ${styles[notification.type]} 
+                ${premiumEnabled ? '' : styles.darkMode}
               `}
             >
-              <div className="flex-1 w-0 p-4">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0">
+              <div className={styles.toastContent}>
+                <div className={styles.toastHeader}>
+                  <div className={styles.toastIcon}>
                     {notification.type === 'success' && <CheckCircle2 className="h-6 w-6 text-green-400" />}
                     {notification.type === 'error' && <AlertCircle className="h-6 w-6 text-red-400" />}
                     {notification.type === 'warning' && <AlertCircle className="h-6 w-6 text-yellow-400" />}
                     {notification.type === 'info' && <AlertCircle className="h-6 w-6 text-blue-400" />}
                   </div>
-                  <div className="ml-3 w-0 flex-1 pt-0.5">
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  <div className={styles.toastText}>
+                    <p className={`${styles.toastTitle} ${premiumEnabled ? '' : styles.darkMode}`}>
                       {notification.title}
                     </p>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    <p className={`${styles.toastMessage} ${premiumEnabled ? '' : styles.darkMode}`}>
                       {notification.message}
                     </p>
                     {notification.action && (
-                      <div className="mt-3">
+                      <div className={styles.toastActions}>
                         <button
                           onClick={notification.action.onClick}
-                          className="text-sm bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          className={`${styles.toastButton} ${premiumEnabled ? '' : styles.darkMode}`}
                         >
                           {notification.action.label}
                         </button>
                       </div>
                     )}
                     {notification.undoAction && (
-                      <div className="mt-3">
+                      <div className={styles.toastActions}>
                         <button
                           onClick={notification.undoAction}
-                          className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          className={`${styles.toastButton} ${styles.primary} ${premiumEnabled ? '' : styles.darkMode}`}
                         >
                           Undo
                         </button>
@@ -393,10 +387,10 @@ export function PremiumAdminLayout({
                   </div>
                 </div>
               </div>
-              <div className="flex border-l border-gray-200 dark:border-gray-700">
+              <div className={`${styles.toastClose} ${premiumEnabled ? '' : styles.darkMode}`}>
                 <button
                   onClick={() => removeNotification(notification.id)}
-                  className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className={`${styles.toastCloseButton} ${premiumEnabled ? '' : styles.darkMode}`}
                 >
                   <X size={16} />
                 </button>
@@ -408,38 +402,34 @@ export function PremiumAdminLayout({
 
       {/* Command Palette Modal */}
       {commandPaletteOpen && keyboardShortcuts && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-start justify-center min-h-screen pt-16 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
-
-            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                <div className="flex items-center mb-4">
-                  <Command size={20} className="text-gray-400 mr-2" />
+        <div className={styles.commandPalette}>
+          <div className={styles.commandPaletteBackdrop}>
+            <div className={`${styles.commandPaletteContent} ${premiumEnabled ? '' : styles.darkMode}`}>
+              <div className={`${styles.commandPaletteHeader} ${premiumEnabled ? '' : styles.darkMode}`}>
+                <div className={styles.commandPaletteInputContainer}>
+                  <Command size={20} className={styles.commandPaletteInputIcon} />
                   <input
                     type="text"
                     placeholder="Search for actions..."
-                    className="flex-1 border-none outline-none text-gray-900 dark:text-gray-100 bg-transparent text-lg"
+                    className={`${styles.commandPaletteInput} ${premiumEnabled ? '' : styles.darkMode}`}
                     autoFocus
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 px-2">
+                <div className={styles.commandPaletteResults}>
+                  <div className={`${styles.commandPaletteSectionTitle} ${premiumEnabled ? '' : styles.darkMode}`}>
                     QUICK ACTIONS
                   </div>
                   
-                  <div className="space-y-1">
-                    <button className="w-full text-left px-2 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
-                      <Plus size={16} className="mr-3 text-gray-400" />
-                      <span className="text-sm text-gray-900 dark:text-gray-100">New Article</span>
+                  <div className={styles.commandPaletteItems}>
+                    <button className={`${styles.commandPaletteItem} ${premiumEnabled ? '' : styles.darkMode}`}>
+                      <Plus size={16} className={styles.commandPaletteItemIcon} />
+                      <span className={`${styles.commandPaletteItemText} ${premiumEnabled ? '' : styles.darkMode}`}>New Article</span>
                     </button>
                     
-                    <button className="w-full text-left px-2 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
-                      <Settings size={16} className="mr-3 text-gray-400" />
-                      <span className="text-sm text-gray-900 dark:text-gray-100">Site Settings</span>
+                    <button className={`${styles.commandPaletteItem} ${premiumEnabled ? '' : styles.darkMode}`}>
+                      <Settings size={16} className={styles.commandPaletteItemIcon} />
+                      <span className={`${styles.commandPaletteItemText} ${premiumEnabled ? '' : styles.darkMode}`}>Site Settings</span>
                     </button>
                   </div>
                 </div>

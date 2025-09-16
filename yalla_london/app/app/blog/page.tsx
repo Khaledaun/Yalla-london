@@ -21,91 +21,90 @@ const categoryImages = {
   'uk-travel': 'https://media.houseandgarden.co.uk/photos/64de03217863f90371b7b1bf/16:9/w_2752,h_1548,c_limit/Shot-05-254.jpg'
 }
 
-const samplePosts = [
-  {
-    id: '1',
-    title_en: 'The Ultimate Guide to Michelin-Starred Dining in London',
-    title_ar: 'الدليل الشامل لتناول الطعام في مطاعم لندن الحاصلة على نجمة ميشلان',
-    excerpt_en: 'Discover London\'s finest restaurants that have earned the prestigious Michelin stars, from innovative tasting menus to classic fine dining.',
-    excerpt_ar: 'اكتشف أفضل مطاعم لندن التي حصلت على نجوم ميشلان المرموقة، من قوائم التذوق المبتكرة إلى المأكولات الراقية الكلاسيكية.',
-    slug: 'michelin-starred-dining-london',
-    category: 'food-drink',
-    featured_image: categoryImages['food-drink'],
-    created_at: '2024-12-20T10:00:00Z'
-  },
-  {
-    id: '2',
-    title_en: 'Shopping Like Royalty: London\'s Most Exclusive Boutiques',
-    title_ar: 'التسوق كالملوك: أكثر البوتيكات حصرية في لندن',
-    excerpt_en: 'From Savile Row to Harrods, explore the luxury shopping destinations where London\'s elite find their perfect pieces.',
-    excerpt_ar: 'من شارع سافيل رو إلى هارودز، استكشف وجهات التسوق الفاخرة حيث تجد نخبة لندن قطعها المثالية.',
-    slug: 'exclusive-boutiques-london',
-    category: 'style-shopping',
-    featured_image: categoryImages['style-shopping'],
-    created_at: '2024-12-18T15:30:00Z'
-  },
-  {
-    id: '3',
-    title_en: 'Art After Dark: London\'s Private Gallery Exhibitions',
-    title_ar: 'الفن بعد الظلام: معارض الأعمال الفنية الخاصة في لندن',
-    excerpt_en: 'Experience London\'s vibrant art scene through exclusive evening exhibitions and private gallery viewings.',
-    excerpt_ar: 'اختبر مشهد الفن النابض بالحياة في لندن من خلال المعارض المسائية الحصرية وعروض الأعمال الفنية الخاصة.',
-    slug: 'private-gallery-exhibitions-london',
-    category: 'culture-art',
-    featured_image: categoryImages['culture-art'],
-    created_at: '2024-12-15T12:00:00Z'
-  },
-  {
-    id: '4',
-    title_en: 'Premier League VIP: The Ultimate Football Experience',
-    title_ar: 'بريمير ليغ في آي بي: تجربة كرة القدم المطلقة',
-    excerpt_en: 'Get behind-the-scenes access to London\'s top football clubs and experience matches like never before.',
-    excerpt_ar: 'احصل على إمكانية الوصول وراء الكواليس لأفضل أندية كرة القدم في لندن واختبر المباريات كما لم تفعل من قبل.',
-    slug: 'premier-league-vip-experience',
-    category: 'football',
-    featured_image: categoryImages['football'],
-    created_at: '2024-12-12T09:15:00Z'
-  },
-  {
-    id: '5',
-    title_en: 'Country Estates and Manor Houses: Day Trips from London',
-    title_ar: 'العقارات الريفية والمنازل الأرستقراطية: رحلات يومية من لندن',
-    excerpt_en: 'Escape the city to discover Britain\'s most magnificent country estates and historic manor houses.',
-    excerpt_ar: 'اهرب من المدينة لاكتشاف أروع العقارات الريفية والمنازل الأرستقراطية التاريخية في بريطانيا.',
-    slug: 'country-estates-day-trips',
-    category: 'uk-travel',
-    featured_image: categoryImages['uk-travel'],
-    created_at: '2024-12-10T14:45:00Z'
-  }
-]
+interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  slug: string;
+  featured_image: string;
+  page_type: string;
+  created_at: string;
+  category: {
+    name_en: string;
+    name_ar: string;
+    slug: string;
+  } | null;
+  author: {
+    name: string;
+  } | null;
+  url: string;
+}
 
 export default function BlogPage() {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
-  const [filteredPosts, setFilteredPosts] = useState(samplePosts)
+  const [posts, setPosts] = useState<BlogPost[]>([])
+  const [filteredPosts, setFilteredPosts] = useState<BlogPost[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
+  // Fetch blog posts from API
   useEffect(() => {
-    let filtered = samplePosts
+    const fetchPosts = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const params = new URLSearchParams({
+          locale: language,
+          limit: '50', // Get enough posts for client-side filtering
+          sort: 'newest'
+        })
+        
+        const response = await fetch(`/api/content?${params}`)
+        const data = await response.json()
+        
+        if (data.success) {
+          setPosts(data.data)
+          setFilteredPosts(data.data)
+        } else {
+          throw new Error(data.error || 'Failed to fetch posts')
+        }
+      } catch (err) {
+        console.error('Error fetching blog posts:', err)
+        setError('Failed to load blog posts. Please try again later.')
+        // Fallback to empty array instead of sample data
+        setPosts([])
+        setFilteredPosts([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPosts()
+  }, [language])
+
+  // Filter posts based on search and category
+  useEffect(() => {
+    let filtered = posts
 
     if (searchTerm) {
       filtered = filtered.filter(post =>
-        (language === 'en' ? post.title_en : post.title_ar)
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        (language === 'en' ? post.excerpt_en : post.excerpt_ar)
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())
+        post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        post.excerpt.toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(post => post.category === selectedCategory)
+      filtered = filtered.filter(post => 
+        post.category?.slug === selectedCategory
+      )
     }
 
     setFilteredPosts(filtered)
-  }, [searchTerm, selectedCategory, language])
+  }, [searchTerm, selectedCategory, posts])
 
   const categories = [
     { value: 'all', label: language === 'en' ? 'All Categories' : 'جميع الفئات' },
@@ -200,59 +199,101 @@ export default function BlogPage() {
       {/* Blog Posts Grid */}
       <section className="py-12">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredPosts.map((post, index) => (
-              <motion.div
-                key={post.id}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                whileHover={{ scale: 1.02 }}
-              >
-                <Card className="overflow-hidden border-0 luxury-shadow hover:shadow-xl transition-all duration-300 h-full group">
-                  <div className="relative aspect-video">
-                    <Image
-                      src={post.featured_image}
-                      alt={language === 'en' ? post.title_en : post.title_ar}
-                      fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                    <div className="absolute top-4 left-4">
-                      <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-purple-800">
-                        {t(`categories.${post.category}`)}
-                      </span>
+          {loading ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="bg-gray-200 aspect-video rounded-t-lg"></div>
+                  <div className="p-6 space-y-4">
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                    <div className="space-y-2">
+                      <div className="h-3 bg-gray-200 rounded"></div>
+                      <div className="h-3 bg-gray-200 rounded w-5/6"></div>
                     </div>
                   </div>
-                  <CardContent className="p-6 flex-1 flex flex-col">
-                    <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        {formatDate(post.created_at)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <User className="h-4 w-4" />
-                        {language === 'en' ? 'Founder' : 'المؤسسة'}
-                      </span>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <motion.div
+              className="text-center py-12"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6 }}
+            >
+              <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+                <p className="text-red-800 font-medium">
+                  {language === 'en' ? 'Error Loading Content' : 'خطأ في تحميل المحتوى'}
+                </p>
+                <p className="text-red-600 text-sm mt-2">{error}</p>
+                <Button 
+                  onClick={() => window.location.reload()} 
+                  className="mt-4"
+                  variant="outline"
+                >
+                  {language === 'en' ? 'Try Again' : 'حاول مرة أخرى'}
+                </Button>
+              </div>
+            </motion.div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredPosts.map((post, index) => (
+                <motion.div
+                  key={post.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                >
+                  <Card className="overflow-hidden border-0 luxury-shadow hover:shadow-xl transition-all duration-300 h-full group">
+                    <div className="relative aspect-video">
+                      <Image
+                        src={post.featured_image || '/images/placeholder-blog.jpg'}
+                        alt={post.title}
+                        fill
+                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                      <div className="absolute top-4 left-4">
+                        <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-purple-800">
+                          {post.category ? 
+                            (language === 'en' ? post.category.name_en : post.category.name_ar) : 
+                            t('categories.general')
+                          }
+                        </span>
+                      </div>
                     </div>
-                    <h3 className="text-xl font-semibold mb-3 text-gray-900 group-hover:text-purple-800 transition-colors">
-                      {language === 'en' ? post.title_en : post.title_ar}
-                    </h3>
-                    <p className="text-gray-600 leading-relaxed flex-1 mb-4">
-                      {language === 'en' ? post.excerpt_en : post.excerpt_ar}
-                    </p>
-                    <Button asChild variant="ghost" className="self-start p-0 h-auto text-purple-800 hover:text-purple-900">
-                      <Link href={`/blog/${post.slug}`}>
-                        {t('readMore')}
-                        <ArrowRight className={`ml-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+                    <CardContent className="p-6 flex-1 flex flex-col">
+                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          {formatDate(post.created_at)}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <User className="h-4 w-4" />
+                          {post.author?.name || (language === 'en' ? 'Editorial Team' : 'فريق التحرير')}
+                        </span>
+                      </div>
+                      <h3 className="text-xl font-semibold mb-3 text-gray-900 group-hover:text-purple-800 transition-colors">
+                        {post.title}
+                      </h3>
+                      <p className="text-gray-600 leading-relaxed flex-1 mb-4">
+                        {post.excerpt}
+                      </p>
+                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-purple-800 hover:text-purple-900">
+                        <Link href={`/blog/${post.slug}`}>
+                          {t('readMore')}
+                          <ArrowRight className={`ml-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
+                        </Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
 
-          {filteredPosts.length === 0 && (
+          {!loading && !error && filteredPosts.length === 0 && (
             <motion.div
               className="text-center py-12"
               initial={{ opacity: 0 }}
@@ -265,6 +306,14 @@ export default function BlogPage() {
                   : 'لم يتم العثور على قصص تطابق معاييرك.'
                 }
               </p>
+              {posts.length === 0 && (
+                <p className="text-gray-400 mt-2">
+                  {language === 'en' 
+                    ? 'Blog posts will appear here once content is published.'
+                    : 'ستظهر المقالات هنا بمجرد نشر المحتوى.'
+                  }
+                </p>
+              )}
             </motion.div>
           )}
         </div>

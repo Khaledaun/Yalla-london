@@ -54,8 +54,7 @@ import {
   Heading1,
   Heading2,
   Heading3,
-  Paragraph,
-  Separator,
+  Minus,
   Table,
   Calendar,
   MapPin,
@@ -137,10 +136,10 @@ const SortableBlock = ({
   const getBlockIcon = (type: string) => {
     switch (type) {
       case 'heading': return <Heading1 className="h-4 w-4" />
-      case 'paragraph': return <Paragraph className="h-4 w-4" />
+      case 'paragraph': return <FileText className="h-4 w-4" />
       case 'list': return <List className="h-4 w-4" />
       case 'table': return <Table className="h-4 w-4" />
-      case 'divider': return <Separator className="h-4 w-4" />
+      case 'divider': return <Minus className="h-4 w-4" />
       case 'contact': return <Mail className="h-4 w-4" />
       case 'legal-section': return <Scale className="h-4 w-4" />
       case 'custom-html': return <Code className="h-4 w-4" />
@@ -438,9 +437,9 @@ export function PrivacyPageEditor() {
 
   const blockLibraryItems = [
     { type: 'heading' as const, icon: Heading1, label: 'Heading', description: 'Add a section heading' },
-    { type: 'paragraph' as const, icon: Paragraph, label: 'Paragraph', description: 'Add text content' },
+    { type: 'paragraph' as const, icon: FileText, label: 'Paragraph', description: 'Add text content' },
     { type: 'list' as const, icon: List, label: 'List', description: 'Add bulleted or numbered list' },
-    { type: 'divider' as const, icon: Separator, label: 'Divider', description: 'Add a horizontal line' },
+    { type: 'divider' as const, icon: Minus, label: 'Divider', description: 'Add a horizontal line' },
     { type: 'legal-section' as const, icon: Scale, label: 'Legal Section', description: 'Add structured legal content' },
     { type: 'contact' as const, icon: Mail, label: 'Contact Info', description: 'Add contact information block' },
     { type: 'custom-html' as const, icon: Code, label: 'Custom HTML', description: 'Add custom HTML content' },

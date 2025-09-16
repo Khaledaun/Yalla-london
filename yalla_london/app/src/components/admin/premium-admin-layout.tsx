@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { PremiumAdminNav } from './premium-admin-nav'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { 
   Menu,
   Search, 
@@ -259,6 +260,9 @@ export function PremiumAdminLayout({
                 <Undo2 size={18} />
               </button>
             )}
+
+            {/* Theme Toggle */}
+            <ThemeToggle />
 
             {/* Notifications */}
             <button className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 relative">

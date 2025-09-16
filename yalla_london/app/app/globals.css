@@ -48,66 +48,13 @@
   color: transparent;
 }
 
-/* Tajawal Font */
-@font-face {
-  font-family: 'Tajawal';
-  src: url('/fonts/Tajawal-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Tajawal';
-  src: url('/fonts/Tajawal-Medium.ttf') format('truetype');
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Tajawal';
-  src: url('/fonts/Tajawal-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Tajawal';
-  src: url('/fonts/Tajawal-ExtraBold.ttf') format('truetype');
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Tajawal';
-  src: url('/fonts/Tajawal-Black.ttf') format('truetype');
-  font-weight: 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Tajawal';
-  src: url('/fonts/Tajawal-Light.ttf') format('truetype');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Tajawal';
-  src: url('/fonts/Tajawal-ExtraLight.ttf') format('truetype');
-  font-weight: 200;
-  font-style: normal;
-  font-display: swap;
-}
+/* Inter Font - Premium Typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&display=swap');
 
 :root {
-  --font-tajawal: 'Tajawal', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
-  --font-prestige: 'Tajawal', 'Georgia', 'Times New Roman', serif;
+  --font-inter: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
+  --font-prestige: 'Inter', 'Georgia', 'Times New Roman', serif;
+  --font-tajawal: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
 }
 
 @layer base {
@@ -134,12 +81,41 @@
     text-wrap: balance;
   }
   
+  .font-inter {
+    font-family: var(--font-inter);
+  }
+  
   .font-tajawal {
-    font-family: var(--font-tajawal);
+    font-family: var(--font-inter); /* Use Inter for backward compatibility */
   }
   
   .font-prestige {
     font-family: var(--font-prestige);
+  }
+  
+  /* Enhanced typography for admin interface */
+  .admin-text-sm {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    letter-spacing: 0.025em;
+  }
+  
+  .admin-text-base {
+    font-size: 1rem;
+    line-height: 1.6;
+    letter-spacing: 0.025em;
+  }
+  
+  .admin-text-lg {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    letter-spacing: 0.025em;
+  }
+  
+  .admin-heading {
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
   }
   
   /* Accessibility improvements */

@@ -40,7 +40,8 @@ import {
   Server,
   Shield,
   Database,
-  Globe
+  Globe,
+  Bot
 } from 'lucide-react'
 import { DashboardErrorBoundary } from '@/src/components/admin/dashboard-error-boundary'
 import { AsyncActionManager, AsyncAction } from '@/src/components/admin/async-action-toast'
@@ -48,6 +49,10 @@ import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'
 
 interface DashboardData {
   metrics: {
+    sessions: number
+    organicClicks: number
+    avgSeoScore: number
+    indexedPages: number
     totalPageViews: number
     uniqueVisitors: number
     publishedContent: number
@@ -261,7 +266,7 @@ export default function PremiumAdminDashboard() {
       label: 'New Article',
       description: 'Create a new blog post or article',
       icon: FileText,
-      href: '/admin/content/articles/new',
+      href: '/admin/articles/new',
       color: 'bg-blue-500 hover:bg-blue-600'
     },
     {
@@ -269,44 +274,43 @@ export default function PremiumAdminDashboard() {
       label: 'Upload Media',
       description: 'Add images, videos, or documents',
       icon: Upload,
-      href: '/admin/content/media/upload',
+      href: '/admin/media/upload',
       color: 'bg-green-500 hover:bg-green-600'
     },
     {
-      id: 'seo-tools',
-      label: 'SEO Tools',
-      description: 'Optimize content for search engines',
+      id: 'seo-audit',
+      label: 'SEO Audit',
+      description: 'Run AI-powered SEO analysis',
       icon: Search,
-      href: '/admin/content/seo',
+      href: '/admin/seo-audits',
       color: 'bg-purple-500 hover:bg-purple-600',
       badge: 'AI'
     },
-    // Show content builder only if feature flag is enabled
-    ...(homepageBuilderEnabled ? [{
-      id: 'content-builder',
-      label: 'Homepage Builder',
-      description: 'Drag & drop homepage creation',
-      icon: Edit,
-      href: '/admin/design/homepage',
-      color: 'bg-orange-500 hover:bg-orange-600',
-      badge: 'Feature'
-    }] : []),
     {
-      id: 'ai-assistant',
-      label: 'AI Assistant',
-      description: 'Get help with content and SEO',
-      icon: Brain,
-      href: '/admin/ai/assistant',
-      color: 'bg-violet-500 hover:bg-violet-600',
-      badge: 'Premium'
+      id: 'topics-pipeline',
+      label: 'Topics Pipeline',
+      description: 'Manage content topic research',
+      icon: TrendingUp,
+      href: '/admin/topics-pipeline',
+      color: 'bg-orange-500 hover:bg-orange-600',
+      badge: 'Auto'
     },
-    // Show settings only for admin role
+    {
+      id: 'prompts-editor',
+      label: 'Prompts Editor',
+      description: 'Edit AI prompt templates',
+      icon: Brain,
+      href: '/admin/prompts',
+      color: 'bg-violet-500 hover:bg-violet-600',
+      badge: 'AI'
+    },
+    // Show automation hub only for admin role
     ...(adminRole ? [{
-      id: 'integrations',
-      label: 'Integrations',
-      description: 'Connect services and tools',
-      icon: Settings,
-      href: '/admin/integrations',
+      id: 'automation-hub',
+      label: 'Automation Hub',
+      description: 'Manage publishing schedules',
+      icon: Bot,
+      href: '/admin/automation-hub',
       color: 'bg-gray-500 hover:bg-gray-600'
     }] : [])
   ]
@@ -349,7 +353,7 @@ export default function PremiumAdminDashboard() {
             <Button 
               onClick={handleRefreshData} 
               disabled={isLoading}
-              className="flex items-center space-x-2 bg-violet-600 hover:bg-violet-700 text-white focus:ring-2 focus:ring-violet-500 focus:ring-offset-2"
+              className="flex items-center space-x-2 bg-yellow-500 hover:bg-yellow-600 text-gray-900 focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2"
               aria-label="Refresh dashboard data"
             >
               <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
@@ -360,18 +364,18 @@ export default function PremiumAdminDashboard() {
       >
         <div className="space-y-8" dir="auto">
           {/* Welcome Section */}
-          <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-8 text-white">
+          <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-2xl p-8 text-gray-900">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold mb-2">Welcome back to Yalla London!</h1>
-                <p className="text-violet-100 text-lg">
+                <p className="text-gray-800 text-lg">
                   Here&apos;s what&apos;s happening with your site today
                 </p>
                 {dashboardData && (
-                  <div className="mt-2 text-sm text-violet-200">
+                  <div className="mt-2 text-sm text-gray-700">
                     Last updated: {new Date(dashboardData.lastUpdated).toLocaleTimeString()}
                     {stateTransparency && (
-                      <span className="ml-2 px-2 py-1 bg-violet-400/30 rounded text-xs">
+                      <span className="ml-2 px-2 py-1 bg-yellow-600/30 rounded text-xs">
                         Real-time data
                       </span>
                     )}
@@ -382,7 +386,7 @@ export default function PremiumAdminDashboard() {
                 <div className="text-3xl font-bold">
                   {dashboardData?.metrics.totalPageViews.toLocaleString() || '0'}
                 </div>
-                <div className="text-violet-200">Total page views</div>
+                <div className="text-gray-700">Total page views</div>
               </div>
             </div>
           </div>
@@ -583,10 +587,10 @@ export default function PremiumAdminDashboard() {
             ) : dashboardData ? (
               <>
                 <MetricTile
-                  title="Page Views"
-                  value={dashboardData.metrics.totalPageViews || 'No data'}
+                  title="Sessions"
+                  value={dashboardData.metrics.sessions || 'No data'}
                   subtitle={`${timeRange} period`}
-                  icon={Eye}
+                  icon={Users}
                   sourceLabel="Google Analytics"
                   lastSynced={dashboardData.connectionStates.analytics.lastSync}
                   timeRange={timeRange}
@@ -597,18 +601,44 @@ export default function PremiumAdminDashboard() {
                   color="primary"
                 />
                 <MetricTile
-                  title="Unique Visitors"
-                  value={dashboardData.metrics.uniqueVisitors || 'No data'}
+                  title="Organic Clicks"
+                  value={dashboardData.metrics.organicClicks || 'No data'}
                   subtitle={`${timeRange} period`}
-                  icon={Users}
-                  sourceLabel="Google Analytics"
-                  lastSynced={dashboardData.connectionStates.analytics.lastSync}
+                  icon={Search}
+                  sourceLabel="Search Console"
+                  lastSynced={dashboardData.connectionStates.searchConsole.lastSync}
                   timeRange={timeRange}
-                  connected={dashboardData.connectionStates.analytics.connected}
-                  onConnect={handleConnectAnalytics}
-                  error={dashboardData.connectionStates.analytics.error}
-                  href="/admin/integrations/analytics"
+                  connected={dashboardData.connectionStates.searchConsole.connected}
+                  onConnect={handleConnectSearchConsole}
+                  error={dashboardData.connectionStates.searchConsole.error}
+                  href="/admin/seo-audits"
                   color="success"
+                />
+                <MetricTile
+                  title="Avg SEO Score"
+                  value={dashboardData.metrics.avgSeoScore ? `${dashboardData.metrics.avgSeoScore}%` : 'No data'}
+                  subtitle="Content quality"
+                  icon={TrendingUp}
+                  sourceLabel="Yalla London AI"
+                  lastSynced={dashboardData.lastUpdated}
+                  timeRange="Real-time"
+                  connected={true}
+                  href="/admin/seo-audits"
+                  color="warning"
+                />
+                <MetricTile
+                  title="Indexed Pages"
+                  value={dashboardData.metrics.indexedPages || 'No data'}
+                  subtitle="Search visibility"
+                  icon={Globe}
+                  sourceLabel="Search Console"
+                  lastSynced={dashboardData.connectionStates.searchConsole.lastSync}
+                  timeRange={timeRange}
+                  connected={dashboardData.connectionStates.searchConsole.connected}
+                  onConnect={handleConnectSearchConsole}
+                  error={dashboardData.connectionStates.searchConsole.error}
+                  href="/admin/seo-audits"
+                  color="secondary"
                 />
                 <MetricTile
                   title="Published Content"
@@ -619,47 +649,19 @@ export default function PremiumAdminDashboard() {
                   lastSynced={dashboardData.lastUpdated}
                   timeRange="All time"
                   connected={true}
-                  href="/admin/content/articles"
+                  href="/admin/articles"
                   color="secondary"
-                />
-                <MetricTile
-                  title="Conversion Rate"
-                  value={dashboardData.metrics.conversionRate ? `${dashboardData.metrics.conversionRate}%` : 'No data'}
-                  subtitle={`${timeRange} period`}
-                  icon={Target}
-                  sourceLabel="Google Analytics"
-                  lastSynced={dashboardData.connectionStates.analytics.lastSync}
-                  timeRange={timeRange}
-                  connected={dashboardData.connectionStates.analytics.connected}
-                  onConnect={handleConnectAnalytics}
-                  error={dashboardData.connectionStates.analytics.error}
-                  href="/admin/integrations/analytics"
-                  color="warning"
                 />
                 <MetricTile
                   title="Active Users"
                   value={dashboardData.metrics.totalUsers}
-                  subtitle="Registered users"
-                  icon={Users}
+                  subtitle="Automation status"
+                  icon={Activity}
                   sourceLabel="Yalla London DB"
                   lastSynced={dashboardData.lastUpdated}
                   timeRange="All time"
                   connected={true}
-                  href="/admin/people/members"
-                  color="success"
-                />
-                <MetricTile
-                  title="SEO Performance"
-                  value="No data"
-                  subtitle={`${timeRange} period`}
-                  icon={TrendingUp}
-                  sourceLabel="Search Console"
-                  lastSynced={dashboardData.connectionStates.searchConsole.lastSync}
-                  timeRange={timeRange}
-                  connected={dashboardData.connectionStates.searchConsole.connected}
-                  onConnect={handleConnectSearchConsole}
-                  error={dashboardData.connectionStates.searchConsole.error}
-                  href="/admin/integrations/seo"
+                  href="/admin/automation-hub"
                   color="primary"
                 />
               </>

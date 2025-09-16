@@ -48,11 +48,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Topic orchestrator error:', error);
     
-    // This is the problematic line - calling captureError with two arguments
-    await performanceMonitor.captureError(
-      error instanceof Error ? error : new Error('Unknown topic orchestrator error'),
-      { endpoint: '/api/admin/topic-orchestrator' }
-    );
+    // Fixed: using correct ErrorEvent object structure
+    await performanceMonitor.captureError({
+      error: error instanceof Error ? error : new Error('Unknown topic orchestrator error'),
+      context: { endpoint: '/api/admin/topic-orchestrator' },
+      level: 'error'
+    });
 
     return NextResponse.json(
       { 
@@ -88,11 +89,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Topic orchestrator status error:', error);
     
-    // Another problematic line - calling captureError with two arguments
-    await performanceMonitor.captureError(
-      error instanceof Error ? error : new Error('Unknown topic orchestrator status error'),
-      { endpoint: '/api/admin/topic-orchestrator', action: 'status' }
-    );
+    // Fixed: using correct ErrorEvent object structure
+    await performanceMonitor.captureError({
+      error: error instanceof Error ? error : new Error('Unknown topic orchestrator status error'),
+      context: { endpoint: '/api/admin/topic-orchestrator', action: 'status' },
+      level: 'error'
+    });
 
     return NextResponse.json(
       { 

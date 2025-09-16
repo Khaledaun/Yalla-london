@@ -110,6 +110,13 @@ export const adminNavigation: NavItem[] = [
         description: 'Manage images, videos, and other media assets'
       },
       {
+        id: 'pages',
+        label: 'Pages',
+        icon: FileText,
+        href: '/admin/content/pages',
+        description: 'Manage static pages like privacy, terms, etc.'
+      },
+      {
         id: 'seo',
         label: 'SEO',
         icon: Search,
@@ -539,11 +546,18 @@ export function PremiumAdminNav({
             <span>Upload Media</span>
           </Link>
           <Link 
-            href="/admin/people/invite"
+            href="/admin/design/homepage"
             className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
           >
-            <Users size={16} />
-            <span>Invite User</span>
+            <Palette size={16} />
+            <span>Homepage Builder</span>
+          </Link>
+          <Link 
+            href="/admin/content/pages/privacy"
+            className="flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg"
+          >
+            <Shield size={16} />
+            <span>Privacy Page</span>
           </Link>
         </div>
       </div>

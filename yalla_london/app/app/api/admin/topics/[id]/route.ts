@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags';
 import { requirePermission } from '@/lib/rbac';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from "@/lib/supabase";
 import { z } from 'zod';
 
 const supabase = createClient(

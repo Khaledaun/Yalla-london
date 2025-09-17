@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseClient } from "@/lib/supabase"
 import { z } from 'zod'
 import { requireAuth } from '@/lib/rbac'
 import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'

@@ -7,12 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireAuth } from '@/lib/rbac'
 import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { getSupabaseClient } from '@/lib/supabase'
 
 // Validation schemas
 const ContentGenerationSchema = z.object({

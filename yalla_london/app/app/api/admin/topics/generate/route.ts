@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from "@/lib/supabase";
 import { requirePermission } from '@/lib/rbac';
 import { z } from 'zod';
 

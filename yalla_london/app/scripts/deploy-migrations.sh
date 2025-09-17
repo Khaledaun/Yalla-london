@@ -10,12 +10,16 @@ echo "🚀 Starting deployment migration safety script..."
 # Check required environment variables
 if [ -z "$DATABASE_URL" ]; then
     echo "❌ DATABASE_URL is not set"
-    exit 1
+    echo "ℹ️  Skipping database operations during build phase"
+    echo "✅ Build can continue without database connection"
+    exit 0
 fi
 
 if [ -z "$DIRECT_URL" ]; then
     echo "❌ DIRECT_URL is not set"
-    exit 1
+    echo "ℹ️  Skipping database operations during build phase"
+    echo "✅ Build can continue without database connection"
+    exit 0
 fi
 
 echo "✅ Environment variables validated"

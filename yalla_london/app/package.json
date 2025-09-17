@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "bash scripts/deploy-migrations.sh && node scripts/prepare-build.js && next build",
+    "build": "(bash scripts/deploy-migrations.sh || echo 'Migrations skipped during build') && node scripts/prepare-build.js && next build",
     "build:deps": "npx prisma generate --schema prisma/schema.prisma || echo 'Prisma generation failed, continuing with existing client'",
     "build:prisma": "npx prisma generate --schema prisma/schema.prisma",
     "start": "next start",

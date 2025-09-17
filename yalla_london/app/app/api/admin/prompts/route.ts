@@ -7,12 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireAuth } from '@/lib/rbac'
 import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { getSupabaseClient } from '@/lib/supabase'
 
 // Validation schemas
 const PromptTemplateCreateSchema = z.object({
@@ -41,6 +36,8 @@ export async function GET(request: NextRequest) {
   if (authResult instanceof NextResponse) {
     return authResult
   }
+
+  const supabase = getSupabaseClient()
 
   try {
     const { searchParams } = new URL(request.url)
@@ -108,6 +105,8 @@ export async function POST(request: NextRequest) {
   if (authResult instanceof NextResponse) {
     return authResult
   }
+
+  const supabase = getSupabaseClient()
 
   try {
     const body = await request.json()

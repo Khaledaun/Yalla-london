@@ -9,6 +9,12 @@
     },
     "app/api/database/backups/**/*.ts": {
       "maxDuration": 60
+    },
+    "app/api/admin/**/*.ts": {
+      "maxDuration": 45
+    },
+    "app/api/cache/**/*.ts": {
+      "maxDuration": 15
     }
   },
   "env": {

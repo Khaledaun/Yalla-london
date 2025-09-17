@@ -101,7 +101,7 @@ async function performSEOAudit(content: any, includeInternalLinks: boolean) {
 
     const minPages = parseInt(process.env.BACKLINK_OFFERS_MIN_PAGES || '40')
     if (latestSnapshot && latestSnapshot.indexed_pages >= minPages) {
-      mockAudit.internal_link_offers = [
+      (mockAudit as any).internal_link_offers = [
         {
           anchor_text: 'best London attractions',
           target_url: '/articles/top-london-attractions',
@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       breakdown_json: auditResult.breakdown,
       suggestions: auditResult.suggestions,
       quick_fixes: auditResult.quick_fixes,
-      internal_link_offers: auditResult.internal_link_offers || null,
+      internal_link_offers: (auditResult as any).internal_link_offers || null,
       authority_links_used: auditResult.authority_links_used,
       longtails_coverage: auditResult.longtails_coverage,
       audit_version: validatedData.audit_version

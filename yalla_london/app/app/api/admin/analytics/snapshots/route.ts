@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch fresh analytics data
-    const analyticsData = await fetchAnalyticsData(dateRange, siteId)
+    const analyticsData = await fetchAnalyticsData(dateRange, siteId || undefined)
 
     // Save snapshot to database
     const { data: savedSnapshot, error: saveError } = await supabase

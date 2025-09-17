@@ -95,7 +95,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const validatedData = PromptTemplateUpdateSchema.parse(body)
 
     // Update usage count and last used timestamp if template is being used
-    const updateData = { ...validatedData }
+    const updateData: any = { ...validatedData }
     if (body.increment_usage) {
       // Increment usage count
       const { data: currentTemplate } = await supabase

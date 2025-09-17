@@ -84,7 +84,7 @@ function extractArticleMetadata(html: string, url: string): ArticleData | null {
       locale,
       category,
       excerpt: excerpt?.substring(0, 1000), // Limit excerpt length
-      featured_image: featuredImage,
+      featured_image: featuredImage || undefined,
       content: content.substring(0, 10000) // Limit content length for now
     }
   } catch (error) {
@@ -173,7 +173,7 @@ async function fetchArticleUrls(): Promise<string[]> {
           })
         }
       } catch (error) {
-        console.warn(`⚠️  Failed to fetch page ${pageUrl}:`, error.message)
+        console.warn(`⚠️  Failed to fetch page ${pageUrl}:`, (error as Error).message)
       }
     }
 
@@ -273,7 +273,7 @@ async function ingestArticles(): Promise<void> {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
     } catch (error) {
-      console.error(`❌ Error processing ${url}:`, error.message)
+      console.error(`❌ Error processing ${url}:`, (error as Error).message)
       failedUrls.push(url)
     }
   }

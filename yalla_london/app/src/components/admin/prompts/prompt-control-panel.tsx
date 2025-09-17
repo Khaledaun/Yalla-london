@@ -213,7 +213,7 @@ export default function PromptControlPanel() {
   }
 
   const duplicatePrompt = async (prompt: PromptTemplate) => {
-    const duplicatedPrompt = {
+    const duplicatedPrompt: any = {
       ...prompt,
       name: `${prompt.name} (Copy)`,
       version: '1.0',

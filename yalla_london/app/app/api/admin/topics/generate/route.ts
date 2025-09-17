@@ -1,12 +1,17 @@
 /**
- * Phase 4C Topic Generation API
- * Auto-generate topics based on policies and content gaps
+ * Phase 4 AI Topic Generation API
+ * Enhanced topic generation with Supabase integration and Phase-4 feature gates
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { isFeatureEnabled } from '@/lib/feature-flags';
-import { prisma } from '@/lib/db';
+import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags';
+import { createClient } from '@supabase/supabase-js';
 import { requirePermission } from '@/lib/rbac';
 import { z } from 'zod';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // Zod schemas for validation
 const TopicGenerationSchema = z.object({
@@ -18,14 +23,13 @@ const TopicGenerationSchema = z.object({
   policy_id: z.string().optional(),
 });
 
-// POST - Generate topics based on policies
+// POST - Generate topics based on Phase 4 research
 export async function POST(request: NextRequest) {
   try {
-    // Feature flag check
-    // Feature flag check removed
-    if (!isFeatureEnabled("FEATURE_TOPIC_POLICY")) {
+    // Feature flag check for Phase 4
+    if (!isPremiumFeatureEnabled('FEATURE_TOPICS_RESEARCH')) {
       return NextResponse.json(
-        { error: 'Topic policy feature is disabled' },
+        { error: 'Topics research feature is not enabled' },
         { status: 403 }
       );
     }

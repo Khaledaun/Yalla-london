@@ -4,11 +4,6 @@ import { z } from 'zod'
 import { requireAuth } from '@/lib/rbac'
 import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 const BulkEnrichSchema = z.object({
   file_ids: z.array(z.string()).min(1).max(50), // Limit to 50 files per batch
   auto_process: z.boolean().default(true),
@@ -36,6 +31,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const validatedData = BulkEnrichSchema.parse(body)
+    const supabase = getSupabaseClient()
 
     // Validate that all file IDs exist and are eligible for enrichment
     const { data: mediaFiles, error: fetchError } = await supabase
@@ -59,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Filter files that can be enriched (images only, not already processed)
-    const eligibleFiles = mediaFiles.filter(file => 
+    const eligibleFiles = mediaFiles.filter((file: any) => 
       file.file_type.startsWith('image/') && 
       file.enrichment_status !== 'completed'
     )
@@ -76,7 +72,7 @@ export async function POST(request: NextRequest) {
       job_type: 'bulk_media_enrichment',
       scheduled_for: new Date().toISOString(),
       payload: {
-        file_ids: eligibleFiles.map(f => f.id),
+        file_ids: eligibleFiles.map((f: any) => f.id),
         priority: validatedData.priority,
         auto_process: validatedData.auto_process,
         notification_email: validatedData.notification_email || user.email,
@@ -108,7 +104,7 @@ export async function POST(request: NextRequest) {
         enrichment_status: 'processing',
         updated_at: new Date().toISOString()
       })
-      .in('id', eligibleFiles.map(f => f.id))
+      .in('id', eligibleFiles.map((f: any) => f.id))
 
     if (updateError) {
       console.error('Error updating media enrichment status:', updateError)
@@ -166,6 +162,7 @@ export async function GET(request: NextRequest) {
     const jobId = searchParams.get('job_id')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '10')
+    const supabase = getSupabaseClient()
 
     if (jobId) {
       // Get specific job status
@@ -191,9 +188,9 @@ export async function GET(request: NextRequest) {
         .in('id', fileIds)
 
       if (!progressError && enrichedFiles) {
-        const completed = enrichedFiles.filter(f => f.enrichment_status === 'completed').length
-        const failed = enrichedFiles.filter(f => f.enrichment_status === 'failed').length
-        const processing = enrichedFiles.filter(f => f.enrichment_status === 'processing').length
+        const completed = enrichedFiles.filter((f: any) => f.enrichment_status === 'completed').length
+        const failed = enrichedFiles.filter((f: any) => f.enrichment_status === 'failed').length
+        const processing = enrichedFiles.filter((f: any) => f.enrichment_status === 'processing').length
 
         job.progress = {
           total: fileIds.length,

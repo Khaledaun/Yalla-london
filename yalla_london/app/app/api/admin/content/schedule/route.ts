@@ -4,11 +4,6 @@ import { z } from 'zod'
 import { requireAuth } from '@/lib/rbac'
 import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 const ScheduleContentSchema = z.object({
   content_id: z.string(),
   scheduled_time: z.string().datetime(),
@@ -43,6 +38,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const validatedData = ScheduleContentSchema.parse(body)
+    const supabase = getSupabaseClient()
 
     // Check if content exists and is ready for scheduling
     const { data: content, error: contentError } = await supabase
@@ -164,6 +160,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = (page - 1) * limit
+    const supabase = getSupabaseClient()
 
     // Get scheduled content
     let query = supabase
@@ -224,6 +221,7 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json()
     const { content_id, action, new_scheduled_time } = body
+    const supabase = getSupabaseClient()
 
     if (!content_id || !action) {
       return NextResponse.json(

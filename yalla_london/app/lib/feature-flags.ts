@@ -162,11 +162,19 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
   };
 
   // PHASE 4 ADDITIONAL FLAGS
-  // Topic research and content discovery
+  // Topic research and content discovery (matches Phase-4B endpoint)
   flags.FEATURE_TOPICS_RESEARCH = {
     key: 'FEATURE_TOPICS_RESEARCH',
-    enabled: process.env.FEATURE_TOPICS_RESEARCH === 'true',
+    enabled: process.env.FEATURE_TOPIC_RESEARCH === 'true',
     description: 'Enable advanced topic research and content discovery',
+    category: 'content'
+  };
+
+  // Auto content generation (matches Phase-4B endpoint)
+  flags.FEATURE_AUTO_CONTENT_GENERATION = {
+    key: 'FEATURE_AUTO_CONTENT_GENERATION',
+    enabled: process.env.FEATURE_AUTO_CONTENT_GENERATION === 'true',
+    description: 'Enable automated content generation with AI',
     category: 'content'
   };
 

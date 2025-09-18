@@ -41,6 +41,7 @@ export function validatePhase4FeatureFlags(): {
   // Required Phase-4 feature flags
   const requiredPhase4Flags = [
     'FEATURE_TOPICS_RESEARCH',
+    'FEATURE_AUTO_CONTENT_GENERATION',
     'FEATURE_CONTENT_PIPELINE',
     'FEATURE_AI_SEO_AUDIT',
     'FEATURE_ANALYTICS_DASHBOARD',

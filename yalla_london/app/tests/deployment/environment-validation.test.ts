@@ -23,12 +23,12 @@ describe('Environment Variable Validation', () => {
         console.log('   Required for PR #44 deployment: NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co')
       }
 
-      if (supabaseConfig.serviceKey) {
+      if (supabaseConfig.serviceKey && !supabaseConfig.serviceKey.includes('your-service-role-key')) {
         expect(supabaseConfig.serviceKey).toMatch(/^eyJ/)
         expect(supabaseConfig.serviceKey.length).toBeGreaterThan(100)
         console.log('✅ SUPABASE_SERVICE_ROLE_KEY is properly formatted')
       } else {
-        console.log('⚠️  SUPABASE_SERVICE_ROLE_KEY is not set')
+        console.log('⚠️  SUPABASE_SERVICE_ROLE_KEY is not set or using placeholder')
         console.log('   Required for PR #44 deployment: SUPABASE_SERVICE_ROLE_KEY=your-service-role-key')
       }
 

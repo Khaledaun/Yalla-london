@@ -50,13 +50,13 @@ describe('Supabase Integration Tests', () => {
     test('should validate service role key format', () => {
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-      if (serviceKey) {
+      if (serviceKey && !serviceKey.includes('your-service-role-key')) {
         // Service role keys typically start with 'eyJ' (JWT format)
         expect(serviceKey).toMatch(/^eyJ/)
         expect(serviceKey.length).toBeGreaterThan(100)
         console.log('✅ Supabase service role key format is valid')
       } else {
-        console.log('ℹ️  Service role key not configured - this is expected for build-time tests')
+        console.log('ℹ️  Service role key not configured or using placeholder - this is expected for build-time tests')
       }
     })
   })

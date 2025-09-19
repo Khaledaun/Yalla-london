@@ -161,6 +161,71 @@ function loadFeatureFlagsFromEnv(): FeatureFlagRegistry {
     category: 'cron'
   };
 
+  // PHASE 4 ADDITIONAL FLAGS
+  // Topic research and content discovery (matches Phase-4B endpoint)
+  flags.FEATURE_TOPICS_RESEARCH = {
+    key: 'FEATURE_TOPICS_RESEARCH',
+    enabled: process.env.FEATURE_TOPIC_RESEARCH === 'true',
+    description: 'Enable advanced topic research and content discovery',
+    category: 'content'
+  };
+
+  // Auto content generation (matches Phase-4B endpoint)
+  flags.FEATURE_AUTO_CONTENT_GENERATION = {
+    key: 'FEATURE_AUTO_CONTENT_GENERATION',
+    enabled: process.env.FEATURE_AUTO_CONTENT_GENERATION === 'true',
+    description: 'Enable automated content generation with AI',
+    category: 'content'
+  };
+
+  // Analytics dashboard with advanced metrics
+  flags.FEATURE_ANALYTICS_DASHBOARD = {
+    key: 'FEATURE_ANALYTICS_DASHBOARD',
+    enabled: process.env.FEATURE_ANALYTICS_DASHBOARD === 'true',
+    description: 'Enable advanced analytics dashboard with real-time metrics',
+    category: 'analytics'
+  };
+
+  // Media enrichment and AI-powered metadata
+  flags.FEATURE_MEDIA_ENRICH = {
+    key: 'FEATURE_MEDIA_ENRICH',
+    enabled: process.env.FEATURE_MEDIA_ENRICH === 'true',
+    description: 'Enable AI-powered media enrichment and metadata generation',
+    category: 'content'
+  };
+
+  // Bulk media enrichment operations
+  flags.FEATURE_BULK_ENRICH = {
+    key: 'FEATURE_BULK_ENRICH',
+    enabled: process.env.FEATURE_BULK_ENRICH === 'true',
+    description: 'Enable bulk media enrichment and batch processing',
+    category: 'content'
+  };
+
+  // Prompt control and AI model management
+  flags.FEATURE_PROMPT_CONTROL = {
+    key: 'FEATURE_PROMPT_CONTROL',
+    enabled: process.env.FEATURE_PROMPT_CONTROL === 'true',
+    description: 'Enable advanced prompt control and AI model management',
+    category: 'ai'
+  };
+
+  // Backlink offers and partnership management
+  flags.FEATURE_BACKLINK_OFFERS = {
+    key: 'FEATURE_BACKLINK_OFFERS',
+    enabled: process.env.FEATURE_BACKLINK_OFFERS === 'true',
+    description: 'Enable backlink offers and partnership management system',
+    category: 'seo'
+  };
+
+  // Analytics refresh and data updates
+  flags.ANALYTICS_REFRESH = {
+    key: 'ANALYTICS_REFRESH',
+    enabled: process.env.ANALYTICS_REFRESH === 'true',
+    description: 'Enable automatic analytics data refresh and updates',
+    category: 'analytics'
+  };
+
   // PHASE 4C FLAGS (All OFF by default for safe rollout)
   // Topic policy and quota management
   flags.FEATURE_TOPIC_POLICY = {

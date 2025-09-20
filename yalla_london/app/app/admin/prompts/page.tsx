@@ -26,6 +26,7 @@ import {
   Trash2,
   RotateCcw
 } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 
 interface PromptTemplate {
   id: string
@@ -173,7 +174,8 @@ const mockVersions: { [key: string]: PromptVersion[] } = {
 }
 
 export default function PromptsPage() {
-  const [prompts, setPrompts] = useState<PromptTemplate[]>(mockPrompts)
+  const [prompts, setPrompts] = useState<PromptTemplate[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedPrompt, setSelectedPrompt] = useState<PromptTemplate | null>(null)
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [showVersionHistory, setShowVersionHistory] = useState(false)
@@ -183,6 +185,35 @@ export default function PromptsPage() {
   const [testVariables, setTestVariables] = useState<{ [key: string]: string }>({})
   const [testResult, setTestResult] = useState('')
   const [isTesting, setIsTesting] = useState(false)
+
+  useEffect(() => {
+    fetchPrompts()
+  }, [selectedCategory])
+
+  const fetchPrompts = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({
+        category: selectedCategory === 'all' ? '' : selectedCategory,
+        limit: '50'
+      })
+      
+      const response = await fetch(`/api/admin/prompts?${params}`)
+      const data = await response.json()
+      
+      if (data.success) {
+        setPrompts(data.data)
+      } else {
+        console.error('Failed to fetch prompts:', data.error)
+        toast.error('Failed to load prompts')
+      }
+    } catch (error) {
+      console.error('Error fetching prompts:', error)
+      toast.error('Failed to load prompts')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const categoryColors = {
     'content': 'bg-blue-100 text-blue-800',
@@ -208,43 +239,68 @@ export default function PromptsPage() {
     setIsEditing(true)
   }
 
-  const handleSavePrompt = () => {
-    if (selectedPrompt && editedPrompt) {
-      const updatedPrompt = {
-        ...selectedPrompt,
-        ...editedPrompt,
-        version: selectedPrompt.version + 1,
-        updatedAt: new Date().toISOString()
-      }
+  const handleSavePrompt = async () => {
+    if (!selectedPrompt || !editedPrompt) return
+    
+    try {
+      const response = await fetch(`/api/admin/prompts/${selectedPrompt.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editedPrompt)
+      })
       
-      setPrompts(prev => prev.map(p => 
-        p.id === selectedPrompt.id ? updatedPrompt : p
-      ))
-      setSelectedPrompt(updatedPrompt)
-      setIsEditing(false)
+      const data = await response.json()
+      
+      if (data.success) {
+        const updatedPrompt = data.data
+        setPrompts(prev => prev.map(p => 
+          p.id === selectedPrompt.id ? updatedPrompt : p
+        ))
+        setSelectedPrompt(updatedPrompt)
+        setIsEditing(false)
+        toast.success('Prompt updated successfully')
+      } else {
+        throw new Error(data.error || 'Failed to update prompt')
+      }
+    } catch (error) {
+      console.error('Error updating prompt:', error)
+      toast.error('Failed to update prompt')
     }
   }
 
-  const handleCreatePrompt = () => {
-    const newPrompt: PromptTemplate = {
-      id: Date.now().toString(),
-      name: editedPrompt.name || '',
-      description: editedPrompt.description || '',
-      category: editedPrompt.category || 'content',
-      language: editedPrompt.language || 'en',
-      contentType: editedPrompt.contentType || [],
-      prompt: editedPrompt.prompt || '',
-      variables: extractVariables(editedPrompt.prompt || ''),
-      version: 1,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      usageCount: 0
+  const handleCreatePrompt = async () => {
+    if (!editedPrompt.name || !editedPrompt.prompt) {
+      toast.error('Name and prompt are required')
+      return
     }
     
-    setPrompts(prev => [newPrompt, ...prev])
-    setEditedPrompt({})
-    setIsCreating(false)
+    try {
+      const response = await fetch('/api/admin/prompts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...editedPrompt,
+          category: editedPrompt.category || 'content',
+          language: editedPrompt.language || 'en',
+          contentType: editedPrompt.contentType || []
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        const newPrompt = data.data
+        setPrompts(prev => [newPrompt, ...prev])
+        setEditedPrompt({})
+        setIsCreating(false)
+        toast.success('Prompt created successfully')
+      } else {
+        throw new Error(data.error || 'Failed to create prompt')
+      }
+    } catch (error) {
+      console.error('Error creating prompt:', error)
+      toast.error('Failed to create prompt')
+    }
   }
 
   const extractVariables = (prompt: string): string[] => {
@@ -252,23 +308,37 @@ export default function PromptsPage() {
     return matches ? matches.map(match => match.slice(2, -2)) : []
   }
 
-  const handleTestPrompt = () => {
+  const handleTestPrompt = async () => {
     if (!selectedPrompt) return
     
     setIsTesting(true)
-    let result = selectedPrompt.prompt
     
-    // Replace variables with test values
-    selectedPrompt.variables.forEach(variable => {
-      const value = testVariables[variable] || `[${variable}]`
-      result = result.replace(new RegExp(`\\{\\{${variable}\\}\\}`, 'g'), value)
-    })
-    
-    // Simulate API delay
-    setTimeout(() => {
-      setTestResult(result)
+    try {
+      // Record usage
+      await fetch(`/api/admin/prompts/${selectedPrompt.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'use' })
+      })
+      
+      let result = selectedPrompt.prompt
+      
+      // Replace variables with test values
+      selectedPrompt.variables.forEach(variable => {
+        const value = testVariables[variable] || `[${variable}]`
+        result = result.replace(new RegExp(`\\{\\{${variable}\\}\\}`, 'g'), value)
+      })
+      
+      // Simulate API delay
+      setTimeout(() => {
+        setTestResult(result)
+        setIsTesting(false)
+      }, 1000)
+    } catch (error) {
+      console.error('Error testing prompt:', error)
       setIsTesting(false)
-    }, 1000)
+      toast.error('Failed to test prompt')
+    }
   }
 
   const handleCopyPrompt = () => {
@@ -277,10 +347,30 @@ export default function PromptsPage() {
     }
   }
 
-  const handleDeletePrompt = (promptId: string) => {
-    setPrompts(prev => prev.filter(p => p.id !== promptId))
-    if (selectedPrompt?.id === promptId) {
-      setSelectedPrompt(null)
+  const handleDeletePrompt = async (promptId: string) => {
+    if (!confirm('Are you sure you want to delete this prompt? This action cannot be undone.')) {
+      return
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/prompts/${promptId}`, {
+        method: 'DELETE'
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setPrompts(prev => prev.filter(p => p.id !== promptId))
+        if (selectedPrompt?.id === promptId) {
+          setSelectedPrompt(null)
+        }
+        toast.success('Prompt deleted successfully')
+      } else {
+        throw new Error(data.error || 'Failed to delete prompt')
+      }
+    } catch (error) {
+      console.error('Error deleting prompt:', error)
+      toast.error('Failed to delete prompt')
     }
   }
 
@@ -344,8 +434,22 @@ export default function PromptsPage() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="space-y-2">
-                {filteredPrompts.map((prompt) => (
+              {loading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="animate-pulse p-3">
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2 mb-2"></div>
+                      <div className="flex gap-2">
+                        <div className="h-5 bg-gray-200 rounded w-16"></div>
+                        <div className="h-5 bg-gray-200 rounded w-12"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredPrompts.map((prompt) => (
                   <div 
                     key={prompt.id}
                     className={`p-3 cursor-pointer border-l-4 hover:bg-gray-50 ${
@@ -400,7 +504,8 @@ export default function PromptsPage() {
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

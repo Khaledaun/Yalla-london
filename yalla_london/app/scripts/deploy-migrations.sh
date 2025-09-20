@@ -8,25 +8,7 @@ set -e  # Exit on any error
 
 echo "🚀 Starting deployment migration safety script..."
 
-# Check if we're in a build environment without database access
-if [ -z "$DATABASE_URL" ] || [ -z "$DIRECT_URL" ]; then
-    echo "⚠️  Database environment variables not fully configured"
-    echo "   DATABASE_URL: ${DATABASE_URL:+configured}" 
-    echo "   DIRECT_URL: ${DIRECT_URL:+configured}"
-    
-    # In build environments, skip migration operations
-    if [ "$VERCEL" = "1" ] || [ "$CI" = "true" ] || [ "$NODE_ENV" = "production" ]; then
-        echo "ℹ️  Detected build environment, skipping database operations"
-        echo "   • Migrations will be applied on first runtime access"
-        echo "   • Application has graceful fallbacks for missing DB"
-        echo "   • Prisma client will use fallback mode during build"
-        echo "✅ Build preparation completed (database operations skipped)"
-        exit 0
-    else
-        echo "❌ DATABASE_URL and DIRECT_URL are required for local development"
-        echo "   Please copy .env.example to .env and configure database URLs"
-        exit 1
-    fi
+
 fi
 
 echo "✅ Environment variables validated for database operations"

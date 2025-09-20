@@ -498,6 +498,56 @@ model SeoAuditResult {
 }
 
 // =============================================================================
+// PHASE 4 FEATURE MODELS
+// =============================================================================
+
+// Media Enrichment tracking with AI-powered enhancements
+model MediaEnrichment {
+  id                String   @id @default(cuid())
+  media_id          String   @unique
+  alt_text_original String?
+  alt_text_enhanced String?
+  title_enhanced    String?
+  description_enhanced String?
+  tags_ai           String[]
+  color_palette     Json?    // Dominant colors extracted
+  composition_data  Json?    // AI analysis of composition
+  accessibility_score Int?   // 0-100 accessibility score
+  seo_optimized     Boolean  @default(false)
+  processing_status String   @default("pending") // pending, processing, completed, failed
+  ai_metadata       Json?    // Additional AI-generated metadata
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  
+  @@index([processing_status])
+  @@index([seo_optimized])
+  @@index([created_at])
+}
+
+// Prompt Template Management with versioning and locale support
+model PromptTemplate {
+  id             String   @id @default(cuid())
+  name           String
+  category       String   // content_generation, seo_audit, topic_research, media_description
+  template_en    String   @db.Text
+  template_ar    String?  @db.Text
+  variables      Json     // Template variables and their types
+  version        String   @default("1.0")
+  locale_overrides Json?  // Locale-specific customizations
+  is_active      Boolean  @default(true)
+  created_by     String?  // User ID
+  usage_count    Int      @default(0)
+  last_used_at   DateTime?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+  
+  @@index([category, is_active])
+  @@index([version])
+  @@index([usage_count])
+  @@unique([name, version])
+}
+
+// =============================================================================
 // PHASE 4G: MULTI-SITE ARCHITECTURE (PREPARATORY)
 // =============================================================================
 

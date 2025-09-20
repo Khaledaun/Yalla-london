@@ -253,6 +253,71 @@ function loadPremiumFeatureFlags(): FeatureFlagRegistry {
     scope: 'global'
   };
 
+  // PHASE 4 CORE FEATURES (all OFF by default)
+  flags.FEATURE_TOPICS_RESEARCH = {
+    key: 'FEATURE_TOPICS_RESEARCH',
+    enabled: process.env.FEATURE_TOPICS_RESEARCH === 'true',
+    description: 'Enable AI-powered topics research and management',
+    category: 'content',
+    scope: 'global'
+  };
+
+  flags.FEATURE_CONTENT_PIPELINE = {
+    key: 'FEATURE_CONTENT_PIPELINE',
+    enabled: process.env.FEATURE_CONTENT_PIPELINE === 'true',
+    description: 'Enable automated content generation pipeline',
+    category: 'content',
+    scope: 'global'
+  };
+
+  flags.FEATURE_AI_SEO_AUDIT = {
+    key: 'FEATURE_AI_SEO_AUDIT',
+    enabled: process.env.FEATURE_AI_SEO_AUDIT === 'true',
+    description: 'Enable AI-powered SEO audit and optimization',
+    category: 'seo',
+    scope: 'global'
+  };
+
+  flags.FEATURE_ANALYTICS_DASHBOARD = {
+    key: 'FEATURE_ANALYTICS_DASHBOARD',
+    enabled: process.env.FEATURE_ANALYTICS_DASHBOARD === 'true',
+    description: 'Enable comprehensive analytics dashboard',
+    category: 'analytics',
+    scope: 'global'
+  };
+
+  flags.FEATURE_MEDIA_ENRICH = {
+    key: 'FEATURE_MEDIA_ENRICH',
+    enabled: process.env.FEATURE_MEDIA_ENRICH === 'true',
+    description: 'Enable AI-powered media enrichment and optimization',
+    category: 'media',
+    scope: 'global'
+  };
+
+  flags.FEATURE_BULK_ENRICH = {
+    key: 'FEATURE_BULK_ENRICH',
+    enabled: process.env.FEATURE_BULK_ENRICH === 'true',
+    description: 'Enable bulk content and media enrichment processing',
+    category: 'media',
+    scope: 'global'
+  };
+
+  flags.FEATURE_PROMPT_CONTROL = {
+    key: 'FEATURE_PROMPT_CONTROL',
+    enabled: process.env.FEATURE_PROMPT_CONTROL === 'true',
+    description: 'Enable prompt template management and versioning',
+    category: 'content',
+    scope: 'global'
+  };
+
+  flags.FEATURE_BACKLINK_OFFERS = {
+    key: 'FEATURE_BACKLINK_OFFERS',
+    enabled: process.env.FEATURE_BACKLINK_OFFERS === 'true',
+    description: 'Enable internal backlink suggestions and offers',
+    category: 'seo',
+    scope: 'global'
+  };
+
   return flags;
 }
 

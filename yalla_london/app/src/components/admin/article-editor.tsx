@@ -90,7 +90,12 @@ interface MediaAsset {
   type: 'image' | 'video'
 }
 
-export function ArticleEditor() {
+interface ArticleEditorProps {
+  articleId?: string
+  mode?: 'create' | 'edit'
+}
+
+export function ArticleEditor({ articleId, mode = 'create' }: ArticleEditorProps) {
   const { toast } = useToast()
   const [article, setArticle] = useState<Article>({
     title: '',
@@ -115,6 +120,53 @@ export function ArticleEditor() {
   const [isGeneratingContent, setIsGeneratingContent] = useState(false)
   const [contentGenerationProgress, setContentGenerationProgress] = useState(0)
   const [newTag, setNewTag] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  // Load article data if in edit mode
+  useEffect(() => {
+    if (mode === 'edit' && articleId) {
+      loadArticle(articleId)
+    }
+  }, [mode, articleId])
+
+  const loadArticle = async (id: string) => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/admin/blog-posts/${id}`)
+      const data = await response.json()
+      
+      if (data.success && data.data) {
+        const articleData = data.data
+        setArticle({
+          id: articleData.id,
+          title: articleData.title_en || '',
+          slug: articleData.slug || '',
+          excerpt: articleData.excerpt_en || '',
+          content: articleData.content_en || '',
+          language: 'en', // Default to English
+          status: articleData.published ? 'published' : 'draft',
+          publishedAt: articleData.published_at ? new Date(articleData.published_at) : undefined,
+          featuredImage: articleData.featured_image || '',
+          tags: articleData.tags || [],
+          category: articleData.category?.name_en || '',
+          seoTitle: articleData.meta_title_en || '',
+          seoDescription: articleData.meta_description_en || '',
+          authorId: articleData.author?.id || 'current-user',
+          readingTime: calculateReadingTime(articleData.content_en || '')
+        })
+      }
+    } catch (error) {
+      console.error('Error loading article:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to load article',
+        variant: 'destructive'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Mock media assets
   const [mediaAssets] = useState<MediaAsset[]>([
@@ -136,16 +188,166 @@ export function ArticleEditor() {
     }
   ])
 
+  // Calculate reading time helper function
+  const calculateReadingTime = (content: string): number => {
+    const wordCount = content.split(/\s+/).filter(word => word.length > 0).length
+    return Math.ceil(wordCount / 200) // 200 words per minute
+  }
+
+  // Save article
+  const saveArticle = async (publish = false) => {
+    try {
+      setSaving(true)
+      
+      const payload = {
+        title_en: article.title,
+        title_ar: '', // TODO: Add Arabic support
+        slug: article.slug,
+        excerpt_en: article.excerpt,
+        excerpt_ar: '',
+        content_en: article.content,
+        content_ar: '',
+        published: publish,
+        page_type: 'article',
+        category_id: '', // TODO: Map category name to ID
+        tags: article.tags,
+        featured_image: article.featuredImage,
+        meta_title_en: article.seoTitle || article.title,
+        meta_title_ar: '',
+        meta_description_en: article.seoDescription || article.excerpt,
+        meta_description_ar: ''
+      }
+
+      const url = mode === 'edit' && articleId 
+        ? `/api/admin/blog-posts/${articleId}`
+        : '/api/admin/blog-posts'
+      
+      const method = mode === 'edit' ? 'PATCH' : 'POST'
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        toast({
+          title: 'Success',
+          description: `Article ${mode === 'edit' ? 'updated' : 'created'} successfully`,
+        })
+        
+        if (mode === 'create') {
+          // Redirect to the articles list or edit page
+          window.location.href = '/admin/articles'
+        }
+      } else {
+        throw new Error(data.error || 'Failed to save article')
+      }
+    } catch (error) {
+      console.error('Error saving article:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to save article',
+        variant: 'destructive'
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Auto-generate content from topic
+  const generateContentFromTopic = async (topic: TopicSuggestion) => {
+    try {
+      setIsGeneratingContent(true)
+      setContentGenerationProgress(0)
+      
+      // Simulate content generation progress
+      const interval = setInterval(() => {
+        setContentGenerationProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(interval)
+            return 90
+          }
+          return prev + 10
+        })
+      }, 500)
+      
+      // Simulate API call to generate content
+      setTimeout(() => {
+        setContentGenerationProgress(100)
+        
+        const generatedContent = `# ${topic.title}
+
+${topic.description}
+
+## Introduction
+
+London is a city that never ceases to amaze visitors and locals alike. With its rich history, vibrant culture, and countless attractions, there's always something new to discover.
+
+## Key Highlights
+
+${topic.keywords.map(keyword => `- ${keyword.charAt(0).toUpperCase() + keyword.slice(1)}`).join('\n')}
+
+## Detailed Guide
+
+[This section would contain the main content generated based on the topic and keywords]
+
+## Practical Information
+
+- **Best time to visit**: All year round
+- **Average time needed**: 2-3 hours
+- **Cost**: Varies by activity
+- **Location**: Central London
+
+## Conclusion
+
+This guide provides you with everything you need to know about ${topic.title.toLowerCase()}. Whether you're a first-time visitor or a long-time resident, these insights will help you make the most of your experience.
+
+*Estimated reading time: ${Math.ceil(topic.suggestedLength / 200)} minutes*`
+
+        setArticle(prev => ({
+          ...prev,
+          title: topic.title,
+          content: generatedContent,
+          excerpt: topic.description,
+          tags: topic.keywords,
+          seoTitle: topic.title,
+          seoDescription: topic.description
+        }))
+        
+        setIsGeneratingContent(false)
+        setSelectedTopic(topic)
+        setIsTopicResearchOpen(false)
+        
+        toast({
+          title: 'Content Generated',
+          description: 'Article content has been generated successfully. You can now edit and customize it.',
+        })
+      }, 3000)
+      
+    } catch (error) {
+      console.error('Error generating content:', error)
+      setIsGeneratingContent(false)
+      toast({
+        title: 'Error',
+        description: 'Failed to generate content',
+        variant: 'destructive'
+      })
+    }
+  }
+
   // Auto-generate slug from title
   useEffect(() => {
-    if (article.title && !article.slug) {
+    if (article.title && (!article.slug || mode === 'create')) {
       const slug = article.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)+/g, '')
       setArticle(prev => ({ ...prev, slug }))
     }
-  }, [article.title, article.slug])
+  }, [article.title, article.slug, mode])
 
   // Calculate reading time
   useEffect(() => {

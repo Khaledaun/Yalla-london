@@ -42,7 +42,7 @@ export function MediaUploader() {
     setUploadFiles(prev => prev.filter(f => f.id !== id));
   };
 
-  const uploadFiles = async () => {
+  const handleUploadFiles = async () => {
     setIsUploading(true);
     
     for (const uploadFile of uploadFiles.filter(f => f.status === 'pending')) {
@@ -140,7 +140,7 @@ export function MediaUploader() {
                 Clear All
               </button>
               <button
-                onClick={uploadFiles}
+                onClick={handleUploadFiles}
                 disabled={isUploading || uploadFiles.every(f => f.status !== 'pending')}
                 className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >

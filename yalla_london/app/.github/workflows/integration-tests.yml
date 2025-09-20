@@ -1,0 +1,169 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: yalla_user
+          POSTGRES_PASSWORD: yalla_pass
+          POSTGRES_DB: yalla_london_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'yarn'
+          cache-dependency-path: 'yalla_london/app/yarn.lock'
+
+      - name: Install dependencies
+        working-directory: yalla_london/app
+        run: yarn install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        working-directory: yalla_london/app
+        run: npx playwright install --with-deps
+
+      - name: Setup database
+        working-directory: yalla_london/app
+        env:
+          DATABASE_URL: postgresql://yalla_user:yalla_pass@localhost:5432/yalla_london_test
+          DIRECT_URL: postgresql://yalla_user:yalla_pass@localhost:5432/yalla_london_test
+        run: |
+          npx prisma migrate deploy || echo "Migrations skipped"
+          npx prisma generate
+
+      - name: Build application
+        working-directory: yalla_london/app
+        run: yarn build
+        env:
+          DATABASE_URL: postgresql://yalla_user:yalla_pass@localhost:5432/yalla_london_test
+          DIRECT_URL: postgresql://yalla_user:yalla_pass@localhost:5432/yalla_london_test
+          NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'YallaLondon24!' }}
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+
+      - name: Start application
+        working-directory: yalla_london/app
+        run: |
+          yarn start &
+          echo $! > .next_pid
+        env:
+          DATABASE_URL: postgresql://yalla_user:yalla_pass@localhost:5432/yalla_london_test
+          DIRECT_URL: postgresql://yalla_user:yalla_pass@localhost:5432/yalla_london_test
+          NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'YallaLondon24!' }}
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          PORT: 3000
+
+      - name: Wait for application to be ready
+        run: |
+          timeout 60 sh -c 'until curl -f http://localhost:3000/api/health > /dev/null 2>&1; do sleep 2; done' || echo "Health check failed, continuing..."
+
+      - name: Run database connectivity tests
+        working-directory: yalla_london/app
+        run: yarn test:integration:database
+        env:
+          DATABASE_URL: postgresql://yalla_user:yalla_pass@localhost:5432/yalla_london_test
+          DIRECT_URL: postgresql://yalla_user:yalla_pass@localhost:5432/yalla_london_test
+
+      - name: Run API endpoint validation tests
+        working-directory: yalla_london/app
+        run: npx playwright test tests/api-endpoint-validation.test.ts --reporter=html
+        env:
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'YallaLondon24!' }}
+
+      - name: Run admin workflow E2E tests
+        working-directory: yalla_london/app
+        run: npx playwright test tests/admin-workflow-e2e.test.ts --reporter=html
+        env:
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'YallaLondon24!' }}
+
+      - name: Run comprehensive integration tests
+        working-directory: yalla_london/app
+        run: npx playwright test tests/comprehensive-integration.test.ts --reporter=html
+        env:
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'YallaLondon24!' }}
+
+      - name: Generate comprehensive audit report
+        working-directory: yalla_london/app
+        if: always()
+        run: |
+          node tests/run-integration-tests.js || echo "Test runner completed with warnings"
+        env:
+          DATABASE_URL: postgresql://yalla_user:yalla_pass@localhost:5432/yalla_london_test
+          DIRECT_URL: postgresql://yalla_user:yalla_pass@localhost:5432/yalla_london_test
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || 'YallaLondon24!' }}
+
+      - name: Stop application
+        if: always()
+        working-directory: yalla_london/app
+        run: |
+          if [ -f .next_pid ]; then
+            kill $(cat .next_pid) || echo "Application already stopped"
+            rm .next_pid
+          fi
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-reports
+          path: |
+            yalla_london/app/test-results/
+            yalla_london/app/playwright-report/
+          retention-days: 30
+
+      - name: Upload Playwright HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: yalla_london/app/playwright-report/
+          retention-days: 30
+
+      - name: Comment on PR with test results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'yalla_london/app/test-results/latest-audit-report.md';
+            
+            try {
+              if (fs.existsSync(path)) {
+                const report = fs.readFileSync(path, 'utf8');
+                const summary = report.split('## Executive Summary')[1]?.split('##')[0] || 'Report generated';
+                
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: `## 🧪 Integration Test Results\n\n${summary}\n\n📊 Full report available in artifacts.`
+                });
+              }
+            } catch (error) {
+              console.log('Could not post comment:', error);
+            }

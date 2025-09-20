@@ -1,21 +1,16 @@
 /**
- * Phase 4 Topics Management API
- * Individual topic CRUD operations with Supabase integration
+ * Phase 4C Topics Management API
+ * Individual topic CRUD operations
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags';
+import { isFeatureEnabled } from '@/lib/feature-flags';
+import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/rbac';
-import { getSupabaseClient } from "@/lib/supabase";
 import { z } from 'zod';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 // Zod schemas for validation
 const UpdateTopicSchema = z.object({
-  status: z.enum(['proposed', 'approved', 'snoozed', 'rejected']).optional(),
+  status: z.enum(['proposed', 'approved', 'rejected', 'used']).optional(),
   primary_keyword: z.string().min(1).max(200).optional(),
   longtails: z.array(z.string()).optional(),
   featured_longtails: z.array(z.string()).length(2).optional(),
@@ -36,10 +31,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Feature flag check for Phase 4
-    if (!isPremiumFeatureEnabled('FEATURE_TOPICS_RESEARCH')) {
+    // Feature flag check
+    // Feature flag check removed
+    if (!isFeatureEnabled("FEATURE_TOPIC_POLICY")) {
       return NextResponse.json(
-        { error: 'Topics research feature is not enabled' },
+        { error: 'Topic policy feature is disabled' },
         { status: 403 }
       );
     }
@@ -50,27 +46,25 @@ export async function GET(
       return permissionCheck;
     }
 
-    // Fetch from Supabase
-    const { data: topic, error } = await supabase
-      .from('topic_proposal')
-      .select(`
-        *,
-        scheduled_content:scheduled_content(id, title, status, published, published_time)
-      `)
-      .eq('id', params.id)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json(
-          { error: 'Topic not found' },
-          { status: 404 }
-        );
+    const topic = await prisma.topicProposal.findUnique({
+      where: { id: params.id },
+      include: {
+        scheduled_content: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            published: true,
+            published_time: true
+          }
+        }
       }
-      console.error('Supabase error:', error);
+    });
+
+    if (!topic) {
       return NextResponse.json(
-        { error: 'Failed to fetch topic' },
-        { status: 500 }
+        { error: 'Topic not found' },
+        { status: 404 }
       );
     }
 
@@ -97,10 +91,11 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Feature flag check for Phase 4
-    if (!isPremiumFeatureEnabled('FEATURE_TOPICS_RESEARCH')) {
+    // Feature flag check
+    // Feature flag check removed
+    if (!isFeatureEnabled("FEATURE_TOPIC_POLICY")) {
       return NextResponse.json(
-        { error: 'Topics research feature is not enabled' },
+        { error: 'Topic policy feature is disabled' },
         { status: 403 }
       );
     }
@@ -128,47 +123,50 @@ export async function PATCH(
     const updateData = validation.data;
 
     // Check if topic exists
-    const { data: existingTopic, error: fetchError } = await supabase
-      .from('topic_proposal')
-      .select('*')
-      .eq('id', params.id)
-      .single();
+    const existingTopic = await prisma.topicProposal.findUnique({
+      where: { id: params.id }
+    });
 
-    if (fetchError) {
-      if (fetchError.code === 'PGRST116') {
-        return NextResponse.json(
-          { error: 'Topic not found' },
-          { status: 404 }
-        );
-      }
-      console.error('Supabase fetch error:', fetchError);
+    if (!existingTopic) {
       return NextResponse.json(
-        { error: 'Failed to fetch topic' },
-        { status: 500 }
+        { error: 'Topic not found' },
+        { status: 404 }
       );
     }
 
-    // Update topic in Supabase
-    const { data: updatedTopic, error: updateError } = await supabase
-      .from('topic_proposal')
-      .update({
+    // Update topic
+    const updatedTopic = await prisma.topicProposal.update({
+      where: { id: params.id },
+      data: {
         ...updateData,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', params.id)
-      .select(`
-        *,
-        scheduled_content:scheduled_content(id, title, status)
-      `)
-      .single();
+        updated_at: new Date()
+      },
+      include: {
+        scheduled_content: {
+          select: {
+            id: true,
+            title: true,
+            status: true
+          }
+        }
+      }
+    });
 
-    if (updateError) {
-      console.error('Supabase update error:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to update topic' },
-        { status: 500 }
-      );
-    }
+    // Log the update
+    await prisma.auditLog.create({
+      data: {
+        userId: permissionCheck.user.id,
+        action: 'update',
+        resource: 'topic_proposal',
+        resourceId: params.id,
+        details: {
+          changes: updateData,
+          old_status: existingTopic.status,
+          new_status: updateData.status || existingTopic.status
+        },
+        success: true
+      }
+    });
 
     return NextResponse.json({
       success: true,
@@ -193,10 +191,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Feature flag check for Phase 4
-    if (!isPremiumFeatureEnabled('FEATURE_TOPICS_RESEARCH')) {
+    // Feature flag check
+    // Feature flag check removed
+    if (!isFeatureEnabled("FEATURE_TOPIC_POLICY")) {
       return NextResponse.json(
-        { error: 'Topics research feature is not enabled' },
+        { error: 'Topic policy feature is disabled' },
         { status: 403 }
       );
     }
@@ -208,26 +207,17 @@ export async function DELETE(
     }
 
     // Check if topic exists and has no associated content
-    const { data: topic, error: fetchError } = await supabase
-      .from('topic_proposal')
-      .select(`
-        *,
-        scheduled_content:scheduled_content(id)
-      `)
-      .eq('id', params.id)
-      .single();
-
-    if (fetchError) {
-      if (fetchError.code === 'PGRST116') {
-        return NextResponse.json(
-          { error: 'Topic not found' },
-          { status: 404 }
-        );
+    const topic = await prisma.topicProposal.findUnique({
+      where: { id: params.id },
+      include: {
+        scheduled_content: true
       }
-      console.error('Supabase fetch error:', fetchError);
+    });
+
+    if (!topic) {
       return NextResponse.json(
-        { error: 'Failed to fetch topic' },
-        { status: 500 }
+        { error: 'Topic not found' },
+        { status: 404 }
       );
     }
 
@@ -242,19 +232,28 @@ export async function DELETE(
       );
     }
 
-    // Delete topic from Supabase
-    const { error: deleteError } = await supabase
-      .from('topic_proposal')
-      .delete()
-      .eq('id', params.id);
+    // Delete topic
+    await prisma.topicProposal.delete({
+      where: { id: params.id }
+    });
 
-    if (deleteError) {
-      console.error('Supabase delete error:', deleteError);
-      return NextResponse.json(
-        { error: 'Failed to delete topic' },
-        { status: 500 }
-      );
-    }
+    // Log the deletion
+    await prisma.auditLog.create({
+      data: {
+        userId: permissionCheck.user.id,
+        action: 'delete',
+        resource: 'topic_proposal',
+        resourceId: params.id,
+        details: {
+          deleted_topic: {
+            primary_keyword: topic.primary_keyword,
+            status: topic.status,
+            locale: topic.locale
+          }
+        },
+        success: true
+      }
+    });
 
     return NextResponse.json({
       success: true,

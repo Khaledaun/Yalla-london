@@ -19,7 +19,7 @@ env:
   # Production readiness flags
   FEATURE_AI_SEO_AUDIT: 'false'
   FEATURE_CONTENT_PIPELINE: 'false'
-  FEATURE_INTERNAL_LINKS: 'false'
+  FEATURE INTERNAL_LINKS: 'false'
   FEATURE_RICH_EDITOR: 'false'
   FEATURE_HOMEPAGE_BUILDER: 'false'
 

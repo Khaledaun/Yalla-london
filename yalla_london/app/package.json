@@ -22,6 +22,7 @@
     "test:audit": "node tests/run-integration-tests.js && echo '📊 Full audit report generated in test-results/'",
     "validate:pr44": "node scripts/validate-pr44-deployment.js",
     "validate:deployment": "yarn test:smoke && node scripts/validate-pr44-deployment.js",
+    "health": "tsx scripts/health-check.ts",
     "backup": "tsx scripts/backup-restore.ts",
     "backup:schedule": "tsx scripts/backup-scheduler.ts",
     "postinstall": "node scripts/prepare-build.js",

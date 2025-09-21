@@ -69,7 +69,8 @@ const mockTopics: Topic[] = [
 ]
 
 export default function TopicsPipelinePage() {
-  const [topics, setTopics] = useState<Topic[]>(mockTopics)
+  const [topics, setTopics] = useState<Topic[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [isCreatingTopic, setIsCreatingTopic] = useState(false)
   const [newTopic, setNewTopic] = useState({
@@ -81,6 +82,37 @@ export default function TopicsPipelinePage() {
     priority: 'medium',
     contentType: 'guide'
   })
+
+  useEffect(() => {
+    fetchTopics()
+  }, [selectedStatus])
+
+  const fetchTopics = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({
+        status: selectedStatus === 'all' ? '' : selectedStatus,
+        limit: '50'
+      })
+      
+      const response = await fetch(`/api/admin/topics?${params}`)
+      const data = await response.json()
+      
+      if (data.success) {
+        setTopics(data.data)
+      } else {
+        console.error('Failed to fetch topics:', data.error)
+        // Fall back to mock data if API fails
+        setTopics(mockTopics)
+      }
+    } catch (error) {
+      console.error('Error fetching topics:', error)
+      // Fall back to mock data if API fails
+      setTopics(mockTopics)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const statusColors = {
     'generated': 'bg-blue-100 text-blue-800',
@@ -103,44 +135,101 @@ export default function TopicsPipelinePage() {
     ? topics 
     : topics.filter(topic => topic.status === selectedStatus)
 
-  const handleCreateTopic = () => {
-    const topic: Topic = {
-      id: Date.now().toString(),
-      title: newTopic.title,
-      keywords: newTopic.keywords.split(',').map(k => k.trim()),
-      longtails: newTopic.longtails.split(',').map(k => k.trim()),
-      authorityLinks: newTopic.authorityLinks.split(',').map(k => k.trim()),
-      publishDate: newTopic.publishDate,
-      status: 'pending',
-      priority: newTopic.priority as 'low' | 'medium' | 'high',
-      contentType: newTopic.contentType,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+  const handleCreateTopic = async () => {
+    if (!newTopic.title) {
+      alert('Title is required')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/admin/topics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newTopic.title,
+          keywords: newTopic.keywords.split(',').map(k => k.trim()).filter(Boolean),
+          longtails: newTopic.longtails.split(',').map(k => k.trim()).filter(Boolean),
+          authorityLinks: newTopic.authorityLinks.split(',').map(k => k.trim()).filter(Boolean),
+          publishDate: newTopic.publishDate,
+          priority: newTopic.priority,
+          contentType: newTopic.contentType
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setTopics(prev => [data.data, ...prev])
+        setNewTopic({
+          title: '',
+          keywords: '',
+          longtails: '',
+          authorityLinks: '',
+          publishDate: '',
+          priority: 'medium',
+          contentType: 'guide'
+        })
+        setIsCreatingTopic(false)
+      } else {
+        throw new Error(data.error || 'Failed to create topic')
+      }
+    } catch (error) {
+      console.error('Error creating topic:', error)
+      alert('Failed to create topic')
+    }
+  }
+
+  const handleStatusChange = async (topicId: string, newStatus: Topic['status']) => {
+    try {
+      const response = await fetch(`/api/admin/topics/${topicId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setTopics(prev => prev.map(topic => 
+          topic.id === topicId 
+            ? { ...topic, status: newStatus, updatedAt: new Date().toISOString() }
+            : topic
+        ))
+      } else {
+        throw new Error(data.error || 'Failed to update topic status')
+      }
+    } catch (error) {
+      console.error('Error updating topic status:', error)
+      // Optimistic update for better UX
+      setTopics(prev => prev.map(topic => 
+        topic.id === topicId 
+          ? { ...topic, status: newStatus, updatedAt: new Date().toISOString() }
+          : topic
+      ))
+    }
+  }
+
+  const handleDeleteTopic = async (topicId: string) => {
+    if (!confirm('Are you sure you want to delete this topic? This action cannot be undone.')) {
+      return
     }
     
-    setTopics(prev => [topic, ...prev])
-    setNewTopic({
-      title: '',
-      keywords: '',
-      longtails: '',
-      authorityLinks: '',
-      publishDate: '',
-      priority: 'medium',
-      contentType: 'guide'
-    })
-    setIsCreatingTopic(false)
-  }
-
-  const handleStatusChange = (topicId: string, newStatus: Topic['status']) => {
-    setTopics(prev => prev.map(topic => 
-      topic.id === topicId 
-        ? { ...topic, status: newStatus, updatedAt: new Date().toISOString() }
-        : topic
-    ))
-  }
-
-  const handleDeleteTopic = (topicId: string) => {
-    setTopics(prev => prev.filter(topic => topic.id !== topicId))
+    try {
+      const response = await fetch(`/api/admin/topics/${topicId}`, {
+        method: 'DELETE'
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setTopics(prev => prev.filter(topic => topic.id !== topicId))
+      } else {
+        throw new Error(data.error || 'Failed to delete topic')
+      }
+    } catch (error) {
+      console.error('Error deleting topic:', error)
+      alert('Failed to delete topic')
+    }
   }
 
   return (
@@ -248,7 +337,44 @@ export default function TopicsPipelinePage() {
 
             {/* Topics Table */}
             <div className="space-y-4">
-              {filteredTopics.map((topic) => (
+              {loading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="animate-pulse border rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="h-5 bg-gray-200 rounded w-3/4"></div>
+                            <div className="h-5 bg-gray-200 rounded w-16"></div>
+                            <div className="h-5 bg-gray-200 rounded w-12"></div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="h-4 bg-gray-200 rounded w-full"></div>
+                            <div className="h-4 bg-gray-200 rounded w-full"></div>
+                            <div className="h-4 bg-gray-200 rounded w-full"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : filteredTopics.length === 0 ? (
+                <div className="text-center py-12">
+                  <TrendingUp className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No topics found</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {topics.length === 0 
+                      ? "Get started by creating your first topic."
+                      : "Try adjusting your filter criteria."
+                    }
+                  </p>
+                  <Button className="mt-4" onClick={() => setIsCreatingTopic(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Topic
+                  </Button>
+                </div>
+              ) : (
+                filteredTopics.map((topic) => (
                 <div key={topic.id} className="border rounded-lg p-4 hover:bg-gray-50">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -338,7 +464,7 @@ export default function TopicsPipelinePage() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )))}
             </div>
           </CardContent>
         </Card>

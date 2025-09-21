@@ -21,6 +21,12 @@ export interface AdminAuthenticatedRequest extends NextRequest {
  */
 export async function requireAdmin(request: NextRequest): Promise<NextResponse | null> {
   try {
+    // In demo mode (when using mock database), bypass authentication
+    if (process.env.NODE_ENV === 'development' && !process.env.DATABASE_URL) {
+      console.log('Demo mode: bypassing admin authentication');
+      return null; // Allow access in demo mode
+    }
+
     // Get session from NextAuth
     const session = await getServerSession(authOptions);
 

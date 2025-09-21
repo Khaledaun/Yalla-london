@@ -5,14 +5,14 @@ import { Suspense } from 'react';
 import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout';
 import { ArticleEditor } from '@/src/components/admin/article-editor';
 
-export default function NewArticlePage() {
+export default function EditArticlePage({ params }: { params: { id: string } }) {
   return (
     <PremiumAdminLayout 
-      title="Create New Article"
+      title="Edit Article"
       breadcrumbs={[
         { label: 'Content', href: '/admin/content' },
-        { label: 'Articles', href: '/admin/content/articles' },
-        { label: 'New Article' }
+        { label: 'Articles', href: '/admin/articles' },
+        { label: 'Edit Article' }
       ]}
       actions={
         <div className="flex items-center space-x-2">
@@ -20,7 +20,7 @@ export default function NewArticlePage() {
             Save Draft
           </button>
           <button className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700">
-            Publish
+            Update & Publish
           </button>
         </div>
       }
@@ -40,7 +40,7 @@ export default function NewArticlePage() {
           </div>
         </div>
       }>
-        <ArticleEditor mode="create" />
+        <ArticleEditor articleId={params.id} mode="edit" />
       </Suspense>
     </PremiumAdminLayout>
   );

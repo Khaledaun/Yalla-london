@@ -275,6 +275,7 @@ export default function ArticlesPage() {
           </Button>
           <Button 
             className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => window.location.href = '/admin/articles/new'}
           >
             <Plus className="h-4 w-4 mr-2" />
             New Article
@@ -447,7 +448,7 @@ export default function ArticlesPage() {
                     : "Try adjusting your search or filter criteria."
                   }
                 </p>
-                <Button className="mt-4" onClick={() => {/* TODO: Add create article logic */}}>
+                <Button className="mt-4" onClick={() => window.location.href = '/admin/articles/new'}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Article
                 </Button>
@@ -532,7 +533,7 @@ export default function ArticlesPage() {
                         variant="outline" 
                         size="sm" 
                         className="flex-1"
-                        onClick={() => {/* TODO: Edit functionality */}}
+                        onClick={() => window.location.href = `/admin/articles/edit/${article.id}`}
                       >
                         <Edit className="h-3 w-3 mr-1" />
                         Edit
@@ -618,7 +619,7 @@ export default function ArticlesPage() {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => {/* TODO: Edit functionality */}}
+                              onClick={() => window.location.href = `/admin/articles/edit/${article.id}`}
                             >
                               <Edit className="h-3 w-3" />
                             </Button>

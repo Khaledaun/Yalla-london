@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
-import { cookies } from 'next/headers'
+import { createServiceClient } from '@/lib/supabase'
 import { PrismaClient } from '@prisma/client'
 import crypto from 'crypto'
 
@@ -33,7 +32,7 @@ function decrypt(encryptedText: string): string {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient({ cookies })
+    const supabase = createServiceClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -66,7 +65,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient({ cookies })
+    const supabase = createServiceClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {

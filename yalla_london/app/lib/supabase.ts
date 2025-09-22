@@ -46,6 +46,21 @@ export function createServerClient({
   assertEnv("SUPABASE_URL/NEXT_PUBLIC_SUPABASE_URL", SUPABASE_URL);
   assertEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY/SUPABASE_KEY", ANON_KEY);
   
+  // Create a wrapper that matches the expected interface
+  const cookieStore = cookies();
+  const cookieWrapper = {
+    get: (name: string) => {
+      const cookie = cookieStore.get(name);
+      return cookie ? { value: cookie.value } : undefined;
+    },
+    set: (name: string, value: string, options: any) => {
+      cookieStore.set(name, value, options);
+    },
+    delete: (name: string, options?: any) => {
+      cookieStore.delete(name, options);
+    }
+  };
+  
   // Fallback to regular client if SSR package not available
   return createClient<Database>(SUPABASE_URL, ANON_KEY, {
     auth: { persistSession: false },

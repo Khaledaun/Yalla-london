@@ -33,7 +33,7 @@ function decrypt(encryptedText: string): string {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServerClient({ cookies })
+    const supabase = createServerClient({ cookies: cookies() })
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient({ cookies })
+    const supabase = createServerClient({ cookies: cookies() })
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {

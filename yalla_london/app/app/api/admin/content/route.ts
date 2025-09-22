@@ -1,437 +1,339 @@
-/**
- * Admin Content Management API
- * Handles CRUD operations for blog posts with automatic cache invalidation
- */
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { cacheService } from '@/lib/cache-invalidation';
-import { enhancedSync } from '@/lib/enhanced-sync';
-import { autoSEOService } from '@/lib/seo/auto-seo-service';
-import { isSEOEnabled } from '@/lib/flags';
-import { z } from 'zod';
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@/lib/supabase'
+import { cookies } from 'next/headers'
+import { PrismaClient } from '@prisma/client'
 
-// Validation schema for blog post data
-const BlogPostSchema = z.object({
-  title_en: z.string().min(1, 'English title is required'),
-  title_ar: z.string().min(1, 'Arabic title is required'),
-  slug: z.string().min(1, 'Slug is required').regex(/^[a-z0-9-]+$/, 'Invalid slug format'),
-  excerpt_en: z.string().optional(),
-  excerpt_ar: z.string().optional(),
-  content_en: z.string().min(1, 'English content is required'),
-  content_ar: z.string().min(1, 'Arabic content is required'),
-  featured_image: z.string().url().optional(),
-  published: z.boolean().default(false),
-  page_type: z.enum(['guide', 'place', 'event', 'list', 'faq', 'news', 'itinerary']).optional(),
-  category_id: z.string(),
-  author_id: z.string(),
-  tags: z.array(z.string()).default([]),
-  meta_title_en: z.string().optional(),
-  meta_title_ar: z.string().optional(),
-  meta_description_en: z.string().optional(),
-  meta_description_ar: z.string().optional(),
-  place_id: z.string().optional(),
-  seo_score: z.number().min(0).max(100).optional()
-});
+const prisma = new PrismaClient()
 
-// CREATE - New blog post
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    
-    // Validate input data
-    const validation = BlogPostSchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json(
-        { 
-          error: 'Invalid blog post data',
-          details: validation.error.issues
-        },
-        { status: 400 }
-      );
-    }
-
-    const data = validation.data;
-
-    // Check if slug already exists
-    const existingPost = await prisma.blogPost.findUnique({
-      where: { slug: data.slug }
-    });
-
-    if (existingPost) {
-      return NextResponse.json(
-        { error: 'A post with this slug already exists' },
-        { status: 409 }
-      );
-    }
-
-    // Create the blog post
-    const newPost = await prisma.blogPost.create({
-      data: {
-        ...data,
-        keywords_json: data.tags.length > 0 ? { primary: data.tags[0], longtails: data.tags.slice(1) } : null,
-        seo_score: data.seo_score || 50
-      },
-      include: {
-        category: true,
-        author: true,
-        place: true
-      }
-    });
-
-    // Apply auto-SEO if enabled
-    if (isSEOEnabled()) {
-      try {
-        const contentData = {
-          id: newPost.id,
-          title: newPost.title_en,
-          content: newPost.content_en,
-          slug: newPost.slug,
-          excerpt: newPost.excerpt_en,
-          author: newPost.author?.name || 'Unknown',
-          publishedAt: newPost.created_at.toISOString(),
-          language: 'en' as const,
-          category: newPost.category?.name_en || 'General',
-          tags: newPost.tags || [],
-          featuredImage: newPost.featured_image,
-          pageType: 'article' as const,
-          type: 'article' as const
-        };
-
-        await autoSEOService.applyAutoSEO(contentData);
-        console.log(`Auto-SEO applied for new blog post: ${newPost.slug}`);
-      } catch (seoError) {
-        console.warn('Auto-SEO failed for new blog post:', seoError);
-        // Continue without failing the content creation
-      }
-    }
-
-    // Trigger enhanced sync for real-time updates
-    try {
-      const syncResult = await enhancedSync.forceSync('blog', newPost.slug);
-      console.log(`Enhanced sync completed for new blog post: ${newPost.slug}`, syncResult);
-    } catch (syncError) {
-      console.warn('Enhanced sync failed, falling back to basic cache invalidation:', syncError);
-      // Fallback to basic cache invalidation
-      try {
-        await cacheService.invalidateContentCache('blog', newPost.slug);
-        console.log(`Fallback cache invalidated for new blog post: ${newPost.slug}`);
-      } catch (cacheError) {
-        console.warn('Fallback cache invalidation also failed:', cacheError);
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Blog post created successfully',
-      data: {
-        id: newPost.id,
-        title_en: newPost.title_en,
-        title_ar: newPost.title_ar,
-        slug: newPost.slug,
-        published: newPost.published,
-        created_at: newPost.created_at,
-        public_url: `/blog/${newPost.slug}`,
-        category: newPost.category,
-        author: newPost.author
-      },
-      cache_invalidated: true
-    }, { status: 201 });
-
-  } catch (error) {
-    console.error('Blog post creation failed:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to create blog post',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
-  }
-}
-
-// UPDATE - Existing blog post
-export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { id, ...updateData } = body;
-
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Post ID is required for updates' },
-        { status: 400 }
-      );
-    }
-
-    // Validate update data
-    const PartialBlogPostSchema = BlogPostSchema.partial();
-    const validation = PartialBlogPostSchema.safeParse(updateData);
-    if (!validation.success) {
-      return NextResponse.json(
-        { 
-          error: 'Invalid update data',
-          details: validation.error.issues
-        },
-        { status: 400 }
-      );
-    }
-
-    const data = validation.data;
-
-    // Check if post exists
-    const existingPost = await prisma.blogPost.findUnique({
-      where: { id },
-      select: { slug: true, published: true }
-    });
-
-    if (!existingPost) {
-      return NextResponse.json(
-        { error: 'Blog post not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check for slug conflicts (if slug is being updated)
-    if (data.slug && data.slug !== existingPost.slug) {
-      const slugConflict = await prisma.blogPost.findUnique({
-        where: { slug: data.slug }
-      });
-
-      if (slugConflict) {
-        return NextResponse.json(
-          { error: 'A post with this slug already exists' },
-          { status: 409 }
-        );
-      }
-    }
-
-    // Update the blog post
-    const updatedPost = await prisma.blogPost.update({
-      where: { id },
-      data: {
-        ...data,
-        keywords_json: data.tags ? { primary: data.tags[0], longtails: data.tags.slice(1) } : undefined,
-        updated_at: new Date()
-      },
-      include: {
-        category: true,
-        author: true,
-        place: true
-      }
-    });
-
-    // Apply auto-SEO if enabled and content was updated
-    if (isSEOEnabled() && (data.title_en || data.content_en || data.excerpt_en)) {
-      try {
-        const contentData = {
-          id: updatedPost.id,
-          title: updatedPost.title_en,
-          content: updatedPost.content_en,
-          slug: updatedPost.slug,
-          excerpt: updatedPost.excerpt_en,
-          author: updatedPost.author?.name || 'Unknown',
-          publishedAt: updatedPost.updated_at.toISOString(),
-          language: 'en' as const,
-          category: updatedPost.category?.name_en || 'General',
-          tags: updatedPost.tags || [],
-          featuredImage: updatedPost.featured_image,
-          pageType: 'article' as const,
-          type: 'article' as const
-        };
-
-        await autoSEOService.applyAutoSEO(contentData);
-        console.log(`Auto-SEO applied for updated blog post: ${updatedPost.slug}`);
-      } catch (seoError) {
-        console.warn('Auto-SEO failed for updated blog post:', seoError);
-        // Continue without failing the content update
-      }
-    }
-
-    // Trigger enhanced sync for real-time updates
-    const slugToInvalidate = data.slug || existingPost.slug;
-    try {
-      const syncResult = await enhancedSync.forceSync('blog', slugToInvalidate);
-      console.log(`Enhanced sync completed for updated blog post: ${slugToInvalidate}`, syncResult);
-      
-      // If slug changed, also sync the old slug
-      if (data.slug && data.slug !== existingPost.slug) {
-        await enhancedSync.forceSync('blog', existingPost.slug);
-      }
-    } catch (syncError) {
-      console.warn('Enhanced sync failed, falling back to basic cache invalidation:', syncError);
-      // Fallback to basic cache invalidation
-      try {
-        await cacheService.invalidateContentCache('blog', slugToInvalidate);
-        if (data.slug && data.slug !== existingPost.slug) {
-          await cacheService.invalidateContentCache('blog', existingPost.slug);
-        }
-        console.log(`Fallback cache invalidated for updated blog post: ${slugToInvalidate}`);
-      } catch (cacheError) {
-        console.warn('Fallback cache invalidation also failed:', cacheError);
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Blog post updated successfully',
-      data: {
-        id: updatedPost.id,
-        title_en: updatedPost.title_en,
-        title_ar: updatedPost.title_ar,
-        slug: updatedPost.slug,
-        published: updatedPost.published,
-        updated_at: updatedPost.updated_at,
-        public_url: `/blog/${updatedPost.slug}`,
-        category: updatedPost.category,
-        author: updatedPost.author
-      },
-      cache_invalidated: true
-    });
-
-  } catch (error) {
-    console.error('Blog post update failed:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to update blog post',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE - Blog post
-export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Post ID is required' },
-        { status: 400 }
-      );
-    }
-
-    // Get post info before deletion for cache invalidation
-    const postToDelete = await prisma.blogPost.findUnique({
-      where: { id },
-      select: { slug: true, title_en: true }
-    });
-
-    if (!postToDelete) {
-      return NextResponse.json(
-        { error: 'Blog post not found' },
-        { status: 404 }
-      );
-    }
-
-    // Delete the blog post
-    await prisma.blogPost.delete({
-      where: { id }
-    });
-
-    // Trigger cache invalidation for real-time updates
-    try {
-      await cacheService.invalidateContentCache('blog', postToDelete.slug);
-      console.log(`Cache invalidated for deleted blog post: ${postToDelete.slug}`);
-    } catch (cacheError) {
-      console.warn('Cache invalidation failed:', cacheError);
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Blog post deleted successfully',
-      deleted_post: {
-        id,
-        slug: postToDelete.slug,
-        title: postToDelete.title_en
-      },
-      cache_invalidated: true
-    });
-
-  } catch (error) {
-    console.error('Blog post deletion failed:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to delete blog post',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
-  }
-}
-
-// GET - List all posts for admin (includes unpublished)
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
-    const search = searchParams.get('search');
-    const category = searchParams.get('category');
-    const published = searchParams.get('published');
+    const supabase = createServerClient({ cookies })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    const offset = (page - 1) * limit;
-
-    // Build where clause
-    const where: any = {};
-
-    if (search) {
-      where.OR = [
-        { title_en: { contains: search, mode: 'insensitive' } },
-        { title_ar: { contains: search, mode: 'insensitive' } },
-        { content_en: { contains: search, mode: 'insensitive' } },
-        { content_ar: { contains: search, mode: 'insensitive' } }
-      ];
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (category) {
-      where.category = { slug: category };
+    // Get all articles with real data
+    const articles = await prisma.blogPost.findMany({
+      include: {
+        category: true,
+        author: {
+          select: {
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    })
+
+    // Get all scheduled content
+    const scheduledContent = await prisma.scheduledContent.findMany({
+      include: {
+        topic_proposal: true
+      },
+      orderBy: {
+        created_at: 'desc'
+      }
+    })
+
+    // Get media assets
+    const mediaAssets = await prisma.mediaAsset.findMany({
+      orderBy: {
+        created_at: 'desc'
+      }
+    })
+
+    return NextResponse.json({
+      articles,
+      scheduledContent,
+      mediaAssets,
+      stats: {
+        totalArticles: articles.length,
+        publishedArticles: articles.filter(a => a.published).length,
+        draftArticles: articles.filter(a => !a.published).length,
+        scheduledContent: scheduledContent.length,
+        mediaAssets: mediaAssets.length
+      }
+    })
+
+  } catch (error) {
+    console.error('Error fetching content data:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = createServerClient({ cookies })
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (published !== null && published !== undefined) {
-      where.published = published === 'true';
+    const body = await request.json()
+    const { type, data } = body
+
+    switch (type) {
+      case 'import_content':
+        return await handleContentImport(data, user.id)
+      
+      case 'create_article':
+        return await handleCreateArticle(data, user.id)
+      
+      case 'update_article':
+        return await handleUpdateArticle(data, user.id)
+      
+      default:
+        return NextResponse.json({ error: 'Invalid operation type' }, { status: 400 })
     }
 
-    // Fetch posts with pagination
-    const [posts, totalCount] = await Promise.all([
-      prisma.blogPost.findMany({
-        where,
-        include: {
-          category: true,
-          author: true,
-          place: true
-        },
-        orderBy: { updated_at: 'desc' },
-        skip: offset,
-        take: limit
-      }),
-      prisma.blogPost.count({ where })
-    ]);
+  } catch (error) {
+    console.error('Error processing content request:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
 
-    const totalPages = Math.ceil(totalCount / limit);
+async function handleContentImport(data: any, userId: string) {
+  const { importType, fileData, mapping } = data
+
+  // Create import record
+  const importRecord = await prisma.contentImport.create({
+      data: {
+      import_type: importType,
+      source_file: fileData.name,
+      status: 'processing'
+    }
+  })
+
+  try {
+    let importedCount = 0
+    let failedCount = 0
+
+    // Process based on import type
+    switch (importType) {
+      case 'csv':
+        const csvData = parseCSV(fileData.content)
+        for (const row of csvData) {
+          try {
+            await prisma.blogPost.create({
+              data: {
+                title_en: row[mapping.title] || 'Imported Article',
+                title_ar: row[mapping.titleAr] || row[mapping.title] || 'Imported Article',
+                slug: generateSlug(row[mapping.title] || 'imported-article'),
+                content_en: row[mapping.content] || '',
+                content_ar: row[mapping.contentAr] || row[mapping.content] || '',
+                excerpt_en: row[mapping.excerpt] || '',
+                excerpt_ar: row[mapping.excerptAr] || row[mapping.excerpt] || '',
+                published: false,
+                category_id: await getOrCreateCategory(row[mapping.category] || 'General'),
+                author_id: userId,
+                tags: row[mapping.tags] ? row[mapping.tags].split(',').map((t: string) => t.trim()) : [],
+                page_type: row[mapping.pageType] || 'guide',
+                keywords_json: row[mapping.keywords] ? { primary: row[mapping.keywords] } : null,
+                generation_source: 'manual_import'
+              }
+            })
+            importedCount++
+          } catch (error) {
+            console.error('Error importing row:', error)
+            failedCount++
+          }
+        }
+        break
+
+      case 'markdown':
+        // Process markdown content
+        const markdownContent = fileData.content
+        const parsed = parseMarkdown(markdownContent)
+        
+        await prisma.blogPost.create({
+          data: {
+            title_en: parsed.title || 'Imported Article',
+            title_ar: parsed.title || 'Imported Article',
+            slug: generateSlug(parsed.title || 'imported-article'),
+            content_en: parsed.content || '',
+            content_ar: parsed.content || '',
+            excerpt_en: parsed.excerpt || '',
+            excerpt_ar: parsed.excerpt || '',
+            published: false,
+            category_id: await getOrCreateCategory('General'),
+            author_id: userId,
+            tags: parsed.tags || [],
+            page_type: 'guide',
+            generation_source: 'manual_import'
+          }
+        })
+        importedCount++
+        break
+
+      default:
+        throw new Error('Unsupported import type')
+    }
+
+    // Update import record
+    await prisma.contentImport.update({
+      where: { id: importRecord.id },
+      data: {
+        status: 'completed',
+        imported_count: importedCount,
+        failed_count: failedCount
+      }
+    })
 
     return NextResponse.json({
       success: true,
-      data: posts,
-      pagination: {
-        page,
-        limit,
-        total: totalCount,
-        total_pages: totalPages,
-        has_next_page: page < totalPages,
-        has_prev_page: page > 1
-      }
-    });
+      importedCount,
+      failedCount,
+      importId: importRecord.id
+    })
 
   } catch (error) {
-    console.error('Failed to fetch admin blog posts:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch blog posts',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    await prisma.contentImport.update({
+      where: { id: importRecord.id },
+      data: {
+        status: 'failed',
+        error_message: error instanceof Error ? error.message : 'Unknown error'
+      }
+    })
+
+    return NextResponse.json({ error: 'Import failed' }, { status: 500 })
   }
+}
+
+async function handleCreateArticle(data: any, userId: string) {
+  const article = await prisma.blogPost.create({
+    data: {
+      title_en: data.title_en,
+      title_ar: data.title_ar || data.title_en,
+      slug: generateSlug(data.title_en),
+      content_en: data.content_en,
+      content_ar: data.content_ar || data.content_en,
+      excerpt_en: data.excerpt_en,
+      excerpt_ar: data.excerpt_ar || data.excerpt_en,
+      published: data.published || false,
+      category_id: data.category_id || await getOrCreateCategory('General'),
+      author_id: userId,
+      tags: data.tags || [],
+      page_type: data.page_type || 'guide',
+      keywords_json: data.keywords_json,
+      featured_longtails_json: data.featured_longtails_json,
+      authority_links_json: data.authority_links_json,
+      meta_title_en: data.meta_title_en,
+      meta_title_ar: data.meta_title_ar,
+      meta_description_en: data.meta_description_en,
+      meta_description_ar: data.meta_description_ar
+    }
+  })
+
+  return NextResponse.json({ success: true, article })
+}
+
+async function handleUpdateArticle(data: any, userId: string) {
+  const article = await prisma.blogPost.update({
+    where: { id: data.id },
+    data: {
+      title_en: data.title_en,
+      title_ar: data.title_ar,
+      content_en: data.content_en,
+      content_ar: data.content_ar,
+      excerpt_en: data.excerpt_en,
+      excerpt_ar: data.excerpt_ar,
+      published: data.published,
+      tags: data.tags,
+      page_type: data.page_type,
+      keywords_json: data.keywords_json,
+      featured_longtails_json: data.featured_longtails_json,
+      authority_links_json: data.authority_links_json,
+      meta_title_en: data.meta_title_en,
+      meta_title_ar: data.meta_title_ar,
+      meta_description_en: data.meta_description_en,
+      meta_description_ar: data.meta_description_ar,
+      updated_at: new Date()
+    }
+  })
+
+  return NextResponse.json({ success: true, article })
+}
+
+// Helper functions
+function parseCSV(content: string) {
+  const lines = content.split('\n')
+  const headers = lines[0].split(',').map(h => h.trim())
+  const data = []
+  
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].trim()) {
+      const values = lines[i].split(',').map(v => v.trim())
+      const row: any = {}
+      headers.forEach((header, index) => {
+        row[header] = values[index] || ''
+      })
+      data.push(row)
+    }
+  }
+  
+  return data
+}
+
+function parseMarkdown(content: string) {
+  const lines = content.split('\n')
+  let title = ''
+  let excerpt = ''
+  let content_start = 0
+  
+  // Extract title from first H1
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith('# ')) {
+      title = lines[i].substring(2).trim()
+      content_start = i + 1
+      break
+    }
+  }
+  
+  // Extract excerpt from first paragraph
+  for (let i = content_start; i < lines.length; i++) {
+    if (lines[i].trim() && !lines[i].startsWith('#')) {
+      excerpt = lines[i].trim()
+      break
+    }
+  }
+  
+  return {
+    title,
+    excerpt,
+    content: lines.slice(content_start).join('\n'),
+    tags: []
+  }
+}
+
+function generateSlug(title: string) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim()
+}
+
+async function getOrCreateCategory(name: string) {
+  const existing = await prisma.category.findFirst({
+    where: { name_en: name }
+  })
+  
+  if (existing) return existing.id
+  
+  const newCategory = await prisma.category.create({
+    data: {
+      name_en: name,
+      name_ar: name,
+      slug: generateSlug(name)
+    }
+  })
+  
+  return newCategory.id
 }

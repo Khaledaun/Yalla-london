@@ -4,7 +4,6 @@
 
 generator client {
     provider        = "prisma-client-js"
-    output          = "./node_modules/@prisma/client"
     binaryTargets   = ["native", "debian-openssl-3.0.x"]
     engineType      = "binary"
 }
@@ -328,6 +327,8 @@ model ContentScheduleRule {
 // Weekly Topic Research with Authority Links & Featured Long-tails  
 model TopicProposal {
   id                      String   @id @default(cuid())
+  site_id                 String?  // Multi-tenant scoping
+  title                   String   // Human-readable topic title
   locale                  String   // en, ar
   primary_keyword         String
   longtails               String[] // All long-tail keywords discovered (≥5)
@@ -339,17 +340,22 @@ model TopicProposal {
   suggested_window_start  DateTime?
   suggested_window_end    DateTime?
   source_weights_json     Json     // Citation weights and provenance
-  status                  String   @default("proposed") // proposed, approved, snoozed, rejected
+  status                  String   @default("planned") // planned, queued, generated, drafted, ready, published
   confidence_score        Float?   // 0.0 - 1.0
+  planned_at              DateTime? // When this topic is scheduled for generation
+  evergreen               Boolean  @default(true) // true = evergreen, false = seasonal
+  season                  String?  // YYYY-MM format for seasonal content
   created_at              DateTime @default(now())
   updated_at              DateTime @updatedAt
   
   // Relations
   scheduled_content       ScheduledContent[]
   
+  @@index([site_id])
   @@index([locale, status])
   @@index([suggested_window_start, suggested_window_end])
   @@index([status, confidence_score])
+  @@index([planned_at])
 }
 
 // Bi-monthly SEO/AEO Rulebook Management
@@ -1449,4 +1455,78 @@ model SeoStructuredData {
   seoMeta    SeoMeta  @relation(fields: [pageId], references: [pageId], onDelete: Cascade)
 
   @@map(name: "seo_structured_data")
+}
+
+// =============================================================================
+// COMMAND CENTER MODELS
+// =============================================================================
+
+// Feature Flags for Command Center
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  enabled     Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  @@map(name: "feature_flags")
+}
+
+// Encrypted Credentials for API & Security
+model Credential {
+  id                String   @id @default(cuid())
+  site_id           String?  // Multi-tenant scoping
+  name              String   // e.g., "OpenAI API Key", "Google Analytics"
+  type              String   // api_key, oauth_token, webhook_secret
+  encrypted_value   String   @db.Text // AES-256-GCM encrypted
+  last_used_at      DateTime?
+  status            String   @default("active") // active, inactive, expired
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  
+  @@index([site_id])
+  @@index([type])
+  @@index([status])
+  @@map(name: "credentials")
+}
+
+// Site Configuration for Homepage Builder
+model SiteConfig {
+  id                String   @id @default(cuid())
+  site_id           String   @unique
+  homepage_json     Json?    // Homepage builder configuration
+  hero_video_url    String?  // Hero video URL
+  hero_mobile_video_url String? // Mobile hero video URL
+  hero_poster_url   String?  // Video poster image
+  hero_autoplay     Boolean  @default(true)
+  hero_muted        Boolean  @default(true)
+  hero_loop         Boolean  @default(true)
+  hero_cta_label    String?
+  hero_cta_href     String?
+  hero_headline     String?
+  hero_subheadline  String?
+  theme_config      Json?    // Theme configuration
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  
+  @@map(name: "site_config")
+}
+
+// Content Import Tracking
+model ContentImport {
+  id                String   @id @default(cuid())
+  site_id           String?
+  import_type       String   // csv, markdown, html, manual
+  source_file       String?  // Original filename
+  status            String   @default("pending") // pending, processing, completed, failed
+  imported_count    Int      @default(0)
+  failed_count      Int      @default(0)
+  error_message     String?  @db.Text
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  
+  @@index([site_id])
+  @@index([status])
+  @@map(name: "content_imports")
 }

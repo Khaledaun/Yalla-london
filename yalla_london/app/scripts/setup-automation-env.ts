@@ -97,7 +97,7 @@ function validateSetup(): { isValid: boolean; missing: string[]; warnings: strin
   
   // Check required variables
   Object.keys(REQUIRED_ENV_VARS).forEach(key => {
-    if (!envConfig[key] || envConfig[key] === REQUIRED_ENV_VARS[key]) {
+    if (!envConfig[key as keyof typeof envConfig] || envConfig[key as keyof typeof envConfig] === REQUIRED_ENV_VARS[key as keyof typeof REQUIRED_ENV_VARS]) {
       missing.push(key);
     }
   });

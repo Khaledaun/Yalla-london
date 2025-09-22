@@ -90,7 +90,19 @@ interface MediaAsset {
   type: 'image' | 'video'
 }
 
-export function ArticleEditor() {
+interface ArticleEditorProps {
+  mode?: 'create' | 'edit';
+  initialData?: any;
+  onSave?: () => Promise<void>;
+  onPublish?: () => Promise<void>;
+}
+
+export function ArticleEditor({ 
+  mode = 'create', 
+  initialData, 
+  onSave, 
+  onPublish 
+}: ArticleEditorProps = {}) {
   const { toast } = useToast()
   const [article, setArticle] = useState<Article>({
     title: '',

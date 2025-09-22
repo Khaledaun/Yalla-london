@@ -213,3 +213,5 @@ ALTER TABLE "seo_hreflang_entries" ADD CONSTRAINT "seo_hreflang_entries_pageId_f
 -- AddForeignKey
 ALTER TABLE "seo_structured_data" ADD CONSTRAINT "seo_structured_data_pageId_fkey" FOREIGN KEY ("pageId") REFERENCES "seo_meta"("pageId") ON DELETE CASCADE ON UPDATE CASCADE;
 
+
+

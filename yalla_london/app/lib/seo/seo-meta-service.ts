@@ -4,7 +4,7 @@
  */
 
 import { prisma } from '@/lib/db';
-import { SeoMeta } from '@prisma/client';
+import { SeoMeta } from '@/types/global';
 
 export interface SEOMetaData {
   pageId?: string;
@@ -240,7 +240,7 @@ export class SEOMetaService {
         }
       });
 
-      return analytics.map(record => ({
+      return analytics.map((record: any) => ({
         pageId: record.pageId,
         date: record.date,
         organicTraffic: record.organicTraffic,
@@ -266,7 +266,7 @@ export class SEOMetaService {
         }
       });
 
-      return seoPages.map(page => ({
+      return seoPages.map((page: any) => ({
         pageId: page.pageId,
         url: page.url,
         title: page.title,

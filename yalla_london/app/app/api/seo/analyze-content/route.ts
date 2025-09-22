@@ -126,7 +126,7 @@ function generateSuggestions(analysis: any): string[] {
     suggestions.push('Add more internal links to related pages on your site.')
   }
 
-  const totalKeywordDensity = Object.values(analysis.keywordDensity).reduce((sum: number, density: any) => sum + density, 0)
+  const totalKeywordDensity = Object.values(analysis.keywordDensity).reduce((sum: number, density: any) => sum + (density || 0), 0) as number
   if (totalKeywordDensity > 0.03) {
     suggestions.push('Keyword density is too high. Reduce keyword repetition to avoid over-optimization.')
   }

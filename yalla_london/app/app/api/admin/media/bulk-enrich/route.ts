@@ -86,15 +86,15 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     }
 
     // Filter for image files only (for AI enrichment)
-    const imageFiles = mediaFiles.filter(file => 
+    const imageFiles = mediaFiles.filter((file: any) => 
       file.mime_type && file.mime_type.startsWith('image/')
     );
 
-    const enrichmentResults = [];
-    const errors = [];
+    const enrichmentResults: any[] = [];
+    const errors: any[] = [];
 
     // Process each image file
-    for (const file of imageFiles) {
+    for (const file of imageFiles as any[]) {
       try {
         const enrichmentData: any = {
           id: file.id,
@@ -138,7 +138,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
           updateData.updated_at = new Date().toISOString();
 
-          const { error: updateError } = await supabase
+          const { error: updateError } = await (supabase as any)
             .from('Media')
             .update(updateData)
             .eq('id', file.id);
@@ -172,11 +172,11 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     }
 
     // Include non-image files in the response
-    const nonImageFiles = mediaFiles.filter(file => 
+    const nonImageFiles = mediaFiles.filter((file: any) => 
       !file.mime_type || !file.mime_type.startsWith('image/')
     );
 
-    nonImageFiles.forEach(file => {
+    nonImageFiles.forEach((file: any) => {
       enrichmentResults.push({
         id: file.id,
         message: 'Skipped - only image files can be enriched'
@@ -273,13 +273,13 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       }
 
       const enrichmentStatus = {
-        id: mediaFile.id,
-        filename: mediaFile.filename,
-        isImage: mediaFile.mime_type?.startsWith('image/') || false,
+        id: (mediaFile as any)?.id,
+        filename: (mediaFile as any)?.filename,
+        isImage: (mediaFile as any)?.mime_type?.startsWith('image/') || false,
         completeness: {
-          hasAltText: !!mediaFile.alt_text,
-          hasDescription: !!mediaFile.description,
-          hasTags: Array.isArray(mediaFile.tags) && mediaFile.tags.length > 0
+          hasAltText: !!(mediaFile as any)?.alt_text,
+          hasDescription: !!(mediaFile as any)?.description,
+          hasTags: Array.isArray((mediaFile as any)?.tags) && (mediaFile as any)?.tags?.length > 0
         }
       };
 

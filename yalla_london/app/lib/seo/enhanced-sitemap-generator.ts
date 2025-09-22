@@ -137,7 +137,7 @@ export class EnhancedSitemapGenerator {
         }
       });
 
-      const entries: SitemapEntry[] = articles.map(article => ({
+      const entries: SitemapEntry[] = articles.map((article: any) => ({
         url: article.url || `${this.baseUrl}/blog/${article.pageId}`,
         lastmod: article.updatedAt,
         changefreq: 'weekly' as const,
@@ -169,7 +169,7 @@ export class EnhancedSitemapGenerator {
         1000
       );
 
-      const entries: SitemapEntry[] = programmaticPages.map(page => ({
+      const entries: SitemapEntry[] = programmaticPages.map((page: any) => ({
         url: `${this.baseUrl}/${page.slug}`,
         lastmod: page.updatedAt,
         changefreq: 'monthly' as const,
@@ -205,7 +205,7 @@ export class EnhancedSitemapGenerator {
         }
       });
 
-      const entries: SitemapEntry[] = events.map(event => ({
+      const entries: SitemapEntry[] = events.map((event: any) => ({
         url: event.url || `${this.baseUrl}/events/${event.pageId}`,
         lastmod: event.updatedAt,
         changefreq: 'daily' as const,
@@ -243,7 +243,7 @@ export class EnhancedSitemapGenerator {
         }
       });
 
-      const entries: SitemapEntry[] = places.map(place => ({
+      const entries: SitemapEntry[] = places.map((place: any) => ({
         url: place.url || `${this.baseUrl}/places/${place.pageId}`,
         lastmod: place.updatedAt,
         changefreq: 'monthly' as const,
@@ -278,7 +278,7 @@ export class EnhancedSitemapGenerator {
       { url: '/search', priority: 0.5, changefreq: 'monthly' as const }
     ];
 
-    const entries: SitemapEntry[] = staticPages.map(page => ({
+    const entries: SitemapEntry[] = staticPages.map((page: any) => ({
       url: `${this.baseUrl}${page.url}`,
       lastmod: new Date(),
       changefreq: page.changefreq,
@@ -543,4 +543,5 @@ ${sitemaps.map(sitemap => `  <sitemap>
 }
 
 export const enhancedSitemapGenerator = new EnhancedSitemapGenerator();
+
 

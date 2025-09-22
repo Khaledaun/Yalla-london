@@ -242,7 +242,7 @@ export class ProgrammaticPagesService {
       'أفضل', 'أعلى', 'فاخر', 'دليل', '2025', 'مراجعة', 'نصائح', 'توصيات'
     ];
 
-    return modifiers.map(modifier => `${modifier} ${primary}`);
+    return modifiers.map((modifier: any) => `${modifier} ${primary}`);
   }
 
   /**
@@ -623,7 +623,7 @@ export class ProgrammaticPagesService {
         }
       });
 
-      return pages.map(page => ({
+      return pages.map((page: any) => ({
         id: page.pageId,
         slug: page.url?.split('/').pop() || '',
         title: page.title,
@@ -675,4 +675,5 @@ export class ProgrammaticPagesService {
 }
 
 export const programmaticPagesService = new ProgrammaticPagesService();
+
 

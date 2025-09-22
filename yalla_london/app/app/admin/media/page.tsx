@@ -1,766 +1,583 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { useDropzone } from 'react-dropzone'
 import { 
-  Upload, 
-  Image as ImageIcon, 
-  Video, 
-  FileText, 
-  Download, 
-  Trash2,
-  Edit,
+  Upload,
+  Image,
+  Video,
+  File,
   Search,
   Filter,
-  Grid3X3,
+  Grid,
   List,
-  Play,
-  Pause,
-  X,
+  Trash2,
+  Download,
   Eye,
   Copy,
-  Share,
-  Tag,
-  Calendar,
-  Clock,
-  CheckCircle2,
+  Plus,
+  Folder,
+  FolderOpen,
+  X,
+  Check,
   AlertCircle
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface MediaFile {
   id: string
   name: string
-  originalName: string
-  type: 'image' | 'video' | 'document' | 'audio'
-  mimeType: string
-  size: number
+  type: 'image' | 'video' | 'document'
   url: string
-  thumbnailUrl?: string
-  altText?: string
-  caption?: string
-  tags: string[]
-  dimensions?: {
-    width: number
-    height: number
-  }
-  duration?: number
+  thumbnail?: string
+  size: number
   uploadedAt: string
-  lastModified: string
-  usageCount: number
-  relatedContent: string[]
-  metadata: {
-    camera?: string
-    location?: string
-    author?: string
-    copyright?: string
-  }
-}
-
-interface UploadProgress {
-  id: string
-  file: File
-  progress: number
-  status: 'uploading' | 'processing' | 'completed' | 'error'
-  error?: string
-  result?: MediaFile
-  eta?: number
+  alt?: string
+  description?: string
+  tags: string[]
+  folder: string
 }
 
 const mockMediaFiles: MediaFile[] = [
   {
     id: '1',
     name: 'london-bridge-sunset.jpg',
-    originalName: 'IMG_20240112_180045.jpg',
     type: 'image',
-    mimeType: 'image/jpeg',
-    size: 2845760,
-    url: '/images/london-bridge-sunset.jpg',
-    thumbnailUrl: '/images/thumbs/london-bridge-sunset.jpg',
-    altText: 'London Bridge at sunset with golden light reflecting on the Thames',
-    caption: 'Beautiful sunset view of London Bridge from the South Bank',
-    tags: ['london', 'bridge', 'sunset', 'thames', 'architecture'],
-    dimensions: { width: 1920, height: 1080 },
-    uploadedAt: '2024-01-12T18:30:00Z',
-    lastModified: '2024-01-12T18:30:00Z',
-    usageCount: 3,
-    relatedContent: ['london-bridge-guide', 'south-bank-walk'],
-    metadata: {
-      camera: 'iPhone 14 Pro',
-      location: 'London Bridge, London',
-      author: 'Yalla London Team'
-    }
+    url: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800',
+    thumbnail: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=200',
+    size: 2048000,
+    uploadedAt: '2024-07-20T10:00:00Z',
+    alt: 'London Bridge at sunset',
+    description: 'Beautiful sunset view of London Bridge',
+    tags: ['london', 'bridge', 'sunset', 'landmark'],
+    folder: 'hero-images'
   },
   {
     id: '2',
-    name: 'halal-restaurant-interior.jpg',
-    originalName: 'restaurant_001.jpg',
-    type: 'image',
-    mimeType: 'image/jpeg',
-    size: 1834560,
-    url: '/images/halal-restaurant-interior.jpg',
-    thumbnailUrl: '/images/thumbs/halal-restaurant-interior.jpg',
-    altText: 'Interior of modern halal restaurant with contemporary decor',
-    caption: 'Stylish interior of Maroush restaurant in Edgware Road',
-    tags: ['restaurant', 'halal', 'interior', 'dining', 'maroush'],
-    dimensions: { width: 1600, height: 1200 },
-    uploadedAt: '2024-01-11T14:20:00Z',
-    lastModified: '2024-01-11T14:20:00Z',
-    usageCount: 5,
-    relatedContent: ['maroush-review', 'halal-dining-guide'],
-    metadata: {
-      location: 'Edgware Road, London',
-      author: 'Food Review Team'
-    }
+    name: 'london-food-market.mp4',
+    type: 'video',
+    url: 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
+    thumbnail: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200',
+    size: 10240000,
+    uploadedAt: '2024-07-19T15:30:00Z',
+    alt: 'London food market video',
+    description: 'Vibrant food market in London',
+    tags: ['london', 'food', 'market', 'video'],
+    folder: 'videos'
   },
   {
     id: '3',
-    name: 'london-events-video.mp4',
-    originalName: 'VID_20240110_150000.mp4',
-    type: 'video',
-    mimeType: 'video/mp4',
-    size: 45678900,
-    url: '/videos/london-events-video.mp4',
-    thumbnailUrl: '/images/thumbs/london-events-video.jpg',
-    altText: 'Video showcasing various London cultural events and festivals',
-    caption: 'Highlights from London cultural events throughout the year',
-    tags: ['events', 'culture', 'festivals', 'london', 'highlights'],
-    dimensions: { width: 1920, height: 1080 },
-    duration: 125,
-    uploadedAt: '2024-01-10T16:45:00Z',
-    lastModified: '2024-01-10T16:45:00Z',
-    usageCount: 2,
-    relatedContent: ['london-events-guide'],
-    metadata: {
-      author: 'Video Production Team',
-      copyright: 'Yalla London 2024'
-    }
+    name: 'big-ben-closeup.jpg',
+    type: 'image',
+    url: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800',
+    thumbnail: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=200',
+    size: 1536000,
+    uploadedAt: '2024-07-18T09:15:00Z',
+    alt: 'Big Ben clock tower',
+    description: 'Close-up view of Big Ben',
+    tags: ['london', 'big-ben', 'clock', 'landmark'],
+    folder: 'landmarks'
   }
 ]
 
-export default function MediaPage() {
+const folders = [
+  { name: 'All Files', count: mockMediaFiles.length },
+  { name: 'hero-images', count: mockMediaFiles.filter(f => f.folder === 'hero-images').length },
+  { name: 'videos', count: mockMediaFiles.filter(f => f.folder === 'videos').length },
+  { name: 'landmarks', count: mockMediaFiles.filter(f => f.folder === 'landmarks').length },
+  { name: 'food', count: 0 },
+  { name: 'events', count: 0 }
+]
+
+export default function MediaLibraryPage() {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>(mockMediaFiles)
-  const [uploads, setUploads] = useState<UploadProgress[]>([])
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set())
+  const [filteredFiles, setFilteredFiles] = useState<MediaFile[]>(mockMediaFiles)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedFolder, setSelectedFolder] = useState('All Files')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedType, setSelectedType] = useState<string>('all')
-  const [selectedTag, setSelectedTag] = useState<string>('all')
-  const [selectedFile, setSelectedFile] = useState<MediaFile | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [showUploadModal, setShowUploadModal] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newUploads: UploadProgress[] = acceptedFiles.map(file => ({
-      id: Date.now().toString() + Math.random().toString(36).substr(2),
-      file,
-      progress: 0,
-      status: 'uploading',
-      eta: Math.floor(Math.random() * 30) + 10 // Random ETA for demo
-    }))
+  useEffect(() => {
+    let filtered = mediaFiles
 
-    setUploads(prev => [...prev, ...newUploads])
+    // Filter by folder
+    if (selectedFolder !== 'All Files') {
+      filtered = filtered.filter(file => file.folder === selectedFolder)
+    }
 
-    // Simulate upload progress
-    newUploads.forEach(upload => {
-      simulateUpload(upload.id)
-    })
-  }, [])
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(file =>
+        file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        file.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        file.alt?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp'],
-      'video/*': ['.mp4', '.mov', '.avi', '.mkv'],
-      'application/pdf': ['.pdf'],
-      'audio/*': ['.mp3', '.wav', '.ogg']
-    },
-    multiple: true
-  })
-
-  const simulateUpload = (uploadId: string) => {
-    const interval = setInterval(() => {
-      setUploads(prev => prev.map(upload => {
-        if (upload.id === uploadId) {
-          const newProgress = Math.min(upload.progress + Math.random() * 15, 100)
-          const newEta = newProgress < 100 ? Math.max(upload.eta! - 1, 1) : 0
-
-          if (newProgress >= 100) {
-            clearInterval(interval)
-            
-            // Simulate processing phase
-            setTimeout(() => {
-              setUploads(prev2 => prev2.map(u => 
-                u.id === uploadId ? { ...u, status: 'processing' } : u
-              ))
-              
-              // Complete upload
-              setTimeout(() => {
-                const mockFile: MediaFile = {
-                  id: uploadId,
-                  name: upload.file.name.toLowerCase().replace(/\s+/g, '-'),
-                  originalName: upload.file.name,
-                  type: upload.file.type.startsWith('image/') ? 'image' : 
-                        upload.file.type.startsWith('video/') ? 'video' : 
-                        upload.file.type.startsWith('audio/') ? 'audio' : 'document',
-                  mimeType: upload.file.type,
-                  size: upload.file.size,
-                  url: URL.createObjectURL(upload.file),
-                  thumbnailUrl: upload.file.type.startsWith('image/') ? URL.createObjectURL(upload.file) : undefined,
-                  tags: [],
-                  uploadedAt: new Date().toISOString(),
-                  lastModified: new Date().toISOString(),
-                  usageCount: 0,
-                  relatedContent: [],
-                  metadata: {}
-                }
-
-                setMediaFiles(prev => [mockFile, ...prev])
-                setUploads(prev2 => prev2.map(u => 
-                  u.id === uploadId ? { ...u, status: 'completed', result: mockFile } : u
-                ))
-
-                // Remove completed upload after delay
-                setTimeout(() => {
-                  setUploads(prev3 => prev3.filter(u => u.id !== uploadId))
-                }, 3000)
-              }, 2000)
-            }, 1000)
-
-            return { ...upload, progress: 100, eta: 0 }
-          }
-
-          return { ...upload, progress: newProgress, eta: newEta }
-        }
-        return upload
-      }))
-    }, 500)
-  }
-
-  const filteredFiles = mediaFiles.filter(file => {
-    const matchesSearch = file.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         file.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                         (file.altText && file.altText.toLowerCase().includes(searchQuery.toLowerCase()))
-    
-    const matchesType = selectedType === 'all' || file.type === selectedType
-    const matchesTag = selectedTag === 'all' || file.tags.includes(selectedTag)
-    
-    return matchesSearch && matchesType && matchesTag
-  })
-
-  const allTags = Array.from(new Set(mediaFiles.flatMap(file => file.tags)))
+    setFilteredFiles(filtered)
+  }, [mediaFiles, selectedFolder, searchTerm])
 
   const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
     const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    if (bytes === 0) return '0 Byte'
-    const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)).toString())
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i]
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  const handleDeleteFile = (fileId: string) => {
-    setMediaFiles(prev => prev.filter(file => file.id !== fileId))
-    setSelectedFiles(prev => {
-      const newSet = new Set(prev)
-      newSet.delete(fileId)
-      return newSet
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     })
   }
 
-  const handleToggleSelect = (fileId: string) => {
-    setSelectedFiles(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(fileId)) {
-        newSet.delete(fileId)
-      } else {
-        newSet.add(fileId)
+  const handleFileSelect = (fileId: string) => {
+    setSelectedFiles(prev =>
+      prev.includes(fileId)
+        ? prev.filter(id => id !== fileId)
+        : [...prev, fileId]
+    )
+  }
+
+  const handleSelectAll = () => {
+    if (selectedFiles.length === filteredFiles.length) {
+      setSelectedFiles([])
+    } else {
+      setSelectedFiles(filteredFiles.map(file => file.id))
+    }
+  }
+
+  const handleDeleteSelected = () => {
+    if (selectedFiles.length === 0) {
+      toast.error('No files selected')
+      return
+    }
+
+    setMediaFiles(prev => prev.filter(file => !selectedFiles.includes(file.id)))
+    setSelectedFiles([])
+    toast.success(`${selectedFiles.length} file(s) deleted`)
+  }
+
+  const handleFileUpload = async (files: FileList) => {
+    setIsUploading(true)
+    setUploadProgress(0)
+    setShowUploadModal(false)
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const progress = ((i + 1) / files.length) * 100
+        setUploadProgress(progress)
+
+        // Simulate upload
+        await new Promise(resolve => setTimeout(resolve, 1000))
+
+        const newFile: MediaFile = {
+          id: Date.now().toString() + i,
+          name: file.name,
+          type: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'document',
+          url: URL.createObjectURL(file),
+          thumbnail: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+          size: file.size,
+          uploadedAt: new Date().toISOString(),
+          tags: [],
+          folder: selectedFolder === 'All Files' ? 'uploads' : selectedFolder
+        }
+
+        setMediaFiles(prev => [newFile, ...prev])
       }
-      return newSet
-    })
+
+      toast.success(`${files.length} file(s) uploaded successfully`)
+    } catch (error) {
+      toast.error('Failed to upload files')
+    } finally {
+      setIsUploading(false)
+      setUploadProgress(0)
+    }
   }
 
-  const handleCancelUpload = (uploadId: string) => {
-    setUploads(prev => prev.filter(upload => upload.id !== uploadId))
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true)
+    } else if (e.type === 'dragleave') {
+      setDragActive(false)
+    }
   }
 
-  const handleRetryUpload = (uploadId: string) => {
-    setUploads(prev => prev.map(upload => 
-      upload.id === uploadId ? { ...upload, status: 'uploading', progress: 0, error: undefined } : upload
-    ))
-    simulateUpload(uploadId)
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragActive(false)
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileUpload(e.dataTransfer.files)
+    }
+  }
+
+  const copyToClipboard = (url: string) => {
+    navigator.clipboard.writeText(url)
+    toast.success('URL copied to clipboard')
   }
 
   return (
-    <PremiumAdminLayout 
-      title="Media Library"
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Media' }
-      ]}
-      actions={
-        <div className="flex gap-2">
-          <Button 
-            variant="outline"
-            onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-          >
-            {viewMode === 'grid' ? <List className="h-4 w-4" /> : <Grid3X3 className="h-4 w-4" />}
-          </Button>
-          <Button 
-            onClick={() => setShowUploadModal(true)}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Upload Media
-          </Button>
+    <div className="p-6">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <Folder className="h-8 w-8 text-purple-500" />
+              Media Library
+            </h1>
+            <p className="text-gray-600 mt-1">Manage your images, videos, and documents</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => setShowUploadModal(true)}
+              className="bg-purple-500 hover:bg-purple-600"
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Files
+            </Button>
+          </div>
         </div>
-      }
-    >
-      <div className="space-y-6">
-        {/* Upload Progress */}
-        {uploads.length > 0 && (
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Sidebar - Folders */}
+        <div className="lg:col-span-1">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Upload Progress
+                <FolderOpen className="h-5 w-5" />
+                Folders
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {uploads.map((upload) => (
-                  <div key={upload.id} className="flex items-center gap-4 p-3 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">{upload.file.name}</span>
-                        <div className="flex items-center gap-2">
-                          {upload.status === 'uploading' && (
-                            <span className="text-xs text-gray-500">
-                              ETA: {upload.eta}s
-                            </span>
-                          )}
-                          {upload.status === 'completed' && (
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                          )}
-                          {upload.status === 'error' && (
-                            <AlertCircle className="h-4 w-4 text-red-500" />
-                          )}
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => upload.status === 'error' ? 
-                              handleRetryUpload(upload.id) : 
-                              handleCancelUpload(upload.id)}
-                          >
-                            {upload.status === 'error' ? 'Retry' : <X className="h-4 w-4" />}
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Progress value={upload.progress} className="flex-1" />
-                        <span className="text-xs text-gray-500 min-w-[3rem]">
-                          {Math.round(upload.progress)}%
-                        </span>
-                      </div>
-                      {upload.status === 'processing' && (
-                        <p className="text-xs text-blue-600 mt-1">Processing...</p>
-                      )}
-                      {upload.error && (
-                        <p className="text-xs text-red-600 mt-1">{upload.error}</p>
-                      )}
-                    </div>
+            <CardContent className="space-y-2">
+              {folders.map((folder) => (
+                <button
+                  key={folder.name}
+                  onClick={() => setSelectedFolder(folder.name)}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors ${
+                    selectedFolder === folder.name
+                      ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                      : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {selectedFolder === folder.name ? (
+                      <FolderOpen className="h-4 w-4" />
+                    ) : (
+                      <Folder className="h-4 w-4" />
+                    )}
+                    <span className="capitalize">{folder.name}</span>
                   </div>
-                ))}
-              </div>
+                  <Badge variant="secondary">{folder.count}</Badge>
+                </button>
+              ))}
             </CardContent>
           </Card>
-        )}
+        </div>
 
-        {/* Filters */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-wrap gap-4">
-              <div className="flex-1 min-w-64">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search media files..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              
-              <select 
-                value={selectedType} 
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="all">All Types</option>
-                <option value="image">Images</option>
-                <option value="video">Videos</option>
-                <option value="document">Documents</option>
-                <option value="audio">Audio</option>
-              </select>
-              
-              <select 
-                value={selectedTag} 
-                onChange={(e) => setSelectedTag(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="all">All Tags</option>
-                {allTags.map(tag => (
-                  <option key={tag} value={tag}>{tag}</option>
-                ))}
-              </select>
-              
-              {selectedFiles.size > 0 && (
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">
-                    {selectedFiles.size} selected
-                  </Badge>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      Array.from(selectedFiles).forEach(handleDeleteFile)
-                      setSelectedFiles(new Set())
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete Selected
+        {/* Main Content */}
+        <div className="lg:col-span-3">
+          {/* Search and Controls */}
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Search media files..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Button variant="outline" size="sm">
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filter
                   </Button>
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Media Grid/List */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Media Files ({filteredFiles.length})</span>
-              <div className="text-sm text-gray-500">
-                Total: {formatFileSize(mediaFiles.reduce((acc, file) => acc + file.size, 0))}
+                
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center border rounded-lg">
+                    <Button
+                      variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('grid')}
+                    >
+                      <Grid className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === 'list' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setViewMode('list')}
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredFiles.map((file) => (
-                  <div 
-                    key={file.id} 
-                    className={`border rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer ${
-                      selectedFiles.has(file.id) ? 'ring-2 ring-blue-500' : ''
-                    }`}
-                  >
-                    <div className="relative aspect-video bg-gray-100">
-                      {file.type === 'image' && file.thumbnailUrl && (
-                        <img 
-                          src={file.thumbnailUrl} 
-                          alt={file.altText}
-                          className="w-full h-full object-cover"
-                        />
-                      )}
-                      {file.type === 'video' && (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                          <Video className="h-12 w-12 text-gray-400" />
-                          {file.duration && (
-                            <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                              {formatDuration(file.duration)}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {file.type === 'document' && (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                          <FileText className="h-12 w-12 text-gray-400" />
-                        </div>
-                      )}
-                      
-                      <div className="absolute top-2 left-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedFiles.has(file.id)}
-                          onChange={() => handleToggleSelect(file.id)}
-                          className="w-4 h-4"
-                        />
-                      </div>
-                      
-                      <div className="absolute top-2 right-2 flex gap-1">
-                        <Button 
-                          variant="secondary" 
-                          size="sm"
-                          onClick={() => setSelectedFile(file)}
-                        >
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    <div className="p-3">
-                      <h3 className="font-medium text-sm truncate" title={file.name}>
-                        {file.name}
-                      </h3>
-                      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                        <span>{formatFileSize(file.size)}</span>
-                        {file.dimensions && (
-                          <span>{file.dimensions.width}×{file.dimensions.height}</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 mt-2">
-                        <Badge variant="outline" className="text-xs">
-                          {file.type}
-                        </Badge>
-                        {file.usageCount > 0 && (
-                          <Badge variant="secondary" className="text-xs">
-                            Used {file.usageCount}×
-                          </Badge>
-                        )}
-                      </div>
-                      {file.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {file.tags.slice(0, 3).map(tag => (
-                            <span key={tag} className="text-xs bg-gray-100 px-2 py-1 rounded">
-                              {tag}
-                            </span>
-                          ))}
-                          {file.tags.length > 3 && (
-                            <span className="text-xs text-gray-500">+{file.tags.length - 3}</span>
-                          )}
-                        </div>
-                      )}
+
+              {selectedFiles.length > 0 && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-blue-700">
+                      {selectedFiles.length} file(s) selected
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
                     </div>
                   </div>
-                ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Upload Progress */}
+          {isUploading && (
+            <Card className="mb-6">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Uploading files...</span>
+                      <span className="text-sm text-gray-500">{Math.round(uploadProgress)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Media Files */}
+          <div
+            className={`${
+              viewMode === 'grid'
+                ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'
+                : 'space-y-2'
+            }`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            {filteredFiles.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <Folder className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No files found</h3>
+                <p className="text-gray-500 mb-4">
+                  {searchTerm ? 'Try adjusting your search terms' : 'Upload some files to get started'}
+                </p>
+                <Button onClick={() => setShowUploadModal(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Files
+                </Button>
               </div>
             ) : (
-              <div className="space-y-2">
-                {filteredFiles.map((file) => (
-                  <div 
-                    key={file.id}
-                    className={`flex items-center gap-4 p-3 border rounded-lg hover:bg-gray-50 ${
-                      selectedFiles.has(file.id) ? 'bg-blue-50 border-blue-200' : ''
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedFiles.has(file.id)}
-                      onChange={() => handleToggleSelect(file.id)}
-                      className="w-4 h-4"
-                    />
-                    
-                    <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
-                      {file.type === 'image' && file.thumbnailUrl ? (
-                        <img 
-                          src={file.thumbnailUrl} 
-                          alt={file.altText}
-                          className="w-full h-full object-cover rounded"
-                        />
-                      ) : file.type === 'video' ? (
-                        <Video className="h-6 w-6 text-gray-400" />
-                      ) : file.type === 'document' ? (
-                        <FileText className="h-6 w-6 text-gray-400" />
-                      ) : (
-                        <ImageIcon className="h-6 w-6 text-gray-400" />
-                      )}
-                    </div>
-                    
-                    <div className="flex-1">
-                      <h3 className="font-medium text-sm">{file.name}</h3>
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>{formatFileSize(file.size)}</span>
-                        {file.dimensions && (
-                          <span>{file.dimensions.width}×{file.dimensions.height}</span>
+              filteredFiles.map((file) => (
+                <Card
+                  key={file.id}
+                  className={`cursor-pointer transition-all duration-200 ${
+                    selectedFiles.includes(file.id)
+                      ? 'ring-2 ring-purple-500 bg-purple-50'
+                      : 'hover:shadow-md'
+                  } ${viewMode === 'list' ? 'flex items-center p-4' : ''}`}
+                  onClick={() => handleFileSelect(file.id)}
+                >
+                  {viewMode === 'grid' ? (
+                    <CardContent className="p-4">
+                      <div className="relative">
+                        {file.type === 'image' ? (
+                          <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-3">
+                            <img
+                              src={file.thumbnail || file.url}
+                              alt={file.alt || file.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : file.type === 'video' ? (
+                          <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-3 flex items-center justify-center">
+                            <Video className="h-8 w-8 text-gray-400" />
+                          </div>
+                        ) : (
+                          <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-3 flex items-center justify-center">
+                            <File className="h-8 w-8 text-gray-400" />
+                          </div>
                         )}
-                        <span>Uploaded {new Date(file.uploadedAt).toLocaleDateString()}</span>
-                        <span>Used {file.usageCount} times</span>
+                        
+                        {selectedFiles.includes(file.id) && (
+                          <div className="absolute top-2 right-2 bg-purple-500 text-white rounded-full p-1">
+                            <Check className="h-3 w-3" />
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {file.type}
-                      </Badge>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setSelectedFile(file)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleDeleteFile(file.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                      
+                      <div className="space-y-1">
+                        <h4 className="font-medium text-sm truncate" title={file.name}>
+                          {file.name}
+                        </h4>
+                        <p className="text-xs text-gray-500">
+                          {formatFileSize(file.size)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {formatDate(file.uploadedAt)}
+                        </p>
+                      </div>
+                    </CardContent>
+                  ) : (
+                    <CardContent className="flex items-center gap-4 w-full">
+                      <div className="flex-shrink-0">
+                        {file.type === 'image' ? (
+                          <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
+                            <img
+                              src={file.thumbnail || file.url}
+                              alt={file.alt || file.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : file.type === 'video' ? (
+                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <Video className="h-6 w-6 text-gray-400" />
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <File className="h-6 w-6 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium truncate">{file.name}</h4>
+                        <p className="text-sm text-gray-500">
+                          {formatFileSize(file.size)} • {formatDate(file.uploadedAt)}
+                        </p>
+                        {file.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {file.tags.slice(0, 3).map((tag) => (
+                              <Badge key={tag} variant="secondary" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {file.tags.length > 3 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{file.tags.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            copyToClipboard(file.url)
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            window.open(file.url, '_blank')
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              ))
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-2xl">
+          <Card className="w-full max-w-md mx-4">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Upload className="h-5 w-5" />
-                  Upload Media Files
-                </CardTitle>
-                <Button 
-                  variant="outline" 
+              <CardTitle className="flex items-center justify-between">
+                Upload Files
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setShowUploadModal(false)}
                 >
                   <X className="h-4 w-4" />
                 </Button>
-              </div>
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div 
-                {...getRootProps()} 
-                className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${
-                  isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  dragActive ? 'border-purple-500 bg-purple-50' : 'border-gray-300'
                 }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
               >
-                <input {...getInputProps()} />
                 <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                {isDragActive ? (
-                  <p className="text-blue-600">Drop the files here...</p>
-                ) : (
-                  <>
-                    <p className="text-gray-600 mb-2">
-                      Drag & drop files here, or click to select
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Supports images, videos, documents, and audio files
-                    </p>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* File Details Modal */}
-      {selectedFile && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="h-5 w-5" />
-                  {selectedFile.name}
-                </CardTitle>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setSelectedFile(null)}
-                >
-                  <X className="h-4 w-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Drop files here or click to browse
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  Supports images, videos, and documents
+                </p>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,video/*,.pdf,.doc,.docx"
+                  onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <Button asChild>
+                  <label htmlFor="file-upload" className="cursor-pointer">
+                    Choose Files
+                  </label>
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                    {selectedFile.type === 'image' && selectedFile.url && (
-                      <img 
-                        src={selectedFile.url} 
-                        alt={selectedFile.altText}
-                        className="w-full h-full object-contain"
-                      />
-                    )}
-                    {selectedFile.type === 'video' && (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Video className="h-24 w-24 text-gray-400" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Alt Text</label>
-                    <Input value={selectedFile.altText || ''} />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Caption</label>
-                    <Input value={selectedFile.caption || ''} />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Tags</label>
-                    <div className="flex flex-wrap gap-1">
-                      {selectedFile.tags.map(tag => (
-                        <Badge key={tag} variant="secondary">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="font-medium text-gray-600">File Size:</span>
-                      <p>{formatFileSize(selectedFile.size)}</p>
-                    </div>
-                    {selectedFile.dimensions && (
-                      <div>
-                        <span className="font-medium text-gray-600">Dimensions:</span>
-                        <p>{selectedFile.dimensions.width}×{selectedFile.dimensions.height}</p>
-                      </div>
-                    )}
-                    <div>
-                      <span className="font-medium text-gray-600">Type:</span>
-                      <p>{selectedFile.mimeType}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-600">Usage:</span>
-                      <p>{selectedFile.usageCount} times</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button size="sm">
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy URL
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
       )}
-    </PremiumAdminLayout>
+    </div>
   )
 }

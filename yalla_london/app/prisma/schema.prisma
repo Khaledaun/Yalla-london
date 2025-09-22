@@ -1297,7 +1297,6 @@ model SeoMeta {
   updatedAt           DateTime @updatedAt
 
   // Relations
-  auditResults        SeoAuditResult[]
   internalLinks       SeoInternalLink[] @relation("SourcePage")
   targetLinks         SeoInternalLink[] @relation("TargetPage")
   contentAnalysis     SeoContentAnalysis?
@@ -1309,20 +1308,6 @@ model SeoMeta {
   @@map(name: "seo_meta")
 }
 
-model SeoAuditResult {
-  id             String   @id @default(cuid())
-  pageId         String
-  auditType      String   // technical, content, performance, accessibility
-  score          Int
-  issues         Json
-  recommendations Json
-  auditedAt      DateTime @default(now())
-
-  // Relations
-  seoMeta        SeoMeta  @relation(fields: [pageId], references: [pageId], onDelete: Cascade)
-
-  @@map(name: "seo_audit_results")
-}
 
 model SeoRedirect {
   id         String   @id @default(cuid())

@@ -22,28 +22,15 @@ export async function GET(request: NextRequest) {
 
     if (type) {
       // Generate specific sitemap type
-      let sitemapData;
-      switch (type) {
-        case 'articles':
-          sitemapData = await enhancedSitemapGenerator.generateArticlesSitemap();
-          break;
-        case 'programmatic':
-          sitemapData = await enhancedSitemapGenerator.generateProgrammaticSitemap();
-          break;
-        case 'events':
-          sitemapData = await enhancedSitemapGenerator.generateEventsSitemap();
-          break;
-        case 'places':
-          sitemapData = await enhancedSitemapGenerator.generatePlacesSitemap();
-          break;
-        case 'static':
-          sitemapData = await enhancedSitemapGenerator.generateStaticSitemap();
-          break;
-        default:
-          return NextResponse.json(
-            { error: 'Invalid sitemap type' },
-            { status: 400 }
-          );
+      // Generate all sitemaps and filter by type
+      const result = await enhancedSitemapGenerator.generateAllSitemaps();
+      const sitemapData = result.sitemaps.find(sitemap => sitemap.type === type);
+      
+      if (!sitemapData) {
+        return NextResponse.json(
+          { error: 'Invalid sitemap type' },
+          { status: 400 }
+        );
       }
 
       if (format === 'xml') {
@@ -134,4 +121,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
 

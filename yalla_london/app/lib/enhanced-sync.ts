@@ -72,16 +72,16 @@ export class EnhancedSyncService {
       case 'blog':
         // Invalidate blog-related caches
         invalidationPromises.push(
-          revalidateTag('blog-posts'),
-          revalidatePath('/blog'),
-          revalidatePath('/'), // Homepage shows latest posts
-          revalidatePath('/api/content')
+          Promise.resolve(revalidateTag('blog-posts')),
+          Promise.resolve(revalidatePath('/blog')),
+          Promise.resolve(revalidatePath('/')), // Homepage shows latest posts
+          Promise.resolve(revalidatePath('/api/content'))
         );
         
         if (contentId) {
           invalidationPromises.push(
-            revalidatePath(`/blog/${contentId}`),
-            revalidatePath(`/api/content/blog/${contentId}`)
+            Promise.resolve(revalidatePath(`/blog/${contentId}`)),
+            Promise.resolve(revalidatePath(`/api/content/blog/${contentId}`))
           );
         }
         break;
@@ -89,43 +89,43 @@ export class EnhancedSyncService {
       case 'homepage':
         // Invalidate homepage caches
         invalidationPromises.push(
-          revalidateTag('homepage-content'),
-          revalidateTag('homepage-blocks'),
-          revalidatePath('/'),
-          revalidatePath('/api/homepage-blocks')
+          Promise.resolve(revalidateTag('homepage-content')),
+          Promise.resolve(revalidateTag('homepage-blocks')),
+          Promise.resolve(revalidatePath('/')),
+          Promise.resolve(revalidatePath('/api/homepage-blocks'))
         );
         break;
 
       case 'media':
         // Invalidate media caches
         invalidationPromises.push(
-          revalidateTag('media-assets'),
-          revalidatePath('/blog'),
-          revalidatePath('/')
+          Promise.resolve(revalidateTag('media-assets')),
+          Promise.resolve(revalidatePath('/blog')),
+          Promise.resolve(revalidatePath('/'))
         );
         break;
 
       case 'theme':
         // Invalidate theme caches
         invalidationPromises.push(
-          revalidateTag('theme-settings'),
-          revalidatePath('/'),
-          revalidatePath('/blog')
+          Promise.resolve(revalidateTag('theme-settings')),
+          Promise.resolve(revalidatePath('/')),
+          Promise.resolve(revalidatePath('/blog'))
         );
         break;
 
       case 'all':
         // Nuclear option - invalidate everything
         invalidationPromises.push(
-          revalidateTag('blog-posts'),
-          revalidateTag('homepage-content'),
-          revalidateTag('homepage-blocks'),
-          revalidateTag('media-assets'),
-          revalidateTag('theme-settings'),
-          revalidatePath('/'),
-          revalidatePath('/blog'),
-          revalidatePath('/api/content'),
-          revalidatePath('/api/homepage-blocks')
+          Promise.resolve(revalidateTag('blog-posts')),
+          Promise.resolve(revalidateTag('homepage-content')),
+          Promise.resolve(revalidateTag('homepage-blocks')),
+          Promise.resolve(revalidateTag('media-assets')),
+          Promise.resolve(revalidateTag('theme-settings')),
+          Promise.resolve(revalidatePath('/')),
+          Promise.resolve(revalidatePath('/blog')),
+          Promise.resolve(revalidatePath('/api/content')),
+          Promise.resolve(revalidatePath('/api/homepage-blocks'))
         );
         break;
     }

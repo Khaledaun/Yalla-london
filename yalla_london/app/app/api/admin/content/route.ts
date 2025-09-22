@@ -93,7 +93,8 @@ export async function POST(request: NextRequest) {
           category: newPost.category?.name_en || 'General',
           tags: newPost.tags || [],
           featuredImage: newPost.featured_image,
-          pageType: 'article' as const
+          pageType: 'article' as const,
+          type: 'article' as const
         };
 
         await autoSEOService.applyAutoSEO(contentData);
@@ -233,7 +234,8 @@ export async function PUT(request: NextRequest) {
           category: updatedPost.category?.name_en || 'General',
           tags: updatedPost.tags || [],
           featuredImage: updatedPost.featured_image,
-          pageType: 'article' as const
+          pageType: 'article' as const,
+          type: 'article' as const
         };
 
         await autoSEOService.applyAutoSEO(contentData);

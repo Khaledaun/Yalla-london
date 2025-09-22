@@ -160,7 +160,7 @@ export class DynamicInternalLinking {
 
       // Combine and format results
       const allPages = [
-        ...sameCategoryPages.map(page => ({
+        ...sameCategoryPages.map((page: any) => ({
           id: page.pageId,
           title: page.title,
           url: page.url || '',
@@ -593,4 +593,5 @@ export class DynamicInternalLinking {
 }
 
 export const dynamicInternalLinking = new DynamicInternalLinking();
+
 

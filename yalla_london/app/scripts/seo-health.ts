@@ -370,7 +370,7 @@ class SEOHealthChecker {
     return { total, passed, failed, skipped, results: this.results };
   }
 
-  private printSummary(summary: HealthCheckSummary): void {
+  public printSummary(summary: HealthCheckSummary): void {
     console.log('\n📊 SEO Health Check Summary');
     console.log('============================');
     console.log(`Total Tests: ${summary.total}`);
@@ -426,4 +426,5 @@ if (require.main === module) {
 }
 
 export { SEOHealthChecker };
+
 

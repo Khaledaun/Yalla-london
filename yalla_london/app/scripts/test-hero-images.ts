@@ -198,3 +198,5 @@ if (require.main === module) {
   testHeroImageFunctionality();
 }
 
+
+

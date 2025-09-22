@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout'
+import { SyncStatusIndicator } from '@/components/admin/SyncStatusIndicator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -150,7 +151,7 @@ export default function ArticlesPage() {
           if (value) cleanParams.set(key, value)
         }
         
-        const response = await fetch(`/api/admin/blog-posts?${cleanParams}`)
+        const response = await fetch(`/api/admin/content?${cleanParams}`)
         const data = await response.json()
         
         if (data.success) {
@@ -178,11 +179,12 @@ export default function ArticlesPage() {
   // Toggle publish status
   const handleTogglePublish = async (articleId: string, currentStatus: boolean) => {
     try {
-      const response = await fetch(`/api/admin/blog-posts/${articleId}`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/admin/content`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          action: currentStatus ? 'unpublish' : 'publish'
+          id: articleId,
+          published: !currentStatus
         })
       })
       
@@ -211,7 +213,7 @@ export default function ArticlesPage() {
     }
     
     try {
-      const response = await fetch(`/api/admin/blog-posts/${articleId}`, {
+      const response = await fetch(`/api/admin/content?id=${articleId}`, {
         method: 'DELETE'
       })
       
@@ -275,6 +277,7 @@ export default function ArticlesPage() {
           </Button>
           <Button 
             className="bg-blue-600 hover:bg-blue-700"
+            onClick={() => window.location.href = '/admin/articles/new'}
           >
             <Plus className="h-4 w-4 mr-2" />
             New Article
@@ -283,6 +286,9 @@ export default function ArticlesPage() {
       }
     >
       <div className="space-y-6">
+        {/* Sync Status Indicator */}
+        <SyncStatusIndicator />
+
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card>
@@ -532,7 +538,7 @@ export default function ArticlesPage() {
                         variant="outline" 
                         size="sm" 
                         className="flex-1"
-                        onClick={() => {/* TODO: Edit functionality */}}
+                        onClick={() => window.location.href = `/admin/articles/edit/${article.id}`}
                       >
                         <Edit className="h-3 w-3 mr-1" />
                         Edit

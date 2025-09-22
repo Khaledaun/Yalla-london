@@ -1268,3 +1268,200 @@ model JobRun {
   @@index([next_retry_at])
   @@index([created_at])
 }
+
+// SEO Tables
+model SeoMeta {
+  id                  String   @id @default(cuid())
+  pageId              String   @unique
+  url                 String?
+  title               String
+  description         String
+  canonical           String?
+  metaKeywords        String?
+  ogTitle             String?
+  ogDescription       String?
+  ogImage             String?
+  ogType              String   @default("website")
+  twitterTitle        String?
+  twitterDescription  String?
+  twitterImage        String?
+  twitterCard         String   @default("summary_large_image")
+  robotsMeta          String   @default("index,follow")
+  schemaType          String?
+  structuredData      Json?
+  hreflangAlternates  Json?
+  seoScore            Int      @default(0)
+  lastAuditAt         DateTime?
+  auditIssues         String[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  auditResults        SeoAuditResult[]
+  internalLinks       SeoInternalLink[] @relation("SourcePage")
+  targetLinks         SeoInternalLink[] @relation("TargetPage")
+  contentAnalysis     SeoContentAnalysis?
+  healthMetrics       SeoHealthMetric[]
+  pageMetrics         SeoPageMetric[]
+  hreflangEntries     SeoHreflangEntry[]
+  structuredDataEntries SeoStructuredData[]
+
+  @@map(name: "seo_meta")
+}
+
+model SeoAuditResult {
+  id             String   @id @default(cuid())
+  pageId         String
+  auditType      String   // technical, content, performance, accessibility
+  score          Int
+  issues         Json
+  recommendations Json
+  auditedAt      DateTime @default(now())
+
+  // Relations
+  seoMeta        SeoMeta  @relation(fields: [pageId], references: [pageId], onDelete: Cascade)
+
+  @@map(name: "seo_audit_results")
+}
+
+model SeoRedirect {
+  id         String   @id @default(cuid())
+  sourceUrl  String   @unique
+  targetUrl  String
+  statusCode Int      @default(301)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map(name: "seo_redirects")
+}
+
+model SeoInternalLink {
+  id              String   @id @default(cuid())
+  sourcePageId    String
+  targetPageId    String
+  anchorText      String
+  context         String?
+  relevanceScore  Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  sourcePage      SeoMeta  @relation("SourcePage", fields: [sourcePageId], references: [pageId], onDelete: Cascade)
+  targetPage      SeoMeta  @relation("TargetPage", fields: [targetPageId], references: [pageId], onDelete: Cascade)
+
+  @@map(name: "seo_internal_links")
+}
+
+model SeoKeyword {
+  id            String   @id @default(cuid())
+  keyword       String   @unique
+  searchVolume  Int?
+  competition   Float?
+  difficulty    Int?
+  lastUpdated   DateTime @default(now())
+
+  @@map(name: "seo_keywords")
+}
+
+model SeoContentAnalysis {
+  id               String   @id @default(cuid())
+  contentId        String   @unique
+  readabilityScore Float?
+  keywordDensity   Json?
+  sentimentScore   Float?
+  analysisResult   Json?
+  analyzedAt       DateTime @default(now())
+
+  // Relations
+  seoMeta          SeoMeta  @relation(fields: [contentId], references: [pageId], onDelete: Cascade)
+
+  @@map(name: "seo_content_analysis")
+}
+
+model SeoReport {
+  id          String    @id @default(cuid())
+  reportType  String    // sitemap, analytics, performance, health
+  generatedAt DateTime  @default(now())
+  data        Json
+  periodStart DateTime?
+  periodEnd   DateTime?
+
+  @@map(name: "seo_reports")
+}
+
+model SeoHealthMetric {
+  id        String   @id @default(cuid())
+  pageId    String?
+  url       String?
+  metricName String
+  value     Float
+  timestamp DateTime @default(now())
+
+  // Relations
+  seoMeta   SeoMeta? @relation(fields: [pageId], references: [pageId], onDelete: SetNull)
+
+  @@map(name: "seo_health_metrics")
+}
+
+model SeoPageMetric {
+  id              String   @id @default(cuid())
+  pageId          String
+  url             String
+  lcp             Float?   // Largest Contentful Paint
+  fid             Float?   // First Input Delay
+  cls             Float?   // Cumulative Layout Shift
+  fcp             Float?   // First Contentful Paint
+  tti             Float?   // Time to Interactive
+  indexed         Boolean?
+  lastCrawled     DateTime?
+  mobileFriendly  Boolean?
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  seoMeta         SeoMeta  @relation(fields: [pageId], references: [pageId], onDelete: Cascade)
+
+  @@map(name: "seo_page_metrics")
+}
+
+model SeoSitemapEntry {
+  id             String   @id @default(cuid())
+  url            String   @unique
+  lastModified   DateTime
+  changeFrequency String?
+  priority       Float?
+  sitemapType    String   // index, pages, articles, events, images
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map(name: "seo_sitemap_entries")
+}
+
+model SeoHreflangEntry {
+  id        String   @id @default(cuid())
+  pageId    String
+  lang      String
+  url       String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  seoMeta   SeoMeta  @relation(fields: [pageId], references: [pageId], onDelete: Cascade)
+
+  @@map(name: "seo_hreflang_entries")
+}
+
+model SeoStructuredData {
+  id         String   @id @default(cuid())
+  pageId     String
+  schemaType String
+  jsonData   Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  seoMeta    SeoMeta  @relation(fields: [pageId], references: [pageId], onDelete: Cascade)
+
+  @@map(name: "seo_structured_data")
+}

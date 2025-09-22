@@ -1,0 +1,53 @@
+# Project map & priorities for Cursor
+IMPORTANT_PATHS:
+- yalla_london/app/**
+- yalla_london/components/**
+- yalla_london/lib/**
+- yalla_london/prisma/**
+- yalla_london/scripts/**
+- yalla_london/config/**
+- docs/**
+- vercel.json
+
+PRIMARY_ENTRYPOINTS:
+- yalla_london/app/app/layout.tsx
+- yalla_london/app/app/page.tsx
+- yalla_london/app/app/api/**/route.ts
+
+INFRA:
+- yalla_london/app/prisma/schema.prisma
+- yalla_london/app/lib/supabase.ts
+- yalla_london/app/vercel.json
+- .env.local.example
+
+STYLE GUIDELINES:
+- TypeScript only, Next.js App Router conventions
+- Server-first data fetching, isolated client components
+- Keep env access through a single module
+- No secrets in code or logs
+
+DB CHANGES:
+- Edit yalla_london/app/prisma/schema.prisma
+- Run: pnpm prisma generate
+- Provide migration instructions when needed
+
+DEPLOYMENT:
+- Use Vercel CLI (login via email magic link)
+- Sync envs with `vercel env`
+
+SECURITY:
+- Never print real secrets
+- Use `process.env` and `.env.local`
+
+SUPABASE_USAGE:
+- API routes: createServerClient({ cookies })
+- Browser components: createBrowserClient()
+- Scripts/cron: createServiceClient()
+- Always check isSupabaseAvailable() before using
+
+ENV_VARS_DETECTED:
+- NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_ANON_KEY
+- DATABASE_URL, DIRECT_URL, NEXTAUTH_SECRET, NEXTAUTH_URL
+- AWS_*, OPENAI_API_KEY, ABACUSAI_API_KEY, GOOGLE_*
+- FEATURE_* flags for Phase 4 features
+

@@ -5,9 +5,22 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
+import { seoMetaService } from '@/lib/seo/seo-meta-service';
+import { isSEOEnabled } from '@/lib/flags';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if SEO features are enabled
+    if (!isSEOEnabled()) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'SEO features are disabled. Set FEATURE_SEO=1 and NEXT_PUBLIC_FEATURE_SEO=1 to enable.' 
+        },
+        { status: 403 }
+      );
+    }
+
     // Check if user is authenticated (implement your auth logic)
     const session = await getServerSession();
     if (!session) {
@@ -27,28 +40,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In a real implementation, you would save to database
-    // For now, we'll simulate saving and return success
-    console.log('Saving SEO data:', {
-      title: seoData.title,
-      description: seoData.description,
-      canonical: seoData.canonical,
-      ogTitle: seoData.ogTitle,
-      ogDescription: seoData.ogDescription,
-      ogImage: seoData.ogImage,
-      twitterTitle: seoData.twitterTitle,
-      twitterDescription: seoData.twitterDescription,
-      schemaType: seoData.schemaType,
-      hreflangAlternates: seoData.hreflangAlternates
-    });
+    // Calculate SEO score
+    const seoScore = seoMetaService.calculateSEOScore(seoData);
+    seoData.seoScore = seoScore;
 
-    // TODO: Implement database save
-    // Example:
-    // await db.seoMeta.upsert({
-    //   where: { pageId: seoData.pageId },
-    //   update: seoData,
-    //   create: seoData
-    // });
+    // Save to database
+    if (seoData.pageId) {
+      await seoMetaService.saveSEOMeta(seoData.pageId, seoData);
+    } else {
+      throw new Error('Page ID is required to save SEO data');
+    }
+
+    console.log('SEO data saved successfully:', {
+      pageId: seoData.pageId,
+      title: seoData.title,
+      seoScore: seoScore
+    });
 
     // Generate XML sitemap entry if needed
     if (seoData.canonical) {
@@ -80,6 +87,17 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    // Check if SEO features are enabled
+    if (!isSEOEnabled()) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'SEO features are disabled. Set FEATURE_SEO=1 and NEXT_PUBLIC_FEATURE_SEO=1 to enable.' 
+        },
+        { status: 403 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const pageId = searchParams.get('pageId');
     const url = searchParams.get('url');
@@ -91,37 +109,47 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // TODO: Implement database lookup
-    // Example:
-    // const seoData = await db.seoMeta.findFirst({
-    //   where: pageId ? { pageId } : { canonical: url }
-    // });
+    // Get SEO data from database
+    let seoData = null;
+    
+    if (pageId) {
+      seoData = await seoMetaService.getSEOMeta(pageId);
+    } else if (url) {
+      seoData = await seoMetaService.getSEOMetaByURL(url);
+    }
 
-    // For now, return mock data
-    const mockSeoData = {
-      title: 'Sample Page Title - Yalla London',
-      description: 'Sample page description that provides valuable information about this page content.',
-      canonical: url || `https://yalla-london.com/page/${pageId}`,
-      metaKeywords: 'london, travel, guide',
-      ogTitle: 'Sample Page Title',
-      ogDescription: 'Sample OG description for social sharing',
-      ogImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/960px-London_Skyline_%28125508655%29.jpeg',
-      ogType: 'website',
-      twitterTitle: 'Sample Page Title',
-      twitterDescription: 'Sample Twitter description',
-      twitterImage: 'https://i.ytimg.com/vi/JxsOdnn5Pzw/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCkiyRdjacs8ejcYmFqFf96Db2aWA',
-      twitterCard: 'summary_large_image',
-      robotsMeta: 'index,follow',
-      schemaType: 'WebPage',
-      hreflangAlternates: {
-        en: `https://yalla-london.com/en/page/${pageId}`,
-        ar: `https://yalla-london.com/ar/page/${pageId}`
-      }
-    };
+    // Return mock data if no SEO data found
+    if (!seoData) {
+      const mockSeoData = {
+        title: 'Sample Page Title - Yalla London',
+        description: 'Sample page description that provides valuable information about this page content.',
+        canonical: url || `https://yalla-london.com/page/${pageId}`,
+        metaKeywords: 'london, travel, guide',
+        ogTitle: 'Sample Page Title',
+        ogDescription: 'Sample OG description for social sharing',
+        ogImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/London_Skyline_%28125508655%29.jpeg/960px-London_Skyline_%28125508655%29.jpeg',
+        ogType: 'website',
+        twitterTitle: 'Sample Page Title',
+        twitterDescription: 'Sample Twitter description',
+        twitterImage: 'https://i.ytimg.com/vi/JxsOdnn5Pzw/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLCkiyRdjacs8ejcYmFqFf96Db2aWA',
+        twitterCard: 'summary_large_image',
+        robotsMeta: 'index,follow',
+        schemaType: 'WebPage',
+        hreflangAlternates: {
+          en: `https://yalla-london.com/en/page/${pageId}`,
+          ar: `https://yalla-london.com/ar/page/${pageId}`
+        }
+      };
+      
+      return NextResponse.json({
+        success: true,
+        data: mockSeoData
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      data: mockSeoData
+      data: seoData
     });
 
   } catch (error) {

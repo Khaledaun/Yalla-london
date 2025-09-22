@@ -15,6 +15,12 @@
     },
     "app/api/cache/**/*.ts": {
       "maxDuration": 15
+    },
+    "app/api/seo/**/*.ts": {
+      "maxDuration": 30
+    },
+    "app/api/health/**/*.ts": {
+      "maxDuration": 10
     }
   },
   "env": {
@@ -51,5 +57,26 @@
       "destination": "/api/robots"
     }
   ],
-  "crons": []
+  "crons": [
+    {
+      "path": "/api/cron/weekly-topics",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/daily-publish",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/auto-generate",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/real-time-optimization",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/seo-health-report",
+      "schedule": "0 2 * * *"
+    }
+  ]
 }

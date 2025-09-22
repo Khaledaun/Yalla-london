@@ -19,3 +19,4 @@ import { isSupabaseAvailable } from "@/lib/supabase";
     process.exit(1);
   }
 })();
+

@@ -4,9 +4,20 @@ export const revalidate = 0;
 
 
 import { NextRequest, NextResponse } from 'next/server'
+import { isAISEOEnabled } from '@/lib/flags'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if AI SEO features are enabled
+    if (!isAISEOEnabled()) {
+      return NextResponse.json(
+        { 
+          error: 'AI SEO features are disabled. Set FEATURE_AI_SEO_AUDIT=1 and ABACUSAI_API_KEY to enable.' 
+        },
+        { status: 403 }
+      );
+    }
+
     const { content, title, language = 'en' } = await request.json()
 
     if (!content || !title) {

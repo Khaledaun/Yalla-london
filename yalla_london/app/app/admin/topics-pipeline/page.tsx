@@ -22,7 +22,8 @@ import {
   Trash2,
   ExternalLink,
   Brain,
-  Users
+  Users,
+  FileText
 } from 'lucide-react'
 
 interface Topic {
@@ -141,6 +142,31 @@ export default function TopicsPipelinePage() {
 
   const handleDeleteTopic = (topicId: string) => {
     setTopics(prev => prev.filter(topic => topic.id !== topicId))
+  }
+
+  const handleCreateArticleFromTopic = (topic: Topic) => {
+    // Create article data from topic
+    const articleData = {
+      title: topic.title,
+      excerpt: `Comprehensive guide to ${topic.title}`,
+      tags: topic.keywords,
+      category: topic.contentType,
+      seoTitle: topic.title,
+      seoDescription: `Discover everything about ${topic.title} in London. ${topic.keywords.join(', ')}.`,
+      content: `# ${topic.title}\n\n## Introduction\n\n${topic.title} is one of London's most fascinating topics. This comprehensive guide will help you discover everything you need to know.\n\n## Key Information\n\n${topic.longtails.map(longtail => `### ${longtail}\n\n[Content to be written]\n`).join('\n')}\n\n## Authority Sources\n\n${topic.authorityLinks.map(link => `- [${link}](${link})`).join('\n')}\n\n*This article was created from topic research and is ready for content development.*`
+    }
+
+    // Navigate to article editor with pre-filled data
+    const params = new URLSearchParams()
+    Object.entries(articleData).forEach(([key, value]) => {
+      if (typeof value === 'string') {
+        params.set(key, value)
+      } else if (Array.isArray(value)) {
+        params.set(key, value.join(','))
+      }
+    })
+    
+    window.location.href = `/admin/articles/new?${params.toString()}`
   }
 
   return (
@@ -323,6 +349,16 @@ export default function TopicsPipelinePage() {
                           <SelectItem value="scheduled-publish">Scheduled</SelectItem>
                         </SelectContent>
                       </Select>
+                      
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={() => handleCreateArticleFromTopic(topic)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        Create Article
+                      </Button>
                       
                       <Button variant="ghost" size="sm">
                         <Edit className="h-4 w-4" />

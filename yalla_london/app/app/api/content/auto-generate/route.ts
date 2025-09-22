@@ -3,17 +3,61 @@ export const revalidate = 0;
 
 
 import { NextRequest, NextResponse } from 'next/server';
-
+import { ContentGenerationService } from '@/lib/content-generation-service';
 
 // Auto-generate content endpoint
 export async function POST(request: NextRequest) {
   try {
-    const { type, category, language, keywords, customPrompt } = await request.json();
+    const { type, category, language, keywords, customPrompt, topicId, saveAsBlogPost } = await request.json();
 
-    // Generate content directly using AI API
-    const generatedContent = await generateContentDirect(type, category, language, keywords, customPrompt);
+    let generatedContent;
 
-    // Try to save to database, but don't fail if database is not available
+    // Generate content based on source
+    if (topicId) {
+      // Generate from topic
+      generatedContent = await ContentGenerationService.generateFromTopic(topicId, {
+        type,
+        language: language || 'en',
+        category,
+        keywords
+      });
+    } else if (customPrompt) {
+      // Generate from custom prompt
+      generatedContent = await ContentGenerationService.generateFromPrompt(customPrompt, {
+        type,
+        language: language || 'en',
+        category,
+        keywords
+      });
+    } else {
+      // Fallback to direct generation
+      generatedContent = await generateContentDirect(type, category, language, keywords, customPrompt);
+    }
+
+    // Save as blog post if requested
+    if (saveAsBlogPost && generatedContent) {
+      try {
+        const blogPost = await ContentGenerationService.saveAsBlogPost(generatedContent, {
+          type,
+          language: language || 'en',
+          category,
+          keywords,
+          topicId
+        });
+        
+        return NextResponse.json({
+          success: true,
+          content: generatedContent,
+          blogPost,
+          message: 'Content generated and saved as blog post successfully.'
+        });
+      } catch (dbError) {
+        console.warn('Failed to save as blog post:', dbError);
+        // Continue with regular response
+      }
+    }
+
+    // Try to save to content generation table as backup
     try {
       const { prisma } = await import('@/lib/db');
       await prisma.contentGeneration.create({

@@ -5,6 +5,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { cacheService } from '@/lib/cache-invalidation';
+import { enhancedSync } from '@/lib/enhanced-sync';
+import { autoSEOService } from '@/lib/seo/auto-seo-service';
+import { isSEOEnabled } from '@/lib/flags';
 import { z } from 'zod';
 
 // Validation schema for blog post data
@@ -75,13 +78,45 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Trigger cache invalidation for real-time updates
+    // Apply auto-SEO if enabled
+    if (isSEOEnabled()) {
+      try {
+        const contentData = {
+          id: newPost.id,
+          title: newPost.title_en,
+          content: newPost.content_en,
+          slug: newPost.slug,
+          excerpt: newPost.excerpt_en,
+          author: newPost.author?.name || 'Unknown',
+          publishedAt: newPost.created_at.toISOString(),
+          language: 'en' as const,
+          category: newPost.category?.name_en || 'General',
+          tags: newPost.tags || [],
+          featuredImage: newPost.featured_image,
+          pageType: 'article' as const
+        };
+
+        await autoSEOService.applyAutoSEO(contentData);
+        console.log(`Auto-SEO applied for new blog post: ${newPost.slug}`);
+      } catch (seoError) {
+        console.warn('Auto-SEO failed for new blog post:', seoError);
+        // Continue without failing the content creation
+      }
+    }
+
+    // Trigger enhanced sync for real-time updates
     try {
-      await cacheService.invalidateContentCache('blog', newPost.slug);
-      console.log(`Cache invalidated for new blog post: ${newPost.slug}`);
-    } catch (cacheError) {
-      console.warn('Cache invalidation failed:', cacheError);
-      // Continue execution - cache invalidation failure shouldn't break content creation
+      const syncResult = await enhancedSync.forceSync('blog', newPost.slug);
+      console.log(`Enhanced sync completed for new blog post: ${newPost.slug}`, syncResult);
+    } catch (syncError) {
+      console.warn('Enhanced sync failed, falling back to basic cache invalidation:', syncError);
+      // Fallback to basic cache invalidation
+      try {
+        await cacheService.invalidateContentCache('blog', newPost.slug);
+        console.log(`Fallback cache invalidated for new blog post: ${newPost.slug}`);
+      } catch (cacheError) {
+        console.warn('Fallback cache invalidation also failed:', cacheError);
+      }
     }
 
     return NextResponse.json({
@@ -183,19 +218,54 @@ export async function PUT(request: NextRequest) {
       }
     });
 
-    // Trigger cache invalidation for real-time updates
+    // Apply auto-SEO if enabled and content was updated
+    if (isSEOEnabled() && (data.title_en || data.content_en || data.excerpt_en)) {
+      try {
+        const contentData = {
+          id: updatedPost.id,
+          title: updatedPost.title_en,
+          content: updatedPost.content_en,
+          slug: updatedPost.slug,
+          excerpt: updatedPost.excerpt_en,
+          author: updatedPost.author?.name || 'Unknown',
+          publishedAt: updatedPost.updated_at.toISOString(),
+          language: 'en' as const,
+          category: updatedPost.category?.name_en || 'General',
+          tags: updatedPost.tags || [],
+          featuredImage: updatedPost.featured_image,
+          pageType: 'article' as const
+        };
+
+        await autoSEOService.applyAutoSEO(contentData);
+        console.log(`Auto-SEO applied for updated blog post: ${updatedPost.slug}`);
+      } catch (seoError) {
+        console.warn('Auto-SEO failed for updated blog post:', seoError);
+        // Continue without failing the content update
+      }
+    }
+
+    // Trigger enhanced sync for real-time updates
     const slugToInvalidate = data.slug || existingPost.slug;
     try {
-      await cacheService.invalidateContentCache('blog', slugToInvalidate);
+      const syncResult = await enhancedSync.forceSync('blog', slugToInvalidate);
+      console.log(`Enhanced sync completed for updated blog post: ${slugToInvalidate}`, syncResult);
       
-      // If slug changed, also invalidate the old slug
+      // If slug changed, also sync the old slug
       if (data.slug && data.slug !== existingPost.slug) {
-        await cacheService.invalidateContentCache('blog', existingPost.slug);
+        await enhancedSync.forceSync('blog', existingPost.slug);
       }
-      
-      console.log(`Cache invalidated for updated blog post: ${slugToInvalidate}`);
-    } catch (cacheError) {
-      console.warn('Cache invalidation failed:', cacheError);
+    } catch (syncError) {
+      console.warn('Enhanced sync failed, falling back to basic cache invalidation:', syncError);
+      // Fallback to basic cache invalidation
+      try {
+        await cacheService.invalidateContentCache('blog', slugToInvalidate);
+        if (data.slug && data.slug !== existingPost.slug) {
+          await cacheService.invalidateContentCache('blog', existingPost.slug);
+        }
+        console.log(`Fallback cache invalidated for updated blog post: ${slugToInvalidate}`);
+      } catch (cacheError) {
+        console.warn('Fallback cache invalidation also failed:', cacheError);
+      }
     }
 
     return NextResponse.json({

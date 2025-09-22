@@ -107,6 +107,26 @@ export function ArticleEditor() {
     readingTime: 0
   })
 
+  // Load pre-filled data from URL parameters (when coming from topics)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      
+      if (urlParams.get('title')) {
+        setArticle(prev => ({
+          ...prev,
+          title: urlParams.get('title') || '',
+          excerpt: urlParams.get('excerpt') || '',
+          content: urlParams.get('content') || '',
+          category: urlParams.get('category') || '',
+          seoTitle: urlParams.get('seoTitle') || urlParams.get('title') || '',
+          seoDescription: urlParams.get('seoDescription') || '',
+          tags: urlParams.get('tags')?.split(',').filter(Boolean) || []
+        }))
+      }
+    }
+  }, [])
+
   const [isTopicResearchOpen, setIsTopicResearchOpen] = useState(false)
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
@@ -328,17 +348,57 @@ London's charm lies in its diversity and the countless opportunities it offers f
   }
 
   const saveArticle = async (status: 'draft' | 'published') => {
-    setArticle(prev => ({ ...prev, status }))
-    
-    // Simulate save
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    toast({
-      title: status === 'draft' ? "Draft Saved" : "Article Published",
-      description: status === 'draft' 
-        ? "Your article has been saved as a draft."
-        : "Your article has been published successfully.",
-    })
+    try {
+      setArticle(prev => ({ ...prev, status }))
+      
+      const response = await fetch('/api/admin/content', {
+        method: article.id ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: article.id,
+          title_en: article.title,
+          title_ar: article.title, // TODO: Add proper translation
+          slug: article.slug,
+          excerpt_en: article.excerpt,
+          excerpt_ar: article.excerpt,
+          content_en: article.content,
+          content_ar: article.content,
+          published: status === 'published',
+          category_id: article.category || 'default-category',
+          author_id: article.authorId || 'system-user',
+          tags: article.tags,
+          meta_title_en: article.seoTitle,
+          meta_description_en: article.seoDescription,
+          featured_image: article.featuredImage
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save article')
+      }
+
+      const result = await response.json()
+      
+      // Update article with the ID from server
+      if (result.data?.id) {
+        setArticle(prev => ({ ...prev, id: result.data.id }))
+      }
+      
+      toast({
+        title: status === 'draft' ? "Draft Saved" : "Article Published",
+        description: status === 'draft' 
+          ? "Your article has been saved as a draft."
+          : "Your article has been published successfully.",
+      })
+    } catch (error) {
+      console.error('Save error:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save article. Please try again.",
+        variant: "destructive"
+      })
+    }
   }
 
   return (

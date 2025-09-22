@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SEOStatusBanner } from '@/components/admin/SEOStatusBanner'
 import { 
   Search, 
   Play, 
@@ -331,6 +332,9 @@ export default function SEOAuditsPage() {
       }
     >
       <div className="space-y-6">
+        {/* SEO Status Banner */}
+        <SEOStatusBanner />
+        
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>

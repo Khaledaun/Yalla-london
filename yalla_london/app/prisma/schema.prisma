@@ -145,8 +145,8 @@ model BlogPost {
   @@index([page_type])
   @@index([place_id])
   @@index([seo_score])
-  @@index([status])
-  @@index([generationSource])
+  // @@index([status]) // Temporarily disabled
+  // @@index([generationSource]) // Temporarily disabled
 }
 
 model Recommendation {

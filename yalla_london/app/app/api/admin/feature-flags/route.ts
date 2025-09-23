@@ -277,14 +277,14 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         })
         
       case 'update-rollout':
-        const { flagId: rolloutFlagId, rolloutPercentage } = data
+        const { flagId: rolloutFlagId, rolloutPercentage: newRolloutPercentage } = data
         
         // Simulate updating rollout percentage
         return NextResponse.json({
           success: true,
           message: 'Rollout percentage updated successfully',
           flagId: rolloutFlagId,
-          rolloutPercentage
+          rolloutPercentage: newRolloutPercentage
         })
         
       case 'delete-flag':

@@ -125,12 +125,12 @@ model BlogPost {
   og_image_id              String?  // Reference to generated OG image
   place_id                 String?  // Reference to Place if location-based
   
-  // Enhanced workflow fields for new dashboard system
-  status                String   @default('draft')
-  promptVersionId       String?
-  generationModel       String?
-  generationProvider    String?
-  generationSource      String? // 'scheduled', 'manual_now', 'upload', 'import'
+  // Enhanced workflow fields for new dashboard system (temporarily disabled)
+  // status                String   @default('draft')
+  // promptVersionId       String?
+  // generationModel       String?
+  // generationProvider    String?
+  // generationSource      String? // 'scheduled', 'manual_now', 'upload', 'import'
   
   category     Category @relation(fields: [category_id], references: [id])
   author       User     @relation(fields: [author_id], references: [id])

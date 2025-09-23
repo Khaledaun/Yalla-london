@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-// import { withAdminAuth } from '@/lib/admin-middleware'
 
-export const POST = async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
@@ -139,6 +138,6 @@ export const POST = async (request: NextRequest) => {
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
-    );
+    )
   }
-});
+}

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-// import { withAdminAuth } from '@/lib/admin-middleware'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
-export const POST = async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -126,6 +125,6 @@ export const POST = async (request: NextRequest) => {
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
-    );
+    )
   }
-});
+}

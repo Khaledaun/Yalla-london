@@ -41,78 +41,61 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create a simple article record in a test table
-    // We'll use a direct database connection since Prisma might not be working
-    const { Client } = require('pg')
+    // For now, let's create a simple file-based storage to verify the save works
+    // This will be replaced with proper database storage once we confirm the flow works
+    const fs = require('fs').promises
+    const path = require('path')
     
-    const client = new Client({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
-    })
-
-    await client.connect()
-
-    // Create test_articles table if it doesn't exist
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS test_articles (
-        id SERIAL PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        title_ar VARCHAR(255),
-        slug VARCHAR(255) UNIQUE,
-        locale VARCHAR(10) DEFAULT 'en',
-        page_type VARCHAR(50) DEFAULT 'guide',
-        primary_keyword VARCHAR(255),
-        long_tail_1 VARCHAR(255),
-        long_tail_2 VARCHAR(255),
-        authority_link_1 TEXT,
-        authority_link_2 TEXT,
-        authority_link_3 TEXT,
-        authority_link_4 TEXT,
-        excerpt TEXT,
-        tags TEXT,
-        content TEXT NOT NULL,
-        og_image TEXT,
-        og_video TEXT,
-        seo_score INTEGER DEFAULT 0,
-        status VARCHAR(50) DEFAULT 'draft',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
-
-    // Insert the article
-    const insertResult = await client.query(`
-      INSERT INTO test_articles (
-        title, title_ar, slug, locale, page_type, primary_keyword,
-        long_tail_1, long_tail_2, authority_link_1, authority_link_2,
-        authority_link_3, authority_link_4, excerpt, tags, content,
-        og_image, og_video, seo_score, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
-      RETURNING id, title, slug, created_at
-    `, [
-      title,
-      titleAr || title,
-      slug || title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-'),
-      locale || 'en',
-      pageType || 'guide',
-      primaryKeyword || '',
-      longTail1 || '',
-      longTail2 || '',
-      authorityLink1 || '',
-      authorityLink2 || '',
-      authorityLink3 || '',
-      authorityLink4 || '',
-      excerpt || content.substring(0, 160) + '...',
-      tags || '',
-      content,
-      ogImage || '',
-      ogVideo || '',
-      seoScore || 0,
-      'draft'
-    ])
-
-    const newArticle = insertResult.rows[0]
-    await client.end()
+    // Create a simple JSON file to store articles
+    const articlesDir = path.join(process.cwd(), 'data')
+    const articlesFile = path.join(articlesDir, 'articles.json')
+    
+    try {
+      await fs.mkdir(articlesDir, { recursive: true })
+    } catch (error) {
+      // Directory might already exist
+    }
+    
+    // Read existing articles
+    let articles = []
+    try {
+      const existingData = await fs.readFile(articlesFile, 'utf8')
+      articles = JSON.parse(existingData)
+    } catch (error) {
+      // File doesn't exist yet, start with empty array
+    }
+    
+    // Create new article
+    const newArticle = {
+      id: Date.now(), // Simple ID generation
+      title: title,
+      titleAr: titleAr || title,
+      slug: slug || title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-'),
+      locale: locale || 'en',
+      pageType: pageType || 'guide',
+      primaryKeyword: primaryKeyword || '',
+      longTail1: longTail1 || '',
+      longTail2: longTail2 || '',
+      authorityLink1: authorityLink1 || '',
+      authorityLink2: authorityLink2 || '',
+      authorityLink3: authorityLink3 || '',
+      authorityLink4: authorityLink4 || '',
+      excerpt: excerpt || content.substring(0, 160) + '...',
+      tags: tags || '',
+      content: content,
+      ogImage: ogImage || '',
+      ogVideo: ogVideo || '',
+      seoScore: seoScore || 0,
+      status: 'draft',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    
+    // Add to articles array
+    articles.push(newArticle)
+    
+    // Save back to file
+    await fs.writeFile(articlesFile, JSON.stringify(articles, null, 2))
 
     // Generate public URL
     const publicUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london-gpgpz8iqd-khaledauns-projects.vercel.app'}/blog/${newArticle.slug}`

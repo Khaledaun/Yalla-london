@@ -163,7 +163,7 @@ Each hotel's unique character and world-class amenities ensure that your visit t
     }
 
     try {
-      const response = await fetch('/api/test/save', {
+      const response = await fetch('/api/admin/editor/save', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

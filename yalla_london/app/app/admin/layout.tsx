@@ -6,19 +6,11 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <title>Yalla London Admin</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </head>
-      <body className="font-tajawal antialiased" suppressHydrationWarning>
-        <div className="min-h-screen bg-gray-50">
-          <AdminNavigation />
-          <div className="lg:ml-64">
-            {children}
-          </div>
-        </div>
-      </body>
-    </html>
+    <div className="fixed inset-0 bg-gray-50 z-50">
+      <AdminNavigation />
+      <div className="lg:ml-64 h-full overflow-auto">
+        {children}
+      </div>
+    </div>
   )
 }

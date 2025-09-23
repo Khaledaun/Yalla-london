@@ -132,10 +132,21 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error saving article:', error)
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    })
+    
     return NextResponse.json(
       { 
         error: 'Failed to save article',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        debug: {
+          hasDatabaseUrl: !!process.env.DATABASE_URL,
+          databaseUrlPrefix: process.env.DATABASE_URL?.substring(0, 20) + '...',
+          errorType: error instanceof Error ? error.constructor.name : typeof error
+        }
       },
       { status: 500 }
     )

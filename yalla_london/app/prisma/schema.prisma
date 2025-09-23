@@ -125,13 +125,28 @@ model BlogPost {
   og_image_id              String?  // Reference to generated OG image
   place_id                 String?  // Reference to Place if location-based
   
+  // Enhanced workflow fields for new dashboard system
+  status                String   @default('draft')
+  promptVersionId       String?
+  generationModel       String?
+  generationProvider    String?
+  generationSource      String? // 'scheduled', 'manual_now', 'upload', 'import'
+  
   category     Category @relation(fields: [category_id], references: [id])
   author       User     @relation(fields: [author_id], references: [id])
   place        Place?   @relation(fields: [place_id], references: [id])
   
+  // Relations for enhanced system (temporarily disabled)
+  // seoAuditResults SeoAuditResultEnhanced[]
+  // scheduledContent ScheduledContentEnhanced[]
+  // generatedFromTopic TopicProposalEnhanced? @relation(fields: [generatedFromTopicId], references: [id])
+  // generatedFromTopicId String?
+  
   @@index([page_type])
   @@index([place_id])
   @@index([seo_score])
+  @@index([status])
+  @@index([generationSource])
 }
 
 model Recommendation {
@@ -242,6 +257,13 @@ model MediaAsset {
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
   
+  // Enhanced fields for video hero support
+  isVideo     Boolean  @default(false)
+  videoPoster String?  // URL to poster frame
+  videoVariants Json?  // Different quality/size variants
+  isHeroVideo Boolean  @default(false) // Can be used as homepage hero
+  duration    Int?     // Video duration in seconds
+  
   // Relations
   homepage_blocks HomepageBlock[]
 }
@@ -262,6 +284,13 @@ model HomepageBlock {
   language    String   @default("both") // en, ar, both
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
+  
+  // Enhanced fields for video hero support
+  heroVideoId String?  // Reference to MediaAsset for video
+  heroVideoPoster String?
+  heroVideoAutoplay Boolean @default(true)
+  heroVideoMuted Boolean @default(true)
+  heroVideoLoop Boolean @default(true)
   
   media       MediaAsset? @relation(fields: [media_id], references: [id])
 }
@@ -1530,3 +1559,9 @@ model ContentImport {
   @@index([status])
   @@map(name: "content_imports")
 }
+
+// =============================================================================
+// COMPREHENSIVE DASHBOARD SYSTEM - NEW TABLES
+// =============================================================================
+// Note: Temporarily commented out to fix build issues
+// These models will be added back once the schema is stable

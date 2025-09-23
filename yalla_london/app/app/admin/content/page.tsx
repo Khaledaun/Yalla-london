@@ -1,615 +1,475 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { useState } from 'react'
 import { 
-  FileText,
+  FileText, 
+  Plus, 
+  Filter, 
+  Search, 
   Upload,
-  Search,
   Eye,
   Edit,
   Trash2,
-  Share2,
-  Facebook,
-  Twitter,
-  Instagram,
-  Linkedin,
-  Plus,
-  Filter,
+  Share,
   Download,
-  Star,
-  TrendingUp,
-  Clock,
-  User,
-  X,
-  File,
   Image,
   Video,
-  Palette
+  Globe,
+  Calendar,
+  User,
+  Tag,
+  TrendingUp,
+  CheckCircle,
+  Clock,
+  AlertCircle
 } from 'lucide-react'
-import { toast } from 'sonner'
-
-interface Article {
-  id: string
-  title_en: string
-  title_ar: string
-  excerpt_en: string
-  excerpt_ar: string
-  content_en: string
-  content_ar: string
-  author: {
-    name: string
-    email: string
-  }
-  created_at: string
-  updated_at: string
-  seo_score: number | null
-  published: boolean
-  category: {
-    name_en: string
-    name_ar: string
-  }
-  tags: string[]
-  featured_image?: string
-  page_type?: string
-  keywords_json?: any
-  featured_longtails_json?: any
-  authority_links_json?: any
-}
-
-interface MediaAsset {
-  id: string
-  filename: string
-  original_name: string
-  url: string
-  file_type: string
-  mime_type: string
-  file_size: number
-  width?: number
-  height?: number
-  alt_text?: string
-  title?: string
-  tags: string[]
-  created_at: string
-}
-
-interface ContentStats {
-  totalArticles: number
-  publishedArticles: number
-  draftArticles: number
-  scheduledContent: number
-  mediaAssets: number
-}
 
 export default function ContentHub() {
-  const [articles, setArticles] = useState<Article[]>([])
-  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([])
-  const [stats, setStats] = useState<ContentStats>({
-    totalArticles: 0,
-    publishedArticles: 0,
-    draftArticles: 0,
-    scheduledContent: 0,
-    mediaAssets: 0
-  })
-  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
+  const [activeTab, setActiveTab] = useState('articles')
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft'>('all')
-  const [isUploading, setIsUploading] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [uploadModalOpen, setUploadModalOpen] = useState(false)
-  const [uploadType, setUploadType] = useState<'articles' | 'media' | 'branding'>('articles')
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterLocale, setFilterLocale] = useState('all')
 
-  // Load real data on component mount
-  useEffect(() => {
-    loadContentData()
-  }, [])
+  const tabs = [
+    { id: 'articles', name: 'Articles', icon: FileText },
+    { id: 'media', name: 'Media', icon: Image },
+    { id: 'preview', name: 'Social Preview', icon: Share },
+    { id: 'upload', name: 'Upload Content', icon: Upload }
+  ]
 
-  const loadContentData = async () => {
-    try {
-      const response = await fetch('/api/admin/content')
-      if (response.ok) {
-        const data = await response.json()
-        setArticles(data.articles || [])
-        setMediaAssets(data.mediaAssets || [])
-        setStats(data.stats || stats)
-      } else {
-        toast.error('Failed to load content data')
-      }
-    } catch (error) {
-      console.error('Error loading content data:', error)
-      toast.error('Failed to load content data')
-    } finally {
-      setIsLoading(false)
+  const articles = [
+    {
+      id: 1,
+      title: 'Best Luxury Hotels in Mayfair',
+      titleAr: 'أفضل الفنادق الفاخرة في مايفير',
+      slug: 'best-luxury-hotels-mayfair',
+      locale: 'en',
+      status: 'published',
+      seoScore: 92,
+      author: 'John Doe',
+      publishedAt: '2024-01-14T10:00:00Z',
+      updatedAt: '2024-01-14T10:00:00Z',
+      tags: ['hotels', 'mayfair', 'luxury'],
+      featuredImage: '/images/mayfair-hotel.jpg',
+      views: 1250,
+      url: 'https://www.yalla-london.com/best-luxury-hotels-mayfair'
+    },
+    {
+      id: 2,
+      title: 'أفضل المطاعم العربية في لندن',
+      titleAr: 'أفضل المطاعم العربية في لندن',
+      slug: 'best-arabic-restaurants-london',
+      locale: 'ar',
+      status: 'ready',
+      seoScore: 88,
+      author: 'Ahmed Hassan',
+      publishedAt: null,
+      updatedAt: '2024-01-14T09:30:00Z',
+      tags: ['restaurants', 'arabic', 'halal'],
+      featuredImage: '/images/arabic-restaurant.jpg',
+      views: 0,
+      url: null
+    },
+    {
+      id: 3,
+      title: 'London Shopping Guide 2024',
+      titleAr: 'دليل التسوق في لندن 2024',
+      slug: 'london-shopping-guide-2024',
+      locale: 'en',
+      status: 'draft',
+      seoScore: 75,
+      author: 'Sarah Wilson',
+      publishedAt: null,
+      updatedAt: '2024-01-13T16:45:00Z',
+      tags: ['shopping', 'guide', 'london'],
+      featuredImage: '/images/shopping-london.jpg',
+      views: 0,
+      url: null
+    },
+    {
+      id: 4,
+      title: 'Chelsea FC Stadium Tour Guide',
+      titleAr: 'دليل جولة ملعب تشيلسي',
+      slug: 'chelsea-fc-stadium-tour-guide',
+      locale: 'en',
+      status: 'review',
+      seoScore: 85,
+      author: 'Mike Johnson',
+      publishedAt: null,
+      updatedAt: '2024-01-13T14:20:00Z',
+      tags: ['football', 'stadium', 'tour'],
+      featuredImage: '/images/chelsea-stadium.jpg',
+      views: 0,
+      url: null
+    }
+  ]
+
+  const mediaAssets = [
+    {
+      id: 1,
+      filename: 'mayfair-hotel-hero.jpg',
+      originalName: 'Mayfair Hotel Hero Image',
+      url: '/images/mayfair-hotel-hero.jpg',
+      fileType: 'image',
+      mimeType: 'image/jpeg',
+      fileSize: 2048576,
+      width: 1920,
+      height: 1080,
+      altText: 'Luxury hotel in Mayfair, London',
+      tags: ['hotels', 'mayfair', 'luxury'],
+      usageCount: 3,
+      createdAt: '2024-01-10T10:00:00Z'
+    },
+    {
+      id: 2,
+      filename: 'london-shopping-video.mp4',
+      originalName: 'London Shopping District Video',
+      url: '/videos/london-shopping-video.mp4',
+      fileType: 'video',
+      mimeType: 'video/mp4',
+      fileSize: 15728640,
+      width: 1920,
+      height: 1080,
+      altText: 'London shopping district tour',
+      tags: ['shopping', 'london', 'video'],
+      usageCount: 1,
+      createdAt: '2024-01-12T15:30:00Z'
+    },
+    {
+      id: 3,
+      filename: 'arabic-restaurant-interior.jpg',
+      originalName: 'Arabic Restaurant Interior',
+      url: '/images/arabic-restaurant-interior.jpg',
+      fileType: 'image',
+      mimeType: 'image/jpeg',
+      fileSize: 1536000,
+      width: 1200,
+      height: 800,
+      altText: 'Traditional Arabic restaurant interior in London',
+      tags: ['restaurants', 'arabic', 'interior'],
+      usageCount: 2,
+      createdAt: '2024-01-11T12:00:00Z'
+    }
+  ]
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'published': return 'bg-green-100 text-green-800'
+      case 'ready': return 'bg-blue-100 text-blue-800'
+      case 'review': return 'bg-yellow-100 text-yellow-800'
+      case 'draft': return 'bg-gray-100 text-gray-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'published': return <CheckCircle className="h-4 w-4" />
+      case 'ready': return <Clock className="h-4 w-4" />
+      case 'review': return <AlertCircle className="h-4 w-4" />
+      case 'draft': return <Edit className="h-4 w-4" />
+      default: return <Edit className="h-4 w-4" />
     }
   }
 
   const filteredArticles = articles.filter(article => {
-    const matchesSearch = article.title_en.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         article.excerpt_en.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = filterStatus === 'all' || 
-                         (filterStatus === 'published' && article.published) ||
-                         (filterStatus === 'draft' && !article.published)
-    return matchesSearch && matchesStatus
+    const matchesSearch = article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         article.titleAr.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesStatus = filterStatus === 'all' || article.status === filterStatus
+    const matchesLocale = filterLocale === 'all' || article.locale === filterLocale
+    
+    return matchesSearch && matchesStatus && matchesLocale
   })
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (!files || files.length === 0) return
-
-    setIsUploading(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', files[0])
-      formData.append('type', 'import_content')
-      formData.append('data', JSON.stringify({
-        importType: 'csv', // or detect from file extension
-        fileData: {
-          name: files[0].name,
-          content: await files[0].text()
-        },
-        mapping: {
-          title: 'title',
-          content: 'content',
-          excerpt: 'excerpt',
-          category: 'category',
-          tags: 'tags'
-        }
-      }))
-
-      const response = await fetch('/api/admin/content', {
-        method: 'POST',
-        body: formData
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        toast.success(`Content uploaded successfully! ${result.importedCount} items imported.`)
-        loadContentData() // Reload data
-      } else {
-        toast.error('Failed to upload content')
-      }
-    } catch (error) {
-      console.error('Upload error:', error)
-      toast.error('Failed to upload content')
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
-  const getStatusBadge = (published: boolean) => {
-    return published 
-      ? <Badge variant="default" className="bg-green-500">Published</Badge>
-      : <Badge variant="secondary" className="bg-yellow-500">Draft</Badge>
-  }
-
-  const getSeoScoreColor = (score: number | null) => {
-    if (!score) return 'text-gray-500'
-    if (score >= 90) return 'text-green-600'
-    if (score >= 70) return 'text-yellow-600'
-    return 'text-red-600'
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString()
-  }
-
-  const UploadContentModal = () => (
-    <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Upload Content</DialogTitle>
-        </DialogHeader>
-        
-        <Tabs value={uploadType} onValueChange={(value) => setUploadType(value as any)}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="articles">Articles</TabsTrigger>
-            <TabsTrigger value="media">Media Library</TabsTrigger>
-            <TabsTrigger value="branding">Branding Assets</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="articles" className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <Label>Import Type</Label>
-                <select className="w-full p-2 border rounded-md">
-                  <option value="csv">CSV File</option>
-                  <option value="markdown">Markdown</option>
-                  <option value="html">HTML</option>
-                </select>
-              </div>
-              
-              <div>
-                <Label>File Upload</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <File className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 mb-2">Drop your file here or click to browse</p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv,.md,.html,.txt"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  <Button 
-                    variant="outline" 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isUploading}
-                  >
-                    {isUploading ? 'Uploading...' : 'Choose File'}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="text-sm text-gray-600">
-                <p><strong>Supported formats:</strong> CSV, Markdown, HTML</p>
-                <p><strong>Required fields:</strong> title, content, excerpt</p>
-                <p><strong>Optional fields:</strong> category, tags, keywords</p>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="media" className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <Label>Media Type</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Image className="h-6 w-6 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">Images</p>
-                    <p className="text-xs text-gray-500">JPG, PNG, WebP, AVIF</p>
-                  </div>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Video className="h-6 w-6 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">Videos</p>
-                    <p className="text-xs text-gray-500">MP4, WebM</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <Label>Upload Media</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 mb-2">Drag and drop images or videos</p>
-                  <Button variant="outline" disabled>
-                    Choose Files
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="branding" className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <Label>Branding Assets</Label>
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Palette className="h-6 w-6 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">Logo & Favicon</p>
-                    <p className="text-xs text-gray-500">PNG, SVG, ICO</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <Label>Upload Branding</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 mb-2">Upload logo, favicon, and brand assets</p>
-                  <Button variant="outline" disabled>
-                    Choose Files
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
-  )
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading Content Hub...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <FileText className="h-8 w-8 text-purple-500" />
-                Content Hub
-              </h1>
-              <p className="text-gray-600 mt-1">Manage articles, media, and social previews</p>
-              <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                <span>{stats.totalArticles} Articles</span>
-                <span>{stats.publishedArticles} Published</span>
-                <span>{stats.draftArticles} Drafts</span>
-                <span>{stats.mediaAssets} Media Assets</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={() => setUploadModalOpen(true)}
-                className="bg-purple-500 hover:bg-purple-600"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Content
-              </Button>
-              <Button variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                New Article
-              </Button>
-            </div>
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <FileText className="h-8 w-8 text-blue-500" />
+              Content Hub
+            </h1>
+            <p className="text-gray-600 mt-1">Articles, Media, Social Preview, Upload Content</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <button className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
+              <Plus className="h-4 w-4" />
+              New Article
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors">
+              <Upload className="h-4 w-4" />
+              Upload Media
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <Tabs defaultValue="articles" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="articles">Articles</TabsTrigger>
-            <TabsTrigger value="media">Media Library</TabsTrigger>
-            <TabsTrigger value="social">Social Previews</TabsTrigger>
-          </TabsList>
-
-          {/* Articles Tab */}
-          <TabsContent value="articles" className="space-y-6">
-            {/* Search and Filter */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Search articles..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-gray-400" />
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value as any)}
-                      className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-                    >
-                      <option value="all">All Status</option>
-                      <option value="published">Published</option>
-                      <option value="draft">Draft</option>
-                      <option value="review">Review</option>
-                    </select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Articles List */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {filteredArticles.length === 0 ? (
-                <div className="col-span-2 text-center py-12">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No articles found</h3>
-                  <p className="text-gray-600">Start by uploading content or creating a new article.</p>
-                </div>
-              ) : (
-                filteredArticles.map((article) => (
-                  <Card key={article.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg text-gray-900 mb-2">{article.title_en}</h3>
-                          <p className="text-gray-600 text-sm mb-3">{article.excerpt_en}</p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <div className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              {article.author.name || 'Unknown'}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {formatDate(article.created_at)}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <TrendingUp className="h-3 w-3" />
-                              <span className={getSeoScoreColor(article.seo_score)}>
-                                SEO: {article.seo_score || 'N/A'}/100
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          {getStatusBadge(article.published)}
-                          <div className="flex gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedArticle(article)}
-                            >
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex gap-2">
-                          {article.tags.slice(0, 3).map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                          {article.page_type && (
-                            <Badge variant="secondary" className="text-xs">
-                              {article.page_type}
-                            </Badge>
-                          )}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedArticle(article)}
-                        >
-                          <Share2 className="h-3 w-3 mr-1" />
-                          Preview
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Media Library Tab */}
-          <TabsContent value="media" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Media Library ({mediaAssets.length} assets)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {mediaAssets.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Image className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No media assets</h3>
-                    <p className="text-gray-600 mb-4">Upload images and videos to get started.</p>
-                    <Button onClick={() => setUploadModalOpen(true)}>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Media
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {mediaAssets.map((asset) => (
-                      <div key={asset.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                        {asset.file_type === 'image' ? (
-                          <img
-                            src={asset.url}
-                            alt={asset.alt_text || asset.title || 'Media asset'}
-                            className="w-full h-32 object-cover rounded mb-2"
-                          />
-                        ) : (
-                          <div className="w-full h-32 bg-gray-100 rounded mb-2 flex items-center justify-center">
-                            <Video className="h-8 w-8 text-gray-400" />
-                          </div>
-                        )}
-                        <div>
-                          <h4 className="font-medium text-sm truncate">{asset.title || asset.original_name}</h4>
-                          <p className="text-xs text-gray-500">
-                            {asset.file_type} • {formatFileSize(asset.file_size)}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {formatDate(asset.created_at)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Social Previews Tab */}
-          <TabsContent value="social" className="space-y-6">
-            {selectedArticle ? (
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Social Media Previews for: {selectedArticle.title_en}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {['Facebook', 'Twitter', 'Instagram', 'LinkedIn'].map((platform) => (
-                        <Card key={platform} className="border-2">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-center gap-2">
-                              {platform === 'Facebook' && <Facebook className="h-4 w-4 text-blue-600" />}
-                              {platform === 'Twitter' && <Twitter className="h-4 w-4 text-blue-400" />}
-                              {platform === 'Instagram' && <Instagram className="h-4 w-4 text-pink-600" />}
-                              {platform === 'LinkedIn' && <Linkedin className="h-4 w-4 text-blue-700" />}
-                              <span className="font-medium">{platform}</span>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-3">
-                              <div className="w-full h-32 bg-gray-100 rounded flex items-center justify-center">
-                                {selectedArticle.featured_image ? (
-                                  <img
-                                    src={selectedArticle.featured_image}
-                                    alt={selectedArticle.title_en}
-                                    className="w-full h-full object-cover rounded"
-                                  />
-                                ) : (
-                                  <Image className="h-8 w-8 text-gray-400" />
-                                )}
-                              </div>
-                              <div>
-                                <h4 className="font-medium text-sm">{selectedArticle.title_en}</h4>
-                                <p className="text-xs text-gray-600 mt-1">
-                                  {selectedArticle.excerpt_en.substring(0, 100)}...
-                                </p>
-                                <p className="text-xs text-blue-600 mt-1">
-                                  https://yalla-london.com/blog/{selectedArticle.id}
-                                </p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <Share2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Select an Article</h3>
-                  <p className="text-gray-600">Choose an article from the Articles tab to see social media previews</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+      {/* Tabs */}
+      <div className="mb-8">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.name}
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
 
-      {/* Upload Modal */}
-      <UploadContentModal />
+      {/* Tab Content */}
+      {activeTab === 'articles' && (
+        <div>
+          {/* Filters */}
+          <div className="bg-white p-6 rounded-lg border border-gray-200 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search articles..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="published">Published</option>
+                  <option value="ready">Ready</option>
+                  <option value="review">Review</option>
+                  <option value="draft">Draft</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Locale</label>
+                <select
+                  value={filterLocale}
+                  onChange={(e) => setFilterLocale(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="all">All Locales</option>
+                  <option value="en">English</option>
+                  <option value="ar">Arabic</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Articles Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredArticles.map((article) => (
+              <div key={article.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="aspect-video bg-gray-200 relative">
+                  {article.featuredImage ? (
+                    <img 
+                      src={article.featuredImage} 
+                      alt={article.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Image className="h-12 w-12 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="absolute top-2 left-2">
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(article.status)}`}>
+                      {getStatusIcon(article.status)}
+                      {article.status}
+                    </span>
+                  </div>
+                  <div className="absolute top-2 right-2">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      article.locale === 'en' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                    }`}>
+                      {article.locale.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                    {article.title}
+                  </h3>
+                  {article.titleAr && article.titleAr !== article.title && (
+                    <h4 className="text-sm text-gray-600 mb-2 line-clamp-2">
+                      {article.titleAr}
+                    </h4>
+                  )}
+                  
+                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+                    <span className="flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      SEO: {article.seoScore}%
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Eye className="h-3 w-3" />
+                      {article.views} views
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mb-3">
+                    {article.tags.map((tag) => (
+                      <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        {article.author}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {article.updatedAt ? new Date(article.updatedAt).toLocaleDateString() : 'Not updated'}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {article.url && (
+                        <a
+                          href={article.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 text-gray-400 hover:text-gray-600"
+                          title="View Live"
+                        >
+                          <Globe className="h-4 w-4" />
+                        </a>
+                      )}
+                      <button className="p-2 text-gray-400 hover:text-gray-600" title="Edit">
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button className="p-2 text-gray-400 hover:text-gray-600" title="Share">
+                        <Share className="h-4 w-4" />
+                      </button>
+                      <button className="p-2 text-red-400 hover:text-red-600" title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'media' && (
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {mediaAssets.map((asset) => (
+              <div key={asset.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="aspect-square bg-gray-200 relative">
+                  {asset.fileType === 'image' ? (
+                    <img 
+                      src={asset.url} 
+                      alt={asset.altText || asset.originalName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Video className="h-12 w-12 text-gray-400" />
+                    </div>
+                  )}
+                  <div className="absolute top-2 right-2">
+                    <span className="px-2 py-1 bg-black bg-opacity-50 text-white text-xs rounded">
+                      {asset.fileType}
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="p-4">
+                  <h3 className="text-sm font-medium text-gray-900 mb-2 line-clamp-2">
+                    {asset.originalName}
+                  </h3>
+                  
+                  <div className="text-xs text-gray-600 mb-3">
+                    <div>{asset.width} × {asset.height}</div>
+                    <div>{(asset.fileSize / 1024 / 1024).toFixed(1)} MB</div>
+                    <div>Used {asset.usageCount} times</div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mb-3">
+                    {asset.tags.map((tag) => (
+                      <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-gray-500">
+                      {new Date(asset.createdAt).toLocaleDateString()}
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button className="p-1 text-gray-400 hover:text-gray-600" title="View">
+                        <Eye className="h-3 w-3" />
+                      </button>
+                      <button className="p-1 text-gray-400 hover:text-gray-600" title="Download">
+                        <Download className="h-3 w-3" />
+                      </button>
+                      <button className="p-1 text-gray-400 hover:text-gray-600" title="Edit">
+                        <Edit className="h-3 w-3" />
+                      </button>
+                      <button className="p-1 text-red-400 hover:text-red-600" title="Delete">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'preview' && (
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Social Media Preview</h2>
+          <p className="text-gray-600">Social media preview functionality will be implemented here.</p>
+        </div>
+      )}
+
+      {activeTab === 'upload' && (
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload Content</h2>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+            <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Upload Files</h3>
+            <p className="text-gray-600 mb-4">Drag and drop files here, or click to select files</p>
+            <button className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
+              Choose Files
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
-
-  function formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
 }

@@ -1,521 +1,401 @@
 'use client'
 
 import { useState } from 'react'
-import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
-  Target,
-  Plus,
+  Lightbulb, 
+  Plus, 
+  Filter, 
+  Search, 
+  Calendar,
+  Zap,
+  Clock,
+  CheckCircle,
+  AlertCircle,
   Edit,
   Trash2,
-  Search,
-  Filter,
-  Calendar,
-  TrendingUp,
-  Eye,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  Zap,
-  Bot,
-  Save,
-  X
+  ArrowUp,
+  ArrowDown,
+  GripVertical
 } from 'lucide-react'
-import { toast } from 'sonner'
 
-interface Topic {
-  id: string
-  title: string
-  description: string
-  category: string
-  keywords: string[]
-  status: 'draft' | 'approved' | 'in-progress' | 'published'
-  priority: 'low' | 'medium' | 'high'
-  createdAt: string
-  updatedAt: string
-  aiGenerated: boolean
-  seoScore?: number
-  targetAudience: string
-  estimatedWordCount: number
-}
-
-interface Category {
-  id: string
-  name: string
-  description: string
-  color: string
-  topicCount: number
-}
-
-export default function TopicsManagement() {
-  const [topics, setTopics] = useState<Topic[]>([
-    {
-      id: '1',
-      title: 'Best Rooftop Bars in London',
-      description: 'Discover London\'s most stunning rooftop bars with panoramic city views and exceptional cocktails.',
-      category: 'Food & Dining',
-      keywords: ['rooftop bars', 'london', 'city views', 'cocktails', 'nightlife'],
-      status: 'approved',
-      priority: 'high',
-      createdAt: '2024-01-15',
-      updatedAt: '2024-01-15',
-      aiGenerated: true,
-      seoScore: 89,
-      targetAudience: 'adults, tourists, locals',
-      estimatedWordCount: 1500
-    },
-    {
-      id: '2',
-      title: 'Hidden Food Markets in London',
-      description: 'Explore London\'s secret food markets loved by locals, featuring authentic cuisines and unique vendors.',
-      category: 'Food & Dining',
-      keywords: ['food markets', 'london', 'local food', 'hidden gems', 'street food'],
-      status: 'draft',
-      priority: 'medium',
-      createdAt: '2024-01-14',
-      updatedAt: '2024-01-14',
-      aiGenerated: true,
-      seoScore: 92,
-      targetAudience: 'food lovers, locals, tourists',
-      estimatedWordCount: 1800
-    },
-    {
-      id: '3',
-      title: 'London\'s Best Free Museums',
-      description: 'A comprehensive guide to London\'s world-class museums that offer free admission.',
-      category: 'Culture & Arts',
-      keywords: ['museums', 'london', 'free admission', 'culture', 'art'],
-      status: 'in-progress',
-      priority: 'high',
-      createdAt: '2024-01-13',
-      updatedAt: '2024-01-15',
-      aiGenerated: false,
-      seoScore: 85,
-      targetAudience: 'tourists, culture enthusiasts, families',
-      estimatedWordCount: 2000
-    }
-  ])
-
-  const [categories, setCategories] = useState<Category[]>([
-    { id: '1', name: 'Food & Dining', description: 'Restaurants, cafes, food markets, and dining experiences', color: '#EF4444', topicCount: 12 },
-    { id: '2', name: 'Culture & Arts', description: 'Museums, galleries, theaters, and cultural attractions', color: '#8B5CF6', topicCount: 8 },
-    { id: '3', name: 'Travel & Tourism', description: 'Attractions, tours, and travel tips', color: '#06B6D4', topicCount: 15 },
-    { id: '4', name: 'Events & Entertainment', description: 'Concerts, festivals, and entertainment venues', color: '#10B981', topicCount: 6 },
-    { id: '5', name: 'Shopping & Lifestyle', description: 'Shopping districts, markets, and lifestyle content', color: '#F59E0B', topicCount: 9 }
-  ])
-
-  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null)
-  const [isCreatingTopic, setIsCreatingTopic] = useState(false)
-  const [isCreatingCategory, setIsCreatingCategory] = useState(false)
+export default function TopicsPipeline() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'approved' | 'in-progress' | 'published'>('all')
-  const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterLocale, setFilterLocale] = useState('all')
+  const [filterPriority, setFilterPriority] = useState('all')
+  const [filterStatus, setFilterStatus] = useState('all')
+
+  const topics = [
+    {
+      id: 1,
+      title: 'Best Luxury Hotels in Mayfair',
+      locale: 'en',
+      pageType: 'guide',
+      primaryKeyword: 'luxury hotels mayfair',
+      longTail1: 'best luxury hotels mayfair london',
+      longTail2: '5 star hotels mayfair london',
+      authorityLink1: 'https://www.timeout.com/london/hotels/best-luxury-hotels-mayfair',
+      authorityLink2: 'https://www.cntraveler.com/gallery/best-hotels-mayfair-london',
+      authorityLink3: 'https://www.telegraph.co.uk/travel/destinations/europe/united-kingdom/england/london/hotels/mayfair/',
+      authorityLink4: 'https://www.condenasttraveler.com/gallery/best-hotels-mayfair-london',
+      priority: 0, // P0
+      isEvergreen: true,
+      isSeasonal: false,
+      plannedGenerationTime: '2024-01-15T10:00:00Z',
+      status: 'scheduled'
+    },
+    {
+      id: 2,
+      title: 'أفضل المطاعم العربية في لندن',
+      locale: 'ar',
+      pageType: 'guide',
+      primaryKeyword: 'مطاعم عربية لندن',
+      longTail1: 'أفضل المطاعم العربية في لندن 2024',
+      longTail2: 'مطاعم عربية حلال في لندن',
+      authorityLink1: 'https://www.timeout.com/london/restaurants/best-arabic-restaurants',
+      authorityLink2: 'https://www.cntraveler.com/gallery/best-middle-eastern-restaurants-london',
+      authorityLink3: 'https://www.telegraph.co.uk/travel/destinations/europe/united-kingdom/england/london/restaurants/arabic/',
+      authorityLink4: null,
+      priority: 1, // P1
+      isEvergreen: true,
+      isSeasonal: false,
+      plannedGenerationTime: '2024-01-15T14:00:00Z',
+      status: 'scheduled'
+    },
+    {
+      id: 3,
+      title: 'Chelsea FC Stadium Tour Guide',
+      locale: 'en',
+      pageType: 'event',
+      primaryKeyword: 'chelsea stadium tour',
+      longTail1: 'chelsea fc stadium tour london',
+      longTail2: 'stamford bridge tour tickets',
+      authorityLink1: 'https://www.chelseafc.com/en/stadium-tours',
+      authorityLink2: 'https://www.timeout.com/london/attractions/chelsea-fc-stadium-tour',
+      authorityLink3: 'https://www.visitlondon.com/things-to-do/place/281311-stamford-bridge',
+      authorityLink4: 'https://www.londonpass.com/london-attractions/stamford-bridge-tour.html',
+      priority: 2, // P2
+      isEvergreen: false,
+      isSeasonal: true,
+      plannedGenerationTime: '2024-01-16T09:00:00Z',
+      status: 'pending'
+    },
+    {
+      id: 4,
+      title: 'London Shopping Guide 2024',
+      locale: 'en',
+      pageType: 'guide',
+      primaryKeyword: 'london shopping guide',
+      longTail1: 'best shopping areas london 2024',
+      longTail2: 'london shopping districts guide',
+      authorityLink1: 'https://www.timeout.com/london/shopping/best-shopping-areas',
+      authorityLink2: 'https://www.cntraveler.com/gallery/best-shopping-london',
+      authorityLink3: 'https://www.telegraph.co.uk/travel/destinations/europe/united-kingdom/england/london/shopping/',
+      authorityLink4: 'https://www.visitlondon.com/things-to-do/shopping',
+      priority: 3, // P3
+      isEvergreen: true,
+      isSeasonal: false,
+      plannedGenerationTime: null,
+      status: 'pending'
+    }
+  ]
+
+  const getPriorityColor = (priority: number) => {
+    switch (priority) {
+      case 0: return 'bg-red-100 text-red-800'
+      case 1: return 'bg-orange-100 text-orange-800'
+      case 2: return 'bg-yellow-100 text-yellow-800'
+      case 3: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getPriorityLabel = (priority: number) => {
+    return `P${priority}`
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'scheduled': return 'bg-blue-100 text-blue-800'
+      case 'pending': return 'bg-gray-100 text-gray-800'
+      case 'generating': return 'bg-yellow-100 text-yellow-800'
+      case 'completed': return 'bg-green-100 text-green-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
 
   const filteredTopics = topics.filter(topic => {
     const matchesSearch = topic.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         topic.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         topic.keywords.some(keyword => keyword.toLowerCase().includes(searchTerm.toLowerCase()))
+                         topic.primaryKeyword.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesLocale = filterLocale === 'all' || topic.locale === filterLocale
+    const matchesPriority = filterPriority === 'all' || topic.priority.toString() === filterPriority
     const matchesStatus = filterStatus === 'all' || topic.status === filterStatus
-    const matchesCategory = filterCategory === 'all' || topic.category === filterCategory
-    return matchesSearch && matchesStatus && matchesCategory
+    
+    return matchesSearch && matchesLocale && matchesPriority && matchesStatus
   })
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return <Badge className="bg-gray-500">Draft</Badge>
-      case 'approved':
-        return <Badge className="bg-green-500">Approved</Badge>
-      case 'in-progress':
-        return <Badge className="bg-blue-500">In Progress</Badge>
-      case 'published':
-        return <Badge className="bg-purple-500">Published</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
-  }
-
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case 'high':
-        return <Badge className="bg-red-500">High</Badge>
-      case 'medium':
-        return <Badge className="bg-yellow-500">Medium</Badge>
-      case 'low':
-        return <Badge className="bg-green-500">Low</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return <Clock className="h-4 w-4 text-gray-500" />
-      case 'approved':
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case 'in-progress':
-        return <Zap className="h-4 w-4 text-blue-500" />
-      case 'published':
-        return <Eye className="h-4 w-4 text-purple-500" />
-      default:
-        return <AlertTriangle className="h-4 w-4 text-gray-500" />
-    }
-  }
-
-  const createNewTopic = async (topicData: Omit<Topic, 'id' | 'createdAt' | 'updatedAt'>) => {
-    try {
-      const newTopic: Topic = {
-        ...topicData,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString().split('T')[0],
-        updatedAt: new Date().toISOString().split('T')[0]
-      }
-      
-      setTopics(prev => [newTopic, ...prev])
-      setIsCreatingTopic(false)
-      toast.success('Topic created successfully!')
-    } catch (error) {
-      toast.error('Failed to create topic')
-    }
-  }
-
-  const updateTopicStatus = async (topicId: string, newStatus: Topic['status']) => {
-    try {
-      setTopics(prev => prev.map(topic => 
-        topic.id === topicId 
-          ? { ...topic, status: newStatus, updatedAt: new Date().toISOString().split('T')[0] }
-          : topic
-      ))
-      toast.success('Topic status updated!')
-    } catch (error) {
-      toast.error('Failed to update topic status')
-    }
-  }
-
-  const deleteTopic = async (topicId: string) => {
-    try {
-      setTopics(prev => prev.filter(topic => topic.id !== topicId))
-      setSelectedTopic(null)
-      toast.success('Topic deleted successfully!')
-    } catch (error) {
-      toast.error('Failed to delete topic')
-    }
-  }
-
   return (
-    <PremiumAdminLayout>
-      <div>
+    <div>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <Target className="h-8 w-8 text-purple-500" />
-                Topics Management
-              </h1>
-              <p className="text-gray-600 mt-1">Create, manage, and organize your content topics</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={() => setIsCreatingCategory(true)}
-                variant="outline"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                New Category
-              </Button>
-              <Button
-                onClick={() => setIsCreatingTopic(true)}
-                className="bg-purple-500 hover:bg-purple-600"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                New Topic
-              </Button>
-            </div>
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <Lightbulb className="h-8 w-8 text-yellow-500" />
+              Topics & Pipeline
+            </h1>
+            <p className="text-gray-600 mt-1">Priority, queue, Generate Now</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors">
+              <Zap className="h-4 w-4" />
+              Generate More Topics
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors">
+              <Plus className="h-4 w-4" />
+              Add Topic
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <Tabs defaultValue="topics" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="topics">Topics</TabsTrigger>
-            <TabsTrigger value="categories">Categories</TabsTrigger>
-          </TabsList>
+      {/* Filters */}
+      <div className="bg-white p-6 rounded-lg border border-gray-200 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search topics..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent w-full"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Locale</label>
+            <select
+              value={filterLocale}
+              onChange={(e) => setFilterLocale(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+            >
+              <option value="all">All Locales</option>
+              <option value="en">English</option>
+              <option value="ar">Arabic</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+            <select
+              value={filterPriority}
+              onChange={(e) => setFilterPriority(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+            >
+              <option value="all">All Priorities</option>
+              <option value="0">P0 - Critical</option>
+              <option value="1">P1 - High</option>
+              <option value="2">P2 - Medium</option>
+              <option value="3">P3 - Low</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+            >
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="generating">Generating</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+        </div>
+      </div>
 
-          {/* Topics Tab */}
-          <TabsContent value="topics" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Topics List */}
-              <div className="space-y-4">
-                {/* Search and Filter */}
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Search topics..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value as any)}
-                    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="draft">Draft</option>
-                    <option value="approved">Approved</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="published">Published</option>
-                  </select>
-                  <select
-                    value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
-                    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="all">All Categories</option>
-                    {categories.map(category => (
-                      <option key={category.id} value={category.name}>{category.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Topics List */}
-                <div className="space-y-3">
-                  {filteredTopics.map((topic) => (
-                    <Card 
-                      key={topic.id} 
-                      className={`cursor-pointer transition-all ${
-                        selectedTopic?.id === topic.id ? 'ring-2 ring-purple-500' : 'hover:shadow-md'
-                      }`}
-                      onClick={() => setSelectedTopic(topic)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              {getStatusIcon(topic.status)}
-                              <h4 className="font-medium text-gray-900">{topic.title}</h4>
-                              {getStatusBadge(topic.status)}
-                              {getPriorityBadge(topic.priority)}
-                            </div>
-                            <p className="text-sm text-gray-600 mb-2">{topic.description}</p>
-                            <div className="flex items-center gap-4 text-xs text-gray-500">
-                              <span>Category: {topic.category}</span>
-                              <span>Words: {topic.estimatedWordCount}</span>
-                              {topic.seoScore && <span>SEO: {topic.seoScore}/100</span>}
-                            </div>
-                            <div className="flex items-center gap-2 mt-2">
-                              {topic.keywords.slice(0, 3).map((keyword) => (
-                                <Badge key={keyword} variant="outline" className="text-xs">
-                                  {keyword}
-                                </Badge>
-                              ))}
-                              {topic.keywords.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{topic.keywords.length - 3} more
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                updateTopicStatus(topic.id, 'approved')
-                              }}
-                            >
-                              <CheckCircle className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedTopic(topic)
-                              }}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                deleteTopic(topic.id)
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-
-              {/* Topic Details */}
-              <div>
-                {selectedTopic ? (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Target className="h-5 w-5" />
-                        Topic Details
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+      {/* Topics Table */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Topics ({filteredTopics.length})</h2>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Topic
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Locale
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Priority
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Scheduled Time
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredTopics.map((topic) => (
+                <tr key={topic.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <GripVertical className="h-4 w-4 text-gray-400 mr-2 cursor-move" />
                       <div>
-                        <h3 className="text-xl font-bold">{selectedTopic.title}</h3>
+                        <div className="text-sm font-medium text-gray-900">{topic.title}</div>
+                        <div className="text-sm text-gray-500 mb-1">
+                          <span className="font-medium">Primary:</span> {topic.primaryKeyword}
+                        </div>
+                        <div className="text-xs text-gray-600 mb-1">
+                          <span className="font-medium">Longtails:</span> {topic.longTail1}, {topic.longTail2}
+                        </div>
                         <div className="flex items-center gap-2 mt-1">
-                          {getStatusBadge(selectedTopic.status)}
-                          {getPriorityBadge(selectedTopic.priority)}
-                          {selectedTopic.aiGenerated && (
-                            <Badge className="bg-blue-500">
-                              <Bot className="h-3 w-3 mr-1" />
-                              AI Generated
-                            </Badge>
+                          <span className="text-xs text-gray-500">{topic.pageType}</span>
+                          {topic.isEvergreen && (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                              Evergreen
+                            </span>
+                          )}
+                          {topic.isSeasonal && (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                              Seasonal
+                            </span>
                           )}
                         </div>
                       </div>
-
-                      <div>
-                        <Label>Description</Label>
-                        <Textarea value={selectedTopic.description} readOnly rows={3} />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Category</Label>
-                          <Input value={selectedTopic.category} readOnly />
-                        </div>
-                        <div>
-                          <Label>Target Audience</Label>
-                          <Input value={selectedTopic.targetAudience} readOnly />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Estimated Word Count</Label>
-                          <Input value={selectedTopic.estimatedWordCount.toString()} readOnly />
-                        </div>
-                        <div>
-                          <Label>SEO Score</Label>
-                          <Input value={selectedTopic.seoScore ? `${selectedTopic.seoScore}/100` : 'Not calculated'} readOnly />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>Keywords</Label>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {selectedTopic.keywords.map((keyword) => (
-                            <Badge key={keyword} variant="secondary" className="text-xs">
-                              {keyword}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Created</Label>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Calendar className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">{selectedTopic.createdAt}</span>
-                          </div>
-                        </div>
-                        <div>
-                          <Label>Last Updated</Label>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Calendar className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">{selectedTopic.updatedAt}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => updateTopicStatus(selectedTopic.id, 'approved')}
-                          className="flex-1 bg-green-500 hover:bg-green-600"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Approve
-                        </Button>
-                        <Button
-                          onClick={() => updateTopicStatus(selectedTopic.id, 'in-progress')}
-                          className="flex-1 bg-blue-500 hover:bg-blue-600"
-                        >
-                          <Zap className="h-4 w-4 mr-2" />
-                          Start Writing
-                        </Button>
-                        <Button variant="outline" className="flex-1">
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card>
-                    <CardContent className="p-12 text-center">
-                      <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Topic</h3>
-                      <p className="text-gray-600">Choose a topic from the list to view details and manage it</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Categories Tab */}
-          <TabsContent value="categories" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {categories.map((category) => (
-                <Card key={category.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: category.color }}
-                      />
-                      <h3 className="text-lg font-semibold">{category.name}</h3>
                     </div>
-                    <p className="text-sm text-gray-600 mb-4">{category.description}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">{category.topicCount} topics</span>
-                      <div className="flex gap-1">
-                        <Button variant="outline" size="sm">
-                          <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      topic.locale === 'en' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                    }`}>
+                      {topic.locale.toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(topic.priority)}`}>
+                      {getPriorityLabel(topic.priority)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(topic.status)}`}>
+                      {topic.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {topic.plannedGenerationTime ? (
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4 text-gray-400" />
+                        {new Date(topic.plannedGenerationTime).toLocaleDateString()}
+                        <br />
+                        <span className="text-xs text-gray-500">
+                          {new Date(topic.plannedGenerationTime).toLocaleTimeString()}
+                        </span>
                       </div>
+                    ) : (
+                      <span className="text-gray-400">Not scheduled</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center gap-2">
+                      <button className="text-yellow-600 hover:text-yellow-900" title="Generate Now">
+                        <Zap className="h-4 w-4" />
+                      </button>
+                      <button className="text-blue-600 hover:text-blue-900" title="Edit">
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button className="text-gray-600 hover:text-gray-900" title="Change Priority">
+                        <ArrowUp className="h-4 w-4" />
+                      </button>
+                      <button className="text-red-600 hover:text-red-900" title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
-                  </CardContent>
-                </Card>
+                  </td>
+                </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Backlog Counters */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Backlog Counters</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">English Topics</span>
+              <span className="text-sm font-medium text-gray-900">
+                {topics.filter(t => t.locale === 'en').length} topics
+              </span>
             </div>
-          </TabsContent>
-        </Tabs>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Arabic Topics</span>
+              <span className="text-sm font-medium text-gray-900">
+                {topics.filter(t => t.locale === 'ar').length} topics
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Scheduled for Generation</span>
+              <span className="text-sm font-medium text-gray-900">
+                {topics.filter(t => t.status === 'scheduled').length} topics
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Pending Topics</span>
+              <span className="text-sm font-medium text-gray-900">
+                {topics.filter(t => t.status === 'pending').length} topics
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Priority Distribution</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">P0 - Critical</span>
+              <span className="text-sm font-medium text-red-600">
+                {topics.filter(t => t.priority === 0).length} topics
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">P1 - High</span>
+              <span className="text-sm font-medium text-orange-600">
+                {topics.filter(t => t.priority === 1).length} topics
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">P2 - Medium</span>
+              <span className="text-sm font-medium text-yellow-600">
+                {topics.filter(t => t.priority === 2).length} topics
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">P3 - Low</span>
+              <span className="text-sm font-medium text-gray-600">
+                {topics.filter(t => t.priority === 3).length} topics
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
-      </div>
-    </PremiumAdminLayout>
+    </div>
   )
 }

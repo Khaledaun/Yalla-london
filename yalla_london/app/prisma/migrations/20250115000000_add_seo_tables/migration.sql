@@ -215,3 +215,4 @@ ALTER TABLE "seo_structured_data" ADD CONSTRAINT "seo_structured_data_pageId_fke
 
 
 
+

@@ -89,3 +89,4 @@ Thumbs.db
 # Package manager lock files (enforce Yarn consistency)
 package-lock.json
 npm-shrinkwrap.json
+.vercel

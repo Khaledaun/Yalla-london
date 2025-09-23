@@ -81,6 +81,10 @@ export default function SiteControl() {
   const [isLoading, setIsLoading] = useState(true)
   const [previewMode, setPreviewMode] = useState(false)
   const [selectedBlock, setSelectedBlock] = useState<HomepageBlock | null>(null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [uploadingFavicon, setUploadingFavicon] = useState(false)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [faviconPreview, setFaviconPreview] = useState<string | null>(null)
 
   useEffect(() => {
     loadSiteData()
@@ -244,6 +248,122 @@ export default function SiteControl() {
       // API call to save blocks and config
     } catch (error) {
       console.error('Failed to save homepage:', error)
+    }
+  }
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB')
+      return
+    }
+
+    setUploadingLogo(true)
+
+    try {
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setLogoPreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+
+      // Create FormData for upload
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'logo')
+
+      // Upload to API
+      const response = await fetch('/api/admin/media/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        alert(`Logo uploaded successfully! URL: ${result.url}`)
+        
+        // Update site config
+        setSiteConfig(prev => prev ? {
+          ...prev,
+          logo_url: result.url
+        } : null)
+      } else {
+        const error = await response.json()
+        alert(`Upload failed: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Logo upload error:', error)
+      alert('Failed to upload logo. Please try again.')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  const handleFaviconUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+
+    // Validate file size (max 1MB for favicon)
+    if (file.size > 1 * 1024 * 1024) {
+      alert('Favicon size must be less than 1MB')
+      return
+    }
+
+    setUploadingFavicon(true)
+
+    try {
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setFaviconPreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+
+      // Create FormData for upload
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'favicon')
+
+      // Upload to API
+      const response = await fetch('/api/admin/media/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        alert(`Favicon uploaded successfully! URL: ${result.url}`)
+        
+        // Update site config
+        setSiteConfig(prev => prev ? {
+          ...prev,
+          favicon_url: result.url
+        } : null)
+      } else {
+        const error = await response.json()
+        alert(`Upload failed: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Favicon upload error:', error)
+      alert('Failed to upload favicon. Please try again.')
+    } finally {
+      setUploadingFavicon(false)
     }
   }
 
@@ -617,16 +737,24 @@ export default function SiteControl() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Site Logo</label>
                   <div className="flex items-center gap-3">
-                    <div className="w-16 h-16 bg-gray-100 border border-gray-300 rounded-lg flex items-center justify-center">
-                      <Image className="h-8 w-8 text-gray-400" />
+                    <div className="w-16 h-16 bg-gray-100 border border-gray-300 rounded-lg flex items-center justify-center overflow-hidden">
+                      {logoPreview ? (
+                        <img src={logoPreview} alt="Logo preview" className="w-full h-full object-contain" />
+                      ) : (
+                        <Image className="h-8 w-8 text-gray-400" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <input
                         type="file"
                         accept="image/*"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        onChange={handleLogoUpload}
+                        disabled={uploadingLogo}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Recommended: 200x60px, PNG or SVG</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {uploadingLogo ? 'Uploading...' : 'Recommended: 200x60px, PNG or SVG'}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -634,16 +762,24 @@ export default function SiteControl() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Favicon</label>
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gray-100 border border-gray-300 rounded-lg flex items-center justify-center">
-                      <Image className="h-4 w-4 text-gray-400" />
+                    <div className="w-8 h-8 bg-gray-100 border border-gray-300 rounded-lg flex items-center justify-center overflow-hidden">
+                      {faviconPreview ? (
+                        <img src={faviconPreview} alt="Favicon preview" className="w-full h-full object-contain" />
+                      ) : (
+                        <Image className="h-4 w-4 text-gray-400" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <input
                         type="file"
                         accept="image/*"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        onChange={handleFaviconUpload}
+                        disabled={uploadingFavicon}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Recommended: 32x32px, ICO or PNG</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {uploadingFavicon ? 'Uploading...' : 'Recommended: 32x32px, ICO or PNG'}
+                      </p>
                     </div>
                   </div>
                 </div>

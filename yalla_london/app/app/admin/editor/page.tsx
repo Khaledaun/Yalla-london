@@ -151,27 +151,58 @@ Each hotel's unique character and world-class amenities ensure that your visit t
     }, 3000)
   }
 
-  const handleSave = () => {
-    // Simulate saving
-    console.log('Saving article...', {
-      title,
-      titleAr,
-      slug,
-      locale,
-      pageType,
-      primaryKeyword,
-      longTail1,
-      longTail2,
-      authorityLink1,
-      authorityLink2,
-      authorityLink3,
-      authorityLink4,
-      excerpt,
-      tags,
-      content,
-      ogImage,
-      ogVideo
-    })
+  const handleSave = async () => {
+    if (!content) {
+      alert('Please add some content before saving')
+      return
+    }
+
+    if (!title) {
+      alert('Please add a title before saving')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/admin/editor/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          titleAr,
+          slug,
+          locale,
+          pageType,
+          primaryKeyword,
+          longTail1,
+          longTail2,
+          authorityLink1,
+          authorityLink2,
+          authorityLink3,
+          authorityLink4,
+          excerpt,
+          tags,
+          content,
+          ogImage,
+          ogVideo,
+          seoScore
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        alert(`Article saved successfully! ID: ${result.id}`)
+        console.log('Article saved:', result)
+      } else {
+        const error = await response.json()
+        alert(`Failed to save article: ${error.error || 'Unknown error'}`)
+        console.error('Save error:', error)
+      }
+    } catch (error) {
+      console.error('Error saving article:', error)
+      alert('Failed to save article. Please try again.')
+    }
   }
 
   const handleAiReview = async () => {

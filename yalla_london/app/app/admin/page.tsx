@@ -83,6 +83,13 @@ export default function AdminCommandCenter() {
       color: 'bg-gray-500 hover:bg-gray-600'
     },
     {
+      title: 'Automation Pipeline',
+      description: 'Monitor cron jobs and automation',
+      icon: Zap,
+      href: '/admin/pipeline',
+      color: 'bg-blue-500 hover:bg-blue-600'
+    },
+    {
       title: 'Customize Theme',
       description: 'Update site colors and fonts',
       icon: Settings,

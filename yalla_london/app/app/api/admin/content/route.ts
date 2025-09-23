@@ -8,6 +8,7 @@ import { cacheService } from '@/lib/cache-invalidation';
 import { enhancedSync } from '@/lib/enhanced-sync';
 import { autoSEOService } from '@/lib/seo/auto-seo-service';
 import { isSEOEnabled } from '@/lib/flags';
+import { withAdminAuth } from '@/lib/admin-middleware';
 import { z } from 'zod';
 
 // Validation schema for blog post data
@@ -34,7 +35,7 @@ const BlogPostSchema = z.object({
 });
 
 // CREATE - New blog post
-export async function POST(request: NextRequest) {
+export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
     
@@ -147,10 +148,10 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 // UPDATE - Existing blog post
-export async function PUT(request: NextRequest) {
+export const PUT = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { id, ...updateData } = body;
@@ -297,10 +298,10 @@ export async function PUT(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 // DELETE - Blog post
-export async function DELETE(request: NextRequest) {
+export const DELETE = withAdminAuth(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -359,10 +360,10 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 // GET - List all posts for admin (includes unpublished)
-export async function GET(request: NextRequest) {
+export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -434,4 +435,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

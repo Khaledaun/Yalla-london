@@ -65,3 +65,4 @@ CREATE TRIGGER update_seo_meta_updated_at
 
 
 
+

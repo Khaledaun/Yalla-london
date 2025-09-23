@@ -67,34 +67,30 @@ try {
     }
     
 } catch (error) {
-    console.log('⚠️  Prisma client generation failed, using fallback types...');
+    console.log('⚠️  Prisma client generation failed, using mock client...');
     
-    // Create fallback type definitions if Prisma client generation fails
-    const fallbackTypesPath = path.join(__dirname, '..', 'types', 'prisma-fallback.d.ts');
-    const fallbackTypesContent = `
-// Fallback Prisma types for build compatibility
-declare module '@prisma/client' {
-  export interface PrismaClient {
-    $connect(): Promise<void>;
-    $disconnect(): Promise<void>;
-    $executeRaw(...args: any[]): Promise<any>;
-    $queryRaw(...args: any[]): Promise<any>;
-    [key: string]: any;
-  }
-  
-  export class PrismaClient {
-    constructor(options?: any);
-  }
-  
-  export * from './types/global';
+    // Create mock Prisma client for build compatibility
+    const mockClientPath = path.join(__dirname, '..', 'lib', 'mock-prisma.ts');
+    const mockClientContent = `// Mock Prisma client for build compatibility
+export const mockPrismaClient = {
+  user: { findMany: () => Promise.resolve([]), findUnique: () => Promise.resolve(null), create: () => Promise.resolve({}), update: () => Promise.resolve({}), delete: () => Promise.resolve({}) },
+  blogPost: { findMany: () => Promise.resolve([]), findUnique: () => Promise.resolve(null), create: () => Promise.resolve({}), update: () => Promise.resolve({}), delete: () => Promise.resolve({}) },
+  topicProposal: { findMany: () => Promise.resolve([]), findUnique: () => Promise.resolve(null), create: () => Promise.resolve({}), update: () => Promise.resolve({}), delete: () => Promise.resolve({}) },
+  scheduledContent: { findMany: () => Promise.resolve([]), findUnique: () => Promise.resolve(null), create: () => Promise.resolve({}), update: () => Promise.resolve({}), delete: () => Promise.resolve({}) },
+  mediaEnrichment: { findMany: () => Promise.resolve([]), findUnique: () => Promise.resolve(null), create: () => Promise.resolve({}), update: () => Promise.resolve({}), delete: () => Promise.resolve({}) },
+  seoAuditResult: { findMany: () => Promise.resolve([]), findUnique: () => Promise.resolve(null), create: () => Promise.resolve({}), update: () => Promise.resolve({}), delete: () => Promise.resolve({}) },
+  analyticsSnapshot: { findMany: () => Promise.resolve([]), findUnique: () => Promise.resolve(null), create: () => Promise.resolve({}), update: () => Promise.resolve({}), delete: () => Promise.resolve({}) },
+  $connect: () => Promise.resolve(),
+  $disconnect: () => Promise.resolve(),
+  $transaction: (fn: any) => fn(mockPrismaClient),
 }
-`;
+export default mockPrismaClient`;
     
     try {
-        fs.writeFileSync(fallbackTypesPath, fallbackTypesContent);
-        console.log('✅ Fallback types created');
+        fs.writeFileSync(mockClientPath, mockClientContent);
+        console.log('✅ Mock Prisma client created');
     } catch (writeError) {
-        console.log('⚠️  Could not create fallback types:', writeError.message);
+        console.log('⚠️  Could not create mock client:', writeError.message);
     }
     
     // Clean up execution marker on failure too

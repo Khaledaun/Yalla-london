@@ -38,7 +38,8 @@
     "phase4a:test2c": "bash -c 'set -e; if [ -f \"yalla_london/app/.env\" ] && [ -d \"yalla_london/app/prisma\" ]; then APP_DIR=\"yalla_london/app\"; elif [ -f \".env\" ] && [ -d \"prisma\" ]; then APP_DIR=\".\"; else echo \"❌ run from repo root or app dir\"; exit 1; fi; ENV_FILE=\"$APP_DIR/.env\"; DIRECT_URL=$(sed -n \"s/^DIRECT_URL=//p\" \"$ENV_FILE\" | tail -n1); command -v psql >/dev/null || (sudo apt-get update -y && sudo apt-get install -y postgresql-client); psql \"$DIRECT_URL\" -c \"select 1;\"; psql \"$DIRECT_URL\" -c \"select count(*) from \\\"Place\\\";\"; psql \"$DIRECT_URL\" -c \"select type, count(*) from \\\"PageTypeRecipe\\\" group by 1 order by 1;\"; psql \"$DIRECT_URL\" -c \"select version, is_active from \\\"RulebookVersion\\\" order by created_at desc limit 1;\"'"
   },
   "prisma": {
-    "seed": "tsx --require dotenv/config scripts/seed.ts"
+    "seed": "tsx --require dotenv/config scripts/seed.ts",
+    "schema": "prisma/schema.prisma"
   },
   "devDependencies": {
     "@next/swc-wasm-nodejs": "13.5.1",

@@ -6,10 +6,12 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="fixed inset-0 bg-gray-50 z-50">
+    <div className="min-h-screen bg-gray-50">
       <AdminNavigation />
-      <div className="lg:ml-64 h-full overflow-auto">
-        {children}
+      <div className="lg:ml-64">
+        <div className="p-6">
+          {children}
+        </div>
       </div>
     </div>
   )

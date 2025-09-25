@@ -57,6 +57,8 @@
     "playwright/**",
     "e2e",
     "tests",
+    "test/**",
+    "vitest.config.ts",
     "**/*.spec.ts",
     "**/*.spec.tsx",
     "**/*.test.ts",

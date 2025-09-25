@@ -1,47 +1,38 @@
-import { NextResponse } from 'next/server';
+/**
+ * Health Check Endpoint
+ * Basic health status for monitoring
+ */
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+import { NextRequest, NextResponse } from 'next/server';
+import { checkDatabaseHealth } from '@/lib/database';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const healthData = {
-      ok: true,
-      version: process.env.npm_package_version || '1.0.0',
+    // Check database health
+    const dbHealth = await checkDatabaseHealth();
+    
+    const health = {
+      status: 'ok',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
-      uptime: process.uptime(),
-      memory: {
-        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
+      database: {
+        connected: dbHealth.connected,
+        status: dbHealth.migrateStatus
       },
-      services: {
-        database: 'unknown', // Will be checked by SEO health endpoint
-        seo: 'unknown'
-      }
+      environment: process.env.NODE_ENV || 'development'
     };
 
-    return NextResponse.json(healthData, { 
-      status: 200,
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-    });
-  } catch (error: any) {
+    return NextResponse.json(health, { status: 200 });
+    
+  } catch (error) {
+    console.error('Health check failed:', error);
+    
     return NextResponse.json(
       {
-        ok: false,
-        error: error.message,
-        timestamp: new Date().toISOString()
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error'
       },
-      { 
-        status: 500,
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        }
-      }
+      { status: 500 }
     );
   }
 }

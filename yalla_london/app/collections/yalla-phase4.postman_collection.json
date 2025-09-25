@@ -1,0 +1,390 @@
+{
+  "info": {
+    "name": "Yalla London Phase-4 API Tests",
+    "description": "Comprehensive API tests for Phase-4C readiness",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Health check returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Health check returns status ok', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql('ok');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Phase-4 Status (Unauthenticated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/phase4/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "phase4", "status"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Phase-4 status returns 401 when unauthenticated', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Phase-4 Status (Authenticated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/phase4/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "phase4", "status"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Phase-4 status returns 200 when authenticated', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Phase-4 status contains required fields', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('db');",
+                  "    pm.expect(jsonData).to.have.property('featureFlags');",
+                  "    pm.expect(jsonData).to.have.property('version');",
+                  "    pm.expect(jsonData).to.have.property('storage');",
+                  "});",
+                  "",
+                  "pm.test('All feature flags are OFF by default', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.featureFlags.FEATURE_AI_SEO_AUDIT).to.eql(0);",
+                  "    pm.expect(jsonData.featureFlags.FEATURE_CONTENT_PIPELINE).to.eql(0);",
+                  "    pm.expect(jsonData.featureFlags.FEATURE_WP_CONNECTOR).to.eql(0);",
+                  "    pm.expect(jsonData.featureFlags.FEATURE_WHITE_LABEL).to.eql(0);",
+                  "    pm.expect(jsonData.featureFlags.FEATURE_BACKLINK_OFFERS).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/signin",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "signin"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.token) {",
+                  "        pm.environment.set('admin_token', jsonData.token);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Articles CRUD",
+      "item": [
+        {
+          "name": "Create Article (Unauthenticated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Article\",\n  \"content\": \"This is test content\",\n  \"slug\": \"test-article\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/editor/save",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "editor", "save"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create article returns 401 when unauthenticated', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Article (Authenticated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test Article {{$timestamp}}\",\n  \"content\": \"This is test content for API testing\",\n  \"slug\": \"test-article-{{$timestamp}}\",\n  \"locale\": \"en\",\n  \"pageType\": \"guide\",\n  \"primaryKeyword\": \"test keyword\",\n  \"excerpt\": \"Test excerpt\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/editor/save",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "editor", "save"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Create article returns 200 when authenticated', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Create article returns success response', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.expect(jsonData.data).to.have.property('title');",
+                  "    pm.expect(jsonData.data).to.have.property('slug');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.environment.set('created_article_id', jsonData.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Articles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/articles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "articles"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get articles returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Get articles returns array', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('articles');",
+                  "    pm.expect(jsonData.articles).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Media Upload",
+      "item": [
+        {
+          "name": "Upload Media (Unauthenticated)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "test-image.png"
+                },
+                {
+                  "key": "type",
+                  "value": "logo",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/media/upload",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "media", "upload"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Upload media returns 401 when unauthenticated', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload Media (Authenticated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "test-image.png"
+                },
+                {
+                  "key": "type",
+                  "value": "logo",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/media/upload",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "media", "upload"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Upload media returns 200 when authenticated', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Upload media returns success response', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData.data).to.have.property('filename');",
+                  "    pm.expect(jsonData.data).to.have.property('url');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@test.com"
+    },
+    {
+      "key": "admin_password",
+      "value": "testpassword"
+    }
+  ]
+}

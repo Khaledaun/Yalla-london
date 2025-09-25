@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
+import { withAdminAuth } from '@/lib/admin-middleware'
+import { getPrismaClient } from '@/lib/database'
 
-export async function POST(request: NextRequest) {
+export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -53,55 +55,27 @@ export async function POST(request: NextRequest) {
     // Generate public URL
     const publicUrl = `/uploads/${filename}`
 
-    // Also save to database for tracking
+    // Save to database using Prisma
     try {
-      const { Client } = require('pg')
-      const client = new Client({
-        connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false }
-      })
-
-      await client.connect()
-
-      // Create media_assets table if it doesn't exist
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS media_assets (
-          id SERIAL PRIMARY KEY,
-          filename VARCHAR(255) NOT NULL,
-          original_name VARCHAR(255) NOT NULL,
-          file_path VARCHAR(500) NOT NULL,
-          file_url VARCHAR(500) NOT NULL,
-          file_type VARCHAR(100) NOT NULL,
-          file_size INTEGER NOT NULL,
-          mime_type VARCHAR(100) NOT NULL,
-          asset_type VARCHAR(50) DEFAULT 'image',
-          is_video BOOLEAN DEFAULT FALSE,
-          is_hero_video BOOLEAN DEFAULT FALSE,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `)
-
-      // Insert media asset record
-      await client.query(`
-        INSERT INTO media_assets (
-          filename, original_name, file_path, file_url, file_type, file_size, mime_type, asset_type
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [
-        filename,
-        file.name,
-        filepath,
-        publicUrl,
-        type,
-        file.size,
-        file.type,
-        'image'
-      ])
-
-      await client.end()
+      const prisma = getPrismaClient();
+      
+      await prisma.mediaAsset.create({
+        data: {
+          filename: filename,
+          originalName: file.name,
+          filePath: filepath,
+          fileUrl: publicUrl,
+          fileType: type,
+          fileSize: file.size,
+          mimeType: file.type,
+          assetType: 'image',
+          isVideo: false,
+          isHeroVideo: type === 'hero-video'
+        }
+      });
     } catch (dbError) {
-      console.warn('Failed to save media asset to database:', dbError)
-      // Continue even if database save fails
+      console.error('Failed to save media asset to database:', dbError);
+      // Continue even if database save fails, but log the error
     }
 
     return NextResponse.json({
@@ -127,4 +101,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+});

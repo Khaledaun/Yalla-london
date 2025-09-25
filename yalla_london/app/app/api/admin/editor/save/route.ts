@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withAdminAuth } from '@/lib/admin-middleware'
+import { getPrismaClient } from '@/lib/database'
 
-export async function POST(request: NextRequest) {
+export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json()
     
@@ -41,61 +43,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // For now, let's create a simple file-based storage to verify the save works
-    // This will be replaced with proper database storage once we confirm the flow works
-    const fs = require('fs').promises
-    const path = require('path')
-    
-    // Create a simple JSON file to store articles
-    const articlesDir = path.join(process.cwd(), 'data')
-    const articlesFile = path.join(articlesDir, 'articles.json')
-    
-    try {
-      await fs.mkdir(articlesDir, { recursive: true })
-    } catch (error) {
-      // Directory might already exist
+    // Guard against JSON storage in production
+    if (process.env.NODE_ENV === 'production' && process.env.DEV_FILE_STORE_ONLY) {
+      throw new Error('JSON file storage is not allowed in production');
     }
+
+    // Use database as single source of truth
+    const prisma = getPrismaClient();
     
-    // Read existing articles
-    let articles = []
-    try {
-      const existingData = await fs.readFile(articlesFile, 'utf8')
-      articles = JSON.parse(existingData)
-    } catch (error) {
-      // File doesn't exist yet, start with empty array
-    }
-    
-    // Create new article
-    const newArticle = {
-      id: Date.now(), // Simple ID generation
-      title: title,
-      titleAr: titleAr || title,
-      slug: slug || title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-'),
-      locale: locale || 'en',
-      pageType: pageType || 'guide',
-      primaryKeyword: primaryKeyword || '',
-      longTail1: longTail1 || '',
-      longTail2: longTail2 || '',
-      authorityLink1: authorityLink1 || '',
-      authorityLink2: authorityLink2 || '',
-      authorityLink3: authorityLink3 || '',
-      authorityLink4: authorityLink4 || '',
-      excerpt: excerpt || content.substring(0, 160) + '...',
-      tags: tags || '',
-      content: content,
-      ogImage: ogImage || '',
-      ogVideo: ogVideo || '',
-      seoScore: seoScore || 0,
-      status: 'draft',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-    
-    // Add to articles array
-    articles.push(newArticle)
-    
-    // Save back to file
-    await fs.writeFile(articlesFile, JSON.stringify(articles, null, 2))
+    // Create article in database
+    const newArticle = await prisma.blogPost.create({
+      data: {
+        title: title,
+        titleAr: titleAr || title,
+        slug: slug || title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-'),
+        locale: locale || 'en',
+        pageType: pageType || 'guide',
+        primaryKeyword: primaryKeyword || '',
+        longTail1: longTail1 || '',
+        longTail2: longTail2 || '',
+        authorityLink1: authorityLink1 || '',
+        authorityLink2: authorityLink2 || '',
+        authorityLink3: authorityLink3 || '',
+        authorityLink4: authorityLink4 || '',
+        excerpt: excerpt || content.substring(0, 160) + '...',
+        tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+        content: content,
+        ogImage: ogImage || '',
+        ogVideo: ogVideo || '',
+        seoScore: seoScore || 0,
+        status: 'draft',
+        // Note: createdAt and updatedAt are handled by Prisma automatically
+      }
+    })
 
     // Generate public URL
     const publicUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london-gpgpz8iqd-khaledauns-projects.vercel.app'}/blog/${newArticle.slug}`
@@ -134,4 +114,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+});

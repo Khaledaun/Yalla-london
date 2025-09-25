@@ -14,6 +14,10 @@ export interface FeatureFlags {
   FEATURE_BULK_ENRICH: number;
   FEATURE_LLM_ROUTER: number;
   FEATURE_SEO: number;
+  FEATURE_AUTO_PUBLISHING: number;
+  FEATURE_SOCIAL_MEDIA_INTEGRATION: number;
+  FEATURE_ADVANCED_TOPICS: number;
+  FEATURE_ADVANCED_CRON: number;
 }
 
 /**
@@ -32,6 +36,10 @@ export function getFeatureFlags(): FeatureFlags {
     FEATURE_BULK_ENRICH: parseInt(process.env.FEATURE_BULK_ENRICH || '0'),
     FEATURE_LLM_ROUTER: parseInt(process.env.FEATURE_LLM_ROUTER || '0'),
     FEATURE_SEO: parseInt(process.env.FEATURE_SEO || '0'),
+    FEATURE_AUTO_PUBLISHING: parseInt(process.env.FEATURE_AUTO_PUBLISHING || '0'),
+    FEATURE_SOCIAL_MEDIA_INTEGRATION: parseInt(process.env.FEATURE_SOCIAL_MEDIA_INTEGRATION || '0'),
+    FEATURE_ADVANCED_TOPICS: parseInt(process.env.FEATURE_ADVANCED_TOPICS || '0'),
+    FEATURE_ADVANCED_CRON: parseInt(process.env.FEATURE_ADVANCED_CRON || '0'),
   };
 }
 

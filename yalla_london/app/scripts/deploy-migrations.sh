@@ -8,9 +8,6 @@ set -e  # Exit on any error
 
 echo "🚀 Starting deployment migration safety script..."
 
-
-fi
-
 echo "✅ Environment variables validated for database operations"
 
 # Function to create pre-migration backup

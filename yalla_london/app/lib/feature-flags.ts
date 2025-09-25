@@ -9,6 +9,7 @@ export interface FeatureFlags {
   FEATURE_WP_CONNECTOR: number;
   FEATURE_WHITE_LABEL: number;
   FEATURE_BACKLINK_OFFERS: number;
+  FEATURE_BACKLINK_INSPECTOR: number;
 }
 
 /**
@@ -22,6 +23,7 @@ export function getFeatureFlags(): FeatureFlags {
     FEATURE_WP_CONNECTOR: parseInt(process.env.FEATURE_WP_CONNECTOR || '0'),
     FEATURE_WHITE_LABEL: parseInt(process.env.FEATURE_WHITE_LABEL || '0'),
     FEATURE_BACKLINK_OFFERS: parseInt(process.env.FEATURE_BACKLINK_OFFERS || '0'),
+    FEATURE_BACKLINK_INSPECTOR: parseInt(process.env.FEATURE_BACKLINK_INSPECTOR || '0'),
   };
 }
 
@@ -45,4 +47,34 @@ export function getFeatureFlagStatus(): Record<string, { enabled: boolean; value
     };
     return acc;
   }, {} as Record<string, { enabled: boolean; value: number }>);
+}
+
+/**
+ * Get feature flag statistics for monitoring
+ */
+export function getFeatureFlagStats(): {
+  total: number;
+  enabled: number;
+  disabled: number;
+  flags: Record<string, { enabled: boolean; value: number }>;
+} {
+  const flags = getFeatureFlags();
+  const flagEntries = Object.entries(flags);
+  
+  return {
+    total: flagEntries.length,
+    enabled: flagEntries.filter(([, value]) => value === 1).length,
+    disabled: flagEntries.filter(([, value]) => value === 0).length,
+    flags: getFeatureFlagStatus()
+  };
+}
+
+/**
+ * Refresh feature flags from environment variables
+ * This function can be used to reload flags without restarting the application
+ */
+export function refreshFeatureFlags(): FeatureFlags {
+  // In a real application, this might fetch from a database or external service
+  // For now, we just return the current environment-based flags
+  return getFeatureFlags();
 }

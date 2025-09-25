@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
-import { getFeatureFlags, isFeatureEnabled } from '@/lib/feature-flags';
+import { getFeatureFlags, isFeatureEnabled, type FeatureFlags } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 
 interface FeatureRollout {
@@ -322,7 +322,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const featureFlags = getFeatureFlags();
     const automationFeatureStatus = AUTOMATION_FEATURES.map(flag => ({
       feature_key: flag,
-      globally_enabled: isFeatureEnabled(flag),
+      globally_enabled: isFeatureEnabled(flag as keyof FeatureFlags),
       has_rollout: rolloutConfigurations.has(flag),
       rollout_percentage: rolloutConfigurations.get(flag)?.rollout_percentage || 0
     }));

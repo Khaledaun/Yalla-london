@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
-import { isFeatureEnabled } from '@/lib/feature-flags';
+import { isFeatureEnabled, type FeatureFlags } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 
 interface PipelineStep {
@@ -112,7 +112,7 @@ async function validatePipelineStep(step: typeof PIPELINE_STEPS[0]): Promise<Pip
     const stepStart = Date.now();
     
     // Check if required feature flag is enabled
-    const flagEnabled = isFeatureEnabled(step.feature_flag);
+    const flagEnabled = isFeatureEnabled(step.feature_flag as keyof FeatureFlags);
     if (!flagEnabled) {
       pipelineStep.status = 'failed';
       pipelineStep.errors = [`Required feature flag ${step.feature_flag} is not enabled`];
@@ -167,8 +167,8 @@ async function validatePipelineStep(step: typeof PIPELINE_STEPS[0]): Promise<Pip
 }
 
 function checkFeatureFlags(): { required_flags: string[]; enabled_flags: string[]; missing_flags: string[] } {
-  const enabledFlags = REQUIRED_PIPELINE_FLAGS.filter(flag => isFeatureEnabled(flag));
-  const missingFlags = REQUIRED_PIPELINE_FLAGS.filter(flag => !isFeatureEnabled(flag));
+  const enabledFlags = REQUIRED_PIPELINE_FLAGS.filter(flag => isFeatureEnabled(flag as keyof FeatureFlags));
+  const missingFlags = REQUIRED_PIPELINE_FLAGS.filter(flag => !isFeatureEnabled(flag as keyof FeatureFlags));
   
   return {
     required_flags: REQUIRED_PIPELINE_FLAGS,
@@ -180,11 +180,11 @@ function checkFeatureFlags(): { required_flags: string[]; enabled_flags: string[
 function checkAdminDashboardAccess(): { accessible_steps: string[]; missing_access: string[] } {
   // Check which pipeline steps are accessible via admin dashboard
   const accessibleSteps = PIPELINE_STEPS
-    .filter(step => isFeatureEnabled(step.feature_flag))
+    .filter(step => isFeatureEnabled(step.feature_flag as keyof FeatureFlags))
     .map(step => step.name);
   
   const missingAccess = PIPELINE_STEPS
-    .filter(step => !isFeatureEnabled(step.feature_flag))
+    .filter(step => !isFeatureEnabled(step.feature_flag as keyof FeatureFlags))
     .map(step => step.name);
   
   return {

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout'
 import { SyncStatusIndicator } from '@/components/admin/SyncStatusIndicator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -121,6 +122,7 @@ interface BlogPostAdmin {
 }
 
 export default function ArticlesPage() {
+  const router = useRouter()
   const [articles, setArticles] = useState<BlogPostAdmin[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -277,7 +279,7 @@ export default function ArticlesPage() {
           </Button>
           <Button 
             className="bg-blue-600 hover:bg-blue-700"
-            onClick={() => window.location.href = '/admin/articles/new'}
+            onClick={() => router.push('/admin/articles/new')}
           >
             <Plus className="h-4 w-4 mr-2" />
             New Article

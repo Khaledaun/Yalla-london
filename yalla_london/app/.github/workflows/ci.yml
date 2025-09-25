@@ -172,56 +172,224 @@ jobs:
         name: playwright-report
         path: playwright-report/
         
-  rollback-drill:
-    runs-on: ubuntu-latest
-    needs: test
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: yalla_london_rollback_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+         rollback-drill:
+           runs-on: ubuntu-latest
+           needs: test
+           
+           services:
+             postgres:
+               image: postgres:15
+               env:
+                 POSTGRES_PASSWORD: postgres
+                 POSTGRES_DB: yalla_london_rollback_test
+               options: >-
+                 --health-cmd pg_isready
+                 --health-interval 10s
+                 --health-timeout 5s
+                 --health-retries 5
+               ports:
+                 - 5432:5432
 
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'yarn'
-    
-    - name: Install dependencies
-      run: yarn install --frozen-lockfile
-    
-    - name: Generate Prisma client
-      run: yarn prisma generate
-    
-    - name: Setup test database
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_rollback_test
-        DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_rollback_test
-      run: |
-        PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=true yarn prisma migrate deploy
-        
-    - name: Run rollback drill
-      env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_rollback_test
-        DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_rollback_test
-      run: |
-        yarn test test/migrations/rollback-drill.spec.ts > rollback-drill.log 2>&1
-        
-    - name: Upload rollback drill results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: rollback-drill-results
-        path: rollback-drill.log
+           steps:
+             - uses: actions/checkout@v4
+             
+             - name: Setup Node.js
+               uses: actions/setup-node@v4
+               with:
+                 node-version: '18'
+                 cache: 'yarn'
+             
+             - name: Install dependencies
+               run: yarn install --frozen-lockfile
+             
+             - name: Generate Prisma client
+               run: yarn prisma generate
+             
+             - name: Setup test database
+               env:
+                 DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_rollback_test
+                 DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_rollback_test
+               run: |
+                 PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=true yarn prisma migrate deploy
+                 
+             - name: Run rollback drill
+               env:
+                 DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_rollback_test
+                 DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_rollback_test
+               run: |
+                 yarn test test/migrations/rollback-drill.spec.ts > rollback-drill.log 2>&1
+                 
+             - name: Upload rollback drill results
+               uses: actions/upload-artifact@v4
+               if: always()
+               with:
+                 name: rollback-drill-results
+                 path: rollback-drill.log
+
+         load-test:
+           runs-on: ubuntu-latest
+           needs: test
+           
+           services:
+             postgres:
+               image: postgres:15
+               env:
+                 POSTGRES_PASSWORD: postgres
+                 POSTGRES_DB: yalla_london_load_test
+               options: >-
+                 --health-cmd pg_isready
+                 --health-interval 10s
+                 --health-timeout 5s
+                 --health-retries 5
+               ports:
+                 - 5432:5432
+
+           steps:
+             - uses: actions/checkout@v4
+             
+             - name: Setup Node.js
+               uses: actions/setup-node@v4
+               with:
+                 node-version: '18'
+                 cache: 'yarn'
+             
+             - name: Install dependencies
+               run: yarn install --frozen-lockfile
+             
+             - name: Generate Prisma client
+               run: yarn prisma generate
+             
+             - name: Setup test database
+               env:
+                 DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_load_test
+                 DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_load_test
+               run: |
+                 PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=true yarn prisma migrate deploy
+             
+             - name: Install K6
+               run: |
+                 sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+                 echo "deb https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+                 sudo apt-get update
+                 sudo apt-get install k6
+             
+             - name: Start application
+               env:
+                 DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_load_test
+                 DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_load_test
+                 NEXTAUTH_SECRET: test-secret
+                 NEXTAUTH_URL: http://localhost:3000
+               run: |
+                 yarn build
+                 yarn start &
+                 sleep 30
+             
+             - name: Run load tests
+               env:
+                 BASE_URL: http://localhost:3000
+                 ADMIN_EMAIL: admin@test.com
+                 ADMIN_PASSWORD: testpassword
+               run: |
+                 k6 run perf/k6/save-and-list.js \
+                   --env BASE_URL=$BASE_URL \
+                   --env ADMIN_EMAIL=$ADMIN_EMAIL \
+                   --env ADMIN_PASSWORD=$ADMIN_PASSWORD \
+                   --out json=k6-results.json
+             
+             - name: Upload load test results
+               uses: actions/upload-artifact@v4
+               if: always()
+               with:
+                 name: k6-load-test-results
+                 path: |
+                   k6-results.json
+                   k6-report.html
+
+         gitleaks:
+           runs-on: ubuntu-latest
+           needs: test
+           
+           steps:
+             - uses: actions/checkout@v4
+               with:
+                 fetch-depth: 0
+             
+             - name: Run Gitleaks
+               uses: gitleaks/gitleaks-action@v2
+               env:
+                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                 GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+             
+             - name: Upload Gitleaks report
+               uses: actions/upload-artifact@v4
+               if: always()
+               with:
+                 name: gitleaks-report
+                 path: gitleaks-report.json
+
+         promote-guard:
+           runs-on: ubuntu-latest
+           needs: [test, e2e, load-test]
+           
+           services:
+             postgres:
+               image: postgres:15
+               env:
+                 POSTGRES_PASSWORD: postgres
+                 POSTGRES_DB: yalla_london_promote_test
+               options: >-
+                 --health-cmd pg_isready
+                 --health-interval 10s
+                 --health-timeout 5s
+                 --health-retries 5
+               ports:
+                 - 5432:5432
+
+           steps:
+             - uses: actions/checkout@v4
+             
+             - name: Setup Node.js
+               uses: actions/setup-node@v4
+               with:
+                 node-version: '18'
+                 cache: 'yarn'
+             
+             - name: Install dependencies
+               run: yarn install --frozen-lockfile
+             
+             - name: Generate Prisma client
+               run: yarn prisma generate
+             
+             - name: Setup test database
+               env:
+                 DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_promote_test
+                 DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_promote_test
+               run: |
+                 PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=true yarn prisma migrate deploy
+             
+             - name: Start application
+               env:
+                 DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_promote_test
+                 DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_promote_test
+                 NEXTAUTH_SECRET: test-secret
+                 NEXTAUTH_URL: http://localhost:3000
+               run: |
+                 yarn build
+                 yarn start &
+                 sleep 30
+             
+             - name: Run canary tests
+               env:
+                 BASE_URL: http://localhost:3000
+                 ADMIN_EMAIL: admin@test.com
+                 ADMIN_PASSWORD: testpassword
+               run: |
+                 chmod +x scripts/canary.sh
+                 ./scripts/canary.sh $BASE_URL > canary.out 2>&1
+             
+             - name: Upload canary test results
+               uses: actions/upload-artifact@v4
+               if: always()
+               with:
+                 name: canary-test-results
+                 path: canary.out

@@ -1,0 +1,164 @@
+# Phase-4C Alerting Configuration
+# SLO-based alerts for production monitoring
+
+groups:
+  - name: yalla-london-slos
+    rules:
+      # Error Rate Alert
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(http_errors_total[10m]) / 
+            rate(http_requests_total[10m])
+          ) * 100 > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: yalla-london
+          slo: error-rate
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }}% over the last 10 minutes, exceeding 2% threshold"
+          runbook_url: "https://github.com/khaledauns-projects/yalla-london/blob/main/docs/runbooks/incident-triage.md"
+
+      # API Latency Alert
+      - alert: HighAPILatency
+        expr: |
+          histogram_quantile(0.95, 
+            rate(http_request_duration_ms_bucket[10m])
+          ) > 500
+        for: 5m
+        labels:
+          severity: warning
+          service: yalla-london
+          slo: api-latency
+        annotations:
+          summary: "High API latency detected"
+          description: "95th percentile API latency is {{ $value }}ms over the last 10 minutes, exceeding 500ms threshold"
+          runbook_url: "https://github.com/khaledauns-projects/yalla-london/blob/main/docs/runbooks/incident-triage.md"
+
+      # Database Latency Alert
+      - alert: HighDBLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(db_query_duration_ms_bucket[10m])
+          ) > 200
+        for: 5m
+        labels:
+          severity: warning
+          service: yalla-london
+          slo: db-latency
+        annotations:
+          summary: "High database latency detected"
+          description: "95th percentile database latency is {{ $value }}ms over the last 10 minutes, exceeding 200ms threshold"
+          runbook_url: "https://github.com/khaledauns-projects/yalla-london/blob/main/docs/runbooks/incident-triage.md"
+
+      # Database Connection Alert
+      - alert: DatabaseConnectionFailure
+        expr: |
+          rate(db_connections_total{status="error"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: yalla-london
+          slo: db-connectivity
+        annotations:
+          summary: "Database connection failures detected"
+          description: "Database connection errors are occurring at {{ $value }} errors/second"
+          runbook_url: "https://github.com/khaledauns-projects/yalla-london/blob/main/docs/runbooks/db-restore.md"
+
+      # High Request Volume Alert
+      - alert: HighRequestVolume
+        expr: |
+          rate(http_requests_total[5m]) > 100
+        for: 2m
+        labels:
+          severity: warning
+          service: yalla-london
+          slo: request-volume
+        annotations:
+          summary: "High request volume detected"
+          description: "Request rate is {{ $value }} requests/second, indicating potential load spike"
+          runbook_url: "https://github.com/khaledauns-projects/yalla-london/blob/main/docs/runbooks/incident-triage.md"
+
+      # Feature Flag Usage Alert
+      - alert: FeatureFlagHighUsage
+        expr: |
+          rate(feature_flag_usage_total[10m]) > 50
+        for: 5m
+        labels:
+          severity: info
+          service: yalla-london
+          slo: feature-usage
+        annotations:
+          summary: "High feature flag usage detected"
+          description: "Feature flag usage rate is {{ $value }} requests/second"
+          runbook_url: "https://github.com/khaledauns-projects/yalla-london/blob/main/docs/runbooks/incident-triage.md"
+
+  - name: yalla-london-security
+    rules:
+      # Rate Limiting Alert
+      - alert: RateLimitExceeded
+        expr: |
+          rate(http_errors_total{status_code="429"}[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          service: yalla-london
+          security: rate-limiting
+        annotations:
+          summary: "High rate limiting activity"
+          description: "Rate limiting is being triggered at {{ $value }} requests/second"
+          runbook_url: "https://github.com/khaledauns-projects/yalla-london/blob/main/docs/security/headers-and-cors.md"
+
+      # Authentication Failures
+      - alert: HighAuthFailures
+        expr: |
+          rate(http_errors_total{status_code="401"}[10m]) > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: yalla-london
+          security: authentication
+        annotations:
+          summary: "High authentication failure rate"
+          description: "Authentication failures at {{ $value }} requests/second"
+          runbook_url: "https://github.com/khaledauns-projects/yalla-london/blob/main/docs/security/headers-and-cors.md"
+
+      # Admin Access Violations
+      - alert: AdminAccessViolations
+        expr: |
+          rate(http_errors_total{status_code="403"}[10m]) > 2
+        for: 2m
+        labels:
+          severity: warning
+          service: yalla-london
+          security: authorization
+        annotations:
+          summary: "Admin access violations detected"
+          description: "Admin access violations at {{ $value }} requests/second"
+          runbook_url: "https://github.com/khaledauns-projects/yalla-london/blob/main/docs/security/headers-and-cors.md"
+
+# Notification Configuration
+# Slack Integration
+slack_configs:
+  - api_url: ${SLACK_WEBHOOK_URL}
+    channel: '#yalla-london-alerts'
+    title: 'Yalla London Alert'
+    text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+    send_resolved: true
+
+# Email Integration
+email_configs:
+  - to: ${ALERT_EMAIL}
+    from: alerts@yalla-london.com
+    smarthost: smtp.gmail.com:587
+    auth_username: ${SMTP_USERNAME}
+    auth_password: ${SMTP_PASSWORD}
+    headers:
+      Subject: 'Yalla London Alert: {{ .GroupLabels.alertname }}'
+    html: |
+      <h2>Alert: {{ .GroupLabels.alertname }}</h2>
+      <p><strong>Summary:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</p>
+      <p><strong>Description:</strong> {{ range .Alerts }}{{ .Annotations.description }}{{ end }}</p>
+      <p><strong>Runbook:</strong> <a href="{{ range .Alerts }}{{ .Annotations.runbook_url }}{{ end }}">Incident Response Guide</a></p>

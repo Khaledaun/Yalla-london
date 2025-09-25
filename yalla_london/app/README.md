@@ -31,6 +31,58 @@ All new features ship **disabled by default**:
 
 Enable progressively by setting environment variables to `1`.
 
+## Phase-4C Ops Hardening
+
+### ✅ SLOs & Observability
+- **Metrics Collection**: HTTP requests, database queries, business metrics
+- **Alerting Rules**: Error rate >2%, latency >500ms, DB latency >200ms
+- **Prometheus Export**: `/api/metrics` endpoint for monitoring
+- **Incident Runbooks**: Comprehensive triage and response procedures
+
+### ✅ Load Testing & Performance
+- **K6 Load Tests**: 100 concurrent users, 5-minute duration
+- **Performance Thresholds**: Error rate <1%, P95 <500ms
+- **Automated CI**: Load tests run on preview environment
+- **HTML Reports**: Detailed performance analysis exported
+
+### ✅ Rate Limiting & Security
+- **IP-based Limits**: 60 requests/5min per IP
+- **Session-based Limits**: 20 requests/5min per session
+- **Admin Write Limits**: 10 requests/5min for admin operations
+- **Media Upload Limits**: 5 requests/5min for file uploads
+- **429 Responses**: Proper Retry-After headers
+
+### ✅ Backup & Disaster Recovery
+- **Automated Backups**: Daily database backups
+- **Restore Drills**: CI validates backup/restore procedures
+- **Disaster Recovery**: Complete runbook for data recovery
+- **Migration Safety**: Rollback procedures tested in CI
+
+### ✅ Log Redaction & Secrets
+- **PII Protection**: Emails, tokens, passwords redacted
+- **Secrets Scanning**: Gitleaks integration in CI
+- **Structured Logging**: JSON format with sanitization
+- **Compliance**: GDPR-ready log handling
+
+### ✅ Security Headers & CORS
+- **CSP Policy**: Content Security Policy enforcement
+- **HSTS**: HTTP Strict Transport Security
+- **Frame Protection**: X-Frame-Options DENY
+- **CORS Validation**: Strict origin checking
+- **Admin Routes**: Enhanced security for admin endpoints
+
+### ✅ Canary & Promote Gates
+- **Canary Testing**: Automated pre-production validation
+- **Promotion Gates**: Blocks production deployment on failure
+- **Health Checks**: Comprehensive endpoint validation
+- **Feature Testing**: Article creation/fetch/deletion verification
+
+### ✅ Feature Flag Kill-Switch
+- **Runtime Disable**: Features can be disabled instantly
+- **404 Responses**: Disabled features return proper errors
+- **Emergency Shutdown**: All features can be disabled at once
+- **Testing Coverage**: Kill-switch behavior validated
+
 ## Quick Start
 
 ### Prerequisites
@@ -143,6 +195,45 @@ yarn playwright test e2e/login.spec.ts
 yarn test:coverage
 
 # Coverage threshold: ≥80%
+```
+
+### Feature Flag Tests
+```bash
+# Run feature flag tests
+yarn test:flags
+
+# Run kill-switch tests
+yarn test:flags test/flags/kill-switch.spec.ts
+```
+
+### Load Tests
+```bash
+# Run load tests with K6
+yarn test:load
+
+# Run load tests with custom parameters
+k6 run perf/k6/save-and-list.js --env BASE_URL=http://localhost:3000
+```
+
+### Canary Tests
+```bash
+# Run canary tests
+yarn test:canary
+
+# Run canary tests against specific URL
+./scripts/canary.sh https://yalla-london.vercel.app
+```
+
+### Backup and Restore Tests
+```bash
+# Run backup and restore drill
+yarn test:backup-restore
+
+# Run specific backup operation
+./scripts/backup-restore-drill.sh backup-only
+
+# Run specific restore operation
+./scripts/backup-restore-drill.sh restore-only /path/to/backup.sql
 ```
 
 ### API Tests

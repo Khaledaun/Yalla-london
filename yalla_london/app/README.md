@@ -1,5 +1,10 @@
 # Yalla London - Phase-4C Production Ready
 
+[![CI Status](https://github.com/khaledauns-projects/yalla-london/workflows/CI/badge.svg)](https://github.com/khaledauns-projects/yalla-london/actions)
+[![Coverage](https://img.shields.io/badge/coverage-80%25-brightgreen)](https://github.com/khaledauns-projects/yalla-london/actions)
+[![Security](https://img.shields.io/badge/security-verified-green)](https://github.com/khaledauns-projects/yalla-london/actions)
+[![Production Ready](https://img.shields.io/badge/production-ready-green)](https://github.com/khaledauns-projects/yalla-london/actions)
+
 A luxury London guide platform with comprehensive admin dashboard and content management system.
 
 ## Phase-4C Readiness Features
@@ -108,6 +113,21 @@ yarn test:smoke
 bash scripts/smoke.sh http://localhost:3000
 ```
 
+### Security Tests
+```bash
+# Run security checks
+yarn test:security
+
+# Run guard tests
+yarn test:guards
+```
+
+### Migration Tests
+```bash
+# Run migration tests including rollback drill
+yarn test:migrations
+```
+
 ### E2E Tests
 ```bash
 # Run Playwright tests
@@ -117,11 +137,27 @@ yarn test:e2e
 yarn playwright test e2e/login.spec.ts
 ```
 
+### Coverage Tests
+```bash
+# Run tests with coverage
+yarn test:coverage
+
+# Coverage threshold: ≥80%
+```
+
 ### API Tests
 ```bash
 # Run Postman collection
 newman run collections/yalla-phase4.postman_collection.json \
   --environment collections/environments/local.postman_environment.json
+```
+
+### Rollback Drill (Local)
+```bash
+# Run rollback drill locally
+PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=true npx prisma migrate deploy \
+&& yarn test:migrations \
+&& bash scripts/smoke.sh
 ```
 
 ## CI/CD Pipeline

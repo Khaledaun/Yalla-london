@@ -93,6 +93,28 @@ if [ "$NODE_ENV" = "production" ]; then
     else
         echo "✅ No JSON files found in production"
     fi
+    
+    # Check for DEV_FILE_STORE_ONLY being set in production
+    if [ -n "$DEV_FILE_STORE_ONLY" ]; then
+        echo "❌ DEV_FILE_STORE_ONLY should not be set in production"
+        FAILED=1
+    else
+        echo "✅ DEV_FILE_STORE_ONLY not set in production"
+    fi
+    
+    # Test that save endpoint rejects JSON storage
+    echo "Testing save endpoint for JSON storage rejection..."
+    save_response=$(curl -s -w "%{http_code}" -X POST \
+        -H "Content-Type: application/json" \
+        -d '{"title":"Test","content":"Test content"}' \
+        "$BASE_URL/api/admin/editor/save" || echo "000")
+    
+    save_status="${save_response: -3}"
+    if [ "$save_status" = "500" ]; then
+        echo "✅ Save endpoint properly rejects requests in production"
+    else
+        echo "⚠️  Save endpoint returned status $save_status (expected 500 for JSON storage rejection)"
+    fi
 fi
 
 # Summary

@@ -79,6 +79,7 @@ jobs:
         NEXTAUTH_URL: http://localhost:3000
       run: |
         yarn test:smoke
+        bash scripts/smoke.sh http://localhost:3000 > smoke.out 2>&1
     
     - name: Build application
       env:
@@ -94,22 +95,53 @@ jobs:
           npm install -g newman
         fi
         
-        # Run Postman collection
+        # Run Postman collection for local environment
         if [ -f "collections/yalla-phase4.postman_collection.json" ]; then
           newman run collections/yalla-phase4.postman_collection.json \
             --environment collections/environments/local.postman_environment.json \
-            --reporters cli,junit \
-            --reporter-junit-export test-results.xml
+            --reporters cli,junit,html \
+            --reporter-junit-export newman-report-local.xml \
+            --reporter-html-export newman-report-local.html
         else
           echo "Postman collection not found - skipping API tests"
         fi
     
+    - name: Run rollback drill
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_test
+        DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_test
+      run: |
+        yarn test test/migrations/rollback-drill.spec.ts > rollback-drill.log 2>&1
+        
+    - name: Run coverage tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_test
+        DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_test
+        NEXTAUTH_SECRET: test-secret
+        NEXTAUTH_URL: http://localhost:3000
+      run: |
+        yarn test --coverage
+        
+    - name: Check migration status
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_test
+        DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_test
+      run: |
+        npx prisma migrate status > migrate-status.txt 2>&1
+        
     - name: Upload test results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results
-        path: test-results.xml
+        path: |
+          test-results.xml
+          newman-report-*.xml
+          newman-report-*.html
+          smoke.out
+          rollback-drill.log
+          migrate-status.txt
+          coverage/
 
   e2e:
     runs-on: ubuntu-latest
@@ -139,3 +171,57 @@ jobs:
       with:
         name: playwright-report
         path: playwright-report/
+        
+  rollback-drill:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: yalla_london_rollback_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'yarn'
+    
+    - name: Install dependencies
+      run: yarn install --frozen-lockfile
+    
+    - name: Generate Prisma client
+      run: yarn prisma generate
+    
+    - name: Setup test database
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_rollback_test
+        DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_rollback_test
+      run: |
+        PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK=true yarn prisma migrate deploy
+        
+    - name: Run rollback drill
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_rollback_test
+        DIRECT_URL: postgresql://postgres:postgres@localhost:5432/yalla_london_rollback_test
+      run: |
+        yarn test test/migrations/rollback-drill.spec.ts > rollback-drill.log 2>&1
+        
+    - name: Upload rollback drill results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: rollback-drill-results
+        path: rollback-drill.log

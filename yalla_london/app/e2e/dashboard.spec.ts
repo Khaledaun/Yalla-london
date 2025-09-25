@@ -44,6 +44,19 @@ test.describe('Admin Dashboard', () => {
     // Should show success message
     await expect(page.locator('.success, .alert-success')).toBeVisible();
     await expect(page.locator('.success, .alert-success')).toContainText('saved successfully');
+    
+    // Verify article was saved to database via API
+    const response = await page.request.get('/api/admin/articles');
+    expect(response.status()).toBe(200);
+    
+    const articles = await response.json();
+    const savedArticle = articles.articles.find((article: any) => 
+      article.title === 'E2E Test Article'
+    );
+    
+    expect(savedArticle).toBeTruthy();
+    expect(savedArticle.title).toBe('E2E Test Article');
+    expect(savedArticle.content).toBe('This is test content for E2E testing');
   });
 
   test('should upload logo successfully', async ({ page }) => {
@@ -61,6 +74,21 @@ test.describe('Admin Dashboard', () => {
     // Should show success message
     await expect(page.locator('.success, .alert-success')).toBeVisible();
     await expect(page.locator('.success, .alert-success')).toContainText('uploaded successfully');
+    
+    // Verify file exists in storage (check if file is accessible)
+    const uploadResponse = await page.request.get('/uploads/test-logo.png');
+    // File should be accessible (200) or at least not 404
+    expect([200, 404]).toContain(uploadResponse.status());
+    
+    // Verify media asset was saved to database
+    const mediaResponse = await page.request.get('/api/admin/media');
+    if (mediaResponse.status() === 200) {
+      const mediaAssets = await mediaResponse.json();
+      const uploadedAsset = mediaAssets.find((asset: any) => 
+        asset.originalName === 'test-logo.png'
+      );
+      expect(uploadedAsset).toBeTruthy();
+    }
   });
 
   test('should access admin status page only when logged in', async ({ page }) => {

@@ -35,11 +35,11 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         enabled: afterStats.enabled,
         disabled: afterStats.disabled
       },
-      changes_by_category: Object.keys(beforeStats.byCategory).map(category => ({
-        category,
-        before: beforeStats.byCategory[category],
-        after: afterStats.byCategory[category] || { total: 0, enabled: 0, disabled: 0 }
-      }))
+      changes_summary: {
+        total_change: afterStats.total - beforeStats.total,
+        enabled_change: afterStats.enabled - beforeStats.enabled,
+        disabled_change: afterStats.disabled - beforeStats.disabled
+      }
     };
 
     return NextResponse.json({

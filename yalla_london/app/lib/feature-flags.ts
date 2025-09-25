@@ -18,6 +18,12 @@ export interface FeatureFlags {
   FEATURE_SOCIAL_MEDIA_INTEGRATION: number;
   FEATURE_ADVANCED_TOPICS: number;
   FEATURE_ADVANCED_CRON: number;
+  TOPIC_RESEARCH: number;
+  PHASE4B_ENABLED: number;
+  FEATURE_TOPIC_POLICY: number;
+  AUDIT_SYSTEM: number;
+  ADVANCED_CRON: number;
+  EXPORT_WORDPRESS: number;
 }
 
 /**
@@ -40,6 +46,12 @@ export function getFeatureFlags(): FeatureFlags {
     FEATURE_SOCIAL_MEDIA_INTEGRATION: parseInt(process.env.FEATURE_SOCIAL_MEDIA_INTEGRATION || '0'),
     FEATURE_ADVANCED_TOPICS: parseInt(process.env.FEATURE_ADVANCED_TOPICS || '0'),
     FEATURE_ADVANCED_CRON: parseInt(process.env.FEATURE_ADVANCED_CRON || '0'),
+    TOPIC_RESEARCH: parseInt(process.env.TOPIC_RESEARCH || '0'),
+    PHASE4B_ENABLED: parseInt(process.env.PHASE4B_ENABLED || '0'),
+    FEATURE_TOPIC_POLICY: parseInt(process.env.FEATURE_TOPIC_POLICY || '0'),
+    AUDIT_SYSTEM: parseInt(process.env.AUDIT_SYSTEM || '0'),
+    ADVANCED_CRON: parseInt(process.env.ADVANCED_CRON || '0'),
+    EXPORT_WORDPRESS: parseInt(process.env.EXPORT_WORDPRESS || '0'),
   };
 }
 

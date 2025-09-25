@@ -3,13 +3,13 @@
  * Centralized feature flag management for Phase-4 deployment
  */
 
-import { getFeatureFlags as getFeatureFlagsFromLib, FeatureFlagRegistry } from '@/lib/feature-flags';
+import { getFeatureFlags as getFeatureFlagsFromLib, FeatureFlags } from '@/lib/feature-flags';
 
 /**
  * Get all feature flags from the lib configuration
  * This is the main export function required by the deployment checklist
  */
-export function getFeatureFlags(): FeatureFlagRegistry {
+export function getFeatureFlags(): FeatureFlags {
   return getFeatureFlagsFromLib();
 }
 
@@ -18,12 +18,9 @@ export function getFeatureFlags(): FeatureFlagRegistry {
  */
 export { 
   isFeatureEnabled,
-  getFeatureFlag,
-  getFeatureFlagsByCategory,
   getFeatureFlagStats,
   refreshFeatureFlags,
-  type FeatureFlag,
-  type FeatureFlagRegistry
+  type FeatureFlags
 } from '@/lib/feature-flags';
 
 /**
@@ -58,13 +55,13 @@ export function validatePhase4FeatureFlags(): {
   const errors: string[] = [];
   
   requiredPhase4Flags.forEach(flagKey => {
-    if (flags[flagKey]) {
+    if (flagKey in flags) {
       present.push(flagKey);
       
-      // Validate flag structure
-      const flag = flags[flagKey];
-      if (!flag.key || !flag.description || typeof flag.enabled !== 'boolean') {
-        errors.push(`Flag ${flagKey} has invalid structure`);
+      // Validate flag value (should be 0 or 1)
+      const flagValue = flags[flagKey as keyof FeatureFlags];
+      if (typeof flagValue !== 'number' || (flagValue !== 0 && flagValue !== 1)) {
+        errors.push(`Flag ${flagKey} has invalid value: ${flagValue}`);
       }
     } else {
       missing.push(flagKey);

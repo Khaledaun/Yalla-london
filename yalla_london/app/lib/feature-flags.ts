@@ -10,6 +10,10 @@ export interface FeatureFlags {
   FEATURE_WHITE_LABEL: number;
   FEATURE_BACKLINK_OFFERS: number;
   FEATURE_BACKLINK_INSPECTOR: number;
+  FEATURE_CRM_MINIMAL: number;
+  FEATURE_BULK_ENRICH: number;
+  FEATURE_LLM_ROUTER: number;
+  FEATURE_SEO: number;
 }
 
 /**
@@ -24,6 +28,10 @@ export function getFeatureFlags(): FeatureFlags {
     FEATURE_WHITE_LABEL: parseInt(process.env.FEATURE_WHITE_LABEL || '0'),
     FEATURE_BACKLINK_OFFERS: parseInt(process.env.FEATURE_BACKLINK_OFFERS || '0'),
     FEATURE_BACKLINK_INSPECTOR: parseInt(process.env.FEATURE_BACKLINK_INSPECTOR || '0'),
+    FEATURE_CRM_MINIMAL: parseInt(process.env.FEATURE_CRM_MINIMAL || '0'),
+    FEATURE_BULK_ENRICH: parseInt(process.env.FEATURE_BULK_ENRICH || '0'),
+    FEATURE_LLM_ROUTER: parseInt(process.env.FEATURE_LLM_ROUTER || '0'),
+    FEATURE_SEO: parseInt(process.env.FEATURE_SEO || '0'),
   };
 }
 

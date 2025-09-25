@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         id: newArticle.id,
         title: newArticle.title,
         slug: newArticle.slug,
-        createdAt: newArticle.created_at,
+        createdAt: newArticle.createdAt,
         publicUrl: publicUrl,
         contentLength: content.length
       }

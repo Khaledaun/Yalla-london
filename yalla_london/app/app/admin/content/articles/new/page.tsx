@@ -2,8 +2,8 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { Suspense } from 'react';
-import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout';
-import { ArticleEditor } from '@/src/components/admin/article-editor';
+import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout';
+import { ArticleEditor } from '@/components/admin/article-editor';
 
 export default function NewArticlePage() {
   return (

@@ -2,8 +2,8 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { Suspense } from 'react';
-import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout';
-import { PrivacyPageEditor } from '@/src/components/admin/privacy-page-editor';
+import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout';
+import { PrivacyPageEditor } from '@/components/admin/privacy-page-editor';
 
 export default function PrivacyPageEditorPage() {
   return (

@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createMocks } from 'node-mocks-http';
-import { withRateLimit, withIPRateLimit, withSessionRateLimit, withAdminWriteRateLimit, withMediaUploadRateLimit } from '@/src/middleware/rate-limit';
+import { withRateLimit, withIPRateLimit, withSessionRateLimit, withAdminWriteRateLimit, withMediaUploadRateLimit } from '@/middleware/rate-limit';
 
 describe('Rate Limiting Tests', () => {
   beforeEach(() => {

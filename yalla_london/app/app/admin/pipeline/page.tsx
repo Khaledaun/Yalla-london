@@ -1,6 +1,6 @@
 'use client'
 
-import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout'
+import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import PipelineTab from '@/components/admin/PipelineTab'
 
 export default function PipelinePage() {

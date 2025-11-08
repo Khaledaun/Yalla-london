@@ -113,7 +113,7 @@ async function createCronEndpoints() {
 function generateCronEndpoint(job: CronJob): string {
   return `import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-${job.feature_flag ? `import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'` : ''}
+${job.feature_flag ? `import { isPremiumFeatureEnabled } from '@/lib/feature-flags'` : ''}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -1,6 +1,6 @@
-import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout'
+import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import { FileText, Plus, Search, Filter, Eye, Edit3, Trash2 } from 'lucide-react'
-import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'
+import { isPremiumFeatureEnabled } from '@/lib/feature-flags'
 
 export default function ArticlesPage() {
   const contentManagementEnabled = isPremiumFeatureEnabled('CONTENT_MANAGEMENT')

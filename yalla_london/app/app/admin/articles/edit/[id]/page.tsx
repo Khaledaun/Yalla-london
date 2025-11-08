@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout';
-import { ArticleEditor } from '@/src/components/admin/article-editor';
+import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout';
+import { ArticleEditor } from '@/components/admin/article-editor';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Save, Eye } from 'lucide-react';
 

@@ -1,6 +1,6 @@
-import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout'
+import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import { Users, Plus, Search, Filter, Shield, Mail, MoreVertical, UserPlus } from 'lucide-react'
-import { isPremiumFeatureEnabled } from '@/src/lib/feature-flags'
+import { isPremiumFeatureEnabled } from '@/lib/feature-flags'
 
 export default function MembersPage() {
   const peopleManagementEnabled = isPremiumFeatureEnabled('PEOPLE_MANAGEMENT')

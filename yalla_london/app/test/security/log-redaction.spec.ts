@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { sanitizeLog, sanitizeLogObject, getSanitizationRules } from '@/src/middleware/log-sanitizer';
+import { sanitizeLog, sanitizeLogObject, getSanitizationRules } from '@/middleware/log-sanitizer';
 
 describe('Log Redaction Tests', () => {
   it('should redact email addresses', () => {

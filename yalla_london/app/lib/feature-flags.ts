@@ -106,3 +106,125 @@ export function refreshFeatureFlags(): FeatureFlags {
   // For now, we just return the current environment-based flags
   return getFeatureFlags();
 }
+
+/**
+ * Premium Feature Flags
+ * Additional feature flags for premium/admin features
+ */
+export type PremiumFeatureFlag =
+  | 'ADMIN_DASHBOARD'
+  | 'ADMIN_ROLE'
+  | 'CONTENT_MANAGEMENT'
+  | 'EDITOR_ROLE'
+  | 'ENHANCED_AUTH'
+  | 'FEATURE_CONTENT_PIPELINE'
+  | 'FEATURE_PROMPT_CONTROL'
+  | 'FEATURE_TOPICS_RESEARCH'
+  | 'HOMEPAGE_BUILDER'
+  | 'INSTANT_UNDO'
+  | 'KEYBOARD_SHORTCUTS'
+  | 'OPTIMISTIC_UPDATES'
+  | 'PEOPLE_MANAGEMENT'
+  | 'PREMIUM_BACKEND'
+  | 'SETTINGS_MANAGEMENT'
+  | 'STATE_TRANSPARENCY';
+
+/**
+ * Check if a premium feature is enabled
+ * Premium features can be controlled via environment variables or default to enabled in development
+ */
+export function isPremiumFeatureEnabled(feature: PremiumFeatureFlag | string): boolean {
+  // In development mode, enable all premium features by default
+  if (process.env.NODE_ENV === 'development') {
+    return true;
+  }
+
+  // Check environment variable for the specific feature
+  const envVar = `NEXT_PUBLIC_${feature}`;
+  const value = process.env[envVar];
+
+  if (value !== undefined) {
+    return value === '1' || value === 'true';
+  }
+
+  // Some features are enabled by default in production
+  const defaultEnabledFeatures: PremiumFeatureFlag[] = [
+    'ADMIN_DASHBOARD',
+    'CONTENT_MANAGEMENT',
+    'PREMIUM_BACKEND'
+  ];
+
+  return defaultEnabledFeatures.includes(feature as PremiumFeatureFlag);
+}
+
+/**
+ * Validate premium feature access
+ * Can be used for additional access control checks
+ */
+export function validatePremiumFeatureAccess(
+  feature: PremiumFeatureFlag | string,
+  siteContext?: any
+): {
+  allowed: boolean;
+  reason?: string;
+} {
+  const isEnabled = isPremiumFeatureEnabled(feature);
+
+  if (!isEnabled) {
+    return {
+      allowed: false,
+      reason: `Premium feature '${feature}' is not enabled`
+    };
+  }
+
+  // Additional site-specific checks could be added here
+  // For now, just check if the feature is enabled globally
+
+  return {
+    allowed: true
+  };
+}
+
+/**
+ * Get premium feature flags organized by category
+ */
+export function getPremiumFeatureFlagsByCategory(): Record<string, Array<{
+  key: string;
+  name: string;
+  enabled: boolean;
+  description: string;
+  scope: string;
+  disabledReason?: string;
+  enableLink?: string;
+}>> {
+  const categories = {
+    'Admin & Dashboard': [
+      { key: 'ADMIN_DASHBOARD', name: 'Admin Dashboard', enabled: isPremiumFeatureEnabled('ADMIN_DASHBOARD'), description: 'Admin dashboard access', scope: 'admin' },
+      { key: 'ADMIN_ROLE', name: 'Admin Role', enabled: isPremiumFeatureEnabled('ADMIN_ROLE'), description: 'Admin role capabilities', scope: 'admin' },
+      { key: 'PREMIUM_BACKEND', name: 'Premium Backend', enabled: isPremiumFeatureEnabled('PREMIUM_BACKEND'), description: 'Premium backend features', scope: 'backend' }
+    ],
+    'Content Management': [
+      { key: 'CONTENT_MANAGEMENT', name: 'Content Management', enabled: isPremiumFeatureEnabled('CONTENT_MANAGEMENT'), description: 'Content management features', scope: 'admin' },
+      { key: 'EDITOR_ROLE', name: 'Editor Role', enabled: isPremiumFeatureEnabled('EDITOR_ROLE'), description: 'Editor role capabilities', scope: 'admin' },
+      { key: 'HOMEPAGE_BUILDER', name: 'Homepage Builder', enabled: isPremiumFeatureEnabled('HOMEPAGE_BUILDER'), description: 'Homepage builder tool', scope: 'admin' }
+    ],
+    'Features & Tools': [
+      { key: 'FEATURE_CONTENT_PIPELINE', name: 'Content Pipeline', enabled: isPremiumFeatureEnabled('FEATURE_CONTENT_PIPELINE'), description: 'Content pipeline automation', scope: 'feature' },
+      { key: 'FEATURE_PROMPT_CONTROL', name: 'Prompt Control', enabled: isPremiumFeatureEnabled('FEATURE_PROMPT_CONTROL'), description: 'AI prompt control panel', scope: 'feature' },
+      { key: 'FEATURE_TOPICS_RESEARCH', name: 'Topics Research', enabled: isPremiumFeatureEnabled('FEATURE_TOPICS_RESEARCH'), description: 'Topics research tools', scope: 'feature' }
+    ],
+    'User Experience': [
+      { key: 'KEYBOARD_SHORTCUTS', name: 'Keyboard Shortcuts', enabled: isPremiumFeatureEnabled('KEYBOARD_SHORTCUTS'), description: 'Keyboard shortcuts support', scope: 'ux' },
+      { key: 'INSTANT_UNDO', name: 'Instant Undo', enabled: isPremiumFeatureEnabled('INSTANT_UNDO'), description: 'Instant undo functionality', scope: 'ux' },
+      { key: 'OPTIMISTIC_UPDATES', name: 'Optimistic Updates', enabled: isPremiumFeatureEnabled('OPTIMISTIC_UPDATES'), description: 'Optimistic UI updates', scope: 'ux' },
+      { key: 'STATE_TRANSPARENCY', name: 'State Transparency', enabled: isPremiumFeatureEnabled('STATE_TRANSPARENCY'), description: 'State transparency features', scope: 'ux' }
+    ],
+    'Security & Access': [
+      { key: 'ENHANCED_AUTH', name: 'Enhanced Auth', enabled: isPremiumFeatureEnabled('ENHANCED_AUTH'), description: 'Enhanced authentication', scope: 'security' },
+      { key: 'PEOPLE_MANAGEMENT', name: 'People Management', enabled: isPremiumFeatureEnabled('PEOPLE_MANAGEMENT'), description: 'People management tools', scope: 'admin' },
+      { key: 'SETTINGS_MANAGEMENT', name: 'Settings Management', enabled: isPremiumFeatureEnabled('SETTINGS_MANAGEMENT'), description: 'Settings management', scope: 'admin' }
+    ]
+  };
+
+  return categories;
+}

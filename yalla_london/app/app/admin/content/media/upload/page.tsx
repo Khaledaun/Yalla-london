@@ -2,8 +2,8 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { Suspense } from 'react';
-import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout';
-import { MediaUploadManager } from '@/src/components/admin/media-upload-manager';
+import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout';
+import { MediaUploadManager } from '@/components/admin/media-upload-manager';
 
 export default function MediaUploadPage() {
   return (

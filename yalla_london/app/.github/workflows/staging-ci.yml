@@ -8,7 +8,7 @@ on:
     branches: [staging]
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20.18.1'
   STAGING_URL: ${{ secrets.STAGING_URL }}
   DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL || secrets.DATABASE_URL }}
   NEXTAUTH_SECRET: ${{ secrets.STAGING_NEXTAUTH_SECRET || secrets.NEXTAUTH_SECRET }}

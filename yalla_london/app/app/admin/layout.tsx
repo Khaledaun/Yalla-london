@@ -1,4 +1,4 @@
-import AdminNavigation from '../components/admin/navigation'
+import { PremiumAdminNav } from '@/components/admin/premium-admin-nav'
 
 export default function AdminLayout({
   children,
@@ -7,7 +7,7 @@ export default function AdminLayout({
 }) {
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminNavigation />
+      <PremiumAdminNav />
       <div className="lg:ml-64">
         <div className="p-6">
           {children}

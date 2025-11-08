@@ -1,6 +1,6 @@
-import { PremiumAdminLayout } from '@/src/components/admin/premium-admin-layout'
+import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import { Flag, ToggleLeft, ToggleRight, Info, ExternalLink, RefreshCw } from 'lucide-react'
-import { isPremiumFeatureEnabled, getPremiumFeatureFlagsByCategory } from '@/src/lib/feature-flags'
+import { isPremiumFeatureEnabled, getPremiumFeatureFlagsByCategory } from '@/lib/feature-flags'
 
 export default function FeatureFlagsPage() {
   const settingsManagementEnabled = isPremiumFeatureEnabled('SETTINGS_MANAGEMENT')

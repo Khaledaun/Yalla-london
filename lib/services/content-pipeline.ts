@@ -14,6 +14,8 @@ export interface PipelineConfig {
   draftBacklogTarget: number;
   qualityThreshold: number;
   autoPublish: boolean;
+  autoPublishQualityThreshold: number; // Minimum quality score for auto-publish
+  requiresReviewCategories: string[]; // Categories that always need manual review
 }
 
 export interface PipelineStatus {
@@ -51,7 +53,9 @@ export class ContentPipelineService {
       categories: ['london_travel', 'london_events', 'london_football', 'london_hidden_gems'],
       draftBacklogTarget: 30,
       qualityThreshold: 70,
-      autoPublish: false,
+      autoPublish: true, // Enable selective auto-publishing
+      autoPublishQualityThreshold: 85, // Only auto-publish content scoring 85+
+      requiresReviewCategories: ['sensitive', 'controversial'], // Categories needing manual review
     };
   }
 
@@ -308,7 +312,7 @@ export class ContentPipelineService {
         errors.push(`Content generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
 
-      // Step 3: Auto-publish if enabled and content passes quality gates
+      // Step 3: Selective auto-publish based on quality gates
       const flags = getFeatureFlags();
       if (flags.AUTO_PUBLISHING && this.config.autoPublish) {
         try {
@@ -316,26 +320,92 @@ export class ContentPipelineService {
             where: {
               status: 'draft',
               metadata: {
-                path: ['needsReview'],
-                equals: false
+                path: ['aiGenerated'],
+                equals: true
               }
             },
-            take: this.config.postsPerDay
+            take: this.config.postsPerDay * 2 // Get more than needed to filter by quality
           });
 
           for (const draft of readyDrafts) {
-            try {
-              const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/phase4b/content/publish`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  contentId: draft.id,
-                  skipSeoAudit: false
-                })
-              });
+            if (contentPublished >= this.config.postsPerDay) {
+              break; // Hit daily limit
+            }
 
-              if (response.ok) {
-                contentPublished++;
+            try {
+              // Check if content meets quality threshold for auto-publish
+              const metadata = draft.metadata as any;
+              const seoScore = metadata?.seoScore || 0;
+              const category = metadata?.category || '';
+
+              // Quality gate checks
+              const meetsQualityThreshold = seoScore >= this.config.autoPublishQualityThreshold;
+              const requiresManualReview = this.config.requiresReviewCategories.includes(category);
+              const needsReview = metadata?.needsReview === true;
+
+              // Decision logic for auto-publish
+              if (meetsQualityThreshold && !requiresManualReview && !needsReview) {
+                const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/phase4b/content/publish`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    contentId: draft.id,
+                    skipSeoAudit: false
+                  })
+                });
+
+                if (response.ok) {
+                  contentPublished++;
+
+                  // Log successful auto-publish
+                  await prisma.activityLog.create({
+                    data: {
+                      action: 'content_auto_published',
+                      entityType: 'content',
+                      entityId: draft.id,
+                      details: {
+                        seoScore,
+                        category,
+                        reason: 'Passed quality threshold',
+                      },
+                      performedBy: 'system',
+                    }
+                  });
+                }
+              } else {
+                // Mark for manual review with reason
+                await prisma.content.update({
+                  where: { id: draft.id },
+                  data: {
+                    metadata: {
+                      ...metadata,
+                      needsReview: true,
+                      reviewReason: !meetsQualityThreshold
+                        ? `Quality score ${seoScore} below threshold ${this.config.autoPublishQualityThreshold}`
+                        : requiresManualReview
+                        ? `Category '${category}' requires manual review`
+                        : 'Manual review requested',
+                    }
+                  }
+                });
+
+                await prisma.activityLog.create({
+                  data: {
+                    action: 'content_flagged_for_review',
+                    entityType: 'content',
+                    entityId: draft.id,
+                    details: {
+                      seoScore,
+                      category,
+                      reason: !meetsQualityThreshold
+                        ? 'Low quality score'
+                        : requiresManualReview
+                        ? 'Sensitive category'
+                        : 'Manual review requested',
+                    },
+                    performedBy: 'system',
+                  }
+                });
               }
             } catch (error) {
               errors.push(`Publishing failed for ${draft.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -409,6 +479,12 @@ export class ContentPipelineService {
     }
     if (process.env.PIPELINE_AUTO_PUBLISH) {
       this.config.autoPublish = process.env.PIPELINE_AUTO_PUBLISH === 'true';
+    }
+    if (process.env.PIPELINE_AUTO_PUBLISH_QUALITY_THRESHOLD) {
+      this.config.autoPublishQualityThreshold = parseInt(process.env.PIPELINE_AUTO_PUBLISH_QUALITY_THRESHOLD);
+    }
+    if (process.env.PIPELINE_QUALITY_THRESHOLD) {
+      this.config.qualityThreshold = parseInt(process.env.PIPELINE_QUALITY_THRESHOLD);
     }
     // Add more configuration loading as needed
   }

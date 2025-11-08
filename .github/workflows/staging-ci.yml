@@ -7,7 +7,7 @@ on:
     branches: [ staging ]
 
 env:
-  NODE_VERSION: '20.17.0'
+  NODE_VERSION: '20.18.1'
   APP_DIR: 'yalla_london/app'
   STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL || 'postgresql://staging:staging@localhost:5432/staging_db' }}
   STAGING_NEXTAUTH_URL: ${{ secrets.STAGING_NEXTAUTH_URL || 'https://staging.example.com' }}

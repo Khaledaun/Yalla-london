@@ -10,7 +10,7 @@ on:
     - cron: '0 2 * * *'
 
 env:
-  NODE_VERSION: '20.17.0'
+  NODE_VERSION: '20.18.1'
   ABACUSAI_API_KEY: ${{ secrets.ABACUSAI_API_KEY || 'test-abacus-key-for-security-tests' }}
   NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'test-secret-key-for-security-tests-32-chars' }}
 

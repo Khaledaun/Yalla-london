@@ -2,30 +2,30 @@
  * Test setup for Vitest
  */
 
-import { beforeAll, afterAll } from 'vitest';
+import { beforeAll, afterAll, vi } from 'vitest';
 
 // Mock NextAuth
-jest.mock('next-auth', () => ({
-  getServerSession: jest.fn(),
+vi.mock('next-auth', () => ({
+  getServerSession: vi.fn(),
 }));
 
 // Mock Prisma client
-jest.mock('@/lib/database', () => ({
-  getPrismaClient: jest.fn(() => ({
+vi.mock('@/lib/database', () => ({
+  getPrismaClient: vi.fn(() => ({
     blogPost: {
-      create: jest.fn(),
-      findUnique: jest.fn(),
-      deleteMany: jest.fn(),
+      create: vi.fn(),
+      findUnique: vi.fn(),
+      deleteMany: vi.fn(),
     },
     mediaAsset: {
-      create: jest.fn(),
-      findFirst: jest.fn(),
-      deleteMany: jest.fn(),
+      create: vi.fn(),
+      findFirst: vi.fn(),
+      deleteMany: vi.fn(),
     },
-    $queryRaw: jest.fn(),
-    $disconnect: jest.fn(),
+    $queryRaw: vi.fn(),
+    $disconnect: vi.fn(),
   })),
-  checkDatabaseHealth: jest.fn(() => Promise.resolve({
+  checkDatabaseHealth: vi.fn(() => Promise.resolve({
     connected: true,
     migrateStatus: 'Valid',
   })),

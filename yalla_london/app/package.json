@@ -59,7 +59,7 @@
     "@types/react-dom": "18.2.7",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "@vitest/coverage-v8": "^4.0.8",
+    "@vitest/coverage-v8": "^2.1.8",
     "csstype": "^3.0.10",
     "eslint": "8.57.0",
     "eslint-config-next": "15.3.0",
@@ -73,7 +73,7 @@
     "ts-node": "10.9.2",
     "tsx": "4.20.3",
     "typescript": "5.2.2",
-    "vitest": "^4.0.8"
+    "vitest": "^2.1.8"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.883.0",

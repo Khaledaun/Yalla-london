@@ -169,6 +169,15 @@ export const adminNavigation: NavItem[] = [
         requiresElevated: true
       },
       {
+        id: 'ai-providers',
+        label: 'AI Providers',
+        icon: Brain,
+        href: '/admin/ai-providers',
+        description: 'Configure AI models for content',
+        badgeText: 'New',
+        badgeVariant: 'default'
+      },
+      {
         id: 'roles',
         label: 'Roles',
         icon: Users,

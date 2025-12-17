@@ -4,6 +4,13 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
 import { performanceMonitor, trackApiResponseTime } from '@/lib/performance-monitoring';
+import {
+  generateWithFallback,
+  getActiveProvider,
+  getAllProvidersStatus,
+  AIProviderType,
+  AIMessage,
+} from '@/lib/ai-providers';
 
 interface AIGenerateRequest {
   prompt: string;
@@ -11,7 +18,7 @@ interface AIGenerateRequest {
   language?: 'en' | 'ar';
   max_tokens?: number;
   temperature?: number;
-  provider?: 'abacus' | 'openai' | 'auto';
+  provider?: AIProviderType | 'auto';
 }
 
 interface AIGenerateResponse {
@@ -230,36 +237,33 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       temperature: Math.max(0.1, Math.min(1.0, temperature))
     };
     
-    let result: any;
-    let providerUsed = '';
-    
-    // Try providers based on preference
-    try {
-      if (provider === 'abacus' || provider === 'auto') {
-        result = await callAbacusAI(messages, options);
-        providerUsed = 'abacus';
-      } else if (provider === 'openai') {
-        result = await callOpenAI(messages, options);
-        providerUsed = 'openai';
+    // Determine which provider to use
+    const preferredProvider: AIProviderType = provider === 'auto'
+      ? getActiveProvider()
+      : (provider as AIProviderType);
+
+    // Use the multi-provider service with automatic fallback
+    const aiMessages: AIMessage[] = messages.map(m => ({
+      role: m.role as 'system' | 'user' | 'assistant',
+      content: m.content,
+    }));
+
+    const result = await generateWithFallback(
+      preferredProvider,
+      aiMessages,
+      {
+        max_tokens: options.max_tokens,
+        temperature: options.temperature,
       }
-    } catch (error) {
-      console.warn(`Primary provider (${provider}) failed:`, error);
-      
-      // Fallback logic
-      if (provider === 'auto' || provider === 'abacus') {
-        try {
-          result = await callOpenAI(messages, options);
-          providerUsed = 'openai-fallback';
-        } catch (fallbackError) {
-          throw new Error(`Both providers failed. Primary: ${error}. Fallback: ${fallbackError}`);
-        }
-      } else {
-        throw error;
-      }
+    );
+
+    if (!result.success) {
+      throw new Error(result.error || 'AI generation failed');
     }
-    
-    const content = result.choices?.[0]?.message?.content || '';
-    const tokensUsed = result.usage?.total_tokens || 0;
+
+    const content = result.content || '';
+    const tokensUsed = result.tokensUsed?.total || 0;
+    const providerUsed = result.provider;
     
     // Safety check
     const safetyCheck = performSafetyCheck(prompt, content);
@@ -349,29 +353,26 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
  */
 export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
+    // Get all providers status from the multi-provider service
+    const providersStatus = getAllProvidersStatus();
+    const activeProvider = getActiveProvider();
+
     const status = {
       enabled: process.env.FEATURE_CONTENT_PIPELINE === 'true',
-      providers: {
-        abacus: {
-          configured: !!process.env.ABACUSAI_API_KEY,
-          endpoint: process.env.ABACUSAI_ENDPOINT || 'https://apps.abacus.ai/v1/chat/completions'
-        },
-        openai: {
-          configured: !!process.env.OPENAI_API_KEY,
-          endpoint: 'https://api.openai.com/v1/chat/completions'
-        }
-      },
+      activeProvider,
+      providers: providersStatus,
       safety_limits: PHASE2_SAFETY_LIMITS,
       supported_types: PHASE2_SAFETY_LIMITS.ALLOWED_TYPES,
-      supported_languages: ['en', 'ar']
+      supported_languages: ['en', 'ar'],
+      supported_providers: ['claude', 'openai', 'grok', 'gemini', 'perplexity', 'abacus'],
     };
-    
+
     return NextResponse.json({
       status: 'success',
       configuration: status,
       timestamp: new Date().toISOString()
     });
-    
+
   } catch (error) {
     console.error('AI status error:', error);
     return NextResponse.json(

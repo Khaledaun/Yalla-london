@@ -13,6 +13,9 @@
     "app/api/admin/**/*.ts": {
       "maxDuration": 45
     },
+    "app/api/admin/command-center/**/*.ts": {
+      "maxDuration": 60
+    },
     "app/api/cache/**/*.ts": {
       "maxDuration": 15
     },
@@ -21,6 +24,9 @@
     },
     "app/api/health/**/*.ts": {
       "maxDuration": 10
+    },
+    "app/api/cron/**/*.ts": {
+      "maxDuration": 60
     }
   },
   "env": {
@@ -77,6 +83,18 @@
     {
       "path": "/api/cron/seo-health-report",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/autopilot",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/analytics",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/social",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

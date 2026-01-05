@@ -23,9 +23,9 @@ yalla_london/.phase4b_logs/
 # Environment files (comprehensive protection)
 .env*
 !.env.example
+!.env.*.example
 *.env
 *.env.local
-*.env.*
 .env
 .env.local
 .env.development

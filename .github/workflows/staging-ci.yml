@@ -3,14 +3,19 @@ name: Staging CI/CD Pipeline
 on:
   push:
     branches: [ staging, develop ]
+    paths:
+      - 'yalla_london/app/**'
+      - '.github/workflows/staging-ci.yml'
   pull_request:
-    branches: [ staging ]
+    branches: [ staging, main ]
+    paths:
+      - 'yalla_london/app/**'
 
 env:
   NODE_VERSION: '20.18.1'
   APP_DIR: 'yalla_london/app'
   STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL || 'postgresql://staging:staging@localhost:5432/staging_db' }}
-  STAGING_NEXTAUTH_URL: ${{ secrets.STAGING_NEXTAUTH_URL || 'https://staging.example.com' }}
+  STAGING_NEXTAUTH_URL: ${{ secrets.STAGING_NEXTAUTH_URL || 'https://yalla-london-staging.vercel.app' }}
   STAGING_ABACUSAI_API_KEY: ${{ secrets.STAGING_ABACUSAI_API_KEY || secrets.ABACUSAI_API_KEY || 'staging-test-key' }}
 
 jobs:

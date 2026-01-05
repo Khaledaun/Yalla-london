@@ -1191,7 +1191,198 @@ tests/domains/leads.test.ts          (create)
 
 ---
 
-### PR 10: Launch Readiness
+### PR 10: Domain Management Platform
+**Goal:** Self-service tenant/domain management in admin dashboard
+
+**Files touched:**
+```
+prisma/schema.prisma                          (add Domain model, update Site)
+prisma/migrations/YYYYMMDD_domain_mgmt/       (create)
+lib/tenant/resolver.ts                        (dynamic DB-based resolution)
+lib/tenant/cache.ts                           (tenant config caching)
+lib/domains/sites/service.ts                  (create)
+lib/domains/sites/queries.ts                  (create)
+app/(admin)/sites/page.tsx                    (list all sites)
+app/(admin)/sites/new/page.tsx                (create site wizard)
+app/(admin)/sites/[id]/page.tsx               (edit site settings)
+app/(admin)/sites/[id]/domains/page.tsx       (manage domains)
+app/(admin)/sites/[id]/branding/page.tsx      (logo, colors, fonts)
+app/(admin)/sites/[id]/features/page.tsx      (feature toggles)
+app/(admin)/sites/[id]/team/page.tsx          (team members)
+components/admin/SiteForm.tsx                 (create)
+components/admin/DomainVerification.tsx       (create)
+tests/admin/site-management.test.ts           (create)
+```
+
+**New Prisma Models:**
+```prisma
+model Domain {
+  id          String   @id @default(cuid())
+  site_id     String
+  hostname    String   @unique
+  is_primary  Boolean  @default(false)
+  verified    Boolean  @default(false)
+  verified_at DateTime?
+  site        Site     @relation(fields: [site_id], references: [id], onDelete: Cascade)
+  created_at  DateTime @default(now())
+}
+```
+
+**Tests:**
+- CRUD operations for sites
+- Domain uniqueness validation
+- Tenant resolution from database
+- Cache invalidation on update
+
+**Acceptance criteria:**
+- [ ] Can create new tenant from admin UI
+- [ ] Can add/remove domains per tenant
+- [ ] Middleware resolves tenant from database
+- [ ] Cache refreshes on config change
+- [ ] Super-admin can manage all sites
+
+---
+
+### PR 11: Team & Expertise System
+**Goal:** World-class team profiles with skills and roles
+
+**Files touched:**
+```
+prisma/schema.prisma                          (add TeamMember, Skill, Expertise)
+prisma/migrations/YYYYMMDD_team_expertise/    (create)
+lib/domains/team/service.ts                   (create)
+lib/domains/team/queries.ts                   (create)
+app/(admin)/team/page.tsx                     (team directory)
+app/(admin)/team/new/page.tsx                 (add team member)
+app/(admin)/team/[id]/page.tsx                (edit member profile)
+app/(admin)/team/skills/page.tsx              (manage skill taxonomy)
+app/(public)/about/team/page.tsx              (public team page)
+app/(arabaldives)/about/team/page.tsx         (Arabic team page)
+components/TeamMemberCard.tsx                 (create)
+components/SkillBadge.tsx                     (create)
+components/ExpertiseShowcase.tsx              (create)
+```
+
+**New Prisma Models:**
+```prisma
+model TeamMember {
+  id              String   @id @default(cuid())
+  site_id         String?  // null = global team member across sites
+  user_id         String?  // optional link to User for login
+
+  // Profile
+  name_en         String
+  name_ar         String?
+  slug            String   @unique
+  title_en        String   // "Senior Travel Content Strategist"
+  title_ar        String?
+  bio_en          String   @db.Text
+  bio_ar          String?  @db.Text
+
+  // Media
+  avatar_url      String?
+  cover_image_url String?
+
+  // Contact (optional public)
+  email_public    String?
+  linkedin_url    String?
+  twitter_url     String?
+  website_url     String?
+
+  // Status
+  is_active       Boolean  @default(true)
+  is_featured     Boolean  @default(false)
+  display_order   Int      @default(0)
+
+  // Relations
+  site            Site?    @relation(fields: [site_id], references: [id])
+  expertise       TeamMemberExpertise[]
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([site_id, is_active])
+}
+
+model Skill {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name_en     String
+  name_ar     String?
+  category    SkillCategory
+  icon        String?  // Lucide icon name or URL
+  color       String?  // Hex color for badge
+
+  expertise   TeamMemberExpertise[]
+
+  @@index([category])
+}
+
+model TeamMemberExpertise {
+  id              String   @id @default(cuid())
+  team_member_id  String
+  skill_id        String
+
+  proficiency     Proficiency @default(EXPERT)
+  years_experience Int?
+  description     String?     // Optional context
+  is_primary      Boolean     @default(false)  // Top 3-5 skills
+
+  team_member     TeamMember @relation(fields: [team_member_id], references: [id], onDelete: Cascade)
+  skill           Skill      @relation(fields: [skill_id], references: [id])
+
+  @@unique([team_member_id, skill_id])
+}
+
+enum SkillCategory {
+  ENGINEERING        // Coding, Architecture, DevOps
+  AI_ML              // AI Implementation, Prompt Engineering, ML
+  DESIGN             // UI/UX, Visual Design, Brand Design
+  DATA               // Database, Analytics, BI
+  CONTENT            // Travel Writing, SEO Content, Copywriting
+  MARKETING          // Affiliate, Growth, Paid Media
+  PSYCHOLOGY         // Consumer Behavior, Persuasion, UX Research
+  BUSINESS           // Strategy, Operations, Finance
+  TRAVEL             // Destination Expertise, Industry Knowledge
+}
+
+enum Proficiency {
+  LEARNING           // Currently developing
+  PROFICIENT         // Solid working knowledge
+  EXPERT             // Deep expertise
+  THOUGHT_LEADER     // Industry recognition
+}
+```
+
+**Skill Categories Included:**
+| Category | Examples |
+|----------|----------|
+| ENGINEERING | Full-Stack Development, System Architecture, API Design |
+| AI_ML | AI Implementation, Prompt Engineering, LLM Integration |
+| DESIGN | High-End UI/UX, Visual Design, Motion Design |
+| DATA | Database Management, Analytics, Data Modeling |
+| CONTENT | Travel Content Writing, SEO Copywriting, Editorial |
+| MARKETING | Affiliate Marketing, Growth Strategy, Conversion Optimization |
+| PSYCHOLOGY | Consumer Behavior, Persuasion Design, UX Research |
+| BUSINESS | Strategy, Operations, Partnership Development |
+| TRAVEL | Destination Expertise, Hospitality Industry, Luxury Travel |
+
+**Tests:**
+- Team member CRUD
+- Skill assignment
+- Public team page rendering (LTR + RTL)
+- Filtering by skill category
+
+**Acceptance criteria:**
+- [ ] Can add team members with full profiles
+- [ ] Can assign multiple skills with proficiency levels
+- [ ] Public team page showcases expertise
+- [ ] Skills display correctly in Arabic
+- [ ] Can filter/search by skill category
+
+---
+
+### PR 12: Launch Readiness
 **Goal:** Final polish and verification
 
 **Files touched:**

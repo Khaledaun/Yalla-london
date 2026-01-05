@@ -1753,6 +1753,359 @@ model Domain {
 }
 
 // =============================================================================
+// AFFILIATE TRACKING & REVENUE SYSTEM
+// =============================================================================
+
+model AffiliatePartner {
+  id              String   @id @default(cuid())
+  name            String   // "Booking.com", "Agoda", "GetYourGuide"
+  slug            String   @unique
+  partner_type    PartnerType @default(HOTEL)
+
+  // Commission structure
+  commission_type String   @default("percentage") // "percentage", "fixed"
+  commission_rate Float    // 4.0 = 4% or fixed amount
+  cookie_days     Int      @default(30)
+
+  // Integration
+  api_url         String?
+  tracking_domain String?  // "prf.hn", "booking.com"
+  affiliate_id    String?
+
+  // Status
+  is_active       Boolean  @default(true)
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  // Relations
+  clicks          AffiliateClick[]
+  conversions     Conversion[]
+
+  @@map("affiliate_partners")
+}
+
+model AffiliateClick {
+  id              String   @id @default(cuid())
+  site_id         String
+  partner_id      String
+
+  // What was clicked
+  resort_id       String?
+  product_id      String?
+  article_id      String?
+  link_type       String?  // "resort_cta", "comparison_table", "sidebar"
+
+  // Session tracking
+  session_id      String
+  visitor_id      String?  // Persistent visitor ID from cookie
+
+  // Attribution
+  utm_source      String?
+  utm_medium      String?
+  utm_campaign    String?
+  utm_content     String?
+  utm_term        String?
+  referrer        String?
+  landing_page    String?
+
+  // Device info
+  user_agent      String?
+  device_type     String?  // "mobile", "tablet", "desktop"
+  country_code    String?
+
+  // Timestamps
+  clicked_at      DateTime @default(now())
+
+  // Relations
+  partner         AffiliatePartner @relation(fields: [partner_id], references: [id])
+  conversion      Conversion?
+
+  @@index([site_id, clicked_at])
+  @@index([partner_id])
+  @@index([resort_id])
+  @@index([session_id])
+  @@map("affiliate_clicks")
+}
+
+model Conversion {
+  id              String   @id @default(cuid())
+  site_id         String
+  click_id        String   @unique
+  partner_id      String
+
+  // Booking details
+  booking_ref     String?  // Partner's booking reference
+  booking_value   Int      // cents/pence
+  commission      Int      // cents/pence
+  currency        String   @default("USD")
+
+  // Status
+  status          ConversionStatus @default(PENDING)
+
+  // Dates
+  check_in        DateTime?
+  check_out       DateTime?
+  converted_at    DateTime @default(now())
+  confirmed_at    DateTime?
+  paid_at         DateTime?
+
+  // Relations
+  click           AffiliateClick @relation(fields: [click_id], references: [id])
+  partner         AffiliatePartner @relation(fields: [partner_id], references: [id])
+
+  @@index([site_id, converted_at])
+  @@index([status])
+  @@map("conversions")
+}
+
+enum PartnerType {
+  HOTEL            // Booking.com, Agoda
+  EXPERIENCE       // GetYourGuide, Viator
+  INSURANCE        // World Nomads, Safety Wing
+  FLIGHT           // Skyscanner
+  TRANSFER         // Welcome Pickups
+  EQUIPMENT        // Amazon, REI
+}
+
+enum ConversionStatus {
+  PENDING          // Click recorded, awaiting booking
+  BOOKED           // Booking confirmed by partner
+  COMPLETED        // Stay completed
+  CANCELLED        // Booking cancelled
+  PAID             // Commission paid out
+}
+
+// =============================================================================
+// LEAD MANAGEMENT & CRM
+// =============================================================================
+
+model Lead {
+  id              String   @id @default(cuid())
+  site_id         String
+
+  // Contact info
+  email           String
+  name            String?
+  phone           String?
+
+  // Lead type
+  lead_type       LeadType @default(NEWSLETTER)
+  lead_source     String?  // "exit_intent", "content_gate", "contact_form"
+
+  // Interest data
+  interests_json  Json?    // ["maldives", "honeymoon", "luxury"]
+  budget_range    String?  // "$5k-10k", "$10k-20k"
+  travel_dates    String?
+  party_size      Int?
+
+  // Attribution
+  utm_source      String?
+  utm_medium      String?
+  utm_campaign    String?
+  referrer        String?
+  landing_page    String?
+
+  // Lead scoring
+  score           Int      @default(0)
+  score_factors   Json?    // { page_views: 10, email_opens: 5 }
+
+  // Status
+  status          LeadStatus @default(NEW)
+  assigned_to     String?
+
+  // Monetization
+  value           Int?     // Lead value in cents (for sold leads)
+  sold_to         String?  // Partner who bought the lead
+  sold_at         DateTime?
+
+  // Consent
+  marketing_consent Boolean @default(false)
+  consent_ip      String?
+  consent_at      DateTime?
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  // Relations
+  activities      LeadActivity[]
+
+  @@unique([site_id, email])
+  @@index([site_id, created_at])
+  @@index([lead_type])
+  @@index([status])
+  @@index([score])
+  @@map("leads")
+}
+
+model LeadActivity {
+  id          String   @id @default(cuid())
+  lead_id     String
+
+  activity_type String // "page_view", "email_open", "form_submit", "click"
+  activity_data Json?  // { page: "/resorts/maldives", duration: 120 }
+
+  created_at  DateTime @default(now())
+
+  lead        Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  @@index([lead_id, created_at])
+  @@map("lead_activities")
+}
+
+enum LeadType {
+  NEWSLETTER       // Newsletter signup
+  GUIDE_DOWNLOAD   // Downloaded PDF guide
+  TRIP_INQUIRY     // Trip planning inquiry
+  QUOTE_REQUEST    // Requested resort quote
+  CONSULTATION     // Booked consultation call
+  CONTACT          // General contact form
+}
+
+enum LeadStatus {
+  NEW              // Just captured
+  QUALIFIED        // Met scoring threshold
+  CONTACTED        // Outreach sent
+  ENGAGED          // Responded/interacted
+  CONVERTED        // Made a booking
+  SOLD             // Lead sold to partner
+  UNQUALIFIED      // Not a good fit
+  UNSUBSCRIBED     // Opted out
+}
+
+// =============================================================================
+// PAGE VIEWS & ANALYTICS TRACKING
+// =============================================================================
+
+model PageView {
+  id          String   @id @default(cuid())
+  site_id     String
+
+  // Page info
+  path        String
+  page_type   String?  // "resort", "comparison", "article", "homepage"
+  content_id  String?  // ID of the content viewed
+
+  // Session
+  session_id  String
+  visitor_id  String?
+
+  // Metrics
+  duration    Int?     // seconds on page
+  scroll_depth Int?    // 0-100 percentage
+
+  // Source
+  referrer    String?
+  utm_source  String?
+
+  viewed_at   DateTime @default(now())
+
+  @@index([site_id, viewed_at])
+  @@index([path])
+  @@index([content_id])
+  @@index([session_id])
+  @@map("page_views")
+}
+
+// =============================================================================
+// DIGITAL PRODUCTS & PURCHASES
+// =============================================================================
+
+model DigitalProduct {
+  id              String   @id @default(cuid())
+  site_id         String?  // null = available on all sites
+
+  // Product info
+  name_en         String
+  name_ar         String?
+  slug            String   @unique
+  description_en  String   @db.Text
+  description_ar  String?  @db.Text
+
+  // Pricing (cents)
+  price           Int
+  compare_price   Int?     // "Was" price for anchoring
+  currency        String   @default("USD")
+
+  // Product type
+  product_type    ProductType @default(PDF_GUIDE)
+
+  // Delivery
+  file_url        String?  // S3/R2 URL
+  file_size       Int?     // bytes
+
+  // Display
+  cover_image     String?
+  features_json   Json?    // ["50 pages", "Resort comparisons"]
+
+  // Status
+  is_active       Boolean  @default(true)
+  featured        Boolean  @default(false)
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  purchases       Purchase[]
+
+  @@index([site_id])
+  @@index([product_type])
+  @@map("digital_products")
+}
+
+model Purchase {
+  id              String   @id @default(cuid())
+  site_id         String
+  product_id      String
+
+  // Customer
+  customer_email  String
+  customer_name   String?
+
+  // Payment
+  amount          Int      // cents
+  currency        String   @default("USD")
+  payment_provider String? // "stripe", "paddle"
+  payment_id      String?  // External payment ID
+
+  // Status
+  status          PurchaseStatus @default(PENDING)
+
+  // Access
+  download_token  String   @unique @default(cuid())
+  download_count  Int      @default(0)
+  download_limit  Int      @default(5)
+
+  // Attribution
+  utm_source      String?
+  utm_campaign    String?
+
+  created_at      DateTime @default(now())
+  completed_at    DateTime?
+
+  product         DigitalProduct @relation(fields: [product_id], references: [id])
+
+  @@index([site_id, created_at])
+  @@index([customer_email])
+  @@index([download_token])
+  @@map("purchases")
+}
+
+enum ProductType {
+  PDF_GUIDE        // Downloadable PDF
+  SPREADSHEET      // Excel/Google Sheets
+  TEMPLATE         // Planning templates
+  BUNDLE           // Multiple products
+  MEMBERSHIP       // Recurring access
+}
+
+enum PurchaseStatus {
+  PENDING          // Payment initiated
+  COMPLETED        // Payment successful
+  FAILED           // Payment failed
+  REFUNDED         // Money returned
+}
+
+// =============================================================================
 // COMPREHENSIVE DASHBOARD SYSTEM - NEW TABLES
 // =============================================================================
 // Note: Temporarily commented out to fix build issues

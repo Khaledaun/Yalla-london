@@ -27,18 +27,21 @@ model User {
   lastLoginAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  
+
   accounts      Account[]
   sessions      Session[]
   posts         BlogPost[]
   auditLogs     AuditLog[]
   userSessions  UserSession[]
   topicPolicies TopicPolicy[]
-  
+
   // Premium backend relations
   auditLogsPremium AuditLogPremium[]
   siteMembershipsPremium SiteMemberPremium[]
-  
+
+  // Team & Expertise
+  teamMemberProfile TeamMember[]
+
   @@map(name: "users")
 }
 
@@ -599,11 +602,25 @@ model Site {
   is_active   Boolean  @default(true)
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
-  
+
+  // Localization
+  default_locale String  @default("en")  // "en" | "ar"
+  direction      String  @default("ltr") // "ltr" | "rtl"
+
+  // Branding
+  favicon_url     String?
+  primary_color   String? @default("#0C4A6E")
+  secondary_color String? @default("#0EA5E9")
+
+  // Features
+  features_json   Json?   // Per-site feature flags
+
   // Relations
   site_members SiteMember[]
   site_themes  SiteTheme?   @relation(fields: [theme_id], references: [id])
-  
+  team_members TeamMember[]
+  domains      Domain[]
+
   @@index([is_active])
   @@index([slug])
 }
@@ -1558,6 +1575,181 @@ model ContentImport {
   @@index([site_id])
   @@index([status])
   @@map(name: "content_imports")
+}
+
+// =============================================================================
+// TEAM & EXPERTISE SYSTEM
+// =============================================================================
+
+model TeamMember {
+  id              String   @id @default(cuid())
+  site_id         String?  // null = global team member across sites
+  user_id         String?  // optional link to User for login access
+
+  // Profile
+  name_en         String
+  name_ar         String?
+  slug            String   @unique
+  title_en        String   // "Senior Travel Content Strategist"
+  title_ar        String?
+  bio_en          String   @db.Text
+  bio_ar          String?  @db.Text
+
+  // Media
+  avatar_url      String?
+  cover_image_url String?
+
+  // Contact (optional public display)
+  email_public    String?
+  linkedin_url    String?
+  twitter_url     String?
+  instagram_url   String?
+  website_url     String?
+
+  // Status
+  is_active       Boolean  @default(true)
+  is_featured     Boolean  @default(false)
+  display_order   Int      @default(0)
+
+  // Relations
+  site            Site?    @relation(fields: [site_id], references: [id], onDelete: SetNull)
+  user            User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  expertise       TeamMemberExpertise[]
+  content_credits ContentCredit[]
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@index([site_id, is_active])
+  @@index([is_featured])
+  @@map("team_members")
+}
+
+model Skill {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  name_en     String
+  name_ar     String?
+  category    SkillCategory
+  description_en String?
+  description_ar String?
+  icon        String?       // Lucide icon name (e.g., "code", "palette", "brain")
+  color       String?       // Hex color for badge (e.g., "#3B82F6")
+  is_active   Boolean       @default(true)
+  display_order Int         @default(0)
+
+  // Relations
+  expertise   TeamMemberExpertise[]
+
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([category])
+  @@index([is_active])
+  @@map("skills")
+}
+
+model TeamMemberExpertise {
+  id               String      @id @default(cuid())
+  team_member_id   String
+  skill_id         String
+
+  proficiency      Proficiency @default(EXPERT)
+  years_experience Int?
+  description_en   String?     // Context like "Led 50+ projects"
+  description_ar   String?
+  is_primary       Boolean     @default(false)  // Top 3-5 highlighted skills
+  display_order    Int         @default(0)
+
+  // Relations
+  team_member      TeamMember  @relation(fields: [team_member_id], references: [id], onDelete: Cascade)
+  skill            Skill       @relation(fields: [skill_id], references: [id], onDelete: Cascade)
+
+  created_at       DateTime    @default(now())
+  updated_at       DateTime    @updatedAt
+
+  @@unique([team_member_id, skill_id])
+  @@index([team_member_id])
+  @@index([skill_id])
+  @@index([is_primary])
+  @@map("team_member_expertise")
+}
+
+// Content attribution - who created/contributed to what
+model ContentCredit {
+  id              String   @id @default(cuid())
+  team_member_id  String
+  content_type    String   // "blog_post", "resort", "comparison", "guide"
+  content_id      String   // ID of the content item
+  role            CreditRole @default(AUTHOR)
+  contribution    String?  // Optional description of contribution
+
+  team_member     TeamMember @relation(fields: [team_member_id], references: [id], onDelete: Cascade)
+
+  created_at      DateTime @default(now())
+
+  @@unique([team_member_id, content_type, content_id])
+  @@index([content_type, content_id])
+  @@map("content_credits")
+}
+
+enum SkillCategory {
+  ENGINEERING        // Coding, Architecture, DevOps, System Design
+  AI_ML              // AI Implementation, Prompt Engineering, ML, Automation
+  DESIGN             // UI/UX, Visual Design, Brand Design, Motion
+  DATA               // Database Management, Analytics, BI, Data Modeling
+  CONTENT            // Travel Writing, SEO Content, Copywriting, Editorial
+  MARKETING          // Affiliate Marketing, Growth, Paid Media, Email
+  PSYCHOLOGY         // Consumer Behavior, Persuasion, UX Research, CRO
+  BUSINESS           // Strategy, Operations, Finance, Partnerships
+  TRAVEL             // Destination Expertise, Hospitality, Luxury Travel
+}
+
+enum Proficiency {
+  LEARNING           // Currently developing this skill
+  PROFICIENT         // Solid working knowledge
+  EXPERT             // Deep expertise, can lead projects
+  THOUGHT_LEADER     // Industry recognition, speaker/author
+}
+
+enum CreditRole {
+  AUTHOR             // Primary author
+  CO_AUTHOR          // Co-authored
+  EDITOR             // Edited/reviewed
+  CONTRIBUTOR        // Contributed sections
+  PHOTOGRAPHER       // Provided photography
+  RESEARCHER         // Research contribution
+  ADVISOR            // Advisory input
+}
+
+// =============================================================================
+// DOMAIN MANAGEMENT SYSTEM
+// =============================================================================
+
+model Domain {
+  id          String    @id @default(cuid())
+  site_id     String
+  hostname    String    @unique  // "arabaldives.com", "www.arabaldives.com"
+  is_primary  Boolean   @default(false)
+  verified    Boolean   @default(false)
+  verified_at DateTime?
+
+  // Verification
+  verification_token String?  // DNS TXT record value
+  verification_method String? // "dns", "file", "cname"
+
+  // SSL
+  ssl_status  String?   @default("pending") // "pending", "active", "failed"
+
+  // Relations
+  site        Site      @relation(fields: [site_id], references: [id], onDelete: Cascade)
+
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  @@index([site_id])
+  @@index([verified])
+  @@map("domains")
 }
 
 // =============================================================================

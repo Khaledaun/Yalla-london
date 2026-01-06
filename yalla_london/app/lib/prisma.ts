@@ -32,6 +32,9 @@ const extendedMock = {
   // ApiSettings for legacy keys
   apiSettings: createMockModel('api'),
 
+  // Topic proposals for content
+  topicProposal: createMockModel('topic'),
+
   // Background jobs for autopilot
   backgroundJob: createMockModel('job', { status: 'pending' }),
 

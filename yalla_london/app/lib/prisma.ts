@@ -151,12 +151,12 @@ const extendedMock = {
 
   // Tracking partners (renamed from duplicate AffiliatePartner)
   trackingPartner: {
-    findMany: async () => [],
-    findFirst: async () => null,
-    findUnique: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'tp-1', ...params.data }),
     update: async (params: any) => params.data,
-    count: async () => 0,
+    count: async (params?: any) => 0,
   },
 
   // Affiliate clicks

@@ -2,14 +2,13 @@
  * Team & Expertise System Types
  */
 
+// Import enums as values (not type-only) so they can be re-exported
+import { SkillCategory, Proficiency, CreditRole } from '@prisma/client';
 import type {
   TeamMember,
   Skill,
   TeamMemberExpertise,
   ContentCredit,
-  SkillCategory,
-  Proficiency,
-  CreditRole,
 } from '@prisma/client';
 
 // Re-export enums for convenience

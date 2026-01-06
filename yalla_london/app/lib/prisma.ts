@@ -69,7 +69,7 @@ const extendedMock = {
 
   // Sites for multi-tenant
   site: {
-    findMany: async () => [{
+    findMany: async (params?: any) => [{
       id: 'site-1',
       name: 'Demo Site',
       slug: 'demo',
@@ -79,7 +79,7 @@ const extendedMock = {
       created_at: new Date(),
       domains: [{ hostname: 'demo.yallalondon.com', is_primary: true }],
     }],
-    findFirst: async () => ({
+    findFirst: async (params?: any) => ({
       id: 'site-1',
       name: 'Demo Site',
       slug: 'demo',
@@ -88,7 +88,7 @@ const extendedMock = {
       default_locale: 'en',
       domains: [{ hostname: 'demo.yallalondon.com', is_primary: true }],
     }),
-    findUnique: async () => ({
+    findUnique: async (params?: any) => ({
       id: 'site-1',
       name: 'Demo Site',
       slug: 'demo',
@@ -97,7 +97,7 @@ const extendedMock = {
     }),
     create: async (params: any) => ({ id: 'site-new', ...params.data }),
     update: async (params: any) => params.data,
-    count: async () => 1,
+    count: async (params?: any) => 1,
   },
 
   // Autopilot tasks
@@ -161,10 +161,11 @@ const extendedMock = {
 
   // Affiliate clicks
   affiliateClick: {
-    findMany: async () => [],
+    findMany: async (params?: any) => [],
     create: async (params: any) => ({ id: 'click-1', ...params.data }),
-    count: async () => 0,
-    aggregate: async () => ({ _sum: { revenue: 0 } }),
+    count: async (params?: any) => 0,
+    aggregate: async (params?: any) => ({ _sum: { revenue: 0 } }),
+    groupBy: async (params?: any) => [],
   },
 
   // Email campaigns
@@ -212,12 +213,13 @@ const extendedMock = {
 
   // Conversions for revenue tracking
   conversion: {
-    findMany: async () => [],
-    findFirst: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
     create: async (params: any) => ({ id: 'conv-1', status: 'PENDING', ...params.data }),
     update: async (params: any) => params.data,
-    aggregate: async () => ({ _sum: { commission: 0 } }),
-    count: async () => 0,
+    aggregate: async (params?: any) => ({ _sum: { commission: 0 }, _count: 0 }),
+    groupBy: async (params?: any) => [],
+    count: async (params?: any) => 0,
   },
 
   // Content/Article

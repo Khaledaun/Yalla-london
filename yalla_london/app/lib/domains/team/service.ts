@@ -41,9 +41,10 @@ import type {
   AssignExpertiseInput,
   AssignCreditInput,
   TeamMemberPublicProfile,
-  SkillCategory,
-  Proficiency,
 } from './types';
+
+// Import enums as values (not types) since they're used as values
+import { SkillCategory, Proficiency } from './types';
 
 // ============================================================================
 // TEAM MEMBER SERVICE
@@ -325,7 +326,7 @@ export class ExpertiseService {
       result = await assignExpertise({
         team_member_id: teamMemberId,
         skill_id: skill.skillId,
-        proficiency: skill.proficiency || 'EXPERT',
+        proficiency: skill.proficiency || Proficiency.EXPERT,
         is_primary: skill.isPrimary || false,
       });
     }

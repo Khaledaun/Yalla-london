@@ -4,18 +4,9 @@
  * Centralized database access with tenant scoping.
  */
 
-// Tenant-scoped Prisma client
+// Assertion helpers (import first to avoid circular dependency)
 export {
-  getTenantPrisma,
-  getTenantPrismaFromContext,
-  withTenantDb,
-  tenantTransaction,
   TenantMismatchError,
-  type TenantPrismaClient,
-} from './tenant-queries';
-
-// Assertion helpers
-export {
   assertTenantOwnership,
   assertExists,
   assertPermission,
@@ -34,6 +25,15 @@ export {
   mapDatabaseError,
   isApiError,
 } from './assertions';
+
+// Tenant-scoped Prisma client
+export {
+  getTenantPrisma,
+  getTenantPrismaFromContext,
+  withTenantDb,
+  tenantTransaction,
+  type TenantPrismaClient,
+} from './tenant-queries';
 
 // Re-export base Prisma client for global queries (admin only)
 export { prisma } from '@/lib/prisma';

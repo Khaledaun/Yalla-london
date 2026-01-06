@@ -1,16 +1,7 @@
 /**
  * Social Media Posting Cron Endpoint
- *
- * Publishes scheduled social media posts.
- * Run every 15 minutes.
- *
- * Add to vercel.json:
- * {
- *   "crons": [{
- *     "path": "/api/cron/social",
- *     "schedule": "*/15 * * * *"
- *   }]
- * }
+ * Publishes scheduled social media posts every 15 minutes.
+ * Configured in vercel.json crons array.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

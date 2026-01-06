@@ -9,7 +9,6 @@ export {
   SocialProof,
   SocialProofBadge,
   ScarcityBadge,
-  RecentBookings,
 } from './social-proof';
 
 // Trust Badges - conversion confidence

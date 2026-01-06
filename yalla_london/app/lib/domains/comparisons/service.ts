@@ -4,7 +4,7 @@
  * Business logic for resort comparison engine.
  */
 
-import { getTenantPrisma } from '@/lib/db';
+import { getTenantPrisma } from '@/lib/db/tenant-queries';
 import { assertExists, assertValidSlug } from '@/lib/db/assertions';
 import type {
   Comparison,
@@ -19,10 +19,12 @@ import type {
   ComparisonTableResort,
   ComparisonTableCriterion,
   VerdictCalculation,
+  ContentStatus,
+} from './types';
+import {
   DEFAULT_CRITERIA,
   DEFAULT_DISPLAY_CONFIG,
   VERDICT_TEMPLATES,
-  ContentStatus,
 } from './types';
 import type { Resort, ScoreBreakdown } from '../resorts/types';
 

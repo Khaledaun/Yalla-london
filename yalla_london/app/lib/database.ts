@@ -1,41 +1,17 @@
 /**
  * Database Service - Phase-4C Implementation
- * Single source of truth with proper SSL configuration
+ * Uses lazy initialization to avoid build-time errors.
  */
 
-import { PrismaClient } from '@prisma/client';
-
-// Global Prisma client instance
-let prisma: PrismaClient | null = null;
+// Re-export from centralized prisma module
+export { prisma } from '@/lib/prisma';
 
 /**
- * Get Prisma client instance
- * Uses pooler URL for app traffic, direct URL for migrations
+ * Get Prisma client instance (for backwards compatibility)
  */
-export function getPrismaClient(): PrismaClient {
-  if (!prisma) {
-    // Fail fast if DATABASE_URL is missing
-    if (!process.env.DATABASE_URL) {
-      throw new Error('DATABASE_URL environment variable is required');
-    }
-
-    // Log which URL type is being used (no secrets in logs)
-    const isDirectUrl = process.env.DATABASE_URL === process.env.DIRECT_URL;
-    const urlType = isDirectUrl ? 'direct' : 'pooler';
-    console.log(`Database: Using ${urlType} URL for Prisma client`);
-
-    prisma = new PrismaClient({
-      datasources: {
-        db: {
-          url: process.env.DATABASE_URL,
-        },
-      },
-      // Remove ssl: { rejectUnauthorized: false }
-      // Use sslmode=require in URLs as documented
-    });
-  }
-
-  return prisma;
+export function getPrismaClient() {
+  // Import dynamically to avoid build-time instantiation
+  return require('@/lib/prisma').prisma;
 }
 
 /**
@@ -82,8 +58,8 @@ export async function checkDatabaseHealth(): Promise<{
  * Gracefully disconnect from database
  */
 export async function disconnectDatabase(): Promise<void> {
-  if (prisma) {
-    await prisma.$disconnect();
-    prisma = null;
+  const client = getPrismaClient();
+  if (client && typeof client.$disconnect === 'function') {
+    await client.$disconnect();
   }
 }

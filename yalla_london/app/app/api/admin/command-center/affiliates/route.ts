@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     startDate.setDate(startDate.getDate() - days);
 
     // Get affiliate partners
-    const partners = await prisma.affiliatePartner.findMany({
+    const partners = await prisma.trackingPartner.findMany({
       where: category !== 'all' ? { partner_type: category.toUpperCase() as any } : undefined,
       orderBy: { created_at: 'desc' },
     });
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
   try {
     const { name, partnerType, commissionRate, trackingDomain, affiliateId } = await request.json();
 
-    const partner = await prisma.affiliatePartner.create({
+    const partner = await prisma.trackingPartner.create({
       data: {
         name,
         slug: name.toLowerCase().replace(/\s+/g, '-'),
@@ -206,7 +206,7 @@ async function calculateRevenueBySite(startDate: Date) {
 
     let topPartnerName = 'N/A';
     if (topPartner[0]?.partner_id) {
-      const partner = await prisma.affiliatePartner.findUnique({
+      const partner = await prisma.trackingPartner.findUnique({
         where: { id: topPartner[0].partner_id },
       });
       topPartnerName = partner?.name || 'Unknown';

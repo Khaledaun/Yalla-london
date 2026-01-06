@@ -131,12 +131,12 @@ async function createDatabaseBackup(backupId: string, backupName: string, backup
 
 async function getDatabaseTableCount(): Promise<number> {
   try {
-    const result = await prisma.$queryRaw<[{ count: bigint }]>`
+    const result = await (prisma as any).$queryRaw`
       SELECT COUNT(*) as count
-      FROM information_schema.tables 
+      FROM information_schema.tables
       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-    `
-    return Number(result[0].count)
+    ` as { count: bigint }[];
+    return Number(result[0]?.count || 0);
   } catch (error) {
     console.error('Error getting table count:', error)
     return 0
@@ -146,11 +146,11 @@ async function getDatabaseTableCount(): Promise<number> {
 async function getDatabaseRecordCount(): Promise<number> {
   try {
     // Get all table names
-    const tables = await prisma.$queryRaw<[{ tablename: string }]>`
-      SELECT tablename 
-      FROM pg_catalog.pg_tables 
+    const tables = await (prisma as any).$queryRaw`
+      SELECT tablename
+      FROM pg_catalog.pg_tables
       WHERE schemaname = 'public'
-    `
+    ` as { tablename: string }[];
 
     let totalRecords = 0
     for (const table of tables) {

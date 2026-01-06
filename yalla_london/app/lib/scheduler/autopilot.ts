@@ -189,31 +189,32 @@ async function runContentGeneration(config: any): Promise<any> {
 
   switch (contentType) {
     case 'resort_review':
-      content = await generateResortReview(
-        destination,
-        {
-          name: config.resortName || destination,
-          rating: config.rating || 4.5,
+      content = await generateResortReview({
+        resortName: config.resortName || destination,
+        resortData: {
+          location: destination,
           priceRange: config.priceRange || '$$$',
-          highlights: config.highlights || [],
+          category: config.category || 'luxury',
+          features: config.highlights || [],
         },
-        locale
-      );
-      break;
-
-    case 'travel_guide':
-      content = await generateTravelGuide(destination, {
-        sections: config.sections || ['intro', 'activities', 'tips'],
         locale,
       });
       break;
 
+    case 'travel_guide':
+      content = await generateTravelGuide({
+        destination,
+        locale,
+        topics: config.sections || ['intro', 'activities', 'tips'],
+      });
+      break;
+
     case 'comparison':
-      content = await generateComparison(
-        config.resorts || [],
-        config.criteria || ['price', 'location', 'amenities'],
-        locale
-      );
+      content = await generateComparison({
+        items: config.resorts || [],
+        comparisonType: 'resort',
+        locale,
+      });
       break;
 
     default:

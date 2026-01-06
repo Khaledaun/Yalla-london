@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '@/lib/db';
-import { Prisma, SkillCategory, Proficiency } from '@prisma/client';
+import { SkillCategory, Proficiency } from './types';
 import type {
   TeamMemberWithExpertise,
   TeamMemberFull,
@@ -19,6 +19,7 @@ import type {
   AssignExpertiseInput,
   UpdateExpertiseInput,
   AssignCreditInput,
+  ContentCredit,
 } from './types';
 
 // ============================================================================
@@ -31,13 +32,13 @@ import type {
 export async function findTeamMembers(
   filters: TeamMemberFilters = {},
   options: {
-    orderBy?: Prisma.TeamMemberOrderByWithRelationInput;
+    orderBy?: any;
     take?: number;
     skip?: number;
     includeExpertise?: boolean;
   } = {}
 ): Promise<{ members: TeamMemberWithExpertise[]; total: number }> {
-  const where: Prisma.TeamMemberWhereInput = {
+  const where: any = {
     ...(filters.site_id !== undefined && { site_id: filters.site_id }),
     ...(filters.is_active !== undefined && { is_active: filters.is_active }),
     ...(filters.is_featured !== undefined && { is_featured: filters.is_featured }),
@@ -213,12 +214,12 @@ export async function findFeaturedTeamMembers(
 export async function findSkills(
   filters: SkillFilters = {},
   options: {
-    orderBy?: Prisma.SkillOrderByWithRelationInput;
+    orderBy?: any;
     take?: number;
     skip?: number;
   } = {}
 ): Promise<{ skills: SkillWithCount[]; total: number; byCategory: Record<SkillCategory, number> }> {
-  const where: Prisma.SkillWhereInput = {
+  const where: any = {
     ...(filters.category && { category: filters.category }),
     ...(filters.is_active !== undefined && { is_active: filters.is_active }),
     ...(filters.search && {
@@ -517,5 +518,4 @@ export async function removeContentCredit(
   });
 }
 
-// Need to import ContentCredit type
-import type { ContentCredit } from '@prisma/client';
+// ContentCredit type is already available from ./types

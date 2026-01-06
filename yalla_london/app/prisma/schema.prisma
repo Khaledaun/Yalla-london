@@ -4,8 +4,7 @@
 
 generator client {
     provider        = "prisma-client-js"
-    binaryTargets   = ["native", "debian-openssl-3.0.x"]
-    engineType      = "binary"
+    binaryTargets   = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -1756,7 +1755,7 @@ model Domain {
 // AFFILIATE TRACKING & REVENUE SYSTEM
 // =============================================================================
 
-model AffiliatePartner {
+model TrackingPartner {
   id              String   @id @default(cuid())
   name            String   // "Booking.com", "Agoda", "GetYourGuide"
   slug            String   @unique
@@ -1782,7 +1781,7 @@ model AffiliatePartner {
   clicks          AffiliateClick[]
   conversions     Conversion[]
 
-  @@map("affiliate_partners")
+  @@map("tracking_partners")
 }
 
 model AffiliateClick {
@@ -1818,7 +1817,7 @@ model AffiliateClick {
   clicked_at      DateTime @default(now())
 
   // Relations
-  partner         AffiliatePartner @relation(fields: [partner_id], references: [id])
+  partner         TrackingPartner @relation(fields: [partner_id], references: [id])
   conversion      Conversion?
 
   @@index([site_id, clicked_at])
@@ -1852,7 +1851,7 @@ model Conversion {
 
   // Relations
   click           AffiliateClick @relation(fields: [click_id], references: [id])
-  partner         AffiliatePartner @relation(fields: [partner_id], references: [id])
+  partner         TrackingPartner @relation(fields: [partner_id], references: [id])
 
   @@index([site_id, converted_at])
   @@index([status])

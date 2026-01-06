@@ -5,7 +5,15 @@
  * and ensure data integrity.
  */
 
-import { TenantMismatchError } from './tenant-queries';
+/**
+ * Error thrown when tenant assertion fails
+ */
+export class TenantMismatchError extends Error {
+  constructor(expectedTenant: string, actualTenant: string) {
+    super(`Tenant mismatch: expected ${expectedTenant}, got ${actualTenant}`);
+    this.name = 'TenantMismatchError';
+  }
+}
 
 /**
  * Assert that a resource belongs to the expected tenant

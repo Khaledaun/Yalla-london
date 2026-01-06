@@ -9,8 +9,11 @@
  *   const posts = await db.blogPost.findMany(); // Auto-filtered by site_id
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { TenantMismatchError } from './assertions';
+
+// Re-export for backwards compatibility
+export { TenantMismatchError };
 
 // Models that require tenant scoping (have site_id column)
 const TENANT_SCOPED_MODELS = new Set([
@@ -41,9 +44,13 @@ const CREATE_METHODS = ['create', 'createMany', 'createManyAndReturn'];
 const UPDATE_METHODS = ['update', 'updateMany', 'upsert'];
 const DELETE_METHODS = ['delete', 'deleteMany'];
 
-export interface TenantPrismaClient extends PrismaClient {
+// TenantPrismaClient type - extends the base prisma type with tenant methods
+// Using typeof prisma to avoid dependency on @prisma/client types
+export interface TenantPrismaClient {
   $tenantId: string;
   $assertTenant: (resourceSiteId: string | null | undefined) => void;
+  // Allow any other properties from the base Prisma client
+  [key: string]: any;
 }
 
 /**
@@ -71,7 +78,7 @@ export function getTenantPrisma(siteId: string): TenantPrismaClient {
         };
       }
 
-      const value = target[prop as keyof PrismaClient];
+      const value = (target as any)[prop];
 
       // If this is a tenant-scoped model, wrap it
       if (typeof value === 'object' && value !== null && TENANT_SCOPED_MODELS.has(prop)) {
@@ -81,7 +88,7 @@ export function getTenantPrisma(siteId: string): TenantPrismaClient {
       // Return other properties as-is
       return value;
     },
-  }) as TenantPrismaClient;
+  }) as unknown as TenantPrismaClient;
 }
 
 /**
@@ -149,16 +156,6 @@ function createTenantScopedModel(model: any, siteId: string, modelName: string) 
 }
 
 /**
- * Error thrown when tenant assertion fails
- */
-export class TenantMismatchError extends Error {
-  constructor(expectedTenant: string, actualTenant: string) {
-    super(`Tenant mismatch: expected ${expectedTenant}, got ${actualTenant}`);
-    this.name = 'TenantMismatchError';
-  }
-}
-
-/**
  * Helper to get tenant Prisma client from request context
  */
 export async function getTenantPrismaFromContext(): Promise<TenantPrismaClient> {
@@ -185,10 +182,10 @@ export async function tenantTransaction<T>(
   siteId: string,
   callback: (tx: TenantPrismaClient) => Promise<T>
 ): Promise<T> {
-  return prisma.$transaction(async (tx) => {
+  return (prisma as any).$transaction(async (tx: any) => {
     // Create tenant-scoped proxy for the transaction
     const tenantTx = new Proxy(tx, {
-      get(target, prop: string) {
+      get(target: any, prop: string) {
         if (prop === '$tenantId') return siteId;
 
         if (prop === '$assertTenant') {
@@ -199,7 +196,7 @@ export async function tenantTransaction<T>(
           };
         }
 
-        const value = target[prop as keyof typeof tx];
+        const value = target[prop];
 
         if (typeof value === 'object' && value !== null && TENANT_SCOPED_MODELS.has(prop)) {
           return createTenantScopedModel(value as any, siteId, prop);
@@ -207,7 +204,7 @@ export async function tenantTransaction<T>(
 
         return value;
       },
-    }) as TenantPrismaClient;
+    }) as unknown as TenantPrismaClient;
 
     return callback(tenantTx);
   });

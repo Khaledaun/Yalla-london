@@ -5,8 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { TeamService } from '@/lib/domains/team';
-import { SkillCategory } from '@prisma/client';
+import { TeamService, SkillCategory } from '@/lib/domains/team';
 
 export async function GET(request: NextRequest) {
   try {

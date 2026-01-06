@@ -28,6 +28,7 @@ import {
   Eye,
   Copy,
   ExternalLink,
+  Settings,
 } from 'lucide-react';
 
 type Step = 'describe' | 'review' | 'customize' | 'generate' | 'complete';

@@ -108,10 +108,14 @@ export default function BlogPage() {
 
   const categories = [
     { value: 'all', label: language === 'en' ? 'All Categories' : 'جميع الفئات' },
+    { value: 'restaurants', label: language === 'en' ? 'Restaurants & Dining' : 'المطاعم والمأكولات' },
+    { value: 'hotels', label: language === 'en' ? 'Hotels & Accommodation' : 'الفنادق والإقامة' },
+    { value: 'shopping', label: language === 'en' ? 'Shopping & Fashion' : 'التسوق والأزياء' },
+    { value: 'attractions', label: language === 'en' ? 'Attractions & Tours' : 'المعالم والجولات' },
+    { value: 'guides', label: language === 'en' ? 'Travel Guides' : 'أدلة السفر' },
     { value: 'food-drink', label: t('categories.food-drink') },
     { value: 'style-shopping', label: t('categories.style-shopping') },
     { value: 'culture-art', label: t('categories.culture-art') },
-    { value: 'football', label: t('categories.football') },
     { value: 'uk-travel', label: t('categories.uk-travel') }
   ]
 

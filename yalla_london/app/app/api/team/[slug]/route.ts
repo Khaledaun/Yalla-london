@@ -23,7 +23,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Only show active members publicly
-    if (!member.is_active) {
+    if (!(member as any).is_active) {
       return NextResponse.json(
         { success: false, error: 'Team member not found' },
         { status: 404 }

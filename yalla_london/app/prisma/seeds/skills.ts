@@ -5,20 +5,7 @@
  * Run with: npx ts-node prisma/seeds/skills.ts
  */
 
-import { PrismaClient } from '@prisma/client';
-
-// Local enum definition matching Prisma schema
-enum SkillCategory {
-  ENGINEERING = 'ENGINEERING',
-  AI_ML = 'AI_ML',
-  DESIGN = 'DESIGN',
-  DATA = 'DATA',
-  CONTENT = 'CONTENT',
-  MARKETING = 'MARKETING',
-  PSYCHOLOGY = 'PSYCHOLOGY',
-  BUSINESS = 'BUSINESS',
-  TRAVEL = 'TRAVEL',
-}
+import { PrismaClient, SkillCategory } from '@prisma/client';
 
 const prisma = new PrismaClient();
 

@@ -9,11 +9,9 @@
  *   const posts = await db.blogPost.findMany(); // Auto-filtered by site_id
  */
 
+import { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { TenantMismatchError } from './assertions';
-
-// Use any for flexibility with mock client during build
-type PrismaClientType = any;
 
 // Re-export for backwards compatibility
 export { TenantMismatchError };
@@ -47,7 +45,7 @@ const CREATE_METHODS = ['create', 'createMany', 'createManyAndReturn'];
 const UPDATE_METHODS = ['update', 'updateMany', 'upsert'];
 const DELETE_METHODS = ['delete', 'deleteMany'];
 
-export interface TenantPrismaClient extends PrismaClientType {
+export interface TenantPrismaClient extends PrismaClient {
   $tenantId: string;
   $assertTenant: (resourceSiteId: string | null | undefined) => void;
 }

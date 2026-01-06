@@ -5,20 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { SkillCategory } from '@prisma/client';
 import { TeamService } from '@/lib/domains/team';
-
-// Define SkillCategory enum locally to match Prisma schema
-enum SkillCategory {
-  ENGINEERING = 'ENGINEERING',
-  AI_ML = 'AI_ML',
-  DESIGN = 'DESIGN',
-  DATA = 'DATA',
-  CONTENT = 'CONTENT',
-  MARKETING = 'MARKETING',
-  PSYCHOLOGY = 'PSYCHOLOGY',
-  BUSINESS = 'BUSINESS',
-  TRAVEL = 'TRAVEL',
-}
 
 export async function GET(request: NextRequest) {
   try {

@@ -5,74 +5,51 @@
 
 import { mockPrismaClient } from './prisma-stub';
 
+// Common mock methods that all models should have
+const createMockModel = (idPrefix: string, defaultData: Record<string, any> = {}) => ({
+  findMany: async (params?: any) => [],
+  findFirst: async (params?: any) => null,
+  findUnique: async (params?: any) => null,
+  create: async (params: any) => ({ id: `${idPrefix}-1`, ...defaultData, ...params?.data }),
+  createMany: async (params?: any) => ({ count: 0 }),
+  update: async (params: any) => ({ id: `${idPrefix}-1`, ...defaultData, ...params?.data }),
+  updateMany: async (params?: any) => ({ count: 0 }),
+  upsert: async (params: any) => params?.create || params?.update || {},
+  delete: async (params?: any) => ({}),
+  deleteMany: async (params?: any) => ({ count: 0 }),
+  count: async (params?: any) => 0,
+  aggregate: async (params?: any) => ({ _sum: {}, _count: 0, _avg: {}, _min: {}, _max: {} }),
+  groupBy: async (params?: any) => [],
+});
+
 // Extended mock with Command Center models
 const extendedMock = {
   ...mockPrismaClient,
 
   // ModelProvider for AI keys
-  modelProvider: {
-    findFirst: async (params?: any) => null,
-    findMany: async (params?: any) => [],
-    create: async (params: any) => ({ id: 'mp-1', ...params.data }),
-    update: async (params: any) => params.data,
-    upsert: async (params: any) => params.create,
-    count: async (params?: any) => 0,
-  },
+  modelProvider: createMockModel('mp'),
 
   // ApiSettings for legacy keys
-  apiSettings: {
-    findUnique: async (params?: any) => null,
-    findMany: async (params?: any) => [],
-    create: async (params: any) => ({ id: 'api-1', ...params.data }),
-    update: async (params: any) => params.data,
-    upsert: async (params: any) => params.create,
-  },
+  apiSettings: createMockModel('api'),
 
   // Background jobs for autopilot
-  backgroundJob: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'job-1', status: 'pending', ...params.data }),
-    update: async (params: any) => params.data,
-    count: async (params?: any) => 0,
-    delete: async (params?: any) => ({}),
-  },
+  backgroundJob: createMockModel('job', { status: 'pending' }),
 
   // Scheduled content
-  scheduledContent: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'sc-1', status: 'pending', ...params.data }),
-    update: async (params: any) => params.data,
-    count: async (params?: any) => 0,
-    delete: async (params?: any) => ({}),
-  },
+  scheduledContent: createMockModel('sc', { status: 'pending' }),
 
   // Leads for CRM
-  lead: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'lead-1', status: 'NEW', ...params.data }),
-    update: async (params: any) => params.data,
-    count: async (params?: any) => 0,
-    delete: async (params?: any) => ({}),
-    groupBy: async (params?: any) => [],
-  },
+  lead: createMockModel('lead', { status: 'NEW' }),
 
   // Analytics snapshots
   analyticsSnapshot: {
-    findMany: async (params?: any) => [],
+    ...createMockModel('snap'),
     findFirst: async (params?: any) => ({ id: 'snap-1', created_at: new Date() }),
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'snap-1', ...params.data, created_at: new Date() }),
-    count: async (params?: any) => 0,
   },
 
   // Sites for multi-tenant
   site: {
+    ...createMockModel('site'),
     findMany: async (params?: any) => [{
       id: 'site-1',
       name: 'Demo Site',
@@ -108,165 +85,106 @@ const extendedMock = {
       secondary_color: '#1A1A2E',
       logo_url: null,
     }),
-    create: async (params: any) => ({ id: 'site-new', ...params.data }),
-    update: async (params: any) => params.data,
     count: async (params?: any) => 1,
   },
 
   // Autopilot tasks
-  autopilotTask: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'task-1', isActive: true, ...params.data }),
-    update: async (params: any) => params.data,
-    count: async (params?: any) => 0,
-    delete: async (params?: any) => ({}),
-  },
+  autopilotTask: createMockModel('task', { isActive: true }),
 
   // Social accounts
-  socialAccount: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'social-1', ...params.data }),
-    update: async (params: any) => params.data,
-    delete: async (params?: any) => ({}),
-  },
+  socialAccount: createMockModel('social'),
 
   // Social posts
-  socialPost: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'post-1', status: 'scheduled', ...params.data }),
-    update: async (params: any) => params.data,
-    count: async (params?: any) => 0,
-    delete: async (params?: any) => ({}),
-  },
+  socialPost: createMockModel('post', { status: 'scheduled' }),
 
   // PDF guides
-  pdfGuide: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'pdf-1', ...params.data }),
-    update: async (params: any) => params.data,
-    count: async (params?: any) => 0,
-  },
+  pdfGuide: createMockModel('pdf'),
 
   // PDF downloads tracking
-  pdfDownload: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'dl-1', ...params.data }),
-    count: async (params?: any) => 0,
-    delete: async (params?: any) => ({}),
-    deleteMany: async (params?: any) => ({ count: 0 }),
-  },
+  pdfDownload: createMockModel('dl'),
 
   // Affiliate partners (legacy)
-  affiliatePartner: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'aff-1', ...params.data }),
-    update: async (params: any) => params.data,
-    count: async (params?: any) => 0,
-  },
+  affiliatePartner: createMockModel('aff'),
 
   // Tracking partners (renamed from duplicate AffiliatePartner)
-  trackingPartner: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'tp-1', ...params.data }),
-    update: async (params: any) => params.data,
-    count: async (params?: any) => 0,
-  },
+  trackingPartner: createMockModel('tp'),
 
   // Affiliate clicks
   affiliateClick: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'click-1', ...params.data }),
-    count: async (params?: any) => 0,
-    aggregate: async (params?: any) => ({ _sum: { revenue: 0 } }),
-    groupBy: async (params?: any) => [],
+    ...createMockModel('click'),
+    aggregate: async (params?: any) => ({ _sum: { revenue: 0 }, _count: 0 }),
   },
 
   // Email campaigns
-  emailCampaign: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'camp-1', ...params.data }),
-    update: async (params: any) => params.data,
-    count: async (params?: any) => 0,
-  },
+  emailCampaign: createMockModel('camp'),
 
   // Audit logs
-  auditLog: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'audit-1', ...params.data }),
-    count: async (params?: any) => 0,
-  },
+  auditLog: createMockModel('audit'),
 
   // Content schedule rules for autopilot
-  contentScheduleRule: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'rule-1', is_active: true, ...params.data }),
-    update: async (params: any) => params.data,
-    delete: async (params?: any) => ({}),
-    count: async (params?: any) => 0,
-  },
+  contentScheduleRule: createMockModel('rule', { is_active: true }),
 
   // Page views for analytics
-  pageView: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'pv-1', ...params.data }),
-    groupBy: async (params?: any) => [],
-    count: async (params?: any) => 0,
-  },
+  pageView: createMockModel('pv'),
 
   // Domains for sites
-  domain: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'domain-1', ...params.data }),
-    update: async (params: any) => params.data,
-  },
+  domain: createMockModel('domain'),
 
   // Conversions for revenue tracking
   conversion: {
-    findMany: async (params?: any) => [],
-    findFirst: async (params?: any) => null,
-    findUnique: async (params?: any) => null,
-    create: async (params: any) => ({ id: 'conv-1', status: 'PENDING', ...params.data }),
-    update: async (params: any) => params.data,
+    ...createMockModel('conv', { status: 'PENDING' }),
     aggregate: async (params?: any) => ({ _sum: { commission: 0 }, _count: 0 }),
-    groupBy: async (params?: any) => [],
-    count: async (params?: any) => 0,
   },
 
   // Content/Article
   article: {
-    findMany: async () => mockPrismaClient.blogPost.findMany(),
-    findFirst: async () => mockPrismaClient.blogPost.findFirst?.(),
-    findUnique: async (p: any) => mockPrismaClient.blogPost.findUnique(p),
-    create: async (p: any) => mockPrismaClient.blogPost.create(p),
-    update: async (p: any) => mockPrismaClient.blogPost.update(p),
-    count: async () => mockPrismaClient.blogPost.count(),
-    delete: async (p: any) => mockPrismaClient.blogPost.delete(p),
+    findMany: async (params?: any) => mockPrismaClient.blogPost.findMany(params),
+    findFirst: async (params?: any) => mockPrismaClient.blogPost.findFirst?.(params),
+    findUnique: async (params?: any) => mockPrismaClient.blogPost.findUnique(params),
+    create: async (params: any) => mockPrismaClient.blogPost.create(params),
+    update: async (params: any) => mockPrismaClient.blogPost.update(params),
+    delete: async (params?: any) => mockPrismaClient.blogPost.delete(params),
+    deleteMany: async (params?: any) => ({ count: 0 }),
+    count: async (params?: any) => mockPrismaClient.blogPost.count(params),
+    aggregate: async (params?: any) => ({ _sum: {}, _count: 0 }),
+    groupBy: async (params?: any) => [],
+  },
+
+  // Newsletter subscribers
+  newsletterSubscriber: createMockModel('sub'),
+
+  // Contact form submissions
+  contactSubmission: createMockModel('contact'),
+
+  // User sessions
+  session: createMockModel('session'),
+
+  // Notifications
+  notification: createMockModel('notif'),
+
+  // Comments
+  comment: createMockModel('comment'),
+
+  // Tags
+  tag: createMockModel('tag'),
+
+  // Categories (extend from base)
+  category: {
+    ...createMockModel('cat'),
+    findMany: async (params?: any) => mockPrismaClient.category?.findMany?.(params) || [],
+    findUnique: async (params?: any) => mockPrismaClient.category?.findUnique?.(params) || null,
+  },
+
+  // Media assets
+  mediaAsset: {
+    ...createMockModel('media'),
+    findMany: async (params?: any) => mockPrismaClient.mediaAsset?.findMany?.(params) || [],
+  },
+
+  // Homepage blocks
+  homepageBlock: {
+    ...createMockModel('block'),
+    findMany: async (params?: any) => mockPrismaClient.homepageBlock?.findMany?.(params) || [],
   },
 };
 

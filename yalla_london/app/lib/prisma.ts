@@ -32,6 +32,7 @@ const extendedMock = {
   backgroundJob: {
     findMany: async (params?: any) => [],
     findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'job-1', status: 'pending', ...params.data }),
     update: async (params: any) => params.data,
     count: async (params?: any) => 0,
@@ -42,6 +43,7 @@ const extendedMock = {
   scheduledContent: {
     findMany: async (params?: any) => [],
     findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'sc-1', status: 'pending', ...params.data }),
     update: async (params: any) => params.data,
     count: async (params?: any) => 0,
@@ -52,6 +54,7 @@ const extendedMock = {
   lead: {
     findMany: async (params?: any) => [],
     findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'lead-1', status: 'NEW', ...params.data }),
     update: async (params: any) => params.data,
     count: async (params?: any) => 0,
@@ -63,6 +66,7 @@ const extendedMock = {
   analyticsSnapshot: {
     findMany: async (params?: any) => [],
     findFirst: async (params?: any) => ({ id: 'snap-1', created_at: new Date() }),
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'snap-1', ...params.data, created_at: new Date() }),
     count: async (params?: any) => 0,
   },
@@ -104,6 +108,7 @@ const extendedMock = {
   autopilotTask: {
     findMany: async (params?: any) => [],
     findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'task-1', isActive: true, ...params.data }),
     update: async (params: any) => params.data,
     count: async (params?: any) => 0,
@@ -114,6 +119,7 @@ const extendedMock = {
   socialAccount: {
     findMany: async (params?: any) => [],
     findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'social-1', ...params.data }),
     update: async (params: any) => params.data,
     delete: async (params?: any) => ({}),
@@ -123,6 +129,7 @@ const extendedMock = {
   socialPost: {
     findMany: async (params?: any) => [],
     findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'post-1', status: 'scheduled', ...params.data }),
     update: async (params: any) => params.data,
     count: async (params?: any) => 0,
@@ -162,6 +169,8 @@ const extendedMock = {
   // Affiliate clicks
   affiliateClick: {
     findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'click-1', ...params.data }),
     count: async (params?: any) => 0,
     aggregate: async (params?: any) => ({ _sum: { revenue: 0 } }),
@@ -172,6 +181,7 @@ const extendedMock = {
   emailCampaign: {
     findMany: async (params?: any) => [],
     findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'camp-1', ...params.data }),
     update: async (params: any) => params.data,
     count: async (params?: any) => 0,
@@ -180,6 +190,8 @@ const extendedMock = {
   // Audit logs
   auditLog: {
     findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'audit-1', ...params.data }),
     count: async (params?: any) => 0,
   },
@@ -198,6 +210,8 @@ const extendedMock = {
   // Page views for analytics
   pageView: {
     findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'pv-1', ...params.data }),
     groupBy: async (params?: any) => [],
     count: async (params?: any) => 0,
@@ -207,6 +221,7 @@ const extendedMock = {
   domain: {
     findMany: async (params?: any) => [],
     findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'domain-1', ...params.data }),
     update: async (params: any) => params.data,
   },
@@ -215,6 +230,7 @@ const extendedMock = {
   conversion: {
     findMany: async (params?: any) => [],
     findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'conv-1', status: 'PENDING', ...params.data }),
     update: async (params: any) => params.data,
     aggregate: async (params?: any) => ({ _sum: { commission: 0 }, _count: 0 }),

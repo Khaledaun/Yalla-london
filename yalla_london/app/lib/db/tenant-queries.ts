@@ -11,8 +11,8 @@
 
 import { prisma } from '@/lib/prisma';
 
-// Local type definition to avoid @prisma/client import issues during build
-type PrismaClientType = typeof prisma;
+// Use any for flexibility with mock client during build
+type PrismaClientType = any;
 
 // Models that require tenant scoping (have site_id column)
 const TENANT_SCOPED_MODELS = new Set([
@@ -187,10 +187,10 @@ export async function tenantTransaction<T>(
   siteId: string,
   callback: (tx: TenantPrismaClient) => Promise<T>
 ): Promise<T> {
-  return prisma.$transaction(async (tx) => {
+  return (prisma as any).$transaction(async (tx: any) => {
     // Create tenant-scoped proxy for the transaction
     const tenantTx = new Proxy(tx, {
-      get(target, prop: string) {
+      get(target: any, prop: string) {
         if (prop === '$tenantId') return siteId;
 
         if (prop === '$assertTenant') {
@@ -201,7 +201,7 @@ export async function tenantTransaction<T>(
           };
         }
 
-        const value = target[prop as keyof typeof tx];
+        const value = target[prop];
 
         if (typeof value === 'object' && value !== null && TENANT_SCOPED_MODELS.has(prop)) {
           return createTenantScopedModel(value as any, siteId, prop);

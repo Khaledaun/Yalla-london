@@ -10,9 +10,13 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { TenantMismatchError } from './assertions';
 
 // Use any for flexibility with mock client during build
 type PrismaClientType = any;
+
+// Re-export for backwards compatibility
+export { TenantMismatchError };
 
 // Models that require tenant scoping (have site_id column)
 const TENANT_SCOPED_MODELS = new Set([
@@ -148,16 +152,6 @@ function createTenantScopedModel(model: any, siteId: string, modelName: string) 
       return originalMethod.bind(target);
     },
   });
-}
-
-/**
- * Error thrown when tenant assertion fails
- */
-export class TenantMismatchError extends Error {
-  constructor(expectedTenant: string, actualTenant: string) {
-    super(`Tenant mismatch: expected ${expectedTenant}, got ${actualTenant}`);
-    this.name = 'TenantMismatchError';
-  }
 }
 
 /**

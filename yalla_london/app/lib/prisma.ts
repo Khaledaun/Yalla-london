@@ -212,9 +212,6 @@ const extendedMock = {
   subscriber: createMockModel('subscriber'),
   systemMetrics: createMockModel('metrics'),
   topicPolicy: createMockModel('policy'),
-  socialAccount: createMockModel('social'),
-  socialPost: createMockModel('post', { status: 'scheduled' }),
-  autopilotTask: createMockModel('task', { isActive: true }),
 };
 
 // Add Prisma client methods

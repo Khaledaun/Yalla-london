@@ -325,7 +325,7 @@ export class ExpertiseService {
       result = await assignExpertise({
         team_member_id: teamMemberId,
         skill_id: skill.skillId,
-        proficiency: skill.proficiency || 'EXPERT',
+        proficiency: skill.proficiency || Proficiency.EXPERT,
         is_primary: skill.isPrimary || false,
       });
     }

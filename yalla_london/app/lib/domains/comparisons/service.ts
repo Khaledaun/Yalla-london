@@ -19,10 +19,12 @@ import type {
   ComparisonTableResort,
   ComparisonTableCriterion,
   VerdictCalculation,
+  ContentStatus,
+} from './types';
+import {
   DEFAULT_CRITERIA,
   DEFAULT_DISPLAY_CONFIG,
   VERDICT_TEMPLATES,
-  ContentStatus,
 } from './types';
 import type { Resort, ScoreBreakdown } from '../resorts/types';
 

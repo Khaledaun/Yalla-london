@@ -217,8 +217,29 @@ const extendedMock = {
   autopilotTask: createMockModel('task', { isActive: true }),
 };
 
+// Add Prisma client methods
+const prismaClientMethods = {
+  // Transaction support
+  $transaction: async (arg: any) => {
+    if (typeof arg === 'function') {
+      // Interactive transaction - pass the mock client to callback
+      return arg(extendedMock);
+    }
+    // Array of promises
+    return Promise.all(arg);
+  },
+  $connect: async () => {},
+  $disconnect: async () => {},
+  $executeRaw: async () => 0,
+  $executeRawUnsafe: async () => 0,
+  $queryRaw: async () => [],
+  $queryRawUnsafe: async () => [],
+  $on: () => {},
+  $use: () => {},
+};
+
 // Re-export the extended mock client as prisma
-export const prisma = extendedMock;
+export const prisma = { ...extendedMock, ...prismaClientMethods };
 
 // Named exports for compatibility
 export { prisma as db };

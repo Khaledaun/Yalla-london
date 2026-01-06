@@ -6,8 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { SkillCategory } from '@prisma/client';
-import { TeamService } from '@/lib/domains/team';
+import { TeamService, SkillCategory } from '@/lib/domains/team';
 import { requirePermission } from '@/lib/rbac';
 import type { CreateTeamMemberInput, TeamMemberFilters } from '@/lib/domains/team';
 

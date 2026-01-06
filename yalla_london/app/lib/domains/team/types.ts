@@ -2,8 +2,6 @@
  * Team & Expertise System Types
  */
 
-// Import enums as values (not type-only) so they can be re-exported
-import { SkillCategory, Proficiency, CreditRole } from '@prisma/client';
 import type {
   TeamMember,
   Skill,
@@ -11,8 +9,34 @@ import type {
   ContentCredit,
 } from '@prisma/client';
 
-// Re-export enums for convenience
-export { SkillCategory, Proficiency, CreditRole };
+// Define enums locally since Prisma doesn't export them as values
+export enum SkillCategory {
+  ENGINEERING = 'ENGINEERING',
+  AI_ML = 'AI_ML',
+  DESIGN = 'DESIGN',
+  DATA = 'DATA',
+  CONTENT = 'CONTENT',
+  MARKETING = 'MARKETING',
+  PSYCHOLOGY = 'PSYCHOLOGY',
+  BUSINESS = 'BUSINESS',
+  TRAVEL = 'TRAVEL',
+}
+
+export enum Proficiency {
+  LEARNING = 'LEARNING',
+  PROFICIENT = 'PROFICIENT',
+  EXPERT = 'EXPERT',
+  THOUGHT_LEADER = 'THOUGHT_LEADER',
+}
+
+export enum CreditRole {
+  AUTHOR = 'AUTHOR',
+  CONTRIBUTOR = 'CONTRIBUTOR',
+  EDITOR = 'EDITOR',
+  RESEARCHER = 'RESEARCHER',
+  PHOTOGRAPHER = 'PHOTOGRAPHER',
+}
+
 export type { ContentCredit };
 
 // ============================================================================

@@ -189,6 +189,32 @@ const extendedMock = {
     ...createMockModel('block'),
     findMany: async (params?: any) => mockPrismaClient.homepageBlock?.findMany?.(params) || [],
   },
+
+  // All additional models discovered in codebase
+  siteConfig: createMockModel('siteconfig'),
+  analyticsEvent: createMockModel('event'),
+  consentLog: createMockModel('consent'),
+  contentGeneration: createMockModel('content'),
+  credential: createMockModel('cred'),
+  databaseBackup: createMockModel('backup'),
+  featureFlag: createMockModel('flag'),
+  homepageVersion: createMockModel('hpver'),
+  leadActivity: createMockModel('leadact'),
+  media: createMockModel('media'),
+  optimizationLog: createMockModel('optlog'),
+  pageTypeRecipe: createMockModel('recipe'),
+  place: createMockModel('place'),
+  recommendation: createMockModel('rec'),
+  seoAuditResult: createMockModel('seoaudit'),
+  seoHealthReport: createMockModel('seoreport'),
+  seoMeta: createMockModel('seometa'),
+  socialEmbed: createMockModel('embed'),
+  subscriber: createMockModel('subscriber'),
+  systemMetrics: createMockModel('metrics'),
+  topicPolicy: createMockModel('policy'),
+  socialAccount: createMockModel('social'),
+  socialPost: createMockModel('post', { status: 'scheduled' }),
+  autopilotTask: createMockModel('task', { isActive: true }),
 };
 
 // Re-export the extended mock client as prisma

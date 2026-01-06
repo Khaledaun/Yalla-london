@@ -162,6 +162,8 @@ const extendedMock = {
     findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'dl-1', ...params.data }),
     count: async (params?: any) => 0,
+    delete: async (params?: any) => ({}),
+    deleteMany: async (params?: any) => ({ count: 0 }),
   },
 
   // Affiliate partners (legacy)

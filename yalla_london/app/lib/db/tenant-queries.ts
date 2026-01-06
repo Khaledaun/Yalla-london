@@ -9,8 +9,10 @@
  *   const posts = await db.blogPost.findMany(); // Auto-filtered by site_id
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+
+// Local type definition to avoid @prisma/client import issues during build
+type PrismaClientType = typeof prisma;
 
 // Models that require tenant scoping (have site_id column)
 const TENANT_SCOPED_MODELS = new Set([
@@ -41,7 +43,7 @@ const CREATE_METHODS = ['create', 'createMany', 'createManyAndReturn'];
 const UPDATE_METHODS = ['update', 'updateMany', 'upsert'];
 const DELETE_METHODS = ['delete', 'deleteMany'];
 
-export interface TenantPrismaClient extends PrismaClient {
+export interface TenantPrismaClient extends PrismaClientType {
   $tenantId: string;
   $assertTenant: (resourceSiteId: string | null | undefined) => void;
 }
@@ -71,7 +73,7 @@ export function getTenantPrisma(siteId: string): TenantPrismaClient {
         };
       }
 
-      const value = target[prop as keyof PrismaClient];
+      const value = target[prop as keyof PrismaClientType];
 
       // If this is a tenant-scoped model, wrap it
       if (typeof value === 'object' && value !== null && TENANT_SCOPED_MODELS.has(prop)) {

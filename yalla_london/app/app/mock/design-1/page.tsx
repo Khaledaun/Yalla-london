@@ -4,6 +4,7 @@
  * Design 1: Luxury Editorial
  * Inspired by: Condé Nast Traveler, Monocle Magazine, Wallpaper*
  * Clean typography, editorial photography, sophisticated grid layouts
+ * Updated: January 2026
  */
 
 import { useState } from 'react'

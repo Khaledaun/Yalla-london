@@ -9,7 +9,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ExpertiseService, TeamService } from '@/lib/domains/team';
 import { requirePermission } from '@/lib/rbac';
-import { Proficiency } from '@prisma/client';
+
+// Define Proficiency enum locally to match Prisma schema
+enum Proficiency {
+  LEARNING = 'LEARNING',
+  PROFICIENT = 'PROFICIENT',
+  EXPERT = 'EXPERT',
+  THOUGHT_LEADER = 'THOUGHT_LEADER',
+}
 
 interface RouteParams {
   params: { id: string };

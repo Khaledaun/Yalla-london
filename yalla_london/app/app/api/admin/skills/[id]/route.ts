@@ -10,7 +10,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SkillService } from '@/lib/domains/team';
 import { requirePermission } from '@/lib/rbac';
 import type { UpdateSkillInput } from '@/lib/domains/team';
-import { SkillCategory } from '@prisma/client';
+
+// Define SkillCategory enum locally to match Prisma schema
+enum SkillCategory {
+  ENGINEERING = 'ENGINEERING',
+  AI_ML = 'AI_ML',
+  DESIGN = 'DESIGN',
+  DATA = 'DATA',
+  CONTENT = 'CONTENT',
+  MARKETING = 'MARKETING',
+  PSYCHOLOGY = 'PSYCHOLOGY',
+  BUSINESS = 'BUSINESS',
+  TRAVEL = 'TRAVEL',
+}
 
 interface RouteParams {
   params: { id: string };

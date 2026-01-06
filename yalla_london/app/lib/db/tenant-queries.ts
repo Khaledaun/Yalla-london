@@ -73,7 +73,7 @@ export function getTenantPrisma(siteId: string): TenantPrismaClient {
         };
       }
 
-      const value = target[prop as keyof PrismaClientType];
+      const value = (target as any)[prop];
 
       // If this is a tenant-scoped model, wrap it
       if (typeof value === 'object' && value !== null && TENANT_SCOPED_MODELS.has(prop)) {
@@ -83,7 +83,7 @@ export function getTenantPrisma(siteId: string): TenantPrismaClient {
       // Return other properties as-is
       return value;
     },
-  }) as TenantPrismaClient;
+  }) as unknown as TenantPrismaClient;
 }
 
 /**
@@ -209,7 +209,7 @@ export async function tenantTransaction<T>(
 
         return value;
       },
-    }) as TenantPrismaClient;
+    }) as unknown as TenantPrismaClient;
 
     return callback(tenantTx);
   });

@@ -146,6 +146,15 @@ const extendedMock = {
     count: async (params?: any) => 0,
   },
 
+  // PDF downloads tracking
+  pdfDownload: {
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
+    create: async (params: any) => ({ id: 'dl-1', ...params.data }),
+    count: async (params?: any) => 0,
+  },
+
   // Affiliate partners (legacy)
   affiliatePartner: {
     findMany: async (params?: any) => [],

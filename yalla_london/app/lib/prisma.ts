@@ -11,18 +11,18 @@ const extendedMock = {
 
   // ModelProvider for AI keys
   modelProvider: {
-    findFirst: async () => null,
-    findMany: async () => [],
+    findFirst: async (params?: any) => null,
+    findMany: async (params?: any) => [],
     create: async (params: any) => ({ id: 'mp-1', ...params.data }),
     update: async (params: any) => params.data,
     upsert: async (params: any) => params.create,
-    count: async () => 0,
+    count: async (params?: any) => 0,
   },
 
   // ApiSettings for legacy keys
   apiSettings: {
-    findUnique: async () => null,
-    findMany: async () => [],
+    findUnique: async (params?: any) => null,
+    findMany: async (params?: any) => [],
     create: async (params: any) => ({ id: 'api-1', ...params.data }),
     update: async (params: any) => params.data,
     upsert: async (params: any) => params.create,
@@ -30,41 +30,41 @@ const extendedMock = {
 
   // Background jobs for autopilot
   backgroundJob: {
-    findMany: async () => [],
-    findFirst: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
     create: async (params: any) => ({ id: 'job-1', status: 'pending', ...params.data }),
     update: async (params: any) => params.data,
-    count: async () => 0,
-    delete: async () => ({}),
+    count: async (params?: any) => 0,
+    delete: async (params?: any) => ({}),
   },
 
   // Scheduled content
   scheduledContent: {
-    findMany: async () => [],
-    findFirst: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
     create: async (params: any) => ({ id: 'sc-1', status: 'pending', ...params.data }),
     update: async (params: any) => params.data,
-    count: async () => 0,
-    delete: async () => ({}),
+    count: async (params?: any) => 0,
+    delete: async (params?: any) => ({}),
   },
 
   // Leads for CRM
   lead: {
-    findMany: async () => [],
-    findFirst: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
     create: async (params: any) => ({ id: 'lead-1', status: 'NEW', ...params.data }),
     update: async (params: any) => params.data,
-    count: async () => 0,
-    delete: async () => ({}),
-    groupBy: async () => [],
+    count: async (params?: any) => 0,
+    delete: async (params?: any) => ({}),
+    groupBy: async (params?: any) => [],
   },
 
   // Analytics snapshots
   analyticsSnapshot: {
-    findMany: async () => [],
-    findFirst: async () => ({ id: 'snap-1', created_at: new Date() }),
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => ({ id: 'snap-1', created_at: new Date() }),
     create: async (params: any) => ({ id: 'snap-1', ...params.data, created_at: new Date() }),
-    count: async () => 0,
+    count: async (params?: any) => 0,
   },
 
   // Sites for multi-tenant
@@ -102,51 +102,51 @@ const extendedMock = {
 
   // Autopilot tasks
   autopilotTask: {
-    findMany: async () => [],
-    findFirst: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
     create: async (params: any) => ({ id: 'task-1', isActive: true, ...params.data }),
     update: async (params: any) => params.data,
-    count: async () => 0,
-    delete: async () => ({}),
+    count: async (params?: any) => 0,
+    delete: async (params?: any) => ({}),
   },
 
   // Social accounts
   socialAccount: {
-    findMany: async () => [],
-    findFirst: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
     create: async (params: any) => ({ id: 'social-1', ...params.data }),
     update: async (params: any) => params.data,
-    delete: async () => ({}),
+    delete: async (params?: any) => ({}),
   },
 
   // Social posts
   socialPost: {
-    findMany: async () => [],
-    findFirst: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
     create: async (params: any) => ({ id: 'post-1', status: 'scheduled', ...params.data }),
     update: async (params: any) => params.data,
-    count: async () => 0,
-    delete: async () => ({}),
+    count: async (params?: any) => 0,
+    delete: async (params?: any) => ({}),
   },
 
   // PDF guides
   pdfGuide: {
-    findMany: async () => [],
-    findFirst: async () => null,
-    findUnique: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'pdf-1', ...params.data }),
     update: async (params: any) => params.data,
-    count: async () => 0,
+    count: async (params?: any) => 0,
   },
 
   // Affiliate partners (legacy)
   affiliatePartner: {
-    findMany: async () => [],
-    findFirst: async () => null,
-    findUnique: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'aff-1', ...params.data }),
     update: async (params: any) => params.data,
-    count: async () => 0,
+    count: async (params?: any) => 0,
   },
 
   // Tracking partners (renamed from duplicate AffiliatePartner)
@@ -170,43 +170,43 @@ const extendedMock = {
 
   // Email campaigns
   emailCampaign: {
-    findMany: async () => [],
-    findFirst: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
     create: async (params: any) => ({ id: 'camp-1', ...params.data }),
     update: async (params: any) => params.data,
-    count: async () => 0,
+    count: async (params?: any) => 0,
   },
 
   // Audit logs
   auditLog: {
-    findMany: async () => [],
+    findMany: async (params?: any) => [],
     create: async (params: any) => ({ id: 'audit-1', ...params.data }),
-    count: async () => 0,
+    count: async (params?: any) => 0,
   },
 
   // Content schedule rules for autopilot
   contentScheduleRule: {
-    findMany: async () => [],
-    findFirst: async () => null,
-    findUnique: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
+    findUnique: async (params?: any) => null,
     create: async (params: any) => ({ id: 'rule-1', is_active: true, ...params.data }),
     update: async (params: any) => params.data,
-    delete: async () => ({}),
-    count: async () => 0,
+    delete: async (params?: any) => ({}),
+    count: async (params?: any) => 0,
   },
 
   // Page views for analytics
   pageView: {
-    findMany: async () => [],
+    findMany: async (params?: any) => [],
     create: async (params: any) => ({ id: 'pv-1', ...params.data }),
-    groupBy: async () => [],
-    count: async () => 0,
+    groupBy: async (params?: any) => [],
+    count: async (params?: any) => 0,
   },
 
   // Domains for sites
   domain: {
-    findMany: async () => [],
-    findFirst: async () => null,
+    findMany: async (params?: any) => [],
+    findFirst: async (params?: any) => null,
     create: async (params: any) => ({ id: 'domain-1', ...params.data }),
     update: async (params: any) => params.data,
   },

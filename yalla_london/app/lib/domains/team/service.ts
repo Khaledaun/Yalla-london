@@ -41,9 +41,10 @@ import type {
   AssignExpertiseInput,
   AssignCreditInput,
   TeamMemberPublicProfile,
-  SkillCategory,
-  Proficiency,
 } from './types';
+
+// Import enums as values (not types) since they're used as values
+import { SkillCategory, Proficiency } from './types';
 
 // ============================================================================
 // TEAM MEMBER SERVICE

@@ -8,35 +8,35 @@ import { prisma } from '@/lib/db'
 export async function GET() {
   try {
     // Get table count
-    const tableResult = await prisma.$queryRaw<[{ count: bigint }]>`
+    const tableResult = await (prisma as any).$queryRaw`
       SELECT COUNT(*) as count
-      FROM information_schema.tables 
+      FROM information_schema.tables
       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-    `
-    const totalTables = Number(tableResult[0].count)
+    ` as { count: bigint }[];
+    const totalTables = Number(tableResult[0]?.count || 0);
 
     // Get total record count across all tables
-    const tables = await prisma.$queryRaw<{ tablename: string }[]>`
-      SELECT tablename 
-      FROM pg_catalog.pg_tables 
+    const tables = await (prisma as any).$queryRaw`
+      SELECT tablename
+      FROM pg_catalog.pg_tables
       WHERE schemaname = 'public'
-    `
+    ` as { tablename: string }[];
 
     let totalRecords = 0
     for (const table of tables) {
       try {
-        const result = await prisma.$queryRawUnsafe(`SELECT COUNT(*) as count FROM "${table.tablename}"`)
-        totalRecords += Number((result as any)[0].count)
+        const result = await (prisma as any).$queryRawUnsafe(`SELECT COUNT(*) as count FROM "${table.tablename}"`)
+        totalRecords += Number((result as any)[0]?.count || 0)
       } catch (error) {
         console.error(`Error counting records in ${table.tablename}:`, error)
       }
     }
 
     // Get database size
-    const sizeResult = await prisma.$queryRaw<[{ size: string }]>`
+    const sizeResult = await (prisma as any).$queryRaw`
       SELECT pg_size_pretty(pg_database_size(current_database())) as size
-    `
-    const databaseSize = sizeResult[0].size
+    ` as { size: string }[];
+    const databaseSize = sizeResult[0]?.size || 'Unknown';
 
     // Get last backup
     const lastBackup = await prisma.databaseBackup.findFirst({

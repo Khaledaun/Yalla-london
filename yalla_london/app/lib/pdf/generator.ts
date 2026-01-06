@@ -75,8 +75,8 @@ export async function generatePDFContent(
       maxTokens: 4000,
     });
 
-    // Parse AI response into sections
-    return parseAIContentToSections(result.text, locale);
+    // Parse AI response into sections (generateText returns string directly)
+    return parseAIContentToSections(result, locale);
   }
 
   // Fallback content

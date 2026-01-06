@@ -4,7 +4,7 @@
  * Business logic for resort comparison engine.
  */
 
-import { getTenantPrisma } from '@/lib/db';
+import { getTenantPrisma } from '@/lib/db/tenant-queries';
 import { assertExists, assertValidSlug } from '@/lib/db/assertions';
 import type {
   Comparison,

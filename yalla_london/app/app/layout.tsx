@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import './globals.css'
 import { LanguageProvider } from '@/components/language-provider'
 import { DynamicHeader } from '@/components/dynamic-header'
@@ -117,25 +118,22 @@ export default function RootLayout({
           </BrandThemeProvider>
         </NextAuthSessionProvider>
         
-        {/* Google Analytics */}
-        {process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID && process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID !== 'GA_MEASUREMENT_ID_HERE' && (
-          <>
-            <script async src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID}`} />
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `
-                  window.dataLayer = window.dataLayer || [];
-                  function gtag(){dataLayer.push(arguments);}
-                  gtag('js', new Date());
-                  gtag('config', '${process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID}', {
-                    page_title: document.title,
-                    page_location: window.location.href,
-                  });
-                `,
-              }}
-            />
-          </>
-        )}
+        {/* Google Analytics - G-H7YNG7CH88 */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-H7YNG7CH88"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-H7YNG7CH88', {
+              page_title: document.title,
+              page_location: window.location.href,
+            });
+          `}
+        </Script>
 
         {/* Performance monitoring */}
         <script

@@ -3,6 +3,8 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { searchConsole } from '@/lib/integrations/google-search-console';
+import { googleTrends } from '@/lib/integrations/google-trends';
+import { googlePageSpeed } from '@/lib/integrations/google-pagespeed';
 
 interface IntegrationStatus {
   name: string;
@@ -17,6 +19,8 @@ interface SEOIntegrationsStatus {
   integrations: {
     googleSearchConsole: IntegrationStatus;
     googleAnalytics: IntegrationStatus;
+    googleTrends: IntegrationStatus;
+    googlePageSpeed: IntegrationStatus;
     indexNow: IntegrationStatus;
     sitemap: IntegrationStatus;
     seoFeatures: IntegrationStatus;
@@ -35,6 +39,8 @@ export async function GET(request: NextRequest) {
     integrations: {
       googleSearchConsole: await checkGoogleSearchConsole(),
       googleAnalytics: checkGoogleAnalytics(),
+      googleTrends: checkGoogleTrends(),
+      googlePageSpeed: await checkGooglePageSpeed(),
       indexNow: checkIndexNow(),
       sitemap: await checkSitemap(),
       seoFeatures: checkSEOFeatures(),
@@ -133,6 +139,51 @@ function checkGoogleAnalytics(): IntegrationStatus {
   };
 }
 
+function checkGoogleTrends(): IntegrationStatus {
+  const serpApiKey = process.env.SERPAPI_API_KEY;
+  const trendsApiKey = process.env.GOOGLE_TRENDS_API_KEY;
+
+  if (!serpApiKey && !trendsApiKey) {
+    return {
+      name: 'Google Trends',
+      status: 'not_configured',
+      details: 'Missing SERPAPI_API_KEY or GOOGLE_TRENDS_API_KEY - trending topics research disabled',
+      lastChecked: new Date().toISOString(),
+    };
+  }
+
+  return {
+    name: 'Google Trends',
+    status: 'connected',
+    details: `Configured via ${serpApiKey ? 'SerpAPI' : 'Google Trends API'}`,
+    lastChecked: new Date().toISOString(),
+  };
+}
+
+async function checkGooglePageSpeed(): Promise<IntegrationStatus> {
+  const apiKey = process.env.GOOGLE_PAGESPEED_API_KEY || process.env.GOOGLE_API_KEY;
+
+  try {
+    const testResult = await googlePageSpeed.testConnection();
+
+    return {
+      name: 'Google PageSpeed Insights',
+      status: testResult.success ? 'connected' : 'error',
+      details: apiKey
+        ? `API key configured - enhanced rate limits`
+        : 'Using public API (rate-limited)',
+      lastChecked: new Date().toISOString(),
+    };
+  } catch (error) {
+    return {
+      name: 'Google PageSpeed Insights',
+      status: 'error',
+      details: error instanceof Error ? error.message : 'Connection test failed',
+      lastChecked: new Date().toISOString(),
+    };
+  }
+}
+
 function checkIndexNow(): IntegrationStatus {
   const indexNowKey = process.env.INDEXNOW_KEY;
 
@@ -227,7 +278,10 @@ function checkEnvironmentVariables(): { configured: string[]; missing: string[] 
     'GOOGLE_ANALYTICS_CLIENT_EMAIL',
     'GOOGLE_ANALYTICS_PRIVATE_KEY',
     'GOOGLE_PAGESPEED_API_KEY',
+    'GOOGLE_API_KEY',
     'SERPAPI_API_KEY',
+    'GOOGLE_TRENDS_API_KEY',
+    'NEXT_PUBLIC_GOOGLE_ANALYTICS_ID',
   ];
 
   const configured: string[] = [];
@@ -261,6 +315,13 @@ function generateRecommendations(status: SEOIntegrationsStatus): string[] {
     );
   }
 
+  // Check Google Trends
+  if (status.integrations.googleTrends.status === 'not_configured') {
+    recommendations.push(
+      'Configure SERPAPI_API_KEY for trending topics research and keyword opportunity discovery'
+    );
+  }
+
   // Check IndexNow
   if (status.integrations.indexNow.status === 'not_configured') {
     recommendations.push(
@@ -279,6 +340,13 @@ function generateRecommendations(status: SEOIntegrationsStatus): string[] {
   if (!process.env.ABACUSAI_API_KEY) {
     recommendations.push(
       'Add ABACUSAI_API_KEY to enable AI-powered meta description and title generation'
+    );
+  }
+
+  // Check PageSpeed API key for enhanced limits
+  if (!process.env.GOOGLE_PAGESPEED_API_KEY && !process.env.GOOGLE_API_KEY) {
+    recommendations.push(
+      'Consider adding GOOGLE_PAGESPEED_API_KEY for higher rate limits on performance analysis'
     );
   }
 

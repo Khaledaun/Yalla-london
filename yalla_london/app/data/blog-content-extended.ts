@@ -836,6 +836,748 @@ Edgware Road offers an authentic taste of the Middle East in central London. Whe
     created_at: new Date('2025-01-02'),
     updated_at: new Date('2025-01-05'),
   },
+
+  // ============================================
+  // SHISHA & NIGHTLIFE GUIDES
+  // ============================================
+  {
+    id: 'post-best-shisha-lounges',
+    slug: 'best-shisha-lounges-london',
+    title_en: 'Best Shisha Lounges in London 2025: Complete Guide',
+    title_ar: 'أفضل صالات الشيشة في لندن 2025: دليل شامل',
+    excerpt_en: 'Discover London\'s finest shisha lounges. From luxury rooftop terraces to authentic Arabic cafes, find the perfect spot for premium shisha.',
+    excerpt_ar: 'اكتشف أفضل صالات الشيشة في لندن. من التراسات الفاخرة إلى المقاهي العربية الأصيلة، اعثر على المكان المثالي للشيشة الفاخرة.',
+    meta_title_en: 'Best Shisha Lounges London 2025 | Top 15 Reviewed',
+    meta_title_ar: 'أفضل صالات الشيشة لندن 2025 | أفضل 15',
+    meta_description_en: 'Complete guide to London\'s best shisha lounges. Reviews of Maroush, Ranoush, and luxury terraces with prices, flavors, and booking info.',
+    meta_description_ar: 'دليل شامل لأفضل صالات الشيشة في لندن. مراجعات مع الأسعار والنكهات ومعلومات الحجز.',
+    content_en: `# Best Shisha Lounges in London 2025
+
+London boasts a thriving shisha scene, from elegant Mayfair terraces to authentic Edgware Road cafes. Here's our definitive guide to the best spots for premium hookah experiences.
+
+## Quick Comparison
+
+| Lounge | Location | Price/Shisha | Atmosphere | Rating |
+|--------|----------|--------------|------------|--------|
+| Maroush Café | Edgware Road | £25-35 | Elegant | ⭐⭐⭐⭐⭐ |
+| Ranoush Juice | Edgware Road | £15-25 | Casual | ⭐⭐⭐⭐ |
+| Noura | Mayfair | £30-40 | Upscale | ⭐⭐⭐⭐⭐ |
+| Circolo Popolare | Fitzrovia | £25-35 | Trendy | ⭐⭐⭐⭐ |
+| Sway | Holborn | £20-30 | Modern | ⭐⭐⭐⭐ |
+
+## Important: UK Shisha Laws
+
+Before we dive in, know that UK law prohibits indoor smoking. All shisha lounges operate on:
+- Outdoor terraces
+- Covered but ventilated areas
+- Heated outdoor spaces (winter)
+
+**Age Requirement:** 18+ (ID may be required)
+
+---
+
+## Top Shisha Lounges by Area
+
+### Edgware Road - The Heart of Shisha Culture
+
+#### 1. Maroush Café
+**Address:** 68 Edgware Road, W2 2EH
+**Price:** £25-35 per shisha
+**Hours:** Until 3am (weekends until 4am)
+
+The gold standard of London shisha. Maroush combines premium tobacco with elegant surroundings and authentic Lebanese hospitality.
+
+**Why We Love It:**
+- Premium Al Fakher and Starbuzz flavors
+- Heated terrace in winter
+- Excellent food menu
+- Late night hours
+- Professional hookah service
+
+**Best Flavors:**
+- Double Apple (classic)
+- Grape Mint
+- Blueberry Mint
+
+**Tips:**
+- Reserve terrace tables on weekends
+- Try the mixed grill platter with your shisha
+- Ask for extra coals when needed
+
+---
+
+#### 2. Ranoush Juice
+**Address:** 43 Edgware Road, W2 2JE
+**Price:** £15-25 per shisha
+**Hours:** Until 4am daily
+
+The casual classic. Ranoush is perfect for a quick shawarma and shisha without the fuss.
+
+**Why We Love It:**
+- Budget-friendly prices
+- Famous fresh juices
+- Open very late
+- Fast service
+- Great people watching
+
+**Best For:** Late night cravings, casual hangouts
+
+---
+
+#### 3. Abu Ali
+**Address:** 136-138 George Street, W1H 5LD
+**Price:** £20-30 per shisha
+**Hours:** Until 2am
+
+Iraqi-style hospitality with excellent tobacco selection and authentic grilled dishes.
+
+**Specialties:**
+- Iraqi-style shisha preparation
+- Masgouf (traditional fish)
+- Premium tobacco brands
+
+---
+
+### Mayfair & Central London
+
+#### 4. Noura
+**Address:** 16 Hobart Place, SW1W 0HH
+**Price:** £30-40 per shisha
+**Hours:** Until midnight
+
+Upscale Lebanese restaurant with a sophisticated shisha terrace near Buckingham Palace.
+
+**Why We Love It:**
+- Elegant setting
+- Premium service
+- Central location
+- High-quality tobacco
+- Excellent Lebanese cuisine
+
+**Best For:** Special occasions, business entertaining
+
+---
+
+#### 5. Signor Sassi
+**Address:** 14 Knightsbridge Green, SW1X 7QL
+**Price:** £25-35 per shisha
+**Hours:** Until 11pm
+
+Italian restaurant with a Mediterranean twist offering shisha on their terrace.
+
+**Atmosphere:** Sophisticated, Knightsbridge elegance
+
+---
+
+### Shoreditch & East London
+
+#### 6. Sway
+**Address:** 61-65 Great Queen Street, WC2B 5BZ
+**Price:** £20-30 per shisha
+**Hours:** Until 2am (weekends until 3am)
+
+Modern shisha lounge with a club atmosphere, perfect for younger crowds.
+
+**Features:**
+- DJ music on weekends
+- Cocktails (non-alcoholic options)
+- Instagram-worthy décor
+- Group bookings available
+
+---
+
+## Shisha Flavors Guide
+
+### Classic Flavors
+| Flavor | Profile | Best With |
+|--------|---------|-----------|
+| Double Apple | Sweet, anise-like | Mint tea |
+| Grape | Fruity, mild | Any meal |
+| Mint | Fresh, cool | After dinner |
+
+### Premium Blends
+| Flavor | Profile | Price Premium |
+|--------|---------|---------------|
+| Blueberry Mint | Fruity, fresh | +£5 |
+| Watermelon Ice | Sweet, cooling | +£5 |
+| Pan Rasna | Indian, aromatic | +£8 |
+
+### Signature Mixes
+Many lounges offer custom blends. Popular combinations:
+- Grape + Mint
+- Double Apple + Mint
+- Watermelon + Berry
+
+---
+
+## Shisha Etiquette
+
+### Do's:
+- Share the hose politely
+- Replace the mouthpiece if sharing
+- Tip the hookah server (£2-5)
+- Ask before adjusting coals
+- Stay hydrated
+
+### Don'ts:
+- Light cigarettes from the coals
+- Blow into the hose
+- Leave without tipping
+- Rush the experience
+
+---
+
+## Best for Different Occasions
+
+### Date Night
+**Noura** - Elegant, romantic terrace setting
+
+### Group Celebrations
+**Sway** - Space for large groups, vibrant atmosphere
+
+### Late Night Cravings
+**Ranoush** - Open until 4am, quick service
+
+### Authentic Experience
+**Maroush Café** - Traditional Lebanese ambiance
+
+### Budget-Friendly
+**Abu Ali** - Good value, generous portions
+
+---
+
+## Seasonal Considerations
+
+### Summer (May-September)
+- Best time for outdoor shisha
+- Reserve ahead for popular terraces
+- Peak times: Thursday-Saturday evenings
+
+### Winter (October-April)
+- Look for heated terraces
+- Covered outdoor areas
+- Some venues have heating systems
+
+**Best Winter Options:**
+- Maroush Café (heated terrace)
+- Noura (covered area)
+
+---
+
+## Practical Tips
+
+### Booking
+- **Weekdays:** Walk-in usually fine
+- **Weekends:** Reserve 1-2 days ahead
+- **Large groups:** Book 1 week ahead
+
+### Prices
+- Budget: £15-25
+- Mid-range: £25-35
+- Premium: £35-50
+- Extra coals: Usually free
+- Mouthpiece: Often included
+
+### Duration
+- Typical session: 1-2 hours
+- Premium setup: 2+ hours
+- One shisha serves 2-4 people comfortably
+
+---
+
+## Nearby Halal Restaurants
+
+| Shisha Area | Nearby Restaurant | Distance |
+|-------------|-------------------|----------|
+| Edgware Road | Maroush Gardens | Same street |
+| Mayfair | Novikov | 5 min walk |
+| Knightsbridge | Harrods Food Hall | 10 min walk |
+
+---
+
+## Conclusion
+
+London's shisha scene offers something for everyone, from authentic Edgware Road experiences to sophisticated Mayfair terraces. Whether you prefer classic double apple or adventurous new blends, these lounges deliver quality hookah in memorable settings.
+
+**Pro Tip:** Start with Maroush Café for the quintessential London shisha experience, then explore based on your preferences.`,
+    content_ar: `# أفضل صالات الشيشة في لندن 2025
+
+تتمتع لندن بمشهد شيشة مزدهر، من تراسات مايفير الأنيقة إلى مقاهي إدجوير رود الأصيلة. إليك دليلنا الشامل لأفضل الأماكن.
+
+## مقارنة سريعة
+
+| الصالة | الموقع | السعر/شيشة | الأجواء |
+|--------|--------|-----------|---------|
+| مقهى ماروش | إدجوير رود | £25-35 | أنيق |
+| رانوش جوس | إدجوير رود | £15-25 | غير رسمي |
+| نورا | مايفير | £30-40 | فاخر |
+
+## أفضل صالات الشيشة
+
+### إدجوير رود - قلب ثقافة الشيشة
+
+#### 1. مقهى ماروش
+**العنوان:** 68 Edgware Road, W2 2EH
+**السعر:** £25-35 للشيشة
+**ساعات العمل:** حتى 3 صباحاً
+
+المعيار الذهبي للشيشة في لندن. يجمع ماروش بين التبغ الفاخر والأجواء الأنيقة.
+
+**لماذا نحبه:**
+- نكهات الفخر والستاربز الفاخرة
+- تراس مدفأ في الشتاء
+- قائمة طعام ممتازة
+- ساعات متأخرة
+
+#### 2. رانوش جوس
+**السعر:** £15-25 للشيشة
+**ساعات العمل:** حتى 4 صباحاً
+
+الكلاسيكي غير الرسمي. مثالي للشاورما السريعة والشيشة.`,
+    featured_image: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?w=1200&h=630&fit=crop',
+    category_id: 'cat-restaurants',
+    tags: ['shisha', 'hookah', 'london', 'nightlife', 'edgware-road', 'halal'],
+    keywords: [
+      'best shisha london',
+      'shisha lounges london',
+      'hookah bar london',
+      'edgware road shisha',
+      'شيشة لندن',
+      'صالات شيشة لندن'
+    ],
+    page_type: 'listicle',
+    seo_score: 94,
+    reading_time: 12,
+    published: true,
+    created_at: new Date('2025-01-06'),
+    updated_at: new Date('2025-01-06'),
+  },
+
+  // ============================================
+  // SHOPPING GUIDES
+  // ============================================
+  {
+    id: 'post-oxford-street-guide',
+    slug: 'oxford-street-shopping-guide-2025',
+    title_en: 'Oxford Street Shopping Guide 2025: Everything You Need to Know',
+    title_ar: 'دليل التسوق في أكسفورد ستريت 2025: كل ما تحتاج معرفته',
+    excerpt_en: 'Navigate London\'s famous shopping street like a pro. Store directory, best deals, halal food options, and insider tips.',
+    excerpt_ar: 'تنقل في شارع التسوق الشهير في لندن كالمحترفين. دليل المتاجر وأفضل العروض وخيارات الطعام الحلال.',
+    meta_title_en: 'Oxford Street Shopping Guide 2025 | Stores, Tips & Map',
+    meta_title_ar: 'دليل التسوق أكسفورد ستريت 2025 | المتاجر والنصائح',
+    meta_description_en: 'Complete Oxford Street shopping guide. Selfridges, Primark, Zara and 300+ stores. Plus halal restaurants and VAT refund tips.',
+    meta_description_ar: 'دليل التسوق الشامل لأكسفورد ستريت. سيلفريدجز وبريمارك وزارا و300+ متجر مع المطاعم الحلال.',
+    content_en: `# Oxford Street Shopping Guide 2025
+
+Oxford Street is Europe's busiest shopping street with over 300 stores along 1.5 miles. Here's how to make the most of your visit.
+
+## Overview
+
+**Length:** 1.5 miles (2.4 km)
+**Stores:** 300+
+**Annual Visitors:** 200 million
+**Best Tube Stations:** Oxford Circus, Bond Street, Marble Arch, Tottenham Court Road
+
+---
+
+## Store Directory by Section
+
+### Oxford Circus Area (Central)
+
+**Department Stores:**
+- Selfridges (flagship)
+- John Lewis
+- House of Fraser
+
+**High Street Fashion:**
+- Zara
+- H&M
+- Topshop
+- Urban Outfitters
+
+### Bond Street End (West)
+
+**Luxury Brands:**
+- Designer boutiques
+- High-end jewelry
+- Premium fashion
+
+### Tottenham Court Road End (East)
+
+**Budget Shopping:**
+- Primark (massive flagship)
+- Sports Direct
+- TK Maxx nearby
+
+---
+
+## Top Stores for Arab Shoppers
+
+### 1. Selfridges
+**Must Visit** - London's premier department store
+- Arabic-speaking staff available
+- Tax refund service
+- Personal shopping
+- Halal food hall options
+
+### 2. Primark
+**Budget Fashion** - European headquarters
+- 4 floors of affordable fashion
+- No tax refund (prices already low)
+- Very crowded
+
+### 3. John Lewis
+**Quality Homeware** - British institution
+- Electronics
+- Home goods
+- Quality over quantity
+
+---
+
+## Halal Food Options
+
+### On Oxford Street
+
+| Restaurant | Cuisine | Price | Location |
+|------------|---------|-------|----------|
+| Dishoom | Indian | £15-25 | Near Bond Street |
+| Comptoir Libanais | Lebanese | £12-20 | Multiple |
+| Nando's | Peri-Peri | £12-18 | Multiple |
+
+### Nearby (5 min walk)
+
+**Edgware Road** - Full halal area (10 min from Marble Arch)
+**Soho** - Various halal options (5 min south)
+
+---
+
+## Money-Saving Tips
+
+### Tax Refund (Non-EU Visitors)
+- Save 12-15% on purchases over £30
+- Ask for VAT refund forms
+- Process at airport before departure
+- Selfridges has in-store processing
+
+### Sales Periods
+- **Boxing Day (Dec 26):** Major sales start
+- **January:** Best reductions
+- **Black Friday (November):** Growing in UK
+
+### Best Days to Visit
+- **Weekday mornings:** Least crowded
+- **Avoid:** Saturday afternoons
+- **Sunday:** Shorter hours (12-6pm typically)
+
+---
+
+## Practical Information
+
+### Getting There
+
+| Station | Lines | Best For |
+|---------|-------|----------|
+| Oxford Circus | Central, Victoria, Bakerloo | Central access |
+| Bond Street | Central, Jubilee, Elizabeth | Selfridges |
+| Marble Arch | Central | West end, Primark |
+
+### Facilities
+- Public toilets: Limited (use department stores)
+- Wi-Fi: Available in most stores
+- ATMs: Throughout street
+- Phone charging: Some stores offer
+
+### Safety Tips
+- Watch for pickpockets
+- Keep bags closed
+- Be aware of surroundings
+- Don't flash expensive items
+
+---
+
+## Sample Shopping Itinerary
+
+**Full Day Oxford Street:**
+
+**10:00 AM** - Start at Selfridges (Bond Street)
+**12:00 PM** - Lunch at Comptoir Libanais
+**1:00 PM** - Walk east, browse Zara, H&M
+**3:00 PM** - Afternoon tea break
+**4:00 PM** - Primark (Marble Arch end)
+**6:00 PM** - Process tax refunds
+**7:00 PM** - Dinner at Edgware Road
+
+---
+
+## Conclusion
+
+Oxford Street delivers everything from luxury to budget fashion. Plan your visit, wear comfortable shoes, and leave time for tax refund processing!`,
+    content_ar: `# دليل التسوق في أكسفورد ستريت 2025
+
+أكسفورد ستريت هو أكثر شوارع التسوق ازدحاماً في أوروبا مع أكثر من 300 متجر.
+
+## نظرة عامة
+
+**الطول:** 2.4 كم
+**المتاجر:** 300+
+**الزوار السنويين:** 200 مليون
+
+## أفضل المتاجر للمتسوقين العرب
+
+### 1. سيلفريدجز
+- موظفون يتحدثون العربية
+- خدمة استرداد الضريبة
+- تسوق شخصي
+
+### 2. بريمارك
+- أزياء بأسعار معقولة
+- 4 طوابق
+- مزدحم جداً`,
+    featured_image: 'https://images.unsplash.com/photo-1513326738677-b964603b136d?w=1200&h=630&fit=crop',
+    category_id: 'cat-shopping',
+    tags: ['oxford-street', 'shopping', 'london', 'selfridges', 'fashion', 'guide'],
+    keywords: [
+      'oxford street shopping',
+      'oxford street stores',
+      'selfridges london',
+      'shopping london guide',
+      'التسوق أكسفورد ستريت',
+      'دليل التسوق لندن'
+    ],
+    page_type: 'guide',
+    seo_score: 93,
+    reading_time: 10,
+    published: true,
+    created_at: new Date('2025-01-05'),
+    updated_at: new Date('2025-01-06'),
+  },
+
+  // ============================================
+  // RESTAURANT REVIEWS
+  // ============================================
+  {
+    id: 'post-best-halal-restaurants-central',
+    slug: 'best-halal-restaurants-central-london-2025',
+    title_en: 'Best Halal Restaurants in Central London 2025: Top 25 Reviewed',
+    title_ar: 'أفضل المطاعم الحلال في وسط لندن 2025: أفضل 25 مراجعة',
+    excerpt_en: 'From Mayfair fine dining to quick bites in Soho. Our curated list of the best halal restaurants in Zone 1 with prices and booking tips.',
+    excerpt_ar: 'من المطاعم الفاخرة في مايفير إلى الوجبات السريعة في سوهو. قائمتنا المنتقاة لأفضل المطاعم الحلال.',
+    meta_title_en: 'Best Halal Restaurants Central London 2025 | 25 Top Picks',
+    meta_title_ar: 'أفضل مطاعم حلال وسط لندن 2025 | أفضل 25',
+    meta_description_en: 'Discover 25 best halal restaurants in central London. Novikov, Zuma, Dishoom and more. Prices, locations, and what to order.',
+    meta_description_ar: 'اكتشف أفضل 25 مطعم حلال في وسط لندن. نوفيكوف وزوما وديشوم والمزيد مع الأسعار والمواقع.',
+    content_en: `# Best Halal Restaurants in Central London 2025
+
+Central London offers an incredible variety of halal dining options, from Michelin-starred fine dining to authentic street food. Here are our top 25 picks.
+
+## Fine Dining (£80+ per person)
+
+### 1. Novikov Restaurant
+**Cuisine:** Asian/Italian
+**Location:** 50A Berkeley Street, Mayfair
+**Price:** £100-150pp
+**Halal Status:** Fully certified
+
+The crown jewel of halal fine dining in London. Two restaurants in one: Asian downstairs, Italian upstairs.
+
+**Must Order:**
+- Black cod with miso
+- Wagyu beef tataki
+- Truffle pizza
+
+**Book:** 2 weeks ahead for weekends
+
+---
+
+### 2. Zuma
+**Cuisine:** Japanese
+**Location:** 5 Raphael Street, Knightsbridge
+**Price:** £120-200pp
+**Halal Status:** Halal menu available
+
+Contemporary Japanese cuisine with a dedicated halal menu featuring premium ingredients.
+
+**Must Order:**
+- Halal wagyu beef
+- Robata grilled lamb
+- Signature sashimi selection
+
+---
+
+### 3. Amazonico
+**Cuisine:** Latin American
+**Location:** 10 Berkeley Square, Mayfair
+**Price:** £80-120pp
+**Halal Status:** Halal options marked
+
+Stunning rainforest-themed restaurant with excellent halal choices.
+
+**Must Order:**
+- Wagyu picanha
+- Whole sea bass
+- Tropical cocktails (non-alc available)
+
+---
+
+## Mid-Range (£30-80 per person)
+
+### 4. Dishoom
+**Cuisine:** Bombay Café
+**Location:** Multiple locations
+**Price:** £25-40pp
+**Halal Status:** Chicken is halal
+
+The beloved Bombay café serving halal chicken dishes in stunning interiors.
+
+**Must Order:**
+- Chicken ruby
+- Black daal
+- Bacon naan (chicken bacon)
+
+---
+
+### 5. Roka
+**Cuisine:** Japanese
+**Location:** Charlotte Street, Fitzrovia
+**Price:** £50-80pp
+**Halal Status:** Halal options available
+
+Contemporary robata grill with excellent atmosphere.
+
+---
+
+### 6. Gymkhana
+**Cuisine:** Indian
+**Location:** 42 Albemarle Street, Mayfair
+**Price:** £60-90pp
+**Halal Status:** Most meat is halal
+
+Michelin-starred Indian cuisine with colonial-era décor.
+
+---
+
+## Casual Dining (£15-30 per person)
+
+### 7. Comptoir Libanais
+**Cuisine:** Lebanese
+**Location:** Multiple locations
+**Price:** £15-25pp
+**Halal Status:** Fully halal
+
+Colorful Lebanese café with authentic flavors.
+
+---
+
+### 8. The Halal Guys
+**Cuisine:** American/Middle Eastern
+**Location:** Leicester Square
+**Price:** £10-15pp
+**Halal Status:** Fully halal
+
+New York-style halal street food in central London.
+
+---
+
+### 9. Maroush
+**Cuisine:** Lebanese
+**Location:** Edgware Road (multiple)
+**Price:** £25-40pp
+**Halal Status:** Fully halal
+
+Authentic Lebanese with late-night hours.
+
+---
+
+## Quick Bites (Under £15)
+
+### 10. Ranoush Juice
+**Location:** Edgware Road
+**Price:** £8-12pp
+
+Perfect for late-night shawarma and fresh juices.
+
+---
+
+## By Location
+
+### Mayfair
+- Novikov
+- Amazonico
+- Gymkhana
+- Noura
+
+### Knightsbridge
+- Zuma
+- Signor Sassi
+- Harrods restaurants
+
+### Edgware Road
+- Maroush
+- Ranoush
+- Abu Ali
+- Fairuz
+
+### Soho/Leicester Square
+- The Halal Guys
+- Dishoom
+- Various options
+
+---
+
+## Booking Tips
+
+1. **Fine Dining:** Book 2-3 weeks ahead
+2. **Weekends:** Always reserve
+3. **Ramadan:** Book early for iftar
+4. **Large Groups:** Contact directly
+5. **Halal Requirements:** Confirm when booking
+
+---
+
+## Conclusion
+
+Central London's halal dining scene rivals any city in the world. From glamorous Mayfair to bustling Edgware Road, there's something for every taste and budget.`,
+    content_ar: `# أفضل المطاعم الحلال في وسط لندن 2025
+
+يقدم وسط لندن تنوعاً مذهلاً من خيارات الطعام الحلال.
+
+## المطاعم الفاخرة (£80+ للشخص)
+
+### 1. نوفيكوف
+**المطبخ:** آسيوي/إيطالي
+**الموقع:** مايفير
+**السعر:** £100-150
+**حالة الحلال:** معتمد بالكامل
+
+### 2. زوما
+**المطبخ:** ياباني
+**السعر:** £120-200
+**حالة الحلال:** قائمة حلال متوفرة
+
+## متوسط السعر (£30-80)
+
+### 4. ديشوم
+**المطبخ:** مقهى بومباي
+**السعر:** £25-40
+**حالة الحلال:** الدجاج حلال`,
+    featured_image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&h=630&fit=crop',
+    category_id: 'cat-restaurants',
+    tags: ['halal', 'restaurants', 'central-london', 'fine-dining', 'mayfair', 'food'],
+    keywords: [
+      'halal restaurants central london',
+      'best halal food london',
+      'halal fine dining london',
+      'novikov halal',
+      'مطاعم حلال وسط لندن',
+      'أفضل مطاعم حلال لندن'
+    ],
+    page_type: 'listicle',
+    seo_score: 95,
+    reading_time: 14,
+    published: true,
+    created_at: new Date('2025-01-06'),
+    updated_at: new Date('2025-01-06'),
+  },
 ];
 
 export default extendedBlogPosts;

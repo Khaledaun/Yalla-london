@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-import PremiumAdminDashboard from '@/components/admin/premium-admin-dashboard';
+import { MophyDashboard } from '@/components/admin/mophy';
 
 export default function AdminDashboardPage() {
-  return <PremiumAdminDashboard />;
+  return <MophyDashboard />;
 }

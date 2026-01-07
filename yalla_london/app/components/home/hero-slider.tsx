@@ -27,7 +27,7 @@ interface HeroSliderProps {
   locale?: 'en' | 'ar'
 }
 
-// London-focused default slides
+// London-focused default slides with high quality images
 const defaultSlides = {
   en: [
     {
@@ -35,7 +35,7 @@ const defaultSlides = {
       title: 'Discover London\'s Best Halal Restaurants',
       slug: 'best-halal-restaurants-london',
       excerpt: 'Your guide to the finest halal dining experiences in the city',
-      featuredImage: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1500&h=700&fit=crop',
+      featuredImage: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1920&h=900&fit=crop&q=85',
       publishedAt: new Date().toISOString(),
       author: { name: 'Yalla London' },
       category: { name: 'Food', slug: 'food' }
@@ -45,7 +45,7 @@ const defaultSlides = {
       title: 'Hidden Gems: East London\'s Cultural Treasures',
       slug: 'east-london-cultural-gems',
       excerpt: 'Explore the vibrant multicultural neighborhoods of East London',
-      featuredImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1500&h=700&fit=crop',
+      featuredImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&h=900&fit=crop&q=85',
       publishedAt: new Date().toISOString(),
       author: { name: 'Yalla London' },
       category: { name: 'Travel', slug: 'travel' }
@@ -55,7 +55,7 @@ const defaultSlides = {
       title: 'Top 10 Things to Do in London This Weekend',
       slug: 'things-to-do-london-weekend',
       excerpt: 'From markets to museums, discover what\'s happening in London',
-      featuredImage: 'https://images.unsplash.com/photo-1529180184525-78f99adb8e98?w=1500&h=700&fit=crop',
+      featuredImage: 'https://images.unsplash.com/photo-1529180184525-78f99adb8e98?w=1920&h=900&fit=crop&q=85',
       publishedAt: new Date().toISOString(),
       author: { name: 'Yalla London' },
       category: { name: 'Events', slug: 'events' }
@@ -67,7 +67,7 @@ const defaultSlides = {
       title: 'اكتشف أفضل المطاعم الحلال في لندن',
       slug: 'best-halal-restaurants-london',
       excerpt: 'دليلك لأفضل تجارب الطعام الحلال في المدينة',
-      featuredImage: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1500&h=700&fit=crop',
+      featuredImage: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=1920&h=900&fit=crop&q=85',
       publishedAt: new Date().toISOString(),
       author: { name: 'يلا لندن' },
       category: { name: 'طعام', slug: 'food' }
@@ -77,7 +77,7 @@ const defaultSlides = {
       title: 'جواهر مخفية: كنوز شرق لندن الثقافية',
       slug: 'east-london-cultural-gems',
       excerpt: 'استكشف الأحياء متعددة الثقافات النابضة بالحياة في شرق لندن',
-      featuredImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1500&h=700&fit=crop',
+      featuredImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&h=900&fit=crop&q=85',
       publishedAt: new Date().toISOString(),
       author: { name: 'يلا لندن' },
       category: { name: 'سفر', slug: 'travel' }
@@ -87,7 +87,7 @@ const defaultSlides = {
       title: 'أفضل 10 أنشطة في لندن هذا الأسبوع',
       slug: 'things-to-do-london-weekend',
       excerpt: 'من الأسواق إلى المتاحف، اكتشف ما يحدث في لندن',
-      featuredImage: 'https://images.unsplash.com/photo-1529180184525-78f99adb8e98?w=1500&h=700&fit=crop',
+      featuredImage: 'https://images.unsplash.com/photo-1529180184525-78f99adb8e98?w=1920&h=900&fit=crop&q=85',
       publishedAt: new Date().toISOString(),
       author: { name: 'يلا لندن' },
       category: { name: 'فعاليات', slug: 'events' }
@@ -145,7 +145,7 @@ export function HeroSlider({ articles, locale = 'en' }: HeroSliderProps) {
           {/* Background Image */}
           <div className="absolute inset-0">
             <Image
-              src={slide.featuredImage || 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1500&h=700&fit=crop'}
+              src={slide.featuredImage || 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&h=900&fit=crop&q=85'}
               alt={slide.title}
               fill
               className="object-cover"

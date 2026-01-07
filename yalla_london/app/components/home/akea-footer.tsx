@@ -11,14 +11,14 @@ interface AkeaFooterProps {
 
 // Instagram feed placeholders - in production, connect to Instagram API
 const instagramImages = [
-  'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=200&h=200&fit=crop',
-  'https://images.unsplash.com/photo-1529180184525-78f99adb8e98?w=200&h=200&fit=crop',
-  'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=200&h=200&fit=crop',
-  'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=200&h=200&fit=crop',
-  'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=200&fit=crop',
-  'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=200&h=200&fit=crop',
-  'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=200&h=200&fit=crop',
-  'https://images.unsplash.com/photo-1529604278261-8bfcdb00a7b9?w=200&h=200&fit=crop',
+  'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1529180184525-78f99adb8e98?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&h=400&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1529604278261-8bfcdb00a7b9?w=400&h=400&fit=crop&q=80',
 ]
 
 export function AkeaFooter({ locale = 'en' }: AkeaFooterProps) {

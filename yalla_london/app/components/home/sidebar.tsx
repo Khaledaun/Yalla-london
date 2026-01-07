@@ -39,18 +39,18 @@ interface SidebarProps {
 
 const defaultCategories = {
   en: [
-    { name: 'Food & Dining', slug: 'food', count: 24, image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&h=200&fit=crop' },
-    { name: 'Travel', slug: 'travel', count: 18, image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=300&h=200&fit=crop' },
-    { name: 'Events', slug: 'events', count: 12, image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&h=200&fit=crop' },
-    { name: 'Shopping', slug: 'shopping', count: 15, image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=300&h=200&fit=crop' },
-    { name: 'Lifestyle', slug: 'lifestyle', count: 21, image: 'https://images.unsplash.com/photo-1529604278261-8bfcdb00a7b9?w=300&h=200&fit=crop' },
+    { name: 'Food & Dining', slug: 'food', count: 24, image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=400&fit=crop&q=80' },
+    { name: 'Travel', slug: 'travel', count: 18, image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&h=400&fit=crop&q=80' },
+    { name: 'Events', slug: 'events', count: 12, image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=400&fit=crop&q=80' },
+    { name: 'Shopping', slug: 'shopping', count: 15, image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&h=400&fit=crop&q=80' },
+    { name: 'Lifestyle', slug: 'lifestyle', count: 21, image: 'https://images.unsplash.com/photo-1529604278261-8bfcdb00a7b9?w=400&h=400&fit=crop&q=80' },
   ],
   ar: [
-    { name: 'طعام و مطاعم', slug: 'food', count: 24, image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&h=200&fit=crop' },
-    { name: 'سفر', slug: 'travel', count: 18, image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=300&h=200&fit=crop' },
-    { name: 'فعاليات', slug: 'events', count: 12, image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300&h=200&fit=crop' },
-    { name: 'تسوق', slug: 'shopping', count: 15, image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=300&h=200&fit=crop' },
-    { name: 'نمط الحياة', slug: 'lifestyle', count: 21, image: 'https://images.unsplash.com/photo-1529604278261-8bfcdb00a7b9?w=300&h=200&fit=crop' },
+    { name: 'طعام و مطاعم', slug: 'food', count: 24, image: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=400&fit=crop&q=80' },
+    { name: 'سفر', slug: 'travel', count: 18, image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400&h=400&fit=crop&q=80' },
+    { name: 'فعاليات', slug: 'events', count: 12, image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=400&fit=crop&q=80' },
+    { name: 'تسوق', slug: 'shopping', count: 15, image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&h=400&fit=crop&q=80' },
+    { name: 'نمط الحياة', slug: 'lifestyle', count: 21, image: 'https://images.unsplash.com/photo-1529604278261-8bfcdb00a7b9?w=400&h=400&fit=crop&q=80' },
   ]
 }
 
@@ -65,7 +65,7 @@ const defaultPopularArticles = {
       id: '1',
       title: 'The Best Halal Restaurants in London 2024',
       slug: 'best-halal-restaurants-london-2024',
-      featuredImage: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=150&h=150&fit=crop',
+      featuredImage: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=300&h=300&fit=crop&q=80',
       publishedAt: new Date().toISOString(),
       author: { name: 'Yalla London' }
     },
@@ -73,7 +73,7 @@ const defaultPopularArticles = {
       id: '2',
       title: 'Hidden Gems in East London',
       slug: 'hidden-gems-east-london',
-      featuredImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=150&h=150&fit=crop',
+      featuredImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=300&h=300&fit=crop&q=80',
       publishedAt: new Date().toISOString(),
       author: { name: 'Yalla London' }
     },
@@ -81,7 +81,7 @@ const defaultPopularArticles = {
       id: '3',
       title: 'Top 10 Things to Do This Weekend',
       slug: 'top-10-things-weekend',
-      featuredImage: 'https://images.unsplash.com/photo-1529180184525-78f99adb8e98?w=150&h=150&fit=crop',
+      featuredImage: 'https://images.unsplash.com/photo-1529180184525-78f99adb8e98?w=300&h=300&fit=crop&q=80',
       publishedAt: new Date().toISOString(),
       author: { name: 'Yalla London' }
     }
@@ -91,7 +91,7 @@ const defaultPopularArticles = {
       id: '1',
       title: 'أفضل المطاعم الحلال في لندن 2024',
       slug: 'best-halal-restaurants-london-2024',
-      featuredImage: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=150&h=150&fit=crop',
+      featuredImage: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=300&h=300&fit=crop&q=80',
       publishedAt: new Date().toISOString(),
       author: { name: 'يلا لندن' }
     },
@@ -99,7 +99,7 @@ const defaultPopularArticles = {
       id: '2',
       title: 'جواهر مخفية في شرق لندن',
       slug: 'hidden-gems-east-london',
-      featuredImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=150&h=150&fit=crop',
+      featuredImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=300&h=300&fit=crop&q=80',
       publishedAt: new Date().toISOString(),
       author: { name: 'يلا لندن' }
     },
@@ -107,7 +107,7 @@ const defaultPopularArticles = {
       id: '3',
       title: 'أفضل 10 أنشطة هذا الأسبوع',
       slug: 'top-10-things-weekend',
-      featuredImage: 'https://images.unsplash.com/photo-1529180184525-78f99adb8e98?w=150&h=150&fit=crop',
+      featuredImage: 'https://images.unsplash.com/photo-1529180184525-78f99adb8e98?w=300&h=300&fit=crop&q=80',
       publishedAt: new Date().toISOString(),
       author: { name: 'يلا لندن' }
     }

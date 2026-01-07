@@ -49,7 +49,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
       <article className="flex gap-4 group" dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
           <Image
-            src={article.featuredImage || 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=150&h=150&fit=crop'}
+            src={article.featuredImage || 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=300&h=300&fit=crop&q=80'}
             alt={article.title}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -89,7 +89,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
       <div className="relative aspect-[16/9] overflow-hidden rounded-lg mb-5">
         <Link href={blogUrl}>
           <Image
-            src={article.featuredImage || 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&h=450&fit=crop'}
+            src={article.featuredImage || 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1200&h=675&fit=crop&q=80'}
             alt={article.title}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-500"

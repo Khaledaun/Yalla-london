@@ -100,15 +100,14 @@ const QUICK_ACTIONS = [
   },
 ];
 
-// Navigation sections
+// Navigation sections - Only includes pages that exist
 const NAV_SECTIONS = [
   {
     title: 'Sites & Domains',
     titleAr: 'المواقع والنطاقات',
     items: [
-      { name: 'All Sites', nameAr: 'جميع المواقع', href: '/admin/command-center/sites', icon: Globe },
       { name: 'Create New Site', nameAr: 'إنشاء موقع', href: '/admin/command-center/sites/new', icon: Plus },
-      { name: 'Domain Settings', nameAr: 'إعدادات النطاق', href: '/admin/command-center/domains', icon: Settings },
+      { name: 'Site Settings', nameAr: 'إعدادات الموقع', href: '/admin/site', icon: Settings },
     ],
   },
   {
@@ -116,19 +115,18 @@ const NAV_SECTIONS = [
     titleAr: 'المحتوى والذكاء الاصطناعي',
     items: [
       { name: 'Content Hub', nameAr: 'مركز المحتوى', href: '/admin/command-center/content', icon: FileText },
-      { name: 'AI Generator', nameAr: 'مولد الذكاء الاصطناعي', href: '/admin/command-center/content/generate', icon: Sparkles },
+      { name: 'Articles', nameAr: 'المقالات', href: '/admin/articles', icon: FileText },
       { name: 'PDF Guides', nameAr: 'أدلة PDF', href: '/admin/command-center/products/pdf', icon: BookOpen },
-      { name: 'Content Calendar', nameAr: 'تقويم المحتوى', href: '/admin/command-center/content/calendar', icon: Clock },
+      { name: 'Topics Pipeline', nameAr: 'خط إنتاج المواضيع', href: '/admin/topics-pipeline', icon: TrendingUp },
     ],
   },
   {
-    title: 'Marketing',
-    titleAr: 'التسويق',
+    title: 'Marketing & SEO',
+    titleAr: 'التسويق وSEO',
     items: [
       { name: 'Social Media', nameAr: 'وسائل التواصل', href: '/admin/command-center/social', icon: Share2 },
-      { name: 'Email Campaigns', nameAr: 'حملات البريد', href: '/admin/command-center/email', icon: Mail },
-      { name: 'Leads & CRM', nameAr: 'العملاء المحتملين', href: '/admin/command-center/leads', icon: Users },
-      { name: 'SEO Dashboard', nameAr: 'لوحة SEO', href: '/admin/command-center/seo', icon: Target },
+      { name: 'SEO Audits', nameAr: 'تدقيق SEO', href: '/admin/seo-audits', icon: Target },
+      { name: 'Analytics', nameAr: 'التحليلات', href: '/admin/command-center/analytics', icon: BarChart3 },
     ],
   },
   {
@@ -136,8 +134,7 @@ const NAV_SECTIONS = [
     titleAr: 'الإيرادات',
     items: [
       { name: 'Affiliate Dashboard', nameAr: 'لوحة الشراكات', href: '/admin/command-center/affiliates', icon: DollarSign },
-      { name: 'Products & Sales', nameAr: 'المنتجات والمبيعات', href: '/admin/command-center/products', icon: BookOpen },
-      { name: 'Revenue Reports', nameAr: 'تقارير الإيرادات', href: '/admin/command-center/revenue', icon: TrendingUp },
+      { name: 'Affiliates Manager', nameAr: 'إدارة الشراكات', href: '/admin/affiliates', icon: Users },
     ],
   },
   {
@@ -145,8 +142,8 @@ const NAV_SECTIONS = [
     titleAr: 'الأتمتة',
     items: [
       { name: 'Autopilot', nameAr: 'الطيار الآلي', href: '/admin/command-center/autopilot', icon: Bot },
-      { name: 'Scheduled Tasks', nameAr: 'المهام المجدولة', href: '/admin/command-center/tasks', icon: Clock },
-      { name: 'AI Settings', nameAr: 'إعدادات الذكاء الاصطناعي', href: '/admin/command-center/ai-settings', icon: Zap },
+      { name: 'Automation Hub', nameAr: 'مركز الأتمتة', href: '/admin/automation-hub', icon: Zap },
+      { name: 'Pipeline', nameAr: 'خط الإنتاج', href: '/admin/pipeline', icon: Activity },
     ],
   },
   {
@@ -154,8 +151,8 @@ const NAV_SECTIONS = [
     titleAr: 'الإعدادات',
     items: [
       { name: 'API Keys', nameAr: 'مفاتيح API', href: '/admin/command-center/settings/api-keys', icon: Settings },
-      { name: 'Branding', nameAr: 'الهوية البصرية', href: '/admin/command-center/settings/branding', icon: Palette },
-      { name: 'Analytics Setup', nameAr: 'إعداد التحليلات', href: '/admin/command-center/settings/analytics', icon: BarChart3 },
+      { name: 'Theme', nameAr: 'المظهر', href: '/admin/settings/theme', icon: Palette },
+      { name: 'Feature Flags', nameAr: 'مفاتيح الميزات', href: '/admin/feature-flags', icon: Zap },
     ],
   },
 ];

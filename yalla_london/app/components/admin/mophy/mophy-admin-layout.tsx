@@ -427,14 +427,14 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
                         </p>
                       </div>
                       <div className="py-1">
-                        <Link href="/admin/profile" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
-                          <User size={16} className="text-gray-400" /> Profile
+                        <Link href="/admin/team" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
+                          <User size={16} className="text-gray-400" /> Team Profile
                         </Link>
                         <Link href="/admin/settings/theme" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
                           <Settings size={16} className="text-gray-400" /> Settings
                         </Link>
-                        <Link href="/admin/help" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
-                          <HelpCircle size={16} className="text-gray-400" /> Help Center
+                        <Link href="/admin/command-center/settings/api-keys" className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">
+                          <HelpCircle size={16} className="text-gray-400" /> API & Integrations
                         </Link>
                       </div>
                       <div className="border-t border-gray-100 dark:border-slate-700 py-1">

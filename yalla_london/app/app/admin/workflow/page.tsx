@@ -1,18 +1,17 @@
 'use client';
 
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout';
 import { WorkflowControlDashboard } from '@/components/admin/workflow-control-dashboard';
 
 export default function WorkflowPage() {
   return (
-    <PremiumAdminLayout
-      title="Content Workflow"
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Content Workflow' }
-      ]}
-    >
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Content Workflow</h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Manage your content generation pipeline from topics to publishing
+        </p>
+      </div>
       <WorkflowControlDashboard />
-    </PremiumAdminLayout>
+    </div>
   );
 }

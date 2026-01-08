@@ -54,126 +54,12 @@ interface PromptVersion {
   changeNote: string
 }
 
-const mockPrompts: PromptTemplate[] = [
-  {
-    id: '1',
-    name: 'London Guide Article',
-    description: 'Generates comprehensive London travel guides',
-    category: 'content',
-    language: 'en',
-    contentType: ['guide', 'travel'],
-    prompt: `Write a comprehensive guide about {{topic}} in London. Include:
-
-1. Introduction with key highlights
-2. Top {{number}} recommendations with descriptions
-3. Practical information (hours, prices, transport)
-4. Local tips and insider knowledge
-5. Conclusion with call-to-action
-
-Target audience: {{audience}}
-Tone: {{tone}}
-Word count: {{wordCount}} words
-
-Focus on authentic experiences and include specific details that make London unique.`,
-    variables: ['topic', 'number', 'audience', 'tone', 'wordCount'],
-    version: 3,
-    isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-10T00:00:00Z',
-    lastUsed: '2024-01-12T00:00:00Z',
-    usageCount: 45
-  },
-  {
-    id: '2',
-    name: 'Halal Restaurant Review',
-    description: 'Creates detailed halal restaurant reviews',
-    category: 'content',
-    language: 'both',
-    contentType: ['food', 'review'],
-    prompt: `Write a detailed review of {{restaurantName}}, a halal restaurant in {{location}}, London.
-
-Structure:
-1. Compelling introduction
-2. Atmosphere and ambiance
-3. Menu highlights and recommendations
-4. Service quality
-5. Value for money
-6. Halal certification details
-7. Practical information (address, hours, booking)
-8. Final verdict and rating
-
-Include cultural context and why this restaurant matters to London's Muslim community.
-
-Target: {{audience}}
-Style: {{style}}`,
-    variables: ['restaurantName', 'location', 'audience', 'style'],
-    version: 2,
-    isActive: true,
-    createdAt: '2024-01-02T00:00:00Z',
-    updatedAt: '2024-01-08T00:00:00Z',
-    lastUsed: '2024-01-11T00:00:00Z',
-    usageCount: 23
-  },
-  {
-    id: '3',
-    name: 'SEO Meta Description',
-    description: 'Generates optimized meta descriptions',
-    category: 'seo',
-    language: 'en',
-    contentType: ['meta', 'seo'],
-    prompt: `Create an optimized meta description for: {{pageTitle}}
-
-Requirements:
-- 150-160 characters maximum
-- Include primary keyword: {{primaryKeyword}}
-- Compelling and actionable
-- Relevant to London audience
-- Include call-to-action
-
-Page content summary: {{contentSummary}}`,
-    variables: ['pageTitle', 'primaryKeyword', 'contentSummary'],
-    version: 1,
-    isActive: true,
-    createdAt: '2024-01-03T00:00:00Z',
-    updatedAt: '2024-01-03T00:00:00Z',
-    usageCount: 67
-  }
-]
-
-const mockVersions: { [key: string]: PromptVersion[] } = {
-  '1': [
-    {
-      id: 'v1',
-      promptId: '1',
-      version: 1,
-      prompt: 'Basic guide template...',
-      createdAt: '2024-01-01T00:00:00Z',
-      createdBy: 'admin',
-      changeNote: 'Initial version'
-    },
-    {
-      id: 'v2',
-      promptId: '1',
-      version: 2,
-      prompt: 'Enhanced guide template with better structure...',
-      createdAt: '2024-01-05T00:00:00Z',
-      createdBy: 'editor',
-      changeNote: 'Added practical information section'
-    },
-    {
-      id: 'v3',
-      promptId: '1',
-      version: 3,
-      prompt: mockPrompts[0].prompt,
-      createdAt: '2024-01-10T00:00:00Z',
-      createdBy: 'admin',
-      changeNote: 'Added local tips and insider knowledge'
-    }
-  ]
-}
+// Version history placeholder - will be fetched from API in future
+const mockVersions: { [key: string]: PromptVersion[] } = {}
 
 export default function PromptsPage() {
-  const [prompts, setPrompts] = useState<PromptTemplate[]>(mockPrompts)
+  const [prompts, setPrompts] = useState<PromptTemplate[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedPrompt, setSelectedPrompt] = useState<PromptTemplate | null>(null)
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [showVersionHistory, setShowVersionHistory] = useState(false)
@@ -183,6 +69,42 @@ export default function PromptsPage() {
   const [testVariables, setTestVariables] = useState<{ [key: string]: string }>({})
   const [testResult, setTestResult] = useState('')
   const [isTesting, setIsTesting] = useState(false)
+
+  // Fetch prompts from API
+  useEffect(() => {
+    const fetchPrompts = async () => {
+      try {
+        const response = await fetch('/api/admin/prompts')
+        const data = await response.json()
+
+        if (data.success && data.templates) {
+          // Transform API templates to match interface
+          const transformedPrompts = data.templates.map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            description: t.description || '',
+            category: t.category || 'content',
+            language: t.locale || 'en',
+            contentType: t.requiredBlocks || [],
+            prompt: t.template || '',
+            variables: t.variables || [],
+            version: 1,
+            isActive: t.isActive !== false,
+            createdAt: t.createdAt,
+            updatedAt: t.updatedAt,
+            usageCount: 0
+          }))
+          setPrompts(transformedPrompts)
+        }
+      } catch (error) {
+        console.error('Failed to fetch prompts:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPrompts()
+  }, [])
 
   const categoryColors = {
     'content': 'bg-blue-100 text-blue-800',
@@ -225,24 +147,50 @@ export default function PromptsPage() {
     }
   }
 
-  const handleCreatePrompt = () => {
-    const newPrompt: PromptTemplate = {
-      id: Date.now().toString(),
-      name: editedPrompt.name || '',
-      description: editedPrompt.description || '',
-      category: editedPrompt.category || 'content',
-      language: editedPrompt.language || 'en',
-      contentType: editedPrompt.contentType || [],
-      prompt: editedPrompt.prompt || '',
-      variables: extractVariables(editedPrompt.prompt || ''),
-      version: 1,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      usageCount: 0
+  const handleCreatePrompt = async () => {
+    try {
+      const response = await fetch('/api/admin/prompts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editedPrompt.name || '',
+          description: editedPrompt.description || '',
+          category: editedPrompt.category || 'blog',
+          locale: editedPrompt.language || 'en',
+          template: editedPrompt.prompt || '',
+          variables: extractVariables(editedPrompt.prompt || ''),
+          targetWordCount: 1500,
+          tone: 'professional',
+          isActive: true
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Add new prompt to the list
+        const newPrompt: PromptTemplate = {
+          id: data.template.id,
+          name: editedPrompt.name || '',
+          description: editedPrompt.description || '',
+          category: editedPrompt.category || 'content',
+          language: editedPrompt.language || 'en',
+          contentType: editedPrompt.contentType || [],
+          prompt: editedPrompt.prompt || '',
+          variables: extractVariables(editedPrompt.prompt || ''),
+          version: 1,
+          isActive: true,
+          createdAt: data.template.createdAt,
+          updatedAt: data.template.createdAt,
+          usageCount: 0
+        }
+
+        setPrompts(prev => [newPrompt, ...prev])
+      }
+    } catch (error) {
+      console.error('Failed to create prompt:', error)
     }
-    
-    setPrompts(prev => [newPrompt, ...prev])
+
     setEditedPrompt({})
     setIsCreating(false)
   }
@@ -277,10 +225,24 @@ export default function PromptsPage() {
     }
   }
 
-  const handleDeletePrompt = (promptId: string) => {
-    setPrompts(prev => prev.filter(p => p.id !== promptId))
-    if (selectedPrompt?.id === promptId) {
-      setSelectedPrompt(null)
+  const handleDeletePrompt = async (promptId: string) => {
+    try {
+      const response = await fetch(`/api/admin/prompts/${promptId}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setPrompts(prev => prev.filter(p => p.id !== promptId))
+        if (selectedPrompt?.id === promptId) {
+          setSelectedPrompt(null)
+        }
+      } else if (data.error) {
+        alert(data.error) // Show error for system templates
+      }
+    } catch (error) {
+      console.error('Failed to delete prompt:', error)
     }
   }
 

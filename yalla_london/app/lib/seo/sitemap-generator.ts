@@ -19,7 +19,7 @@ export class SitemapGenerator {
   private entries: SitemapEntry[] = [];
 
   constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+    this.baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
     this.initializeStaticPages();
   }
 

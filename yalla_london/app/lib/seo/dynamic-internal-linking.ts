@@ -55,7 +55,7 @@ export class DynamicInternalLinking {
   private maxLinksPerPage: number = 5;
   private minRelevanceScore: number = 0.6;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com') {
+  constructor(baseUrl: string = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com') {
     this.baseUrl = baseUrl;
   }
 

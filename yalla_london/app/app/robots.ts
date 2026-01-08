@@ -1,7 +1,9 @@
 
 import type { MetadataRoute } from 'next'
- 
+
 export default function robots(): MetadataRoute.Robots {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com'
+
   return {
     rules: [
       {
@@ -16,6 +18,6 @@ export default function robots(): MetadataRoute.Robots {
         crawlDelay: 2,
       },
     ],
-    sitemap: 'https://yalla-london.com/sitemap.xml',
+    sitemap: `${baseUrl}/sitemap.xml`,
   }
 }

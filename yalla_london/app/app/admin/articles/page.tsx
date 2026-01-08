@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import { SyncStatusIndicator } from '@/components/admin/SyncStatusIndicator'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -263,21 +262,20 @@ export default function ArticlesPage() {
   }
 
   return (
-    <PremiumAdminLayout 
-      title="Articles"
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Articles' }
-      ]}
-      actions={
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Articles</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage your blog posts and articles</p>
+        </div>
         <div className="flex gap-2">
-          <Button 
+          <Button
             variant="outline"
             onClick={() => setViewMode(viewMode === 'cards' ? 'table' : 'cards')}
           >
             {viewMode === 'cards' ? 'Table View' : 'Card View'}
           </Button>
-          <Button 
+          <Button
             className="bg-blue-600 hover:bg-blue-700"
             onClick={() => router.push('/admin/articles/new')}
           >
@@ -285,8 +283,7 @@ export default function ArticlesPage() {
             New Article
           </Button>
         </div>
-      }
-    >
+      </div>
       <div className="space-y-6">
         {/* Sync Status Indicator */}
         <SyncStatusIndicator />
@@ -668,6 +665,6 @@ export default function ArticlesPage() {
           </CardContent>
         </Card>
       </div>
-    </PremiumAdminLayout>
+    </div>
   )
 }

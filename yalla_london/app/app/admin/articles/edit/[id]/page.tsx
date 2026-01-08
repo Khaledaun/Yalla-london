@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout';
 import { ArticleEditor } from '@/components/admin/article-editor';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Save, Eye } from 'lucide-react';
@@ -95,14 +94,11 @@ export default function EditArticlePage() {
 
   if (loading) {
     return (
-      <PremiumAdminLayout 
-        title="Edit Article"
-        breadcrumbs={[
-          { label: 'Admin', href: '/admin' },
-          { label: 'Articles', href: '/admin/articles' },
-          { label: 'Edit Article' }
-        ]}
-      >
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Edit Article</h1>
+          <p className="text-sm text-gray-500 mt-1">Loading article...</p>
+        </div>
         <div className="animate-pulse space-y-4">
           <div className="h-12 bg-gray-200 rounded-lg"></div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -116,20 +112,16 @@ export default function EditArticlePage() {
             </div>
           </div>
         </div>
-      </PremiumAdminLayout>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <PremiumAdminLayout 
-        title="Edit Article"
-        breadcrumbs={[
-          { label: 'Admin', href: '/admin' },
-          { label: 'Articles', href: '/admin/articles' },
-          { label: 'Edit Article' }
-        ]}
-      >
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Edit Article</h1>
+        </div>
         <div className="text-center py-12">
           <div className="text-red-600 mb-4">
             <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -139,89 +131,82 @@ export default function EditArticlePage() {
           <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Article</h3>
           <p className="text-gray-500 mb-4">{error}</p>
           <div className="space-x-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => router.back()}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Go Back
             </Button>
-            <Button 
+            <Button
               onClick={() => window.location.reload()}
             >
               Try Again
             </Button>
           </div>
         </div>
-      </PremiumAdminLayout>
+      </div>
     );
   }
 
   if (!article) {
     return (
-      <PremiumAdminLayout 
-        title="Edit Article"
-        breadcrumbs={[
-          { label: 'Admin', href: '/admin' },
-          { label: 'Articles', href: '/admin/articles' },
-          { label: 'Edit Article' }
-        ]}
-      >
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Edit Article</h1>
+        </div>
         <div className="text-center py-12">
           <h3 className="text-lg font-medium text-gray-900 mb-2">Article Not Found</h3>
           <p className="text-gray-500 mb-4">The article you're looking for doesn't exist or has been deleted.</p>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => router.push('/admin/articles')}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Articles
           </Button>
         </div>
-      </PremiumAdminLayout>
+      </div>
     );
   }
 
   return (
-    <PremiumAdminLayout 
-      title={`Edit: ${article.title_en}`}
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Articles', href: '/admin/articles' },
-        { label: article.title_en }
-      ]}
-      actions={
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Edit: {article.title_en}</h1>
+          <p className="text-sm text-gray-500 mt-1">Modify article content and settings</p>
+        </div>
         <div className="flex items-center space-x-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => router.push('/admin/articles')}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Articles
           </Button>
-          <Button 
+          <Button
             variant="outline"
             onClick={() => window.open(`/blog/${article.slug}`, '_blank')}
           >
             <Eye className="h-4 w-4 mr-2" />
             {article.published ? 'View Live' : 'Preview'}
           </Button>
-          <Button 
+          <Button
             variant="outline"
             onClick={handleSave}
           >
             <Save className="h-4 w-4 mr-2" />
             Save Draft
           </Button>
-          <Button 
+          <Button
             className="bg-blue-600 hover:bg-blue-700"
             onClick={handlePublish}
           >
             {article.published ? 'Update' : 'Publish'}
           </Button>
         </div>
-      }
-    >
+      </div>
       <Suspense fallback={
         <div className="animate-pulse space-y-4">
           <div className="h-12 bg-gray-200 rounded-lg"></div>
@@ -244,7 +229,7 @@ export default function EditArticlePage() {
           onPublish={handlePublish}
         />
       </Suspense>
-    </PremiumAdminLayout>
+    </div>
   );
 }
 

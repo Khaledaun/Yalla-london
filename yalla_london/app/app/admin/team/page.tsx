@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -444,13 +443,12 @@ export default function TeamManagementPage() {
   })
 
   return (
-    <PremiumAdminLayout
-      title="Team Management"
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Team' },
-      ]}
-      actions={
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Team Management</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage your team members and their profiles</p>
+        </div>
         <div className="flex gap-2">
           <Link href="/admin/skills">
             <Button variant="outline">
@@ -463,8 +461,7 @@ export default function TeamManagementPage() {
             Add Member
           </Button>
         </div>
-      }
-    >
+      </div>
       <div className="space-y-6">
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1307,6 +1304,6 @@ export default function TeamManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </PremiumAdminLayout>
+    </div>
   )
 }

@@ -1,4 +1,3 @@
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import { Flag, ToggleLeft, ToggleRight, Info, ExternalLink, RefreshCw } from 'lucide-react'
 import { isPremiumFeatureEnabled, getPremiumFeatureFlagsByCategory } from '@/lib/feature-flags'
 
@@ -7,7 +6,7 @@ export default function FeatureFlagsPage() {
   
   if (!settingsManagementEnabled) {
     return (
-      <PremiumAdminLayout title="Feature Flags">
+      <div className="p-6">
         <div className="text-center py-12">
           <Flag className="mx-auto h-12 w-12 text-gray-400" />
           <h2 className="mt-4 text-lg font-medium text-gray-900">Settings Management Not Available</h2>
@@ -15,7 +14,7 @@ export default function FeatureFlagsPage() {
             Settings management features are not currently enabled.
           </p>
         </div>
-      </PremiumAdminLayout>
+      </div>
     )
   }
 
@@ -45,20 +44,17 @@ export default function FeatureFlagsPage() {
   }
 
   return (
-    <PremiumAdminLayout 
-      title="Feature Flags"
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Settings', href: '/admin/settings' },
-        { label: 'Feature Flags' }
-      ]}
-      actions={
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Feature Flags</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage feature flags and settings</p>
+        </div>
         <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
           <RefreshCw size={16} />
           <span>Refresh Flags</span>
         </button>
-      }
-    >
+      </div>
       <div className="space-y-6">
         {/* Overview */}
         <div className="bg-white rounded-lg shadow p-6">
@@ -230,6 +226,6 @@ export default function FeatureFlagsPage() {
           </div>
         </div>
       </div>
-    </PremiumAdminLayout>
+    </div>
   )
 }

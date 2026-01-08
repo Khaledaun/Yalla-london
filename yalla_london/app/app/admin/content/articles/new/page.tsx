@@ -2,19 +2,16 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { Suspense } from 'react';
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout';
 import { ArticleEditor } from '@/components/admin/article-editor';
 
 export default function NewArticlePage() {
   return (
-    <PremiumAdminLayout 
-      title="Create New Article"
-      breadcrumbs={[
-        { label: 'Content', href: '/admin/content' },
-        { label: 'Articles', href: '/admin/content/articles' },
-        { label: 'New Article' }
-      ]}
-      actions={
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Create New Article</h1>
+          <p className="text-sm text-gray-500 mt-1">Write and publish new content</p>
+        </div>
         <div className="flex items-center space-x-2">
           <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
             Save Draft
@@ -23,8 +20,7 @@ export default function NewArticlePage() {
             Publish
           </button>
         </div>
-      }
-    >
+      </div>
       <Suspense fallback={
         <div className="animate-pulse space-y-4">
           <div className="h-12 bg-gray-200 rounded-lg"></div>
@@ -42,6 +38,6 @@ export default function NewArticlePage() {
       }>
         <ArticleEditor />
       </Suspense>
-    </PremiumAdminLayout>
+    </div>
   );
 }

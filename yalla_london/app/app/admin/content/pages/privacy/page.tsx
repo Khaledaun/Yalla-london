@@ -2,19 +2,16 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { Suspense } from 'react';
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout';
 import { PrivacyPageEditor } from '@/components/admin/privacy-page-editor';
 
 export default function PrivacyPageEditorPage() {
   return (
-    <PremiumAdminLayout 
-      title="Privacy Page Editor"
-      breadcrumbs={[
-        { label: 'Content', href: '/admin/content' },
-        { label: 'Pages', href: '/admin/content/pages' },
-        { label: 'Privacy Policy' }
-      ]}
-      actions={
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Privacy Page Editor</h1>
+          <p className="text-sm text-gray-500 mt-1">Edit your privacy policy content</p>
+        </div>
         <div className="flex items-center space-x-2">
           <button className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
             Preview Live
@@ -23,8 +20,7 @@ export default function PrivacyPageEditorPage() {
             Publish Changes
           </button>
         </div>
-      }
-    >
+      </div>
       <Suspense fallback={
         <div className="animate-pulse space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -41,6 +37,6 @@ export default function PrivacyPageEditorPage() {
       }>
         <PrivacyPageEditor />
       </Suspense>
-    </PremiumAdminLayout>
+    </div>
   );
 }

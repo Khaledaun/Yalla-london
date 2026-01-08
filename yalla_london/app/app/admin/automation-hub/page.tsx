@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -261,22 +260,21 @@ export default function AutomationHubPage() {
   }
 
   return (
-    <PremiumAdminLayout 
-      title="Automation Hub"
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Automation Hub' }
-      ]}
-      actions={
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Automation Hub</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage automated jobs and publishing schedules</p>
+        </div>
         <div className="flex gap-2">
-          <Button 
+          <Button
             variant="outline"
             onClick={() => setIsCreatingSchedule(true)}
           >
             <Calendar className="h-4 w-4 mr-2" />
             New Schedule
           </Button>
-          <Button 
+          <Button
             onClick={() => setIsCreatingJob(true)}
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -284,8 +282,7 @@ export default function AutomationHubPage() {
             New Job
           </Button>
         </div>
-      }
-    >
+      </div>
       <div className="space-y-6">
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -738,6 +735,6 @@ export default function AutomationHubPage() {
           </Card>
         </div>
       )}
-    </PremiumAdminLayout>
+    </div>
   )
 }

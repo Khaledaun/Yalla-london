@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -447,22 +446,20 @@ export default function ContentTypesPage() {
   }
 
   return (
-    <PremiumAdminLayout 
-      title="Content Types"
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Content Types' }
-      ]}
-      actions={
-        <Button 
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Content Types</h1>
+          <p className="text-sm text-gray-500 mt-1">Define and manage content type templates</p>
+        </div>
+        <Button
           onClick={() => setIsCreating(true)}
           className="bg-blue-600 hover:bg-blue-700"
         >
           <Plus className="h-4 w-4 mr-2" />
           New Content Type
         </Button>
-      }
-    >
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Content Types List */}
         <div className="lg:col-span-1">
@@ -937,6 +934,6 @@ export default function ContentTypesPage() {
           </Card>
         </div>
       )}
-    </PremiumAdminLayout>
+    </div>
   )
 }

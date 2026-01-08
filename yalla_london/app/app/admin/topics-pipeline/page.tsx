@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -170,22 +169,20 @@ export default function TopicsPipelinePage() {
   }
 
   return (
-    <PremiumAdminLayout 
-      title="Topics & Pipeline"
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Topics & Pipeline' }
-      ]}
-      actions={
-        <Button 
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Topics & Pipeline</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage content topics and publishing pipeline</p>
+        </div>
+        <Button
           onClick={() => setIsCreatingTopic(true)}
           className="bg-blue-600 hover:bg-blue-700"
         >
           <Plus className="h-4 w-4 mr-2" />
           New Topic
         </Button>
-      }
-    >
+      </div>
       <div className="space-y-6">
         {/* Pipeline Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -495,6 +492,6 @@ export default function TopicsPipelinePage() {
           </div>
         )}
       </div>
-    </PremiumAdminLayout>
+    </div>
   )
 }

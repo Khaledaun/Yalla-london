@@ -58,10 +58,10 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: 'https://yalla-london.com',
+    canonical: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com',
     languages: {
-      'en-GB': 'https://yalla-london.com',
-      'ar-SA': 'https://yalla-london.com/?lang=ar',
+      'en-GB': process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com',
+      'ar-SA': `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com'}/?lang=ar`,
     },
   },
 }

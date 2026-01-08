@@ -3,15 +3,14 @@
 export const dynamic = 'force-dynamic';
 
 import { Suspense } from 'react';
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Plus, 
-  FileText, 
-  Eye, 
-  Edit3, 
+import {
+  Plus,
+  FileText,
+  Eye,
+  Edit3,
   Globe,
   Lock,
   Users,
@@ -93,20 +92,6 @@ function PagesList() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pages</h1>
-          <p className="text-gray-600 mt-1">
-            Manage your website pages, privacy policy, terms, and static content
-          </p>
-        </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="h-4 w-4 mr-2" />
-          New Page
-        </Button>
-      </div>
-
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -120,7 +105,7 @@ function PagesList() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -134,7 +119,7 @@ function PagesList() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -148,7 +133,7 @@ function PagesList() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -172,7 +157,7 @@ function PagesList() {
         <CardContent>
           <div className="space-y-4">
             {mockPages.map((page) => (
-              <div 
+              <div
                 key={page.id}
                 className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
               >
@@ -180,7 +165,7 @@ function PagesList() {
                   <div className="flex-shrink-0">
                     {getTypeIcon(page.type)}
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2">
                       <h3 className="text-sm font-medium text-gray-900 truncate">
@@ -221,9 +206,9 @@ function PagesList() {
                       <Eye className="h-4 w-4" />
                     </Button>
                   )}
-                  
-                  <Button 
-                    variant="ghost" 
+
+                  <Button
+                    variant="ghost"
                     size="sm"
                     onClick={() => {
                       if (page.slug === 'privacy') {
@@ -233,7 +218,7 @@ function PagesList() {
                   >
                     <Edit3 className="h-4 w-4" />
                   </Button>
-                  
+
                   <Button variant="ghost" size="sm">
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
@@ -249,13 +234,17 @@ function PagesList() {
 
 export default function PagesPage() {
   return (
-    <PremiumAdminLayout 
-      title="Pages"
-      breadcrumbs={[
-        { label: 'Content', href: '/admin/content' },
-        { label: 'Pages' }
-      ]}
-    >
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Pages</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage your website pages, privacy policy, terms, and static content</p>
+        </div>
+        <Button className="bg-blue-600 hover:bg-blue-700">
+          <Plus className="h-4 w-4 mr-2" />
+          New Page
+        </Button>
+      </div>
       <Suspense fallback={
         <div className="animate-pulse space-y-6">
           <div className="h-20 bg-gray-200 rounded-lg"></div>
@@ -269,6 +258,6 @@ export default function PagesPage() {
       }>
         <PagesList />
       </Suspense>
-    </PremiumAdminLayout>
+    </div>
   );
 }

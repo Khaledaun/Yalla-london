@@ -1,13 +1,15 @@
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import { FileText, Plus, Search, Filter, Eye, Edit3, Trash2 } from 'lucide-react'
 import { isPremiumFeatureEnabled } from '@/lib/feature-flags'
 
 export default function ArticlesPage() {
   const contentManagementEnabled = isPremiumFeatureEnabled('CONTENT_MANAGEMENT')
-  
+
   if (!contentManagementEnabled) {
     return (
-      <PremiumAdminLayout title="Articles">
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Articles</h1>
+        </div>
         <div className="text-center py-12">
           <FileText className="mx-auto h-12 w-12 text-gray-400" />
           <h2 className="mt-4 text-lg font-medium text-gray-900">Content Management Not Available</h2>
@@ -15,7 +17,7 @@ export default function ArticlesPage() {
             Content management features are not currently enabled.
           </p>
         </div>
-      </PremiumAdminLayout>
+      </div>
     )
   }
 
@@ -58,20 +60,17 @@ export default function ArticlesPage() {
   }
 
   return (
-    <PremiumAdminLayout 
-      title="Articles"
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Content', href: '/admin/content' },
-        { label: 'Articles' }
-      ]}
-      actions={
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Articles</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage your content library</p>
+        </div>
         <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
           <Plus size={16} />
           <span>New Article</span>
         </button>
-      }
-    >
+      </div>
       <div className="space-y-6">
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow p-6">
@@ -178,7 +177,7 @@ export default function ArticlesPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -190,7 +189,7 @@ export default function ArticlesPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -202,7 +201,7 @@ export default function ArticlesPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -216,6 +215,6 @@ export default function ArticlesPage() {
           </div>
         </div>
       </div>
-    </PremiumAdminLayout>
+    </div>
   )
 }

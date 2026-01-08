@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -314,20 +313,17 @@ export default function SkillsManagementPage() {
   }))
 
   return (
-    <PremiumAdminLayout
-      title="Skills Management"
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Team', href: '/admin/team' },
-        { label: 'Skills' },
-      ]}
-      actions={
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Skills Management</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage skills and expertise categories</p>
+        </div>
         <Button onClick={() => setIsCreateOpen(true)} className="bg-blue-600 hover:bg-blue-700">
           <Plus className="h-4 w-4 mr-2" />
           Add Skill
         </Button>
-      }
-    >
+      </div>
       <div className="space-y-6">
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -907,6 +903,6 @@ export default function SkillsManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </PremiumAdminLayout>
+    </div>
   )
 }

@@ -1,4 +1,3 @@
-import { PremiumAdminLayout } from '@/components/admin/premium-admin-layout'
 import { Users, Plus, Search, Filter, Shield, Mail, MoreVertical, UserPlus } from 'lucide-react'
 import { isPremiumFeatureEnabled } from '@/lib/feature-flags'
 
@@ -7,7 +6,7 @@ export default function MembersPage() {
   
   if (!peopleManagementEnabled) {
     return (
-      <PremiumAdminLayout title="Members & Roles">
+      <div className="p-6">
         <div className="text-center py-12">
           <Users className="mx-auto h-12 w-12 text-gray-400" />
           <h2 className="mt-4 text-lg font-medium text-gray-900">People Management Not Available</h2>
@@ -15,7 +14,7 @@ export default function MembersPage() {
             People management features are not currently enabled.
           </p>
         </div>
-      </PremiumAdminLayout>
+      </div>
     )
   }
 
@@ -85,20 +84,17 @@ export default function MembersPage() {
   }
 
   return (
-    <PremiumAdminLayout 
-      title="Members & Roles"
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'People', href: '/admin/people' },
-        { label: 'Members & Roles' }
-      ]}
-      actions={
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Members & Roles</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage team members and their roles</p>
+        </div>
         <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
           <UserPlus size={16} />
           <span>Invite User</span>
         </button>
-      }
-    >
+      </div>
       <div className="space-y-6">
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow p-6">
@@ -293,6 +289,6 @@ export default function MembersPage() {
           </div>
         </div>
       </div>
-    </PremiumAdminLayout>
+    </div>
   )
 }

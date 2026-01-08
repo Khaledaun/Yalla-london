@@ -41,7 +41,7 @@ export class EnhancedSchemaInjector {
   private schemaGenerator: SchemaGenerator;
   private baseUrl: string;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com') {
+  constructor(baseUrl: string = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com') {
     this.baseUrl = baseUrl;
     this.schemaGenerator = new SchemaGenerator(baseUrl, {
       siteName: 'Yalla London',

@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   try {
     const { type } = await request.json();
     
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yallalondon.com';
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
     
     let sitemap: string;
     

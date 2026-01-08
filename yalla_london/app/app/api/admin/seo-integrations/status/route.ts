@@ -407,7 +407,7 @@ async function testIndexNow(url: string): Promise<boolean> {
   if (!indexNowKey) return false;
 
   try {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
     const host = siteUrl.replace(/^https?:\/\//, '');
 
     const response = await fetch('https://api.indexnow.org/indexnow', {
@@ -428,7 +428,7 @@ async function testIndexNow(url: string): Promise<boolean> {
 }
 
 async function pingSearchEngines(): Promise<{ google: boolean; bing: boolean }> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
   const sitemapUrl = `${siteUrl}/sitemap.xml`;
 
   const results = { google: false, bing: false };

@@ -331,11 +331,14 @@ async function buildPerformanceData(
     }
 
     // Get indexing status
-    const inspection = await searchConsole.getIndexingStatus(url);
+    const inspection = await searchConsole.getIndexingStatus(url) as any;
     if (inspection) {
-      indexingStatus.isIndexed = inspection.inspectionResult?.indexStatusResult?.verdict === 'PASS';
-      indexingStatus.lastCrawled = inspection.inspectionResult?.indexStatusResult?.lastCrawlTime || null;
-      indexingStatus.coverage = inspection.inspectionResult?.indexStatusResult?.coverageState || 'unknown';
+      const indexResult = inspection?.inspectionResult?.indexStatusResult || inspection?.indexStatusResult;
+      if (indexResult) {
+        indexingStatus.isIndexed = indexResult.verdict === 'PASS';
+        indexingStatus.lastCrawled = indexResult.lastCrawlTime || null;
+        indexingStatus.coverage = indexResult.coverageState || 'unknown';
+      }
     }
   } catch (error) {
     // GSC data not available - use defaults

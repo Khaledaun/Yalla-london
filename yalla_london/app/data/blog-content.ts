@@ -81,10 +81,236 @@ export const categories = [
     description_ar: 'أدلة السفر الشاملة ونصائح لندن',
     keywords: ['london travel guide', 'london tips', 'دليل لندن']
   },
+  {
+    id: 'cat-events',
+    name_en: 'Events & Celebrations',
+    name_ar: 'الفعاليات والاحتفالات',
+    slug: 'events',
+    description_en: 'Major events, festivals, and celebrations in London throughout the year',
+    description_ar: 'الفعاليات الكبرى والمهرجانات والاحتفالات في لندن على مدار العام',
+    keywords: ['london events', 'london fireworks', 'london celebrations', 'فعاليات لندن']
+  },
 ];
 
 // High-Intent Blog Posts
 export const blogPosts: BlogPost[] = [
+  // ============================================
+  // FEATURED: NEW YEAR'S EVE 2025/2026 FIREWORKS
+  // ============================================
+  {
+    id: 'post-nye-fireworks-london-2025',
+    slug: 'london-new-years-eve-fireworks-2025-complete-guide',
+    title_en: 'London New Year\'s Eve Fireworks 2025: A Spectacular Night to Remember',
+    title_ar: 'ألعاب نارية ليلة رأس السنة في لندن 2025: ليلة مذهلة لا تُنسى',
+    excerpt_en: 'Experience the magic of London\'s iconic New Year\'s Eve fireworks display. Learn how it was, how to get tickets for next year, and what to expect at this world-famous celebration.',
+    excerpt_ar: 'اكتشف سحر عرض الألعاب النارية الأيقوني في ليلة رأس السنة بلندن. تعرف على كيفية الحصول على التذاكر للعام القادم وما يمكن توقعه في هذا الاحتفال العالمي.',
+    meta_title_en: 'London NYE Fireworks 2025 Guide | Tickets, Viewing Spots & Tips',
+    meta_title_ar: 'دليل ألعاب لندن النارية 2025 | التذاكر وأماكن المشاهدة',
+    meta_description_en: 'Complete guide to London\'s New Year\'s Eve fireworks 2025. How to get tickets, best viewing spots, what happened this year, and tips for next year\'s celebration.',
+    meta_description_ar: 'دليل شامل لألعاب لندن النارية في ليلة رأس السنة 2025. كيفية الحصول على التذاكر وأفضل أماكن المشاهدة ونصائح للاحتفال.',
+    content_en: `# London New Year's Eve Fireworks 2025: A Spectacular Night to Remember
+
+The night sky over London erupted in a breathtaking display of colour and light as Big Ben struck midnight, welcoming 2026 in spectacular fashion. If you missed this year's celebration or are already planning for next year, here's everything you need to know about London's world-famous New Year's Eve fireworks.
+
+## How Was the 2025/2026 New Year's Eve Celebration?
+
+This year's display was nothing short of extraordinary. Over 12,000 fireworks illuminated the Thames, synchronized perfectly with a specially curated soundtrack that echoed across the city. The 11-minute show featured:
+
+- **Stunning pyrotechnics** launched from the London Eye, creating a 360-degree spectacle
+- **A tribute to British culture** with music from iconic UK artists
+- **Special lighting effects** on the Elizabeth Tower (Big Ben)
+- **Drone light displays** adding a modern twist to the traditional fireworks
+- **The iconic countdown** projected onto the Houses of Parliament
+
+### The Atmosphere
+
+The energy along the South Bank was electric. Over 100,000 ticket holders gathered in designated viewing areas, while millions more watched from homes, restaurants, and hotels across the capital. The celebration truly captured London's spirit of diversity and joy.
+
+## How to Get Tickets for Next Year (2026/2027)
+
+Tickets for London's NYE fireworks are **free but essential**. Here's how to secure yours:
+
+### Ticket Release Timeline
+
+| Stage | Timing | What Happens |
+|-------|--------|--------------|
+| Registration Opens | Early September 2026 | Sign up for ticket alerts on london.gov.uk |
+| Ballot Opens | Late September 2026 | Enter the ticket ballot |
+| Ballot Results | Mid-October 2026 | Winners notified by email |
+| Ticket Sales | Late October 2026 | Remaining tickets sold (sell out in minutes) |
+
+### Tips for Getting Tickets
+
+1. **Register early** on the official London.gov.uk website
+2. **Enter the ballot** as soon as it opens - don't wait!
+3. **Check your spam folder** for winner notifications
+4. **Be ready for general sale** - tickets sell out in under 5 minutes
+5. **Consider multiple viewing areas** - Blue and White areas are less competitive
+
+### Viewing Areas Explained
+
+- **Red Area (South Bank)** - Prime view of Big Ben and the London Eye
+- **Pink Area (Westminster)** - Close to the action, great for families
+- **Blue Area (Waterloo)** - Excellent value, good views
+- **White Area (Victoria Embankment)** - Riverside views, less crowded
+- **Green Area (St James's Park)** - Family-friendly, relaxed atmosphere
+
+## What to Expect at the Gathering
+
+### Before the Show
+
+- **Gates open at 8:00 PM** - Arrive early for the best spots within your zone
+- **Entertainment from 9:00 PM** - DJ sets and countdown activities
+- **Food & drink vendors** - Hot food, mulled wine, and soft drinks available
+- **Big screens** - Watch the London celebrations and global events
+
+### During the Countdown
+
+- **11:45 PM** - The official countdown entertainment begins
+- **11:59 PM** - The crowd counts down together
+- **Midnight** - Big Ben chimes and fireworks begin!
+- **12:11 AM** - Show finale with golden cascade effect
+
+### After the Show
+
+- **Tube stations reopen at 12:45 AM** - Free travel until 4:30 AM
+- **Designated exit routes** - Follow stewards for safe departure
+- **Night buses** - Extended services throughout London
+
+## Best Tips for the Night
+
+### What to Bring
+
+- ✅ Warm, layered clothing
+- ✅ Comfortable waterproof shoes
+- ✅ Portable phone charger
+- ✅ Snacks and water
+- ✅ Your printed or digital ticket
+
+### What NOT to Bring
+
+- ❌ Alcohol (not permitted in viewing areas)
+- ❌ Large bags or backpacks
+- ❌ Umbrellas (block views)
+- ❌ Glass containers
+- ❌ Chairs or blankets
+
+## Alternative Viewing Options
+
+If you can't get official tickets, consider these alternatives:
+
+### Rooftop Bars & Restaurants
+
+- **Radio Rooftop** at ME London - Stunning Thames views
+- **OXO Tower Restaurant** - Luxury dining with fireworks views
+- **Aqua Shard** - 31st floor panoramic views
+
+### River Cruises
+
+Several operators offer NYE cruises with guaranteed fireworks views:
+- Thames Clipper special services
+- City Cruises NYE packages
+- Luxury private charter options
+
+### Free Viewing Spots
+
+While official areas require tickets, you can catch glimpses from:
+- Primrose Hill (arrive by 3 PM)
+- Parliament Hill, Hampstead Heath
+- Greenwich Park (eastern view)
+
+## Halal-Friendly Celebrations
+
+For our Muslim visitors, here are some tips:
+
+- **Halal food vendors** are available in all viewing areas
+- **Prayer facilities** - Nearby mosques include East London Mosque
+- **Dry venues** - Many restaurants offer alcohol-free packages
+- **Family areas** - Green zone is ideal for families
+
+## Start Planning Now!
+
+Don't miss out on one of the world's greatest New Year's Eve celebrations. Set your reminders for September 2026 and be ready to enter the ticket ballot!
+
+---
+
+*Have you attended London's NYE fireworks before? Share your experience in the comments below!*`,
+    content_ar: `# ألعاب نارية ليلة رأس السنة في لندن 2025: ليلة مذهلة لا تُنسى
+
+أضاءت سماء لندن بعرض مبهر من الألوان والأضواء عندما دقت ساعة بيغ بن منتصف الليل، مرحبةً بعام 2026 بأسلوب مذهل. إذا فاتتك احتفالات هذا العام أو كنت تخطط بالفعل للعام القادم، إليك كل ما تحتاج معرفته عن ألعاب لندن النارية الشهيرة عالمياً.
+
+## كيف كان احتفال ليلة رأس السنة 2025/2026؟
+
+كان عرض هذا العام استثنائياً بكل المقاييس. أضاءت أكثر من 12,000 ألعاب نارية نهر التايمز، متزامنة بشكل مثالي مع موسيقى تصويرية مختارة بعناية ترددت صداها عبر المدينة. تضمن العرض الذي استمر 11 دقيقة:
+
+- **ألعاب نارية مذهلة** أُطلقت من عين لندن، مما خلق مشهداً بانورامياً 360 درجة
+- **تحية للثقافة البريطانية** بموسيقى من فنانين بريطانيين أيقونيين
+- **مؤثرات إضاءة خاصة** على برج إليزابيث (بيغ بن)
+- **عروض طائرات الدرون المضيئة** تضيف لمسة عصرية للألعاب النارية التقليدية
+- **العد التنازلي الأيقوني** المعروض على مبنى البرلمان
+
+### الأجواء
+
+كانت الطاقة على ضفة الجنوب كهربائية. تجمع أكثر من 100,000 حامل تذكرة في مناطق المشاهدة المخصصة، بينما شاهد الملايين من منازلهم ومطاعمهم وفنادقهم عبر العاصمة.
+
+## كيفية الحصول على تذاكر العام القادم (2026/2027)
+
+تذاكر ألعاب لندن النارية **مجانية لكن ضرورية**. إليك كيفية الحصول عليها:
+
+### الجدول الزمني للتذاكر
+
+| المرحلة | التوقيت | ما يحدث |
+|---------|---------|---------|
+| فتح التسجيل | أوائل سبتمبر 2026 | سجل لتلقي تنبيهات التذاكر |
+| فتح القرعة | أواخر سبتمبر 2026 | ادخل قرعة التذاكر |
+| نتائج القرعة | منتصف أكتوبر 2026 | إخطار الفائزين بالبريد الإلكتروني |
+| بيع التذاكر | أواخر أكتوبر 2026 | بيع التذاكر المتبقية |
+
+### نصائح للحصول على التذاكر
+
+1. **سجل مبكراً** على موقع London.gov.uk الرسمي
+2. **ادخل القرعة** فور فتحها - لا تنتظر!
+3. **تحقق من مجلد الرسائل غير المرغوب فيها** للإخطارات
+4. **كن جاهزاً للبيع العام** - تنفد التذاكر في أقل من 5 دقائق
+5. **فكر في مناطق متعددة** - المنطقة الزرقاء والبيضاء أقل تنافسية
+
+## ماذا تتوقع في التجمع
+
+### قبل العرض
+
+- **تفتح البوابات الساعة 8:00 مساءً**
+- **الترفيه من الساعة 9:00 مساءً** - عروض DJ
+- **باعة الطعام والشراب** - طعام ساخن ومشروبات
+- **شاشات كبيرة** - شاهد الاحتفالات
+
+### أثناء العد التنازلي
+
+- **11:45 مساءً** - يبدأ ترفيه العد التنازلي
+- **11:59 مساءً** - يعد الجمهور معاً
+- **منتصف الليل** - تدق أجراس بيغ بن وتبدأ الألعاب النارية!
+- **12:11 صباحاً** - نهاية العرض بتأثير الشلال الذهبي
+
+## خيارات صديقة للمسلمين
+
+- **باعة طعام حلال** متوفرون في جميع مناطق المشاهدة
+- **مرافق الصلاة** - المساجد القريبة تشمل مسجد شرق لندن
+- **أماكن بدون كحول** - العديد من المطاعم تقدم باقات خالية من الكحول
+- **مناطق عائلية** - المنطقة الخضراء مثالية للعائلات
+
+## ابدأ التخطيط الآن!
+
+لا تفوت واحدة من أعظم احتفالات ليلة رأس السنة في العالم. ضع تذكيراتك لشهر سبتمبر 2026 وكن مستعداً للدخول في قرعة التذاكر!`,
+    featured_image: 'https://images.unsplash.com/photo-1514533212735-5df27d970db0?w=1200&h=630&fit=crop',
+    category_id: 'cat-events',
+    tags: ['new years eve', 'fireworks', 'london events', 'big ben', 'thames', 'nye 2025'],
+    keywords: ['london new years eve fireworks', 'london nye tickets', 'big ben fireworks', 'london nye 2025', 'new year london'],
+    page_type: 'guide',
+    seo_score: 95,
+    reading_time: 8,
+    published: true,
+    created_at: new Date('2026-01-06'),
+    updated_at: new Date('2026-01-06'),
+  },
   // ============================================
   // COMPARISON ARTICLES (High Commercial Intent)
   // ============================================

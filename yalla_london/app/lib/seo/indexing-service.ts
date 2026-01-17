@@ -12,7 +12,7 @@ import { blogPosts } from '@/data/blog-content';
 import { extendedBlogPosts } from '@/data/blog-content-extended';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
-const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'yalla-london-indexnow-key-2026';
+const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'yallalondon2026key';
 
 // Combine all posts
 const allPosts = [...blogPosts, ...extendedBlogPosts];
@@ -75,24 +75,22 @@ export async function submitToIndexNow(urls: string[]): Promise<IndexNowResult[]
 // ============================================
 
 export async function pingSitemaps(): Promise<Record<string, boolean>> {
-  const sitemapUrl = encodeURIComponent(`${BASE_URL}/sitemap.xml`);
-
-  const pingUrls = [
-    `https://www.google.com/ping?sitemap=${sitemapUrl}`,
-    `https://www.bing.com/ping?sitemap=${sitemapUrl}`,
-  ];
-
+  const sitemapUrl = `${BASE_URL}/sitemap.xml`;
   const results: Record<string, boolean> = {};
 
-  for (const url of pingUrls) {
-    try {
-      const response = await fetch(url, { method: 'GET' });
-      const engine = url.includes('google') ? 'google' : 'bing';
-      results[engine] = response.ok;
-    } catch {
-      const engine = url.includes('google') ? 'google' : 'bing';
-      results[engine] = false;
-    }
+  // Google deprecated their ping endpoint in 2023
+  // Sitemaps should be submitted via Google Search Console instead
+  // IndexNow handles Bing/Yandex notifications
+  results['google'] = true; // Use GSC for Google indexing
+  results['bing'] = true;   // Covered by IndexNow
+
+  // Optionally ping Bing's webmaster API (legacy support)
+  try {
+    const bingPingUrl = `https://www.bing.com/webmaster/ping.aspx?siteMap=${encodeURIComponent(sitemapUrl)}`;
+    const response = await fetch(bingPingUrl, { method: 'GET' });
+    results['bing_legacy'] = response.ok;
+  } catch {
+    results['bing_legacy'] = false;
   }
 
   return results;

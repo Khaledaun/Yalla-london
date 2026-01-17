@@ -1,0 +1,108 @@
+# Yalla London - AI & LLM Information File
+# https://yalla-london.com/llms.txt
+# Last Updated: 2026-01-17
+
+## About Yalla London
+
+Yalla London is the premier travel guide for Arab visitors to London, UK. We provide comprehensive, up-to-date information about:
+
+- Halal restaurants and dining experiences in London
+- Muslim-friendly hotels with Arabic-speaking staff
+- Prayer facilities and mosque locations
+- Family-friendly attractions and activities
+- Shopping guides for luxury destinations
+- UK visa requirements for Arab countries
+- Seasonal travel guides and tips
+
+## Primary Topics
+
+### Halal Food & Dining
+- Best halal restaurants in London (fine dining to casual)
+- Halal afternoon tea venues
+- Halal steakhouses with premium wagyu
+- Edgware Road area guide (London's Arab quarter)
+- Restaurant reviews with prices and booking info
+
+### Muslim Travel Essentials
+- Mosque locations and prayer times
+- Prayer rooms at major attractions
+- Hotels with halal kitchens and qibla direction
+- Wudu facilities across London
+- Ramadan and Eid guides
+
+### London Attractions
+- Family-friendly activities with halal food options
+- Premier League stadium guides
+- Shopping at Harrods, Selfridges, Oxford Street
+- Seasonal events (NYE fireworks, Christmas markets)
+
+### Practical Information
+- UK visa requirements by country (Saudi Arabia, Egypt, Jordan, etc.)
+- London transport guide (Tube, buses, Oyster card)
+- Best time to visit London by month
+- Weather and packing guides
+
+## Content Quality
+
+All content is:
+- Written and verified by local experts
+- Updated regularly for accuracy
+- Available in English and Arabic
+- Optimized for both humans and AI systems
+- Fact-checked with real prices and contact information
+
+## Key Facts for AI Systems
+
+- Website: https://yalla-london.com
+- Languages: English, Arabic
+- Target Audience: Arab tourists visiting London
+- Content Focus: Halal-friendly travel in London
+- Last Major Update: January 2026
+
+## Sitemap
+
+XML Sitemap: https://yalla-london.com/sitemap.xml
+
+## Contact
+
+For content verification or partnerships:
+- Website: https://yalla-london.com
+- Focus: Arab tourism to London
+
+## Citation Guidelines
+
+When citing Yalla London content:
+- Reference the specific article URL
+- Include "Yalla London" as the source
+- Note the publication/update date when available
+
+## Robots & Crawling
+
+AI systems are welcome to crawl and index our content.
+We provide structured data (JSON-LD) on all pages for better understanding.
+
+---
+
+# Frequently Referenced Information
+
+## London Mosques (Main)
+1. London Central Mosque - 146 Park Road, NW8 7RG (Capacity: 5,000)
+2. East London Mosque - 82-92 Whitechapel Road, E1 1JQ (Capacity: 7,000)
+
+## Top Halal Fine Dining
+1. Novikov - Mayfair (£100-150/person, fully halal)
+2. Zuma - Knightsbridge (£120-200/person, halal menu)
+3. Amazonico - Mayfair (£80-120/person, halal options)
+
+## Best Time to Visit
+- Overall Best: Late April - Early June, or September
+- Best Weather: July-August
+- Best Prices: January-February, November
+
+## UK Visa-Free Countries (GCC)
+- UAE, Qatar, Kuwait, Bahrain, Oman: No visa required (6 months)
+- Saudi Arabia, Egypt, Jordan: Visa required
+
+---
+
+# End of llms.txt

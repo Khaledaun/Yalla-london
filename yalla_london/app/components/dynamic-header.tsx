@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { Menu, X, Globe, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -41,26 +42,15 @@ export function DynamicHeader() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-18 py-3">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div
-              className="relative w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-luxury overflow-hidden transition-transform group-hover:scale-105"
-              style={{ backgroundColor: colors.primary }}
-            >
-              {/* Gold accent corner */}
-              <div className="absolute top-0 right-0 w-3 h-3 bg-gradient-to-bl from-gold-400 to-transparent" />
-              <span className="relative z-10">{translations.siteName.charAt(0)}</span>
-            </div>
-            <div className="flex flex-col">
-              <span
-                className="text-xl font-bold tracking-tight transition-colors group-hover:text-burgundy-700"
-                style={{ color: colors.primary }}
-              >
-                {translations.siteName}
-              </span>
-              <span className="text-xs text-gold-500 font-medium hidden sm:block">
-                {language === 'en' ? 'Luxury London Guide' : 'دليل لندن الفاخر'}
-              </span>
-            </div>
+          <Link href="/" className="flex items-center group">
+            <Image
+              src="/images/yalla-london-logo.svg"
+              alt="Yalla London"
+              width={180}
+              height={40}
+              className="h-10 w-auto transition-opacity group-hover:opacity-80"
+              priority
+            />
           </Link>
 
           {/* Desktop Navigation */}

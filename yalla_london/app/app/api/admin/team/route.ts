@@ -6,6 +6,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
+// Force dynamic rendering to avoid build-time database access
+export const dynamic = 'force-dynamic';
 import { TeamService, SkillCategory } from '@/lib/domains/team';
 import { requirePermission } from '@/lib/rbac';
 import type { CreateTeamMemberInput, TeamMemberFilters } from '@/lib/domains/team';

@@ -3,6 +3,9 @@
  * Public endpoint for content listing and discovery with static content fallback
  */
 import { NextRequest, NextResponse } from 'next/server';
+
+// Force dynamic rendering to avoid build-time database access
+export const dynamic = 'force-dynamic';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import { blogPosts, categories } from '@/data/blog-content';

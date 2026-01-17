@@ -8,6 +8,9 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isAIAvailable, getProvidersStatus } from '@/lib/ai';
 
+// Force dynamic rendering to avoid build-time database access
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // Check AI status

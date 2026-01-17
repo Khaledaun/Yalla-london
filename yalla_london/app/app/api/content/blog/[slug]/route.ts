@@ -7,6 +7,9 @@ import { prisma } from '@/lib/db';
 import { blogPosts, categories } from '@/data/blog-content';
 import { extendedBlogPosts } from '@/data/blog-content-extended';
 
+// Force dynamic rendering to avoid build-time database access
+export const dynamic = 'force-dynamic';
+
 // Combine all static blog posts
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 

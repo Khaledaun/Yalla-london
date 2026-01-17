@@ -106,15 +106,18 @@ export async function GET(request: NextRequest) {
   <a href="/api/seo/test"><button>Back</button></a>
 `;
   } else if (action === 'gsc') {
-    // Test GSC API with debugging
+    // Test GSC API with full debugging
     const testUrl = getAllIndexableUrls()[0];
 
     // Check environment variables
     const hasClientEmail = !!process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || !!process.env.GSC_CLIENT_EMAIL;
     const hasPrivateKey = !!process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || !!process.env.GSC_PRIVATE_KEY;
     const clientEmail = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL || 'Not set';
+    const privateKeyPreview = (process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY || '').substring(0, 50);
 
-    const status = await gscApi.checkIndexingStatus(testUrl);
+    // Run debug auth to see exactly where it fails
+    const debugResult = await gscApi.debugAuth();
+    const status = debugResult.success ? await gscApi.checkIndexingStatus(testUrl) : null;
 
     html += `
   <div class="card">
@@ -123,21 +126,24 @@ export async function GET(request: NextRequest) {
 
     <h3>Environment Check</h3>
     <ul>
-      <li>CLIENT_EMAIL: <span class="${hasClientEmail ? 'success' : 'fail'}">${hasClientEmail ? 'SET' : 'NOT SET'}</span> ${hasClientEmail ? `(${clientEmail.substring(0, 20)}...)` : ''}</li>
-      <li>PRIVATE_KEY: <span class="${hasPrivateKey ? 'success' : 'fail'}">${hasPrivateKey ? 'SET' : 'NOT SET'}</span></li>
+      <li>CLIENT_EMAIL: <span class="${hasClientEmail ? 'success' : 'fail'}">${hasClientEmail ? 'SET' : 'NOT SET'}</span> ${hasClientEmail ? `(${clientEmail.substring(0, 30)}...)` : ''}</li>
+      <li>PRIVATE_KEY: <span class="${hasPrivateKey ? 'success' : 'fail'}">${hasPrivateKey ? 'SET' : 'NOT SET'}</span> ${hasPrivateKey ? `(${privateKeyPreview}...)` : ''}</li>
     </ul>
 
+    <h3>Authentication Debug</h3>
+    <ul>
+      <li>Step: <strong>${debugResult.step}</strong></li>
+      <li>Success: <span class="${debugResult.success ? 'success' : 'fail'}">${debugResult.success ? 'YES' : 'NO'}</span></li>
+      ${debugResult.error ? `<li>Error: <span class="fail">${debugResult.error}</span></li>` : ''}
+    </ul>
+    ${debugResult.details ? `<pre>${JSON.stringify(debugResult.details, null, 2)}</pre>` : ''}
+
     ${status ? `
+      <h3>URL Inspection Result</h3>
       <p class="success">GSC API is working!</p>
       <pre>${JSON.stringify(status, null, 2)}</pre>
     ` : `
       <p class="warn">GSC API returned no data.</p>
-      <p>Possible reasons:</p>
-      <ul>
-        <li>Credentials not configured (GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL, GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY)</li>
-        <li>Service account not added to Search Console property</li>
-        <li>URL not yet indexed by Google</li>
-      </ul>
     `}
   </div>
   <a href="/api/seo/test"><button>Back</button></a>

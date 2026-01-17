@@ -197,14 +197,68 @@ export class GoogleSearchConsoleAPI {
     return `${signatureInput}.${signature}`;
   }
 
+  // Debug method to get detailed error info
+  async debugAuth(): Promise<{ step: string; success: boolean; error?: string; details?: any }> {
+    // Step 1: Check credentials
+    if (!this.credentials) {
+      return { step: 'credentials', success: false, error: 'Credentials not loaded from env vars' };
+    }
+
+    // Step 2: Try JWT creation
+    let jwt: string;
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      jwt = await this.createJWT({
+        iss: this.credentials.clientEmail,
+        scope: 'https://www.googleapis.com/auth/webmasters.readonly',
+        aud: 'https://oauth2.googleapis.com/token',
+        iat: now,
+        exp: now + 3600,
+      });
+    } catch (error) {
+      return { step: 'jwt_creation', success: false, error: String(error) };
+    }
+
+    // Step 3: Try token exchange
+    try {
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+      });
+
+      const responseText = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        data = { raw: responseText };
+      }
+
+      if (!response.ok) {
+        return {
+          step: 'token_exchange',
+          success: false,
+          error: `HTTP ${response.status}`,
+          details: data
+        };
+      }
+
+      if (!data.access_token) {
+        return { step: 'token_exchange', success: false, error: 'No access_token in response', details: data };
+      }
+
+      return { step: 'token_exchange', success: true, details: { hasToken: true } };
+    } catch (error) {
+      return { step: 'token_exchange', success: false, error: String(error) };
+    }
+  }
+
   async checkIndexingStatus(url: string): Promise<IndexingStatus | null> {
     const token = await this.getAccessToken();
     if (!token) return null;
 
     try {
-      const encodedUrl = encodeURIComponent(url);
-      const encodedSite = encodeURIComponent(this.siteUrl);
-
       const response = await fetch(
         `https://searchconsole.googleapis.com/v1/urlInspection/index:inspect`,
         {

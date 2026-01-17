@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     canonical: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com',
     languages: {
       'en-GB': process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com',
-      'ar-SA': `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com'}/?lang=ar`,
+      'ar-SA': `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com'}/ar`,
     },
   },
 }

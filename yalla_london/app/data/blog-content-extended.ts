@@ -1578,6 +1578,388 @@ Central London's halal dining scene rivals any city in the world. From glamorous
     created_at: new Date('2025-01-06'),
     updated_at: new Date('2025-01-06'),
   },
+
+  // ============================================
+  // NEW SEO-FOCUSED CONTENT - JANUARY 2026
+  // ============================================
+
+  // NEW CONTENT 1: Ramadan in London 2026
+  {
+    id: 'post-ramadan-london-2026',
+    slug: 'ramadan-london-2026-complete-guide-iftar-suhoor',
+    title_en: 'Ramadan in London 2026: Complete Guide to Iftar, Suhoor & Prayer Times',
+    title_ar: 'رمضان في لندن 2026: دليل شامل للإفطار والسحور وأوقات الصلاة',
+    excerpt_en: 'Everything you need to know about Ramadan 2026 in London. Best iftar restaurants, suhoor spots, prayer times, mosques, and community events.',
+    excerpt_ar: 'كل ما تحتاج معرفته عن رمضان 2026 في لندن. أفضل مطاعم الإفطار وأماكن السحور وأوقات الصلاة والمساجد.',
+    meta_title_en: 'Ramadan London 2026 Guide | Iftar, Suhoor, Prayer Times & Events',
+    meta_title_ar: 'دليل رمضان لندن 2026 | الإفطار والسحور وأوقات الصلاة',
+    meta_description_en: 'Complete Ramadan 2026 guide for London. Prayer times, best iftar restaurants, suhoor spots, and mosque locations.',
+    meta_description_ar: 'دليل رمضان 2026 الشامل في لندن. أوقات الصلاة وأفضل مطاعم الإفطار وأماكن السحور والمساجد.',
+    content_en: `# Ramadan in London 2026: Complete Guide
+
+Ramadan 2026 is expected to begin around **February 28th**, making it a winter Ramadan with shorter fasting hours.
+
+## Prayer Times (March 2026)
+
+| Date | Fajr | Maghrib (Iftar) |
+|------|------|-----------------|
+| March 1 | 5:15 AM | 5:45 PM |
+| March 15 | 4:45 AM | 6:10 PM |
+| March 28 | 4:10 AM | 6:30 PM |
+
+## Best Iftar Restaurants
+
+### Luxury Hotel Iftars
+
+**The Dorchester - Park Lane**
+- Price: £85-120 per person
+- Traditional Arabic decor and live oud music
+
+**Jumeirah Carlton Tower**
+- Price: £75-95 per person
+- Gulf-style iftar in Knightsbridge
+
+### Mid-Range Options
+
+**Maroush Gardens - Edgware Road**
+- Price: £35-50 per person
+- Authentic Lebanese iftar
+
+**Dishoom**
+- Price: £25-40 per person
+- Bombay-style iftar, halal chicken
+
+### Free Community Iftars
+
+**London Central Mosque (Regent Park)**
+- Free iftar daily
+- Capacity: 1,000+ people
+
+## Suhoor Spots
+
+| Restaurant | Location | Hours |
+|------------|----------|-------|
+| Maroush | Edgware Road | Until 4 AM |
+| Ranoush | Edgware Road | Until 5 AM |
+
+## Mosques for Taraweeh
+
+**London Central Mosque**
+- Address: 146 Park Road, NW8 7RG
+- 20 rakaat with beautiful recitation
+
+**East London Mosque**
+- Address: 82-92 Whitechapel Road, E1 1JQ
+- One of UK largest mosques
+
+## Eid al-Fitr 2026
+
+Expected around **March 29-30, 2026**.
+
+**Ramadan Mubarak!**`,
+    content_ar: `# رمضان في لندن 2026: دليل شامل
+
+من المتوقع أن يبدأ رمضان 2026 حوالي **28 فبراير**.
+
+## أوقات الصلاة (مارس 2026)
+
+| التاريخ | الفجر | المغرب |
+|---------|-------|--------|
+| 1 مارس | 5:15 ص | 5:45 م |
+| 15 مارس | 4:45 ص | 6:10 م |
+
+## أفضل مطاعم الإفطار
+
+**فندق دورتشستر**
+- السعر: £85-120 للشخص
+
+**ماروش جاردنز**
+- السعر: £35-50 للشخص
+
+## المساجد لصلاة التراويح
+
+**مسجد لندن المركزي**
+- 20 ركعة مع تلاوة جميلة
+
+**رمضان مبارك!**`,
+    featured_image: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?w=1200&h=630&fit=crop',
+    category_id: 'cat-events',
+    tags: ['ramadan', 'iftar', 'suhoor', 'prayer-times', 'london', 'muslim', 'halal', 'eid'],
+    keywords: [
+      'ramadan london 2026',
+      'iftar london',
+      'suhoor london',
+      'prayer times london ramadan',
+      'رمضان لندن 2026',
+      'إفطار لندن'
+    ],
+    page_type: 'guide',
+    seo_score: 97,
+    reading_time: 10,
+    published: true,
+    created_at: new Date('2026-01-17'),
+    updated_at: new Date('2026-01-17'),
+  },
+
+  // NEW CONTENT 2: London Transport Guide
+  {
+    id: 'post-london-transport-guide-2026',
+    slug: 'london-transport-guide-tourists-2026-tube-bus-taxi',
+    title_en: 'London Transport Guide 2026: Tube, Bus, Taxi & Oyster Card Explained',
+    title_ar: 'دليل مواصلات لندن 2026: المترو والباص والتاكسي وبطاقة أويستر',
+    excerpt_en: 'Master London transport with our complete guide. Oyster cards, contactless payment, tube maps, and money-saving tips.',
+    excerpt_ar: 'أتقن نظام مواصلات لندن مع دليلنا الشامل. بطاقات أويستر والدفع اللاتلامسي وخرائط المترو.',
+    meta_title_en: 'London Transport Guide 2026 | Oyster Card, Tube & Bus Tips',
+    meta_title_ar: 'دليل مواصلات لندن 2026 | أويستر والمترو والباص',
+    meta_description_en: 'Complete London transport guide for tourists 2026. How to use Tube, bus, and taxi. Oyster vs contactless and money-saving tips.',
+    meta_description_ar: 'دليل مواصلات لندن للسياح 2026. كيفية استخدام المترو والباص والتاكسي.',
+    content_en: `# London Transport Guide 2026
+
+London has one of the world best transport systems. Here is everything you need to know.
+
+## Payment Methods
+
+### Oyster Card vs Contactless
+
+| Feature | Oyster Card | Contactless |
+|---------|-------------|-------------|
+| Deposit | £7 | None |
+| Daily Cap | Yes | Yes |
+| Best For | Longer stays | Short visits |
+
+### 2026 Fare Prices (Zone 1-2)
+
+| Journey Type | Peak | Off-Peak |
+|--------------|------|----------|
+| Single Tube | £2.80 | £2.40 |
+| Daily Cap | £8.10 | £8.10 |
+| Bus | £1.75 | £1.75 |
+
+## The Tube
+
+### Key Lines
+- **Central (Red):** West-East across London
+- **Victoria (Blue):** Fast north-south
+- **Piccadilly (Dark Blue):** Heathrow to central
+- **Elizabeth Line:** Heathrow to Canary Wharf
+
+### Tourist Tips
+1. Stand on the right on escalators
+2. Let people off first
+3. Avoid rush hour (7:30-9:30 AM)
+
+### Key Stations
+
+| Attraction | Station |
+|------------|---------|
+| Big Ben | Westminster |
+| Tower of London | Tower Hill |
+| British Museum | Holborn |
+| Harrods | Knightsbridge |
+
+## From Airports
+
+### Heathrow
+
+| Transport | Time | Price |
+|-----------|------|-------|
+| Elizabeth Line | 30 min | £12.80 |
+| Piccadilly Line | 50 min | £5.50 |
+| Heathrow Express | 15 min | £25 |
+
+**Our Pick:** Elizabeth Line
+
+## Money-Saving Tips
+
+1. Use daily caps - never pay more than £8.10/day
+2. Travel off-peak after 9:30 AM
+3. Walk when possible - many attractions are close
+4. Use contactless for automatic best fare`,
+    content_ar: `# دليل مواصلات لندن 2026
+
+لندن لديها أحد أفضل أنظمة المواصلات في العالم.
+
+## طرق الدفع
+
+### أويستر مقابل اللاتلامسية
+
+| الميزة | أويستر | لاتلامسية |
+|--------|--------|-----------|
+| الوديعة | £7 | لا شيء |
+| الأفضل لـ | إقامات طويلة | زيارات قصيرة |
+
+### أسعار 2026
+
+| الرحلة | ذروة | خارج الذروة |
+|--------|------|-------------|
+| مترو | £2.80 | £2.40 |
+| الحد اليومي | £8.10 | £8.10 |
+
+## المترو
+
+### نصائح
+1. قف على اليمين في السلالم
+2. دع الناس ينزلون أولا
+3. تجنب ساعة الذروة`,
+    featured_image: 'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=1200&h=630&fit=crop',
+    category_id: 'cat-guides',
+    tags: ['transport', 'tube', 'bus', 'oyster-card', 'london', 'travel-tips'],
+    keywords: [
+      'london transport guide',
+      'oyster card london',
+      'london tube map',
+      'heathrow to central london',
+      'مواصلات لندن',
+      'مترو لندن'
+    ],
+    page_type: 'guide',
+    seo_score: 96,
+    reading_time: 10,
+    published: true,
+    created_at: new Date('2026-01-17'),
+    updated_at: new Date('2026-01-17'),
+  },
+
+  // NEW CONTENT 3: Premier League Stadium Guide
+  {
+    id: 'post-premier-league-london-2026',
+    slug: 'premier-league-london-stadiums-guide-2026-tickets-hospitality',
+    title_en: 'Premier League London Stadiums Guide 2026: Tickets, Hospitality & Match Day',
+    title_ar: 'دليل ملاعب الدوري الإنجليزي في لندن 2026: التذاكر والضيافة',
+    excerpt_en: 'Complete guide to watching Premier League football in London. Arsenal, Chelsea, Tottenham stadium guides with ticket tips.',
+    excerpt_ar: 'دليل شامل لمشاهدة الدوري الإنجليزي في لندن. أرسنال وتشيلسي وتوتنهام.',
+    meta_title_en: 'London Premier League Stadiums 2026 | Tickets & Hospitality Guide',
+    meta_title_ar: 'ملاعب الدوري الإنجليزي لندن 2026 | دليل التذاكر',
+    meta_description_en: 'Watch Premier League football in London 2026. Arsenal, Chelsea, Tottenham ticket guide and hospitality packages.',
+    meta_description_ar: 'شاهد الدوري الإنجليزي في لندن 2026. دليل تذاكر أرسنال وتشيلسي وتوتنهام.',
+    content_en: `# Premier League London Stadiums Guide 2026
+
+London is the football capital of the world with more Premier League clubs than any other city.
+
+## London Clubs 2025/26
+
+| Club | Stadium | Capacity | Nearest Tube |
+|------|---------|----------|--------------|
+| Arsenal | Emirates Stadium | 60,704 | Arsenal |
+| Chelsea | Stamford Bridge | 40,341 | Fulham Broadway |
+| Tottenham | Tottenham Stadium | 62,850 | White Hart Lane |
+| West Ham | London Stadium | 62,500 | Stratford |
+
+## Arsenal - Emirates Stadium
+
+**Address:** Hornsey Road, N7 7AJ
+
+### Ticket Prices
+| Category | Price Range |
+|----------|-------------|
+| Category A | £65-97 |
+| Category B | £51-76 |
+| Category C | £36-57 |
+
+### How to Get Tickets
+1. Arsenal Membership (£35/year)
+2. Hospitality packages
+3. Arsenal Ticket Exchange
+
+### Hospitality
+- **Avenell Club:** From £299/person
+- **Diamond Club:** From £499/person
+
+## Chelsea - Stamford Bridge
+
+**Capacity:** 40,341
+
+### Tickets
+- Chelsea Membership: True Blue (£29/year)
+- Hospitality packages available
+
+### Hospitality
+- **The Great Room:** From £349/person
+
+## Tottenham Stadium
+
+**Capacity:** 62,850
+**Features:** Retractable pitch, NFL-ready
+
+### Hospitality
+- **The H Club:** From £399/person
+- **Tunnel Club:** From £750/person (watch players in tunnel!)
+
+## Match Day Tips
+
+### What to Bring
+- Mobile ticket
+- ID
+- Contactless payment
+
+### What NOT to Bring
+- Large bags
+- Umbrellas
+- Professional cameras
+
+## Halal Food Near Stadiums
+
+| Stadium | Nearby Halal |
+|---------|--------------|
+| Emirates | Holloway Road |
+| Stamford Bridge | Fulham Road |
+| Tottenham | Seven Sisters Road |
+| London Stadium | Stratford Westfield |
+
+**Pro Tip:** Stadium tours are great if you cannot get match tickets!`,
+    content_ar: `# دليل ملاعب الدوري الإنجليزي في لندن 2026
+
+لندن هي عاصمة كرة القدم في العالم.
+
+## أندية لندن 2025/26
+
+| النادي | الملعب | السعة |
+|--------|--------|-------|
+| أرسنال | الإمارات | 60,704 |
+| تشيلسي | ستامفورد بريدج | 40,341 |
+| توتنهام | ملعب توتنهام | 62,850 |
+
+## أرسنال - ملعب الإمارات
+
+### أسعار التذاكر
+| الفئة | السعر |
+|-------|-------|
+| الفئة أ | £65-97 |
+| الفئة ب | £51-76 |
+
+### الضيافة
+- **نادي أفينيل:** من £299/شخص
+- **نادي الماس:** من £499/شخص
+
+## توتنهام
+
+**السعة:** 62,850
+**ميزات:** أرضية قابلة للسحب
+
+## نصائح يوم المباراة
+
+### ما يجب إحضاره
+- تذكرة الجوال
+- بطاقة هوية
+- دفع لاتلامسي`,
+    featured_image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=1200&h=630&fit=crop',
+    category_id: 'cat-attractions',
+    tags: ['premier-league', 'football', 'arsenal', 'chelsea', 'tottenham', 'london', 'stadium'],
+    keywords: [
+      'premier league london tickets',
+      'arsenal tickets 2026',
+      'chelsea stamford bridge',
+      'tottenham stadium tour',
+      'تذاكر الدوري الإنجليزي لندن',
+      'ملعب أرسنال'
+    ],
+    page_type: 'guide',
+    seo_score: 96,
+    reading_time: 12,
+    published: true,
+    created_at: new Date('2026-01-17'),
+    updated_at: new Date('2026-01-17'),
+  },
 ];
 
 export default extendedBlogPosts;

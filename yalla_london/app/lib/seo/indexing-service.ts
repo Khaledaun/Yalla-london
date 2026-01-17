@@ -29,6 +29,11 @@ interface IndexNowResult {
 }
 
 export async function submitToIndexNow(urls: string[]): Promise<IndexNowResult[]> {
+  const results: IndexNowResult[] = [];
+  const host = new URL(BASE_URL).host;
+  const keyLocation = `${BASE_URL}/${INDEXNOW_KEY}.txt`;
+
+  // Try POST method with batch URLs
   const engines = [
     'https://api.indexnow.org/indexnow',
     'https://www.bing.com/indexnow',
@@ -36,31 +41,53 @@ export async function submitToIndexNow(urls: string[]): Promise<IndexNowResult[]
   ];
 
   const payload = {
-    host: new URL(BASE_URL).host,
+    host,
     key: INDEXNOW_KEY,
-    keyLocation: `${BASE_URL}/${INDEXNOW_KEY}.txt`,
-    urlList: urls.slice(0, 10000), // IndexNow limit
+    keyLocation,
+    urlList: urls.slice(0, 10000),
   };
-
-  const results: IndexNowResult[] = [];
 
   for (const engine of engines) {
     try {
       const response = await fetch(engine, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Accept': 'application/json',
+        },
         body: JSON.stringify(payload),
       });
 
+      const responseText = await response.text();
       results.push({
         engine: new URL(engine).hostname,
-        success: response.ok,
+        success: response.ok || response.status === 200 || response.status === 202,
         status: response.status,
-        message: response.ok ? 'Submitted successfully' : await response.text(),
+        message: response.ok ? 'Submitted successfully' : responseText,
       });
     } catch (error) {
       results.push({
         engine: new URL(engine).hostname,
+        success: false,
+        message: String(error),
+      });
+    }
+  }
+
+  // Also try GET method for first URL (simpler, more reliable)
+  if (urls.length > 0) {
+    const getUrl = `https://www.bing.com/indexnow?url=${encodeURIComponent(urls[0])}&key=${INDEXNOW_KEY}`;
+    try {
+      const response = await fetch(getUrl, { method: 'GET' });
+      results.push({
+        engine: 'bing.com (GET)',
+        success: response.ok || response.status === 200 || response.status === 202,
+        status: response.status,
+        message: response.ok ? 'GET method success' : await response.text(),
+      });
+    } catch (error) {
+      results.push({
+        engine: 'bing.com (GET)',
         success: false,
         message: String(error),
       });

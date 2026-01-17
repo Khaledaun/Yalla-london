@@ -106,14 +106,27 @@ export async function GET(request: NextRequest) {
   <a href="/api/seo/test"><button>Back</button></a>
 `;
   } else if (action === 'gsc') {
-    // Test GSC API
+    // Test GSC API with debugging
     const testUrl = getAllIndexableUrls()[0];
+
+    // Check environment variables
+    const hasClientEmail = !!process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || !!process.env.GSC_CLIENT_EMAIL;
+    const hasPrivateKey = !!process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || !!process.env.GSC_PRIVATE_KEY;
+    const clientEmail = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL || 'Not set';
+
     const status = await gscApi.checkIndexingStatus(testUrl);
 
     html += `
   <div class="card">
     <h2>Google Search Console API Test</h2>
     <p><strong>Test URL:</strong> ${testUrl}</p>
+
+    <h3>Environment Check</h3>
+    <ul>
+      <li>CLIENT_EMAIL: <span class="${hasClientEmail ? 'success' : 'fail'}">${hasClientEmail ? 'SET' : 'NOT SET'}</span> ${hasClientEmail ? `(${clientEmail.substring(0, 20)}...)` : ''}</li>
+      <li>PRIVATE_KEY: <span class="${hasPrivateKey ? 'success' : 'fail'}">${hasPrivateKey ? 'SET' : 'NOT SET'}</span></li>
+    </ul>
+
     ${status ? `
       <p class="success">GSC API is working!</p>
       <pre>${JSON.stringify(status, null, 2)}</pre>

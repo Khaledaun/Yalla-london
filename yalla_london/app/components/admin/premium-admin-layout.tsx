@@ -4,13 +4,14 @@ import React, { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { PremiumAdminNav } from './premium-admin-nav'
-import { 
+import { GlobalSearch, useGlobalSearch } from '@/app/components/admin/global-search'
+import {
   Menu,
-  Search, 
-  Bell, 
-  User, 
-  LogOut, 
-  Settings, 
+  Search,
+  Bell,
+  User,
+  LogOut,
+  Settings,
   HelpCircle,
   Palette,
   Globe,
@@ -61,7 +62,7 @@ export function PremiumAdminLayout({
   const { data: session } = useSession()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const globalSearch = useGlobalSearch()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [notifications, setNotifications] = useState<ToastNotification[]>([])
 
@@ -71,17 +72,11 @@ export function PremiumAdminLayout({
   const optimisticUpdates = isPremiumFeatureEnabled('OPTIMISTIC_UPDATES')
   const instantUndo = isPremiumFeatureEnabled('INSTANT_UNDO')
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (Cmd+K handled by useGlobalSearch hook)
   React.useEffect(() => {
     if (!keyboardShortcuts) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Command/Ctrl + K for command palette
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setCommandPaletteOpen(true)
-      }
-      
       // Command/Ctrl + Z for undo (when available)
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && instantUndo) {
         e.preventDefault()
@@ -90,7 +85,6 @@ export function PremiumAdminLayout({
 
       // Escape to close modals
       if (e.key === 'Escape') {
-        setCommandPaletteOpen(false)
         setUserMenuOpen(false)
       }
     }
@@ -233,17 +227,15 @@ export function PremiumAdminLayout({
           </div>
 
           <div className={styles.topHeaderRight}>
-            {/* Command palette trigger */}
-            {keyboardShortcuts && (
-              <button
-                onClick={() => setCommandPaletteOpen(true)}
-                className={`${styles.commandButton} ${premiumEnabled ? '' : styles.darkMode}`}
-              >
-                <Search size={16} />
-                <span>Search</span>
-                <kbd className={`${styles.commandKbd} ${premiumEnabled ? '' : styles.darkMode}`}>⌘K</kbd>
-              </button>
-            )}
+            {/* Global Search trigger */}
+            <button
+              onClick={globalSearch.open}
+              className={`${styles.commandButton} ${premiumEnabled ? '' : styles.darkMode}`}
+            >
+              <Search size={16} />
+              <span>Search</span>
+              <kbd className={`${styles.commandKbd} ${premiumEnabled ? '' : styles.darkMode}`}>⌘K</kbd>
+            </button>
 
             {/* Undo button */}
             {instantUndo && (
@@ -400,44 +392,8 @@ export function PremiumAdminLayout({
         </div>
       )}
 
-      {/* Command Palette Modal */}
-      {commandPaletteOpen && keyboardShortcuts && (
-        <div className={styles.commandPalette}>
-          <div className={styles.commandPaletteBackdrop}>
-            <div className={`${styles.commandPaletteContent} ${premiumEnabled ? '' : styles.darkMode}`}>
-              <div className={`${styles.commandPaletteHeader} ${premiumEnabled ? '' : styles.darkMode}`}>
-                <div className={styles.commandPaletteInputContainer}>
-                  <Command size={20} className={styles.commandPaletteInputIcon} />
-                  <input
-                    type="text"
-                    placeholder="Search for actions..."
-                    className={`${styles.commandPaletteInput} ${premiumEnabled ? '' : styles.darkMode}`}
-                    autoFocus
-                  />
-                </div>
-                
-                <div className={styles.commandPaletteResults}>
-                  <div className={`${styles.commandPaletteSectionTitle} ${premiumEnabled ? '' : styles.darkMode}`}>
-                    QUICK ACTIONS
-                  </div>
-                  
-                  <div className={styles.commandPaletteItems}>
-                    <button className={`${styles.commandPaletteItem} ${premiumEnabled ? '' : styles.darkMode}`}>
-                      <Plus size={16} className={styles.commandPaletteItemIcon} />
-                      <span className={`${styles.commandPaletteItemText} ${premiumEnabled ? '' : styles.darkMode}`}>New Article</span>
-                    </button>
-                    
-                    <button className={`${styles.commandPaletteItem} ${premiumEnabled ? '' : styles.darkMode}`}>
-                      <Settings size={16} className={styles.commandPaletteItemIcon} />
-                      <span className={`${styles.commandPaletteItemText} ${premiumEnabled ? '' : styles.darkMode}`}>Site Settings</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Global Search Modal */}
+      <GlobalSearch isOpen={globalSearch.isOpen} onClose={globalSearch.close} />
     </div>
   )
 }

@@ -106,6 +106,7 @@ const NAV_SECTIONS = [
     title: 'Sites & Domains',
     titleAr: 'المواقع والنطاقات',
     items: [
+      { name: 'All Sites', nameAr: 'جميع المواقع', href: '/admin/command-center/sites', icon: Globe },
       { name: 'Create New Site', nameAr: 'إنشاء موقع', href: '/admin/command-center/sites/new', icon: Plus },
       { name: 'Site Settings', nameAr: 'إعدادات الموقع', href: '/admin/site', icon: Settings },
     ],

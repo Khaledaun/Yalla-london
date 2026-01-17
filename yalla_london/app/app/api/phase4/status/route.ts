@@ -4,6 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
+// Force dynamic rendering to avoid build-time database/header access
+export const dynamic = 'force-dynamic';
+
 import { withAdminAuth } from '@/lib/admin-middleware';
 import { getFeatureFlags } from '@/lib/feature-flags';
 import { checkDatabaseHealth } from '@/lib/database';

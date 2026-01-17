@@ -7,6 +7,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TeamService, SkillCategory } from '@/lib/domains/team';
 
+// Force dynamic rendering to avoid build-time database access
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

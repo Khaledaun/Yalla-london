@@ -329,6 +329,89 @@ export class GoogleSearchConsoleAPI {
 
     return null;
   }
+
+  // Get token with indexing scope for submitting URLs
+  private async getIndexingToken(): Promise<string | null> {
+    if (!this.credentials) return null;
+
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const jwt = await this.createJWT({
+        iss: this.credentials.clientEmail,
+        scope: 'https://www.googleapis.com/auth/indexing',
+        aud: 'https://oauth2.googleapis.com/token',
+        iat: now,
+        exp: now + 3600,
+      });
+
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.access_token;
+      }
+    } catch (error) {
+      console.error('Failed to get indexing token:', error);
+    }
+
+    return null;
+  }
+
+  // Submit a single URL for indexing via Google Indexing API
+  async submitUrlForIndexing(url: string): Promise<{ success: boolean; error?: string }> {
+    const token = await this.getIndexingToken();
+    if (!token) {
+      return { success: false, error: 'Failed to get indexing token' };
+    }
+
+    try {
+      const response = await fetch('https://indexing.googleapis.com/v3/urlNotifications:publish', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: url,
+          type: 'URL_UPDATED',
+        }),
+      });
+
+      if (response.ok) {
+        return { success: true };
+      } else {
+        const errorData = await response.text();
+        return { success: false, error: `HTTP ${response.status}: ${errorData}` };
+      }
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  }
+
+  // Submit multiple URLs for indexing
+  async submitUrlsForIndexing(urls: string[]): Promise<{ submitted: number; failed: number; errors: string[] }> {
+    const results = { submitted: 0, failed: 0, errors: [] as string[] };
+
+    for (const url of urls) {
+      const result = await this.submitUrlForIndexing(url);
+      if (result.success) {
+        results.submitted++;
+      } else {
+        results.failed++;
+        if (result.error) {
+          results.errors.push(`${url}: ${result.error}`);
+        }
+      }
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    return results;
+  }
 }
 
 // ============================================

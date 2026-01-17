@@ -61,7 +61,8 @@ export async function GET(request: NextRequest) {
     <p>Click a button to run the test:</p>
     <a href="/api/seo/test?action=indexnow"><button>Test IndexNow (Bing/Yandex)</button></a>
     <a href="/api/seo/test?action=ping"><button>Test Sitemap Ping</button></a>
-    <a href="/api/seo/test?action=gsc"><button>Test GSC API</button></a>
+    <a href="/api/seo/test?action=gsc"><button>Test GSC Status</button></a>
+    <a href="/api/seo/test?action=gsc-submit"><button>Submit to Google (GSC)</button></a>
     <a href="/api/seo/test?action=full"><button>Run Full Indexing</button></a>
   </div>
 `;
@@ -148,11 +149,33 @@ export async function GET(request: NextRequest) {
   </div>
   <a href="/api/seo/test"><button>Back</button></a>
 `;
+  } else if (action === 'gsc-submit') {
+    // Submit URLs to Google Indexing API
+    const urls = getAllIndexableUrls().slice(0, 5); // Test with 5 URLs
+    const results = await gscApi.submitUrlsForIndexing(urls);
+
+    html += `
+  <div class="card">
+    <h2>Google Indexing API Submission</h2>
+    <p>Submitted ${urls.length} URLs to Google:</p>
+    <ul>
+      <li>Submitted: <span class="${results.submitted > 0 ? 'success' : 'fail'}">${results.submitted}</span></li>
+      <li>Failed: <span class="${results.failed > 0 ? 'fail' : 'success'}">${results.failed}</span></li>
+    </ul>
+    ${results.errors.length > 0 ? `
+      <h3>Errors</h3>
+      <pre>${results.errors.slice(0, 5).join('\\n')}</pre>
+    ` : ''}
+    <p><small>Note: Google Indexing API is officially for JobPosting/BroadcastEvent content. For other content, Google may rate-limit or ignore requests.</small></p>
+  </div>
+  <a href="/api/seo/test"><button>Back</button></a>
+`;
   } else if (action === 'full') {
     // Full indexing test
     const allUrls = getAllIndexableUrls();
     const indexNowResults = await submitToIndexNow(allUrls);
     const pingResults = await pingSitemaps();
+    const gscResults = await gscApi.submitUrlsForIndexing(allUrls.slice(0, 10)); // Limit GSC to 10 URLs
 
     const indexNowSuccess = indexNowResults.filter(r => r.success).length;
     const indexNowFail = indexNowResults.filter(r => !r.success).length;
@@ -162,16 +185,24 @@ export async function GET(request: NextRequest) {
     <h2>Full Indexing Results</h2>
     <p><strong>URLs Submitted:</strong> ${allUrls.length}</p>
 
-    <h3>IndexNow Results</h3>
+    <h3>IndexNow Results (Bing/Yandex)</h3>
     <ul>
       ${indexNowResults.map(r => `
         <li>
           <strong>${r.engine}:</strong>
           <span class="${r.success ? 'success' : 'fail'}">${r.success ? 'SUCCESS' : 'FAILED'}</span>
           ${r.status ? `(${r.status})` : ''}
+          ${r.message ? `<br><small>${r.message}</small>` : ''}
         </li>
       `).join('')}
     </ul>
+
+    <h3>Google Indexing API</h3>
+    <ul>
+      <li>Submitted: <span class="${gscResults.submitted > 0 ? 'success' : 'fail'}">${gscResults.submitted}</span></li>
+      <li>Failed: <span class="${gscResults.failed > 0 ? 'fail' : 'success'}">${gscResults.failed}</span></li>
+    </ul>
+    ${gscResults.errors.length > 0 ? `<pre>${gscResults.errors.slice(0, 3).join('\\n')}</pre>` : ''}
 
     <h3>Sitemap Ping Results</h3>
     <ul>
@@ -185,6 +216,7 @@ export async function GET(request: NextRequest) {
 
     <h3>Summary</h3>
     <p>IndexNow: <span class="success">${indexNowSuccess} success</span>, <span class="${indexNowFail > 0 ? 'fail' : ''}">${indexNowFail} failed</span></p>
+    <p>Google: <span class="${gscResults.submitted > 0 ? 'success' : 'fail'}">${gscResults.submitted} submitted</span>, <span class="${gscResults.failed > 0 ? 'fail' : ''}">${gscResults.failed} failed</span></p>
   </div>
   <a href="/api/seo/test"><button>Back</button></a>
 `;

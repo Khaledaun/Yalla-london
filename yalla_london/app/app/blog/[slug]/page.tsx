@@ -168,6 +168,33 @@ function generateStructuredData(post: typeof allStaticPosts[0]) {
   return { articleSchema, breadcrumbSchema }
 }
 
+// Transform post for client component (serialize dates)
+function transformPostForClient(post: typeof allStaticPosts[0]) {
+  const category = categories.find(c => c.id === post.category_id)
+
+  return {
+    id: post.id,
+    title_en: post.title_en,
+    title_ar: post.title_ar,
+    content_en: post.content_en,
+    content_ar: post.content_ar,
+    excerpt_en: post.excerpt_en,
+    excerpt_ar: post.excerpt_ar,
+    slug: post.slug,
+    featured_image: post.featured_image,
+    created_at: post.created_at.toISOString(),
+    updated_at: post.updated_at.toISOString(),
+    reading_time: post.reading_time,
+    tags: post.tags,
+    category: category ? {
+      id: category.id,
+      name_en: category.name_en,
+      name_ar: category.name_ar,
+      slug: category.slug,
+    } : null,
+  }
+}
+
 export default async function BlogPostPage({ params }: Props) {
   const resolvedParams = await params
   const slug = resolvedParams.slug
@@ -175,6 +202,9 @@ export default async function BlogPostPage({ params }: Props) {
 
   // Generate structured data if post exists
   const structuredData = post ? generateStructuredData(post) : null
+
+  // Transform post for client (serialize Date objects to strings)
+  const clientPost = post ? transformPostForClient(post) : null
 
   return (
     <>
@@ -194,7 +224,7 @@ export default async function BlogPostPage({ params }: Props) {
           />
         </>
       )}
-      <BlogPostClient />
+      <BlogPostClient post={clientPost} />
     </>
   )
 }

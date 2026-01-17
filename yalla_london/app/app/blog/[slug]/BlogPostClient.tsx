@@ -1,7 +1,6 @@
 'use client'
 
-
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useLanguage } from '@/components/language-provider'
@@ -9,9 +8,8 @@ import { getTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Calendar, User, ArrowLeft, Share2, Heart, BookOpen } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useParams } from 'next/navigation'
 
-interface BlogPost {
+interface BlogPostData {
   id: string;
   title_en: string;
   title_ar: string;
@@ -23,9 +21,7 @@ interface BlogPost {
   featured_image: string;
   created_at: string;
   updated_at: string;
-  published: boolean;
-  page_type: string;
-  seo_score: number;
+  reading_time?: number;
   tags: string[];
   category: {
     id: string;
@@ -33,61 +29,16 @@ interface BlogPost {
     name_ar: string;
     slug: string;
   } | null;
-  author: {
-    id: string;
-    name: string;
-    email: string;
-    image: string;
-  } | null;
-  place: any;
 }
 
-export default function BlogPostClient() {
+interface BlogPostClientProps {
+  post: BlogPostData | null;
+}
+
+export default function BlogPostClient({ post }: BlogPostClientProps) {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
-  const params = useParams()
-  const [post, setPost] = useState<BlogPost | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [isLiked, setIsLiked] = useState(false)
-
-  // Fetch blog post data based on slug
-  useEffect(() => {
-    const fetchPost = async () => {
-      if (!params.slug) return
-
-      try {
-        setLoading(true)
-        setError(null)
-
-        const response = await fetch(`/api/content/blog/${params.slug}`)
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            setError('Post not found')
-          } else {
-            setError('Failed to load post')
-          }
-          return
-        }
-
-        const data = await response.json()
-
-        if (data.success) {
-          setPost(data.data)
-        } else {
-          setError(data.error || 'Failed to load post')
-        }
-      } catch (err) {
-        console.error('Error fetching blog post:', err)
-        setError('Failed to load post')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchPost()
-  }, [params.slug])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -120,27 +71,12 @@ export default function BlogPostClient() {
         console.log('Error sharing:', error)
       }
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(window.location.href)
     }
   }
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className={`${isRTL ? 'rtl' : 'ltr'} min-h-screen flex items-center justify-center`}>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">
-            {language === 'en' ? 'Loading post...' : 'جاري تحميل المقال...'}
-          </p>
-        </div>
-      </div>
-    )
-  }
-
-  // Error state
-  if (error || !post) {
+  // Error state - post not found
+  if (!post) {
     return (
       <div className={`${isRTL ? 'rtl' : 'ltr'} min-h-screen flex items-center justify-center`}>
         <div className="text-center">
@@ -201,11 +137,11 @@ export default function BlogPostClient() {
                 </span>
                 <span className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  {post.author ? post.author.name : (language === 'en' ? 'Author' : 'الكاتب')}
+                  {language === 'en' ? 'Yalla London' : 'يلا لندن'}
                 </span>
                 <span className="flex items-center gap-2">
                   <BookOpen className="h-4 w-4" />
-                  {language === 'en' ? '5 min read' : '٥ دقائق للقراءة'}
+                  {language === 'en' ? `${post.reading_time || 5} min read` : `${post.reading_time || 5} دقائق للقراءة`}
                 </span>
               </div>
             </motion.div>
@@ -249,7 +185,7 @@ export default function BlogPostClient() {
 
             {/* Article Body */}
             <div
-              className="text-gray-800 leading-relaxed"
+              className="text-gray-800 leading-relaxed prose-headings:font-playfair prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-a:text-purple-700 prose-strong:text-gray-900"
               dangerouslySetInnerHTML={{
                 __html: language === 'en' ? post.content_en : post.content_ar
               }}

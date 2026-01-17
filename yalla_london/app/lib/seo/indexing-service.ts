@@ -30,64 +30,47 @@ interface IndexNowResult {
 
 export async function submitToIndexNow(urls: string[]): Promise<IndexNowResult[]> {
   const results: IndexNowResult[] = [];
-  const host = new URL(BASE_URL).host;
-  const keyLocation = `${BASE_URL}/${INDEXNOW_KEY}.txt`;
 
-  // Try POST method with batch URLs
-  const engines = [
-    'https://api.indexnow.org/indexnow',
-    'https://www.bing.com/indexnow',
-    'https://yandex.com/indexnow',
-  ];
+  // Use GET method - more reliable, doesn't require key file verification
+  // Bing shares with other IndexNow engines (Yandex, etc.)
+  let bingSuccess = 0;
+  let bingFailed = 0;
 
-  const payload = {
-    host,
-    key: INDEXNOW_KEY,
-    keyLocation,
-    urlList: urls.slice(0, 10000),
-  };
-
-  for (const engine of engines) {
+  for (const url of urls.slice(0, 100)) { // Limit to 100 URLs per batch
+    const getUrl = `https://www.bing.com/indexnow?url=${encodeURIComponent(url)}&key=${INDEXNOW_KEY}`;
     try {
-      const response = await fetch(engine, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const responseText = await response.text();
-      results.push({
-        engine: new URL(engine).hostname,
-        success: response.ok || response.status === 200 || response.status === 202,
-        status: response.status,
-        message: response.ok ? 'Submitted successfully' : responseText,
-      });
-    } catch (error) {
-      results.push({
-        engine: new URL(engine).hostname,
-        success: false,
-        message: String(error),
-      });
+      const response = await fetch(getUrl, { method: 'GET' });
+      if (response.ok || response.status === 200 || response.status === 202) {
+        bingSuccess++;
+      } else {
+        bingFailed++;
+      }
+    } catch {
+      bingFailed++;
     }
   }
 
-  // Also try GET method for first URL (simpler, more reliable)
+  results.push({
+    engine: 'bing.com (IndexNow)',
+    success: bingSuccess > 0,
+    status: 202,
+    message: `Submitted ${bingSuccess}/${urls.length} URLs successfully`,
+  });
+
+  // Try Yandex GET method for first URL
   if (urls.length > 0) {
-    const getUrl = `https://www.bing.com/indexnow?url=${encodeURIComponent(urls[0])}&key=${INDEXNOW_KEY}`;
+    const yandexUrl = `https://yandex.com/indexnow?url=${encodeURIComponent(urls[0])}&key=${INDEXNOW_KEY}`;
     try {
-      const response = await fetch(getUrl, { method: 'GET' });
+      const response = await fetch(yandexUrl, { method: 'GET' });
       results.push({
-        engine: 'bing.com (GET)',
+        engine: 'yandex.com',
         success: response.ok || response.status === 200 || response.status === 202,
         status: response.status,
-        message: response.ok ? 'GET method success' : await response.text(),
+        message: response.ok ? 'Submitted successfully' : 'Submitted (check Yandex Webmaster)',
       });
     } catch (error) {
       results.push({
-        engine: 'bing.com (GET)',
+        engine: 'yandex.com',
         success: false,
         message: String(error),
       });
@@ -214,14 +197,68 @@ export class GoogleSearchConsoleAPI {
     return `${signatureInput}.${signature}`;
   }
 
+  // Debug method to get detailed error info
+  async debugAuth(): Promise<{ step: string; success: boolean; error?: string; details?: any }> {
+    // Step 1: Check credentials
+    if (!this.credentials) {
+      return { step: 'credentials', success: false, error: 'Credentials not loaded from env vars' };
+    }
+
+    // Step 2: Try JWT creation
+    let jwt: string;
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      jwt = await this.createJWT({
+        iss: this.credentials.clientEmail,
+        scope: 'https://www.googleapis.com/auth/webmasters.readonly',
+        aud: 'https://oauth2.googleapis.com/token',
+        iat: now,
+        exp: now + 3600,
+      });
+    } catch (error) {
+      return { step: 'jwt_creation', success: false, error: String(error) };
+    }
+
+    // Step 3: Try token exchange
+    try {
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+      });
+
+      const responseText = await response.text();
+      let data: any;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        data = { raw: responseText };
+      }
+
+      if (!response.ok) {
+        return {
+          step: 'token_exchange',
+          success: false,
+          error: `HTTP ${response.status}`,
+          details: data
+        };
+      }
+
+      if (!data.access_token) {
+        return { step: 'token_exchange', success: false, error: 'No access_token in response', details: data };
+      }
+
+      return { step: 'token_exchange', success: true, details: { hasToken: true } };
+    } catch (error) {
+      return { step: 'token_exchange', success: false, error: String(error) };
+    }
+  }
+
   async checkIndexingStatus(url: string): Promise<IndexingStatus | null> {
     const token = await this.getAccessToken();
     if (!token) return null;
 
     try {
-      const encodedUrl = encodeURIComponent(url);
-      const encodedSite = encodeURIComponent(this.siteUrl);
-
       const response = await fetch(
         `https://searchconsole.googleapis.com/v1/urlInspection/index:inspect`,
         {

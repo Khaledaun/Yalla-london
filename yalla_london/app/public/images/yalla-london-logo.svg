@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 60" width="280" height="60">
+  <!-- Yalla London Primary Logo - Light Background -->
+  <style>
+    .yalla { font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; font-weight: 800; font-size: 32px; }
+    .london { font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; font-weight: 500; font-size: 32px; }
+  </style>
+  <text x="0" y="42" class="yalla" fill="#1A1F36">Yalla</text>
+  <text x="95" y="42" class="london" fill="#A3A3A3">London</text>
+  <circle cx="220" cy="34" r="6" fill="#E8634B"/>
+</svg>

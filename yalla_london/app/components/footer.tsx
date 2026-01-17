@@ -2,6 +2,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useLanguage } from './language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Instagram, Facebook, Twitter, Youtube, Mail, MapPin, Phone } from 'lucide-react'
@@ -29,16 +30,17 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand Column */}
           <div className="lg:col-span-1">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-burgundy-900 font-bold text-xl shadow-lg">
-                Y
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold text-white">Yalla London</h3>
-                <p className="text-gold-400 text-sm font-medium">
-                  {language === 'en' ? 'Luxury London Guide' : 'دليل لندن الفاخر'}
-                </p>
-              </div>
+            <div className="mb-6">
+              <Image
+                src="/images/yalla-london-logo-white.svg"
+                alt="Yalla London"
+                width={180}
+                height={40}
+                className="h-10 w-auto mb-2"
+              />
+              <p className="text-gold-400 text-sm font-medium">
+                {language === 'en' ? 'Luxury London Guide' : 'دليل لندن الفاخر'}
+              </p>
             </div>
             <p className="text-cream-300 mb-6 leading-relaxed">
               {language === 'en'

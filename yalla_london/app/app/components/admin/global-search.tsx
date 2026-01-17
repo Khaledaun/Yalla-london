@@ -208,8 +208,8 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
     } catch (e) {
       // Fallback to mock articles
       matchedArticles = [
-        { id: '1', type: 'article', title: 'Best Maldives Resorts 2024', subtitle: '/best-maldives-resorts', icon: FileText, href: '/admin/articles/1/edit' },
-        { id: '2', type: 'article', title: 'London Travel Guide', subtitle: '/london-travel-guide', icon: FileText, href: '/admin/articles/2/edit' },
+        { id: '1', type: 'article' as const, title: 'Best Maldives Resorts 2024', subtitle: '/best-maldives-resorts', icon: FileText, href: '/admin/articles/1/edit' },
+        { id: '2', type: 'article' as const, title: 'London Travel Guide', subtitle: '/london-travel-guide', icon: FileText, href: '/admin/articles/2/edit' },
       ].filter(a => a.title.toLowerCase().includes(q));
     }
 

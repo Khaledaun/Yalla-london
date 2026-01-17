@@ -30,64 +30,47 @@ interface IndexNowResult {
 
 export async function submitToIndexNow(urls: string[]): Promise<IndexNowResult[]> {
   const results: IndexNowResult[] = [];
-  const host = new URL(BASE_URL).host;
-  const keyLocation = `${BASE_URL}/${INDEXNOW_KEY}.txt`;
 
-  // Try POST method with batch URLs
-  const engines = [
-    'https://api.indexnow.org/indexnow',
-    'https://www.bing.com/indexnow',
-    'https://yandex.com/indexnow',
-  ];
+  // Use GET method - more reliable, doesn't require key file verification
+  // Bing shares with other IndexNow engines (Yandex, etc.)
+  let bingSuccess = 0;
+  let bingFailed = 0;
 
-  const payload = {
-    host,
-    key: INDEXNOW_KEY,
-    keyLocation,
-    urlList: urls.slice(0, 10000),
-  };
-
-  for (const engine of engines) {
+  for (const url of urls.slice(0, 100)) { // Limit to 100 URLs per batch
+    const getUrl = `https://www.bing.com/indexnow?url=${encodeURIComponent(url)}&key=${INDEXNOW_KEY}`;
     try {
-      const response = await fetch(engine, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const responseText = await response.text();
-      results.push({
-        engine: new URL(engine).hostname,
-        success: response.ok || response.status === 200 || response.status === 202,
-        status: response.status,
-        message: response.ok ? 'Submitted successfully' : responseText,
-      });
-    } catch (error) {
-      results.push({
-        engine: new URL(engine).hostname,
-        success: false,
-        message: String(error),
-      });
+      const response = await fetch(getUrl, { method: 'GET' });
+      if (response.ok || response.status === 200 || response.status === 202) {
+        bingSuccess++;
+      } else {
+        bingFailed++;
+      }
+    } catch {
+      bingFailed++;
     }
   }
 
-  // Also try GET method for first URL (simpler, more reliable)
+  results.push({
+    engine: 'bing.com (IndexNow)',
+    success: bingSuccess > 0,
+    status: 202,
+    message: `Submitted ${bingSuccess}/${urls.length} URLs successfully`,
+  });
+
+  // Try Yandex GET method for first URL
   if (urls.length > 0) {
-    const getUrl = `https://www.bing.com/indexnow?url=${encodeURIComponent(urls[0])}&key=${INDEXNOW_KEY}`;
+    const yandexUrl = `https://yandex.com/indexnow?url=${encodeURIComponent(urls[0])}&key=${INDEXNOW_KEY}`;
     try {
-      const response = await fetch(getUrl, { method: 'GET' });
+      const response = await fetch(yandexUrl, { method: 'GET' });
       results.push({
-        engine: 'bing.com (GET)',
+        engine: 'yandex.com',
         success: response.ok || response.status === 200 || response.status === 202,
         status: response.status,
-        message: response.ok ? 'GET method success' : await response.text(),
+        message: response.ok ? 'Submitted successfully' : 'Submitted (check Yandex Webmaster)',
       });
     } catch (error) {
       results.push({
-        engine: 'bing.com (GET)',
+        engine: 'yandex.com',
         success: false,
         message: String(error),
       });

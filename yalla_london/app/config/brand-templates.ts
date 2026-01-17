@@ -76,20 +76,20 @@ export interface BrandConfig {
 // Template: Luxury London Guide (Original)
 export const luxuryGuideTemplate: BrandConfig = {
   siteName: "Yalla London",
-  siteNameAr: "يالا لندن", 
+  siteNameAr: "يالا لندن",
   tagline: "Luxury London Guide",
   taglineAr: "دليل لندن الفاخر",
   description: "Your curated guide to the finest luxury experiences in London",
   descriptionAr: "دليلك المنسق لأفضل التجارب الفاخرة في لندن",
   businessType: 'luxury-guide',
-  
+
   colors: {
-    primary: "#7C3AED", // Purple
-    secondary: "#EAB308", // Yellow
-    accent: "#EC4899", // Pink
-    background: "#FFFFFF",
-    text: "#1F2937",
-    muted: "#6B7280"
+    primary: "#8B1538", // Rich Burgundy
+    secondary: "#D4AF37", // Gold
+    accent: "#C5A572", // Warm Gold
+    background: "#FFFDF8", // Warm Cream
+    text: "#2D1810", // Deep Brown
+    muted: "#6B5B4F" // Warm Gray
   },
   
   navigation: [

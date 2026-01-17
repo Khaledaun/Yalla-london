@@ -3,20 +3,47 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dynamic Brand Theming System */
+/* Google Fonts - Inter + Playfair Display + Cairo for elegant Arabic typography */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
+
+/* Dynamic Brand Theming System - Middle Eastern Inspired Luxury */
 :root {
-  /* Default colors - will be overridden by brand config */
-  --color-primary: #7C3AED;
-  --color-secondary: #EAB308;
-  --color-accent: #EC4899;
-  --color-background: #FFFFFF;
-  --color-text: #1F2937;
-  --color-muted: #6B7280;
-  
+  /* Primary palette - Rich burgundy and gold */
+  --color-primary: #8B1538;
+  --color-secondary: #D4AF37;
+  --color-accent: #C5A572;
+  --color-background: #FFFDF8;
+  --color-text: #2D1810;
+  --color-muted: #6B5B4F;
+
+  /* Extended palette */
+  --color-cream: #FDF8F3;
+  --color-sand: #F5EDE4;
+  --color-deep-burgundy: #5C0A23;
+  --color-gold-light: #E8D5A3;
+  --color-warm-gray: #9C8B7A;
+  --color-charcoal: #3D2F27;
+
   /* Semantic color mappings */
   --color-brand-primary: var(--color-primary);
   --color-brand-secondary: var(--color-secondary);
   --color-brand-accent: var(--color-accent);
+
+  /* Font families */
+  --font-inter: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
+  --font-serif: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
+  --font-cairo: 'Cairo', 'Inter', 'Segoe UI', 'Arial', sans-serif;
+  --font-arabic: 'Cairo', 'Inter', 'Segoe UI', 'Arial', sans-serif;
+
+  /* Shadows and effects */
+  --shadow-luxury: 0 4px 20px rgba(139, 21, 56, 0.08);
+  --shadow-elegant: 0 8px 40px rgba(139, 21, 56, 0.12);
+  --shadow-card: 0 2px 12px rgba(45, 24, 16, 0.06);
+
+  /* Border radius */
+  --radius-soft: 12px;
+  --radius-card: 16px;
+  --radius-button: 8px;
 }
 
 /* Platform-specific brand classes */
@@ -37,7 +64,7 @@
 
 /* Dynamic gradient backgrounds */
 .gradient-brand {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-deep-burgundy) 100%);
 }
 
 .gradient-brand-text {
@@ -48,31 +75,77 @@
   color: transparent;
 }
 
-/* Google Fonts - Inter + Playfair Display for elegant typography */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&family=Tajawal:wght@300;400;500;700&display=swap');
-
-:root {
-  --font-inter: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
-  --font-serif: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
-  --font-tajawal: 'Tajawal', 'Inter', 'Segoe UI', 'Arial', sans-serif;
+/* Elegant gold gradient */
+.gradient-gold {
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-accent) 50%, var(--color-gold-light) 100%);
 }
+
+.gradient-gold-text {
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-accent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Warm cream backgrounds */
+.bg-cream { background-color: var(--color-cream); }
+.bg-sand { background-color: var(--color-sand); }
+
+/* Decorative border with Islamic-inspired pattern */
+.border-decorative {
+  border-image: linear-gradient(90deg, var(--color-secondary), var(--color-accent), var(--color-secondary)) 1;
+}
+
+/* Ornamental divider */
+.divider-ornate {
+  position: relative;
+  text-align: center;
+  overflow: visible;
+}
+
+.divider-ornate::before,
+.divider-ornate::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 30%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-secondary), transparent);
+}
+
+.divider-ornate::before { left: 0; }
+.divider-ornate::after { right: 0; }
 
 @layer base {
   * {
     @apply border-border;
   }
-  
+
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background-color: var(--color-background);
     font-feature-settings: "rlig" 1, "calt" 1;
   }
-  
+
   html[dir="rtl"] {
     direction: rtl;
   }
-  
+
   html[dir="rtl"] .rtl-flip {
     transform: scaleX(-1);
+  }
+
+  /* Smooth selection colors */
+  ::selection {
+    background-color: var(--color-secondary);
+    color: var(--color-charcoal);
+  }
+
+  /* Focus visible for accessibility */
+  :focus-visible {
+    outline: 2px solid var(--color-secondary);
+    outline-offset: 2px;
   }
 }
 
@@ -80,13 +153,17 @@
   .text-balance {
     text-wrap: balance;
   }
-  
+
   .font-inter {
     font-family: var(--font-inter);
   }
 
-  .font-tajawal {
-    font-family: var(--font-tajawal);
+  .font-cairo {
+    font-family: var(--font-cairo);
+  }
+
+  .font-arabic {
+    font-family: var(--font-arabic);
   }
 
   .font-serif {
@@ -96,32 +173,37 @@
   .font-prestige {
     font-family: var(--font-serif);
   }
-  
+
+  /* Legacy support - map tajawal to cairo */
+  .font-tajawal {
+    font-family: var(--font-cairo);
+  }
+
   /* Enhanced typography for admin interface */
   .admin-text-sm {
     font-size: 0.875rem;
     line-height: 1.5;
     letter-spacing: 0.025em;
   }
-  
+
   .admin-text-base {
     font-size: 1rem;
     line-height: 1.6;
     letter-spacing: 0.025em;
   }
-  
+
   .admin-text-lg {
     font-size: 1.125rem;
     line-height: 1.6;
     letter-spacing: 0.025em;
   }
-  
+
   .admin-heading {
     font-weight: 600;
     letter-spacing: -0.025em;
     line-height: 1.25;
   }
-  
+
   /* Accessibility improvements */
   @media (prefers-reduced-motion: reduce) {
     .animate-fade-in,
@@ -133,33 +215,170 @@
       transition-duration: 0.01ms !important;
     }
   }
-  
+
   /* High contrast mode support */
   @media (prefers-contrast: high) {
     .gradient-text {
-      @apply text-purple-900 bg-none;
+      color: var(--color-primary);
+      background: none;
     }
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-purple-900 to-yellow-700 bg-clip-text text-transparent;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
   }
-  
+
   /* Improved contrast for buttons and interactive elements */
   .btn-primary {
-    @apply bg-purple-800 hover:bg-purple-900 focus:ring-purple-700 focus:ring-4 focus:ring-opacity-50;
+    background-color: var(--color-primary);
+    color: white;
+    transition: all 0.3s ease;
   }
-  
+
+  .btn-primary:hover {
+    background-color: var(--color-deep-burgundy);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-luxury);
+  }
+
+  .btn-primary:focus {
+    ring: 4px;
+    ring-color: var(--color-primary);
+    ring-opacity: 0.3;
+  }
+
   .btn-secondary {
-    @apply bg-yellow-600 hover:bg-yellow-700 text-gray-900 focus:ring-yellow-500 focus:ring-4 focus:ring-opacity-50;
+    background-color: var(--color-secondary);
+    color: var(--color-charcoal);
+    transition: all 0.3s ease;
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--color-accent);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-luxury);
+  }
+
+  .btn-outline {
+    background-color: transparent;
+    border: 2px solid var(--color-primary);
+    color: var(--color-primary);
+    transition: all 0.3s ease;
+  }
+
+  .btn-outline:hover {
+    background-color: var(--color-primary);
+    color: white;
   }
 
   .luxury-shadow {
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-elegant);
+  }
+
+  .card-shadow {
+    box-shadow: var(--shadow-card);
   }
 
   .hero-blur {
     backdrop-filter: blur(10px);
+  }
+
+  /* Elegant card styles */
+  .card-elegant {
+    background-color: white;
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    border: 1px solid rgba(212, 175, 55, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .card-elegant:hover {
+    box-shadow: var(--shadow-luxury);
+    transform: translateY(-4px);
+    border-color: rgba(212, 175, 55, 0.3);
+  }
+
+  /* Decorative heading with underline */
+  .heading-decorated {
+    position: relative;
+    display: inline-block;
+    padding-bottom: 0.75rem;
+  }
+
+  .heading-decorated::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-secondary), var(--color-accent));
+    border-radius: 2px;
+  }
+
+  [dir="rtl"] .heading-decorated::after {
+    left: auto;
+    right: 0;
+  }
+
+  /* Gold accent line */
+  .accent-line {
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--color-secondary), var(--color-accent));
+    border-radius: 2px;
+  }
+
+  /* Subtle pattern overlay */
+  .pattern-overlay {
+    position: relative;
+  }
+
+  .pattern-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D4AF37' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  /* Warm hover effects */
+  .hover-warm {
+    transition: all 0.3s ease;
+  }
+
+  .hover-warm:hover {
+    color: var(--color-primary);
+  }
+
+  /* Link with underline animation */
+  .link-animated {
+    position: relative;
+    text-decoration: none;
+  }
+
+  .link-animated::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background-color: var(--color-secondary);
+    transition: width 0.3s ease;
+  }
+
+  .link-animated:hover::after {
+    width: 100%;
+  }
+
+  [dir="rtl"] .link-animated::after {
+    left: auto;
+    right: 0;
   }
 }
 
@@ -218,15 +437,16 @@
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  @apply bg-transparent;
+  background: var(--color-sand);
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 dark:bg-slate-600 rounded-full;
+  background: var(--color-accent);
+  border-radius: 9999px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400 dark:bg-slate-500;
+  background: var(--color-secondary);
 }
 
 /* Custom scrollbar */
@@ -235,15 +455,36 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100;
+  background: var(--color-sand);
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded-full;
+  background: linear-gradient(180deg, var(--color-secondary), var(--color-accent));
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400;
+  background: var(--color-secondary);
+}
+
+/* Dark mode adjustments */
+.dark {
+  --color-background: #1A1412;
+  --color-text: #F5EDE4;
+  --color-muted: #9C8B7A;
+  --color-cream: #2D2420;
+  --color-sand: #3D3530;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --shadow-luxury: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--color-cream);
+}
+
+.dark ::selection {
+  background-color: var(--color-primary);
+  color: white;
 }
 
 /* RTL specific styles */

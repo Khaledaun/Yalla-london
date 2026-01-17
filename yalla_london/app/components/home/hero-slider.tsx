@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, User } from 'lucide-react'
 
 interface Article {
   id: string
@@ -133,13 +133,15 @@ export function HeroSlider({ articles, locale = 'en' }: HeroSliderProps) {
   }
 
   return (
-    <section className="relative h-[70vh] min-h-[500px] max-h-[700px] overflow-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
+    <section className="relative h-[75vh] min-h-[550px] max-h-[750px] overflow-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Slides */}
       {slides.map((slide, index) => (
         <div
           key={slide.id}
-          className={`absolute inset-0 transition-opacity duration-500 ${
-            index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
+          className={`absolute inset-0 transition-all duration-700 ease-out ${
+            index === currentSlide
+              ? 'opacity-100 z-10 scale-100'
+              : 'opacity-0 z-0 scale-105'
           }`}
         >
           {/* Background Image */}
@@ -151,45 +153,67 @@ export function HeroSlider({ articles, locale = 'en' }: HeroSliderProps) {
               className="object-cover"
               priority={index === 0}
             />
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+            {/* Elegant Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-burgundy-900/90 via-burgundy-900/40 to-burgundy-900/20" />
+            {/* Subtle pattern overlay */}
+            <div className="absolute inset-0 bg-pattern-arabesque opacity-30" />
           </div>
 
           {/* Content */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center max-w-4xl px-6">
-              {/* Category */}
+              {/* Category Badge */}
               {slide.category && (
                 <Link
                   href={`/${locale === 'ar' ? 'ar/' : ''}blog?category=${slide.category.slug}`}
-                  className="inline-block mb-4 text-sm font-medium text-orange-400 hover:text-orange-300 uppercase tracking-wider"
+                  className="inline-flex items-center gap-2 mb-6 px-5 py-2 bg-gold-400/90 backdrop-blur-sm text-burgundy-900 rounded-full text-sm font-semibold uppercase tracking-wider hover:bg-gold-300 transition-colors shadow-lg"
                 >
+                  <span className="w-1.5 h-1.5 bg-burgundy-800 rounded-full" />
                   {slide.category.name}
                 </Link>
               )}
 
               {/* Title */}
-              <h2 className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold text-white mb-4 leading-tight">
+              <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif font-bold text-white mb-6 leading-tight drop-shadow-lg">
                 <Link
                   href={`/${locale === 'ar' ? 'ar/' : ''}blog/${slide.slug}`}
-                  className="hover:text-orange-400 transition-colors"
+                  className="hover:text-gold-300 transition-colors duration-300"
                 >
                   {slide.title}
                 </Link>
               </h2>
 
-              {/* Meta */}
-              <div className="flex items-center justify-center space-x-4 text-white/80 text-sm">
+              {/* Excerpt */}
+              {slide.excerpt && (
+                <p className="text-lg md:text-xl text-cream-200 mb-8 max-w-2xl mx-auto leading-relaxed">
+                  {slide.excerpt}
+                </p>
+              )}
+
+              {/* Meta Info */}
+              <div className="flex items-center justify-center gap-6 text-cream-300 text-sm">
                 {slide.publishedAt && (
-                  <span>{formatDate(slide.publishedAt)}</span>
+                  <div className="flex items-center gap-2">
+                    <Calendar size={16} className="text-gold-400" />
+                    <span>{formatDate(slide.publishedAt)}</span>
+                  </div>
                 )}
                 {slide.author && (
-                  <>
-                    <span className="text-white/50">/</span>
+                  <div className="flex items-center gap-2">
+                    <User size={16} className="text-gold-400" />
                     <span>{slide.author.name}</span>
-                  </>
+                  </div>
                 )}
               </div>
+
+              {/* Read More Button */}
+              <Link
+                href={`/${locale === 'ar' ? 'ar/' : ''}blog/${slide.slug}`}
+                className="inline-flex items-center gap-2 mt-8 px-8 py-3.5 bg-white text-burgundy-800 rounded-lg font-semibold shadow-elegant hover:bg-cream-100 hover:shadow-hover transition-all duration-300 hover:-translate-y-1"
+              >
+                <span>{locale === 'ar' ? 'اقرأ المزيد' : 'Read More'}</span>
+                <ChevronRight size={18} className={isRTL ? 'rotate-180' : ''} />
+              </Link>
             </div>
           </div>
         </div>
@@ -198,34 +222,44 @@ export function HeroSlider({ articles, locale = 'en' }: HeroSliderProps) {
       {/* Navigation Arrows */}
       <button
         onClick={isRTL ? nextSlide : prevSlide}
-        className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 z-20 p-3 text-white/70 hover:text-white transition-colors`}
+        className={`absolute ${isRTL ? 'right-6' : 'left-6'} top-1/2 -translate-y-1/2 z-20 p-3 bg-white/10 backdrop-blur-sm text-white rounded-full hover:bg-gold-400 hover:text-burgundy-900 transition-all duration-300 hover:scale-110 border border-white/20`}
         aria-label="Previous slide"
       >
-        <ChevronLeft size={40} />
+        <ChevronLeft size={28} />
       </button>
       <button
         onClick={isRTL ? prevSlide : nextSlide}
-        className={`absolute ${isRTL ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 z-20 p-3 text-white/70 hover:text-white transition-colors`}
+        className={`absolute ${isRTL ? 'left-6' : 'right-6'} top-1/2 -translate-y-1/2 z-20 p-3 bg-white/10 backdrop-blur-sm text-white rounded-full hover:bg-gold-400 hover:text-burgundy-900 transition-all duration-300 hover:scale-110 border border-white/20`}
         aria-label="Next slide"
       >
-        <ChevronRight size={40} />
+        <ChevronRight size={28} />
       </button>
 
-      {/* Dots */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex space-x-2">
+      {/* Progress Dots */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
         {slides.map((_, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}
-            className={`w-2 h-2 rounded-full transition-all ${
+            className={`relative h-2 rounded-full transition-all duration-300 overflow-hidden ${
               index === currentSlide
-                ? 'bg-orange-500 w-8'
-                : 'bg-white/50 hover:bg-white/70'
+                ? 'w-10 bg-gold-400'
+                : 'w-2 bg-white/40 hover:bg-white/60'
             }`}
             aria-label={`Go to slide ${index + 1}`}
-          />
+          >
+            {index === currentSlide && (
+              <span className="absolute inset-0 bg-gradient-to-r from-gold-300 to-gold-500 animate-shimmer" />
+            )}
+          </button>
         ))}
       </div>
+
+      {/* Decorative corner elements */}
+      <div className="absolute top-0 left-0 w-32 h-32 border-l-2 border-t-2 border-gold-400/30 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-32 h-32 border-r-2 border-t-2 border-gold-400/30 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 border-l-2 border-b-2 border-gold-400/30 pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-32 h-32 border-r-2 border-b-2 border-gold-400/30 pointer-events-none" />
     </section>
   )
 }

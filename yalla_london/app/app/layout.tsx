@@ -94,7 +94,7 @@ export default function RootLayout({
         <meta name="ICBM" content="51.5074, -0.1278" />
         <meta name="google-site-verification" content="your-google-verification-code" />
       </head>
-      <body className="font-tajawal antialiased" suppressHydrationWarning>
+      <body className="font-cairo antialiased" suppressHydrationWarning>
         <NextAuthSessionProvider>
           <BrandThemeProvider>
             <ThemeProvider

@@ -125,16 +125,15 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Integrate with actual newsletter API
     setSubscribed(true)
     setEmail('')
   }
 
   const text = {
     en: {
-      aboutTitle: 'About Me',
+      aboutTitle: 'About Us',
       aboutText: 'Welcome to Yalla London! Your ultimate guide to experiencing London through an Arabic lens. We cover the best halal restaurants, cultural events, hidden gems, and everything you need to know about life in this amazing city.',
-      moreAbout: 'more about me',
+      moreAbout: 'Learn More',
       followUs: 'Follow Us',
       newsletter: 'Newsletter',
       newsletterText: 'Subscribe to get the latest updates from Yalla London',
@@ -148,7 +147,7 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
     ar: {
       aboutTitle: 'من نحن',
       aboutText: 'مرحباً بكم في يلا لندن! دليلكم الشامل لاستكشاف لندن من منظور عربي. نغطي أفضل المطاعم الحلال والفعاليات الثقافية والأماكن المخفية وكل ما تحتاج معرفته عن الحياة في هذه المدينة الرائعة.',
-      moreAbout: 'اقرأ المزيد عنا',
+      moreAbout: 'اقرأ المزيد',
       followUs: 'تابعنا',
       newsletter: 'النشرة الإخبارية',
       newsletterText: 'اشترك للحصول على آخر التحديثات من يلا لندن',
@@ -166,13 +165,13 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
   return (
     <aside className="space-y-8" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* About Widget */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
-        <h3 className="text-lg font-serif font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+      <div className="card-elegant p-6">
+        <h3 className="text-lg font-serif font-bold text-warm-charcoal dark:text-cream-100 mb-4 pb-3 border-b border-gold-200/30">
           {t.aboutTitle}
-          <span className="block w-8 h-0.5 bg-orange-500 mt-2"></span>
+          <span className="block w-12 h-0.5 bg-gradient-to-r from-gold-400 to-gold-500 mt-3 rounded-full"></span>
         </h3>
         <div className="text-center">
-          <div className="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden border-2 border-orange-500">
+          <div className="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden border-3 border-gold-400 shadow-luxury">
             <Image
               src="/images/london-logo.jpg"
               alt="Yalla London"
@@ -181,24 +180,24 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
               className="w-full h-full object-cover"
             />
           </div>
-          <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-4">
+          <p className="text-warm-gray dark:text-cream-300 text-sm leading-relaxed mb-4">
             {t.aboutText}
           </p>
           <Link
             href={`/${locale === 'ar' ? 'ar/' : ''}about`}
-            className="inline-flex items-center gap-2 text-sm text-orange-500 hover:text-orange-600 font-medium"
+            className="inline-flex items-center gap-2 text-sm text-burgundy-800 hover:text-burgundy-600 font-semibold transition-colors group"
           >
             {t.moreAbout}
-            <ArrowRight size={14} className={isRTL ? 'rotate-180' : ''} />
+            <ArrowRight size={14} className={`${isRTL ? 'rotate-180' : ''} group-hover:translate-x-1 transition-transform`} />
           </Link>
         </div>
       </div>
 
       {/* Social + Newsletter Widget */}
-      <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-6">
+      <div className="bg-gradient-to-br from-cream-100 to-cream-200 dark:from-cream-900 dark:to-cream-950 rounded-card p-6 border border-gold-200/20">
         {/* Follow Us */}
         <div className="text-center mb-6">
-          <h3 className="text-lg font-serif font-bold text-gray-900 dark:text-white mb-4">
+          <h3 className="text-lg font-serif font-bold text-warm-charcoal dark:text-cream-100 mb-4">
             {t.followUs}
           </h3>
           <div className="flex items-center justify-center gap-3">
@@ -206,7 +205,7 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
               href="https://facebook.com/yallalondon"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center hover:scale-110 transition-transform"
+              className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center hover:scale-110 hover:shadow-luxury transition-all duration-300"
             >
               <Facebook size={18} />
             </a>
@@ -214,7 +213,7 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
               href="https://instagram.com/yallalondon"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 text-white flex items-center justify-center hover:scale-110 transition-transform"
+              className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-600 to-pink-500 text-white flex items-center justify-center hover:scale-110 hover:shadow-luxury transition-all duration-300"
             >
               <Instagram size={18} />
             </a>
@@ -222,7 +221,7 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
               href="https://twitter.com/yallalondon"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full bg-sky-500 text-white flex items-center justify-center hover:scale-110 transition-transform"
+              className="w-11 h-11 rounded-xl bg-sky-500 text-white flex items-center justify-center hover:scale-110 hover:shadow-luxury transition-all duration-300"
             >
               <Twitter size={18} />
             </a>
@@ -230,7 +229,7 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
               href="https://youtube.com/yallalondon"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center hover:scale-110 transition-transform"
+              className="w-11 h-11 rounded-xl bg-red-600 text-white flex items-center justify-center hover:scale-110 hover:shadow-luxury transition-all duration-300"
             >
               <Youtube size={18} />
             </a>
@@ -238,15 +237,15 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
         </div>
 
         {/* Newsletter */}
-        <div className="pt-6 border-t border-orange-200 dark:border-gray-700">
-          <h3 className="text-lg font-serif font-bold text-gray-900 dark:text-white mb-2 text-center">
+        <div className="pt-6 border-t border-gold-300/30">
+          <h3 className="text-lg font-serif font-bold text-warm-charcoal dark:text-cream-100 mb-2 text-center">
             {t.newsletter}
           </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400 text-center mb-4">
+          <p className="text-sm text-warm-gray dark:text-cream-400 text-center mb-4">
             {t.newsletterText}
           </p>
           {subscribed ? (
-            <p className="text-center text-green-600 font-medium">{t.subscribed}</p>
+            <p className="text-center text-emerald-600 font-medium bg-emerald-50 py-3 rounded-lg">{t.subscribed}</p>
           ) : (
             <form onSubmit={handleSubscribe} className="flex gap-2">
               <input
@@ -255,11 +254,11 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t.emailPlaceholder}
                 required
-                className="flex-1 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-gold-300/30 bg-white dark:bg-cream-900 text-warm-charcoal dark:text-cream-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-400 focus:border-transparent transition-all"
               />
               <button
                 type="submit"
-                className="px-4 py-2 rounded-full bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+                className="px-4 py-2.5 rounded-lg bg-burgundy-800 text-white hover:bg-burgundy-700 transition-all duration-300 hover:shadow-luxury"
               >
                 <Send size={18} />
               </button>
@@ -269,10 +268,10 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
       </div>
 
       {/* Popular Posts */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
-        <h3 className="text-lg font-serif font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+      <div className="card-elegant p-6">
+        <h3 className="text-lg font-serif font-bold text-warm-charcoal dark:text-cream-100 mb-4 pb-3 border-b border-gold-200/30">
           {t.popularPosts}
-          <span className="block w-8 h-0.5 bg-orange-500 mt-2"></span>
+          <span className="block w-12 h-0.5 bg-gradient-to-r from-gold-400 to-gold-500 mt-3 rounded-full"></span>
         </h3>
         <div className="space-y-4">
           {popular.map((article) => (
@@ -287,52 +286,52 @@ export function Sidebar({ popularArticles, categories, tags, locale = 'en' }: Si
       </div>
 
       {/* Categories */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
-        <h3 className="text-lg font-serif font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+      <div className="card-elegant p-6">
+        <h3 className="text-lg font-serif font-bold text-warm-charcoal dark:text-cream-100 mb-4 pb-3 border-b border-gold-200/30">
           {t.categories}
-          <span className="block w-8 h-0.5 bg-orange-500 mt-2"></span>
+          <span className="block w-12 h-0.5 bg-gradient-to-r from-gold-400 to-gold-500 mt-3 rounded-full"></span>
         </h3>
         <div className="space-y-2">
           {cats.map((category) => (
             <Link
               key={category.slug}
               href={`/${locale === 'ar' ? 'ar/' : ''}blog?category=${category.slug}`}
-              className="group flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="group flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-cream-100 dark:hover:bg-cream-900 transition-all duration-300"
             >
               <div className="flex items-center gap-3">
                 {category.image && (
-                  <div className="w-10 h-10 rounded-lg overflow-hidden">
+                  <div className="w-10 h-10 rounded-lg overflow-hidden border border-gold-200/30 shadow-sm">
                     <Image
                       src={category.image}
                       alt={category.name}
                       width={40}
                       height={40}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                   </div>
                 )}
-                <span className="text-gray-700 dark:text-gray-300 group-hover:text-orange-500 transition-colors">
+                <span className="text-warm-charcoal dark:text-cream-200 group-hover:text-burgundy-800 font-medium transition-colors">
                   {category.name}
                 </span>
               </div>
-              <span className="text-sm text-gray-400">{category.count}</span>
+              <span className="text-sm text-warm-gray bg-cream-200 dark:bg-cream-800 px-2 py-0.5 rounded-full">{category.count}</span>
             </Link>
           ))}
         </div>
       </div>
 
       {/* Tags */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
-        <h3 className="text-lg font-serif font-bold text-gray-900 dark:text-white mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+      <div className="card-elegant p-6">
+        <h3 className="text-lg font-serif font-bold text-warm-charcoal dark:text-cream-100 mb-4 pb-3 border-b border-gold-200/30">
           {t.tags}
-          <span className="block w-8 h-0.5 bg-orange-500 mt-2"></span>
+          <span className="block w-12 h-0.5 bg-gradient-to-r from-gold-400 to-gold-500 mt-3 rounded-full"></span>
         </h3>
         <div className="flex flex-wrap gap-2">
           {tagList.map((tag) => (
             <Link
               key={tag}
               href={`/${locale === 'ar' ? 'ar/' : ''}blog?tag=${encodeURIComponent(tag)}`}
-              className="px-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-orange-500 hover:text-white transition-colors"
+              className="px-3 py-1.5 text-sm bg-cream-100 dark:bg-cream-800 text-warm-charcoal dark:text-cream-200 rounded-lg hover:bg-burgundy-800 hover:text-white border border-gold-200/20 transition-all duration-300"
             >
               {tag}
             </Link>

@@ -4,98 +4,191 @@
 import Link from 'next/link'
 import { useLanguage } from './language-provider'
 import { getTranslation } from '@/lib/i18n'
+import { Instagram, Facebook, Twitter, Youtube, Mail, MapPin, Phone } from 'lucide-react'
 
 export function Footer() {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
 
+  const currentYear = new Date().getFullYear()
+
+  const socialLinks = [
+    { icon: Instagram, href: 'https://instagram.com/yallalondon', label: 'Instagram' },
+    { icon: Facebook, href: 'https://facebook.com/yallalondon', label: 'Facebook' },
+    { icon: Twitter, href: 'https://twitter.com/yallalondon', label: 'Twitter' },
+    { icon: Youtube, href: 'https://youtube.com/yallalondon', label: 'YouTube' },
+  ]
+
   return (
-    <footer className={`bg-gray-900 text-white py-12 ${isRTL ? 'rtl' : 'ltr'}`}>
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+    <footer className={`bg-burgundy-900 text-cream-100 ${isRTL ? 'rtl' : 'ltr'}`}>
+      {/* Decorative top border */}
+      <div className="h-1 w-full bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
+
+      {/* Main Footer Content */}
+      <div className="max-w-7xl mx-auto px-6 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           {/* Brand Column */}
-          <div className="md:col-span-2">
-            <h3 className="text-2xl font-bold text-yellow-400 mb-4">Yalla London</h3>
-            <p className="text-gray-300 mb-4">{t('footerText') || 'Your ultimate guide to London lifestyle, travel, and experiences.'}</p>
-            <p className="text-gray-400 text-sm">
-              Discover the best of London with curated recommendations, insider tips, and local insights.
+          <div className="lg:col-span-1">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-burgundy-900 font-bold text-xl shadow-lg">
+                Y
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Yalla London</h3>
+                <p className="text-gold-400 text-sm font-medium">
+                  {language === 'en' ? 'Luxury London Guide' : 'دليل لندن الفاخر'}
+                </p>
+              </div>
+            </div>
+            <p className="text-cream-300 mb-6 leading-relaxed">
+              {language === 'en'
+                ? 'Your curated guide to the finest luxury experiences in London. Discover hidden gems, exclusive events, and unforgettable moments.'
+                : 'دليلك المنسق لأفضل التجارب الفاخرة في لندن. اكتشف الكنوز المخفية والفعاليات الحصرية واللحظات التي لا تُنسى.'
+              }
             </p>
+            {/* Social Links */}
+            <div className="flex items-center gap-3">
+              {socialLinks.map((social) => (
+                <a
+                  key={social.label}
+                  href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-10 rounded-lg bg-burgundy-800 hover:bg-gold-400 text-cream-200 hover:text-burgundy-900 flex items-center justify-center transition-all duration-300 hover:-translate-y-1"
+                  aria-label={social.label}
+                >
+                  <social.icon size={18} />
+                </a>
+              ))}
+            </div>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-lg font-semibold text-white mb-4">Quick Links</h4>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/blog" className="text-gray-300 hover:text-yellow-400 transition-colors">
-                  Blog
-                </Link>
-              </li>
-              <li>
-                <Link href="/events" className="text-gray-300 hover:text-yellow-400 transition-colors">
-                  Events
-                </Link>
-              </li>
-              <li>
-                <Link href="/recommendations" className="text-gray-300 hover:text-yellow-400 transition-colors">
-                  Recommendations
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-gray-300 hover:text-yellow-400 transition-colors">
-                  Contact
-                </Link>
-              </li>
+            <h4 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <span className="w-8 h-0.5 bg-gold-400" />
+              {language === 'en' ? 'Explore' : 'استكشف'}
+            </h4>
+            <ul className="space-y-3">
+              {[
+                { href: '/blog', en: 'London Stories', ar: 'حكايات لندن' },
+                { href: '/recommendations', en: 'Recommendations', ar: 'التوصيات' },
+                { href: '/events', en: 'Events & Tickets', ar: 'الفعاليات والتذاكر' },
+                { href: '/about', en: 'The Founder', ar: 'المؤسس' },
+                { href: '/contact', en: 'Contact Us', ar: 'تواصل معنا' },
+              ].map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-cream-300 hover:text-gold-400 transition-colors duration-300 flex items-center gap-2 group"
+                  >
+                    <span className="w-0 group-hover:w-2 h-0.5 bg-gold-400 transition-all duration-300" />
+                    {language === 'en' ? link.en : link.ar}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Legal & Support */}
+          {/* Categories */}
           <div>
-            <h4 className="text-lg font-semibold text-white mb-4">Legal & Support</h4>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/privacy" className="text-gray-300 hover:text-yellow-400 transition-colors">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="text-gray-300 hover:text-yellow-400 transition-colors">
-                  Terms of Use
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact" className="text-gray-300 hover:text-yellow-400 transition-colors">
-                  Support
-                </Link>
-              </li>
-              <li>
-                <a 
-                  href="mailto:privacy@yalla-london.com" 
-                  className="text-gray-300 hover:text-yellow-400 transition-colors"
-                >
-                  Data Rights
-                </a>
-              </li>
+            <h4 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <span className="w-8 h-0.5 bg-gold-400" />
+              {language === 'en' ? 'Categories' : 'التصنيفات'}
+            </h4>
+            <ul className="space-y-3">
+              {[
+                { href: '/blog?category=food', en: 'Food & Dining', ar: 'الطعام والمطاعم' },
+                { href: '/blog?category=travel', en: 'Travel & Explore', ar: 'السفر والاستكشاف' },
+                { href: '/blog?category=culture', en: 'Culture & Art', ar: 'الثقافة والفن' },
+                { href: '/blog?category=shopping', en: 'Style & Shopping', ar: 'الأناقة والتسوق' },
+                { href: '/blog?category=lifestyle', en: 'Lifestyle', ar: 'نمط الحياة' },
+              ].map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="text-cream-300 hover:text-gold-400 transition-colors duration-300 flex items-center gap-2 group"
+                  >
+                    <span className="w-0 group-hover:w-2 h-0.5 bg-gold-400 transition-all duration-300" />
+                    {language === 'en' ? link.en : link.ar}
+                  </Link>
+                </li>
+              ))}
             </ul>
+          </div>
+
+          {/* Contact & Newsletter */}
+          <div>
+            <h4 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <span className="w-8 h-0.5 bg-gold-400" />
+              {language === 'en' ? 'Stay Connected' : 'ابق على تواصل'}
+            </h4>
+
+            {/* Contact Info */}
+            <div className="space-y-4 mb-6">
+              <a
+                href="mailto:hello@yallalondon.com"
+                className="flex items-center gap-3 text-cream-300 hover:text-gold-400 transition-colors"
+              >
+                <Mail size={18} className="text-gold-400" />
+                <span>hello@yallalondon.com</span>
+              </a>
+              <div className="flex items-center gap-3 text-cream-300">
+                <MapPin size={18} className="text-gold-400" />
+                <span>{language === 'en' ? 'London, United Kingdom' : 'لندن، المملكة المتحدة'}</span>
+              </div>
+            </div>
+
+            {/* Newsletter */}
+            <div className="bg-burgundy-800/50 rounded-xl p-4 border border-gold-400/10">
+              <p className="text-sm text-cream-300 mb-3">
+                {language === 'en'
+                  ? 'Subscribe to our newsletter for exclusive updates'
+                  : 'اشترك في نشرتنا الإخبارية للحصول على تحديثات حصرية'
+                }
+              </p>
+              <form className="flex gap-2">
+                <input
+                  type="email"
+                  placeholder={language === 'en' ? 'Your email' : 'بريدك الإلكتروني'}
+                  className="flex-1 px-4 py-2 bg-burgundy-900 border border-gold-400/20 rounded-lg text-cream-100 placeholder:text-cream-500 focus:outline-none focus:border-gold-400 transition-colors text-sm"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-gold-400 text-burgundy-900 rounded-lg font-medium hover:bg-gold-300 transition-colors"
+                >
+                  <Mail size={18} />
+                </button>
+              </form>
+            </div>
           </div>
         </div>
 
-        <div className="border-t border-gray-800 pt-6">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm mb-2 md:mb-0">
-              © 2025 Yalla London. All rights reserved.
-            </p>
-            <div className="flex space-x-4 text-sm text-gray-400">
-              <Link href="/privacy" className="hover:text-yellow-400 transition-colors">
-                Privacy
-              </Link>
-              <Link href="/terms" className="hover:text-yellow-400 transition-colors">
-                Terms
-              </Link>
-              <a href="mailto:legal@yalla-london.com" className="hover:text-yellow-400 transition-colors">
-                Legal
-              </a>
-            </div>
+        {/* Decorative Divider */}
+        <div className="flex items-center gap-4 my-8">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gold-400/30 to-transparent" />
+          <div className="w-2 h-2 bg-gold-400 rotate-45" />
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gold-400/30 to-transparent" />
+        </div>
+
+        {/* Bottom Bar */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <p className="text-cream-400 text-sm">
+            © {currentYear} Yalla London. {language === 'en' ? 'All rights reserved.' : 'جميع الحقوق محفوظة.'}
+          </p>
+          <div className="flex items-center gap-6 text-sm">
+            <Link href="/privacy" className="text-cream-400 hover:text-gold-400 transition-colors">
+              {language === 'en' ? 'Privacy Policy' : 'سياسة الخصوصية'}
+            </Link>
+            <Link href="/terms" className="text-cream-400 hover:text-gold-400 transition-colors">
+              {language === 'en' ? 'Terms of Use' : 'شروط الاستخدام'}
+            </Link>
+            <a
+              href="mailto:legal@yalla-london.com"
+              className="text-cream-400 hover:text-gold-400 transition-colors"
+            >
+              {language === 'en' ? 'Legal' : 'القانونية'}
+            </a>
           </div>
         </div>
       </div>

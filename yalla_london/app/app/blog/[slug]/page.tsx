@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 import { blogPosts, categories } from '@/data/blog-content'
 import { extendedBlogPosts } from '@/data/blog-content-extended'
+import { markdownToHtml } from '@/lib/markdown'
 import BlogPostClient from './BlogPostClient'
 
 // Combine all static blog posts
@@ -168,7 +169,7 @@ function generateStructuredData(post: typeof allStaticPosts[0]) {
   return { articleSchema, breadcrumbSchema }
 }
 
-// Transform post for client component (serialize dates)
+// Transform post for client component (serialize dates and convert markdown to HTML)
 function transformPostForClient(post: typeof allStaticPosts[0]) {
   const category = categories.find(c => c.id === post.category_id)
 
@@ -176,8 +177,9 @@ function transformPostForClient(post: typeof allStaticPosts[0]) {
     id: post.id,
     title_en: post.title_en,
     title_ar: post.title_ar,
-    content_en: post.content_en,
-    content_ar: post.content_ar,
+    // Convert markdown content to HTML
+    content_en: markdownToHtml(post.content_en),
+    content_ar: markdownToHtml(post.content_ar),
     excerpt_en: post.excerpt_en,
     excerpt_ar: post.excerpt_ar,
     slug: post.slug,

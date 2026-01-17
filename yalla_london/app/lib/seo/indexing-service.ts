@@ -12,6 +12,8 @@ import { blogPosts } from '@/data/blog-content';
 import { extendedBlogPosts } from '@/data/blog-content-extended';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+// GSC property URL - may differ from BASE_URL (e.g., no www)
+const GSC_SITE_URL = process.env.GSC_SITE_URL || 'https://yalla-london.com';
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'yallalondon2026key';
 
 // Combine all posts
@@ -129,7 +131,7 @@ export class GoogleSearchConsoleAPI {
   private credentials: GSCCredentials | null = null;
   private siteUrl: string;
 
-  constructor(siteUrl: string = BASE_URL) {
+  constructor(siteUrl: string = GSC_SITE_URL) {
     this.siteUrl = siteUrl;
 
     // Load credentials from environment (support both naming conventions)

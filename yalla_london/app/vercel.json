@@ -103,6 +103,14 @@
     {
       "path": "/api/cron/social",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/seo/cron?task=daily",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/seo/cron?task=weekly",
+      "schedule": "0 8 * * 0"
     }
   ]
 }

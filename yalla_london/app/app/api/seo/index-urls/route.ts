@@ -1,206 +1,133 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { blogPosts } from '@/data/blog-content'
-import { extendedBlogPosts } from '@/data/blog-content-extended'
-
-// IndexNow API key - you should generate your own at https://www.indexnow.org/
-const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'yalla-london-indexnow-key-2026'
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com'
-
-// Combine all static posts
-const allStaticPosts = [...blogPosts, ...extendedBlogPosts]
-
-interface IndexNowPayload {
-  host: string
-  key: string
-  keyLocation: string
-  urlList: string[]
-}
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  submitToIndexNow,
+  pingSitemaps,
+  getAllIndexableUrls,
+  getNewUrls,
+  getUpdatedUrls,
+  runAutomatedIndexing,
+  gscApi,
+} from '@/lib/seo/indexing-service';
 
 /**
- * Submit URLs to IndexNow for rapid indexing
- * IndexNow is supported by Bing, Yandex, and soon Google
+ * GET: List all indexable URLs and their count
  */
-async function submitToIndexNow(urls: string[]): Promise<{ success: boolean; message: string }> {
-  const payload: IndexNowPayload = {
-    host: new URL(BASE_URL).host,
-    key: INDEXNOW_KEY,
-    keyLocation: `${BASE_URL}/${INDEXNOW_KEY}.txt`,
-    urlList: urls,
-  }
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const action = searchParams.get('action');
 
-  try {
-    const response = await fetch('https://api.indexnow.org/indexnow', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
-
-    if (response.ok) {
-      return { success: true, message: `Successfully submitted ${urls.length} URLs to IndexNow` }
-    } else {
-      const errorText = await response.text()
-      return { success: false, message: `IndexNow error: ${response.status} - ${errorText}` }
+  // Check indexing status via GSC API
+  if (action === 'status') {
+    const url = searchParams.get('url');
+    if (!url) {
+      return NextResponse.json({ error: 'URL parameter required' }, { status: 400 });
     }
-  } catch (error) {
-    return { success: false, message: `IndexNow request failed: ${error}` }
-  }
-}
 
-/**
- * Submit URLs to Google Search Console Indexing API
- * Requires Google Search Console API credentials
- */
-async function submitToGoogleIndexing(urls: string[]): Promise<{ success: boolean; message: string }> {
-  // Note: Google Indexing API requires OAuth2 credentials
-  // This is a placeholder - implement with actual Google credentials
-  const googleApiKey = process.env.GOOGLE_INDEXING_API_KEY
-
-  if (!googleApiKey) {
-    return { success: false, message: 'Google Indexing API key not configured' }
+    const status = await gscApi.checkIndexingStatus(url);
+    return NextResponse.json({
+      success: !!status,
+      data: status,
+      note: status ? undefined : 'GSC API credentials not configured or API error',
+    });
   }
 
-  try {
-    const results = await Promise.all(
-      urls.map(async (url) => {
-        const response = await fetch(
-          `https://indexing.googleapis.com/v3/urlNotifications:publish?key=${googleApiKey}`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              url: url,
-              type: 'URL_UPDATED',
-            }),
-          }
-        )
-        return response.ok
-      })
-    )
+  // Get search analytics
+  if (action === 'analytics') {
+    const startDate = searchParams.get('start') || getDateString(-28);
+    const endDate = searchParams.get('end') || getDateString(0);
 
-    const successCount = results.filter(Boolean).length
-    return {
-      success: successCount > 0,
-      message: `Submitted ${successCount}/${urls.length} URLs to Google Indexing API`,
-    }
-  } catch (error) {
-    return { success: false, message: `Google Indexing request failed: ${error}` }
+    const analytics = await gscApi.getSearchAnalytics(startDate, endDate);
+    return NextResponse.json({
+      success: !!analytics,
+      data: analytics,
+      note: analytics ? undefined : 'GSC API credentials not configured or API error',
+    });
   }
-}
 
-/**
- * Ping Google and Bing sitemaps
- */
-async function pingSitemaps(): Promise<{ google: boolean; bing: boolean }> {
-  const sitemapUrl = `${BASE_URL}/sitemap.xml`
-
-  const [googleResult, bingResult] = await Promise.all([
-    // Ping Google
-    fetch(`https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`)
-      .then((r) => r.ok)
-      .catch(() => false),
-    // Ping Bing
-    fetch(`https://www.bing.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`)
-      .then((r) => r.ok)
-      .catch(() => false),
-  ])
-
-  return { google: googleResult, bing: bingResult }
-}
-
-/**
- * GET: Get all indexable URLs
- */
-export async function GET() {
-  const urls: string[] = []
-
-  // Static pages
-  const staticPages = ['', '/blog', '/recommendations', '/events', '/about', '/contact', '/team']
-  staticPages.forEach((page) => {
-    urls.push(`${BASE_URL}${page}`)
-  })
-
-  // Blog posts
-  allStaticPosts
-    .filter((post) => post.published)
-    .forEach((post) => {
-      urls.push(`${BASE_URL}/blog/${post.slug}`)
-    })
+  // Default: return all indexable URLs
+  const allUrls = getAllIndexableUrls();
+  const newUrls = getNewUrls();
+  const updatedUrls = getUpdatedUrls();
 
   return NextResponse.json({
     success: true,
-    count: urls.length,
-    urls,
-    sitemapUrl: `${BASE_URL}/sitemap.xml`,
-  })
+    counts: {
+      total: allUrls.length,
+      new: newUrls.length,
+      updated: updatedUrls.length,
+    },
+    urls: {
+      all: allUrls,
+      new: newUrls,
+      updated: updatedUrls,
+    },
+    endpoints: {
+      submitAll: 'POST /api/seo/index-urls { "mode": "all" }',
+      submitNew: 'POST /api/seo/index-urls { "mode": "new" }',
+      submitUpdated: 'POST /api/seo/index-urls { "mode": "updated" }',
+      submitCustom: 'POST /api/seo/index-urls { "urls": ["url1", "url2"] }',
+      checkStatus: 'GET /api/seo/index-urls?action=status&url=<url>',
+      getAnalytics: 'GET /api/seo/index-urls?action=analytics&start=2026-01-01&end=2026-01-17',
+    },
+  });
 }
 
 /**
  * POST: Submit URLs for indexing
- * Body: { urls?: string[], all?: boolean, newContent?: boolean }
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { urls: customUrls, all = false, newContent = false } = body
+    const body = await request.json();
+    const { urls, mode = 'new', pingOnly = false } = body;
 
-    let urlsToSubmit: string[] = []
+    // If custom URLs provided
+    if (urls && Array.isArray(urls) && urls.length > 0) {
+      const indexNowResults = await submitToIndexNow(urls);
+      const sitemapPings = await pingSitemaps();
 
-    if (customUrls && Array.isArray(customUrls)) {
-      // Submit specific URLs
-      urlsToSubmit = customUrls
-    } else if (all) {
-      // Submit all pages
-      const staticPages = ['', '/blog', '/recommendations', '/events', '/about', '/contact']
-      staticPages.forEach((page) => {
-        urlsToSubmit.push(`${BASE_URL}${page}`)
-      })
-      allStaticPosts
-        .filter((post) => post.published)
-        .forEach((post) => {
-          urlsToSubmit.push(`${BASE_URL}/blog/${post.slug}`)
-        })
-    } else if (newContent) {
-      // Submit only new content (created in last 7 days)
-      const sevenDaysAgo = new Date()
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
-      allStaticPosts
-        .filter((post) => post.published && post.created_at >= sevenDaysAgo)
-        .forEach((post) => {
-          urlsToSubmit.push(`${BASE_URL}/blog/${post.slug}`)
-        })
-    } else {
-      return NextResponse.json(
-        { error: 'Please provide urls array, all: true, or newContent: true' },
-        { status: 400 }
-      )
+      return NextResponse.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        urlsProcessed: urls.length,
+        urls,
+        results: {
+          indexNow: indexNowResults,
+          sitemapPings,
+        },
+      });
     }
 
-    if (urlsToSubmit.length === 0) {
-      return NextResponse.json({ error: 'No URLs to submit' }, { status: 400 })
+    // Ping only mode
+    if (pingOnly) {
+      const sitemapPings = await pingSitemaps();
+      return NextResponse.json({
+        success: true,
+        timestamp: new Date().toISOString(),
+        action: 'sitemap_ping_only',
+        results: { sitemapPings },
+      });
     }
 
-    // Submit to multiple indexing services in parallel
-    const [indexNowResult, sitemapPings] = await Promise.all([
-      submitToIndexNow(urlsToSubmit),
-      pingSitemaps(),
-    ])
+    // Run automated indexing based on mode
+    const report = await runAutomatedIndexing(mode as 'all' | 'new' | 'updated');
 
     return NextResponse.json({
-      success: true,
-      submitted: urlsToSubmit.length,
-      urls: urlsToSubmit,
-      results: {
-        indexNow: indexNowResult,
-        sitemapPings,
-      },
-    })
+      success: report.errors.length === 0,
+      report,
+    });
+
   } catch (error) {
-    console.error('Indexing error:', error)
-    return NextResponse.json({ error: 'Failed to submit URLs for indexing' }, { status: 500 })
+    console.error('Indexing API error:', error);
+    return NextResponse.json(
+      { error: 'Failed to process indexing request', details: String(error) },
+      { status: 500 }
+    );
   }
+}
+
+// Helper function
+function getDateString(daysOffset: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + daysOffset);
+  return date.toISOString().split('T')[0];
 }

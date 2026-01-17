@@ -1,0 +1,371 @@
+/**
+ * SEO Automation Service
+ *
+ * Provides automated indexing and monitoring capabilities:
+ * - Google Search Console API (status checking)
+ * - IndexNow for Bing/Yandex
+ * - Sitemap pinging
+ * - Automated scheduling
+ */
+
+import { blogPosts } from '@/data/blog-content';
+import { extendedBlogPosts } from '@/data/blog-content-extended';
+
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'yalla-london-indexnow-key-2026';
+
+// Combine all posts
+const allPosts = [...blogPosts, ...extendedBlogPosts];
+
+// ============================================
+// INDEXNOW SERVICE (Bing, Yandex, Seznam, Naver)
+// ============================================
+
+interface IndexNowResult {
+  engine: string;
+  success: boolean;
+  status?: number;
+  message?: string;
+}
+
+export async function submitToIndexNow(urls: string[]): Promise<IndexNowResult[]> {
+  const engines = [
+    'https://api.indexnow.org/indexnow',
+    'https://www.bing.com/indexnow',
+    'https://yandex.com/indexnow',
+  ];
+
+  const payload = {
+    host: new URL(BASE_URL).host,
+    key: INDEXNOW_KEY,
+    keyLocation: `${BASE_URL}/${INDEXNOW_KEY}.txt`,
+    urlList: urls.slice(0, 10000), // IndexNow limit
+  };
+
+  const results: IndexNowResult[] = [];
+
+  for (const engine of engines) {
+    try {
+      const response = await fetch(engine, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      results.push({
+        engine: new URL(engine).hostname,
+        success: response.ok,
+        status: response.status,
+        message: response.ok ? 'Submitted successfully' : await response.text(),
+      });
+    } catch (error) {
+      results.push({
+        engine: new URL(engine).hostname,
+        success: false,
+        message: String(error),
+      });
+    }
+  }
+
+  return results;
+}
+
+// ============================================
+// SITEMAP PING SERVICE
+// ============================================
+
+export async function pingSitemaps(): Promise<Record<string, boolean>> {
+  const sitemapUrl = encodeURIComponent(`${BASE_URL}/sitemap.xml`);
+
+  const pingUrls = [
+    `https://www.google.com/ping?sitemap=${sitemapUrl}`,
+    `https://www.bing.com/ping?sitemap=${sitemapUrl}`,
+  ];
+
+  const results: Record<string, boolean> = {};
+
+  for (const url of pingUrls) {
+    try {
+      const response = await fetch(url, { method: 'GET' });
+      const engine = url.includes('google') ? 'google' : 'bing';
+      results[engine] = response.ok;
+    } catch {
+      const engine = url.includes('google') ? 'google' : 'bing';
+      results[engine] = false;
+    }
+  }
+
+  return results;
+}
+
+// ============================================
+// GOOGLE SEARCH CONSOLE API (Read-Only)
+// ============================================
+
+interface GSCCredentials {
+  clientEmail: string;
+  privateKey: string;
+}
+
+interface IndexingStatus {
+  url: string;
+  coverageState?: string;
+  lastCrawlTime?: string;
+  pageFetchState?: string;
+  indexingState?: string;
+  robotsTxtState?: string;
+}
+
+export class GoogleSearchConsoleAPI {
+  private accessToken: string | null = null;
+  private credentials: GSCCredentials | null = null;
+  private siteUrl: string;
+
+  constructor(siteUrl: string = BASE_URL) {
+    this.siteUrl = siteUrl;
+
+    // Load credentials from environment
+    if (process.env.GSC_CLIENT_EMAIL && process.env.GSC_PRIVATE_KEY) {
+      this.credentials = {
+        clientEmail: process.env.GSC_CLIENT_EMAIL,
+        privateKey: process.env.GSC_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      };
+    }
+  }
+
+  private async getAccessToken(): Promise<string | null> {
+    if (!this.credentials) {
+      console.log('GSC credentials not configured');
+      return null;
+    }
+
+    try {
+      // Create JWT for Google OAuth
+      const now = Math.floor(Date.now() / 1000);
+      const jwt = await this.createJWT({
+        iss: this.credentials.clientEmail,
+        scope: 'https://www.googleapis.com/auth/webmasters.readonly',
+        aud: 'https://oauth2.googleapis.com/token',
+        iat: now,
+        exp: now + 3600,
+      });
+
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.accessToken = data.access_token;
+        return this.accessToken;
+      }
+    } catch (error) {
+      console.error('Failed to get GSC access token:', error);
+    }
+
+    return null;
+  }
+
+  private async createJWT(payload: Record<string, any>): Promise<string> {
+    // Simple JWT creation (in production, use a proper JWT library)
+    const header = { alg: 'RS256', typ: 'JWT' };
+    const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+    const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+
+    // Note: In production, implement proper RS256 signing
+    // This is a placeholder - you'd need crypto signing with the private key
+    const signature = 'placeholder';
+
+    return `${encodedHeader}.${encodedPayload}.${signature}`;
+  }
+
+  async checkIndexingStatus(url: string): Promise<IndexingStatus | null> {
+    const token = await this.getAccessToken();
+    if (!token) return null;
+
+    try {
+      const encodedUrl = encodeURIComponent(url);
+      const encodedSite = encodeURIComponent(this.siteUrl);
+
+      const response = await fetch(
+        `https://searchconsole.googleapis.com/v1/urlInspection/index:inspect`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            inspectionUrl: url,
+            siteUrl: this.siteUrl,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          url,
+          coverageState: data.inspectionResult?.indexStatusResult?.coverageState,
+          lastCrawlTime: data.inspectionResult?.indexStatusResult?.lastCrawlTime,
+          pageFetchState: data.inspectionResult?.indexStatusResult?.pageFetchState,
+          indexingState: data.inspectionResult?.indexStatusResult?.indexingState,
+          robotsTxtState: data.inspectionResult?.indexStatusResult?.robotsTxtState,
+        };
+      }
+    } catch (error) {
+      console.error('Failed to check indexing status:', error);
+    }
+
+    return null;
+  }
+
+  async getSearchAnalytics(
+    startDate: string,
+    endDate: string,
+    dimensions: string[] = ['query', 'page']
+  ): Promise<any> {
+    const token = await this.getAccessToken();
+    if (!token) return null;
+
+    try {
+      const response = await fetch(
+        `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(this.siteUrl)}/searchAnalytics/query`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            startDate,
+            endDate,
+            dimensions,
+            rowLimit: 1000,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (error) {
+      console.error('Failed to get search analytics:', error);
+    }
+
+    return null;
+  }
+}
+
+// ============================================
+// URL DISCOVERY & GENERATION
+// ============================================
+
+export function getAllIndexableUrls(): string[] {
+  const urls: string[] = [];
+
+  // Static pages
+  const staticPages = ['', '/blog', '/recommendations', '/events', '/about', '/contact', '/team'];
+  staticPages.forEach(page => urls.push(`${BASE_URL}${page}`));
+
+  // Blog posts
+  allPosts
+    .filter(post => post.published)
+    .forEach(post => urls.push(`${BASE_URL}/blog/${post.slug}`));
+
+  return urls;
+}
+
+export function getNewUrls(withinDays: number = 7): string[] {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - withinDays);
+
+  return allPosts
+    .filter(post => post.published && post.created_at >= cutoffDate)
+    .map(post => `${BASE_URL}/blog/${post.slug}`);
+}
+
+export function getUpdatedUrls(withinDays: number = 7): string[] {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - withinDays);
+
+  return allPosts
+    .filter(post => post.published && post.updated_at >= cutoffDate)
+    .map(post => `${BASE_URL}/blog/${post.slug}`);
+}
+
+// ============================================
+// AUTOMATED INDEXING ORCHESTRATOR
+// ============================================
+
+export interface IndexingReport {
+  timestamp: string;
+  urlsProcessed: number;
+  indexNow: IndexNowResult[];
+  sitemapPings: Record<string, boolean>;
+  errors: string[];
+}
+
+export async function runAutomatedIndexing(
+  mode: 'all' | 'new' | 'updated' = 'new'
+): Promise<IndexingReport> {
+  const report: IndexingReport = {
+    timestamp: new Date().toISOString(),
+    urlsProcessed: 0,
+    indexNow: [],
+    sitemapPings: {},
+    errors: [],
+  };
+
+  try {
+    // Get URLs based on mode
+    let urls: string[];
+    switch (mode) {
+      case 'all':
+        urls = getAllIndexableUrls();
+        break;
+      case 'updated':
+        urls = getUpdatedUrls();
+        break;
+      case 'new':
+      default:
+        urls = getNewUrls();
+        break;
+    }
+
+    report.urlsProcessed = urls.length;
+
+    if (urls.length === 0) {
+      report.errors.push('No URLs to process');
+      return report;
+    }
+
+    // Submit to IndexNow (Bing, Yandex)
+    report.indexNow = await submitToIndexNow(urls);
+
+    // Ping sitemaps
+    report.sitemapPings = await pingSitemaps();
+
+  } catch (error) {
+    report.errors.push(String(error));
+  }
+
+  return report;
+}
+
+// ============================================
+// EXPORT SINGLETON INSTANCE
+// ============================================
+
+export const gscApi = new GoogleSearchConsoleAPI();
+export default {
+  submitToIndexNow,
+  pingSitemaps,
+  getAllIndexableUrls,
+  getNewUrls,
+  getUpdatedUrls,
+  runAutomatedIndexing,
+  gscApi,
+};

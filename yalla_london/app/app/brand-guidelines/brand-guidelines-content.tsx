@@ -335,13 +335,13 @@ export function BrandGuidelinesContent() {
         <div className="mt-16">
           <div className="text-xs font-semibold tracking-[0.1em] uppercase text-gray-400 mb-4">Gray Scale</div>
           <div className="flex gap-2">
-            {['50', '100', '200', '300', '400', '500', '600', '700', '800', '900'].map((shade, index) => (
+            {([50, 100, 200, 300, 400, 500, 600, 700, 800, 900] as const).map((shade, index) => (
               <div
                 key={shade}
                 className={`flex-1 h-14 md:h-16 rounded-lg flex items-end p-2 ${
                   index < 4 ? 'text-gray-900' : 'text-white'
                 }`}
-                style={{ backgroundColor: colors.gray[shade as keyof typeof colors.gray] }}
+                style={{ backgroundColor: colors.gray[shade] }}
               >
                 <span className="text-[10px] font-semibold">{shade}</span>
               </div>

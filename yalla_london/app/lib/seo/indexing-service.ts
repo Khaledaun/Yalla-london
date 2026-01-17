@@ -124,11 +124,14 @@ export class GoogleSearchConsoleAPI {
   constructor(siteUrl: string = BASE_URL) {
     this.siteUrl = siteUrl;
 
-    // Load credentials from environment
-    if (process.env.GSC_CLIENT_EMAIL && process.env.GSC_PRIVATE_KEY) {
+    // Load credentials from environment (support both naming conventions)
+    const clientEmail = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL;
+    const privateKey = process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY;
+
+    if (clientEmail && privateKey) {
       this.credentials = {
-        clientEmail: process.env.GSC_CLIENT_EMAIL,
-        privateKey: process.env.GSC_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        clientEmail,
+        privateKey: privateKey.replace(/\\n/g, '\n'),
       };
     }
   }
@@ -169,16 +172,21 @@ export class GoogleSearchConsoleAPI {
   }
 
   private async createJWT(payload: Record<string, any>): Promise<string> {
-    // Simple JWT creation (in production, use a proper JWT library)
+    if (!this.credentials?.privateKey) {
+      throw new Error('Private key not configured');
+    }
+
+    const crypto = await import('crypto');
     const header = { alg: 'RS256', typ: 'JWT' };
     const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
     const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
 
-    // Note: In production, implement proper RS256 signing
-    // This is a placeholder - you'd need crypto signing with the private key
-    const signature = 'placeholder';
+    const signatureInput = `${encodedHeader}.${encodedPayload}`;
+    const sign = crypto.createSign('RSA-SHA256');
+    sign.update(signatureInput);
+    const signature = sign.sign(this.credentials.privateKey, 'base64url');
 
-    return `${encodedHeader}.${encodedPayload}.${signature}`;
+    return `${signatureInput}.${signature}`;
   }
 
   async checkIndexingStatus(url: string): Promise<IndexingStatus | null> {

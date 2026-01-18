@@ -28,6 +28,198 @@
       overflow-x: hidden;
     }
 
+    /* ========== FLOATING NAVBAR ========== */
+    .navbar-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      padding: 20px 16px;
+      pointer-events: none;
+    }
+
+    .navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      background: rgba(255, 253, 248, 0.95);
+      backdrop-filter: blur(12px);
+      border-radius: 50px;
+      box-shadow: 0 4px 30px rgba(139, 21, 56, 0.15), 0 2px 10px rgba(0, 0, 0, 0.08);
+      width: 100%;
+      max-width: 900px;
+      pointer-events: auto;
+      border: 1px solid rgba(212, 175, 55, 0.2);
+    }
+
+    .navbar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      transition: transform 0.3s ease;
+    }
+
+    .navbar-logo:hover {
+      transform: scale(1.02);
+    }
+
+    .navbar-logo svg {
+      width: 36px;
+      height: 36px;
+    }
+
+    .navbar-logo span {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--burgundy-800);
+      letter-spacing: -0.02em;
+    }
+
+    .navbar-logo .highlight {
+      color: var(--gold-500);
+    }
+
+    .navbar-nav {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .navbar-nav a {
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--burgundy-800);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .navbar-nav a::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: var(--gold-400);
+      transition: width 0.3s ease;
+    }
+
+    .navbar-nav a:hover {
+      color: var(--gold-500);
+    }
+
+    .navbar-nav a:hover::after {
+      width: 100%;
+    }
+
+    .navbar-cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 24px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--cream-50);
+      background: var(--burgundy-800);
+      border-radius: 50px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(139, 21, 56, 0.3);
+    }
+
+    .navbar-cta:hover {
+      background: var(--burgundy-900);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(139, 21, 56, 0.4);
+    }
+
+    .navbar-mobile-btn {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+    }
+
+    .navbar-mobile-btn svg {
+      width: 24px;
+      height: 24px;
+      color: var(--burgundy-800);
+    }
+
+    /* Mobile Menu */
+    .mobile-menu {
+      position: fixed;
+      inset: 0;
+      background: var(--cream-50);
+      z-index: 2000;
+      padding: 80px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      transform: translateX(100%);
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .mobile-menu.open {
+      transform: translateX(0);
+    }
+
+    .mobile-menu-close {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+    }
+
+    .mobile-menu-close svg {
+      width: 28px;
+      height: 28px;
+      color: var(--burgundy-800);
+    }
+
+    .mobile-menu a {
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: var(--burgundy-800);
+      text-decoration: none;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(139, 21, 56, 0.1);
+    }
+
+    .mobile-menu .navbar-cta {
+      margin-top: 16px;
+      text-align: center;
+      padding: 16px 32px;
+      font-size: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .navbar-nav, .navbar-cta-desktop {
+        display: none;
+      }
+      .navbar-mobile-btn {
+        display: block;
+      }
+      .navbar {
+        padding: 10px 16px;
+      }
+      .navbar-logo span {
+        font-size: 1.1rem;
+      }
+    }
+
+    /* ========== HERO SECTION ========== */
     .hero-section {
       position: relative;
       min-height: 100vh;
@@ -69,10 +261,12 @@
       transition: width 0.05s, height 0.05s;
     }
 
-    .media-container img {
+    .media-container img,
+    .media-container iframe {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      border: none;
     }
 
     .media-overlay {
@@ -80,6 +274,7 @@
       inset: 0;
       background: rgba(92, 10, 35, 0.3);
       transition: opacity 0.2s ease;
+      pointer-events: none;
     }
 
     .title-container {
@@ -143,6 +338,43 @@
       50% { transform: translateY(8px); }
     }
 
+    /* ========== MEDIA TYPE TOGGLE ========== */
+    .media-toggle {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 100;
+      display: flex;
+      gap: 8px;
+      background: rgba(255, 253, 248, 0.95);
+      backdrop-filter: blur(12px);
+      padding: 8px;
+      border-radius: 50px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .media-toggle button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 50px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: transparent;
+      color: var(--warm-gray);
+    }
+
+    .media-toggle button.active {
+      background: var(--burgundy-800);
+      color: var(--cream-50);
+    }
+
+    .media-toggle button:hover:not(.active) {
+      background: rgba(139, 21, 56, 0.1);
+    }
+
+    /* ========== CONTENT SECTION ========== */
     .content-section {
       position: relative;
       z-index: 20;
@@ -257,7 +489,7 @@
       left: 0;
       height: 3px;
       background: linear-gradient(90deg, var(--burgundy-800), var(--gold-400));
-      z-index: 100;
+      z-index: 1001;
       transition: width 0.05s;
     }
   </style>
@@ -265,6 +497,57 @@
 <body>
   <div class="progress-bar" id="progressBar"></div>
 
+  <!-- ========== FLOATING NAVBAR ========== -->
+  <div class="navbar-container">
+    <nav class="navbar">
+      <a href="/" class="navbar-logo">
+        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="20" cy="20" r="20" fill="url(#logoGradient)"/>
+          <path d="M12 28V14L20 20L28 14V28" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="logoGradient" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#8B1538"/>
+              <stop offset="1" stop-color="#5C0A23"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span>Yalla <span class="highlight">London</span></span>
+      </a>
+
+      <div class="navbar-nav">
+        <a href="/">Home</a>
+        <a href="/blog">Explore</a>
+        <a href="/blog">Blog</a>
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+      </div>
+
+      <a href="/subscribe" class="navbar-cta navbar-cta-desktop">Subscribe</a>
+
+      <button class="navbar-mobile-btn" onclick="toggleMobileMenu()">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Mobile Menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <button class="mobile-menu-close" onclick="toggleMobileMenu()">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+    <a href="/" onclick="toggleMobileMenu()">Home</a>
+    <a href="/blog" onclick="toggleMobileMenu()">Explore</a>
+    <a href="/blog" onclick="toggleMobileMenu()">Blog</a>
+    <a href="/about" onclick="toggleMobileMenu()">About</a>
+    <a href="/contact" onclick="toggleMobileMenu()">Contact</a>
+    <a href="/subscribe" class="navbar-cta" onclick="toggleMobileMenu()">Subscribe</a>
+  </div>
+
+  <!-- ========== HERO SECTION ========== -->
   <section class="hero-section" id="heroSection">
     <div class="background-image" id="bgImage">
       <img src="https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=1920&q=80" alt="Thames">
@@ -272,7 +555,16 @@
     </div>
 
     <div class="media-container" id="mediaContainer">
-      <img src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80" alt="Tower Bridge">
+      <!-- Image (default) -->
+      <img id="mediaImage" src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80" alt="Tower Bridge">
+      <!-- YouTube Video (hidden by default) -->
+      <iframe
+        id="mediaVideo"
+        src="https://www.youtube.com/embed/vD3wmPGrpHo?autoplay=1&mute=1&loop=1&controls=0&showinfo=0&rel=0&disablekb=1&modestbranding=1&playlist=vD3wmPGrpHo"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen
+        style="display: none;"
+      ></iframe>
       <div class="media-overlay" id="mediaOverlay"></div>
     </div>
 
@@ -290,6 +582,7 @@
     </div>
   </section>
 
+  <!-- ========== CONTENT SECTION ========== -->
   <section class="content-section" id="contentSection">
     <div class="content-inner">
       <div class="section-header">
@@ -335,15 +628,24 @@
     </div>
   </section>
 
+  <!-- ========== MEDIA TYPE TOGGLE ========== -->
+  <div class="media-toggle">
+    <button id="btnImage" class="active" onclick="switchMedia('image')">Image</button>
+    <button id="btnVideo" onclick="switchMedia('video')">Video</button>
+  </div>
+
   <script>
     let scrollProgress = 0;
     let mediaFullyExpanded = false;
     let touchStartY = 0;
+    let currentMediaType = 'image';
 
     const isMobile = window.innerWidth < 768;
 
     const bgImage = document.getElementById('bgImage');
     const mediaContainer = document.getElementById('mediaContainer');
+    const mediaImage = document.getElementById('mediaImage');
+    const mediaVideo = document.getElementById('mediaVideo');
     const mediaOverlay = document.getElementById('mediaOverlay');
     const titleLine1 = document.getElementById('titleLine1');
     const titleLine2 = document.getElementById('titleLine2');
@@ -351,6 +653,35 @@
     const scrollHint = document.getElementById('scrollHint');
     const contentSection = document.getElementById('contentSection');
     const progressBar = document.getElementById('progressBar');
+    const mobileMenu = document.getElementById('mobileMenu');
+    const btnImage = document.getElementById('btnImage');
+    const btnVideo = document.getElementById('btnVideo');
+
+    function toggleMobileMenu() {
+      mobileMenu.classList.toggle('open');
+      document.body.style.overflow = mobileMenu.classList.contains('open') ? 'hidden' : '';
+    }
+
+    function switchMedia(type) {
+      currentMediaType = type;
+
+      if (type === 'video') {
+        mediaImage.style.display = 'none';
+        mediaVideo.style.display = 'block';
+        btnImage.classList.remove('active');
+        btnVideo.classList.add('active');
+      } else {
+        mediaImage.style.display = 'block';
+        mediaVideo.style.display = 'none';
+        btnImage.classList.add('active');
+        btnVideo.classList.remove('active');
+      }
+
+      // Reset scroll progress when switching
+      scrollProgress = 0;
+      mediaFullyExpanded = false;
+      updateUI();
+    }
 
     function updateUI() {
       // Media dimensions

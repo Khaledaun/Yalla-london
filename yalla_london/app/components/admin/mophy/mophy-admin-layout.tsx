@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
+import { SiteSelector } from '@/components/admin/site-selector'
 import {
   LayoutDashboard,
   FileText,
@@ -373,6 +374,9 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
                 <Menu size={20} className="text-gray-500" />
               </button>
 
+              {/* Site Selector - Multi-site support */}
+              <SiteSelector />
+
               {pageTitle && (
                 <h1 className="text-lg font-semibold text-gray-900 dark:text-white hidden sm:block">
                   {pageTitle}
@@ -380,7 +384,7 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
               )}
 
               {/* Search */}
-              <div className="hidden md:flex items-center">
+              <div className="hidden lg:flex items-center">
                 <div className="relative">
                   <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input

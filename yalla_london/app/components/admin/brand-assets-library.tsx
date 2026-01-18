@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -9,9 +9,17 @@ import {
   Download, Copy, Check, Palette, Type, Image as ImageIcon,
   Square, Circle, FileText, Brush, Sparkles, ExternalLink, Eye
 } from 'lucide-react'
+import { useSite } from '@/components/site-provider'
 
-// Brand colors
-const brandColors = [
+// Helper to convert hex to RGB
+function hexToRgb(hex: string): string {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  if (!result) return 'rgb(0, 0, 0)'
+  return `rgb(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)})`
+}
+
+// Default brand colors (can be overridden by site settings)
+const defaultBrandColors = [
   {
     name: 'Navy Primary',
     hex: '#1A1F36',
@@ -153,7 +161,111 @@ const designElements = [
 ]
 
 export function BrandAssetsLibrary() {
+  // Get current site context
+  const { currentSite } = useSite()
   const [copiedItem, setCopiedItem] = useState<string | null>(null)
+
+  // Generate brand colors based on current site
+  const brandColors = useMemo(() => {
+    const primaryColor = currentSite.primary_color || '#1A1F36'
+    const secondaryColor = currentSite.secondary_color || '#E8634B'
+
+    return [
+      {
+        name: 'Primary Color',
+        hex: primaryColor,
+        rgb: hexToRgb(primaryColor),
+        usage: 'Primary text, headers, buttons, footer'
+      },
+      {
+        name: 'Accent Color',
+        hex: secondaryColor,
+        rgb: hexToRgb(secondaryColor),
+        usage: 'CTA buttons, highlights, badges, links'
+      },
+      {
+        name: 'Gray Secondary',
+        hex: '#A3A3A3',
+        rgb: 'rgb(163, 163, 163)',
+        usage: 'Secondary text, borders, subtle elements'
+      },
+      {
+        name: 'Light Primary',
+        hex: '#2D3452',
+        rgb: 'rgb(45, 52, 82)',
+        usage: 'Hover states, gradients, darker sections'
+      },
+      {
+        name: 'Background Light',
+        hex: '#F9FAFB',
+        rgb: 'rgb(249, 250, 251)',
+        usage: 'Page backgrounds, cards, light sections'
+      },
+      {
+        name: 'White',
+        hex: '#FFFFFF',
+        rgb: 'rgb(255, 255, 255)',
+        usage: 'Card backgrounds, text on dark, buttons'
+      },
+    ]
+  }, [currentSite.primary_color, currentSite.secondary_color])
+
+  // Generate site-specific logos
+  const siteLogos = useMemo(() => {
+    const primaryColor = currentSite.primary_color || '#1A1F36'
+    const secondaryColor = currentSite.secondary_color || '#E8634B'
+    const siteName = currentSite.name || 'Yalla London'
+    const firstLetter = siteName.charAt(0).toUpperCase()
+
+    return [
+      {
+        id: 'primary-dark',
+        name: 'Primary Logo (Dark)',
+        description: `Main logo for light backgrounds`,
+        svg: `<svg viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="5" width="40" height="40" rx="8" fill="${primaryColor}"/>
+          <text x="20" y="33" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="22" fill="white" text-anchor="middle">${firstLetter}</text>
+          <circle cx="32" cy="14" r="5" fill="${secondaryColor}"/>
+          <text x="52" y="35" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="28" fill="${primaryColor}">${siteName.split(' ')[0] || 'Site'}</text>
+        </svg>`,
+        background: 'light'
+      },
+      {
+        id: 'primary-light',
+        name: 'Primary Logo (Light)',
+        description: 'Main logo for dark backgrounds',
+        svg: `<svg viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="5" width="40" height="40" rx="8" fill="white"/>
+          <text x="20" y="33" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="22" fill="${primaryColor}" text-anchor="middle">${firstLetter}</text>
+          <circle cx="32" cy="14" r="5" fill="${secondaryColor}"/>
+          <text x="52" y="35" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="28" fill="white">${siteName.split(' ')[0] || 'Site'}</text>
+        </svg>`,
+        background: 'dark'
+      },
+      {
+        id: 'icon-dark',
+        name: 'App Icon (Dark)',
+        description: 'Square icon for apps and favicons',
+        svg: `<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+          <rect width="50" height="50" rx="10" fill="${primaryColor}"/>
+          <text x="25" y="34" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="26" fill="white" text-anchor="middle">${firstLetter}</text>
+          <circle cx="38" cy="14" r="6" fill="${secondaryColor}"/>
+        </svg>`,
+        background: 'light'
+      },
+      {
+        id: 'icon-light',
+        name: 'App Icon (Light)',
+        description: 'Light version for dark contexts',
+        svg: `<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+          <rect width="50" height="50" rx="10" fill="white"/>
+          <text x="25" y="34" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="26" fill="${primaryColor}" text-anchor="middle">${firstLetter}</text>
+          <circle cx="38" cy="14" r="6" fill="${secondaryColor}"/>
+        </svg>`,
+        background: 'dark'
+      },
+    ]
+  }, [currentSite.name, currentSite.primary_color, currentSite.secondary_color])
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text)
@@ -173,6 +285,24 @@ export function BrandAssetsLibrary() {
 
   return (
     <div className="space-y-8">
+      {/* Current Site Info */}
+      <Card className="bg-gradient-to-r from-gray-50 to-white border-l-4" style={{ borderLeftColor: currentSite.primary_color || '#1A1F36' }}>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-xl"
+              style={{ backgroundColor: currentSite.primary_color || '#1A1F36' }}
+            >
+              {currentSite.name?.charAt(0) || 'Y'}
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">{currentSite.name || 'Yalla London'}</h3>
+              <p className="text-sm text-gray-500">Brand assets for {currentSite.domain || currentSite.slug}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Header Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
@@ -203,7 +333,7 @@ export function BrandAssetsLibrary() {
               <ImageIcon className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold">{logos.length}</div>
+              <div className="text-2xl font-bold">{siteLogos.length}</div>
               <div className="text-sm text-gray-500">Logo Variations</div>
             </div>
           </CardContent>
@@ -297,7 +427,7 @@ export function BrandAssetsLibrary() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {logos.map((logo) => (
+                {siteLogos.map((logo) => (
                   <div key={logo.id} className="border rounded-xl overflow-hidden">
                     <div
                       className={`p-8 flex items-center justify-center ${
@@ -326,7 +456,7 @@ export function BrandAssetsLibrary() {
                           </Button>
                           <Button
                             size="sm"
-                            onClick={() => downloadSVG(logo.svg, `yalla-london-${logo.id}`)}
+                            onClick={() => downloadSVG(logo.svg, `${currentSite.slug || 'site'}-${logo.id}`)}
                           >
                             <Download className="w-4 h-4" />
                           </Button>

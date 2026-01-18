@@ -23,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useSite } from '@/components/site-provider'
 
 // Affiliate partner types
 const PARTNER_TYPES = [
@@ -63,6 +64,9 @@ interface PartnerStats {
 }
 
 export function AffiliatePoolManager() {
+  // Get current site context
+  const { currentSite } = useSite()
+
   const [affiliates, setAffiliates] = useState<AffiliateLink[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -84,14 +88,16 @@ export function AffiliatePoolManager() {
     is_active: true
   })
 
+  // Refetch when site or type changes
   useEffect(() => {
     fetchAffiliates()
-  }, [selectedType])
+  }, [selectedType, currentSite.id])
 
   const fetchAffiliates = async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
+      params.set('siteId', currentSite.id) // Include site ID
       if (selectedType !== 'all') params.set('type', selectedType)
       if (searchQuery) params.set('search', searchQuery)
 

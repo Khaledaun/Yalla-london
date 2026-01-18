@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yalla London - Scroll Expand Hero Demo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --burgundy-800: #8B1538;
+      --burgundy-900: #5C0A23;
+      --gold-400: #D4AF37;
+      --gold-500: #C5A572;
+      --cream-50: #FFFDF8;
+      --cream-200: #F5EDE4;
+      --warm-gray: #6B5B4F;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--cream-50);
+      overflow-x: hidden;
+    }
+
+    .hero-section {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .background-image {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      transition: opacity 0.1s ease;
+    }
+
+    .background-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .background-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(92, 10, 35, 0.4), rgba(92, 10, 35, 0.2), rgba(92, 10, 35, 0.6));
+    }
+
+    .media-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 5;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 25px 80px rgba(139, 21, 56, 0.25), 0 10px 30px rgba(0, 0, 0, 0.2);
+      transition: width 0.05s, height 0.05s;
+    }
+
+    .media-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .media-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(92, 10, 35, 0.3);
+      transition: opacity 0.2s ease;
+    }
+
+    .title-container {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      text-align: center;
+    }
+
+    .title-line {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(3rem, 10vw, 7rem);
+      font-weight: 700;
+      color: var(--cream-50);
+      text-shadow: 0 4px 30px rgba(139, 21, 56, 0.5);
+      transition: transform 0.05s;
+      white-space: nowrap;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--gold-400);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      font-weight: 300;
+      transition: opacity 0.3s ease;
+    }
+
+    .scroll-hint {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      z-index: 10;
+      transition: opacity 0.3s ease;
+    }
+
+    .scroll-hint span {
+      color: var(--gold-400);
+      font-size: 0.85rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+
+    .scroll-hint svg {
+      width: 20px;
+      height: 20px;
+      color: var(--gold-400);
+      animation: bounce 1.5s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(8px); }
+    }
+
+    .content-section {
+      position: relative;
+      z-index: 20;
+      background: var(--cream-50);
+      padding: 80px 20px;
+      opacity: 0;
+      transition: opacity 0.7s ease;
+    }
+
+    .content-section.visible {
+      opacity: 1;
+    }
+
+    .content-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .section-label {
+      color: var(--gold-500);
+      font-size: 0.85rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.5rem;
+      color: var(--burgundy-800);
+      margin-bottom: 16px;
+    }
+
+    .section-divider {
+      width: 100px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--gold-400), var(--gold-500));
+      margin: 0 auto;
+      border-radius: 2px;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(139, 21, 56, 0.08);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 40px rgba(139, 21, 56, 0.15);
+    }
+
+    .card-image {
+      height: 200px;
+      overflow: hidden;
+    }
+
+    .card-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s;
+    }
+
+    .card:hover .card-image img {
+      transform: scale(1.05);
+    }
+
+    .card-content {
+      padding: 24px;
+    }
+
+    .card-category {
+      display: inline-block;
+      background: var(--burgundy-800);
+      color: var(--cream-50);
+      font-size: 0.75rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.25rem;
+      color: var(--burgundy-800);
+      margin-bottom: 8px;
+    }
+
+    .card-excerpt {
+      color: var(--warm-gray);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--burgundy-800), var(--gold-400));
+      z-index: 100;
+      transition: width 0.05s;
+    }
+  </style>
+</head>
+<body>
+  <div class="progress-bar" id="progressBar"></div>
+
+  <section class="hero-section" id="heroSection">
+    <div class="background-image" id="bgImage">
+      <img src="https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=1920&q=80" alt="Thames">
+      <div class="background-overlay"></div>
+    </div>
+
+    <div class="media-container" id="mediaContainer">
+      <img src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80" alt="Tower Bridge">
+      <div class="media-overlay" id="mediaOverlay"></div>
+    </div>
+
+    <div class="title-container">
+      <h1 class="title-line" id="titleLine1">Discover</h1>
+      <h1 class="title-line" id="titleLine2">London</h1>
+      <p class="subtitle" id="subtitle">Your guide to the extraordinary</p>
+    </div>
+
+    <div class="scroll-hint" id="scrollHint">
+      <span>Scroll to explore</span>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  </section>
+
+  <section class="content-section" id="contentSection">
+    <div class="content-inner">
+      <div class="section-header">
+        <p class="section-label">Curated for You</p>
+        <h2 class="section-title">Latest Stories</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <div class="cards-grid">
+        <article class="card">
+          <div class="card-image">
+            <img src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80" alt="Tower Bridge">
+          </div>
+          <div class="card-content">
+            <span class="card-category">Lifestyle</span>
+            <h3 class="card-title">London's Hidden Rooftop Gardens</h3>
+            <p class="card-excerpt">Discover secret green spaces above the city's bustling streets, from ancient churchyards to modern sky gardens.</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-image">
+            <img src="https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&q=80" alt="Afternoon Tea">
+          </div>
+          <div class="card-content">
+            <span class="card-category">Food & Drink</span>
+            <h3 class="card-title">The Art of Afternoon Tea</h3>
+            <p class="card-excerpt">A curated guide to the finest afternoon tea experiences in London, from traditional to contemporary.</p>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-image">
+            <img src="https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=600&q=80" alt="Gallery">
+          </div>
+          <div class="card-content">
+            <span class="card-category">Culture</span>
+            <h3 class="card-title">Spring Exhibition Season</h3>
+            <p class="card-excerpt">What's coming to London's galleries this spring, featuring exclusive previews and curator insights.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    let scrollProgress = 0;
+    let mediaFullyExpanded = false;
+    let touchStartY = 0;
+
+    const isMobile = window.innerWidth < 768;
+
+    const bgImage = document.getElementById('bgImage');
+    const mediaContainer = document.getElementById('mediaContainer');
+    const mediaOverlay = document.getElementById('mediaOverlay');
+    const titleLine1 = document.getElementById('titleLine1');
+    const titleLine2 = document.getElementById('titleLine2');
+    const subtitle = document.getElementById('subtitle');
+    const scrollHint = document.getElementById('scrollHint');
+    const contentSection = document.getElementById('contentSection');
+    const progressBar = document.getElementById('progressBar');
+
+    function updateUI() {
+      // Media dimensions
+      const mediaWidth = 300 + scrollProgress * (isMobile ? 650 : 1200);
+      const mediaHeight = 400 + scrollProgress * (isMobile ? 200 : 400);
+
+      mediaContainer.style.width = Math.min(mediaWidth, window.innerWidth * 0.95) + 'px';
+      mediaContainer.style.height = Math.min(mediaHeight, window.innerHeight * 0.85) + 'px';
+
+      // Background fade
+      bgImage.style.opacity = 1 - scrollProgress;
+
+      // Media overlay fade
+      mediaOverlay.style.opacity = 0.4 - scrollProgress * 0.3;
+
+      // Title animation
+      const textTranslateX = scrollProgress * (isMobile ? 180 : 150);
+      titleLine1.style.transform = `translateX(-${textTranslateX}vw)`;
+      titleLine2.style.transform = `translateX(${textTranslateX}vw)`;
+
+      // Subtitle fade
+      subtitle.style.opacity = 1 - scrollProgress * 1.5;
+
+      // Scroll hint fade
+      scrollHint.style.opacity = scrollProgress < 0.3 ? 1 - scrollProgress * 3 : 0;
+
+      // Progress bar
+      progressBar.style.width = (scrollProgress * 100) + '%';
+
+      // Content visibility
+      if (scrollProgress >= 1) {
+        contentSection.classList.add('visible');
+      } else if (scrollProgress < 0.75) {
+        contentSection.classList.remove('visible');
+      }
+    }
+
+    function handleWheel(e) {
+      if (mediaFullyExpanded && e.deltaY < 0 && window.scrollY <= 5) {
+        mediaFullyExpanded = false;
+        e.preventDefault();
+      } else if (!mediaFullyExpanded) {
+        e.preventDefault();
+        const scrollDelta = e.deltaY * 0.0009;
+        scrollProgress = Math.min(Math.max(scrollProgress + scrollDelta, 0), 1);
+
+        if (scrollProgress >= 1) {
+          mediaFullyExpanded = true;
+        }
+
+        updateUI();
+      }
+    }
+
+    function handleTouchStart(e) {
+      touchStartY = e.touches[0].clientY;
+    }
+
+    function handleTouchMove(e) {
+      if (!touchStartY) return;
+
+      const touchY = e.touches[0].clientY;
+      const deltaY = touchStartY - touchY;
+
+      if (mediaFullyExpanded && deltaY < -20 && window.scrollY <= 5) {
+        mediaFullyExpanded = false;
+        e.preventDefault();
+      } else if (!mediaFullyExpanded) {
+        e.preventDefault();
+        const scrollFactor = deltaY < 0 ? 0.008 : 0.005;
+        const scrollDelta = deltaY * scrollFactor;
+        scrollProgress = Math.min(Math.max(scrollProgress + scrollDelta, 0), 1);
+
+        if (scrollProgress >= 1) {
+          mediaFullyExpanded = true;
+        }
+
+        touchStartY = touchY;
+        updateUI();
+      }
+    }
+
+    function handleTouchEnd() {
+      touchStartY = 0;
+    }
+
+    function handleScroll() {
+      if (!mediaFullyExpanded) {
+        window.scrollTo(0, 0);
+      }
+    }
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('touchstart', handleTouchStart, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+
+    // Initial render
+    updateUI();
+  </script>
+</body>
+</html>

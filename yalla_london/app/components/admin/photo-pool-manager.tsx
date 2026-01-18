@@ -16,6 +16,7 @@ import {
   Hotel, Ticket, MapPin, Utensils, ShoppingBag, Star, Building2
 } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
+import { useSite } from '@/components/site-provider'
 
 // Photo categories for the pool
 const PHOTO_CATEGORIES = [
@@ -53,6 +54,9 @@ interface UploadingFile {
 }
 
 export function PhotoPoolManager() {
+  // Get current site context
+  const { currentSite } = useSite()
+
   const [photos, setPhotos] = useState<PhotoAsset[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -65,15 +69,16 @@ export function PhotoPoolManager() {
   const [uploadTags, setUploadTags] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
-  // Fetch photos from API
+  // Fetch photos from API - refetch when site or category changes
   useEffect(() => {
     fetchPhotos()
-  }, [selectedCategory])
+  }, [selectedCategory, currentSite.id])
 
   const fetchPhotos = async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
+      params.set('siteId', currentSite.id) // Include site ID
       if (selectedCategory !== 'all') params.set('category', selectedCategory)
       if (searchQuery) params.set('search', searchQuery)
 

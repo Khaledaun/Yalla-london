@@ -4,9 +4,8 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
-  ChevronDown, ChevronRight, Calendar, MapPin, Clock, Star,
-  Download, ExternalLink, Mail, ArrowRight, Menu, X,
-  Play, Image as ImageIcon
+  ChevronDown, ChevronRight, MapPin, Star,
+  Download, Play, Image as ImageIcon
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
@@ -33,6 +32,7 @@ const articles = {
   en: [
     {
       id: '1',
+      slug: 'best-halal-restaurants-central-london-2025',
       category: 'Lifestyle',
       title: 'Best Halal Restaurants in Central London 2025',
       excerpt: 'Discover the finest halal dining experiences in the heart of London. From Mayfair fine dining to hidden gems in Soho.',
@@ -42,6 +42,7 @@ const articles = {
     },
     {
       id: '2',
+      slug: 'complete-london-guide-arab-visitors',
       category: 'Travel',
       title: 'Complete London Guide for Arab Visitors',
       excerpt: 'Everything you need to know for your first visit. Visa, transport, halal food, and prayer facilities.',
@@ -51,6 +52,7 @@ const articles = {
     },
     {
       id: '3',
+      slug: 'harrods-vs-selfridges-comparison',
       category: 'Shopping',
       title: 'Harrods vs Selfridges: Which is Better?',
       excerpt: 'A detailed comparison of London\'s two iconic department stores for luxury shoppers.',
@@ -62,6 +64,7 @@ const articles = {
   ar: [
     {
       id: '1',
+      slug: 'best-halal-restaurants-central-london-2025',
       category: 'نمط الحياة',
       title: 'أفضل المطاعم الحلال في وسط لندن 2025',
       excerpt: 'اكتشف أفضل تجارب الطعام الحلال في قلب لندن. من المطاعم الفاخرة في مايفير إلى الجواهر المخفية.',
@@ -71,6 +74,7 @@ const articles = {
     },
     {
       id: '2',
+      slug: 'complete-london-guide-arab-visitors',
       category: 'سفر',
       title: 'دليل لندن الشامل للزوار العرب',
       excerpt: 'كل ما تحتاج معرفته لزيارتك الأولى. التأشيرة والمواصلات والطعام الحلال ومرافق الصلاة.',
@@ -80,6 +84,7 @@ const articles = {
     },
     {
       id: '3',
+      slug: 'harrods-vs-selfridges-comparison',
       category: 'تسوق',
       title: 'هارودز أم سيلفريدجز: أيهما أفضل؟',
       excerpt: 'مقارنة تفصيلية بين أشهر متجرين في لندن للمتسوقين الفاخرين.',
@@ -409,7 +414,6 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   const [scrollProgress, setScrollProgress] = useState(0)
   const [showContent, setShowContent] = useState(false)
   const [mediaType, setMediaType] = useState<'video' | 'image'>('image')
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [email, setEmail] = useState('')
 
   const isRTL = locale === 'ar'
@@ -441,37 +445,6 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
   return (
     <div className="min-h-screen bg-white" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: isRTL ? 'Cairo, sans-serif' : 'Plus Jakarta Sans, sans-serif' }}>
-      {/* Floating Navbar */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex justify-center p-4 pointer-events-none">
-        <nav className="flex items-center justify-between px-6 py-3 bg-white/95 backdrop-blur-xl rounded-full shadow-lg w-full max-w-4xl pointer-events-auto border border-gray-100">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[#1A1F36] rounded-lg flex items-center justify-center relative">
-              <span className="text-white font-bold">Y</span>
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#E8634B] rounded-full"></span>
-            </div>
-            <span className="text-xl font-bold text-[#1A1F36]">Yalla<span className="font-normal text-[#A3A3A3]">London</span></span>
-          </Link>
-
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-1">
-            {t.nav.map((item, i) => (
-              <Link key={i} href="#" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-[#1A1F36] hover:bg-gray-50 rounded-lg transition-colors">
-                {item}
-              </Link>
-            ))}
-            <Link href="#" className="ml-2 px-4 py-2 text-sm font-semibold text-white bg-[#1A1F36] rounded-lg hover:bg-[#2d3452] transition-colors">
-              {t.subscribe}
-            </Link>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2">
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </nav>
-      </div>
-
       {/* Language Toggle */}
       <div className={`fixed top-20 ${isRTL ? 'left-5' : 'right-5'} z-50 flex gap-0.5 bg-white p-1 rounded-lg shadow-md border border-gray-200`}>
         <button
@@ -625,22 +598,24 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
               {/* Articles */}
               <div className="space-y-6">
                 {articles[locale].map((article) => (
-                  <article key={article.id} className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-5 bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow border border-gray-100">
-                    <div className="space-y-3">
-                      <span className="text-xs font-semibold text-[#E8634B] uppercase tracking-wide">{article.category}</span>
-                      <h3 className="text-xl font-bold text-[#1A1F36] hover:text-[#E8634B] transition-colors cursor-pointer">
-                        {article.title}
-                      </h3>
-                      <p className="text-gray-600 text-sm line-clamp-2">{article.excerpt}</p>
-                      <div className="flex items-center gap-4 text-xs text-gray-400">
-                        <span>{article.date}</span>
-                        <span>{article.readTime}</span>
+                  <Link key={article.id} href={`/blog/${article.slug}`}>
+                    <article className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-5 bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow border border-gray-100 cursor-pointer">
+                      <div className="space-y-3">
+                        <span className="text-xs font-semibold text-[#E8634B] uppercase tracking-wide">{article.category}</span>
+                        <h3 className="text-xl font-bold text-[#1A1F36] group-hover:text-[#E8634B] transition-colors">
+                          {article.title}
+                        </h3>
+                        <p className="text-gray-600 text-sm line-clamp-2">{article.excerpt}</p>
+                        <div className="flex items-center gap-4 text-xs text-gray-400">
+                          <span>{article.date}</span>
+                          <span>{article.readTime}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="relative aspect-[4/3] md:aspect-square rounded-lg overflow-hidden">
-                      <Image src={article.image} alt={article.title} fill className="object-cover" />
-                    </div>
-                  </article>
+                      <div className="relative aspect-[4/3] md:aspect-square rounded-lg overflow-hidden">
+                        <Image src={article.image} alt={article.title} fill className="object-cover" />
+                      </div>
+                    </article>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -830,48 +805,6 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="bg-[#1A1F36] text-white py-16">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
-              {/* Brand */}
-              <div className="md:col-span-2">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center relative">
-                    <span className="text-[#1A1F36] font-bold text-lg">Y</span>
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-[#E8634B] rounded-full"></span>
-                  </div>
-                  <span className="text-2xl font-bold">Yalla<span className="font-normal text-gray-400">London</span></span>
-                </div>
-                <p className="text-gray-400 max-w-md">{t.footerAbout}</p>
-              </div>
-
-              {/* Links */}
-              <div>
-                <h4 className="font-semibold mb-4">{t.footerLinks}</h4>
-                <ul className="space-y-2 text-gray-400">
-                  {t.nav.map((link, i) => (
-                    <li key={i}><Link href="#" className="hover:text-white transition-colors">{link}</Link></li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Contact */}
-              <div>
-                <h4 className="font-semibold mb-4">{t.footerContact}</h4>
-                <ul className="space-y-2 text-gray-400">
-                  <li>hello@yallalondon.com</li>
-                  <li>+44 20 1234 5678</li>
-                  <li>London, UK</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="pt-8 border-t border-gray-700 text-center text-gray-500 text-sm">
-              {t.copyright}
-            </div>
-          </div>
-        </footer>
       </motion.div>
     </div>
   )

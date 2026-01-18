@@ -1,19 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Yalla London - Your Guide to London</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      /* Fresh Teal + Amber Palette */
-      --primary: #0f766e;
-      --primary-dark: #0d5d56;
-      --primary-light: #14b8a6;
-      --accent: #f59e0b;
-      --accent-light: #fbbf24;
-      --coral: #f97316;
+      /* Yalla London Brand Colors */
+      --primary: #1A1F36;
+      --primary-dark: #0f1221;
+      --primary-light: #2d3452;
+      --accent: #E8634B;
+      --accent-light: #f0816d;
+      --coral: #E8634B;
 
       /* Neutrals */
       --white: #ffffff;
@@ -37,12 +37,72 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
       background: var(--white);
       color: var(--gray-800);
       line-height: 1.6;
       overflow-x: hidden;
     }
+
+    /* RTL Support */
+    html[dir="rtl"] body {
+      font-family: 'Cairo', 'Plus Jakarta Sans', sans-serif;
+    }
+    html[dir="rtl"] .section-link { direction: ltr; }
+    html[dir="rtl"] .navbar-nav { flex-direction: row-reverse; }
+    html[dir="rtl"] .article-card { grid-template-columns: 1fr 180px; }
+    html[dir="rtl"] .event-card { grid-template-columns: 1fr 140px; }
+    html[dir="rtl"] .guide-badge { left: auto; right: 12px; }
+    html[dir="rtl"] .experience-rating { left: auto; right: 10px; }
+    html[dir="rtl"] .hotel-badge { right: auto; left: 12px; }
+
+    /* Language Toggle */
+    .lang-toggle {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      z-index: 999;
+      display: flex;
+      gap: 2px;
+      background: var(--white);
+      padding: 4px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--gray-200);
+    }
+    html[dir="rtl"] .lang-toggle { right: auto; left: 20px; }
+    .lang-toggle button {
+      padding: 8px 14px;
+      border: none;
+      background: transparent;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+      color: var(--gray-500);
+    }
+    .lang-toggle button.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* SVG Icons */
+    .icon {
+      width: 20px;
+      height: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .icon svg {
+      width: 100%;
+      height: 100%;
+    }
+    .icon-sm { width: 16px; height: 16px; }
+    .icon-lg { width: 24px; height: 24px; }
+    .icon-xl { width: 32px; height: 32px; }
 
     /* ========== FLOATING NAVBAR ========== */
     .navbar-container {
@@ -65,11 +125,11 @@
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(12px);
       border-radius: 50px;
-      box-shadow: 0 4px 30px rgba(15, 118, 110, 0.15);
+      box-shadow: 0 4px 30px rgba(26, 31, 54, 0.12);
       width: 100%;
       max-width: 1000px;
       pointer-events: auto;
-      border: 1px solid rgba(15, 118, 110, 0.1);
+      border: 1px solid rgba(26, 31, 54, 0.08);
     }
 
     .navbar-logo {
@@ -82,25 +142,99 @@
     .navbar-logo-icon {
       width: 36px;
       height: 36px;
-      background: linear-gradient(135deg, var(--primary), var(--primary-light));
-      border-radius: 10px;
+      background: var(--primary);
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
-      font-family: 'Playfair Display', serif;
-      font-weight: 700;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
       font-size: 1.1rem;
+      position: relative;
+    }
+    .navbar-logo-icon::after {
+      content: '';
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 6px;
+      height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
     }
 
     .navbar-logo-text {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--gray-900);
+      font-weight: 800;
+      color: var(--primary);
     }
 
-    .navbar-logo-text span { color: var(--primary); }
+    .navbar-logo-text span {
+      font-weight: 500;
+      color: #A3A3A3;
+    }
+
+    /* Mobile Menu Button */
+    .mobile-menu-btn {
+      display: none;
+      padding: 8px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--primary);
+    }
+    @media (max-width: 868px) {
+      .mobile-menu-btn { display: flex; }
+      .navbar { position: relative; }
+    }
+
+    /* Enhanced Mobile Responsiveness */
+    @media (max-width: 640px) {
+      .lang-toggle { top: auto; bottom: 80px; right: 16px; }
+      html[dir="rtl"] .lang-toggle { right: auto; left: 16px; }
+
+      .section-title { font-size: 1.25rem; }
+      .section-header { flex-wrap: wrap; gap: 12px; }
+
+      .event-card { grid-template-columns: 100px 1fr; gap: 12px; padding: 14px; }
+      .event-card-day { font-size: 2rem; }
+      .event-card-title { font-size: 1rem; }
+
+      .experiences-section { padding: 24px 16px; }
+      .experiences-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+
+      .pillar-section { padding: 24px 16px; }
+      .pillar-title { font-size: 1.4rem; }
+
+      .newsletter { padding: 32px 20px; }
+      .newsletter-title { font-size: 1.25rem; }
+
+      .footer { padding: 40px 16px 24px; }
+      .footer-main { gap: 24px; }
+
+      .guide-card-footer { flex-direction: column; align-items: flex-start; gap: 12px; }
+      .guide-cta { width: 100%; text-align: center; }
+
+      .hotel-card-footer { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .hotel-cta { width: 100%; text-align: center; }
+    }
+
+    @media (max-width: 480px) {
+      .event-card { grid-template-columns: 1fr; }
+      .event-card-date {
+        flex-direction: row;
+        justify-content: center;
+        gap: 16px;
+        padding: 12px;
+        border-radius: 8px;
+      }
+      .event-card-day { margin: 0; }
+
+      .article-card { grid-template-columns: 1fr; }
+      html[dir="rtl"] .article-card { grid-template-columns: 1fr; }
+    }
 
     .navbar-nav {
       display: flex;
@@ -208,7 +342,7 @@
     }
 
     .title-line {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: clamp(3rem, 10vw, 7rem);
       font-weight: 700;
       color: var(--white);
@@ -373,7 +507,7 @@
     }
 
     .section-title {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1.5rem;
       font-weight: 600;
       color: var(--gray-900);
@@ -438,7 +572,7 @@
     .category-card-content { padding: 16px; }
 
     .category-card-title {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1rem;
       font-weight: 600;
       color: var(--gray-900);
@@ -513,7 +647,7 @@
     }
 
     .article-card-title {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1.1rem;
       font-weight: 600;
       color: var(--gray-900);
@@ -552,7 +686,7 @@
     }
 
     .sidebar-title {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1rem;
       font-weight: 600;
       color: var(--gray-900);
@@ -574,7 +708,7 @@
     }
 
     .sidebar-item-number {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1.25rem;
       font-weight: 700;
       color: var(--gray-200);
@@ -620,7 +754,7 @@
     }
 
     .pillar-title {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1.75rem;
       font-weight: 700;
       color: white;
@@ -665,7 +799,7 @@
     }
 
     .pillar-card-title {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1rem;
       font-weight: 600;
       color: white;
@@ -688,7 +822,7 @@
     }
 
     .newsletter-title {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1.5rem;
       font-weight: 600;
       color: var(--gray-900);
@@ -830,7 +964,7 @@
     }
 
     .guide-card-title {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1.1rem;
       font-weight: 600;
       color: var(--gray-900);
@@ -964,7 +1098,7 @@
     }
 
     .event-card-day {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 2.5rem;
       font-weight: 700;
       line-height: 1;
@@ -995,7 +1129,7 @@
     }
 
     .event-card-title {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1.15rem;
       font-weight: 600;
       color: var(--gray-900);
@@ -1247,7 +1381,7 @@
     }
 
     .hotel-card-title {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1.1rem;
       font-weight: 600;
       color: var(--gray-900);
@@ -1351,25 +1485,39 @@
     .footer-logo-icon {
       width: 40px;
       height: 40px;
-      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      background: var(--primary);
       border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
-      font-family: 'Playfair Display', serif;
-      font-weight: 700;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
       font-size: 1.25rem;
+      position: relative;
+    }
+    .footer-logo-icon::after {
+      content: '';
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
     }
 
     .footer-logo-text {
-      font-family: 'Playfair Display', serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 1.5rem;
-      font-weight: 600;
-      color: var(--gray-900);
+      font-weight: 800;
+      color: var(--primary);
     }
 
-    .footer-logo-text span { color: var(--primary); }
+    .footer-logo-text span {
+      font-weight: 500;
+      color: #A3A3A3;
+    }
 
     .footer-tagline {
       font-size: 0.95rem;
@@ -1463,21 +1611,30 @@
   </style>
 </head>
 <body>
+  <!-- Language Toggle -->
+  <div class="lang-toggle">
+    <button id="langEn" class="active" onclick="setLang('en')">EN</button>
+    <button id="langAr" onclick="setLang('ar')">عربي</button>
+  </div>
+
   <!-- ========== FLOATING NAVBAR ========== -->
   <div class="navbar-container">
     <nav class="navbar">
       <a href="/" class="navbar-logo">
         <div class="navbar-logo-icon">Y</div>
-        <div class="navbar-logo-text">Yalla <span>London</span></div>
+        <div class="navbar-logo-text">Yalla <span data-en="London" data-ar="لندن">London</span></div>
       </a>
       <div class="navbar-nav">
-        <a href="/">Home</a>
-        <a href="/guides">Guides</a>
-        <a href="/events">Events</a>
-        <a href="/shop">Shop</a>
-        <a href="/hotels">Hotels</a>
-        <a href="/subscribe" class="navbar-cta">Subscribe</a>
+        <a href="/" data-en="Home" data-ar="الرئيسية">Home</a>
+        <a href="/guides" data-en="Guides" data-ar="الأدلة">Guides</a>
+        <a href="/events" data-en="Events" data-ar="الفعاليات">Events</a>
+        <a href="/shop" data-en="Shop" data-ar="المتجر">Shop</a>
+        <a href="/hotels" data-en="Hotels" data-ar="الفنادق">Hotels</a>
+        <a href="/subscribe" class="navbar-cta" data-en="Subscribe" data-ar="اشترك">Subscribe</a>
       </div>
+      <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
     </nav>
   </div>
 
@@ -1532,7 +1689,7 @@
     <!-- Categories -->
     <section>
       <div class="section-header">
-        <h2 class="section-title">📍 Explore by Category</h2>
+        <h2 class="section-title"><span class="icon icon-lg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></span> <span data-en="Explore by Category" data-ar="استكشف حسب الفئة">Explore by Category</span></h2>
         <a href="/categories" class="section-link">View all →</a>
       </div>
       <div class="category-grid">
@@ -1579,7 +1736,7 @@
     <section class="articles-grid">
       <div class="articles-main">
         <div class="section-header">
-          <h2 class="section-title">📰 Latest Stories</h2>
+          <h2 class="section-title"><span class="icon icon-lg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-2 2zm0 0a2 2 0 01-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M18 18h-8M18 10h-8"/></svg></span> <span data-en="Latest Stories" data-ar="أحدث المقالات">Latest Stories</span></h2>
           <a href="/stories" class="section-link">View all →</a>
         </div>
         <a href="#" class="article-card">
@@ -1676,7 +1833,7 @@
     <!-- PDF Guides Shop -->
     <section class="guides-shop">
       <div class="section-header">
-        <h2 class="section-title">📚 London Guides to Download</h2>
+        <h2 class="section-title"><span class="icon icon-lg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span> <span data-en="London Guides to Download" data-ar="أدلة لندن للتحميل">London Guides to Download</span></h2>
         <a href="/shop" class="section-link">View all guides →</a>
       </div>
       <div class="guides-grid">
@@ -1694,8 +1851,8 @@
               <button class="guide-cta secondary">Get PDF</button>
             </div>
             <div class="guide-meta">
-              <span>📄 12 pages</span>
-              <span>⬇️ 2.4K downloads</span>
+              <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> 12 pages</span>
+              <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 2.4K downloads</span>
             </div>
           </div>
         </div>
@@ -1716,8 +1873,8 @@
               <button class="guide-cta">Buy Now</button>
             </div>
             <div class="guide-meta">
-              <span>📄 48 pages</span>
-              <span>⭐ 4.9 rating</span>
+              <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> 48 pages</span>
+              <span><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> 4.9 rating</span>
             </div>
           </div>
         </div>
@@ -1737,8 +1894,8 @@
               <button class="guide-cta">Buy Now</button>
             </div>
             <div class="guide-meta">
-              <span>📄 32 pages</span>
-              <span>🛍️ Tax-free tips</span>
+              <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> 32 pages</span>
+              <span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg> Tax-free tips</span>
             </div>
           </div>
         </div>
@@ -1748,7 +1905,7 @@
     <!-- Event Tickets -->
     <section class="events-section">
       <div class="section-header">
-        <h2 class="section-title">🎫 Upcoming Events & Matches</h2>
+        <h2 class="section-title"><span class="icon icon-lg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 013-3h14a3 3 0 013 3"/><path d="M2 9v9a3 3 0 003 3h14a3 3 0 003-3V9"/><path d="M13 6V3"/><path d="M8 6V3"/><path d="M2 13h20"/></svg></span> <span data-en="Upcoming Events & Matches" data-ar="الفعاليات والمباريات القادمة">Upcoming Events & Matches</span></h2>
         <a href="/events" class="section-link">View all events →</a>
       </div>
       <div class="events-grid">
@@ -1759,9 +1916,9 @@
             <span class="event-card-time">15:00</span>
           </div>
           <div class="event-card-content">
-            <div class="event-card-category">⚽ Premier League</div>
+            <div class="event-card-category"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg> Premier League</div>
             <h3 class="event-card-title">Arsenal vs Manchester City</h3>
-            <div class="event-card-venue">📍 Emirates Stadium, London</div>
+            <div class="event-card-venue"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/></svg> Emirates Stadium, London</div>
             <div class="event-card-footer">
               <span class="event-price">From <strong>£120</strong></span>
               <span class="event-cta">Get Tickets</span>
@@ -1775,9 +1932,9 @@
             <span class="event-card-time">19:30</span>
           </div>
           <div class="event-card-content">
-            <div class="event-card-category">🎭 Theatre</div>
+            <div class="event-card-category"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg> Theatre</div>
             <h3 class="event-card-title">The Lion King</h3>
-            <div class="event-card-venue">📍 Lyceum Theatre, West End</div>
+            <div class="event-card-venue"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/></svg> Lyceum Theatre, West End</div>
             <div class="event-card-footer">
               <span class="event-price">From <strong>£45</strong></span>
               <span class="event-cta">Get Tickets</span>
@@ -1791,9 +1948,9 @@
             <span class="event-card-time">17:30</span>
           </div>
           <div class="event-card-content">
-            <div class="event-card-category">⚽ Premier League</div>
+            <div class="event-card-category"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg> Premier League</div>
             <h3 class="event-card-title">Chelsea vs Liverpool</h3>
-            <div class="event-card-venue">📍 Stamford Bridge, London</div>
+            <div class="event-card-venue"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/></svg> Stamford Bridge, London</div>
             <div class="event-card-footer">
               <span class="event-price">From <strong>£95</strong></span>
               <span class="event-cta">Get Tickets</span>
@@ -1807,9 +1964,9 @@
             <span class="event-card-time">20:00</span>
           </div>
           <div class="event-card-content">
-            <div class="event-card-category">🎵 Concert</div>
+            <div class="event-card-category"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> Concert</div>
             <h3 class="event-card-title">Coldplay World Tour</h3>
-            <div class="event-card-venue">📍 Wembley Stadium, London</div>
+            <div class="event-card-venue"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/></svg> Wembley Stadium, London</div>
             <div class="event-card-footer">
               <span class="event-price">From <strong>£85</strong></span>
               <span class="event-cta">Get Tickets</span>
@@ -1823,10 +1980,10 @@
     <section class="experiences-section">
       <div class="experiences-header">
         <div>
-          <h2 class="section-title">✨ Curated Experiences</h2>
+          <h2 class="section-title"><span class="icon icon-lg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span> <span data-en="Curated Experiences" data-ar="تجارب مختارة">Curated Experiences</span></h2>
           <p style="font-size: 0.9rem; color: var(--gray-500); margin-top: 4px;">Hand-picked tours and activities for Arab travellers</p>
         </div>
-        <span class="experiences-badge">🤝 Partner Offers</span>
+        <span class="experiences-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.42 4.58a5.4 5.4 0 00-7.65 0l-.77.78-.77-.78a5.4 5.4 0 00-7.65 7.65l.78.78 7.65 7.65 7.65-7.65.77-.78a5.4 5.4 0 000-7.65z"/></svg> <span data-en="Partner Offers" data-ar="عروض الشركاء">Partner Offers</span></span>
       </div>
       <div class="experiences-grid">
         <a href="#" class="experience-card">
@@ -1903,7 +2060,7 @@
     <!-- Hotel Recommendations (Affiliate) -->
     <section class="hotels-section">
       <div class="section-header">
-        <h2 class="section-title">🏨 Recommended Hotels</h2>
+        <h2 class="section-title"><span class="icon icon-lg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/></svg></span> <span data-en="Recommended Hotels" data-ar="فنادق موصى بها">Recommended Hotels</span></h2>
         <a href="/hotels" class="section-link">View all hotels →</a>
       </div>
       <div class="hotels-grid">
@@ -1915,7 +2072,7 @@
           <div class="hotel-card-content">
             <div class="hotel-card-category">5-Star Luxury</div>
             <h3 class="hotel-card-title">The Dorchester</h3>
-            <div class="hotel-card-location">📍 Mayfair, London</div>
+            <div class="hotel-card-location"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/></svg> Mayfair, London</div>
             <div class="hotel-features">
               <span class="hotel-feature">Halal Options</span>
               <span class="hotel-feature">Arabic Staff</span>
@@ -1934,7 +2091,7 @@
           <div class="hotel-card-content">
             <div class="hotel-card-category">5-Star Heritage</div>
             <h3 class="hotel-card-title">The Savoy</h3>
-            <div class="hotel-card-location">📍 Strand, London</div>
+            <div class="hotel-card-location"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/></svg> Strand, London</div>
             <div class="hotel-features">
               <span class="hotel-feature">Thames View</span>
               <span class="hotel-feature">Butler Service</span>
@@ -1953,7 +2110,7 @@
           <div class="hotel-card-content">
             <div class="hotel-card-category">4-Star Family</div>
             <h3 class="hotel-card-title">Marriott Park Lane</h3>
-            <div class="hotel-card-location">📍 Park Lane, London</div>
+            <div class="hotel-card-location"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/></svg> Park Lane, London</div>
             <div class="hotel-features">
               <span class="hotel-feature">Family Rooms</span>
               <span class="hotel-feature">Near Hyde Park</span>
@@ -1977,24 +2134,24 @@
       </div>
       <div class="pillar-grid">
         <a href="#" class="pillar-card">
-          <div class="pillar-card-icon">🗺️</div>
-          <div class="pillar-card-title">First Time Visitor</div>
+          <div class="pillar-card-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></div>
+          <div class="pillar-card-title" data-en="First Time Visitor" data-ar="الزائر لأول مرة">First Time Visitor</div>
           <div class="pillar-card-desc">Everything for your first trip</div>
         </a>
         <a href="#" class="pillar-card">
-          <div class="pillar-card-icon">🥘</div>
-          <div class="pillar-card-title">Halal Food Guide</div>
-          <div class="pillar-card-desc">Best halal restaurants</div>
+          <div class="pillar-card-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div>
+          <div class="pillar-card-title" data-en="Halal Food Guide" data-ar="دليل الطعام الحلال">Halal Food Guide</div>
+          <div class="pillar-card-desc" data-en="Best halal restaurants" data-ar="أفضل المطاعم الحلال">Best halal restaurants</div>
         </a>
         <a href="#" class="pillar-card">
-          <div class="pillar-card-icon">👑</div>
-          <div class="pillar-card-title">Luxury London</div>
-          <div class="pillar-card-desc">Premium experiences</div>
+          <div class="pillar-card-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+          <div class="pillar-card-title" data-en="Luxury London" data-ar="لندن الفاخرة">Luxury London</div>
+          <div class="pillar-card-desc" data-en="Premium experiences" data-ar="تجارب فاخرة">Premium experiences</div>
         </a>
         <a href="#" class="pillar-card">
-          <div class="pillar-card-icon">👨‍👩‍👧</div>
-          <div class="pillar-card-title">With Kids</div>
-          <div class="pillar-card-desc">Family-friendly activities</div>
+          <div class="pillar-card-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
+          <div class="pillar-card-title" data-en="With Kids" data-ar="مع الأطفال">With Kids</div>
+          <div class="pillar-card-desc" data-en="Family-friendly activities" data-ar="أنشطة مناسبة للعائلة">Family-friendly activities</div>
         </a>
       </div>
     </section>
@@ -2199,6 +2356,45 @@
     window.addEventListener('touchend', handleTouchEnd);
 
     updateUI();
+
+    // Language Toggle
+    function setLang(lang) {
+      const html = document.documentElement;
+      const langEn = document.getElementById('langEn');
+      const langAr = document.getElementById('langAr');
+
+      if (lang === 'ar') {
+        html.setAttribute('lang', 'ar');
+        html.setAttribute('dir', 'rtl');
+        langAr.classList.add('active');
+        langEn.classList.remove('active');
+      } else {
+        html.setAttribute('lang', 'en');
+        html.setAttribute('dir', 'ltr');
+        langEn.classList.add('active');
+        langAr.classList.remove('active');
+      }
+
+      // Update text content
+      document.querySelectorAll('[data-' + lang + ']').forEach(el => {
+        el.textContent = el.getAttribute('data-' + lang);
+      });
+    }
+
+    // Mobile Menu Toggle
+    function toggleMobileMenu() {
+      const nav = document.querySelector('.navbar-nav');
+      nav.style.display = nav.style.display === 'flex' ? 'none' : 'flex';
+      nav.style.position = 'absolute';
+      nav.style.top = '60px';
+      nav.style.left = '0';
+      nav.style.right = '0';
+      nav.style.background = 'white';
+      nav.style.flexDirection = 'column';
+      nav.style.padding = '16px';
+      nav.style.borderRadius = '16px';
+      nav.style.boxShadow = '0 10px 40px rgba(0,0,0,0.1)';
+    }
   </script>
 </body>
 </html>

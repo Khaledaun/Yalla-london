@@ -39,7 +39,12 @@ import {
   Moon,
   Command,
   Plus,
-  Zap
+  Zap,
+  Images,
+  Link2,
+  Store,
+  Package,
+  Brush
 } from 'lucide-react'
 
 // MOPHY-styled Navigation Structure
@@ -66,7 +71,21 @@ const mainNavigation = [
       { label: 'New Article', href: '/admin/articles/new' },
       { label: 'Categories', href: '/admin/content-types' },
       { label: 'Media Library', href: '/admin/media' },
+      { label: 'Photo Pool', href: '/admin/photo-pool' },
       { label: 'Pipeline', href: '/admin/pipeline' },
+    ]
+  },
+  {
+    id: 'monetization',
+    label: 'Monetization',
+    icon: Store,
+    href: '/admin/shop',
+    badge: 'New',
+    children: [
+      { label: 'Shop & Products', href: '/admin/shop' },
+      { label: 'Affiliate Pool', href: '/admin/affiliate-pool' },
+      { label: 'PDF Generator', href: '/admin/pdf-generator' },
+      { label: 'Transactions', href: '/admin/transactions' },
     ]
   },
   {
@@ -102,6 +121,7 @@ const mainNavigation = [
     href: '/admin/design/homepage',
     children: [
       { label: 'Homepage Builder', href: '/admin/design/homepage' },
+      { label: 'Brand Assets', href: '/admin/brand-assets' },
       { label: 'Theme Settings', href: '/admin/settings/theme' },
     ]
   },

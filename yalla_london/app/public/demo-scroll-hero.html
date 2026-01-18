@@ -421,66 +421,147 @@
       border-radius: 2px;
     }
 
-    .cards-grid {
+    /* ========== BENTO GRID ========== */
+    .bento-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 30px;
+      grid-template-columns: repeat(3, 1fr);
+      grid-auto-rows: 22rem;
+      gap: 16px;
     }
 
-    .card {
-      background: white;
+    @media (max-width: 768px) {
+      .bento-grid {
+        grid-template-columns: 1fr;
+        grid-auto-rows: 20rem;
+      }
+      .bento-item.col-span-2 {
+        grid-column: span 1 !important;
+      }
+    }
+
+    .bento-item {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
       border-radius: 16px;
+      background: white;
+      border: 1px solid rgba(212, 175, 55, 0.15);
+      box-shadow: 0 4px 20px rgba(139, 21, 56, 0.06);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+
+    .bento-item:hover {
+      box-shadow: 0 20px 50px rgba(139, 21, 56, 0.15);
+      transform: scale(1.02);
+      border-color: rgba(212, 175, 55, 0.4);
+    }
+
+    .bento-item.col-span-2 {
+      grid-column: span 2;
+    }
+
+    .bento-image {
+      position: relative;
+      flex: 1;
+      min-height: 60%;
       overflow: hidden;
-      box-shadow: 0 4px 20px rgba(139, 21, 56, 0.08);
-      transition: transform 0.3s, box-shadow 0.3s;
+      background: var(--cream-200);
     }
 
-    .card:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 12px 40px rgba(139, 21, 56, 0.15);
-    }
-
-    .card-image {
-      height: 200px;
-      overflow: hidden;
-    }
-
-    .card-image img {
+    .bento-image img {
       width: 100%;
       height: 100%;
       object-fit: cover;
-      transition: transform 0.5s;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .card:hover .card-image img {
-      transform: scale(1.05);
+    .bento-item:hover .bento-image img {
+      transform: scale(1.08);
     }
 
-    .card-content {
-      padding: 24px;
+    .bento-image-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(92, 10, 35, 0.6) 0%, transparent 50%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
     }
 
-    .card-category {
-      display: inline-block;
-      background: var(--burgundy-800);
+    .bento-item:hover .bento-image-overlay {
+      opacity: 1;
+    }
+
+    .bento-category {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      padding: 6px 14px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
       color: var(--cream-50);
-      font-size: 0.75rem;
-      padding: 4px 12px;
-      border-radius: 20px;
-      margin-bottom: 12px;
+      background: var(--burgundy-800);
+      border-radius: 50px;
+      z-index: 2;
     }
 
-    .card-title {
+    .bento-content {
+      padding: 20px;
+      transition: transform 0.3s ease;
+    }
+
+    .bento-item:hover .bento-content {
+      transform: translateX(4px);
+    }
+
+    .bento-title {
       font-family: 'Playfair Display', serif;
-      font-size: 1.25rem;
+      font-size: 1.1rem;
+      font-weight: 600;
       color: var(--burgundy-800);
-      margin-bottom: 8px;
+      margin-bottom: 6px;
+      line-height: 1.3;
     }
 
-    .card-excerpt {
+    .bento-item.col-span-2 .bento-title {
+      font-size: 1.35rem;
+    }
+
+    .bento-description {
+      font-size: 0.85rem;
       color: var(--warm-gray);
-      font-size: 0.9rem;
-      line-height: 1.6;
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Featured item styling */
+    .bento-item.featured {
+      background: linear-gradient(135deg, var(--burgundy-800), var(--burgundy-900));
+    }
+
+    .bento-item.featured .bento-category {
+      background: var(--gold-400);
+      color: var(--burgundy-900);
+    }
+
+    .bento-item.featured .bento-title {
+      color: var(--cream-50);
+    }
+
+    .bento-item.featured .bento-description {
+      color: var(--cream-200);
+    }
+
+    .bento-item.featured .bento-image-overlay {
+      background: linear-gradient(to top, rgba(92, 10, 35, 0.9) 0%, rgba(92, 10, 35, 0.3) 100%);
+      opacity: 1;
     }
 
     .progress-bar {
@@ -582,7 +663,7 @@
     </div>
   </section>
 
-  <!-- ========== CONTENT SECTION ========== -->
+  <!-- ========== CONTENT SECTION WITH BENTO GRID ========== -->
   <section class="content-section" id="contentSection">
     <div class="content-inner">
       <div class="section-header">
@@ -591,37 +672,109 @@
         <div class="section-divider"></div>
       </div>
 
-      <div class="cards-grid">
-        <article class="card">
-          <div class="card-image">
-            <img src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80" alt="Tower Bridge">
+      <!-- BENTO GRID -->
+      <div class="bento-grid">
+        <!-- Item 1: Featured - spans 2 columns -->
+        <article class="bento-item col-span-2 featured">
+          <div class="bento-image">
+            <img src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1200&q=80" alt="Tower Bridge">
+            <div class="bento-image-overlay"></div>
+            <span class="bento-category">Featured</span>
           </div>
-          <div class="card-content">
-            <span class="card-category">Lifestyle</span>
-            <h3 class="card-title">London's Hidden Rooftop Gardens</h3>
-            <p class="card-excerpt">Discover secret green spaces above the city's bustling streets, from ancient churchyards to modern sky gardens.</p>
-          </div>
-        </article>
-
-        <article class="card">
-          <div class="card-image">
-            <img src="https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&q=80" alt="Afternoon Tea">
-          </div>
-          <div class="card-content">
-            <span class="card-category">Food & Drink</span>
-            <h3 class="card-title">The Art of Afternoon Tea</h3>
-            <p class="card-excerpt">A curated guide to the finest afternoon tea experiences in London, from traditional to contemporary.</p>
+          <div class="bento-content">
+            <h3 class="bento-title">London's Hidden Rooftop Gardens: A Sky-High Urban Escape</h3>
+            <p class="bento-description">Discover secret green spaces above the city's bustling streets, from ancient churchyards to modern sky gardens with breathtaking views.</p>
           </div>
         </article>
 
-        <article class="card">
-          <div class="card-image">
-            <img src="https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=600&q=80" alt="Gallery">
+        <!-- Item 2 -->
+        <article class="bento-item">
+          <div class="bento-image">
+            <img src="https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=800&q=80" alt="Afternoon Tea">
+            <div class="bento-image-overlay"></div>
+            <span class="bento-category">Food & Drink</span>
           </div>
-          <div class="card-content">
-            <span class="card-category">Culture</span>
-            <h3 class="card-title">Spring Exhibition Season</h3>
-            <p class="card-excerpt">What's coming to London's galleries this spring, featuring exclusive previews and curator insights.</p>
+          <div class="bento-content">
+            <h3 class="bento-title">The Art of Afternoon Tea</h3>
+            <p class="bento-description">A curated guide to the finest afternoon tea experiences in London.</p>
+          </div>
+        </article>
+
+        <!-- Item 3 -->
+        <article class="bento-item">
+          <div class="bento-image">
+            <img src="https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=800&q=80" alt="Gallery">
+            <div class="bento-image-overlay"></div>
+            <span class="bento-category">Culture</span>
+          </div>
+          <div class="bento-content">
+            <h3 class="bento-title">Spring Exhibition Season</h3>
+            <p class="bento-description">What's coming to London's galleries this spring.</p>
+          </div>
+        </article>
+
+        <!-- Item 4 -->
+        <article class="bento-item">
+          <div class="bento-image">
+            <img src="https://images.unsplash.com/photo-1520986606214-8b456906c813?w=800&q=80" alt="St Pauls">
+            <div class="bento-image-overlay"></div>
+            <span class="bento-category">Architecture</span>
+          </div>
+          <div class="bento-content">
+            <h3 class="bento-title">St Paul's Cathedral After Hours</h3>
+            <p class="bento-description">Experience the iconic dome in exclusive evening tours.</p>
+          </div>
+        </article>
+
+        <!-- Item 5: spans 2 columns -->
+        <article class="bento-item col-span-2">
+          <div class="bento-image">
+            <img src="https://images.unsplash.com/photo-1587385789097-0197a7fbd179?w=1200&q=80" alt="Buckingham Palace">
+            <div class="bento-image-overlay"></div>
+            <span class="bento-category">Royal</span>
+          </div>
+          <div class="bento-content">
+            <h3 class="bento-title">Inside Buckingham Palace: The Summer Opening Guide</h3>
+            <p class="bento-description">Everything you need to know about visiting the royal residence this season, including exclusive access to the State Rooms.</p>
+          </div>
+        </article>
+
+        <!-- Item 6 -->
+        <article class="bento-item">
+          <div class="bento-image">
+            <img src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&q=80" alt="Cocktails">
+            <div class="bento-image-overlay"></div>
+            <span class="bento-category">Nightlife</span>
+          </div>
+          <div class="bento-content">
+            <h3 class="bento-title">Best Speakeasy Bars</h3>
+            <p class="bento-description">Hidden cocktail dens worth discovering.</p>
+          </div>
+        </article>
+
+        <!-- Item 7 -->
+        <article class="bento-item">
+          <div class="bento-image">
+            <img src="https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=800&q=80" alt="Big Ben">
+            <div class="bento-image-overlay"></div>
+            <span class="bento-category">History</span>
+          </div>
+          <div class="bento-content">
+            <h3 class="bento-title">Big Ben Tours Return</h3>
+            <p class="bento-description">Climb the iconic Elizabeth Tower once again.</p>
+          </div>
+        </article>
+
+        <!-- Item 8 -->
+        <article class="bento-item">
+          <div class="bento-image">
+            <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80" alt="Borough Market">
+            <div class="bento-image-overlay"></div>
+            <span class="bento-category">Markets</span>
+          </div>
+          <div class="bento-content">
+            <h3 class="bento-title">Borough Market Guide</h3>
+            <p class="bento-description">Navigate London's oldest food market like a local.</p>
           </div>
         </article>
       </div>

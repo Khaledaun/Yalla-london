@@ -2435,7 +2435,7 @@ These months offer the perfect balance of pleasant weather, reasonable prices, m
     meta_title_ar: 'فنادق صديقة للمسلمين لندن 2026 | غرف صلاة وطعام حلال',
     meta_description_en: 'Find the best Muslim-friendly hotels in London 2026. Hotels with prayer facilities, halal room service, qibla direction, and Arabic-speaking staff. Prices from £150-800.',
     meta_description_ar: 'اعثر على أفضل الفنادق الصديقة للمسلمين في لندن 2026. فنادق مع مرافق صلاة وخدمة غرف حلال واتجاه القبلة.',
-    content_en: \`# Top 15 Muslim-Friendly Hotels in London 2026
+    content_en: `# Top 15 Muslim-Friendly Hotels in London 2026
 
 ## Quick Answer: Best Muslim-Friendly Hotels
 
@@ -2686,8 +2686,8 @@ Central for attractions with good Muslim-friendly features.
 
 ## Conclusion
 
-London offers excellent Muslim-friendly hotel options from budget to ultra-luxury. Book early, communicate your needs clearly, and enjoy a comfortable halal stay in one of the world's greatest cities.\`,
-    content_ar: \`# أفضل 15 فندق صديق للمسلمين في لندن 2026
+London offers excellent Muslim-friendly hotel options from budget to ultra-luxury. Book early, communicate your needs clearly, and enjoy a comfortable halal stay in one of the world's greatest cities.`,
+    content_ar: `# أفضل 15 فندق صديق للمسلمين في لندن 2026
 
 ## الإجابة السريعة: أفضل الفنادق الصديقة للمسلمين
 
@@ -2749,7 +2749,7 @@ London offers excellent Muslim-friendly hotel options from budget to ultra-luxur
 
 ### الأفضل عموماً: دورتشستر
 ### أفضل قيمة: هيلتون متروبول
-### الأفضل لزوار الخليج: جميرا كارلتون\`,
+### الأفضل لزوار الخليج: جميرا كارلتون`,
     featured_image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&h=630&fit=crop',
     category_id: 'cat-hotels',
     tags: ['muslim-friendly', 'hotels', 'halal', 'prayer-facilities', 'london', 'accommodation', 'arabic-staff'],
@@ -2782,7 +2782,7 @@ London offers excellent Muslim-friendly hotel options from budget to ultra-luxur
     meta_title_ar: 'دليل مطارات لندن 2026 | مقارنة هيثرو وجاتويك وستانستد',
     meta_description_en: 'Compare all London airports 2026. Heathrow, Gatwick, Stansted transport to city center, costs, and which airport is best for your trip.',
     meta_description_ar: 'قارن جميع مطارات لندن 2026. هيثرو وجاتويك وستانستد والنقل إلى وسط المدينة والتكاليف.',
-    content_en: \`# London Airports Guide 2026: Complete Comparison
+    content_en: `# London Airports Guide 2026: Complete Comparison
 
 ## Quick Answer: Which Airport is Best?
 
@@ -3046,8 +3046,8 @@ London offers excellent Muslim-friendly hotel options from budget to ultra-luxur
 
 For most travelers, **Heathrow** offers the best overall experience with convenient transport, good facilities, and excellent halal food options. Budget travelers can save money flying into Stansted or Luton, but factor in the longer journey time and cost to central London.
 
-**Pro Tip:** Book Elizabeth Line or Gatwick Express tickets in advance online for significant savings.\`,
-    content_ar: \`# دليل مطارات لندن 2026: مقارنة شاملة
+**Pro Tip:** Book Elizabeth Line or Gatwick Express tickets in advance online for significant savings.`,
+    content_ar: `# دليل مطارات لندن 2026: مقارنة شاملة
 
 ## الإجابة السريعة: أي مطار هو الأفضل؟
 
@@ -3130,7 +3130,7 @@ For most travelers, **Heathrow** offers the best overall experience with conveni
 **لندن سيتي** (10 كم، 20 دقيقة).
 
 ### هل يمكنني الصلاة في مطارات لندن؟
-**نعم**، جميع المطارات لديها غرف صلاة متعددة الأديان.\`,
+**نعم**، جميع المطارات لديها غرف صلاة متعددة الأديان.`,
     featured_image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1200&h=630&fit=crop',
     category_id: 'cat-guides',
     tags: ['airports', 'heathrow', 'gatwick', 'stansted', 'transport', 'london', 'travel'],

@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react';
+import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,46 +18,51 @@ export interface ArticlesModulePreviewProps {
   };
 }
 
+// Sample articles with slugs matching actual blog posts
 const sampleArticles = [
   {
     id: 1,
-    title: 'Best Hidden Gems in East London',
-    excerpt: 'Discover the secret spots that locals love, from underground bars to vintage markets that most tourists never find.',
+    title: 'First Time in London? Complete Guide for Arab Visitors',
+    slug: 'first-time-london-guide-arab-tourists-2025',
+    excerpt: 'Everything Arab tourists need to know before visiting London. Visa requirements, best areas to stay, and halal food guide.',
     image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=400',
-    author: 'Sarah Mitchell',
-    publishDate: '2024-01-15',
-    category: 'Local Guides',
-    readTime: '5 min read'
+    author: 'Yalla London Editorial',
+    publishDate: '2025-01-15',
+    category: 'Travel Guides',
+    readTime: '18 min read'
   },
   {
     id: 2,
-    title: 'London Food Scene: Where to Eat in 2024',
-    excerpt: 'From Michelin-starred restaurants to street food markets, explore London\'s evolving culinary landscape.',
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400',
-    author: 'James Chen',
-    publishDate: '2024-01-12',
-    category: 'Food & Drink',
-    readTime: '8 min read'
+    title: 'Best Halal Restaurants in Central London 2025',
+    slug: 'best-halal-restaurants-central-london-2025',
+    excerpt: 'From Mayfair fine dining to quick bites in Soho. Our curated list of the best halal restaurants in Zone 1.',
+    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400',
+    author: 'Yalla London Editorial',
+    publishDate: '2025-01-12',
+    category: 'Restaurants',
+    readTime: '14 min read'
   },
   {
     id: 3,
-    title: 'Free Museums and Galleries Guide',
-    excerpt: 'Make the most of London\'s incredible free cultural offerings with our comprehensive guide to museums and galleries.',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
-    author: 'Emma Thompson',
-    publishDate: '2024-01-10',
-    category: 'Culture',
-    readTime: '6 min read'
+    title: '20 Best London Attractions for Arab Families',
+    slug: 'best-london-attractions-arab-families-2025',
+    excerpt: 'From the Tower of London to Harry Potter Studios. Complete guide to family-friendly attractions with halal food.',
+    image: 'https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=400',
+    author: 'Yalla London Editorial',
+    publishDate: '2025-01-10',
+    category: 'Attractions',
+    readTime: '16 min read'
   },
   {
     id: 4,
-    title: 'Thames Path Walking Guide',
-    excerpt: 'Follow the historic Thames Path from Greenwich to Putney, discovering riverside pubs and historic landmarks.',
-    image: 'https://images.unsplash.com/photo-1520637836862-4d197d17c90a?w=400',
-    author: 'Michael Roberts',
-    publishDate: '2024-01-08',
-    category: 'Outdoor',
-    readTime: '10 min read'
+    title: 'Best Shisha Lounges in London 2025',
+    slug: 'best-shisha-lounges-london',
+    excerpt: 'Discover London\'s finest shisha lounges. From luxury rooftop terraces to authentic Arabic cafes.',
+    image: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?w=400',
+    author: 'Yalla London Editorial',
+    publishDate: '2025-01-08',
+    category: 'Restaurants',
+    readTime: '12 min read'
   }
 ];
 
@@ -88,9 +94,11 @@ export function ArticlesModulePreview({ module }: ArticlesModulePreviewProps) {
         </div>
 
         <div className="text-center mt-12">
-          <Button size="lg" variant="outline">
-            Read All Articles
-            <ArrowRight className="h-4 w-4 ml-2" />
+          <Button size="lg" variant="outline" asChild>
+            <Link href="/blog">
+              Read All Articles
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Link>
           </Button>
         </div>
       </div>
@@ -105,11 +113,13 @@ interface ArticleCardProps {
 }
 
 function ArticleCard({ article, showExcerpts, layout }: ArticleCardProps) {
+  const articleUrl = `/blog/${article.slug}`;
+
   if (layout === 'list') {
     return (
       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
         <div className="flex">
-          <div className="w-64 h-40 relative">
+          <Link href={articleUrl} className="w-64 h-40 relative block flex-shrink-0">
             <img
               src={article.image}
               alt={article.title}
@@ -118,8 +128,8 @@ function ArticleCard({ article, showExcerpts, layout }: ArticleCardProps) {
             <Badge className="absolute top-2 left-2 bg-blue-500">
               {article.category}
             </Badge>
-          </div>
-          
+          </Link>
+
           <CardContent className="flex-1 p-6">
             <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
               <div className="flex items-center gap-1">
@@ -132,20 +142,24 @@ function ArticleCard({ article, showExcerpts, layout }: ArticleCardProps) {
               </div>
               <span>{article.readTime}</span>
             </div>
-            
+
             <h3 className="text-xl font-semibold text-gray-900 mb-3 line-clamp-2">
-              {article.title}
+              <Link href={articleUrl} className="hover:text-blue-600 transition-colors">
+                {article.title}
+              </Link>
             </h3>
-            
+
             {showExcerpts && (
               <p className="text-gray-600 mb-4 line-clamp-3">
                 {article.excerpt}
               </p>
             )}
-            
-            <Button variant="link" className="p-0 h-auto">
-              Read More
-              <ArrowRight className="h-3 w-3 ml-1" />
+
+            <Button variant="link" className="p-0 h-auto" asChild>
+              <Link href={articleUrl}>
+                Read More
+                <ArrowRight className="h-3 w-3 ml-1" />
+              </Link>
             </Button>
           </CardContent>
         </div>
@@ -155,7 +169,7 @@ function ArticleCard({ article, showExcerpts, layout }: ArticleCardProps) {
 
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-      <div className="relative">
+      <Link href={articleUrl} className="relative block">
         <img
           src={article.image}
           alt={article.title}
@@ -164,8 +178,8 @@ function ArticleCard({ article, showExcerpts, layout }: ArticleCardProps) {
         <Badge className="absolute top-3 left-3 bg-blue-500">
           {article.category}
         </Badge>
-      </div>
-      
+      </Link>
+
       <CardContent className="p-6">
         <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
           <div className="flex items-center gap-1">
@@ -178,20 +192,24 @@ function ArticleCard({ article, showExcerpts, layout }: ArticleCardProps) {
           </div>
           <span>{article.readTime}</span>
         </div>
-        
+
         <h3 className="text-xl font-semibold text-gray-900 mb-3 line-clamp-2">
-          {article.title}
+          <Link href={articleUrl} className="hover:text-blue-600 transition-colors">
+            {article.title}
+          </Link>
         </h3>
-        
+
         {showExcerpts && (
           <p className="text-gray-600 mb-4 line-clamp-3">
             {article.excerpt}
           </p>
         )}
-        
-        <Button variant="link" className="p-0 h-auto">
-          Read More
-          <ArrowRight className="h-3 w-3 ml-1" />
+
+        <Button variant="link" className="p-0 h-auto" asChild>
+          <Link href={articleUrl}>
+            Read More
+            <ArrowRight className="h-3 w-3 ml-1" />
+          </Link>
         </Button>
       </CardContent>
     </Card>

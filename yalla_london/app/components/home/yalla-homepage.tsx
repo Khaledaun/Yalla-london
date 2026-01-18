@@ -419,7 +419,11 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   const isRTL = locale === 'ar'
   const t = text[locale]
 
+  // Track touch start position for mobile swipe detection
+  const touchStartY = React.useRef<number>(0)
+
   useEffect(() => {
+    // Desktop wheel handler
     const handleWheel = (e: WheelEvent) => {
       if (!showContent) {
         e.preventDefault()
@@ -435,8 +439,37 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       }
     }
 
+    // Mobile touch handlers
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY.current = e.touches[0].clientY
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!showContent) {
+        const touchY = e.touches[0].clientY
+        const delta = (touchStartY.current - touchY) * 0.003
+        const newProgress = Math.min(Math.max(scrollProgress + delta, 0), 1)
+        setScrollProgress(newProgress)
+        touchStartY.current = touchY
+        if (newProgress >= 1) {
+          setShowContent(true)
+        }
+        // Prevent default scroll behavior during hero animation
+        if (newProgress < 1) {
+          e.preventDefault()
+        }
+      }
+    }
+
     window.addEventListener('wheel', handleWheel, { passive: false })
-    return () => window.removeEventListener('wheel', handleWheel)
+    window.addEventListener('touchstart', handleTouchStart, { passive: true })
+    window.addEventListener('touchmove', handleTouchMove, { passive: false })
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('touchstart', handleTouchStart)
+      window.removeEventListener('touchmove', handleTouchMove)
+    }
   }, [scrollProgress, showContent])
 
   const mediaWidth = 300 + scrollProgress * 1100
@@ -529,18 +562,25 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           </motion.p>
         </div>
 
-        {/* Scroll Hint */}
-        <motion.div
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10"
+        {/* Scroll Hint - Tappable for mobile */}
+        <motion.button
+          onClick={() => {
+            setScrollProgress(1)
+            setShowContent(true)
+          }}
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-10 cursor-pointer focus:outline-none"
           style={{ opacity: 1 - scrollProgress * 2 }}
         >
-          <span className="text-sm tracking-wider uppercase text-gray-400">
+          <span className="text-sm tracking-wider uppercase text-gray-400 md:hidden">
+            {locale === 'ar' ? 'اضغط للاستكشاف' : 'Tap to explore'}
+          </span>
+          <span className="text-sm tracking-wider uppercase text-gray-400 hidden md:block">
             {locale === 'ar' ? 'مرر للأسفل للاستكشاف' : 'Scroll to explore'}
           </span>
           <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
             <ChevronDown className="w-6 h-6 text-gray-400" />
           </motion.div>
-        </motion.div>
+        </motion.button>
       </section>
 
       {/* Media Toggle */}

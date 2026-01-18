@@ -1,10 +1,10 @@
 'use client'
 
 import { useLanguage } from '@/components/language-provider'
-import { AkeaHomepage } from '@/components/home/akea-homepage'
+import { YallaHomepage } from '@/components/home/yalla-homepage'
 
 export default function Home() {
   const { language } = useLanguage()
 
-  return <AkeaHomepage locale={language as 'en' | 'ar'} />
+  return <YallaHomepage locale={language as 'en' | 'ar'} />
 }

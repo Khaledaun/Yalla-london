@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yalla London - Your Guide to London</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Fresh, Modern Color Palette */
+      --primary: #0f766e;        /* Teal - sophisticated yet fresh */
+      --primary-dark: #0d5d56;
+      --primary-light: #14b8a6;
+      --accent: #f59e0b;         /* Warm amber - energy & warmth */
+      --accent-light: #fbbf24;
+      --coral: #f97316;          /* Coral for highlights */
+
+      /* Neutrals */
+      --white: #ffffff;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.1);
+      --shadow-xl: 0 20px 40px -10px rgba(0,0,0,0.15);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--white);
+      color: var(--gray-800);
+      line-height: 1.6;
+    }
+
+    /* ========== NAVBAR ========== */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      background: var(--white);
+      border-bottom: 1px solid var(--gray-200);
+      padding: 0 24px;
+    }
+
+    .navbar-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 72px;
+    }
+
+    .navbar-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .navbar-logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      font-size: 1.25rem;
+    }
+
+    .navbar-logo-text {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--gray-900);
+    }
+
+    .navbar-logo-text span {
+      color: var(--primary);
+    }
+
+    .navbar-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .navbar-nav a {
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--gray-600);
+      text-decoration: none;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .navbar-nav a:hover {
+      color: var(--primary);
+      background: var(--gray-50);
+    }
+
+    .navbar-cta {
+      background: var(--primary);
+      color: white !important;
+      padding: 10px 20px !important;
+      border-radius: 8px !important;
+      font-weight: 600 !important;
+    }
+
+    .navbar-cta:hover {
+      background: var(--primary-dark) !important;
+    }
+
+    @media (max-width: 768px) {
+      .navbar-nav { display: none; }
+    }
+
+    /* ========== HERO ========== */
+    .hero {
+      margin-top: 72px;
+      background: linear-gradient(135deg, var(--gray-900), var(--gray-800));
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 60px 24px;
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 40px;
+      align-items: center;
+    }
+
+    @media (max-width: 968px) {
+      .hero-inner { grid-template-columns: 1fr; }
+    }
+
+    .hero-content {
+      color: white;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      padding: 8px 16px;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .hero-badge::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--coral);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .hero-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .hero-excerpt {
+      font-size: 1.1rem;
+      color: var(--gray-300);
+      margin-bottom: 24px;
+      max-width: 500px;
+    }
+
+    .hero-meta {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 0.9rem;
+      color: var(--gray-400);
+    }
+
+    .hero-author {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hero-author-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+    }
+
+    .hero-author-name {
+      color: white;
+      font-weight: 500;
+    }
+
+    .hero-image {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      aspect-ratio: 4/3;
+      box-shadow: var(--shadow-xl);
+    }
+
+    .hero-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .hero-image-badge {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: var(--accent);
+      color: var(--gray-900);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ========== TRENDING BAR ========== */
+    .trending-bar {
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-200);
+      padding: 16px 24px;
+    }
+
+    .trending-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      overflow-x: auto;
+    }
+
+    .trending-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--coral);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .trending-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      white-space: nowrap;
+      font-size: 0.9rem;
+      color: var(--gray-700);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .trending-item:hover {
+      color: var(--primary);
+    }
+
+    .trending-item-time {
+      font-size: 0.8rem;
+      color: var(--gray-400);
+    }
+
+    /* ========== MAIN CONTENT ========== */
+    .main-content {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 60px 24px;
+    }
+
+    /* Section Headers */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: var(--gray-900);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-title-icon {
+      font-size: 1.5rem;
+    }
+
+    .section-count {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--gray-400);
+      margin-left: 8px;
+    }
+
+    .section-link {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--primary);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: gap 0.2s;
+    }
+
+    .section-link:hover {
+      gap: 8px;
+    }
+
+    /* Category Grid */
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-bottom: 80px;
+    }
+
+    @media (max-width: 968px) {
+      .category-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 540px) {
+      .category-grid { grid-template-columns: 1fr; }
+    }
+
+    .category-card {
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: all 0.3s;
+      text-decoration: none;
+    }
+
+    .category-card:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-4px);
+    }
+
+    .category-card-image {
+      height: 140px;
+      overflow: hidden;
+    }
+
+    .category-card-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s;
+    }
+
+    .category-card:hover .category-card-image img {
+      transform: scale(1.08);
+    }
+
+    .category-card-content {
+      padding: 20px;
+    }
+
+    .category-card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--gray-900);
+      margin-bottom: 4px;
+    }
+
+    .category-card-count {
+      font-size: 0.85rem;
+      color: var(--gray-500);
+    }
+
+    /* Articles Grid */
+    .articles-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 40px;
+      margin-bottom: 80px;
+    }
+
+    @media (max-width: 868px) {
+      .articles-grid { grid-template-columns: 1fr; }
+    }
+
+    .articles-main {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .article-card {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 20px;
+      padding: 20px;
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: 16px;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+
+    .article-card:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow);
+    }
+
+    @media (max-width: 540px) {
+      .article-card { grid-template-columns: 1fr; }
+    }
+
+    .article-card-image {
+      border-radius: 12px;
+      overflow: hidden;
+      aspect-ratio: 4/3;
+    }
+
+    .article-card-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .article-card-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .article-card-category {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .article-card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--gray-900);
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+
+    .article-card-excerpt {
+      font-size: 0.9rem;
+      color: var(--gray-500);
+      margin-bottom: 12px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .article-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.8rem;
+      color: var(--gray-400);
+    }
+
+    .article-card-author {
+      font-weight: 500;
+      color: var(--gray-600);
+    }
+
+    /* Sidebar */
+    .articles-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    .sidebar-section {
+      background: var(--gray-50);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .sidebar-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--gray-900);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--primary);
+    }
+
+    .sidebar-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .sidebar-item {
+      display: flex;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .sidebar-item-number {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--gray-200);
+      line-height: 1;
+    }
+
+    .sidebar-item-content {
+      flex: 1;
+    }
+
+    .sidebar-item-title {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--gray-800);
+      line-height: 1.4;
+      transition: color 0.2s;
+    }
+
+    .sidebar-item:hover .sidebar-item-title {
+      color: var(--primary);
+    }
+
+    .sidebar-item-meta {
+      font-size: 0.8rem;
+      color: var(--gray-400);
+      margin-top: 4px;
+    }
+
+    /* Pillar Guides */
+    .pillar-section {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      border-radius: 24px;
+      padding: 48px;
+      margin-bottom: 80px;
+    }
+
+    .pillar-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .pillar-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+    }
+
+    .pillar-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 8px;
+    }
+
+    .pillar-subtitle {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.7);
+    }
+
+    .pillar-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 868px) {
+      .pillar-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 540px) {
+      .pillar-grid { grid-template-columns: 1fr; }
+      .pillar-section { padding: 32px 20px; }
+    }
+
+    .pillar-card {
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 16px;
+      padding: 24px;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+
+    .pillar-card:hover {
+      background: rgba(255,255,255,0.2);
+      transform: translateY(-4px);
+    }
+
+    .pillar-card-icon {
+      font-size: 2rem;
+      margin-bottom: 16px;
+    }
+
+    .pillar-card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: white;
+      margin-bottom: 8px;
+    }
+
+    .pillar-card-desc {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.5;
+    }
+
+    /* Newsletter */
+    .newsletter {
+      background: var(--gray-50);
+      border-radius: 24px;
+      padding: 48px;
+      text-align: center;
+      margin-bottom: 80px;
+    }
+
+    .newsletter-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: var(--gray-900);
+      margin-bottom: 12px;
+    }
+
+    .newsletter-desc {
+      font-size: 1rem;
+      color: var(--gray-500);
+      margin-bottom: 24px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .newsletter-form {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      max-width: 450px;
+      margin: 0 auto;
+    }
+
+    .newsletter-input {
+      flex: 1;
+      padding: 14px 20px;
+      border: 1px solid var(--gray-300);
+      border-radius: 10px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .newsletter-input:focus {
+      border-color: var(--primary);
+    }
+
+    .newsletter-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .newsletter-btn:hover {
+      background: var(--primary-dark);
+    }
+
+    @media (max-width: 540px) {
+      .newsletter-form { flex-direction: column; }
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--gray-900);
+      color: white;
+      padding: 48px 24px;
+    }
+
+    .footer-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .footer-logo span {
+      color: var(--primary-light);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-links a {
+      color: var(--gray-400);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: white;
+    }
+
+    @media (max-width: 640px) {
+      .footer-inner { flex-direction: column; gap: 24px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <!-- ========== NAVBAR ========== -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a href="/" class="navbar-logo">
+        <div class="navbar-logo-icon">Y</div>
+        <div class="navbar-logo-text">Yalla <span>London</span></div>
+      </a>
+      <div class="navbar-nav">
+        <a href="/">Home</a>
+        <a href="/guides">Guides</a>
+        <a href="/food">Food & Drink</a>
+        <a href="/events">What's On</a>
+        <a href="/neighbourhoods">Neighbourhoods</a>
+        <a href="/about">About</a>
+        <a href="/subscribe" class="navbar-cta">Subscribe</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ========== HERO / EDITOR'S PICK ========== -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-content">
+        <div class="hero-badge">EDITOR'S PICK</div>
+        <h1 class="hero-title">The Ultimate Guide to London's Hidden Rooftop Gardens</h1>
+        <p class="hero-excerpt">Discover 15 secret green spaces above the city's bustling streets, from ancient churchyards to modern sky gardens with breathtaking panoramic views.</p>
+        <div class="hero-meta">
+          <div class="hero-author">
+            <div class="hero-author-avatar"></div>
+            <div>
+              <div class="hero-author-name">Sarah Mitchell</div>
+              <div>Lifestyle Editor</div>
+            </div>
+          </div>
+          <span>12 min read</span>
+          <span>Jan 15, 2026</span>
+        </div>
+      </div>
+      <div class="hero-image">
+        <img src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&q=80" alt="Tower Bridge">
+        <div class="hero-image-badge">Guide</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TRENDING BAR ========== -->
+  <div class="trending-bar">
+    <div class="trending-inner">
+      <span class="trending-label">Trending Now</span>
+      <a href="#" class="trending-item">
+        <span>Borough Market reopens rooftop dining</span>
+        <span class="trending-item-time">2h ago</span>
+      </a>
+      <a href="#" class="trending-item">
+        <span>New Michelin stars announced for 2026</span>
+        <span class="trending-item-time">5h ago</span>
+      </a>
+      <a href="#" class="trending-item">
+        <span>Elizabeth Line extension confirmed</span>
+        <span class="trending-item-time">8h ago</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ========== MAIN CONTENT ========== -->
+  <main class="main-content">
+
+    <!-- EXPLORE BY CATEGORY -->
+    <section>
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="section-title-icon">📍</span>
+          Explore by Category
+        </h2>
+        <a href="/categories" class="section-link">View all categories →</a>
+      </div>
+      <div class="category-grid">
+        <a href="/food" class="category-card">
+          <div class="category-card-image">
+            <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80" alt="Food">
+          </div>
+          <div class="category-card-content">
+            <div class="category-card-title">Food & Dining</div>
+            <div class="category-card-count">127 articles</div>
+          </div>
+        </a>
+        <a href="/culture" class="category-card">
+          <div class="category-card-image">
+            <img src="https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=400&q=80" alt="Culture">
+          </div>
+          <div class="category-card-content">
+            <div class="category-card-title">Art & Culture</div>
+            <div class="category-card-count">89 articles</div>
+          </div>
+        </a>
+        <a href="/nightlife" class="category-card">
+          <div class="category-card-image">
+            <img src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=400&q=80" alt="Nightlife">
+          </div>
+          <div class="category-card-content">
+            <div class="category-card-title">Bars & Nightlife</div>
+            <div class="category-card-count">64 articles</div>
+          </div>
+        </a>
+        <a href="/shopping" class="category-card">
+          <div class="category-card-image">
+            <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&q=80" alt="Shopping">
+          </div>
+          <div class="category-card-content">
+            <div class="category-card-title">Shopping</div>
+            <div class="category-card-count">52 articles</div>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <!-- LATEST + SIDEBAR -->
+    <section class="articles-grid">
+      <div class="articles-main">
+        <div class="section-header">
+          <h2 class="section-title">
+            <span class="section-title-icon">📰</span>
+            Latest Stories
+          </h2>
+          <a href="/stories" class="section-link">View all →</a>
+        </div>
+
+        <a href="#" class="article-card">
+          <div class="article-card-image">
+            <img src="https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400&q=80" alt="Afternoon Tea">
+          </div>
+          <div class="article-card-content">
+            <div class="article-card-category">Food & Drink</div>
+            <h3 class="article-card-title">The Art of Afternoon Tea: London's 10 Best Experiences</h3>
+            <p class="article-card-excerpt">From classic Claridge's to innovative newcomers, we've tested them all to bring you the definitive guide.</p>
+            <div class="article-card-meta">
+              <span class="article-card-author">James Chen</span>
+              <span>8 min read</span>
+              <span>Jan 12, 2026</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="#" class="article-card">
+          <div class="article-card-image">
+            <img src="https://images.unsplash.com/photo-1520986606214-8b456906c813?w=400&q=80" alt="St Pauls">
+          </div>
+          <div class="article-card-content">
+            <div class="article-card-category">Architecture</div>
+            <h3 class="article-card-title">St Paul's Cathedral After Dark: Exclusive Evening Tours</h3>
+            <p class="article-card-excerpt">Experience Wren's masterpiece in a whole new light with these limited evening access events.</p>
+            <div class="article-card-meta">
+              <span class="article-card-author">Emma Richards</span>
+              <span>5 min read</span>
+              <span>Jan 10, 2026</span>
+            </div>
+          </div>
+        </a>
+
+        <a href="#" class="article-card">
+          <div class="article-card-image">
+            <img src="https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=400&q=80" alt="Big Ben">
+          </div>
+          <div class="article-card-content">
+            <div class="article-card-category">History</div>
+            <h3 class="article-card-title">Big Ben Tours Return: Everything You Need to Know</h3>
+            <p class="article-card-excerpt">After years of renovation, the Elizabeth Tower is welcoming visitors again. Here's how to book.</p>
+            <div class="article-card-meta">
+              <span class="article-card-author">Oliver Hughes</span>
+              <span>6 min read</span>
+              <span>Jan 8, 2026</span>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <!-- SIDEBAR -->
+      <aside class="articles-sidebar">
+        <div class="sidebar-section">
+          <h3 class="sidebar-title">Most Read This Week</h3>
+          <div class="sidebar-list">
+            <a href="#" class="sidebar-item">
+              <span class="sidebar-item-number">01</span>
+              <div class="sidebar-item-content">
+                <div class="sidebar-item-title">The Best Speakeasy Bars in London Right Now</div>
+                <div class="sidebar-item-meta">Nightlife • 15K views</div>
+              </div>
+            </a>
+            <a href="#" class="sidebar-item">
+              <span class="sidebar-item-number">02</span>
+              <div class="sidebar-item-content">
+                <div class="sidebar-item-title">New Michelin Stars 2026: The Full List</div>
+                <div class="sidebar-item-meta">Food & Drink • 12K views</div>
+              </div>
+            </a>
+            <a href="#" class="sidebar-item">
+              <span class="sidebar-item-number">03</span>
+              <div class="sidebar-item-content">
+                <div class="sidebar-item-title">Spring Exhibitions You Can't Miss</div>
+                <div class="sidebar-item-meta">Culture • 9K views</div>
+              </div>
+            </a>
+            <a href="#" class="sidebar-item">
+              <span class="sidebar-item-number">04</span>
+              <div class="sidebar-item-content">
+                <div class="sidebar-item-title">Borough Market: The Complete Guide</div>
+                <div class="sidebar-item-meta">Guide • 8K views</div>
+              </div>
+            </a>
+            <a href="#" class="sidebar-item">
+              <span class="sidebar-item-number">05</span>
+              <div class="sidebar-item-content">
+                <div class="sidebar-item-title">London's Best Rooftop Restaurants</div>
+                <div class="sidebar-item-meta">Food & Drink • 7K views</div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- PILLAR GUIDES -->
+    <section class="pillar-section">
+      <div class="pillar-header">
+        <div class="pillar-label">Essential Reading</div>
+        <h2 class="pillar-title">The Complete London Guides</h2>
+        <p class="pillar-subtitle">In-depth guides to help you experience London like a local</p>
+      </div>
+      <div class="pillar-grid">
+        <a href="#" class="pillar-card">
+          <div class="pillar-card-icon">🗺️</div>
+          <div class="pillar-card-title">First Time in London</div>
+          <div class="pillar-card-desc">Everything you need for your first visit to the city</div>
+        </a>
+        <a href="#" class="pillar-card">
+          <div class="pillar-card-icon">💎</div>
+          <div class="pillar-card-title">Hidden Gems</div>
+          <div class="pillar-card-desc">Secret spots the tourists don't know about</div>
+        </a>
+        <a href="#" class="pillar-card">
+          <div class="pillar-card-icon">👑</div>
+          <div class="pillar-card-title">Luxury London</div>
+          <div class="pillar-card-desc">Premium experiences for discerning travelers</div>
+        </a>
+        <a href="#" class="pillar-card">
+          <div class="pillar-card-icon">👨‍👩‍👧‍👦</div>
+          <div class="pillar-card-title">London with Kids</div>
+          <div class="pillar-card-desc">Family-friendly activities and attractions</div>
+        </a>
+      </div>
+    </section>
+
+    <!-- NEWSLETTER -->
+    <section class="newsletter">
+      <h2 class="newsletter-title">Stay in the Know</h2>
+      <p class="newsletter-desc">Get weekly curated stories, exclusive offers, and insider tips delivered to your inbox.</p>
+      <form class="newsletter-form">
+        <input type="email" class="newsletter-input" placeholder="Enter your email">
+        <button type="submit" class="newsletter-btn">Subscribe</button>
+      </form>
+    </section>
+  </main>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-logo">Yalla <span>London</span></div>
+      <div class="footer-links">
+        <a href="/about">About</a>
+        <a href="/contact">Contact</a>
+        <a href="/advertise">Advertise</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -32,7 +32,7 @@ const articles = {
   en: [
     {
       id: '1',
-      slug: 'best-halal-restaurants-central-london-2025',
+      slug: 'best-halal-fine-dining-restaurants-london-2025-comparison',
       category: 'Lifestyle',
       title: 'Best Halal Restaurants in Central London 2025',
       excerpt: 'Discover the finest halal dining experiences in the heart of London. From Mayfair fine dining to hidden gems in Soho.',
@@ -42,7 +42,7 @@ const articles = {
     },
     {
       id: '2',
-      slug: 'complete-london-guide-arab-visitors',
+      slug: 'first-time-london-guide-arab-tourists-2025',
       category: 'Travel',
       title: 'Complete London Guide for Arab Visitors',
       excerpt: 'Everything you need to know for your first visit. Visa, transport, halal food, and prayer facilities.',
@@ -52,7 +52,7 @@ const articles = {
     },
     {
       id: '3',
-      slug: 'harrods-vs-selfridges-comparison',
+      slug: 'harrods-vs-selfridges-which-better-2025',
       category: 'Shopping',
       title: 'Harrods vs Selfridges: Which is Better?',
       excerpt: 'A detailed comparison of London\'s two iconic department stores for luxury shoppers.',
@@ -64,7 +64,7 @@ const articles = {
   ar: [
     {
       id: '1',
-      slug: 'best-halal-restaurants-central-london-2025',
+      slug: 'best-halal-fine-dining-restaurants-london-2025-comparison',
       category: 'نمط الحياة',
       title: 'أفضل المطاعم الحلال في وسط لندن 2025',
       excerpt: 'اكتشف أفضل تجارب الطعام الحلال في قلب لندن. من المطاعم الفاخرة في مايفير إلى الجواهر المخفية.',
@@ -74,7 +74,7 @@ const articles = {
     },
     {
       id: '2',
-      slug: 'complete-london-guide-arab-visitors',
+      slug: 'first-time-london-guide-arab-tourists-2025',
       category: 'سفر',
       title: 'دليل لندن الشامل للزوار العرب',
       excerpt: 'كل ما تحتاج معرفته لزيارتك الأولى. التأشيرة والمواصلات والطعام الحلال ومرافق الصلاة.',
@@ -84,7 +84,7 @@ const articles = {
     },
     {
       id: '3',
-      slug: 'harrods-vs-selfridges-comparison',
+      slug: 'harrods-vs-selfridges-which-better-2025',
       category: 'تسوق',
       title: 'هارودز أم سيلفريدجز: أيهما أفضل؟',
       excerpt: 'مقارنة تفصيلية بين أشهر متجرين في لندن للمتسوقين الفاخرين.',

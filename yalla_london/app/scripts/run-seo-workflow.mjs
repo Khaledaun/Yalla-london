@@ -43,6 +43,8 @@ loadEnv();
 
 // Configuration
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+// GSC_SITE_URL is the property URL in Search Console (can be sc-domain: format)
+const GSC_SITE_URL = process.env.GSC_SITE_URL || SITE_URL;
 const GSC_EMAIL = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL;
 const GSC_KEY = process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY;
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'yallalondon2026key';
@@ -118,6 +120,7 @@ async function verifyGSC() {
 
   // Check configuration
   log(`Site URL: ${SITE_URL}`, 'info');
+  log(`GSC Property: ${GSC_SITE_URL}`, 'info');
   log(`GSC Email: ${GSC_EMAIL ? GSC_EMAIL : 'NOT SET'}`, GSC_EMAIL ? 'success' : 'error');
   log(`GSC Key: ${GSC_KEY ? 'CONFIGURED' : 'NOT SET'}`, GSC_KEY ? 'success' : 'error');
 
@@ -144,7 +147,7 @@ async function verifyGSC() {
         },
         body: JSON.stringify({
           inspectionUrl: SITE_URL,
-          siteUrl: SITE_URL,
+          siteUrl: GSC_SITE_URL,
         }),
       });
 
@@ -170,7 +173,7 @@ async function verifyGSC() {
       const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       const response = await fetch(
-        `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(SITE_URL)}/searchAnalytics/query`,
+        `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(GSC_SITE_URL)}/searchAnalytics/query`,
         {
           method: 'POST',
           headers: {
@@ -219,12 +222,12 @@ async function checkIndexing() {
     return;
   }
 
-  // Test URLs
+  // Test URLs - mix of pages and blog posts
   const testUrls = [
     SITE_URL,
     `${SITE_URL}/blog`,
-    `${SITE_URL}/recommendations`,
-    `${SITE_URL}/events`,
+    `${SITE_URL}/blog/london-new-years-eve-fireworks-2025-complete-guide`,
+    `${SITE_URL}/blog/best-halal-fine-dining-restaurants-london-2025-comparison`,
   ];
 
   let indexed = 0;
@@ -240,7 +243,7 @@ async function checkIndexing() {
         },
         body: JSON.stringify({
           inspectionUrl: url,
-          siteUrl: SITE_URL,
+          siteUrl: GSC_SITE_URL,
         }),
       });
 
@@ -281,8 +284,10 @@ async function submitForIndexing() {
   const urlsToSubmit = [
     SITE_URL,
     `${SITE_URL}/blog`,
-    `${SITE_URL}/recommendations`,
-    `${SITE_URL}/events`,
+    `${SITE_URL}/blog/london-new-years-eve-fireworks-2025-complete-guide`,
+    `${SITE_URL}/blog/best-halal-fine-dining-restaurants-london-2025-comparison`,
+    `${SITE_URL}/blog/luxury-hotels-london-arab-families-2025-comparison`,
+    `${SITE_URL}/blog/best-halal-afternoon-tea-london-2025`,
   ];
 
   // Submit to Google Indexing API

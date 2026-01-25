@@ -21,7 +21,7 @@
  *   crawl                - Crawl site and check all pages
  */
 
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';

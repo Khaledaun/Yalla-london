@@ -488,7 +488,7 @@ export function ContentPipelinePanel() {
                       )}
                       
                       {item.status === 'approved' && (
-                        <Button 
+                        <Button
                           size="sm"
                           onClick={() => executeAction(item.id, 'publish')}
                         >
@@ -496,7 +496,25 @@ export function ContentPipelinePanel() {
                           Publish
                         </Button>
                       )}
-                      
+
+                      {/* Index Now Button - Opens GSC for published content */}
+                      {item.status === 'published' && item.type === 'article' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+                            const slug = item.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                            const pageUrl = `${siteUrl}/blog/${slug}`;
+                            const gscUrl = `https://search.google.com/search-console/inspect?resource_id=${encodeURIComponent(siteUrl)}&id=${encodeURIComponent(pageUrl)}`;
+                            window.open(gscUrl, '_blank', 'noopener,noreferrer');
+                          }}
+                        >
+                          <Globe className="h-4 w-4 mr-2" />
+                          Index Now
+                        </Button>
+                      )}
+
                       <Button variant="ghost" size="sm">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>

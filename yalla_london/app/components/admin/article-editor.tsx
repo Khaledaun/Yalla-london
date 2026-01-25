@@ -45,7 +45,8 @@ import {
   Star,
   TrendingUp,
   Users,
-  BarChart3
+  BarChart3,
+  ExternalLink
 } from 'lucide-react'
 import { useToast } from '@/components/ui/use-toast'
 import Image from 'next/image'
@@ -723,6 +724,32 @@ London's charm lies in its diversity and the countless opportunities it offers f
                   {article.seoDescription.length}/160 characters
                 </p>
               </div>
+
+              {/* Index Now Button - Opens GSC URL Inspection */}
+              {article.slug && (
+                <div className="pt-4 border-t">
+                  <Label className="text-sm font-medium mb-2 block">Request Indexing</Label>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Open Google Search Console to request indexing for this page
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+                      const pageUrl = `${siteUrl}/blog/${article.slug}`;
+                      const gscUrl = `https://search.google.com/search-console/inspect?resource_id=${encodeURIComponent(siteUrl)}&id=${encodeURIComponent(pageUrl)}`;
+                      window.open(gscUrl, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Index Now in Google
+                  </Button>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Opens GSC URL Inspection tool with this article&apos;s URL
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

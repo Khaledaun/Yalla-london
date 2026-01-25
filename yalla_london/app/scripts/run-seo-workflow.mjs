@@ -43,6 +43,8 @@ loadEnv();
 
 // Configuration
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+// GSC_SITE_URL is the property URL in Search Console (can be sc-domain: format)
+const GSC_SITE_URL = process.env.GSC_SITE_URL || SITE_URL;
 const GSC_EMAIL = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL;
 const GSC_KEY = process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY;
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'yallalondon2026key';
@@ -118,6 +120,7 @@ async function verifyGSC() {
 
   // Check configuration
   log(`Site URL: ${SITE_URL}`, 'info');
+  log(`GSC Property: ${GSC_SITE_URL}`, 'info');
   log(`GSC Email: ${GSC_EMAIL ? GSC_EMAIL : 'NOT SET'}`, GSC_EMAIL ? 'success' : 'error');
   log(`GSC Key: ${GSC_KEY ? 'CONFIGURED' : 'NOT SET'}`, GSC_KEY ? 'success' : 'error');
 
@@ -144,7 +147,7 @@ async function verifyGSC() {
         },
         body: JSON.stringify({
           inspectionUrl: SITE_URL,
-          siteUrl: SITE_URL,
+          siteUrl: GSC_SITE_URL,
         }),
       });
 
@@ -170,7 +173,7 @@ async function verifyGSC() {
       const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       const response = await fetch(
-        `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(SITE_URL)}/searchAnalytics/query`,
+        `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(GSC_SITE_URL)}/searchAnalytics/query`,
         {
           method: 'POST',
           headers: {
@@ -240,7 +243,7 @@ async function checkIndexing() {
         },
         body: JSON.stringify({
           inspectionUrl: url,
-          siteUrl: SITE_URL,
+          siteUrl: GSC_SITE_URL,
         }),
       });
 

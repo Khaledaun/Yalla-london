@@ -50,22 +50,29 @@ const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'yallalondon2026key';
 const GSC_EMAIL = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL;
 const GSC_KEY = process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY;
 
-// All blog post URLs to index
+// All blog post URLs to index (from blog-content.ts and blog-content-extended.ts)
 const BLOG_POSTS = [
-  '/blog/muslim-friendly-hotels-london',
-  '/blog/london-airports-guide',
-  '/blog/uk-visa-guide-gcc',
-  '/blog/best-time-visit-london',
-  '/blog/ramadan-london-guide',
-  '/blog/london-transport-guide',
-  '/blog/premier-league-stadiums-guide',
-  '/blog/best-halal-restaurants-london',
-  '/blog/luxury-shopping-london',
-  '/blog/family-attractions-london',
-  '/blog/arab-community-events-london',
-  '/blog/private-healthcare-london',
-  '/blog/halal-afternoon-tea-london',
-  '/blog/islamic-heritage-london',
+  // From blog-content.ts
+  '/blog/london-new-years-eve-fireworks-2025-complete-guide',
+  '/blog/best-halal-fine-dining-restaurants-london-2025-comparison',
+  '/blog/luxury-hotels-london-arab-families-2025-comparison',
+  '/blog/best-halal-afternoon-tea-london-2025',
+  '/blog/first-time-london-guide-arab-tourists-2025',
+  '/blog/harrods-vs-selfridges-which-better-2025',
+  // From blog-content-extended.ts
+  '/blog/best-london-attractions-arab-families-2025',
+  '/blog/london-winter-guide-arab-visitors-2025',
+  '/blog/edgware-road-london-complete-guide-arab-area',
+  '/blog/best-shisha-lounges-london',
+  '/blog/oxford-street-shopping-guide-2025',
+  '/blog/best-halal-restaurants-central-london-2025',
+  '/blog/ramadan-london-2026-complete-guide-iftar-suhoor',
+  '/blog/london-transport-guide-tourists-2026-tube-bus-taxi',
+  '/blog/premier-league-london-stadiums-guide-2026-tickets-hospitality',
+  '/blog/uk-visa-guide-arab-countries-2026-requirements-apply',
+  '/blog/best-time-to-visit-london-2026-weather-seasons-events',
+  '/blog/muslim-friendly-hotels-london-2026-prayer-facilities-halal',
+  '/blog/london-airports-guide-2026-heathrow-gatwick-stansted-comparison',
 ];
 
 // Static pages

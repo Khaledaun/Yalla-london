@@ -222,12 +222,12 @@ async function checkIndexing() {
     return;
   }
 
-  // Test URLs
+  // Test URLs - mix of pages and blog posts
   const testUrls = [
     SITE_URL,
     `${SITE_URL}/blog`,
-    `${SITE_URL}/recommendations`,
-    `${SITE_URL}/events`,
+    `${SITE_URL}/blog/london-new-years-eve-fireworks-2025-complete-guide`,
+    `${SITE_URL}/blog/best-halal-fine-dining-restaurants-london-2025-comparison`,
   ];
 
   let indexed = 0;
@@ -284,8 +284,10 @@ async function submitForIndexing() {
   const urlsToSubmit = [
     SITE_URL,
     `${SITE_URL}/blog`,
-    `${SITE_URL}/recommendations`,
-    `${SITE_URL}/events`,
+    `${SITE_URL}/blog/london-new-years-eve-fireworks-2025-complete-guide`,
+    `${SITE_URL}/blog/best-halal-fine-dining-restaurants-london-2025-comparison`,
+    `${SITE_URL}/blog/luxury-hotels-london-arab-families-2025-comparison`,
+    `${SITE_URL}/blog/best-halal-afternoon-tea-london-2025`,
   ];
 
   // Submit to Google Indexing API

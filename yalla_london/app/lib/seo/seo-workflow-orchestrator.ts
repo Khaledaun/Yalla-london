@@ -246,7 +246,8 @@ export async function auditContent(urls: string[]): Promise<ContentAuditResult[]
       if (descEn.length >= 120 && descEn.length <= 160) seoScore += 15;
       if (keywords.length >= 3) seoScore += 10;
       if (post.featured_image) seoScore += 5;
-      if (post.authority_links && post.authority_links.length > 0) seoScore += 5;
+      // Authority links bonus (if post has extended properties)
+      if ((post as any).authority_links?.length > 0) seoScore += 5;
     }
 
     // Check indexing status

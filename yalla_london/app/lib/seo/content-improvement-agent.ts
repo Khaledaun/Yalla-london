@@ -186,7 +186,7 @@ function generateSuggestions(post: any, gscData: SearchAnalyticsRow): ContentSug
   }
 
   // Internal linking opportunities
-  const internalLinks = post.internal_links || [];
+  const internalLinks = (post as any).internal_links || [];
   if (internalLinks.length < 3) {
     suggestions.push({
       type: 'internal_links',

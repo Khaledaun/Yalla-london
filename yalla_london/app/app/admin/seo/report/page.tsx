@@ -29,6 +29,11 @@ import {
   Target,
   ArrowUpRight,
   Shield,
+  Layers,
+  Pencil,
+  CalendarClock,
+  Lightbulb,
+  Link2,
 } from "lucide-react";
 
 // Types
@@ -105,6 +110,72 @@ interface Recommendation {
   description: string;
   autoFixable: boolean;
   items?: any[];
+}
+
+interface ContentArticle {
+  id: string;
+  title: string;
+  slug: string;
+  url: string;
+  seoScore: number;
+  pageType: string;
+  category: string;
+  tags: string[];
+  hasMetaTitle: boolean;
+  hasMetaDescription: boolean;
+  hasFeaturedImage: boolean;
+  publishedAt: string;
+  updatedAt: string;
+  indexingStatus: string;
+  lastCrawled?: string;
+  searchClicks: number;
+  searchImpressions: number;
+  searchCTR: number;
+  searchPosition: number;
+  issues: string[];
+  recommendations: string[];
+}
+
+interface ScheduledItem {
+  id: string;
+  title: string;
+  type: string;
+  language: string;
+  status: string;
+  scheduledFor: string;
+  seoScore: number;
+  category: string;
+  platform: string;
+}
+
+interface PipelineTopic {
+  id: string;
+  title: string;
+  keyword: string;
+  status: string;
+  intent: string;
+  pageType: string;
+  confidence: number;
+  evergreen: boolean;
+  locale: string;
+  targetDate?: string;
+  createdAt: string;
+}
+
+interface ContentReport {
+  published: ContentArticle[];
+  scheduled: ScheduledItem[];
+  pipeline: PipelineTopic[];
+  contentSEO: ContentArticle[];
+  summary: {
+    totalPublished: number;
+    totalScheduled: number;
+    totalInPipeline: number;
+    indexedOfSampled: string;
+    articlesWithIssues: number;
+    avgSEOScore: number;
+  };
+  durationMs: number;
 }
 
 interface SEOReport {
@@ -284,12 +355,22 @@ function SectionHeader({
 
 export default function SEOReportPage() {
   const [report, setReport] = useState<SEOReport | null>(null);
+  const [contentReport, setContentReport] = useState<ContentReport | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
+  const [contentLoading, setContentLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState("30d");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "overview" | "keywords" | "pages" | "indexing" | "plan"
+    | "overview"
+    | "keywords"
+    | "pages"
+    | "indexing"
+    | "content"
+    | "pipeline"
+    | "plan"
   >("overview");
 
   const loadReport = useCallback(async () => {
@@ -306,9 +387,24 @@ export default function SEOReportPage() {
     setIsLoading(false);
   }, [range]);
 
+  const loadContent = useCallback(async () => {
+    setContentLoading(true);
+    try {
+      const response = await fetch("/api/admin/seo/content?limit=50");
+      if (response.ok) {
+        const data = await response.json();
+        setContentReport(data);
+      }
+    } catch {
+      // Content data is supplementary
+    }
+    setContentLoading(false);
+  }, []);
+
   useEffect(() => {
     loadReport();
-  }, [loadReport]);
+    loadContent();
+  }, [loadReport, loadContent]);
 
   const ga4 = report?.ga4;
   const gsc = report?.gsc;
@@ -382,10 +478,12 @@ export default function SEOReportPage() {
           <div className="flex gap-1 mt-4 -mb-4 overflow-x-auto">
             {[
               { id: "overview", label: "Overview", icon: BarChart3 },
+              { id: "content", label: "Content", icon: Pencil },
+              { id: "pipeline", label: "Pipeline", icon: Layers },
               { id: "keywords", label: "Keywords", icon: Search },
               { id: "pages", label: "Pages", icon: FileText },
               { id: "indexing", label: "Indexing", icon: Globe },
-              { id: "plan", label: "Fix & Improve Plan", icon: Zap },
+              { id: "plan", label: "Fix Plan", icon: Zap },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -679,6 +777,467 @@ export default function SEOReportPage() {
                       ))}
                     </div>
                   </div>
+                )}
+              </>
+            )}
+
+            {/* === CONTENT TAB === */}
+            {activeTab === "content" && (
+              <>
+                {contentLoading ? (
+                  <div className="flex flex-col items-center py-16">
+                    <RefreshCw className="h-8 w-8 text-blue-500 animate-spin mb-3" />
+                    <p className="text-gray-500 text-sm">
+                      Loading content data...
+                    </p>
+                  </div>
+                ) : contentReport?.contentSEO &&
+                  contentReport.contentSEO.length > 0 ? (
+                  <>
+                    {/* Content Summary */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                      <StatCard
+                        title="Published"
+                        value={String(contentReport.summary.totalPublished)}
+                        icon={FileText}
+                        color="blue"
+                      />
+                      <StatCard
+                        title="Avg SEO Score"
+                        value={`${contentReport.summary.avgSEOScore}/100`}
+                        icon={Target}
+                        color={
+                          contentReport.summary.avgSEOScore >= 70
+                            ? "green"
+                            : contentReport.summary.avgSEOScore >= 40
+                              ? "amber"
+                              : "rose"
+                        }
+                      />
+                      <StatCard
+                        title="Indexed"
+                        value={contentReport.summary.indexedOfSampled}
+                        icon={CheckCircle}
+                        color="green"
+                      />
+                      <StatCard
+                        title="With Issues"
+                        value={String(contentReport.summary.articlesWithIssues)}
+                        icon={AlertTriangle}
+                        color={
+                          contentReport.summary.articlesWithIssues > 0
+                            ? "amber"
+                            : "green"
+                        }
+                      />
+                    </div>
+
+                    {/* Articles with SEO Status */}
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                      <div className="p-4 border-b border-gray-100">
+                        <SectionHeader
+                          title="Published Articles - SEO & Indexing Status"
+                          icon={Pencil}
+                          badge="Live Data"
+                        />
+                      </div>
+                      <div className="divide-y divide-gray-50">
+                        {contentReport.contentSEO.map((article, i) => {
+                          const isIndexed =
+                            article.indexingStatus === "Submitted and indexed";
+                          const scoreColor =
+                            article.seoScore >= 70
+                              ? "text-green-600 bg-green-100"
+                              : article.seoScore >= 40
+                                ? "text-amber-600 bg-amber-100"
+                                : "text-red-600 bg-red-100";
+                          return (
+                            <div
+                              key={article.id}
+                              className="px-4 py-4 hover:bg-gray-50"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h4 className="text-sm font-semibold truncate">
+                                      {article.title}
+                                    </h4>
+                                    <span
+                                      className={`px-2 py-0.5 text-xs rounded-full font-medium ${scoreColor}`}
+                                    >
+                                      SEO {article.seoScore}
+                                    </span>
+                                    {isIndexed ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">
+                                        <CheckCircle className="h-3 w-3" />{" "}
+                                        Indexed
+                                      </span>
+                                    ) : article.indexingStatus !== "unknown" ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">
+                                        <XCircle className="h-3 w-3" /> Not
+                                        indexed
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-500">
+                                        Checking...
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1 flex items-center gap-3 flex-wrap">
+                                    <span>/blog/{article.slug}</span>
+                                    <span>{article.category}</span>
+                                    <span>
+                                      {new Date(
+                                        article.publishedAt,
+                                      ).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  {/* Search Performance */}
+                                  {(article.searchClicks > 0 ||
+                                    article.searchImpressions > 0) && (
+                                    <div className="flex items-center gap-4 mt-2 text-xs">
+                                      <span className="text-blue-600 font-medium">
+                                        {article.searchClicks} clicks
+                                      </span>
+                                      <span className="text-purple-600">
+                                        {article.searchImpressions} impressions
+                                      </span>
+                                      <span
+                                        className={
+                                          article.searchCTR > 3
+                                            ? "text-green-600"
+                                            : "text-amber-600"
+                                        }
+                                      >
+                                        {article.searchCTR}% CTR
+                                      </span>
+                                      <span
+                                        className={
+                                          article.searchPosition <= 10
+                                            ? "text-green-600"
+                                            : "text-amber-600"
+                                        }
+                                      >
+                                        pos {article.searchPosition}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {/* Issues */}
+                                  {article.issues.length > 0 && (
+                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                      {article.issues.map((issue, j) => (
+                                        <span
+                                          key={j}
+                                          className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-amber-50 text-amber-700 border border-amber-200"
+                                        >
+                                          <AlertTriangle className="h-3 w-3" />{" "}
+                                          {issue}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {/* Recommendations */}
+                                  {article.recommendations.length > 0 && (
+                                    <div className="mt-2 space-y-1">
+                                      {article.recommendations
+                                        .slice(0, 2)
+                                        .map((rec, j) => (
+                                          <div
+                                            key={j}
+                                            className="flex items-center gap-2 text-xs text-gray-600"
+                                          >
+                                            <Lightbulb className="h-3 w-3 text-amber-500 shrink-0" />
+                                            <span>{rec}</span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* All Published (condensed list) */}
+                    {contentReport.published.length >
+                      contentReport.contentSEO.length && (
+                      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-6">
+                        <div className="p-4 border-b border-gray-100">
+                          <SectionHeader
+                            title={`All Published Articles (${contentReport.published.length})`}
+                            icon={FileText}
+                          />
+                        </div>
+                        <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+                          {contentReport.published.map((post, i) => {
+                            const scoreColor =
+                              post.seoScore >= 70
+                                ? "bg-green-100 text-green-700"
+                                : post.seoScore >= 40
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-red-100 text-red-700";
+                            return (
+                              <div
+                                key={post.id}
+                                className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <span className="text-xs text-gray-400 w-5 shrink-0">
+                                    {i + 1}
+                                  </span>
+                                  <span className="text-sm truncate">
+                                    {post.title}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0 ml-2">
+                                  <span
+                                    className={`px-1.5 py-0.5 text-xs rounded font-medium ${scoreColor}`}
+                                  >
+                                    {post.seoScore}
+                                  </span>
+                                  <span className="text-xs text-gray-400">
+                                    {new Date(
+                                      post.publishedAt,
+                                    ).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                    <Pencil className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                    <h3 className="font-semibold text-gray-700">
+                      No published content found
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Publish blog posts to see their SEO status and search
+                      performance here
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* === PIPELINE TAB === */}
+            {activeTab === "pipeline" && (
+              <>
+                {contentLoading ? (
+                  <div className="flex flex-col items-center py-16">
+                    <RefreshCw className="h-8 w-8 text-blue-500 animate-spin mb-3" />
+                    <p className="text-gray-500 text-sm">
+                      Loading pipeline data...
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Pipeline Summary */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                      <StatCard
+                        title="Scheduled"
+                        value={String(
+                          contentReport?.summary?.totalScheduled || 0,
+                        )}
+                        icon={CalendarClock}
+                        color="blue"
+                      />
+                      <StatCard
+                        title="In Pipeline"
+                        value={String(
+                          contentReport?.summary?.totalInPipeline || 0,
+                        )}
+                        icon={Layers}
+                        color="purple"
+                      />
+                      <StatCard
+                        title="Published"
+                        value={String(
+                          contentReport?.summary?.totalPublished || 0,
+                        )}
+                        icon={CheckCircle}
+                        color="green"
+                      />
+                    </div>
+
+                    {/* Scheduled Content */}
+                    {contentReport?.scheduled &&
+                    contentReport.scheduled.length > 0 ? (
+                      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+                        <div className="p-4 border-b border-gray-100">
+                          <SectionHeader
+                            title="Scheduled Content"
+                            icon={CalendarClock}
+                            badge={`${contentReport.scheduled.length} items`}
+                          />
+                        </div>
+                        <div className="divide-y divide-gray-50">
+                          {contentReport.scheduled.map((item, i) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <CalendarClock className="h-4 w-4 text-blue-500 shrink-0" />
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium truncate">
+                                    {item.title}
+                                  </div>
+                                  <div className="text-xs text-gray-500 flex items-center gap-2">
+                                    <span className="capitalize">
+                                      {item.type.replace("_", " ")}
+                                    </span>
+                                    <span>{item.language.toUpperCase()}</span>
+                                    {item.category && (
+                                      <span>{item.category}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0 ml-2">
+                                <div
+                                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                    item.status === "scheduled"
+                                      ? "bg-blue-100 text-blue-700"
+                                      : "bg-gray-100 text-gray-600"
+                                  }`}
+                                >
+                                  {item.status}
+                                </div>
+                                {item.scheduledFor && (
+                                  <div className="text-xs text-gray-400 mt-0.5">
+                                    {new Date(
+                                      item.scheduledFor,
+                                    ).toLocaleDateString()}{" "}
+                                    {new Date(
+                                      item.scheduledFor,
+                                    ).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center mb-6">
+                        <CalendarClock className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                        <h3 className="font-medium text-gray-600 text-sm">
+                          No scheduled content
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Schedule content from the content pipeline to see it
+                          here
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Topic Proposals Pipeline */}
+                    {contentReport?.pipeline &&
+                    contentReport.pipeline.length > 0 ? (
+                      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                        <div className="p-4 border-b border-gray-100">
+                          <SectionHeader
+                            title="Topic Pipeline"
+                            icon={Lightbulb}
+                            badge={`${contentReport.pipeline.length} topics`}
+                          />
+                        </div>
+                        <div className="divide-y divide-gray-50">
+                          {contentReport.pipeline.map((topic, i) => {
+                            const statusColors: Record<string, string> = {
+                              planned: "bg-gray-100 text-gray-600",
+                              queued: "bg-blue-100 text-blue-700",
+                              generated: "bg-purple-100 text-purple-700",
+                              drafted: "bg-amber-100 text-amber-700",
+                              ready: "bg-green-100 text-green-700",
+                            };
+                            return (
+                              <div
+                                key={topic.id}
+                                className="px-4 py-3 hover:bg-gray-50"
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <h4 className="text-sm font-medium">
+                                        {topic.title}
+                                      </h4>
+                                      <span
+                                        className={`px-2 py-0.5 text-xs rounded-full font-medium ${statusColors[topic.status] || "bg-gray-100 text-gray-600"}`}
+                                      >
+                                        {topic.status}
+                                      </span>
+                                      {topic.evergreen && (
+                                        <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-50 text-emerald-600">
+                                          evergreen
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-3 flex-wrap">
+                                      {topic.keyword && (
+                                        <span className="flex items-center gap-1">
+                                          <Search className="h-3 w-3" />{" "}
+                                          {topic.keyword}
+                                        </span>
+                                      )}
+                                      {topic.pageType && (
+                                        <span className="capitalize">
+                                          {topic.pageType}
+                                        </span>
+                                      )}
+                                      {topic.intent && (
+                                        <span>{topic.intent}</span>
+                                      )}
+                                      <span>{topic.locale?.toUpperCase()}</span>
+                                      {topic.confidence != null && (
+                                        <span
+                                          className={
+                                            topic.confidence >= 0.7
+                                              ? "text-green-600"
+                                              : "text-amber-600"
+                                          }
+                                        >
+                                          {Math.round(topic.confidence * 100)}%
+                                          confidence
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {topic.targetDate && (
+                                    <div className="text-xs text-gray-400 shrink-0">
+                                      Target:{" "}
+                                      {new Date(
+                                        topic.targetDate,
+                                      ).toLocaleDateString()}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                        <Lightbulb className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                        <h3 className="font-medium text-gray-600 text-sm">
+                          No topics in pipeline
+                        </h3>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Create topic proposals to build your content pipeline
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}

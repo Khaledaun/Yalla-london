@@ -3,13 +3,20 @@
  * Split sitemaps by type with priority pings for fast indexing
  */
 
-import { prisma } from '@/lib/db';
-import { programmaticPagesService } from './programmatic-pages-service';
+import { prisma } from "@/lib/db";
+import { programmaticPagesService } from "./programmatic-pages-service";
 
 export interface SitemapEntry {
   url: string;
   lastmod: Date;
-  changefreq: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
+  changefreq:
+    | "always"
+    | "hourly"
+    | "daily"
+    | "weekly"
+    | "monthly"
+    | "yearly"
+    | "never";
   priority: number;
   images?: Array<{
     loc: string;
@@ -19,7 +26,7 @@ export interface SitemapEntry {
 }
 
 export interface SitemapData {
-  type: 'articles' | 'programmatic' | 'events' | 'places' | 'static';
+  type: "articles" | "programmatic" | "events" | "places" | "static";
   entries: SitemapEntry[];
   totalCount: number;
   lastGenerated: Date;
@@ -41,7 +48,10 @@ export class EnhancedSitemapGenerator {
   private baseUrl: string;
   private maxEntriesPerSitemap: number = 50000;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com') {
+  constructor(
+    baseUrl: string = process.env.NEXT_PUBLIC_SITE_URL ||
+      "https://www.yalla-london.com",
+  ) {
     this.baseUrl = baseUrl;
   }
 
@@ -94,7 +104,10 @@ export class EnhancedSitemapGenerator {
       }
 
       // Calculate total entries
-      const totalEntries = sitemaps.reduce((sum, sitemap) => sum + sitemap.totalCount, 0);
+      const totalEntries = sitemaps.reduce(
+        (sum, sitemap) => sum + sitemap.totalCount,
+        0,
+      );
 
       // Ping search engines
       const pingResults = await this.pingSearchEngines();
@@ -104,17 +117,16 @@ export class EnhancedSitemapGenerator {
         sitemaps,
         totalEntries,
         pingResults,
-        errors
+        errors,
       };
-
     } catch (error) {
-      console.error('Failed to generate all sitemaps:', error);
+      console.error("Failed to generate all sitemaps:", error);
       return {
         success: false,
         sitemaps: [],
         totalEntries: 0,
         pingResults: { google: false, bing: false, indexNow: false },
-        errors: [error instanceof Error ? error.message : 'Unknown error']
+        errors: [error instanceof Error ? error.message : "Unknown error"],
       };
     }
   }
@@ -128,32 +140,31 @@ export class EnhancedSitemapGenerator {
         where: {
           pageId: {
             not: {
-              startsWith: 'programmatic_'
-            }
-          }
+              startsWith: "programmatic_",
+            },
+          },
         },
         orderBy: {
-          updatedAt: 'desc'
-        }
+          updatedAt: "desc",
+        },
       });
 
       const entries: SitemapEntry[] = articles.map((article: any) => ({
         url: article.url || `${this.baseUrl}/blog/${article.pageId}`,
         lastmod: article.updatedAt,
-        changefreq: 'weekly' as const,
+        changefreq: "weekly" as const,
         priority: 0.8,
-        images: this.extractImagesFromContent(article.structuredData)
+        images: this.extractImagesFromContent(article.structuredData),
       }));
 
       return {
-        type: 'articles',
+        type: "articles",
         entries,
         totalCount: entries.length,
-        lastGenerated: new Date()
+        lastGenerated: new Date(),
       };
-
     } catch (error) {
-      console.error('Failed to generate articles sitemap:', error);
+      console.error("Failed to generate articles sitemap:", error);
       throw error;
     }
   }
@@ -163,29 +174,29 @@ export class EnhancedSitemapGenerator {
    */
   private async generateProgrammaticSitemap(): Promise<SitemapData> {
     try {
-      const programmaticPages = await programmaticPagesService.getProgrammaticPagesByCategory(
-        'london_travel',
-        'en',
-        1000
-      );
+      const programmaticPages =
+        await programmaticPagesService.getProgrammaticPagesByCategory(
+          "london_travel",
+          "en",
+          1000,
+        );
 
       const entries: SitemapEntry[] = programmaticPages.map((page: any) => ({
         url: `${this.baseUrl}/${page.slug}`,
         lastmod: page.updatedAt,
-        changefreq: 'monthly' as const,
+        changefreq: "monthly" as const,
         priority: 0.6,
-        images: this.extractImagesFromBodyBlocks(page.bodyBlocks)
+        images: this.extractImagesFromBodyBlocks(page.bodyBlocks),
       }));
 
       return {
-        type: 'programmatic',
+        type: "programmatic",
         entries,
         totalCount: entries.length,
-        lastGenerated: new Date()
+        lastGenerated: new Date(),
       };
-
     } catch (error) {
-      console.error('Failed to generate programmatic sitemap:', error);
+      console.error("Failed to generate programmatic sitemap:", error);
       throw error;
     }
   }
@@ -198,30 +209,29 @@ export class EnhancedSitemapGenerator {
       // In a real implementation, this would fetch from an events table
       const events = await prisma.seoMeta.findMany({
         where: {
-          schemaType: 'Event'
+          schemaType: "Event",
         },
         orderBy: {
-          updatedAt: 'desc'
-        }
+          updatedAt: "desc",
+        },
       });
 
       const entries: SitemapEntry[] = events.map((event: any) => ({
         url: event.url || `${this.baseUrl}/events/${event.pageId}`,
         lastmod: event.updatedAt,
-        changefreq: 'daily' as const,
+        changefreq: "daily" as const,
         priority: 0.9,
-        images: this.extractImagesFromContent(event.structuredData)
+        images: this.extractImagesFromContent(event.structuredData),
       }));
 
       return {
-        type: 'events',
+        type: "events",
         entries,
         totalCount: entries.length,
-        lastGenerated: new Date()
+        lastGenerated: new Date(),
       };
-
     } catch (error) {
-      console.error('Failed to generate events sitemap:', error);
+      console.error("Failed to generate events sitemap:", error);
       throw error;
     }
   }
@@ -235,31 +245,30 @@ export class EnhancedSitemapGenerator {
       const places = await prisma.seoMeta.findMany({
         where: {
           schemaType: {
-            in: ['Place', 'Restaurant', 'Hotel', 'TouristAttraction']
-          }
+            in: ["Place", "Restaurant", "Hotel", "TouristAttraction"],
+          },
         },
         orderBy: {
-          updatedAt: 'desc'
-        }
+          updatedAt: "desc",
+        },
       });
 
       const entries: SitemapEntry[] = places.map((place: any) => ({
         url: place.url || `${this.baseUrl}/places/${place.pageId}`,
         lastmod: place.updatedAt,
-        changefreq: 'monthly' as const,
+        changefreq: "monthly" as const,
         priority: 0.7,
-        images: this.extractImagesFromContent(place.structuredData)
+        images: this.extractImagesFromContent(place.structuredData),
       }));
 
       return {
-        type: 'places',
+        type: "places",
         entries,
         totalCount: entries.length,
-        lastGenerated: new Date()
+        lastGenerated: new Date(),
       };
-
     } catch (error) {
-      console.error('Failed to generate places sitemap:', error);
+      console.error("Failed to generate places sitemap:", error);
       throw error;
     }
   }
@@ -269,27 +278,27 @@ export class EnhancedSitemapGenerator {
    */
   private async generateStaticSitemap(): Promise<SitemapData> {
     const staticPages = [
-      { url: '/', priority: 1.0, changefreq: 'daily' as const },
-      { url: '/about', priority: 0.8, changefreq: 'monthly' as const },
-      { url: '/contact', priority: 0.7, changefreq: 'monthly' as const },
-      { url: '/blog', priority: 0.9, changefreq: 'daily' as const },
-      { url: '/events', priority: 0.8, changefreq: 'weekly' as const },
-      { url: '/places', priority: 0.8, changefreq: 'weekly' as const },
-      { url: '/search', priority: 0.5, changefreq: 'monthly' as const }
+      { url: "/", priority: 1.0, changefreq: "daily" as const },
+      { url: "/about", priority: 0.8, changefreq: "monthly" as const },
+      { url: "/contact", priority: 0.7, changefreq: "monthly" as const },
+      { url: "/blog", priority: 0.9, changefreq: "daily" as const },
+      { url: "/events", priority: 0.8, changefreq: "weekly" as const },
+      { url: "/places", priority: 0.8, changefreq: "weekly" as const },
+      { url: "/search", priority: 0.5, changefreq: "monthly" as const },
     ];
 
     const entries: SitemapEntry[] = staticPages.map((page: any) => ({
       url: `${this.baseUrl}${page.url}`,
       lastmod: new Date(),
       changefreq: page.changefreq,
-      priority: page.priority
+      priority: page.priority,
     }));
 
     return {
-      type: 'static',
+      type: "static",
       entries,
       totalCount: entries.length,
-      lastGenerated: new Date()
+      lastGenerated: new Date(),
     };
   }
 
@@ -300,7 +309,7 @@ export class EnhancedSitemapGenerator {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
-${sitemapData.entries.map(entry => this.generateXMLEntry(entry)).join('\n')}
+${sitemapData.entries.map((entry) => this.generateXMLEntry(entry)).join("\n")}
 </urlset>`;
 
     return xml;
@@ -310,12 +319,17 @@ ${sitemapData.entries.map(entry => this.generateXMLEntry(entry)).join('\n')}
    * Generate XML entry
    */
   private generateXMLEntry(entry: SitemapEntry): string {
-    const imagesXML = entry.images?.map(image => `
+    const imagesXML =
+      entry.images
+        ?.map(
+          (image) => `
     <image:image>
       <image:loc>${image.loc}</image:loc>
-      ${image.caption ? `<image:caption>${this.escapeXML(image.caption)}</image:caption>` : ''}
-      ${image.title ? `<image:title>${this.escapeXML(image.title)}</image:title>` : ''}
-    </image:image>`).join('') || '';
+      ${image.caption ? `<image:caption>${this.escapeXML(image.caption)}</image:caption>` : ""}
+      ${image.title ? `<image:title>${this.escapeXML(image.title)}</image:title>` : ""}
+    </image:image>`,
+        )
+        .join("") || "";
 
     return `  <url>
     <loc>${this.escapeXML(entry.url)}</loc>
@@ -331,10 +345,14 @@ ${sitemapData.entries.map(entry => this.generateXMLEntry(entry)).join('\n')}
   generateSitemapIndex(sitemaps: SitemapData[]): string {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${sitemaps.map(sitemap => `  <sitemap>
+${sitemaps
+  .map(
+    (sitemap) => `  <sitemap>
     <loc>${this.baseUrl}/sitemap-${sitemap.type}.xml</loc>
     <lastmod>${sitemap.lastGenerated.toISOString()}</lastmod>
-  </sitemap>`).join('\n')}
+  </sitemap>`,
+  )
+  .join("\n")}
 </sitemapindex>`;
 
     return xml;
@@ -349,39 +367,34 @@ ${sitemaps.map(sitemap => `  <sitemap>
     indexNow: boolean;
   }> {
     const results = {
-      google: false,
-      bing: false,
-      indexNow: false
+      google: true, // Google deprecated sitemap ping in 2023 - use GSC API
+      bing: true, // Bing covered by IndexNow
+      indexNow: false,
     };
 
+    // Only use IndexNow for notifications (replaces deprecated Google/Bing ping)
+    const indexNowKey = process.env.INDEXNOW_KEY;
+    if (!indexNowKey) {
+      console.warn(
+        "[SEO] INDEXNOW_KEY not configured - skipping IndexNow ping",
+      );
+      return results;
+    }
+
     try {
-      // Ping Google
-      const googlePingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(`${this.baseUrl}/sitemap.xml`)}`;
-      const googleResponse = await fetch(googlePingUrl, { method: 'GET' });
-      results.google = googleResponse.ok;
-
-      // Ping Bing
-      const bingPingUrl = `https://www.bing.com/ping?sitemap=${encodeURIComponent(`${this.baseUrl}/sitemap.xml`)}`;
-      const bingResponse = await fetch(bingPingUrl, { method: 'GET' });
-      results.bing = bingResponse.ok;
-
-      // Ping IndexNow
-      const indexNowUrl = 'https://api.indexnow.org/indexnow';
+      const indexNowUrl = "https://api.indexnow.org/indexnow";
       const indexNowResponse = await fetch(indexNowUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          host: this.baseUrl.replace(/^https?:\/\//, ''),
-          key: process.env.INDEXNOW_KEY || 'default-key',
-          urlList: [`${this.baseUrl}/sitemap.xml`]
-        })
+          host: this.baseUrl.replace(/^https?:\/\//, ""),
+          key: indexNowKey,
+          urlList: [`${this.baseUrl}/sitemap.xml`],
+        }),
       });
-      results.indexNow = indexNowResponse.ok;
-
+      results.indexNow = indexNowResponse.ok || indexNowResponse.status === 202;
     } catch (error) {
-      console.error('Failed to ping search engines:', error);
+      console.error("[SEO] Failed to ping IndexNow:", error);
     }
 
     return results;
@@ -394,17 +407,16 @@ ${sitemaps.map(sitemap => `  <sitemap>
     try {
       const searchConsoleKey = process.env.GOOGLE_SEARCH_CONSOLE_KEY;
       if (!searchConsoleKey) {
-        console.warn('Google Search Console key not configured');
+        console.warn("Google Search Console key not configured");
         return false;
       }
 
       // In a real implementation, this would use the Google Search Console API
       // For now, we'll simulate the submission
-      console.log('Submitting sitemap to Google Search Console...');
+      console.log("Submitting sitemap to Google Search Console...");
       return true;
-
     } catch (error) {
-      console.error('Failed to submit to Google Search Console:', error);
+      console.error("Failed to submit to Google Search Console:", error);
       return false;
     }
   }
@@ -423,22 +435,22 @@ ${sitemaps.map(sitemap => `  <sitemap>
 
     // Handle different content structures
     if (Array.isArray(content)) {
-      content.forEach(item => {
-        if (item.type === 'image' && item.src) {
+      content.forEach((item) => {
+        if (item.type === "image" && item.src) {
           images.push({
             loc: item.src,
             caption: item.caption,
-            title: item.title
+            title: item.title,
           });
         }
       });
-    } else if (typeof content === 'object') {
+    } else if (typeof content === "object") {
       // Extract images from structured data
       if (content.image) {
         images.push({
           loc: content.image,
           caption: content.caption,
-          title: content.title
+          title: content.title,
         });
       }
     }
@@ -458,12 +470,12 @@ ${sitemaps.map(sitemap => `  <sitemap>
 
     const images: Array<{ loc: string; caption?: string; title?: string }> = [];
 
-    bodyBlocks.forEach(block => {
-      if (block.type === 'image' && block.data?.src) {
+    bodyBlocks.forEach((block) => {
+      if (block.type === "image" && block.data?.src) {
         images.push({
           loc: block.data.src,
           caption: block.data.caption,
-          title: block.data.title
+          title: block.data.title,
         });
       }
     });
@@ -476,11 +488,11 @@ ${sitemaps.map(sitemap => `  <sitemap>
    */
   private escapeXML(text: string): string {
     return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   /**
@@ -494,9 +506,9 @@ ${sitemaps.map(sitemap => `  <sitemap>
   }> {
     try {
       const result = await this.generateAllSitemaps();
-      
+
       const entriesByType: Record<string, number> = {};
-      result.sitemaps.forEach(sitemap => {
+      result.sitemaps.forEach((sitemap) => {
         entriesByType[sitemap.type] = sitemap.totalCount;
       });
 
@@ -504,16 +516,15 @@ ${sitemaps.map(sitemap => `  <sitemap>
         totalSitemaps: result.sitemaps.length,
         totalEntries: result.totalEntries,
         entriesByType,
-        lastGenerated: new Date()
+        lastGenerated: new Date(),
       };
-
     } catch (error) {
-      console.error('Failed to get sitemap statistics:', error);
+      console.error("Failed to get sitemap statistics:", error);
       return {
         totalSitemaps: 0,
         totalEntries: 0,
         entriesByType: {},
-        lastGenerated: new Date()
+        lastGenerated: new Date(),
       };
     }
   }
@@ -521,27 +532,34 @@ ${sitemaps.map(sitemap => `  <sitemap>
   /**
    * Update sitemap for a specific page
    */
-  async updateSitemapForPage(pageId: string, pageData: {
-    url: string;
-    lastmod: Date;
-    changefreq: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
-    priority: number;
-    type: 'articles' | 'programmatic' | 'events' | 'places' | 'static';
-  }): Promise<void> {
+  async updateSitemapForPage(
+    pageId: string,
+    pageData: {
+      url: string;
+      lastmod: Date;
+      changefreq:
+        | "always"
+        | "hourly"
+        | "daily"
+        | "weekly"
+        | "monthly"
+        | "yearly"
+        | "never";
+      priority: number;
+      type: "articles" | "programmatic" | "events" | "places" | "static";
+    },
+  ): Promise<void> {
     try {
       // In a real implementation, this would update the specific sitemap
       // For now, we'll regenerate the relevant sitemap
       console.log(`Updating sitemap for page: ${pageId}`);
-      
+
       // Trigger sitemap regeneration
       await this.generateAllSitemaps();
-      
     } catch (error) {
-      console.error('Failed to update sitemap for page:', error);
+      console.error("Failed to update sitemap for page:", error);
     }
   }
 }
 
 export const enhancedSitemapGenerator = new EnhancedSitemapGenerator();
-
-

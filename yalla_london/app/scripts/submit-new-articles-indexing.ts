@@ -10,7 +10,8 @@
  * Or via API: POST /api/seo/index-urls { "urls": [...] }
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+const BASE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
 
 // New articles created on January 18, 2026
 const NEW_ARTICLE_URLS = [
@@ -38,7 +39,8 @@ interface IndexNowResult {
   message?: string;
 }
 
-const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'yallalondon2026key';
+const INDEXNOW_KEY =
+  process.env.INDEXNOW_KEY || "a6db4fe5a00991a21c509c1d5f5d734c";
 
 async function submitToIndexNow(urls: string[]): Promise<IndexNowResult[]> {
   const results: IndexNowResult[] = [];
@@ -50,7 +52,7 @@ async function submitToIndexNow(urls: string[]): Promise<IndexNowResult[]> {
   for (const url of urls) {
     const getUrl = `https://www.bing.com/indexnow?url=${encodeURIComponent(url)}&key=${INDEXNOW_KEY}`;
     try {
-      const response = await fetch(getUrl, { method: 'GET' });
+      const response = await fetch(getUrl, { method: "GET" });
       if (response.ok || response.status === 200 || response.status === 202) {
         bingSuccess++;
         console.log(`  ✅ ${url}`);
@@ -63,11 +65,11 @@ async function submitToIndexNow(urls: string[]): Promise<IndexNowResult[]> {
       console.log(`  ❌ ${url} (Error: ${error})`);
     }
     // Small delay to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
   results.push({
-    engine: 'bing.com (IndexNow)',
+    engine: "bing.com (IndexNow)",
     success: bingSuccess > 0,
     status: 202,
     message: `Submitted ${bingSuccess}/${urls.length} URLs successfully`,
@@ -77,16 +79,19 @@ async function submitToIndexNow(urls: string[]): Promise<IndexNowResult[]> {
   if (urls.length > 0) {
     const yandexUrl = `https://yandex.com/indexnow?url=${encodeURIComponent(urls[0])}&key=${INDEXNOW_KEY}`;
     try {
-      const response = await fetch(yandexUrl, { method: 'GET' });
+      const response = await fetch(yandexUrl, { method: "GET" });
       results.push({
-        engine: 'yandex.com',
-        success: response.ok || response.status === 200 || response.status === 202,
+        engine: "yandex.com",
+        success:
+          response.ok || response.status === 200 || response.status === 202,
         status: response.status,
-        message: response.ok ? 'Submitted successfully' : 'Submitted (check Yandex Webmaster)',
+        message: response.ok
+          ? "Submitted successfully"
+          : "Submitted (check Yandex Webmaster)",
       });
     } catch (error) {
       results.push({
-        engine: 'yandex.com',
+        engine: "yandex.com",
         success: false,
         message: String(error),
       });
@@ -102,8 +107,10 @@ async function pingSitemap(): Promise<boolean> {
 
   try {
     const bingPingUrl = `https://www.bing.com/webmaster/ping.aspx?siteMap=${encodeURIComponent(sitemapUrl)}`;
-    const response = await fetch(bingPingUrl, { method: 'GET' });
-    console.log(`  Bing sitemap ping: ${response.ok ? '✅ Success' : '⚠️ Check manually'}`);
+    const response = await fetch(bingPingUrl, { method: "GET" });
+    console.log(
+      `  Bing sitemap ping: ${response.ok ? "✅ Success" : "⚠️ Check manually"}`,
+    );
     return response.ok;
   } catch (error) {
     console.log(`  Bing sitemap ping: ❌ Failed (${error})`);
@@ -112,8 +119,8 @@ async function pingSitemap(): Promise<boolean> {
 }
 
 async function main() {
-  console.log('🚀 Starting Article Indexing Submission');
-  console.log('=' .repeat(50));
+  console.log("🚀 Starting Article Indexing Submission");
+  console.log("=".repeat(50));
   console.log(`📅 Date: ${new Date().toISOString()}`);
   console.log(`🌐 Base URL: ${BASE_URL}`);
   console.log(`📝 New Articles: ${NEW_ARTICLE_URLS.length}`);
@@ -126,30 +133,34 @@ async function main() {
   await pingSitemap();
 
   // Summary
-  console.log('\n' + '=' .repeat(50));
-  console.log('📊 INDEXING SUMMARY');
-  console.log('=' .repeat(50));
+  console.log("\n" + "=".repeat(50));
+  console.log("📊 INDEXING SUMMARY");
+  console.log("=".repeat(50));
 
-  console.log('\n📄 New Articles Submitted:');
+  console.log("\n📄 New Articles Submitted:");
   NEW_ARTICLE_URLS.forEach((url, i) => {
-    console.log(`  ${i + 1}. ${url.split('/blog/')[1]}`);
+    console.log(`  ${i + 1}. ${url.split("/blog/")[1]}`);
   });
 
-  console.log('\n🔍 IndexNow Results:');
-  indexNowResults.forEach(result => {
-    console.log(`  ${result.success ? '✅' : '❌'} ${result.engine}: ${result.message}`);
+  console.log("\n🔍 IndexNow Results:");
+  indexNowResults.forEach((result) => {
+    console.log(
+      `  ${result.success ? "✅" : "❌"} ${result.engine}: ${result.message}`,
+    );
   });
 
-  console.log('\n📌 Next Steps:');
-  console.log('  1. Check Google Search Console for indexing status');
-  console.log('  2. Verify URLs appear in sitemap.xml');
-  console.log('  3. Monitor Bing Webmaster Tools for IndexNow submissions');
-  console.log('  4. Use API endpoint: GET /api/seo/index-urls?action=status&url=<url>');
+  console.log("\n📌 Next Steps:");
+  console.log("  1. Check Google Search Console for indexing status");
+  console.log("  2. Verify URLs appear in sitemap.xml");
+  console.log("  3. Monitor Bing Webmaster Tools for IndexNow submissions");
+  console.log(
+    "  4. Use API endpoint: GET /api/seo/index-urls?action=status&url=<url>",
+  );
 
-  console.log('\n✅ Indexing submission complete!');
-  console.log('\n📡 API Alternative:');
-  console.log('  POST /api/seo/index-urls');
-  console.log('  Body: { "urls": ' + JSON.stringify(NEW_ARTICLE_URLS) + ' }');
+  console.log("\n✅ Indexing submission complete!");
+  console.log("\n📡 API Alternative:");
+  console.log("  POST /api/seo/index-urls");
+  console.log('  Body: { "urls": ' + JSON.stringify(NEW_ARTICLE_URLS) + " }");
 }
 
 // Export for use as module

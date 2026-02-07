@@ -1,19 +1,19 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-import type { Metadata } from 'next'
-import Script from 'next/script'
-import './globals.css'
-import { LanguageProvider } from '@/components/language-provider'
-import { DynamicHeader } from '@/components/dynamic-header'
-import { Footer } from '@/components/footer'
-import { ThemeProvider } from '@/components/theme-provider'
-import { BrandThemeProvider } from '@/components/brand-theme-provider'
-import { StructuredData } from '@/components/structured-data'
-import { AnalyticsTracker } from '@/components/analytics-tracker'
-import { NextAuthSessionProvider } from '@/components/session-provider'
-import { CookieConsentBanner } from '@/components/cookie-consent-banner'
-import { brandConfig } from '@/config/brand-config'
+import type { Metadata } from "next";
+import Script from "next/script";
+import "./globals.css";
+import { LanguageProvider } from "@/components/language-provider";
+import { DynamicHeader } from "@/components/dynamic-header";
+import { Footer } from "@/components/footer";
+import { ThemeProvider } from "@/components/theme-provider";
+import { BrandThemeProvider } from "@/components/brand-theme-provider";
+import { StructuredData } from "@/components/structured-data";
+import { AnalyticsTracker } from "@/components/analytics-tracker";
+import { NextAuthSessionProvider } from "@/components/session-provider";
+import { CookieConsentBanner } from "@/components/cookie-consent-banner";
+import { brandConfig } from "@/config/brand-config";
 
 export const metadata: Metadata = {
   title: `${brandConfig.siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
@@ -23,28 +23,28 @@ export const metadata: Metadata = {
   creator: brandConfig.seo.author,
   publisher: brandConfig.seo.author,
   openGraph: {
-    type: 'website',
-    locale: 'en_GB',
-    alternateLocale: 'ar_SA',
-    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://example.com',
+    type: "website",
+    locale: "en_GB",
+    alternateLocale: "ar_SA",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "https://example.com",
     siteName: brandConfig.siteName,
     title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
     description: brandConfig.description,
     images: [
       {
-        url: '/og-image.jpg',
+        url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: 'Yalla London - Luxury London Guide',
+        alt: "Yalla London - Luxury London Guide",
       },
     ],
   },
   twitter: {
-    card: 'summary_large_image',
-    site: brandConfig.seo.twitterHandle || '@example',
+    card: "summary_large_image",
+    site: brandConfig.seo.twitterHandle || "@example",
     title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
     description: brandConfig.description,
-    images: ['/og-image.jpg'],
+    images: ["/og-image.jpg"],
   },
   robots: {
     index: true,
@@ -52,32 +52,38 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
     },
   },
   alternates: {
-    canonical: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com',
+    canonical:
+      process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com",
     languages: {
-      'en-GB': process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com',
-      'ar-SA': `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com'}/ar`,
+      "en-GB":
+        process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com",
+      "ar-SA": `${process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com"}/ar`,
     },
   },
-}
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <StructuredData />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin=""
+        />
+
         {/* PWA Meta Tags */}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#fbbf24" />
@@ -86,13 +92,18 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Yalla London" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-        
+
         {/* Other Meta Tags */}
         <meta name="geo.region" content="GB-LND" />
         <meta name="geo.placename" content="London" />
         <meta name="geo.position" content="51.5074;-0.1278" />
         <meta name="ICBM" content="51.5074, -0.1278" />
-        <meta name="google-site-verification" content="your-google-verification-code" />
+        {process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION && (
+          <meta
+            name="google-site-verification"
+            content={process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION}
+          />
+        )}
       </head>
       <body className="font-cairo antialiased" suppressHydrationWarning>
         <NextAuthSessionProvider>
@@ -107,9 +118,7 @@ export default function RootLayout({
                 <AnalyticsTracker />
                 <div className="min-h-screen flex flex-col">
                   <DynamicHeader />
-                  <main className="flex-1 pt-16">
-                    {children}
-                  </main>
+                  <main className="flex-1 pt-16">{children}</main>
                   <Footer />
                 </div>
                 <CookieConsentBanner />
@@ -117,23 +126,28 @@ export default function RootLayout({
             </ThemeProvider>
           </BrandThemeProvider>
         </NextAuthSessionProvider>
-        
-        {/* Google Analytics - G-H7YNG7CH88 */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-H7YNG7CH88"
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-H7YNG7CH88', {
-              page_title: document.title,
-              page_location: window.location.href,
-            });
-          `}
-        </Script>
+
+        {/* Google Analytics */}
+        {(process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
+          process.env.GA4_MEASUREMENT_ID) && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.GA4_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.GA4_MEASUREMENT_ID}', {
+                  page_title: document.title,
+                  page_location: window.location.href,
+                });
+              `}
+            </Script>
+          </>
+        )}
 
         {/* Performance monitoring */}
         <script
@@ -186,5 +200,5 @@ export default function RootLayout({
         />
       </body>
     </html>
-  )
+  );
 }

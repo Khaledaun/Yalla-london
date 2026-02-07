@@ -24,6 +24,18 @@ interface ContactFormData {
   newsletter: boolean
 }
 
+/** SECURITY: HTML-escape user input to prevent XSS in email templates */
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  }
+  return text.replace(/[&<>"']/g, (c) => map[c])
+}
+
 // Email sending function
 async function sendEmail(data: ContactFormData) {
   // If SendGrid is configured
@@ -60,6 +72,15 @@ async function sendEmail(data: ContactFormData) {
 }
 
 function generateEmailHTML(data: ContactFormData): string {
+  // SECURITY: Escape all user-provided data to prevent XSS
+  const safeName = escapeHtml(data.name)
+  const safeEmail = escapeHtml(data.email)
+  const safePhone = data.phone ? escapeHtml(data.phone) : ''
+  const safeCategory = escapeHtml(data.category)
+  const safeSubject = escapeHtml(data.subject)
+  const safeMessage = escapeHtml(data.message).replace(/\n/g, '<br>')
+  const safePriority = escapeHtml(data.priority)
+
   return `
     <!DOCTYPE html>
     <html>
@@ -87,29 +108,29 @@ function generateEmailHTML(data: ContactFormData): string {
         <div class="content">
           <div class="field">
             <span class="label">Name:</span>
-            <span class="value">${data.name}</span>
+            <span class="value">${safeName}</span>
           </div>
           <div class="field">
             <span class="label">Email:</span>
-            <span class="value">${data.email}</span>
+            <span class="value">${safeEmail}</span>
           </div>
-          ${data.phone ? `
+          ${safePhone ? `
           <div class="field">
             <span class="label">Phone:</span>
-            <span class="value">${data.phone}</span>
+            <span class="value">${safePhone}</span>
           </div>
           ` : ''}
           <div class="field">
             <span class="label">Category:</span>
-            <span class="value">${data.category}</span>
+            <span class="value">${safeCategory}</span>
           </div>
           <div class="field">
             <span class="label">Subject:</span>
-            <span class="value">${data.subject}</span>
+            <span class="value">${safeSubject}</span>
           </div>
           <div class="field">
             <span class="label">Priority:</span>
-            <span class="value priority-${data.priority}">${data.priority.toUpperCase()}</span>
+            <span class="value priority-${safePriority}">${safePriority.toUpperCase()}</span>
           </div>
           <div class="field">
             <span class="label">Newsletter Subscription:</span>
@@ -118,7 +139,7 @@ function generateEmailHTML(data: ContactFormData): string {
           <div class="field">
             <span class="label">Message:</span>
             <div style="margin-top: 10px; padding: 15px; background: white; border-left: 4px solid #fbbf24;">
-              ${data.message.replace(/\n/g, '<br>')}
+              ${safeMessage}
             </div>
           </div>
           <div class="field" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666;">

@@ -22,7 +22,7 @@
     "test:backup-restore": "./scripts/backup-restore-drill.sh",
     "typecheck": "tsc --noEmit",
     "test:integration": "node tests/run-integration-tests.js",
-    "test:integration:database": "jest tests/database-connectivity.test.ts",
+    "test:integration:database": "vitest run tests/database-connectivity.test.ts",
     "test:integration:api": "npx playwright test tests/api-endpoint-validation.test.ts",
     "test:integration:admin": "npx playwright test tests/admin-workflow-e2e.test.ts",
     "test:integration:comprehensive": "npx playwright test tests/comprehensive-integration.test.ts",
@@ -38,7 +38,7 @@
     "test:hero-images": "tsx scripts/test-hero-images.ts",
     "test:seo": "tsx scripts/test-seo-capabilities.ts",
     "health:seo": "tsx scripts/seo-health.ts",
-    "test:seo:unit": "jest -c tests/seo/jest.config.js",
+    "test:seo:unit": "vitest run tests/seo/",
     "test:seo:enhanced": "tsx scripts/test-enhanced-seo.ts",
     "seo:audit": "node scripts/seo-audit-playwright.mjs audit",
     "seo:audit-all": "node scripts/seo-audit-playwright.mjs audit-all",
@@ -60,6 +60,8 @@
     "@opentelemetry/sdk-trace-base": "^1.30.1",
     "@playwright/test": "^1.55.0",
     "@testing-library/dom": "^10.0.0",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "20.6.2",
     "@types/react": "18.2.22",
     "@types/react-dom": "18.2.7",
@@ -73,7 +75,6 @@
     "eslint-plugin-prettier": "5.1.3",
     "eslint-plugin-react-hooks": "4.6.0",
     "eslint-plugin-security": "^3.0.1",
-    "jest-environment-jsdom": "^30.1.2",
     "postcss": "^8.4.31",
     "prettier": "^3.0.0",
     "prisma": "6.16.2",
@@ -123,8 +124,6 @@
     "@sentry/nextjs": "^8.0.0",
     "@supabase/supabase-js": "^2.57.4",
     "@tanstack/react-query": "5.0.0",
-    "@testing-library/jest-dom": "^6.8.0",
-    "@testing-library/react": "^16.3.0",
     "@types/bcryptjs": "2.4.6",
     "@types/jsdom": "^21.1.7",
     "@types/jsonwebtoken": "9.0.5",
@@ -151,8 +150,6 @@
     "framer-motion": "10.18.0",
     "gray-matter": "4.0.3",
     "input-otp": "1.2.4",
-    "jest": "^30.1.3",
-    "jest-junit": "^16.0.0",
     "jotai": "2.6.0",
     "jsdom": "^26.1.0",
     "jsonwebtoken": "^9.0.2",
@@ -204,6 +201,15 @@
     "chart.js": "^4.4.9",
     "tailwindcss": "3.3.3",
     "tailwindcss-animate": "1.0.7"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css}": [
+      "prettier --write"
+    ]
   },
   "browserslist": [
     "ie >= 11",

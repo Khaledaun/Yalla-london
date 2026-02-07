@@ -5,18 +5,19 @@ const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR || '.next',
   output: process.env.NEXT_OUTPUT_MODE,
   eslint: {
-    ignoreDuringBuilds: true,
+    // SECURITY: Run ESLint during builds to catch security issues
+    ignoreDuringBuilds: false,
   },
   typescript: {
     ignoreBuildErrors: false,
   },
   // Image optimization - ENABLED for better LCP
   images: {
-    unoptimized: false, // Enable Next.js image optimization
-    formats: ['image/avif', 'image/webp'], // Modern formats for smaller sizes
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048], // Responsive breakpoints
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384], // Icon sizes
-    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days cache
+    unoptimized: false,
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    minimumCacheTTL: 60 * 60 * 24 * 30,
     domains: [
       'localhost',
       'yalla-london.com',
@@ -24,7 +25,6 @@ const nextConfig = {
       'www.yalla-london.com',
       'vercel.app',
       'supabase.co',
-      'example.com',
       'images.unsplash.com',
       'cdn.yalla-london.com'
     ],
@@ -49,28 +49,31 @@ const nextConfig = {
       }
     ]
   },
-  // Compression
   compress: true,
-  // Power optimizations
   poweredByHeader: false,
-  // Strict mode for better performance
   reactStrictMode: true,
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
-    optimizeCss: true, // CSS optimization
+    optimizeCss: true,
   },
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
-  // Enhanced headers for caching and performance
   async headers() {
+    // SECURITY: Only allow specific origins, not wildcard
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://yallalondon.com,https://www.yallalondon.com,https://yalla-london.com').split(',').map(o => o.trim())
+    const corsOrigin = process.env.NODE_ENV === 'development'
+      ? 'http://localhost:3000'
+      : allowedOrigins[0]
+
     return [
       {
         source: '/api/:path*',
         headers: [
-          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Origin', value: corsOrigin },
           { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+          { key: 'Access-Control-Allow-Credentials', value: 'true' },
         ],
       },
       // Static assets - long cache
@@ -87,12 +90,34 @@ const nextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // HTML pages - shorter cache with revalidation
+      // SECURITY: Comprehensive security headers on all pages
       {
         source: '/:path*',
         headers: [
           { key: 'X-DNS-Prefetch-Control', value: 'on' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload'
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "img-src 'self' data: blob: https: http:",
+              "font-src 'self' https://fonts.gstatic.com",
+              "connect-src 'self' https://www.google-analytics.com https://*.supabase.co https://api.openai.com https://api.anthropic.com",
+              "frame-ancestors 'none'",
+              "base-uri 'self'",
+              "form-action 'self'"
+            ].join('; ')
+          },
         ],
       },
     ];

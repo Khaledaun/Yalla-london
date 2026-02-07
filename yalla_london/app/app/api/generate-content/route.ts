@@ -1,9 +1,9 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-
-
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 interface GenerateContentRequest {
   prompt: string
@@ -11,8 +11,34 @@ interface GenerateContentRequest {
   language: 'en' | 'ar'
 }
 
+// SECURITY: Allowed content types to prevent injection via type field
+const ALLOWED_TYPES = new Set(['blog_topic', 'blog_content', 'recommendation'])
+
+/** SECURITY: Sanitize user prompt to mitigate prompt injection */
+function sanitizePrompt(input: string): string {
+  // Remove system-level instruction markers that could override prompts
+  return input
+    .replace(/\[SYSTEM\]/gi, '')
+    .replace(/\[INST\]/gi, '')
+    .replace(/<\|system\|>/gi, '')
+    .replace(/<\|assistant\|>/gi, '')
+    .replace(/<\|user\|>/gi, '')
+    .replace(/```system/gi, '```')
+    .trim()
+    .slice(0, 2000) // Limit input length
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Require authentication for content generation (costs money)
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
     const body: GenerateContentRequest = await request.json()
     const { prompt, type, language } = body
 
@@ -22,6 +48,17 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // SECURITY: Validate content type
+    if (!ALLOWED_TYPES.has(type)) {
+      return NextResponse.json(
+        { error: 'Invalid content type' },
+        { status: 400 }
+      )
+    }
+
+    // SECURITY: Sanitize prompt input
+    const cleanPrompt = sanitizePrompt(prompt)
 
     // Create system prompts based on content type and language
     let systemPrompt = ''
@@ -58,8 +95,8 @@ Format each recommendation with: Name, type (hotel/restaurant/attraction), descr
         content: systemPrompt
       },
       {
-        role: "user" as const, 
-        content: prompt
+        role: "user" as const,
+        content: cleanPrompt
       }
     ]
 

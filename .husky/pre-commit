@@ -1,0 +1,1 @@
+cd yalla_london/app && npx lint-staged

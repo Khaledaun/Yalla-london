@@ -1,10 +1,24 @@
-
 import { NextAuthOptions } from 'next-auth'
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import { prisma } from '@/lib/db'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { logAuditEvent } from '@/lib/rbac'
+
+/**
+ * Consolidated authentication configuration.
+ *
+ * SECURITY:
+ * - Passwords verified via bcrypt.compare() against User.passwordHash field.
+ * - No hardcoded credentials. Initial admin seeded via CLI script with env vars.
+ * - Google SSO enabled when GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set.
+ */
+
+/** Admin email whitelist from environment only */
+export function getAdminEmails(): string[] {
+  return (process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()).filter(Boolean)) || []
+}
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -20,31 +34,61 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email }
+          })
+
+          if (!user || !user.isActive) {
+            if (user) {
+              await logAuditEvent({
+                userId: user.id,
+                action: 'login',
+                resource: 'authentication',
+                success: false,
+                errorMessage: 'Account inactive or deleted'
+              })
+            }
+            return null
           }
-        })
 
-        if (!user || !user.isActive) {
-          return null
-        }
+          // Verify password via bcrypt — no hardcoded credentials
+          if (!user.passwordHash) {
+            await logAuditEvent({
+              userId: user.id,
+              action: 'login',
+              resource: 'authentication',
+              success: false,
+              errorMessage: 'No password set for this account'
+            })
+            return null
+          }
 
-        // For the test user john@doe.com, check the password
-        if (credentials.email === 'john@doe.com' && credentials.password === 'johndoe123') {
+          const isPasswordValid = await bcrypt.compare(credentials.password, user.passwordHash)
+
+          if (!isPasswordValid) {
+            await logAuditEvent({
+              userId: user.id,
+              action: 'login',
+              resource: 'authentication',
+              success: false,
+              errorMessage: 'Invalid credentials'
+            })
+            return null
+          }
+
           // Update last login time
           await prisma.user.update({
             where: { id: user.id },
             data: { lastLoginAt: new Date() }
-          });
+          })
 
-          // Log successful login
           await logAuditEvent({
             userId: user.id,
             action: 'login',
             resource: 'authentication',
             success: true
-          });
+          })
 
           return {
             id: user.id,
@@ -52,20 +96,26 @@ export const authOptions: NextAuthOptions = {
             name: user.name,
             role: user.role
           }
-        } else {
-          // Log failed login attempt
-          await logAuditEvent({
-            userId: user.id,
-            action: 'login',
-            resource: 'authentication',
-            success: false,
-            errorMessage: 'Invalid credentials'
-          });
-          
-          return null // Invalid credentials
+        } catch (error) {
+          console.error('Authentication error:', error)
+          return null
         }
       }
-    })
+    }),
+    // Google SSO — only when credentials are configured
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
+      GoogleProvider({
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        authorization: {
+          params: {
+            prompt: 'consent',
+            access_type: 'offline',
+            response_type: 'code'
+          }
+        }
+      })
+    ] : [])
   ],
   session: {
     strategy: 'jwt' as const,
@@ -92,31 +142,52 @@ export const authOptions: NextAuthOptions = {
         }
       }
     },
-    async signIn({ user, account, profile }: any) {
-      // Additional sign-in validation can be added here
-      return true;
+    async signIn({ user, account }: any) {
+      if (account?.provider === 'google') {
+        const email = user.email
+        if (!email) return false
+        const existing = await prisma.user.findUnique({ where: { email } })
+        if (existing && !existing.isActive) return false
+        if (!existing) {
+          await prisma.user.create({
+            data: {
+              email,
+              name: user.name || 'Unknown',
+              role: 'viewer',
+              isActive: true,
+              emailVerified: new Date()
+            }
+          })
+        }
+      }
+      return true
     }
   },
   pages: {
-    signIn: '/admin',
+    signIn: '/admin/login',
   },
   secret: process.env.NEXTAUTH_SECRET,
   events: {
-    async signIn({ user, account, profile }) {
-      // Additional login event logging
-      console.log(`User ${user.email} signed in`);
-    },
     async signOut({ token }) {
-      // Log logout event
       if (token?.id) {
         await logAuditEvent({
           userId: token.id as string,
           action: 'logout',
           resource: 'authentication',
           success: true
-        });
+        })
       }
-      console.log(`User signed out`);
     }
-  }
+  },
+  debug: process.env.NODE_ENV === 'development',
+}
+
+/** Hash a password using bcrypt with cost factor 12 */
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12)
+}
+
+/** Verify a password against a bcrypt hash */
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash)
 }

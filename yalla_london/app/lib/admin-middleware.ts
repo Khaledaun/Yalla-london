@@ -1,6 +1,9 @@
 /**
  * Admin Authentication Middleware for Next.js App Router
  * Provides requireAdmin functionality for API routes
+ *
+ * SECURITY: Admin emails loaded ONLY from environment variables.
+ * No hardcoded email addresses.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,13 +18,17 @@ export interface AdminAuthenticatedRequest extends NextRequest {
   };
 }
 
+/** Load admin email whitelist from ADMIN_EMAILS env var only */
+function getAdminEmails(): string[] {
+  return (process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()).filter(Boolean)) || []
+}
+
 /**
  * Admin authentication middleware for App Router API routes
  * Returns NextResponse with 401 for unauthorized access
  */
 export async function requireAdmin(request: NextRequest): Promise<NextResponse | null> {
   try {
-    // Get session from NextAuth
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
@@ -31,23 +38,20 @@ export async function requireAdmin(request: NextRequest): Promise<NextResponse |
       );
     }
 
-    // Check if user is admin (for now, using hardcoded email check)
-    // In production, this should check a database role or permission system
-    const adminEmails = [
-      'john@doe.com',
-      // Add other admin emails here or load from environment
-      ...(process.env.ADMIN_EMAILS?.split(',') || [])
-    ];
+    // Check admin via session role (from JWT) OR email whitelist from env
+    const userRole = (session.user as any).role
+    const adminEmails = getAdminEmails()
 
-    if (!adminEmails.includes(session.user.email)) {
+    const isAdmin = userRole === 'admin' || adminEmails.includes(session.user.email)
+
+    if (!isAdmin) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }
       );
     }
 
-    // If we reach here, user is authenticated and authorized
-    return null; // null means continue with the request
+    return null; // null = continue with the request
   } catch (error) {
     console.error('Admin authentication error:', error);
     return NextResponse.json(
@@ -67,17 +71,14 @@ export function withAdminAuth(
   return async (request: NextRequest): Promise<NextResponse> => {
     const authResult = await requireAdmin(request);
     if (authResult) {
-      return authResult; // Return authentication error response
+      return authResult;
     }
-    
-    // Continue with the original handler if authenticated
     return handler(request);
   };
 }
 
 /**
  * Get current admin user from session
- * Returns user info or null if not authenticated/authorized
  */
 export async function getCurrentAdminUser(request: NextRequest): Promise<{
   id: string;
@@ -86,17 +87,16 @@ export async function getCurrentAdminUser(request: NextRequest): Promise<{
 } | null> {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email) {
       return null;
     }
 
-    const adminEmails = [
-      'john@doe.com',
-      ...(process.env.ADMIN_EMAILS?.split(',') || [])
-    ];
+    const userRole = (session.user as any).role
+    const adminEmails = getAdminEmails()
+    const isAdmin = userRole === 'admin' || adminEmails.includes(session.user.email)
 
-    if (!adminEmails.includes(session.user.email)) {
+    if (!isAdmin) {
       return null;
     }
 

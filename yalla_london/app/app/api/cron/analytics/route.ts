@@ -1,8 +1,14 @@
 /**
  * Analytics Sync Cron Endpoint
  *
- * Syncs analytics data from GA4 and Search Console.
+ * Syncs real analytics data from GA4 Data API and Google Search Console.
  * Run daily to keep data fresh.
+ *
+ * Required env vars:
+ *   CRON_SECRET - authentication for cron requests
+ *   GA4_PROPERTY_ID - GA4 property ID (numeric)
+ *   GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL - service account email
+ *   GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY - service account private key
  *
  * Add to vercel.json:
  * {
@@ -15,14 +21,21 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  fetchGA4Metrics,
+  isGA4Configured,
+  getGA4ConfigStatus,
+} from "@/lib/seo/ga4-data-api";
+import { gscApi } from "@/lib/seo/indexing-service";
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
   // Require CRON_SECRET in production
   if (!cronSecret && process.env.NODE_ENV === "production") {
-    console.error("CRON_SECRET not configured in production");
+    console.error("[ANALYTICS-CRON] CRON_SECRET not configured in production");
     return NextResponse.json(
       { error: "Server misconfigured" },
       { status: 503 },
@@ -33,73 +46,155 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  console.log(`[ANALYTICS-CRON] Starting at ${new Date().toISOString()}`);
+
   try {
-    const sites = await prisma.site.findMany({
-      where: { is_active: true },
+    const results: Record<string, unknown> = {
+      ga4: null,
+      gsc: null,
+      snapshot: null,
+    };
+
+    // 1. Fetch GA4 Data
+    let ga4Report = null;
+    if (isGA4Configured()) {
+      console.log("[ANALYTICS-CRON] Fetching GA4 metrics (last 30 days)...");
+      ga4Report = await fetchGA4Metrics("30daysAgo", "today");
+
+      if (ga4Report) {
+        results.ga4 = {
+          status: "success",
+          sessions: ga4Report.metrics.sessions,
+          users: ga4Report.metrics.totalUsers,
+          pageViews: ga4Report.metrics.pageViews,
+          bounceRate: ga4Report.metrics.bounceRate,
+          topPagesCount: ga4Report.topPages.length,
+        };
+        console.log(
+          `[ANALYTICS-CRON] GA4: ${ga4Report.metrics.sessions} sessions, ${ga4Report.metrics.pageViews} pageviews`,
+        );
+      } else {
+        results.ga4 = { status: "error", message: "Failed to fetch GA4 data" };
+        console.warn("[ANALYTICS-CRON] GA4 fetch returned null");
+      }
+    } else {
+      const configStatus = getGA4ConfigStatus();
+      results.ga4 = {
+        status: "not_configured",
+        missing: Object.entries(configStatus)
+          .filter(([key, val]) => key !== "configured" && !val)
+          .map(([key]) => key),
+      };
+      console.warn("[ANALYTICS-CRON] GA4 not configured - skipping");
+    }
+
+    // 2. Fetch GSC Search Analytics (last 30 days)
+    const endDate = new Date().toISOString().split("T")[0];
+    const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+
+    console.log(
+      `[ANALYTICS-CRON] Fetching GSC data (${startDate} to ${endDate})...`,
+    );
+    const gscData = await gscApi.getSearchAnalytics(startDate, endDate, [
+      "query",
+    ]);
+
+    if (gscData?.rows) {
+      results.gsc = {
+        status: "success",
+        queriesCount: gscData.rows.length,
+        topQueries: gscData.rows.slice(0, 5).map((row: any) => ({
+          query: row.keys?.[0],
+          clicks: row.clicks,
+          impressions: row.impressions,
+          ctr: Math.round((row.ctr || 0) * 10000) / 100,
+          position: Math.round((row.position || 0) * 10) / 10,
+        })),
+      };
+      console.log(`[ANALYTICS-CRON] GSC: ${gscData.rows.length} queries found`);
+    } else {
+      results.gsc = {
+        status: gscData === null ? "not_configured" : "no_data",
+        message:
+          gscData === null
+            ? "GSC credentials not configured"
+            : "No search data available",
+      };
+      console.warn("[ANALYTICS-CRON] GSC returned no data");
+    }
+
+    // 3. Store snapshot in database
+    const topQueries = gscData?.rows
+      ? gscData.rows.slice(0, 50).map((row: any) => ({
+          query: row.keys?.[0],
+          clicks: row.clicks,
+          impressions: row.impressions,
+          ctr: row.ctr,
+          position: row.position,
+        }))
+      : [];
+
+    await prisma.analyticsSnapshot.create({
+      data: {
+        date_range: "30d",
+        data_json: {
+          synced_at: new Date().toISOString(),
+          source: "cron",
+          ga4: ga4Report
+            ? {
+                metrics: ga4Report.metrics,
+                topPages: ga4Report.topPages.slice(0, 20),
+                topSources: ga4Report.topSources,
+              }
+            : null,
+          gsc: gscData?.rows
+            ? {
+                totalQueries: gscData.rows.length,
+                topQueries: topQueries.slice(0, 20),
+              }
+            : null,
+        },
+        indexed_pages: gscData?.rows?.length || 0,
+        top_queries: topQueries,
+        performance_metrics: ga4Report
+          ? {
+              bounceRate: ga4Report.metrics.bounceRate,
+              avgDuration: ga4Report.metrics.avgSessionDuration,
+              sessions: ga4Report.metrics.sessions,
+              pageViews: ga4Report.metrics.pageViews,
+              engagementRate: ga4Report.metrics.engagementRate,
+            }
+          : {
+              bounceRate: 0,
+              avgDuration: 0,
+              sessions: 0,
+              pageViews: 0,
+              engagementRate: 0,
+            },
+      },
     });
 
-    const results = [];
+    results.snapshot = { status: "created" };
 
-    for (const site of sites) {
-      // Check if site has GA4 configured
-      const ga4Config = await prisma.apiSettings.findFirst({
-        where: {
-          site_id: site.id,
-          provider: "google_analytics",
-          is_active: true,
-        },
-      });
-
-      if (!ga4Config) {
-        results.push({
-          siteId: site.id,
-          siteName: site.name,
-          status: "skipped",
-          reason: "GA4 not configured",
-        });
-        continue;
-      }
-
-      // In production, call GA4 Data API here
-      // For now, create a placeholder snapshot
-      await prisma.analyticsSnapshot.create({
-        data: {
-          site_id: site.id,
-          date_range: "30d",
-          data_json: {
-            synced_at: new Date().toISOString(),
-            source: "cron",
-            note: "Connect GA4 API for real data",
-          },
-          indexed_pages: 0,
-          top_queries: [],
-          performance_metrics: {
-            bounceRate: 40 + Math.random() * 20,
-            avgDuration: 120 + Math.random() * 120,
-          },
-        },
-      });
-
-      results.push({
-        siteId: site.id,
-        siteName: site.name,
-        status: "synced",
-        note: "Placeholder data - connect GA4 for real metrics",
-      });
-    }
+    const durationMs = Date.now() - startTime;
+    console.log(`[ANALYTICS-CRON] Completed in ${durationMs}ms`);
 
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
-      sitesProcessed: sites.length,
+      durationMs,
       results,
     });
   } catch (error) {
-    console.error("Analytics cron failed:", error);
+    const durationMs = Date.now() - startTime;
+    console.error(`[ANALYTICS-CRON] Failed after ${durationMs}ms:`, error);
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
+        durationMs,
       },
       { status: 500 },
     );

@@ -49,6 +49,12 @@ export function validateSEOEnvironment(): SEOEnvValidationResult {
   // Recommended env vars - needed for full autonomous operation
   const recommended: EnvVarCheck[] = [
     {
+      name: "GA4_PROPERTY_ID",
+      required: false,
+      description: "GA4 property ID for analytics data fetching",
+      present: !!process.env.GA4_PROPERTY_ID,
+    },
+    {
       name: "GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL",
       required: false,
       description: "GSC service account email for indexing API",

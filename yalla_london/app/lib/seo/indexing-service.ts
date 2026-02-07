@@ -15,8 +15,7 @@ const BASE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
 // GSC property URL - may differ from BASE_URL (e.g., no www)
 const GSC_SITE_URL = process.env.GSC_SITE_URL || "https://yalla-london.com";
-const INDEXNOW_KEY =
-  process.env.INDEXNOW_KEY || "a6db4fe5a00991a21c509c1d5f5d734c";
+const INDEXNOW_KEY = process.env.INDEXNOW_KEY || "";
 
 // Rate limiting: max requests per minute for external APIs
 const RATE_LIMIT_DELAY_MS = 200; // 200ms between requests = ~300/min max

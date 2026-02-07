@@ -1,171 +1,148 @@
 /**
  * Unified Analytics API
  *
- * Aggregate analytics from GA4 and Search Console for all sites.
+ * Fetches real analytics from GA4 Data API and Google Search Console.
+ * Falls back gracefully when database tables or APIs are unavailable.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { fetchGA4Metrics, isGA4Configured } from "@/lib/seo/ga4-data-api";
+import { gscApi } from "@/lib/seo/indexing-service";
 
-// Force dynamic rendering to avoid build-time database access
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const siteId = searchParams.get('site') || 'all';
-    const range = searchParams.get('range') || '30d';
+    const range = searchParams.get("range") || "30d";
 
-    // Calculate date range
-    const days = range === '7d' ? 7 : range === '90d' ? 90 : range === 'year' ? 365 : 30;
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    const rangeMap: Record<string, { start: string; days: number }> = {
+      "7d": { start: "7daysAgo", days: 7 },
+      "30d": { start: "30daysAgo", days: 30 },
+      "90d": { start: "90daysAgo", days: 90 },
+      year: { start: "365daysAgo", days: 365 },
+    };
+    const dateConfig = rangeMap[range] || rangeMap["30d"];
 
-    // Get all sites
-    const sites = await prisma.site.findMany({
-      where: siteId !== 'all' ? { id: siteId } : { is_active: true },
-      include: {
-        domains: { where: { is_primary: true } },
-      },
-    });
-
-    // Get analytics snapshots
-    const snapshots = await prisma.analyticsSnapshot.findMany({
-      where: {
-        site_id: siteId !== 'all' ? siteId : undefined,
-        date_range: range,
-        created_at: { gte: startDate },
-      },
-      orderBy: { created_at: 'desc' },
-    });
-
-    // Get page view stats
-    const pageViews = await prisma.pageView.groupBy({
-      by: ['site_id'],
-      where: {
-        site_id: siteId !== 'all' ? siteId : undefined,
-        viewed_at: { gte: startDate },
-      },
-      _count: true,
-    });
-
-    // Get lead counts
-    const leads = await prisma.lead.groupBy({
-      by: ['site_id'],
-      where: {
-        site_id: siteId !== 'all' ? siteId : undefined,
-        created_at: { gte: startDate },
-      },
-      _count: true,
-    });
-
-    // Build site analytics
-    const siteAnalytics = await Promise.all(
-      sites.map(async (site) => {
-        const snapshot = snapshots.find((s) => s.site_id === site.id);
-        const pvCount = pageViews.find((pv) => pv.site_id === site.id)?._count || 0;
-        const leadCount = leads.find((l) => l.site_id === site.id)?._count || 0;
-
-        // Get data from snapshot or calculate
-        const data = snapshot?.data_json as any || {};
-        const topQueries = snapshot?.top_queries as any[] || [];
-        const metrics = snapshot?.performance_metrics as any || {};
-
-        // Calculate user estimates based on page views (rough estimate)
-        const users = Math.round(pvCount * 0.6);
-        const sessions = Math.round(pvCount * 0.8);
-
-        return {
-          siteId: site.id,
-          siteName: site.name,
-          domain: site.domains[0]?.hostname || site.domain || `${site.slug}.arabaldives.com`,
-          locale: site.default_locale as 'ar' | 'en',
-          metrics: {
-            users,
-            pageviews: pvCount,
-            sessions,
-            bounceRate: metrics.bounceRate || 42,
-            avgDuration: metrics.avgDuration || 180,
-            newUsers: Math.round(users * 0.6),
-          },
-          change: {
-            users: data.usersChange || Math.round(Math.random() * 20 - 5),
-            pageviews: data.pageviewsChange || Math.round(Math.random() * 20 - 5),
-            sessions: data.sessionsChange || Math.round(Math.random() * 20 - 5),
-          },
-          topPages: data.topPages || [
-            { path: '/', views: Math.round(pvCount * 0.3) },
-            { path: '/resorts', views: Math.round(pvCount * 0.15) },
-            { path: '/guides', views: Math.round(pvCount * 0.1) },
-          ],
-          topKeywords: topQueries.slice(0, 5).map((q: any) => ({
-            keyword: q.keyword || q.query,
-            clicks: q.clicks || 0,
-            impressions: q.impressions || 0,
-            position: q.position || 10,
-          })),
-          topCountries: data.topCountries || [
-            { country: 'Saudi Arabia', users: Math.round(users * 0.3) },
-            { country: 'UAE', users: Math.round(users * 0.2) },
-            { country: 'Kuwait', users: Math.round(users * 0.1) },
-          ],
-        };
-      })
-    );
-
-    return NextResponse.json({ sites: siteAnalytics });
-  } catch (error) {
-    console.error('Failed to get analytics:', error);
-    return NextResponse.json(
-      { error: 'Failed to get analytics' },
-      { status: 500 }
-    );
-  }
-}
-
-/**
- * Sync analytics from GA4/GSC
- * This would be called by a cron job
- */
-export async function POST(request: NextRequest) {
-  try {
-    // This would integrate with Google Analytics and Search Console APIs
-    // For now, just create a snapshot with sample data
-
-    const sites = await prisma.site.findMany({
-      where: { is_active: true },
-    });
-
-    for (const site of sites) {
-      await prisma.analyticsSnapshot.create({
-        data: {
-          site_id: site.id,
-          date_range: '30d',
-          data_json: {
-            topPages: [],
-            topCountries: [],
-            usersChange: Math.round(Math.random() * 20 - 5),
-            pageviewsChange: Math.round(Math.random() * 20 - 5),
-          },
-          indexed_pages: 0,
-          top_queries: [],
-          performance_metrics: {
-            bounceRate: 40 + Math.random() * 20,
-            avgDuration: 120 + Math.random() * 120,
-          },
-        },
-      });
+    // Fetch real GA4 data
+    let ga4Data = null;
+    if (isGA4Configured()) {
+      ga4Data = await fetchGA4Metrics(dateConfig.start, "today");
     }
 
+    // Fetch real GSC data
+    const endDate = new Date().toISOString().split("T")[0];
+    const startDate = new Date(
+      Date.now() - dateConfig.days * 24 * 60 * 60 * 1000,
+    )
+      .toISOString()
+      .split("T")[0];
+
+    let gscQueries = null;
+    let gscCountries = null;
+    try {
+      gscQueries = await gscApi.getSearchAnalytics(startDate, endDate, [
+        "query",
+      ]);
+      gscCountries = await gscApi.getSearchAnalytics(startDate, endDate, [
+        "country",
+      ]);
+    } catch {
+      // GSC not available
+    }
+
+    // Try to load recent snapshot from DB
+    let latestSnapshot = null;
+    try {
+      latestSnapshot = await prisma.analyticsSnapshot.findFirst({
+        orderBy: { created_at: "desc" },
+      });
+    } catch {
+      // Table may not exist
+    }
+
+    // Build response from real data
+    const metrics = ga4Data
+      ? {
+          users: ga4Data.metrics.totalUsers,
+          pageviews: ga4Data.metrics.pageViews,
+          sessions: ga4Data.metrics.sessions,
+          bounceRate: ga4Data.metrics.bounceRate,
+          avgDuration: ga4Data.metrics.avgSessionDuration,
+          newUsers: ga4Data.metrics.newUsers,
+          engagementRate: ga4Data.metrics.engagementRate,
+        }
+      : {
+          users: 0,
+          pageviews: 0,
+          sessions: 0,
+          bounceRate: 0,
+          avgDuration: 0,
+          newUsers: 0,
+          engagementRate: 0,
+        };
+
+    const topPages = ga4Data
+      ? ga4Data.topPages.map((p) => ({ path: p.path, views: p.pageViews }))
+      : [];
+
+    const topSources = ga4Data ? ga4Data.topSources : [];
+
+    const topKeywords = gscQueries?.rows
+      ? gscQueries.rows.slice(0, 20).map((r: any) => ({
+          keyword: r.keys?.[0],
+          clicks: r.clicks,
+          impressions: r.impressions,
+          ctr: Math.round((r.ctr || 0) * 10000) / 100,
+          position: Math.round((r.position || 0) * 10) / 10,
+        }))
+      : [];
+
+    const topCountries = gscCountries?.rows
+      ? gscCountries.rows.slice(0, 15).map((r: any) => ({
+          country: r.keys?.[0],
+          clicks: r.clicks,
+          impressions: r.impressions,
+        }))
+      : [];
+
+    // Build single site analytics (Yalla London)
+    const siteAnalytics = [
+      {
+        siteId: "yalla-london",
+        siteName: "Yalla London",
+        domain: "www.yalla-london.com",
+        locale: "en" as const,
+        metrics,
+        change: { users: 0, pageviews: 0, sessions: 0 },
+        topPages,
+        topKeywords,
+        topCountries: topCountries.map((c: any) => ({
+          country: c.country,
+          users: c.clicks,
+        })),
+        topSources,
+      },
+    ];
+
     return NextResponse.json({
-      success: true,
-      message: 'Analytics synced. Connect GA4 and GSC for real data.',
+      sites: siteAnalytics,
+      dataSource: {
+        ga4: ga4Data ? "live" : "not_configured",
+        gsc: gscQueries?.rows ? "live" : "not_configured",
+        snapshot: latestSnapshot ? "available" : "none",
+      },
+      range,
     });
   } catch (error) {
-    console.error('Failed to sync analytics:', error);
+    console.error("Failed to get analytics:", error);
     return NextResponse.json(
-      { error: 'Failed to sync analytics' },
-      { status: 500 }
+      {
+        error: "Failed to get analytics",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
     );
   }
 }

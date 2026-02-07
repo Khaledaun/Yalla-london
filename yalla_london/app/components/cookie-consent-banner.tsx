@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { X, Settings, Cookie } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -249,8 +250,8 @@ export function CookieConsentBanner() {
           
           <p className="text-xs text-gray-500 mt-4">
             By continuing to use our website, you agree to our{' '}
-            <a href="/privacy" className="underline hover:text-gray-700">Privacy Policy</a> and{' '}
-            <a href="/terms" className="underline hover:text-gray-700">Terms of Use</a>.
+            <Link href="/privacy" className="underline hover:text-gray-700">Privacy Policy</Link> and{' '}
+            <Link href="/terms" className="underline hover:text-gray-700">Terms of Use</Link>.
           </p>
         </CardContent>
       </Card>

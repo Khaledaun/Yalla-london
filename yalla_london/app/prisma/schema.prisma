@@ -19,10 +19,12 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
+  passwordHash  String?   // bcrypt hashed password
   // RBAC Extensions
   role          String    @default("viewer") // admin, editor, viewer
   permissions   String[]  @default([]) // Additional specific permissions
   isActive      Boolean   @default(true)
+  deletedAt     DateTime? // Soft delete support
   lastLoginAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -134,21 +136,22 @@ model BlogPost {
   // generationProvider    String?
   // generationSource      String? // 'scheduled', 'manual_now', 'upload', 'import'
   
+  // Multi-tenant and soft delete
+  siteId       String?
+  deletedAt    DateTime? // Soft delete support
+
   category     Category @relation(fields: [category_id], references: [id])
   author       User     @relation(fields: [author_id], references: [id])
   place        Place?   @relation(fields: [place_id], references: [id])
-  
-  // Relations for enhanced system (temporarily disabled)
-  // seoAuditResults SeoAuditResultEnhanced[]
-  // scheduledContent ScheduledContentEnhanced[]
-  // generatedFromTopic TopicProposalEnhanced? @relation(fields: [generatedFromTopicId], references: [id])
-  // generatedFromTopicId String?
-  
+
   @@index([page_type])
   @@index([place_id])
   @@index([seo_score])
-  // @@index([status]) // Temporarily disabled
-  // @@index([generationSource]) // Temporarily disabled
+  @@index([siteId])
+  @@index([published])
+  @@index([category_id])
+  @@index([author_id])
+  @@index([created_at])
 }
 
 model Recommendation {
@@ -266,8 +269,14 @@ model MediaAsset {
   isHeroVideo Boolean  @default(false) // Can be used as homepage hero
   duration    Int?     // Video duration in seconds
   
+  // Soft delete
+  deletedAt   DateTime?
+
   // Relations
   homepage_blocks HomepageBlock[]
+
+  @@index([file_type])
+  @@index([created_at])
 }
 
 // Phase 3.4 - Homepage Builder

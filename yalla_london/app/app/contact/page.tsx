@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
@@ -321,9 +322,9 @@ export default function ContactPage() {
                     />
                     <Label htmlFor="consent" className="text-sm">
                       I agree to the{' '}
-                      <a href="/privacy" className="text-blue-600 hover:underline">
+                      <Link href="/privacy" className="text-blue-600 hover:underline">
                         Privacy Policy
-                      </a>{' '}
+                      </Link>{' '}
                       and consent to my data being processed for this inquiry. *
                     </Label>
                   </div>

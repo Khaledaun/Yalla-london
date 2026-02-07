@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { PremiumAdminNav } from './premium-admin-nav'
@@ -203,12 +204,12 @@ export function PremiumAdminLayout({
                   <div key={index} className="flex items-center">
                     {index > 0 && <span className={styles.breadcrumbSeparator}>/</span>}
                     {crumb.href ? (
-                      <a 
+                      <Link
                         href={crumb.href}
                         className={styles.breadcrumbItem}
                       >
                         {crumb.label}
-                      </a>
+                      </Link>
                     ) : (
                       <span className={`${styles.breadcrumbItem} ${styles.current} ${premiumEnabled ? '' : styles.darkMode}`}>
                         {crumb.label}
@@ -286,29 +287,29 @@ export function PremiumAdminLayout({
                     </p>
                   </div>
                   
-                  <a
+                  <Link
                     href="/admin/profile"
                     className={`${styles.userMenuItem} ${premiumEnabled ? '' : styles.darkMode}`}
                   >
                     <User size={16} className={styles.userMenuItemIcon} />
                     Profile
-                  </a>
+                  </Link>
                   
-                  <a
+                  <Link
                     href="/admin/settings"
                     className={`${styles.userMenuItem} ${premiumEnabled ? '' : styles.darkMode}`}
                   >
                     <Settings size={16} className={styles.userMenuItemIcon} />
                     Settings
-                  </a>
+                  </Link>
                   
-                  <a
+                  <Link
                     href="/admin/help"
                     className={`${styles.userMenuItem} ${premiumEnabled ? '' : styles.darkMode}`}
                   >
                     <HelpCircle size={16} className={styles.userMenuItemIcon} />
                     Help
-                  </a>
+                  </Link>
                   
                   <button
                     onClick={handleSignOut}

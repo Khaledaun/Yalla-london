@@ -174,7 +174,19 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Add authentication check for admin access
+    // SECURITY: Require admin authentication to list leads
+    const { getServerSession } = await import('next-auth');
+    const { authOptions } = await import('@/lib/auth');
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+    const adminEmails = (process.env.ADMIN_EMAILS?.split(',').map(e => e.trim())) || [];
+    const userRole = (session.user as any).role;
+    if (userRole !== 'admin' && !adminEmails.includes(session.user.email)) {
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const siteId = searchParams.get('site_id');
     const leadType = searchParams.get('lead_type');

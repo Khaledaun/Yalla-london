@@ -136,24 +136,23 @@ export default function AdminLogin() {
             </div>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Development Mode</span>
+                </div>
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Test Credentials</span>
+              <div className="mt-4 bg-gray-50 p-4 rounded-md">
+                <p className="text-sm text-gray-600">
+                  Create an admin user via the seed script: <code className="bg-gray-200 px-1 rounded">npx ts-node scripts/seed-admin.ts</code>
+                </p>
               </div>
             </div>
-
-            <div className="mt-4 bg-gray-50 p-4 rounded-md">
-              <p className="text-sm text-gray-600 mb-2">Use these credentials to test the admin panel:</p>
-              <div className="text-sm">
-                <p><strong>Email:</strong> john@doe.com</p>
-                <p><strong>Password:</strong> johndoe123</p>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

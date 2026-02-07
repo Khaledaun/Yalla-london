@@ -32,19 +32,32 @@ export default function AdminCommandCenter() {
     automationJobs: 0
   })
 
+  const [error, setError] = useState<string | null>(null)
+
   useEffect(() => {
-    // Simulate loading data
-    setTimeout(() => {
-      setStats({
-        readyToPublish: 3,
-        scheduledContent: 12,
-        totalArticles: 45,
-        totalTopics: 28,
-        seoScore: 87,
-        automationJobs: 5
-      })
-      setIsLoading(false)
-    }, 1000)
+    async function fetchDashboardData() {
+      try {
+        const res = await fetch('/api/admin/dashboard')
+        if (!res.ok) {
+          throw new Error(`Failed to fetch dashboard: ${res.status}`)
+        }
+        const data = await res.json()
+        setStats({
+          readyToPublish: data.readyToPublish ?? 0,
+          scheduledContent: data.scheduledContent ?? 0,
+          totalArticles: data.totalArticles ?? 0,
+          totalTopics: data.totalTopics ?? 0,
+          seoScore: data.seoScore ?? 0,
+          automationJobs: data.automationJobs ?? 0
+        })
+      } catch (err) {
+        console.error('Dashboard fetch error:', err)
+        setError('Failed to load dashboard data')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchDashboardData()
   }, [])
 
   if (isLoading) {
@@ -54,6 +67,24 @@ export default function AdminCommandCenter() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-gray-900">Loading Command Center...</h2>
           <p className="text-gray-600">Please wait while we fetch your dashboard data.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900">Dashboard Error</h2>
+          <p className="text-gray-600 mt-2">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+          >
+            Retry
+          </button>
         </div>
       </div>
     )

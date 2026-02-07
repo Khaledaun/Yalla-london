@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Database, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 
 export default function TestDatabase() {
@@ -162,10 +163,10 @@ export default function TestDatabase() {
           <div className="mt-8 p-4 bg-blue-50 rounded-lg">
             <h3 className="font-medium text-blue-800 mb-2">Next Steps:</h3>
             <ul className="text-blue-700 space-y-1">
-              <li>• <a href="/admin" className="hover:underline">Visit Admin Dashboard</a></li>
-              <li>• <a href="/admin/editor" className="hover:underline">Create New Article</a></li>
-              <li>• <a href="/admin/content" className="hover:underline">Manage Content</a></li>
-              <li>• <a href="/admin/affiliate-marketing" className="hover:underline">Manage Affiliates</a></li>
+              <li>• <Link href="/admin" className="hover:underline">Visit Admin Dashboard</Link></li>
+              <li>• <Link href="/admin/editor" className="hover:underline">Create New Article</Link></li>
+              <li>• <Link href="/admin/content" className="hover:underline">Manage Content</Link></li>
+              <li>• <Link href="/admin/affiliate-marketing" className="hover:underline">Manage Affiliates</Link></li>
             </ul>
           </div>
         </div>

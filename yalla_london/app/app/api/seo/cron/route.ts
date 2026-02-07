@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { runAutomatedIndexing, pingSitemaps } from '@/lib/seo/indexing-service';
+import { NextRequest, NextResponse } from "next/server";
+import { runAutomatedIndexing, pingSitemaps } from "@/lib/seo/indexing-service";
 
 /**
  * Cron endpoint for automated SEO tasks
@@ -20,12 +20,18 @@ import { runAutomatedIndexing, pingSitemaps } from '@/lib/seo/indexing-service';
 
 // Verify cron secret to prevent unauthorized access
 function verifyCronSecret(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
+  const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  // If no secret configured, allow in development
+  // In production, always require CRON_SECRET
   if (!cronSecret) {
-    console.warn('CRON_SECRET not configured - allowing request');
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "CRON_SECRET not configured in production - rejecting request",
+      );
+      return false;
+    }
+    console.warn("CRON_SECRET not configured - allowing in development");
     return true;
   }
 
@@ -35,54 +41,74 @@ function verifyCronSecret(request: NextRequest): boolean {
 export async function GET(request: NextRequest) {
   // Verify authorization
   if (!verifyCronSecret(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const searchParams = request.nextUrl.searchParams;
-  const task = searchParams.get('task') || 'daily';
+  const task = searchParams.get("task") || "daily";
 
+  const startTime = Date.now();
   const results: Record<string, any> = {
     timestamp: new Date().toISOString(),
     task,
     actions: [],
   };
 
+  console.log(`[SEO-CRON] Starting task="${task}" at ${results.timestamp}`);
+
   try {
     switch (task) {
-      case 'daily':
+      case "daily":
         // Daily: Submit new/updated content + ping sitemaps
-        const dailyReport = await runAutomatedIndexing('updated');
-        results.actions.push({ name: 'submit_updated', report: dailyReport });
+        const dailyReport = await runAutomatedIndexing("updated");
+        results.actions.push({ name: "submit_updated", report: dailyReport });
+        console.log(
+          `[SEO-CRON] Daily: processed ${dailyReport.urlsProcessed} URLs, errors: ${dailyReport.errors.length}`,
+        );
         break;
 
-      case 'weekly':
+      case "weekly":
         // Weekly: Submit all content
-        const weeklyReport = await runAutomatedIndexing('all');
-        results.actions.push({ name: 'submit_all', report: weeklyReport });
+        const weeklyReport = await runAutomatedIndexing("all");
+        results.actions.push({ name: "submit_all", report: weeklyReport });
+        console.log(
+          `[SEO-CRON] Weekly: processed ${weeklyReport.urlsProcessed} URLs, errors: ${weeklyReport.errors.length}`,
+        );
         break;
 
-      case 'ping':
+      case "ping":
         // Just ping sitemaps
         const pings = await pingSitemaps();
-        results.actions.push({ name: 'sitemap_ping', results: pings });
+        results.actions.push({ name: "sitemap_ping", results: pings });
+        console.log(`[SEO-CRON] Ping: ${JSON.stringify(pings)}`);
         break;
 
-      case 'new':
+      case "new":
         // Submit only new content
-        const newReport = await runAutomatedIndexing('new');
-        results.actions.push({ name: 'submit_new', report: newReport });
+        const newReport = await runAutomatedIndexing("new");
+        results.actions.push({ name: "submit_new", report: newReport });
+        console.log(
+          `[SEO-CRON] New: processed ${newReport.urlsProcessed} URLs, errors: ${newReport.errors.length}`,
+        );
         break;
 
       default:
-        return NextResponse.json({ error: 'Invalid task' }, { status: 400 });
+        return NextResponse.json({ error: "Invalid task" }, { status: 400 });
     }
 
+    const durationMs = Date.now() - startTime;
     results.success = true;
+    results.durationMs = durationMs;
+    console.log(`[SEO-CRON] Completed task="${task}" in ${durationMs}ms`);
     return NextResponse.json(results);
-
   } catch (error) {
+    const durationMs = Date.now() - startTime;
     results.success = false;
     results.error = String(error);
+    results.durationMs = durationMs;
+    console.error(
+      `[SEO-CRON] FAILED task="${task}" after ${durationMs}ms: ${error}`,
+    );
     return NextResponse.json(results, { status: 500 });
   }
 }

@@ -18,8 +18,65 @@ const GSC_SITE_URL = process.env.GSC_SITE_URL || "https://yalla-london.com";
 const INDEXNOW_KEY =
   process.env.INDEXNOW_KEY || "a6db4fe5a00991a21c509c1d5f5d734c";
 
+// Rate limiting: max requests per minute for external APIs
+const RATE_LIMIT_DELAY_MS = 200; // 200ms between requests = ~300/min max
+
 // Combine all posts
 const allPosts = [...blogPosts, ...extendedBlogPosts];
+
+// ============================================
+// UTILITY: Retry with exponential backoff
+// ============================================
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  maxRetries: number = 3,
+  baseDelayMs: number = 1000,
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+
+      // Retry on 429 (rate limited) or 5xx server errors
+      if (
+        response.status === 429 ||
+        (response.status >= 500 && attempt < maxRetries)
+      ) {
+        const retryAfter = response.headers.get("retry-after");
+        const delayMs = retryAfter
+          ? parseInt(retryAfter, 10) * 1000
+          : baseDelayMs * Math.pow(2, attempt);
+        console.warn(
+          `[SEO] HTTP ${response.status} from ${url} - retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < maxRetries) {
+        const delayMs = baseDelayMs * Math.pow(2, attempt);
+        console.warn(
+          `[SEO] Network error for ${url} - retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries}): ${lastError.message}`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+
+  throw (
+    lastError || new Error(`Failed to fetch ${url} after ${maxRetries} retries`)
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 // ============================================
 // INDEXNOW SERVICE (Bing, Yandex, Seznam, Naver)
@@ -37,6 +94,19 @@ export async function submitToIndexNow(
 ): Promise<IndexNowResult[]> {
   const results: IndexNowResult[] = [];
 
+  if (!INDEXNOW_KEY) {
+    console.error(
+      "[SEO] INDEXNOW_KEY not configured - skipping IndexNow submission",
+    );
+    return [
+      {
+        engine: "indexnow",
+        success: false,
+        message: "INDEXNOW_KEY not configured",
+      },
+    ];
+  }
+
   // Use GET method - more reliable, doesn't require key file verification
   // Bing shares with other IndexNow engines (Yandex, etc.)
   let bingSuccess = 0;
@@ -46,15 +116,19 @@ export async function submitToIndexNow(
     // Limit to 100 URLs per batch
     const getUrl = `https://www.bing.com/indexnow?url=${encodeURIComponent(url)}&key=${INDEXNOW_KEY}`;
     try {
-      const response = await fetch(getUrl, { method: "GET" });
+      const response = await fetchWithRetry(getUrl, { method: "GET" }, 2, 500);
       if (response.ok || response.status === 200 || response.status === 202) {
         bingSuccess++;
       } else {
         bingFailed++;
+        console.warn(`[SEO] IndexNow rejected ${url}: HTTP ${response.status}`);
       }
-    } catch {
+    } catch (error) {
       bingFailed++;
+      console.warn(`[SEO] IndexNow failed for ${url}: ${error}`);
     }
+    // Rate limiting between requests
+    await sleep(RATE_LIMIT_DELAY_MS);
   }
 
   results.push({
@@ -68,7 +142,12 @@ export async function submitToIndexNow(
   if (urls.length > 0) {
     const yandexUrl = `https://yandex.com/indexnow?url=${encodeURIComponent(urls[0])}&key=${INDEXNOW_KEY}`;
     try {
-      const response = await fetch(yandexUrl, { method: "GET" });
+      const response = await fetchWithRetry(
+        yandexUrl,
+        { method: "GET" },
+        2,
+        500,
+      );
       results.push({
         engine: "yandex.com",
         success:
@@ -95,24 +174,16 @@ export async function submitToIndexNow(
 // ============================================
 
 export async function pingSitemaps(): Promise<Record<string, boolean>> {
-  const sitemapUrl = `${BASE_URL}/sitemap.xml`;
   const results: Record<string, boolean> = {};
 
-  // Google deprecated their ping endpoint in 2023
-  // Sitemaps should be submitted via Google Search Console instead
-  // IndexNow handles Bing/Yandex notifications
-  results["google"] = true; // Use GSC for Google indexing
-  results["bing"] = true; // Covered by IndexNow
+  // Google deprecated their sitemap ping endpoint in 2023
+  // Use Google Search Console API or IndexNow instead
+  results["google"] = true; // Handled via GSC API
 
-  // Optionally ping Bing's webmaster API (legacy support)
-  try {
-    const bingPingUrl = `https://www.bing.com/webmaster/ping.aspx?siteMap=${encodeURIComponent(sitemapUrl)}`;
-    const response = await fetch(bingPingUrl, { method: "GET" });
-    results["bing_legacy"] = response.ok;
-  } catch {
-    results["bing_legacy"] = false;
-  }
+  // Bing/Yandex covered by IndexNow - no need for legacy ping
+  results["bing"] = true; // Handled via IndexNow
 
+  console.log("[SEO] Sitemap ping: Google → GSC API, Bing/Yandex → IndexNow");
   return results;
 }
 
@@ -175,19 +246,28 @@ export class GoogleSearchConsoleAPI {
         exp: now + 3600,
       });
 
-      const response = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
-      });
+      const response = await fetchWithRetry(
+        "https://oauth2.googleapis.com/token",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+        },
+        2,
+        1000,
+      );
 
       if (response.ok) {
         const data = await response.json();
         this.accessToken = data.access_token;
         return this.accessToken;
+      } else {
+        console.error(
+          `[SEO] GSC token exchange failed: HTTP ${response.status}`,
+        );
       }
     } catch (error) {
-      console.error("Failed to get GSC access token:", error);
+      console.error("[SEO] Failed to get GSC access token:", error);
     }
 
     return null;

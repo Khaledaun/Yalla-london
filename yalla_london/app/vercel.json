@@ -41,8 +41,14 @@
       "source": "/api/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, PATCH, DELETE, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, X-Requested-With" }
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization, X-Requested-With"
+        }
       ]
     }
   ],
@@ -59,54 +65,50 @@
       "destination": "/api/sitemap/generate"
     },
     {
-      "source": "/robots.txt", 
+      "source": "/robots.txt",
       "destination": "/api/robots"
     }
   ],
   "crons": [
     {
-      "path": "/api/cron/trends-monitor",
-      "schedule": "0 6 * * *"
+      "path": "/api/cron/daily-content-generate",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-publish",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-publish",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/seo-agent",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/seo-agent",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/seo-agent",
+      "schedule": "0 20 * * *"
     },
     {
       "path": "/api/cron/weekly-topics",
-      "schedule": "0 9 * * 1"
+      "schedule": "0 4 * * 1"
     },
     {
-      "path": "/api/cron/scheduled-publish",
-      "schedule": "4 8 * * *"
-    },
-    {
-      "path": "/api/cron/scheduled-publish",
-      "schedule": "55 15 * * *"
-    },
-    {
-      "path": "/api/cron/auto-generate",
-      "schedule": "0 * * * *"
-    },
-    {
-      "path": "/api/cron/real-time-optimization",
-      "schedule": "*/30 * * * *"
-    },
-    {
-      "path": "/api/cron/seo-health-report",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/autopilot",
-      "schedule": "0 * * * *"
+      "path": "/api/cron/trends-monitor",
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/analytics",
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/social",
-      "schedule": "*/15 * * * *"
-    },
-    {
       "path": "/api/seo/cron?task=daily",
-      "schedule": "0 7 * * *"
+      "schedule": "30 7 * * *"
     },
     {
       "path": "/api/seo/cron?task=weekly",

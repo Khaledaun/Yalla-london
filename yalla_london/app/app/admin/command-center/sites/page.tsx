@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Sites Management Dashboard
@@ -7,8 +7,8 @@
  * Designed for multi-site operators who need visibility across their portfolio.
  */
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Globe,
   Plus,
@@ -35,14 +35,14 @@ import {
   Zap,
   Image as ImageIcon,
   Link as LinkIcon,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface Site {
   id: string;
   name: string;
   domain: string;
-  locale: 'ar' | 'en';
-  status: 'active' | 'paused' | 'pending' | 'error';
+  locale: "ar" | "en";
+  status: "active" | "paused" | "pending" | "error";
   stats: {
     traffic: number;
     trafficChange: number;
@@ -68,9 +68,11 @@ interface Site {
 export default function SitesListPage() {
   const [sites, setSites] = useState<Site[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'traffic' | 'revenue' | 'name' | 'created'>('traffic');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<
+    "traffic" | "revenue" | "name" | "created"
+  >("traffic");
   const [selectedSites, setSelectedSites] = useState<string[]>([]);
   const [showActions, setShowActions] = useState<string | null>(null);
 
@@ -81,7 +83,7 @@ export default function SitesListPage() {
   const loadSites = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/command-center/sites');
+      const res = await fetch("/api/admin/command-center/sites");
       if (res.ok) {
         const data = await res.json();
         // Transform API data to full site format
@@ -89,66 +91,78 @@ export default function SitesListPage() {
           id: s.siteId,
           name: s.siteName,
           domain: s.domain,
-          locale: s.locale,
-          status: s.status,
+          locale: s.locale || "en",
+          status: s.status || "active",
           stats: {
             traffic: s.traffic || 0,
-            trafficChange: Math.random() * 20 - 5, // Would come from API
+            trafficChange: s.trafficChange || 0,
             revenue: s.revenue || 0,
-            revenueChange: Math.random() * 15,
+            revenueChange: s.revenueChange || 0,
             articles: s.articles || 0,
             leads: s.leads || 0,
-            conversions: Math.floor(Math.random() * 100),
+            conversions: s.conversions || 0,
           },
           seo: {
-            score: Math.floor(Math.random() * 30) + 70,
-            indexedPages: Math.floor(Math.random() * 500) + 50,
-            lastCrawl: new Date(Date.now() - Math.random() * 86400000 * 7).toISOString(),
+            score: s.seoScore || 0,
+            indexedPages: s.indexedPages || 0,
+            lastCrawl: s.lastCrawl || new Date().toISOString(),
           },
           affiliates: {
-            active: Math.floor(Math.random() * 10) + 2,
-            pendingCommission: Math.floor(Math.random() * 500),
+            active: s.activeAffiliates || 0,
+            pendingCommission: s.pendingCommission || 0,
           },
-          lastUpdated: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-          createdAt: new Date(Date.now() - Math.random() * 86400000 * 365).toISOString(),
+          lastUpdated: s.lastUpdated || new Date().toISOString(),
+          createdAt: s.createdAt || new Date().toISOString(),
         }));
-        setSites(fullSites.length > 0 ? fullSites : mockSites);
+        setSites(fullSites);
       } else {
-        setSites(mockSites);
+        setSites([]);
       }
     } catch (error) {
-      setSites(mockSites);
+      setSites([]);
     }
     setIsLoading(false);
   };
 
   // Filter and sort sites
   const filteredSites = sites
-    .filter(site => {
-      const matchesSearch = site.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           site.domain.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || site.status === statusFilter;
+    .filter((site) => {
+      const matchesSearch =
+        site.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        site.domain.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus =
+        statusFilter === "all" || site.status === statusFilter;
       return matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
       switch (sortBy) {
-        case 'traffic': return b.stats.traffic - a.stats.traffic;
-        case 'revenue': return b.stats.revenue - a.stats.revenue;
-        case 'name': return a.name.localeCompare(b.name);
-        case 'created': return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        default: return 0;
+        case "traffic":
+          return b.stats.traffic - a.stats.traffic;
+        case "revenue":
+          return b.stats.revenue - a.stats.revenue;
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "created":
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        default:
+          return 0;
       }
     });
 
   // Calculate portfolio totals
-  const totals = sites.reduce((acc, site) => ({
-    traffic: acc.traffic + site.stats.traffic,
-    revenue: acc.revenue + site.stats.revenue,
-    articles: acc.articles + site.stats.articles,
-    leads: acc.leads + site.stats.leads,
-  }), { traffic: 0, revenue: 0, articles: 0, leads: 0 });
+  const totals = sites.reduce(
+    (acc, site) => ({
+      traffic: acc.traffic + site.stats.traffic,
+      revenue: acc.revenue + site.stats.revenue,
+      articles: acc.articles + site.stats.articles,
+      leads: acc.leads + site.stats.leads,
+    }),
+    { traffic: 0, revenue: 0, articles: 0, leads: 0 },
+  );
 
-  const handleBulkAction = async (action: 'pause' | 'resume' | 'delete') => {
+  const handleBulkAction = async (action: "pause" | "resume" | "delete") => {
     // Implement bulk actions
     console.log(`Bulk ${action} for sites:`, selectedSites);
     setSelectedSites([]);
@@ -162,7 +176,9 @@ export default function SitesListPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold">Sites Portfolio</h1>
-              <p className="text-gray-500">Manage and monitor all your websites</p>
+              <p className="text-gray-500">
+                Manage and monitor all your websites
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -170,7 +186,9 @@ export default function SitesListPage() {
                 className="p-2 hover:bg-gray-100 rounded-lg"
                 title="Refresh"
               >
-                <RefreshCw className={`h-5 w-5 text-gray-600 ${isLoading ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`h-5 w-5 text-gray-600 ${isLoading ? "animate-spin" : ""}`}
+                />
               </button>
               <Link
                 href="/admin/command-center/sites/new"
@@ -185,20 +203,36 @@ export default function SitesListPage() {
           {/* Portfolio Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div className="bg-blue-50 rounded-lg p-3">
-              <div className="text-sm text-blue-600 font-medium">Total Traffic</div>
-              <div className="text-xl font-bold text-blue-900">{formatNumber(totals.traffic)}</div>
+              <div className="text-sm text-blue-600 font-medium">
+                Total Traffic
+              </div>
+              <div className="text-xl font-bold text-blue-900">
+                {formatNumber(totals.traffic)}
+              </div>
             </div>
             <div className="bg-green-50 rounded-lg p-3">
-              <div className="text-sm text-green-600 font-medium">Total Revenue</div>
-              <div className="text-xl font-bold text-green-900">${formatNumber(totals.revenue)}</div>
+              <div className="text-sm text-green-600 font-medium">
+                Total Revenue
+              </div>
+              <div className="text-xl font-bold text-green-900">
+                ${formatNumber(totals.revenue)}
+              </div>
             </div>
             <div className="bg-purple-50 rounded-lg p-3">
-              <div className="text-sm text-purple-600 font-medium">Total Articles</div>
-              <div className="text-xl font-bold text-purple-900">{formatNumber(totals.articles)}</div>
+              <div className="text-sm text-purple-600 font-medium">
+                Total Articles
+              </div>
+              <div className="text-xl font-bold text-purple-900">
+                {formatNumber(totals.articles)}
+              </div>
             </div>
             <div className="bg-amber-50 rounded-lg p-3">
-              <div className="text-sm text-amber-600 font-medium">Total Leads</div>
-              <div className="text-xl font-bold text-amber-900">{formatNumber(totals.leads)}</div>
+              <div className="text-sm text-amber-600 font-medium">
+                Total Leads
+              </div>
+              <div className="text-xl font-bold text-amber-900">
+                {formatNumber(totals.leads)}
+              </div>
             </div>
           </div>
 
@@ -243,16 +277,17 @@ export default function SitesListPage() {
           {selectedSites.length > 0 && (
             <div className="mt-4 flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
               <span className="text-sm font-medium text-blue-700">
-                {selectedSites.length} site{selectedSites.length > 1 ? 's' : ''} selected
+                {selectedSites.length} site{selectedSites.length > 1 ? "s" : ""}{" "}
+                selected
               </span>
               <button
-                onClick={() => handleBulkAction('pause')}
+                onClick={() => handleBulkAction("pause")}
                 className="text-sm text-blue-600 hover:underline"
               >
                 Pause All
               </button>
               <button
-                onClick={() => handleBulkAction('resume')}
+                onClick={() => handleBulkAction("resume")}
                 className="text-sm text-blue-600 hover:underline"
               >
                 Resume All
@@ -272,8 +307,11 @@ export default function SitesListPage() {
       <main className="max-w-7xl mx-auto px-4 py-6">
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse"
+              >
                 <div className="h-6 bg-gray-200 rounded w-2/3 mb-4"></div>
                 <div className="h-4 bg-gray-200 rounded w-1/2 mb-6"></div>
                 <div className="space-y-3">
@@ -286,9 +324,13 @@ export default function SitesListPage() {
         ) : filteredSites.length === 0 ? (
           <div className="text-center py-12">
             <Globe className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No sites found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No sites found
+            </h3>
             <p className="text-gray-500 mb-4">
-              {searchQuery ? 'Try adjusting your search or filters' : 'Create your first site to get started'}
+              {searchQuery
+                ? "Try adjusting your search or filters"
+                : "Create your first site to get started"}
             </p>
             <Link
               href="/admin/command-center/sites/new"
@@ -300,20 +342,22 @@ export default function SitesListPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredSites.map(site => (
+            {filteredSites.map((site) => (
               <SiteCard
                 key={site.id}
                 site={site}
                 isSelected={selectedSites.includes(site.id)}
                 onSelect={() => {
-                  setSelectedSites(prev =>
+                  setSelectedSites((prev) =>
                     prev.includes(site.id)
-                      ? prev.filter(id => id !== site.id)
-                      : [...prev, site.id]
+                      ? prev.filter((id) => id !== site.id)
+                      : [...prev, site.id],
                   );
                 }}
                 showActions={showActions === site.id}
-                onToggleActions={() => setShowActions(showActions === site.id ? null : site.id)}
+                onToggleActions={() =>
+                  setShowActions(showActions === site.id ? null : site.id)
+                }
               />
             ))}
           </div>
@@ -337,10 +381,10 @@ function SiteCard({
   onToggleActions: () => void;
 }) {
   const statusColors = {
-    active: 'bg-green-100 text-green-700',
-    paused: 'bg-yellow-100 text-yellow-700',
-    pending: 'bg-blue-100 text-blue-700',
-    error: 'bg-red-100 text-red-700',
+    active: "bg-green-100 text-green-700",
+    paused: "bg-yellow-100 text-yellow-700",
+    pending: "bg-blue-100 text-blue-700",
+    error: "bg-red-100 text-red-700",
   };
 
   const statusIcons = {
@@ -353,9 +397,13 @@ function SiteCard({
   const StatusIcon = statusIcons[site.status];
 
   return (
-    <div className={`bg-white rounded-xl border-2 transition-all ${
-      isSelected ? 'border-blue-500 shadow-lg' : 'border-gray-200 hover:border-gray-300'
-    }`}>
+    <div
+      className={`bg-white rounded-xl border-2 transition-all ${
+        isSelected
+          ? "border-blue-500 shadow-lg"
+          : "border-gray-200 hover:border-gray-300"
+      }`}
+    >
       {/* Header */}
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-start justify-between">
@@ -366,12 +414,16 @@ function SiteCard({
               onChange={onSelect}
               className="rounded border-gray-300"
             />
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-              site.locale === 'ar' ? 'bg-emerald-100' : 'bg-blue-100'
-            }`}>
-              <Globe className={`h-5 w-5 ${
-                site.locale === 'ar' ? 'text-emerald-600' : 'text-blue-600'
-              }`} />
+            <div
+              className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                site.locale === "ar" ? "bg-emerald-100" : "bg-blue-100"
+              }`}
+            >
+              <Globe
+                className={`h-5 w-5 ${
+                  site.locale === "ar" ? "text-emerald-600" : "text-blue-600"
+                }`}
+              />
             </div>
             <div>
               <h3 className="font-semibold">{site.name}</h3>
@@ -441,12 +493,14 @@ function SiteCard({
 
         {/* Status Badge */}
         <div className="mt-3 flex items-center gap-2">
-          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[site.status]}`}>
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[site.status]}`}
+          >
             <StatusIcon className="h-3 w-3" />
             {site.status.charAt(0).toUpperCase() + site.status.slice(1)}
           </span>
           <span className="text-xs text-gray-500">
-            {site.locale === 'ar' ? 'Arabic (RTL)' : 'English'}
+            {site.locale === "ar" ? "Arabic (RTL)" : "English"}
           </span>
         </div>
       </div>
@@ -456,10 +510,16 @@ function SiteCard({
         <div>
           <div className="text-xs text-gray-500 mb-1">Traffic</div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold">{formatNumber(site.stats.traffic)}</span>
-            <span className={`text-xs flex items-center ${
-              site.stats.trafficChange >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}>
+            <span className="font-semibold">
+              {formatNumber(site.stats.traffic)}
+            </span>
+            <span
+              className={`text-xs flex items-center ${
+                site.stats.trafficChange >= 0
+                  ? "text-green-600"
+                  : "text-red-600"
+              }`}
+            >
               {site.stats.trafficChange >= 0 ? (
                 <TrendingUp className="h-3 w-3" />
               ) : (
@@ -473,10 +533,16 @@ function SiteCard({
         <div>
           <div className="text-xs text-gray-500 mb-1">Revenue</div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-green-600">${formatNumber(site.stats.revenue)}</span>
-            <span className={`text-xs flex items-center ${
-              site.stats.revenueChange >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}>
+            <span className="font-semibold text-green-600">
+              ${formatNumber(site.stats.revenue)}
+            </span>
+            <span
+              className={`text-xs flex items-center ${
+                site.stats.revenueChange >= 0
+                  ? "text-green-600"
+                  : "text-red-600"
+              }`}
+            >
               {site.stats.revenueChange >= 0 ? (
                 <TrendingUp className="h-3 w-3" />
               ) : (
@@ -506,8 +572,11 @@ function SiteCard({
             <div className="flex-1 bg-gray-200 rounded-full h-2">
               <div
                 className={`h-2 rounded-full ${
-                  site.seo.score >= 80 ? 'bg-green-500' :
-                  site.seo.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                  site.seo.score >= 80
+                    ? "bg-green-500"
+                    : site.seo.score >= 60
+                      ? "bg-yellow-500"
+                      : "bg-red-500"
                 }`}
                 style={{ width: `${site.seo.score}%` }}
               />
@@ -519,8 +588,12 @@ function SiteCard({
         <div className="bg-gray-50 rounded-lg p-3">
           <div className="text-xs text-gray-500 mb-1">Affiliates</div>
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">{site.affiliates.active} active</span>
-            <span className="text-xs text-green-600">${site.affiliates.pendingCommission}</span>
+            <span className="text-sm font-medium">
+              {site.affiliates.active} active
+            </span>
+            <span className="text-xs text-green-600">
+              ${site.affiliates.pendingCommission}
+            </span>
           </div>
         </div>
       </div>
@@ -547,119 +620,7 @@ function SiteCard({
 }
 
 function formatNumber(num: number): string {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+  if (num >= 1000) return (num / 1000).toFixed(1) + "K";
   return num.toLocaleString();
 }
-
-// Mock data
-const mockSites: Site[] = [
-  {
-    id: 'arabaldives',
-    name: 'Arabaldives',
-    domain: 'arabaldives.com',
-    locale: 'ar',
-    status: 'active',
-    stats: {
-      traffic: 45000,
-      trafficChange: 12.5,
-      revenue: 12500,
-      revenueChange: 8.2,
-      articles: 156,
-      leads: 2340,
-      conversions: 89,
-    },
-    seo: {
-      score: 85,
-      indexedPages: 342,
-      lastCrawl: new Date(Date.now() - 86400000).toISOString(),
-    },
-    affiliates: {
-      active: 8,
-      pendingCommission: 450,
-    },
-    lastUpdated: new Date(Date.now() - 3600000).toISOString(),
-    createdAt: '2024-01-15T00:00:00Z',
-  },
-  {
-    id: 'yalla-london',
-    name: 'Yalla London',
-    domain: 'yalla-london.com',
-    locale: 'en',
-    status: 'active',
-    stats: {
-      traffic: 82000,
-      trafficChange: 18.3,
-      revenue: 8200,
-      revenueChange: 5.7,
-      articles: 312,
-      leads: 4520,
-      conversions: 156,
-    },
-    seo: {
-      score: 92,
-      indexedPages: 589,
-      lastCrawl: new Date(Date.now() - 43200000).toISOString(),
-    },
-    affiliates: {
-      active: 12,
-      pendingCommission: 680,
-    },
-    lastUpdated: new Date(Date.now() - 1800000).toISOString(),
-    createdAt: '2023-06-20T00:00:00Z',
-  },
-  {
-    id: 'gulf-maldives',
-    name: 'Gulf Maldives',
-    domain: 'gulfmaldives.com',
-    locale: 'en',
-    status: 'active',
-    stats: {
-      traffic: 28000,
-      trafficChange: -2.1,
-      revenue: 9800,
-      revenueChange: 15.4,
-      articles: 89,
-      leads: 1200,
-      conversions: 67,
-    },
-    seo: {
-      score: 78,
-      indexedPages: 156,
-      lastCrawl: new Date(Date.now() - 172800000).toISOString(),
-    },
-    affiliates: {
-      active: 6,
-      pendingCommission: 320,
-    },
-    lastUpdated: new Date(Date.now() - 7200000).toISOString(),
-    createdAt: '2024-03-10T00:00:00Z',
-  },
-  {
-    id: 'arab-bali',
-    name: 'Arab Bali',
-    domain: 'arabbali.com',
-    locale: 'ar',
-    status: 'pending',
-    stats: {
-      traffic: 1200,
-      trafficChange: 45.0,
-      revenue: 0,
-      revenueChange: 0,
-      articles: 12,
-      leads: 45,
-      conversions: 0,
-    },
-    seo: {
-      score: 62,
-      indexedPages: 18,
-      lastCrawl: new Date(Date.now() - 604800000).toISOString(),
-    },
-    affiliates: {
-      active: 3,
-      pendingCommission: 0,
-    },
-    lastUpdated: new Date(Date.now() - 86400000).toISOString(),
-    createdAt: '2024-11-01T00:00:00Z',
-  },
-];

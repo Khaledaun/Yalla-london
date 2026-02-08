@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { 
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
   Upload,
   Image,
   Video,
@@ -23,214 +23,206 @@ import {
   FolderOpen,
   X,
   Check,
-  AlertCircle
-} from 'lucide-react'
-import { toast } from 'sonner'
+  AlertCircle,
+} from "lucide-react";
+import { toast } from "sonner";
 
 interface MediaFile {
-  id: string
-  name: string
-  type: 'image' | 'video' | 'document'
-  url: string
-  thumbnail?: string
-  size: number
-  uploadedAt: string
-  alt?: string
-  description?: string
-  tags: string[]
-  folder: string
+  id: string;
+  name: string;
+  type: "image" | "video" | "document";
+  url: string;
+  thumbnail?: string;
+  size: number;
+  uploadedAt: string;
+  alt?: string;
+  description?: string;
+  tags: string[];
+  folder: string;
 }
 
-const mockMediaFiles: MediaFile[] = [
-  {
-    id: '1',
-    name: 'london-bridge-sunset.jpg',
-    type: 'image',
-    url: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800',
-    thumbnail: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=200',
-    size: 2048000,
-    uploadedAt: '2024-07-20T10:00:00Z',
-    alt: 'London Bridge at sunset',
-    description: 'Beautiful sunset view of London Bridge',
-    tags: ['london', 'bridge', 'sunset', 'landmark'],
-    folder: 'hero-images'
-  },
-  {
-    id: '2',
-    name: 'london-food-market.mp4',
-    type: 'video',
-    url: 'https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4',
-    thumbnail: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=200',
-    size: 10240000,
-    uploadedAt: '2024-07-19T15:30:00Z',
-    alt: 'London food market video',
-    description: 'Vibrant food market in London',
-    tags: ['london', 'food', 'market', 'video'],
-    folder: 'videos'
-  },
-  {
-    id: '3',
-    name: 'big-ben-closeup.jpg',
-    type: 'image',
-    url: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800',
-    thumbnail: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=200',
-    size: 1536000,
-    uploadedAt: '2024-07-18T09:15:00Z',
-    alt: 'Big Ben clock tower',
-    description: 'Close-up view of Big Ben',
-    tags: ['london', 'big-ben', 'clock', 'landmark'],
-    folder: 'landmarks'
-  }
-]
-
-const folders = [
-  { name: 'All Files', count: mockMediaFiles.length },
-  { name: 'hero-images', count: mockMediaFiles.filter(f => f.folder === 'hero-images').length },
-  { name: 'videos', count: mockMediaFiles.filter(f => f.folder === 'videos').length },
-  { name: 'landmarks', count: mockMediaFiles.filter(f => f.folder === 'landmarks').length },
-  { name: 'food', count: 0 },
-  { name: 'events', count: 0 }
-]
-
 export default function MediaLibraryPage() {
-  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>(mockMediaFiles)
-  const [filteredFiles, setFilteredFiles] = useState<MediaFile[]>(mockMediaFiles)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedFolder, setSelectedFolder] = useState('All Files')
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([])
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [showUploadModal, setShowUploadModal] = useState(false)
-  const [dragActive, setDragActive] = useState(false)
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [filteredFiles, setFilteredFiles] = useState<MediaFile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedFolder, setSelectedFolder] = useState("All Files");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+
+  // Compute folders dynamically from loaded media files
+  const folders = [
+    { name: "All Files", count: mediaFiles.length },
+    ...Array.from(new Set(mediaFiles.map((f) => f.folder))).map(
+      (folderName) => ({
+        name: folderName,
+        count: mediaFiles.filter((f) => f.folder === folderName).length,
+      }),
+    ),
+  ];
 
   useEffect(() => {
-    let filtered = mediaFiles
+    loadMediaFiles();
+  }, []);
+
+  const loadMediaFiles = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/admin/media");
+      if (res.ok) {
+        const data = await res.json();
+        setMediaFiles(data.files || data.data || []);
+      } else {
+        setMediaFiles([]);
+      }
+    } catch {
+      setMediaFiles([]);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    let filtered = mediaFiles;
 
     // Filter by folder
-    if (selectedFolder !== 'All Files') {
-      filtered = filtered.filter(file => file.folder === selectedFolder)
+    if (selectedFolder !== "All Files") {
+      filtered = filtered.filter((file) => file.folder === selectedFolder);
     }
 
     // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(file =>
-        file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        file.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        file.alt?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      filtered = filtered.filter(
+        (file) =>
+          file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          file.tags.some((tag) =>
+            tag.toLowerCase().includes(searchTerm.toLowerCase()),
+          ) ||
+          file.alt?.toLowerCase().includes(searchTerm.toLowerCase()),
+      );
     }
 
-    setFilteredFiles(filtered)
-  }, [mediaFiles, selectedFolder, searchTerm])
+    setFilteredFiles(filtered);
+  }, [mediaFiles, selectedFolder, searchTerm]);
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const handleFileSelect = (fileId: string) => {
-    setSelectedFiles(prev =>
+    setSelectedFiles((prev) =>
       prev.includes(fileId)
-        ? prev.filter(id => id !== fileId)
-        : [...prev, fileId]
-    )
-  }
+        ? prev.filter((id) => id !== fileId)
+        : [...prev, fileId],
+    );
+  };
 
   const handleSelectAll = () => {
     if (selectedFiles.length === filteredFiles.length) {
-      setSelectedFiles([])
+      setSelectedFiles([]);
     } else {
-      setSelectedFiles(filteredFiles.map(file => file.id))
+      setSelectedFiles(filteredFiles.map((file) => file.id));
     }
-  }
+  };
 
   const handleDeleteSelected = () => {
     if (selectedFiles.length === 0) {
-      toast.error('No files selected')
-      return
+      toast.error("No files selected");
+      return;
     }
 
-    setMediaFiles(prev => prev.filter(file => !selectedFiles.includes(file.id)))
-    setSelectedFiles([])
-    toast.success(`${selectedFiles.length} file(s) deleted`)
-  }
+    setMediaFiles((prev) =>
+      prev.filter((file) => !selectedFiles.includes(file.id)),
+    );
+    setSelectedFiles([]);
+    toast.success(`${selectedFiles.length} file(s) deleted`);
+  };
 
   const handleFileUpload = async (files: FileList) => {
-    setIsUploading(true)
-    setUploadProgress(0)
-    setShowUploadModal(false)
+    setIsUploading(true);
+    setUploadProgress(0);
+    setShowUploadModal(false);
 
     try {
       for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const progress = ((i + 1) / files.length) * 100
-        setUploadProgress(progress)
+        const file = files[i];
+        const progress = ((i + 1) / files.length) * 100;
+        setUploadProgress(progress);
 
         // Simulate upload
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
         const newFile: MediaFile = {
           id: Date.now().toString() + i,
           name: file.name,
-          type: file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'document',
+          type: file.type.startsWith("image/")
+            ? "image"
+            : file.type.startsWith("video/")
+              ? "video"
+              : "document",
           url: URL.createObjectURL(file),
-          thumbnail: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+          thumbnail: file.type.startsWith("image/")
+            ? URL.createObjectURL(file)
+            : undefined,
           size: file.size,
           uploadedAt: new Date().toISOString(),
           tags: [],
-          folder: selectedFolder === 'All Files' ? 'uploads' : selectedFolder
-        }
+          folder: selectedFolder === "All Files" ? "uploads" : selectedFolder,
+        };
 
-        setMediaFiles(prev => [newFile, ...prev])
+        setMediaFiles((prev) => [newFile, ...prev]);
       }
 
-      toast.success(`${files.length} file(s) uploaded successfully`)
+      toast.success(`${files.length} file(s) uploaded successfully`);
     } catch (error) {
-      toast.error('Failed to upload files')
+      toast.error("Failed to upload files");
     } finally {
-      setIsUploading(false)
-      setUploadProgress(0)
+      setIsUploading(false);
+      setUploadProgress(0);
     }
-  }
+  };
 
   const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true)
-    } else if (e.type === 'dragleave') {
-      setDragActive(false)
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
     }
-  }
+  };
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileUpload(e.dataTransfer.files)
+      handleFileUpload(e.dataTransfer.files);
     }
-  }
+  };
 
   const copyToClipboard = (url: string) => {
-    navigator.clipboard.writeText(url)
-    toast.success('URL copied to clipboard')
-  }
+    navigator.clipboard.writeText(url);
+    toast.success("URL copied to clipboard");
+  };
 
   return (
     <div className="p-6">
@@ -242,7 +234,9 @@ export default function MediaLibraryPage() {
               <Folder className="h-8 w-8 text-purple-500" />
               Media Library
             </h1>
-            <p className="text-gray-600 mt-1">Manage your images, videos, and documents</p>
+            <p className="text-gray-600 mt-1">
+              Manage your images, videos, and documents
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -273,8 +267,8 @@ export default function MediaLibraryPage() {
                   onClick={() => setSelectedFolder(folder.name)}
                   className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors ${
                     selectedFolder === folder.name
-                      ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                      : 'hover:bg-gray-50'
+                      ? "bg-purple-100 text-purple-700 border border-purple-200"
+                      : "hover:bg-gray-50"
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -313,20 +307,20 @@ export default function MediaLibraryPage() {
                     Filter
                   </Button>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <div className="flex items-center border rounded-lg">
                     <Button
-                      variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                      variant={viewMode === "grid" ? "default" : "ghost"}
                       size="sm"
-                      onClick={() => setViewMode('grid')}
+                      onClick={() => setViewMode("grid")}
                     >
                       <Grid className="h-4 w-4" />
                     </Button>
                     <Button
-                      variant={viewMode === 'list' ? 'default' : 'ghost'}
+                      variant={viewMode === "list" ? "default" : "ghost"}
                       size="sm"
-                      onClick={() => setViewMode('list')}
+                      onClick={() => setViewMode("list")}
                     >
                       <List className="h-4 w-4" />
                     </Button>
@@ -345,7 +339,11 @@ export default function MediaLibraryPage() {
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDeleteSelected}
+                      >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete
                       </Button>
@@ -363,8 +361,12 @@ export default function MediaLibraryPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">Uploading files...</span>
-                      <span className="text-sm text-gray-500">{Math.round(uploadProgress)}%</span>
+                      <span className="text-sm font-medium">
+                        Uploading files...
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {Math.round(uploadProgress)}%
+                      </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
@@ -381,21 +383,37 @@ export default function MediaLibraryPage() {
           {/* Media Files */}
           <div
             className={`${
-              viewMode === 'grid'
-                ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'
-                : 'space-y-2'
+              viewMode === "grid"
+                ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                : "space-y-2"
             }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
           >
-            {filteredFiles.length === 0 ? (
+            {isLoading ? (
+              <div className="col-span-full grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map((i) => (
+                  <Card key={i} className="animate-pulse">
+                    <CardContent className="p-4">
+                      <div className="aspect-square bg-gray-200 rounded-lg mb-3"></div>
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : filteredFiles.length === 0 ? (
               <div className="col-span-full text-center py-12">
                 <Folder className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No files found</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No files found
+                </h3>
                 <p className="text-gray-500 mb-4">
-                  {searchTerm ? 'Try adjusting your search terms' : 'Upload some files to get started'}
+                  {searchTerm
+                    ? "Try adjusting your search terms"
+                    : "Upload some files to get started"}
                 </p>
                 <Button onClick={() => setShowUploadModal(true)}>
                   <Upload className="h-4 w-4 mr-2" />
@@ -408,15 +426,15 @@ export default function MediaLibraryPage() {
                   key={file.id}
                   className={`cursor-pointer transition-all duration-200 ${
                     selectedFiles.includes(file.id)
-                      ? 'ring-2 ring-purple-500 bg-purple-50'
-                      : 'hover:shadow-md'
-                  } ${viewMode === 'list' ? 'flex items-center p-4' : ''}`}
+                      ? "ring-2 ring-purple-500 bg-purple-50"
+                      : "hover:shadow-md"
+                  } ${viewMode === "list" ? "flex items-center p-4" : ""}`}
                   onClick={() => handleFileSelect(file.id)}
                 >
-                  {viewMode === 'grid' ? (
+                  {viewMode === "grid" ? (
                     <CardContent className="p-4">
                       <div className="relative">
-                        {file.type === 'image' ? (
+                        {file.type === "image" ? (
                           <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-3">
                             <img
                               src={file.thumbnail || file.url}
@@ -424,7 +442,7 @@ export default function MediaLibraryPage() {
                               className="w-full h-full object-cover"
                             />
                           </div>
-                        ) : file.type === 'video' ? (
+                        ) : file.type === "video" ? (
                           <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-3 flex items-center justify-center">
                             <Video className="h-8 w-8 text-gray-400" />
                           </div>
@@ -433,16 +451,19 @@ export default function MediaLibraryPage() {
                             <File className="h-8 w-8 text-gray-400" />
                           </div>
                         )}
-                        
+
                         {selectedFiles.includes(file.id) && (
                           <div className="absolute top-2 right-2 bg-purple-500 text-white rounded-full p-1">
                             <Check className="h-3 w-3" />
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="space-y-1">
-                        <h4 className="font-medium text-sm truncate" title={file.name}>
+                        <h4
+                          className="font-medium text-sm truncate"
+                          title={file.name}
+                        >
                           {file.name}
                         </h4>
                         <p className="text-xs text-gray-500">
@@ -456,7 +477,7 @@ export default function MediaLibraryPage() {
                   ) : (
                     <CardContent className="flex items-center gap-4 w-full">
                       <div className="flex-shrink-0">
-                        {file.type === 'image' ? (
+                        {file.type === "image" ? (
                           <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
                             <img
                               src={file.thumbnail || file.url}
@@ -464,7 +485,7 @@ export default function MediaLibraryPage() {
                               className="w-full h-full object-cover"
                             />
                           </div>
-                        ) : file.type === 'video' ? (
+                        ) : file.type === "video" ? (
                           <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
                             <Video className="h-6 w-6 text-gray-400" />
                           </div>
@@ -474,16 +495,21 @@ export default function MediaLibraryPage() {
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium truncate">{file.name}</h4>
                         <p className="text-sm text-gray-500">
-                          {formatFileSize(file.size)} • {formatDate(file.uploadedAt)}
+                          {formatFileSize(file.size)} •{" "}
+                          {formatDate(file.uploadedAt)}
                         </p>
                         {file.tags.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">
                             {file.tags.slice(0, 3).map((tag) => (
-                              <Badge key={tag} variant="secondary" className="text-xs">
+                              <Badge
+                                key={tag}
+                                variant="secondary"
+                                className="text-xs"
+                              >
                                 {tag}
                               </Badge>
                             ))}
@@ -495,14 +521,14 @@ export default function MediaLibraryPage() {
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={(e) => {
-                            e.stopPropagation()
-                            copyToClipboard(file.url)
+                            e.stopPropagation();
+                            copyToClipboard(file.url);
                           }}
                         >
                           <Copy className="h-4 w-4" />
@@ -511,8 +537,8 @@ export default function MediaLibraryPage() {
                           variant="ghost"
                           size="sm"
                           onClick={(e) => {
-                            e.stopPropagation()
-                            window.open(file.url, '_blank')
+                            e.stopPropagation();
+                            window.open(file.url, "_blank");
                           }}
                         >
                           <Eye className="h-4 w-4" />
@@ -546,7 +572,9 @@ export default function MediaLibraryPage() {
             <CardContent>
               <div
                 className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  dragActive ? 'border-purple-500 bg-purple-50' : 'border-gray-300'
+                  dragActive
+                    ? "border-purple-500 bg-purple-50"
+                    : "border-gray-300"
                 }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
@@ -564,7 +592,9 @@ export default function MediaLibraryPage() {
                   type="file"
                   multiple
                   accept="image/*,video/*,.pdf,.doc,.docx"
-                  onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                  onChange={(e) =>
+                    e.target.files && handleFileUpload(e.target.files)
+                  }
                   className="hidden"
                   id="file-upload"
                 />
@@ -579,5 +609,5 @@ export default function MediaLibraryPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

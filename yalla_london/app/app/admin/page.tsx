@@ -1,15 +1,16 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { 
-  Home, 
-  FileText, 
-  Lightbulb, 
-  Edit3, 
-  Search, 
-  Settings, 
-  Brain, 
-  Shield, 
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import {
+  Home,
+  FileText,
+  Lightbulb,
+  Edit3,
+  Search,
+  Settings,
+  Brain,
+  Shield,
   Flag,
   Clock,
   CheckCircle,
@@ -18,58 +19,64 @@ import {
   Users,
   Eye,
   Calendar,
-  Zap
-} from 'lucide-react'
+  Zap,
+} from "lucide-react";
 
 export default function AdminCommandCenter() {
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
     readyToPublish: 0,
     scheduledContent: 0,
     totalArticles: 0,
     totalTopics: 0,
     seoScore: 0,
-    automationJobs: 0
-  })
+    automationJobs: 0,
+  });
 
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        const res = await fetch('/api/admin/dashboard')
+        const res = await fetch("/api/admin/dashboard");
         if (!res.ok) {
-          throw new Error(`Failed to fetch dashboard: ${res.status}`)
+          throw new Error(`Failed to fetch dashboard: ${res.status}`);
         }
-        const data = await res.json()
+        const data = await res.json();
         setStats({
           readyToPublish: data.readyToPublish ?? 0,
           scheduledContent: data.scheduledContent ?? 0,
           totalArticles: data.totalArticles ?? 0,
           totalTopics: data.totalTopics ?? 0,
           seoScore: data.seoScore ?? 0,
-          automationJobs: data.automationJobs ?? 0
-        })
+          automationJobs: data.automationJobs ?? 0,
+        });
+        setReadyToPublishItems(data.recentDrafts || []);
+        setUpcomingGeneration(data.upcomingTopics || []);
       } catch (err) {
-        console.error('Dashboard fetch error:', err)
-        setError('Failed to load dashboard data')
+        console.error("Dashboard fetch error:", err);
+        setError("Failed to load dashboard data");
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
-    fetchDashboardData()
-  }, [])
+    fetchDashboardData();
+  }, []);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-900">Loading Command Center...</h2>
-          <p className="text-gray-600">Please wait while we fetch your dashboard data.</p>
+          <h2 className="text-xl font-semibold text-gray-900">
+            Loading Command Center...
+          </h2>
+          <p className="text-gray-600">
+            Please wait while we fetch your dashboard data.
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -77,7 +84,9 @@ export default function AdminCommandCenter() {
       <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
         <div className="text-center">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900">Dashboard Error</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            Dashboard Error
+          </h2>
           <p className="text-gray-600 mt-2">{error}</p>
           <button
             onClick={() => window.location.reload()}
@@ -87,93 +96,42 @@ export default function AdminCommandCenter() {
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   const quickActions = [
     {
-      name: 'Create New Article',
-      href: '/admin/editor',
+      name: "Create New Article",
+      href: "/admin/editor",
       icon: Edit3,
-      color: 'bg-blue-500 hover:bg-blue-600',
-      description: 'Start writing or paste from Word'
+      color: "bg-blue-500 hover:bg-blue-600",
+      description: "Start writing or paste from Word",
     },
     {
-      name: 'Add Topic',
-      href: '/admin/topics',
+      name: "Add Topic",
+      href: "/admin/topics",
       icon: Lightbulb,
-      color: 'bg-green-500 hover:bg-green-600',
-      description: 'Add new topic to pipeline'
+      color: "bg-green-500 hover:bg-green-600",
+      description: "Add new topic to pipeline",
     },
     {
-      name: 'AI Studio',
-      href: '/admin/ai-studio',
+      name: "AI Studio",
+      href: "/admin/ai-studio",
       icon: Brain,
-      color: 'bg-purple-500 hover:bg-purple-600',
-      description: 'Manage prompts and models'
+      color: "bg-purple-500 hover:bg-purple-600",
+      description: "Manage prompts and models",
     },
     {
-      name: 'SEO Audit',
-      href: '/admin/seo',
+      name: "SEO Audit",
+      href: "/admin/seo",
       icon: Search,
-      color: 'bg-yellow-500 hover:bg-yellow-600',
-      description: 'Run SEO analysis'
-    }
-  ]
+      color: "bg-yellow-500 hover:bg-yellow-600",
+      description: "Run SEO analysis",
+    },
+  ];
 
-  const readyToPublishItems = [
-    {
-      id: 1,
-      title: 'Best Luxury Hotels in Mayfair',
-      locale: 'en',
-      seoScore: 92,
-      scheduledTime: '2024-01-15T10:00:00Z',
-      status: 'ready'
-    },
-    {
-      id: 2,
-      title: 'أفضل المطاعم العربية في لندن',
-      locale: 'ar',
-      seoScore: 88,
-      scheduledTime: '2024-01-15T14:00:00Z',
-      status: 'ready'
-    },
-    {
-      id: 3,
-      title: 'London Shopping Guide 2024',
-      locale: 'en',
-      seoScore: 85,
-      scheduledTime: '2024-01-16T09:00:00Z',
-      status: 'ready'
-    }
-  ]
-
-  const upcomingGeneration = [
-    {
-      id: 1,
-      topic: 'Chelsea FC Stadium Tour Guide',
-      locale: 'en',
-      scheduledTime: '2024-01-15T16:00:00Z',
-      prompt: 'Event Guide v2.1',
-      model: 'GPT-4'
-    },
-    {
-      id: 2,
-      topic: 'دليل التسوق في أكسفورد ستريت',
-      locale: 'ar',
-      scheduledTime: '2024-01-15T18:00:00Z',
-      prompt: 'Shopping Guide v1.8',
-      model: 'Claude 3.5'
-    },
-    {
-      id: 3,
-      topic: 'Best Afternoon Tea in London',
-      locale: 'en',
-      scheduledTime: '2024-01-16T11:00:00Z',
-      prompt: 'Food Guide v2.0',
-      model: 'GPT-4'
-    }
-  ]
+  const [readyToPublishItems, setReadyToPublishItems] = useState<any[]>([]);
+  const [upcomingGeneration, setUpcomingGeneration] = useState<any[]>([]);
 
   return (
     <div>
@@ -185,7 +143,9 @@ export default function AdminCommandCenter() {
               <Home className="h-8 w-8 text-purple-500" />
               Command Center
             </h1>
-            <p className="text-gray-600 mt-1">Complete control over your website and automation</p>
+            <p className="text-gray-600 mt-1">
+              Complete control over your website and automation
+            </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -200,7 +160,9 @@ export default function AdminCommandCenter() {
 
       {/* Quick Actions */}
       <div className="mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Quick Actions
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((action) => (
             <a
@@ -225,58 +187,80 @@ export default function AdminCommandCenter() {
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Ready to Publish</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.readyToPublish}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Ready to Publish
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {stats.readyToPublish}
+              </p>
             </div>
             <CheckCircle className="h-8 w-8 text-green-500" />
           </div>
         </div>
-        
+
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Scheduled Content</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.scheduledContent}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Scheduled Content
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {stats.scheduledContent}
+              </p>
             </div>
             <Calendar className="h-8 w-8 text-blue-500" />
           </div>
         </div>
-        
+
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Articles</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalArticles}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Total Articles
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {stats.totalArticles}
+              </p>
             </div>
             <FileText className="h-8 w-8 text-purple-500" />
           </div>
         </div>
-        
+
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Active Topics</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalTopics}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {stats.totalTopics}
+              </p>
             </div>
             <Lightbulb className="h-8 w-8 text-yellow-500" />
           </div>
         </div>
-        
+
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Average SEO Score</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.seoScore}%</p>
+              <p className="text-sm font-medium text-gray-600">
+                Average SEO Score
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {stats.seoScore}%
+              </p>
             </div>
             <TrendingUp className="h-8 w-8 text-green-500" />
           </div>
         </div>
-        
+
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Automation Jobs</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.automationJobs}</p>
+              <p className="text-sm font-medium text-gray-600">
+                Automation Jobs
+              </p>
+              <p className="text-2xl font-bold text-gray-900">
+                {stats.automationJobs}
+              </p>
             </div>
             <Zap className="h-8 w-8 text-orange-500" />
           </div>
@@ -291,34 +275,54 @@ export default function AdminCommandCenter() {
               <CheckCircle className="h-5 w-5 text-green-500" />
               Ready to Publish
             </h3>
-            <p className="text-sm text-gray-600 mt-1">Articles ready for immediate publishing</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Articles ready for immediate publishing
+            </p>
           </div>
           <div className="p-6">
             <div className="space-y-4">
-              {readyToPublishItems.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{item.title}</h4>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
-                      <span className="flex items-center gap-1">
-                        <span className={`w-2 h-2 rounded-full ${item.locale === 'en' ? 'bg-blue-500' : 'bg-green-500'}`}></span>
-                        {item.locale.toUpperCase()}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <TrendingUp className="h-3 w-3" />
-                        SEO: {item.seoScore}%
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {new Date(item.scheduledTime).toLocaleDateString()}
-                      </span>
+              {readyToPublishItems.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">
+                  No draft articles yet
+                </p>
+              ) : (
+                readyToPublishItems.map((item: any) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900">
+                        {item.title}
+                      </h4>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                        <span className="flex items-center gap-1">
+                          <span
+                            className={`w-2 h-2 rounded-full ${item.locale === "en" ? "bg-blue-500" : "bg-green-500"}`}
+                          ></span>
+                          {item.locale.toUpperCase()}
+                        </span>
+                        {item.seoScore > 0 && (
+                          <span className="flex items-center gap-1">
+                            <TrendingUp className="h-3 w-3" />
+                            SEO: {item.seoScore}%
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {new Date(item.updatedAt).toLocaleDateString()}
+                        </span>
+                      </div>
                     </div>
+                    <Link
+                      href={`/admin/editor?slug=${item.slug}`}
+                      className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                    >
+                      Edit & Publish
+                    </Link>
                   </div>
-                  <button className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors">
-                    Publish Now
-                  </button>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -330,43 +334,58 @@ export default function AdminCommandCenter() {
               <Clock className="h-5 w-5 text-blue-500" />
               What's Next
             </h3>
-            <p className="text-sm text-gray-600 mt-1">Upcoming content generation events</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Upcoming content generation events
+            </p>
           </div>
           <div className="p-6">
             <div className="space-y-4">
-              {upcomingGeneration.map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">{item.topic}</h4>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
-                      <span className="flex items-center gap-1">
-                        <span className={`w-2 h-2 rounded-full ${item.locale === 'en' ? 'bg-blue-500' : 'bg-green-500'}`}></span>
-                        {item.locale.toUpperCase()}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Brain className="h-3 w-3" />
-                        {item.prompt}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Zap className="h-3 w-3" />
-                        {item.model}
-                      </span>
+              {upcomingGeneration.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">
+                  No upcoming topics in pipeline
+                </p>
+              ) : (
+                upcomingGeneration.map((item: any) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900">
+                        {item.title}
+                      </h4>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                        <span className="flex items-center gap-1">
+                          <span
+                            className={`w-2 h-2 rounded-full ${item.locale === "en" ? "bg-blue-500" : "bg-green-500"}`}
+                          ></span>
+                          {item.locale.toUpperCase()}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Brain className="h-3 w-3" />
+                          {item.pageType || "guide"}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Zap className="h-3 w-3" />
+                          {item.status}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-gray-900">
+                        {new Date(item.plannedAt).toLocaleDateString()}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {item.keyword}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-gray-900">
-                      {new Date(item.scheduledTime).toLocaleDateString()}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(item.scheduledTime).toLocaleTimeString()}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

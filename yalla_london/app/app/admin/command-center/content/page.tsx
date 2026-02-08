@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 /**
  * Content Generation Hub
@@ -7,8 +7,8 @@
  * Generate articles, edit with AI assistance, and manage content queue.
  */
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   ArrowLeft,
   FileText,
@@ -33,21 +33,21 @@ import {
   TrendingUp,
   Target,
   Languages,
-} from 'lucide-react';
+} from "lucide-react";
 
 interface ContentItem {
   id: string;
   title: string;
-  type: 'article' | 'guide' | 'comparison' | 'review';
-  status: 'draft' | 'review' | 'scheduled' | 'published';
+  type: "article" | "guide" | "comparison" | "review";
+  status: "draft" | "review" | "scheduled" | "published";
   site: string;
-  locale: 'ar' | 'en';
+  locale: "ar" | "en";
   createdAt: string;
   updatedAt: string;
   scheduledFor: string | null;
   wordCount: number;
   seoScore: number;
-  author: 'ai' | 'human';
+  author: "ai" | "human";
 }
 
 interface ContentTemplate {
@@ -61,74 +61,74 @@ interface ContentTemplate {
 
 const CONTENT_TEMPLATES: ContentTemplate[] = [
   {
-    id: 'resort-review',
-    name: 'Resort Review',
-    description: 'Comprehensive resort review with scores',
+    id: "resort-review",
+    name: "Resort Review",
+    description: "Comprehensive resort review with scores",
     icon: BookOpen,
-    color: 'purple',
+    color: "purple",
     prompts: [
-      'Write a detailed review of [resort name] including amenities, service quality, and value for money',
+      "Write a detailed review of [resort name] including amenities, service quality, and value for money",
     ],
   },
   {
-    id: 'comparison',
-    name: 'Resort Comparison',
-    description: 'Compare multiple resorts side by side',
+    id: "comparison",
+    name: "Resort Comparison",
+    description: "Compare multiple resorts side by side",
     icon: Target,
-    color: 'blue',
+    color: "blue",
     prompts: [
-      'Compare [resort 1] and [resort 2] for families/honeymoon/budget travelers',
+      "Compare [resort 1] and [resort 2] for families/honeymoon/budget travelers",
     ],
   },
   {
-    id: 'travel-guide',
-    name: 'Travel Guide',
-    description: 'Destination travel guide with tips',
+    id: "travel-guide",
+    name: "Travel Guide",
+    description: "Destination travel guide with tips",
     icon: Globe,
-    color: 'green',
+    color: "green",
     prompts: [
-      'Write a complete travel guide for [destination] covering best time to visit, activities, and tips',
+      "Write a complete travel guide for [destination] covering best time to visit, activities, and tips",
     ],
   },
   {
-    id: 'listicle',
-    name: 'Top 10 List',
-    description: 'Ranked list article',
+    id: "listicle",
+    name: "Top 10 List",
+    description: "Ranked list article",
     icon: TrendingUp,
-    color: 'amber',
+    color: "amber",
     prompts: [
-      'Write a top 10 list of [topic] with detailed descriptions for each item',
+      "Write a top 10 list of [topic] with detailed descriptions for each item",
     ],
   },
 ];
 
 const CONTENT_TYPES = [
-  { id: 'all', name: 'All Content' },
-  { id: 'article', name: 'Articles' },
-  { id: 'guide', name: 'Guides' },
-  { id: 'comparison', name: 'Comparisons' },
-  { id: 'review', name: 'Reviews' },
+  { id: "all", name: "All Content" },
+  { id: "article", name: "Articles" },
+  { id: "guide", name: "Guides" },
+  { id: "comparison", name: "Comparisons" },
+  { id: "review", name: "Reviews" },
 ];
 
 const STATUS_FILTERS = [
-  { id: 'all', name: 'All Status', color: 'gray' },
-  { id: 'draft', name: 'Draft', color: 'gray' },
-  { id: 'review', name: 'In Review', color: 'yellow' },
-  { id: 'scheduled', name: 'Scheduled', color: 'blue' },
-  { id: 'published', name: 'Published', color: 'green' },
+  { id: "all", name: "All Status", color: "gray" },
+  { id: "draft", name: "Draft", color: "gray" },
+  { id: "review", name: "In Review", color: "yellow" },
+  { id: "scheduled", name: "Scheduled", color: "blue" },
+  { id: "published", name: "Published", color: "green" },
 ];
 
 export default function ContentHubPage() {
   const [content, setContent] = useState<ContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [showGenerator, setShowGenerator] = useState(false);
-  const [generatorPrompt, setGeneratorPrompt] = useState('');
+  const [generatorPrompt, setGeneratorPrompt] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [selectedSite, setSelectedSite] = useState('arabaldives');
-  const [selectedLocale, setSelectedLocale] = useState<'ar' | 'en'>('ar');
+  const [selectedSite, setSelectedSite] = useState("arabaldives");
+  const [selectedLocale, setSelectedLocale] = useState<"ar" | "en">("ar");
   const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
@@ -139,16 +139,16 @@ export default function ContentHubPage() {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `/api/admin/command-center/content?type=${typeFilter}&status=${statusFilter}`
+        `/api/admin/command-center/content?type=${typeFilter}&status=${statusFilter}`,
       );
       if (response.ok) {
         const data = await response.json();
-        setContent(data.content);
+        setContent(data.content || []);
       } else {
-        setContent(mockContent);
+        setContent([]);
       }
     } catch (error) {
-      setContent(mockContent);
+      setContent([]);
     }
     setIsLoading(false);
   };
@@ -158,16 +158,19 @@ export default function ContentHubPage() {
 
     setIsGenerating(true);
     try {
-      const response = await fetch('/api/admin/command-center/content/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: generatorPrompt,
-          template: selectedTemplate,
-          site: selectedSite,
-          locale: selectedLocale,
-        }),
-      });
+      const response = await fetch(
+        "/api/admin/command-center/content/generate",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: generatorPrompt,
+            template: selectedTemplate,
+            site: selectedSite,
+            locale: selectedLocale,
+          }),
+        },
+      );
 
       // Simulate generation time
       await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -175,27 +178,30 @@ export default function ContentHubPage() {
       // Refresh content list
       loadContent();
       setShowGenerator(false);
-      setGeneratorPrompt('');
+      setGeneratorPrompt("");
       setSelectedTemplate(null);
     } catch (error) {
-      console.error('Failed to generate content:', error);
+      console.error("Failed to generate content:", error);
     }
     setIsGenerating(false);
   };
 
   const filteredContent = content.filter((item) => {
-    if (searchQuery && !item.title.toLowerCase().includes(searchQuery.toLowerCase())) {
+    if (
+      searchQuery &&
+      !item.title.toLowerCase().includes(searchQuery.toLowerCase())
+    ) {
       return false;
     }
     return true;
   });
 
-  const getStatusBadge = (status: ContentItem['status']) => {
+  const getStatusBadge = (status: ContentItem["status"]) => {
     const styles = {
-      draft: 'bg-gray-100 text-gray-700',
-      review: 'bg-yellow-100 text-yellow-700',
-      scheduled: 'bg-blue-100 text-blue-700',
-      published: 'bg-green-100 text-green-700',
+      draft: "bg-gray-100 text-gray-700",
+      review: "bg-yellow-100 text-yellow-700",
+      scheduled: "bg-blue-100 text-blue-700",
+      published: "bg-green-100 text-green-700",
     };
     return styles[status];
   };
@@ -249,25 +255,25 @@ export default function ContentHubPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="text-2xl font-bold text-purple-600">
-              {content.filter((c) => c.author === 'ai').length}
+              {content.filter((c) => c.author === "ai").length}
             </div>
             <div className="text-sm text-gray-500">AI Generated</div>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="text-2xl font-bold text-blue-600">
-              {content.filter((c) => c.status === 'scheduled').length}
+              {content.filter((c) => c.status === "scheduled").length}
             </div>
             <div className="text-sm text-gray-500">Scheduled</div>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="text-2xl font-bold text-green-600">
-              {content.filter((c) => c.status === 'published').length}
+              {content.filter((c) => c.status === "published").length}
             </div>
             <div className="text-sm text-gray-500">Published</div>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <div className="text-2xl font-bold text-amber-600">
-              {content.filter((c) => c.status === 'draft').length}
+              {content.filter((c) => c.status === "draft").length}
             </div>
             <div className="text-sm text-gray-500">Drafts</div>
           </div>
@@ -287,8 +293,7 @@ export default function ContentHubPage() {
                     onClick={() => setShowGenerator(false)}
                     className="p-2 hover:bg-gray-100 rounded-lg"
                   >
-                    <span className="sr-only">Close</span>
-                    ×
+                    <span className="sr-only">Close</span>×
                   </button>
                 </div>
               </div>
@@ -316,7 +321,9 @@ export default function ContentHubPage() {
                     </label>
                     <select
                       value={selectedLocale}
-                      onChange={(e) => setSelectedLocale(e.target.value as 'ar' | 'en')}
+                      onChange={(e) =>
+                        setSelectedLocale(e.target.value as "ar" | "en")
+                      }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                     >
                       <option value="ar">Arabic (العربية)</option>
@@ -340,13 +347,17 @@ export default function ContentHubPage() {
                         }}
                         className={`p-4 rounded-xl border-2 text-left transition-all ${
                           selectedTemplate === template.id
-                            ? 'border-purple-500 bg-purple-50'
-                            : 'border-gray-200 hover:border-gray-300'
+                            ? "border-purple-500 bg-purple-50"
+                            : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
-                        <template.icon className={`h-6 w-6 mb-2 text-${template.color}-600`} />
+                        <template.icon
+                          className={`h-6 w-6 mb-2 text-${template.color}-600`}
+                        />
                         <h3 className="font-medium">{template.name}</h3>
-                        <p className="text-sm text-gray-500">{template.description}</p>
+                        <p className="text-sm text-gray-500">
+                          {template.description}
+                        </p>
                       </button>
                     ))}
                   </div>
@@ -371,7 +382,9 @@ export default function ContentHubPage() {
                   <h4 className="font-medium mb-3">Advanced Options</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm text-gray-500">Target Word Count</label>
+                      <label className="text-sm text-gray-500">
+                        Target Word Count
+                      </label>
                       <input
                         type="number"
                         defaultValue={1500}
@@ -379,7 +392,9 @@ export default function ContentHubPage() {
                       />
                     </div>
                     <div>
-                      <label className="text-sm text-gray-500">Target Keyword</label>
+                      <label className="text-sm text-gray-500">
+                        Target Keyword
+                      </label>
                       <input
                         type="text"
                         placeholder="e.g., best maldives resorts"
@@ -442,8 +457,8 @@ export default function ContentHubPage() {
                   onClick={() => setTypeFilter(type.id)}
                   className={`px-3 py-1 rounded-full text-sm ${
                     typeFilter === type.id
-                      ? 'bg-purple-100 text-purple-700'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? "bg-purple-100 text-purple-700"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
                   {type.name}
@@ -466,179 +481,154 @@ export default function ContentHubPage() {
         </div>
 
         {/* Content List */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">
-                    Title
-                  </th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">
-                    Type
-                  </th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">
-                    Site
-                  </th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">
-                    Status
-                  </th>
-                  <th className="text-center px-4 py-3 text-sm font-medium text-gray-500">
-                    SEO
-                  </th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">
-                    Updated
-                  </th>
-                  <th className="text-center px-4 py-3 text-sm font-medium text-gray-500">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredContent.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {item.author === 'ai' && (
-                          <Sparkles className="h-4 w-4 text-purple-500" />
-                        )}
-                        <div>
-                          <div className="font-medium">{item.title}</div>
-                          <div className="text-sm text-gray-500">
-                            {item.wordCount.toLocaleString()} words
+        {isLoading ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-8">
+            <div className="space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-4 animate-pulse">
+                  <div className="h-5 bg-gray-200 rounded w-1/3"></div>
+                  <div className="h-5 bg-gray-200 rounded w-1/6"></div>
+                  <div className="h-5 bg-gray-200 rounded w-1/6"></div>
+                  <div className="h-5 bg-gray-200 rounded w-1/6"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : filteredContent.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-200 text-center py-12">
+            <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No content found
+            </h3>
+            <p className="text-gray-500 mb-4">
+              {searchQuery
+                ? "Try adjusting your search or filters"
+                : "Generate your first article with AI to get started"}
+            </p>
+            <button
+              onClick={() => setShowGenerator(true)}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:opacity-90"
+            >
+              <Sparkles className="h-4 w-4" />
+              Generate with AI
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">
+                      Title
+                    </th>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">
+                      Type
+                    </th>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">
+                      Site
+                    </th>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">
+                      Status
+                    </th>
+                    <th className="text-center px-4 py-3 text-sm font-medium text-gray-500">
+                      SEO
+                    </th>
+                    <th className="text-left px-4 py-3 text-sm font-medium text-gray-500">
+                      Updated
+                    </th>
+                    <th className="text-center px-4 py-3 text-sm font-medium text-gray-500">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredContent.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {item.author === "ai" && (
+                            <Sparkles className="h-4 w-4 text-purple-500" />
+                          )}
+                          <div>
+                            <div className="font-medium">{item.title}</div>
+                            <div className="text-sm text-gray-500">
+                              {item.wordCount.toLocaleString()} words
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 capitalize text-sm">{item.type}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Globe className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm">{item.site}</span>
+                      </td>
+                      <td className="px-4 py-3 capitalize text-sm">
+                        {item.type}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm">{item.site}</span>
+                          <span
+                            className={`text-xs px-1.5 py-0.5 rounded ${
+                              item.locale === "ar"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-blue-100 text-blue-700"
+                            }`}
+                          >
+                            {item.locale.toUpperCase()}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
                         <span
-                          className={`text-xs px-1.5 py-0.5 rounded ${
-                            item.locale === 'ar'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-blue-100 text-blue-700'
+                          className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(item.status)}`}
+                        >
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div
+                          className={`inline-flex items-center justify-center w-10 h-10 rounded-full font-medium text-sm ${
+                            item.seoScore >= 80
+                              ? "bg-green-100 text-green-700"
+                              : item.seoScore >= 60
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-red-100 text-red-700"
                           }`}
                         >
-                          {item.locale.toUpperCase()}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(item.status)}`}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div
-                        className={`inline-flex items-center justify-center w-10 h-10 rounded-full font-medium text-sm ${
-                          item.seoScore >= 80
-                            ? 'bg-green-100 text-green-700'
-                            : item.seoScore >= 60
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}
-                      >
-                        {item.seoScore}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{item.updatedAt}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-2">
-                        <button className="p-1 hover:bg-gray-100 rounded" title="Edit">
-                          <Edit className="h-4 w-4 text-gray-500" />
-                        </button>
-                        <button className="p-1 hover:bg-gray-100 rounded" title="Preview">
-                          <Eye className="h-4 w-4 text-gray-500" />
-                        </button>
-                        <button className="p-1 hover:bg-gray-100 rounded" title="Delete">
-                          <Trash2 className="h-4 w-4 text-gray-500" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                          {item.seoScore}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500">
+                        {item.updatedAt}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            className="p-1 hover:bg-gray-100 rounded"
+                            title="Edit"
+                          >
+                            <Edit className="h-4 w-4 text-gray-500" />
+                          </button>
+                          <button
+                            className="p-1 hover:bg-gray-100 rounded"
+                            title="Preview"
+                          >
+                            <Eye className="h-4 w-4 text-gray-500" />
+                          </button>
+                          <button
+                            className="p-1 hover:bg-gray-100 rounded"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4 text-gray-500" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );
 }
-
-// Mock data
-const mockContent: ContentItem[] = [
-  {
-    id: '1',
-    title: 'أفضل 10 منتجعات في المالديف للعائلات',
-    type: 'article',
-    status: 'published',
-    site: 'Arabaldives',
-    locale: 'ar',
-    createdAt: '2024-01-15',
-    updatedAt: '2 hours ago',
-    scheduledFor: null,
-    wordCount: 2450,
-    seoScore: 92,
-    author: 'ai',
-  },
-  {
-    id: '2',
-    title: 'مراجعة منتجع سونيفا فوشي الشاملة',
-    type: 'review',
-    status: 'review',
-    site: 'Arabaldives',
-    locale: 'ar',
-    createdAt: '2024-01-18',
-    updatedAt: '1 day ago',
-    scheduledFor: null,
-    wordCount: 3200,
-    seoScore: 85,
-    author: 'ai',
-  },
-  {
-    id: '3',
-    title: 'مقارنة: سونيفا فوشي vs والدورف أستوريا',
-    type: 'comparison',
-    status: 'scheduled',
-    site: 'Arabaldives',
-    locale: 'ar',
-    createdAt: '2024-01-20',
-    updatedAt: '3 hours ago',
-    scheduledFor: '2024-01-25',
-    wordCount: 2800,
-    seoScore: 88,
-    author: 'ai',
-  },
-  {
-    id: '4',
-    title: 'Best Halal Restaurants in London 2024',
-    type: 'guide',
-    status: 'published',
-    site: 'Yalla London',
-    locale: 'en',
-    createdAt: '2024-01-10',
-    updatedAt: '5 days ago',
-    scheduledFor: null,
-    wordCount: 1850,
-    seoScore: 78,
-    author: 'human',
-  },
-  {
-    id: '5',
-    title: 'دليل شهر العسل في المالديف',
-    type: 'guide',
-    status: 'draft',
-    site: 'Arabaldives',
-    locale: 'ar',
-    createdAt: '2024-01-22',
-    updatedAt: 'Just now',
-    scheduledFor: null,
-    wordCount: 1200,
-    seoScore: 65,
-    author: 'ai',
-  },
-];

@@ -35,13 +35,13 @@ const AFFILIATE_RULES: AffiliateRule[] = [
       {
         name: "Booking.com",
         url: "https://www.booking.com/city/gb/london.html",
-        param: "?aid=AFFILIATE_ID",
+        param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`,
         category: "hotel",
       },
       {
         name: "Agoda",
         url: "https://www.agoda.com/london",
-        param: "?cid=AFFILIATE_ID",
+        param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`,
         category: "hotel",
       },
     ],
@@ -64,13 +64,13 @@ const AFFILIATE_RULES: AffiliateRule[] = [
       {
         name: "TheFork",
         url: "https://www.thefork.co.uk/london",
-        param: "?ref=AFFILIATE_ID",
+        param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}`,
         category: "restaurant",
       },
       {
         name: "OpenTable",
         url: "https://www.opentable.co.uk/london",
-        param: "?ref=AFFILIATE_ID",
+        param: `?ref=${process.env.OPENTABLE_AFFILIATE_ID || ""}`,
         category: "restaurant",
       },
     ],
@@ -93,13 +93,13 @@ const AFFILIATE_RULES: AffiliateRule[] = [
       {
         name: "GetYourGuide",
         url: "https://www.getyourguide.com/london-l57/",
-        param: "?partner_id=AFFILIATE_ID",
+        param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`,
         category: "activity",
       },
       {
         name: "Viator",
         url: "https://www.viator.com/London/d737",
-        param: "?pid=AFFILIATE_ID",
+        param: `?pid=${process.env.VIATOR_AFFILIATE_ID || ""}`,
         category: "activity",
       },
     ],
@@ -123,13 +123,13 @@ const AFFILIATE_RULES: AffiliateRule[] = [
       {
         name: "StubHub",
         url: "https://www.stubhub.co.uk",
-        param: "?gcid=AFFILIATE_ID",
+        param: `?gcid=${process.env.STUBHUB_AFFILIATE_ID || ""}`,
         category: "tickets",
       },
       {
         name: "Ticketmaster",
         url: "https://www.ticketmaster.co.uk",
-        param: "?tm_link=AFFILIATE_ID",
+        param: `?tm_link=${process.env.TICKETMASTER_AFFILIATE_ID || ""}`,
         category: "tickets",
       },
     ],
@@ -182,7 +182,7 @@ const AFFILIATE_RULES: AffiliateRule[] = [
       {
         name: "Blacklane",
         url: "https://www.blacklane.com/en/london",
-        param: "?aff=AFFILIATE_ID",
+        param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`,
         category: "transport",
       },
     ],

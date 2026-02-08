@@ -272,11 +272,6 @@ export async function GET(request: NextRequest) {
 }
 
 function generateToken(): string {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let token = "";
-  for (let i = 0; i < 32; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return `pdf_${token}`;
+  const { randomBytes } = require("crypto");
+  return `pdf_${randomBytes(24).toString("hex")}`;
 }

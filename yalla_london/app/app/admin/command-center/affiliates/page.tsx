@@ -146,27 +146,24 @@ export default function AffiliatesPage() {
   const runAutoInsertion = async () => {
     setIsProcessing(true);
     try {
-      const res = await fetch("/api/admin/affiliates/auto-insert", {
+      const res = await fetch("/api/affiliates/inject", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dryRun: false }),
+        body: JSON.stringify({ mode: "bulk" }),
       });
 
       if (res.ok) {
         const result = await res.json();
         alert(
-          `Inserted ${result.inserted || 0} affiliate links across ${result.articles || 0} articles`,
+          `Inserted affiliate links into ${result.postsUpdated || 0} of ${result.totalPosts || 0} articles`,
         );
       } else {
-        // Demo mode
-        alert(
-          "Auto-insertion complete! Inserted 47 affiliate links across 23 articles.",
-        );
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Auto-insertion failed. Check your authentication.");
       }
     } catch (error) {
-      // Demo mode
       alert(
-        "Auto-insertion complete! Inserted 47 affiliate links across 23 articles.",
+        "Auto-insertion failed. Please check your connection and try again.",
       );
     }
     setIsProcessing(false);
@@ -193,9 +190,11 @@ export default function AffiliatesPage() {
       : partners.filter((p) => p.category === selectedCategory);
 
   const copyAffiliateLink = async (partnerId: string) => {
-    const link = `https://partner.link/${partnerId}`;
+    const partner = partners.find((p) => p.id === partnerId);
+    const link = partner
+      ? `Partner: ${partner.name} (ID: ${partnerId})`
+      : partnerId;
     await navigator.clipboard.writeText(link);
-    // Show toast
   };
 
   return (
@@ -300,7 +299,10 @@ export default function AffiliatesPage() {
                 </div>
                 <div className="flex items-center gap-1 mt-2 text-green-100">
                   <TrendingUp className="h-4 w-4" />
-                  +18% vs last month
+                  {partners.length > 0
+                    ? "Active partners: " +
+                      partners.filter((p) => p.status === "active").length
+                    : "No data yet"}
                 </div>
               </div>
 
@@ -309,9 +311,9 @@ export default function AffiliatesPage() {
                 <div className="text-2xl font-bold">
                   {totalClicks.toLocaleString()}
                 </div>
-                <div className="flex items-center gap-1 mt-2 text-green-600 text-sm">
-                  <TrendingUp className="h-4 w-4" />
-                  +12%
+                <div className="flex items-center gap-1 mt-2 text-gray-500 text-sm">
+                  <MousePointer className="h-4 w-4" />
+                  All partners
                 </div>
               </div>
 
@@ -320,9 +322,9 @@ export default function AffiliatesPage() {
                 <div className="text-2xl font-bold">
                   {totalConversions.toLocaleString()}
                 </div>
-                <div className="flex items-center gap-1 mt-2 text-green-600 text-sm">
-                  <TrendingUp className="h-4 w-4" />
-                  +8%
+                <div className="flex items-center gap-1 mt-2 text-gray-500 text-sm">
+                  <ShoppingCart className="h-4 w-4" />
+                  All partners
                 </div>
               </div>
 

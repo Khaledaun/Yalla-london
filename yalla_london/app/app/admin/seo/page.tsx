@@ -1,13 +1,12 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
   Search,
   TrendingUp,
   Link,
@@ -18,206 +17,201 @@ import {
   Globe,
   BarChart3,
   Zap,
-  Eye,
   Download,
   RefreshCw,
   ExternalLink,
-  Filter,
-  Plus,
-  FileText
-} from 'lucide-react'
-import { toast } from 'sonner'
+  FileText,
+} from "lucide-react";
+import { toast } from "sonner";
 
 interface SEOHealth {
-  overallScore: number
-  pageSpeed: number
-  mobileFriendly: number
-  coreWebVitals: number
-  lastChecked: string
-}
-
-interface Backlink {
-  id: string
-  url: string
-  domain: string
-  authority: number
-  anchorText: string
-  foundDate: string
-  status: 'active' | 'lost' | 'new'
+  overallScore: number;
+  autoPublishRate: number;
+  reviewQueue: number;
+  criticalIssues: number;
+  lastChecked: string;
 }
 
 interface ArticleSEO {
-  id: string
-  title: string
-  url: string
-  seoScore: number
-  keywords: string[]
-  issues: string[]
-  lastAudit: string
+  id: string;
+  title: string;
+  url: string;
+  seoScore: number;
+  keywords: string[];
+  issues: string[];
+  lastAudit: string;
 }
 
 interface CrawlResult {
-  url: string
-  status: 'success' | 'error' | 'warning'
-  issues: string[]
-  score: number
-  lastCrawled: string
+  url: string;
+  status: "success" | "error" | "warning";
+  issues: string[];
+  score: number;
+  lastCrawled: string;
 }
 
 export default function SEOCommandCenter() {
+  const [isLoading, setIsLoading] = useState(true);
   const [seoHealth, setSeoHealth] = useState<SEOHealth>({
-    overallScore: 87,
-    pageSpeed: 92,
-    mobileFriendly: 95,
-    coreWebVitals: 89,
-    lastChecked: '2024-01-15 14:30:00'
-  })
+    overallScore: 0,
+    autoPublishRate: 0,
+    reviewQueue: 0,
+    criticalIssues: 0,
+    lastChecked: new Date().toISOString(),
+  });
 
-  const [backlinks, setBacklinks] = useState<Backlink[]>([
-    {
-      id: '1',
-      url: 'https://example.com/london-guide',
-      domain: 'example.com',
-      authority: 85,
-      anchorText: 'Best London Restaurants',
-      foundDate: '2024-01-15',
-      status: 'active'
-    },
-    {
-      id: '2',
-      url: 'https://travelblog.com/london-tips',
-      domain: 'travelblog.com',
-      authority: 72,
-      anchorText: 'London Hidden Gems',
-      foundDate: '2024-01-14',
-      status: 'new'
-    },
-    {
-      id: '3',
-      url: 'https://foodie.com/london-dining',
-      domain: 'foodie.com',
-      authority: 68,
-      anchorText: 'Yalla London Restaurant Guide',
-      foundDate: '2024-01-13',
-      status: 'active'
+  const [articleSEO, setArticleSEO] = useState<ArticleSEO[]>([]);
+  const [crawlResults, setCrawlResults] = useState<CrawlResult[]>([]);
+  const [isCrawling, setIsCrawling] = useState(false);
+  const [crawlProgress, setCrawlProgress] = useState(0);
+
+  useEffect(() => {
+    loadSEOData();
+  }, []);
+
+  const loadSEOData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch SEO overview from real API
+      const overviewRes = await fetch("/api/admin/seo?type=overview");
+      if (overviewRes.ok) {
+        const data = await overviewRes.json();
+        setSeoHealth({
+          overallScore: data.averageScore || 0,
+          autoPublishRate: data.autoPublishRate || 0,
+          reviewQueue: data.reviewQueue || 0,
+          criticalIssues: data.criticalIssues || 0,
+          lastChecked: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to load SEO overview:", error);
     }
-  ])
 
-  const [articleSEO, setArticleSEO] = useState<ArticleSEO[]>([
-    {
-      id: '1',
-      title: 'Best London Restaurants 2024',
-      url: '/blog/best-london-restaurants-2024',
-      seoScore: 92,
-      keywords: ['london restaurants', 'best dining london', 'london food guide'],
-      issues: ['Missing meta description'],
-      lastAudit: '2024-01-15'
-    },
-    {
-      id: '2',
-      title: 'Hidden Gems in London',
-      url: '/blog/hidden-gems-london',
-      seoScore: 87,
-      keywords: ['hidden gems london', 'london attractions', 'off beaten path'],
-      issues: ['Title too long', 'Missing alt tags'],
-      lastAudit: '2024-01-14'
-    },
-    {
-      id: '3',
-      title: 'London Events Guide',
-      url: '/blog/london-events-guide',
-      seoScore: 89,
-      keywords: ['london events', 'london guide', 'things to do london'],
-      issues: ['Low keyword density'],
-      lastAudit: '2024-01-13'
+    try {
+      // Fetch article SEO data from real content API
+      const contentRes = await fetch("/api/admin/content?limit=20");
+      if (contentRes.ok) {
+        const contentData = await contentRes.json();
+        const posts = contentData.data || [];
+        setArticleSEO(
+          posts.map((p: any) => {
+            const issues: string[] = [];
+            if (!p.meta_title_en) issues.push("Missing meta title");
+            if (!p.meta_description_en) issues.push("Missing meta description");
+            if (!p.featured_image) issues.push("Missing featured image");
+
+            return {
+              id: p.id,
+              title: p.title_en || p.title_ar || "Untitled",
+              url: `/blog/${p.slug}`,
+              seoScore: p.seo_score || 0,
+              keywords: p.tags || [],
+              issues,
+              lastAudit: p.updated_at
+                ? new Date(p.updated_at).toLocaleDateString()
+                : "Never",
+            };
+          }),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load article SEO data:", error);
     }
-  ])
 
-  const [crawlResults, setCrawlResults] = useState<CrawlResult[]>([])
-  const [isCrawling, setIsCrawling] = useState(false)
-  const [crawlProgress, setCrawlProgress] = useState(0)
+    setIsLoading(false);
+  };
 
   const startCrawl = async () => {
-    setIsCrawling(true)
-    setCrawlProgress(0)
-    
+    setIsCrawling(true);
+    setCrawlProgress(0);
+
     try {
-      // Simulate crawling process
-      for (let i = 0; i <= 100; i += 10) {
-        setCrawlProgress(i)
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
+      // Call real SEO crawler API
+      const res = await fetch("/api/admin/seo/crawler", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "crawl" }),
+      });
 
-      // Simulate crawl results
-      const newResults: CrawlResult[] = [
-        {
-          url: 'https://yalla-london.com',
-          status: 'success',
-          issues: [],
-          score: 95,
-          lastCrawled: new Date().toISOString()
-        },
-        {
-          url: 'https://yalla-london.com/blog',
-          status: 'warning',
-          issues: ['Missing meta description', 'Slow loading images'],
-          score: 78,
-          lastCrawled: new Date().toISOString()
-        },
-        {
-          url: 'https://yalla-london.com/recommendations',
-          status: 'success',
-          issues: [],
-          score: 92,
-          lastCrawled: new Date().toISOString()
+      if (res.ok) {
+        const data = await res.json();
+        setCrawlProgress(100);
+        if (data.results) {
+          setCrawlResults(
+            data.results.map((r: any) => ({
+              url: r.url,
+              status:
+                r.score >= 80 ? "success" : r.score >= 50 ? "warning" : "error",
+              issues: r.issues || [],
+              score: r.score || 0,
+              lastCrawled: new Date().toISOString(),
+            })),
+          );
         }
-      ]
-
-      setCrawlResults(newResults)
-      toast.success('SEO crawl completed successfully!')
+        toast.success("SEO crawl completed!");
+      } else {
+        // Fallback: generate crawl results from quick-fixes
+        const qfRes = await fetch("/api/admin/seo?type=quick-fixes");
+        if (qfRes.ok) {
+          const qfData = await qfRes.json();
+          const fixes = qfData.quickFixes || [];
+          setCrawlResults(
+            fixes.map((f: any) => ({
+              url: `/blog/${f.slug}`,
+              status: f.fixes.length > 0 ? "warning" : "success",
+              issues: f.fixes.map((fix: string) => fix.replace(/_/g, " ")),
+              score: Math.max(0, 100 - f.fixes.length * 15),
+              lastCrawled: new Date().toISOString(),
+            })),
+          );
+        }
+        setCrawlProgress(100);
+        toast.success("SEO analysis completed!");
+      }
     } catch (error) {
-      toast.error('SEO crawl failed')
+      toast.error("SEO crawl failed");
     } finally {
-      setIsCrawling(false)
+      setIsCrawling(false);
     }
-  }
+  };
 
   const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-green-600'
-    if (score >= 70) return 'text-yellow-600'
-    return 'text-red-600'
-  }
+    if (score >= 90) return "text-green-600";
+    if (score >= 70) return "text-yellow-600";
+    return "text-red-600";
+  };
 
   const getScoreBadge = (score: number) => {
-    if (score >= 90) return <Badge className="bg-green-500">Excellent</Badge>
-    if (score >= 70) return <Badge className="bg-yellow-500">Good</Badge>
-    return <Badge className="bg-red-500">Needs Work</Badge>
-  }
+    if (score >= 90) return <Badge className="bg-green-500">Excellent</Badge>;
+    if (score >= 70) return <Badge className="bg-yellow-500">Good</Badge>;
+    return <Badge className="bg-red-500">Needs Work</Badge>;
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case 'warning':
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />
-      case 'error':
-        return <AlertTriangle className="h-4 w-4 text-red-500" />
+      case "success":
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "warning":
+        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+      case "error":
+        return <AlertTriangle className="h-4 w-4 text-red-500" />;
       default:
-        return <Clock className="h-4 w-4 text-gray-400" />
+        return <Clock className="h-4 w-4 text-gray-400" />;
     }
-  }
+  };
 
-  const getBacklinkStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-green-500">Active</Badge>
-      case 'new':
-        return <Badge className="bg-blue-500">New</Badge>
-      case 'lost':
-        return <Badge className="bg-red-500">Lost</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-900">
+            Loading SEO Data...
+          </h2>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -231,7 +225,9 @@ export default function SEOCommandCenter() {
                 <Search className="h-8 w-8 text-yellow-500" />
                 SEO Command Center
               </h1>
-              <p className="text-gray-600 mt-1">Monitor SEO health, backlinks, and optimization</p>
+              <p className="text-gray-600 mt-1">
+                Monitor SEO health, article scores, and optimization
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <Button
@@ -239,12 +235,14 @@ export default function SEOCommandCenter() {
                 disabled={isCrawling}
                 className="bg-yellow-500 hover:bg-yellow-600"
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${isCrawling ? 'animate-spin' : ''}`} />
-                {isCrawling ? 'Crawling...' : 'Start SEO Crawl'}
+                <RefreshCw
+                  className={`h-4 w-4 mr-2 ${isCrawling ? "animate-spin" : ""}`}
+                />
+                {isCrawling ? "Analyzing..." : "Run SEO Analysis"}
               </Button>
-              <Button variant="outline">
-                <Download className="h-4 w-4 mr-2" />
-                Export Report
+              <Button variant="outline" onClick={loadSEOData}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
               </Button>
             </div>
           </div>
@@ -258,8 +256,10 @@ export default function SEOCommandCenter() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-yellow-100 text-sm">Overall SEO Score</p>
-                  <p className="text-3xl font-bold">{seoHealth.overallScore}/100</p>
+                  <p className="text-yellow-100 text-sm">Avg SEO Score</p>
+                  <p className="text-3xl font-bold">
+                    {seoHealth.overallScore}/100
+                  </p>
                 </div>
                 <BarChart3 className="h-8 w-8 text-yellow-200" />
               </div>
@@ -270,8 +270,10 @@ export default function SEOCommandCenter() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm">Page Speed</p>
-                  <p className="text-3xl font-bold">{seoHealth.pageSpeed}/100</p>
+                  <p className="text-green-100 text-sm">Auto-Publish Rate</p>
+                  <p className="text-3xl font-bold">
+                    {seoHealth.autoPublishRate}%
+                  </p>
                 </div>
                 <Zap className="h-8 w-8 text-green-200" />
               </div>
@@ -282,8 +284,8 @@ export default function SEOCommandCenter() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-sm">Mobile Friendly</p>
-                  <p className="text-3xl font-bold">{seoHealth.mobileFriendly}/100</p>
+                  <p className="text-blue-100 text-sm">Review Queue</p>
+                  <p className="text-3xl font-bold">{seoHealth.reviewQueue}</p>
                 </div>
                 <Globe className="h-8 w-8 text-blue-200" />
               </div>
@@ -294,8 +296,10 @@ export default function SEOCommandCenter() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm">Core Web Vitals</p>
-                  <p className="text-3xl font-bold">{seoHealth.coreWebVitals}/100</p>
+                  <p className="text-purple-100 text-sm">Critical Issues</p>
+                  <p className="text-3xl font-bold">
+                    {seoHealth.criticalIssues}
+                  </p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-purple-200" />
               </div>
@@ -304,11 +308,10 @@ export default function SEOCommandCenter() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="backlinks">Backlinks</TabsTrigger>
             <TabsTrigger value="articles">Article SEO</TabsTrigger>
-            <TabsTrigger value="crawl">Crawl Results</TabsTrigger>
+            <TabsTrigger value="crawl">Analysis Results</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -323,44 +326,47 @@ export default function SEOCommandCenter() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span>Overall Score</span>
+                    <span>Average SEO Score</span>
                     <div className="flex items-center gap-2">
-                      <Progress value={seoHealth.overallScore} className="w-20" />
+                      <Progress
+                        value={seoHealth.overallScore}
+                        className="w-20"
+                      />
                       <span className={getScoreColor(seoHealth.overallScore)}>
                         {seoHealth.overallScore}/100
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Page Speed</span>
+                    <span>Auto-Publish Rate</span>
                     <div className="flex items-center gap-2">
-                      <Progress value={seoHealth.pageSpeed} className="w-20" />
-                      <span className={getScoreColor(seoHealth.pageSpeed)}>
-                        {seoHealth.pageSpeed}/100
+                      <Progress
+                        value={seoHealth.autoPublishRate}
+                        className="w-20"
+                      />
+                      <span
+                        className={getScoreColor(seoHealth.autoPublishRate)}
+                      >
+                        {seoHealth.autoPublishRate}%
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Mobile Friendly</span>
-                    <div className="flex items-center gap-2">
-                      <Progress value={seoHealth.mobileFriendly} className="w-20" />
-                      <span className={getScoreColor(seoHealth.mobileFriendly)}>
-                        {seoHealth.mobileFriendly}/100
-                      </span>
-                    </div>
+                    <span>Articles in Review Queue</span>
+                    <span className="font-bold">{seoHealth.reviewQueue}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span>Core Web Vitals</span>
-                    <div className="flex items-center gap-2">
-                      <Progress value={seoHealth.coreWebVitals} className="w-20" />
-                      <span className={getScoreColor(seoHealth.coreWebVitals)}>
-                        {seoHealth.coreWebVitals}/100
-                      </span>
-                    </div>
+                    <span>Critical Issues</span>
+                    <span
+                      className={`font-bold ${seoHealth.criticalIssues > 0 ? "text-red-600" : "text-green-600"}`}
+                    >
+                      {seoHealth.criticalIssues}
+                    </span>
                   </div>
                   <div className="pt-4 border-t">
                     <p className="text-sm text-gray-600">
-                      Last checked: {seoHealth.lastChecked}
+                      Last checked:{" "}
+                      {new Date(seoHealth.lastChecked).toLocaleString()}
                     </p>
                   </div>
                 </CardContent>
@@ -369,84 +375,50 @@ export default function SEOCommandCenter() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Link className="h-5 w-5 text-yellow-500" />
-                    Backlink Summary
+                    <FileText className="h-5 w-5 text-yellow-500" />
+                    Article Score Distribution
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span>Total Backlinks</span>
-                      <span className="font-bold text-2xl">{backlinks.length}</span>
+                      <span>Total Articles</span>
+                      <span className="font-bold text-2xl">
+                        {articleSEO.length}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span>Active Links</span>
+                      <span>Score 90+</span>
                       <span className="font-bold text-green-600">
-                        {backlinks.filter(b => b.status === 'active').length}
+                        {articleSEO.filter((a) => a.seoScore >= 90).length}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span>New This Week</span>
-                      <span className="font-bold text-blue-600">
-                        {backlinks.filter(b => b.status === 'new').length}
+                      <span>Score 70-89</span>
+                      <span className="font-bold text-yellow-600">
+                        {
+                          articleSEO.filter(
+                            (a) => a.seoScore >= 70 && a.seoScore < 90,
+                          ).length
+                        }
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span>Average Authority</span>
-                      <span className="font-bold">
-                        {Math.round(backlinks.reduce((sum, b) => sum + b.authority, 0) / backlinks.length)}
+                      <span>Score &lt; 70</span>
+                      <span className="font-bold text-red-600">
+                        {articleSEO.filter((a) => a.seoScore < 70).length}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span>With Issues</span>
+                      <span className="font-bold text-orange-600">
+                        {articleSEO.filter((a) => a.issues.length > 0).length}
                       </span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          {/* Backlinks Tab */}
-          <TabsContent value="backlinks" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Link className="h-5 w-5 text-yellow-500" />
-                  Backlink Management
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {backlinks.map((backlink) => (
-                    <div key={backlink.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <ExternalLink className="h-4 w-4 text-gray-400" />
-                            <a
-                              href={backlink.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline"
-                            >
-                              {backlink.url}
-                            </a>
-                          </div>
-                          <div className="text-sm text-gray-600 mb-2">
-                            Anchor: "{backlink.anchorText}"
-                          </div>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span>Domain: {backlink.domain}</span>
-                            <span>Authority: {backlink.authority}</span>
-                            <span>Found: {backlink.foundDate}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {getBacklinkStatusBadge(backlink.status)}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Article SEO Tab */}
@@ -459,49 +431,77 @@ export default function SEOCommandCenter() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {articleSEO.map((article) => (
-                    <div key={article.id} className="border rounded-lg p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg mb-2">{article.title}</h3>
-                          <div className="text-sm text-gray-600 mb-2">
-                            URL: {article.url}
-                          </div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-sm">Keywords:</span>
-                            {article.keywords.map((keyword) => (
-                              <Badge key={keyword} variant="outline" className="text-xs">
-                                {keyword}
-                              </Badge>
-                            ))}
-                          </div>
-                          {article.issues.length > 0 && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-red-600">Issues:</span>
-                              {article.issues.map((issue) => (
-                                <Badge key={issue} variant="destructive" className="text-xs">
-                                  {issue}
-                                </Badge>
-                              ))}
+                {articleSEO.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No Articles Yet
+                    </h3>
+                    <p className="text-gray-600">
+                      Create articles to see their SEO scores here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {articleSEO.map((article) => (
+                      <div key={article.id} className="border rounded-lg p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg mb-2">
+                              {article.title}
+                            </h3>
+                            <div className="text-sm text-gray-600 mb-2">
+                              URL: {article.url}
                             </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <div className="text-right">
-                            <div className={`text-2xl font-bold ${getScoreColor(article.seoScore)}`}>
-                              {article.seoScore}/100
-                            </div>
-                            {getScoreBadge(article.seoScore)}
+                            {article.keywords.length > 0 && (
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <span className="text-sm">Tags:</span>
+                                {article.keywords.slice(0, 5).map((keyword) => (
+                                  <Badge
+                                    key={keyword}
+                                    variant="outline"
+                                    className="text-xs"
+                                  >
+                                    {keyword}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                            {article.issues.length > 0 && (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm text-red-600">
+                                  Issues:
+                                </span>
+                                {article.issues.map((issue) => (
+                                  <Badge
+                                    key={issue}
+                                    variant="destructive"
+                                    className="text-xs"
+                                  >
+                                    {issue}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          <div className="text-xs text-gray-500">
-                            Last audit: {article.lastAudit}
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="text-right">
+                              <div
+                                className={`text-2xl font-bold ${getScoreColor(article.seoScore)}`}
+                              >
+                                {article.seoScore}/100
+                              </div>
+                              {getScoreBadge(article.seoScore)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Updated: {article.lastAudit}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -512,7 +512,7 @@ export default function SEOCommandCenter() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Globe className="h-5 w-5 text-yellow-500" />
-                  SEO Crawl Results
+                  SEO Analysis Results
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -520,9 +520,11 @@ export default function SEOCommandCenter() {
                   <div className="space-y-4">
                     <div className="text-center">
                       <RefreshCw className="h-8 w-8 animate-spin text-yellow-500 mx-auto mb-4" />
-                      <p className="text-gray-600">Crawling your website...</p>
+                      <p className="text-gray-600">Analyzing your website...</p>
                       <Progress value={crawlProgress} className="mt-4" />
-                      <p className="text-sm text-gray-500 mt-2">{crawlProgress}% complete</p>
+                      <p className="text-sm text-gray-500 mt-2">
+                        {crawlProgress}% complete
+                      </p>
                     </div>
                   </div>
                 ) : crawlResults.length > 0 ? (
@@ -535,12 +537,15 @@ export default function SEOCommandCenter() {
                             <div>
                               <div className="font-medium">{result.url}</div>
                               <div className="text-sm text-gray-600">
-                                Last crawled: {new Date(result.lastCrawled).toLocaleString()}
+                                Analyzed:{" "}
+                                {new Date(result.lastCrawled).toLocaleString()}
                               </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className={`text-lg font-bold ${getScoreColor(result.score)}`}>
+                            <span
+                              className={`text-lg font-bold ${getScoreColor(result.score)}`}
+                            >
                               {result.score}/100
                             </span>
                             {getScoreBadge(result.score)}
@@ -548,10 +553,16 @@ export default function SEOCommandCenter() {
                         </div>
                         {result.issues.length > 0 && (
                           <div className="mt-3 pt-3 border-t">
-                            <div className="text-sm text-red-600 mb-2">Issues found:</div>
+                            <div className="text-sm text-red-600 mb-2">
+                              Issues found:
+                            </div>
                             <div className="flex flex-wrap gap-2">
                               {result.issues.map((issue, issueIndex) => (
-                                <Badge key={issueIndex} variant="destructive" className="text-xs">
+                                <Badge
+                                  key={issueIndex}
+                                  variant="destructive"
+                                  className="text-xs"
+                                >
                                   {issue}
                                 </Badge>
                               ))}
@@ -564,11 +575,18 @@ export default function SEOCommandCenter() {
                 ) : (
                   <div className="text-center py-12">
                     <Globe className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Crawl Results</h3>
-                    <p className="text-gray-600 mb-4">Start an SEO crawl to analyze your website</p>
-                    <Button onClick={startCrawl} className="bg-yellow-500 hover:bg-yellow-600">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No Analysis Results
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Run an SEO analysis to check your website
+                    </p>
+                    <Button
+                      onClick={startCrawl}
+                      className="bg-yellow-500 hover:bg-yellow-600"
+                    >
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Start SEO Crawl
+                      Run SEO Analysis
                     </Button>
                   </div>
                 )}
@@ -578,5 +596,5 @@ export default function SEOCommandCenter() {
         </Tabs>
       </div>
     </div>
-  )
+  );
 }

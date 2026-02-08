@@ -34,6 +34,10 @@ import {
   CalendarClock,
   Lightbulb,
   Link2,
+  Send,
+  RotateCw,
+  Check,
+  Loader2,
 } from "lucide-react";
 
 // Types
@@ -371,7 +375,78 @@ export default function SEOReportPage() {
     | "content"
     | "pipeline"
     | "plan"
+    | "submit"
   >("overview");
+
+  // Index & Submit tab state
+  const [indexableUrls, setIndexableUrls] = useState<{
+    counts?: { total: number; new: number; updated: number };
+    urls?: { all: string[]; new: string[]; updated: string[] };
+  } | null>(null);
+  const [submitResult, setSubmitResult] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusChecks, setStatusChecks] = useState<
+    Record<string, { loading: boolean; data?: any; error?: string }>
+  >({});
+  const [customUrls, setCustomUrls] = useState("");
+
+  const loadIndexableUrls = useCallback(async () => {
+    try {
+      const res = await fetch("/api/seo/index-urls");
+      if (res.ok) {
+        const data = await res.json();
+        setIndexableUrls(data);
+      }
+    } catch {
+      // silently fail
+    }
+  }, []);
+
+  const submitUrlsForIndexing = async (urls: string[], mode?: string) => {
+    setIsSubmitting(true);
+    setSubmitResult(null);
+    try {
+      const body = urls.length > 0 ? { urls } : { mode: mode || "new" };
+      const res = await fetch("/api/seo/index-urls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      setSubmitResult(data);
+    } catch (err) {
+      setSubmitResult({
+        success: false,
+        error: err instanceof Error ? err.message : "Submission failed",
+      });
+    }
+    setIsSubmitting(false);
+  };
+
+  const checkUrlStatus = async (url: string) => {
+    setStatusChecks((prev) => ({
+      ...prev,
+      [url]: { loading: true },
+    }));
+    try {
+      const res = await fetch(
+        `/api/seo/index-urls?action=status&url=${encodeURIComponent(url)}`,
+      );
+      const data = await res.json();
+      setStatusChecks((prev) => ({
+        ...prev,
+        [url]: { loading: false, data: data.data },
+      }));
+    } catch (err) {
+      setStatusChecks((prev) => ({
+        ...prev,
+        [url]: {
+          loading: false,
+          error: err instanceof Error ? err.message : "Check failed",
+        },
+      }));
+    }
+  };
 
   const loadReport = useCallback(async () => {
     setIsLoading(true);
@@ -484,6 +559,7 @@ export default function SEOReportPage() {
               { id: "pages", label: "Pages", icon: FileText },
               { id: "indexing", label: "Indexing", icon: Globe },
               { id: "plan", label: "Fix Plan", icon: Zap },
+              { id: "submit", label: "Index & Submit", icon: Send },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1692,6 +1768,356 @@ export default function SEOReportPage() {
                       </p>
                     </div>
                   )}
+              </>
+            )}
+
+            {/* ========== INDEX & SUBMIT TAB ========== */}
+            {activeTab === "submit" && (
+              <>
+                {/* Quick Submit: New Articles */}
+                <div className="mb-6">
+                  <SectionHeader
+                    title="Submit New Articles to Google & Bing"
+                    icon={Send}
+                  />
+                  <div className="bg-white rounded-xl border border-gray-200 p-6">
+                    <p className="text-sm text-gray-600 mb-4">
+                      Submit your latest articles to Google (IndexNow) and Bing
+                      for faster indexing. New content typically takes 2-7 days
+                      to appear in search results after submission.
+                    </p>
+
+                    {/* Quick action buttons */}
+                    <div className="flex flex-wrap gap-3 mb-6">
+                      <button
+                        onClick={() => {
+                          loadIndexableUrls();
+                          submitUrlsForIndexing([], "new");
+                        }}
+                        disabled={isSubmitting}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                      >
+                        {isSubmitting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                        Submit New URLs
+                      </button>
+                      <button
+                        onClick={() => submitUrlsForIndexing([], "all")}
+                        disabled={isSubmitting}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 text-sm font-medium"
+                      >
+                        {isSubmitting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RotateCw className="h-4 w-4" />
+                        )}
+                        Re-submit All URLs
+                      </button>
+                      <button
+                        onClick={() => submitUrlsForIndexing([], "updated")}
+                        disabled={isSubmitting}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 text-sm font-medium"
+                      >
+                        {isSubmitting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4" />
+                        )}
+                        Submit Updated Only
+                      </button>
+                    </div>
+
+                    {/* Custom URLs */}
+                    <div className="border-t pt-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Or submit specific URLs (one per line):
+                      </label>
+                      <textarea
+                        value={customUrls}
+                        onChange={(e) => setCustomUrls(e.target.value)}
+                        placeholder={`https://www.yalla-london.com/blog/spring-london-2026-best-things-to-do-arab-visitors\nhttps://www.yalla-london.com/blog/best-luxury-spas-london-2026-women-friendly-halal`}
+                        rows={4}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <button
+                        onClick={() => {
+                          const urls = customUrls
+                            .split("\n")
+                            .map((u) => u.trim())
+                            .filter((u) => u.startsWith("http"));
+                          if (urls.length > 0) {
+                            submitUrlsForIndexing(urls);
+                          }
+                        }}
+                        disabled={isSubmitting || !customUrls.trim()}
+                        className="mt-2 flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+                      >
+                        <Send className="h-4 w-4" />
+                        Submit Custom URLs
+                      </button>
+                    </div>
+
+                    {/* Submit Result */}
+                    {submitResult && (
+                      <div
+                        className={`mt-4 p-4 rounded-lg border ${submitResult.success ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          {submitResult.success ? (
+                            <CheckCircle className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <XCircle className="h-5 w-5 text-red-500" />
+                          )}
+                          <span
+                            className={`font-semibold text-sm ${submitResult.success ? "text-green-800" : "text-red-800"}`}
+                          >
+                            {submitResult.success
+                              ? "Submission Successful"
+                              : "Submission Failed"}
+                          </span>
+                        </div>
+                        {submitResult.urlsProcessed && (
+                          <p className="text-sm text-gray-700">
+                            {submitResult.urlsProcessed} URLs submitted to
+                            IndexNow (Google & Bing)
+                          </p>
+                        )}
+                        {submitResult.report && (
+                          <div className="text-sm text-gray-700 mt-1">
+                            <p>
+                              Submitted:{" "}
+                              {submitResult.report.submitted?.length || 0} URLs
+                            </p>
+                            {submitResult.report.errors?.length > 0 && (
+                              <p className="text-red-600">
+                                Errors: {submitResult.report.errors.length}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {submitResult.error && (
+                          <p className="text-sm text-red-600">
+                            {submitResult.error}
+                          </p>
+                        )}
+                        {submitResult.timestamp && (
+                          <p className="text-xs text-gray-400 mt-2">
+                            {new Date(submitResult.timestamp).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Check Indexing Status */}
+                <div className="mb-6">
+                  <SectionHeader title="Check Indexing Status" icon={Globe} />
+                  <div className="bg-white rounded-xl border border-gray-200 p-6">
+                    <p className="text-sm text-gray-600 mb-4">
+                      Check whether Google has indexed your pages. Uses the
+                      Google Search Console URL Inspection API.
+                    </p>
+
+                    {/* New articles quick check */}
+                    <div className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">
+                        New Articles (click to check):
+                      </h4>
+                      <div className="space-y-2">
+                        {[
+                          "spring-london-2026-best-things-to-do-arab-visitors",
+                          "best-luxury-spas-london-2026-women-friendly-halal",
+                          "kensington-chelsea-arab-guide-2026-hotels-restaurants-shopping",
+                          "london-with-kids-2026-activities-arab-families",
+                        ].map((slug) => {
+                          const url = `https://www.yalla-london.com/blog/${slug}`;
+                          const status = statusChecks[url];
+                          return (
+                            <div
+                              key={slug}
+                              className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                            >
+                              <button
+                                onClick={() => checkUrlStatus(url)}
+                                disabled={status?.loading}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 disabled:opacity-50 text-xs font-medium shrink-0"
+                              >
+                                {status?.loading ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Search className="h-3 w-3" />
+                                )}
+                                Check
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-gray-700 truncate">
+                                  /blog/{slug}
+                                </p>
+                                {status?.data && (
+                                  <div className="flex items-center gap-2 mt-1">
+                                    {status.data.verdict === "PASS" ||
+                                    status.data.coverageState?.includes(
+                                      "Submitted and indexed",
+                                    ) ? (
+                                      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                                        <Check className="h-3 w-3" /> Indexed
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                                        <Clock className="h-3 w-3" />{" "}
+                                        {status.data.coverageState ||
+                                          status.data.indexingState ||
+                                          "Not indexed yet"}
+                                      </span>
+                                    )}
+                                    {status.data.lastCrawlTime && (
+                                      <span className="text-xs text-gray-400">
+                                        Last crawl:{" "}
+                                        {new Date(
+                                          status.data.lastCrawlTime,
+                                        ).toLocaleDateString()}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {status?.error && (
+                                  <p className="text-xs text-red-500 mt-1">
+                                    {status.error}
+                                  </p>
+                                )}
+                                {status &&
+                                  !status.loading &&
+                                  !status.data &&
+                                  !status.error && (
+                                    <p className="text-xs text-gray-400 mt-1">
+                                      GSC API not configured or URL not found
+                                    </p>
+                                  )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Check all button */}
+                    <button
+                      onClick={() => {
+                        [
+                          "spring-london-2026-best-things-to-do-arab-visitors",
+                          "best-luxury-spas-london-2026-women-friendly-halal",
+                          "kensington-chelsea-arab-guide-2026-hotels-restaurants-shopping",
+                          "london-with-kids-2026-activities-arab-families",
+                        ].forEach((slug) => {
+                          checkUrlStatus(
+                            `https://www.yalla-london.com/blog/${slug}`,
+                          );
+                        });
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+                    >
+                      <Search className="h-4 w-4" />
+                      Check All New Articles
+                    </button>
+                  </div>
+                </div>
+
+                {/* Indexable URLs Overview */}
+                <div>
+                  <SectionHeader
+                    title="Indexable URLs Overview"
+                    icon={FileText}
+                  />
+                  <div className="bg-white rounded-xl border border-gray-200 p-6">
+                    {!indexableUrls ? (
+                      <button
+                        onClick={loadIndexableUrls}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Load URL Inventory
+                      </button>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-3 gap-4 mb-4">
+                          <div className="bg-blue-50 rounded-lg p-4 text-center">
+                            <div className="text-2xl font-bold text-blue-700">
+                              {indexableUrls.counts?.total || 0}
+                            </div>
+                            <div className="text-xs text-blue-600">
+                              Total URLs
+                            </div>
+                          </div>
+                          <div className="bg-green-50 rounded-lg p-4 text-center">
+                            <div className="text-2xl font-bold text-green-700">
+                              {indexableUrls.counts?.new || 0}
+                            </div>
+                            <div className="text-xs text-green-600">
+                              New URLs
+                            </div>
+                          </div>
+                          <div className="bg-amber-50 rounded-lg p-4 text-center">
+                            <div className="text-2xl font-bold text-amber-700">
+                              {indexableUrls.counts?.updated || 0}
+                            </div>
+                            <div className="text-xs text-amber-600">
+                              Updated URLs
+                            </div>
+                          </div>
+                        </div>
+                        {indexableUrls.urls?.all && (
+                          <div className="max-h-64 overflow-y-auto">
+                            <table className="w-full text-xs">
+                              <thead className="sticky top-0 bg-white">
+                                <tr className="border-b">
+                                  <th className="text-left py-2 px-2 text-gray-500">
+                                    URL
+                                  </th>
+                                  <th className="text-right py-2 px-2 text-gray-500">
+                                    Action
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {indexableUrls.urls.all.map(
+                                  (url: string, i: number) => (
+                                    <tr
+                                      key={i}
+                                      className="border-b border-gray-100"
+                                    >
+                                      <td className="py-2 px-2 text-gray-700 truncate max-w-[300px]">
+                                        {url.replace(
+                                          "https://www.yalla-london.com",
+                                          "",
+                                        )}
+                                      </td>
+                                      <td className="py-2 px-2 text-right">
+                                        <button
+                                          onClick={() => checkUrlStatus(url)}
+                                          className="text-blue-600 hover:text-blue-800"
+                                        >
+                                          {statusChecks[url]?.loading ? (
+                                            <Loader2 className="h-3 w-3 animate-spin inline" />
+                                          ) : (
+                                            "Check"
+                                          )}
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ),
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
               </>
             )}
           </>

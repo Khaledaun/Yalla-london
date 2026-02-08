@@ -144,7 +144,7 @@ export default function AutomationHubPage() {
     );
   };
 
-  const handleRunJob = (jobId: string) => {
+  const handleRunJob = async (jobId: string) => {
     setJobs((prev) =>
       prev.map((job) =>
         job.id === jobId
@@ -157,21 +157,56 @@ export default function AutomationHubPage() {
       ),
     );
 
-    // Simulate job completion
-    setTimeout(() => {
+    try {
+      const startTime = Date.now();
+      const res = await fetch("/api/admin/automation-hub/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId }),
+      });
+
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+
+      if (res.ok) {
+        setJobs((prev) =>
+          prev.map((job) =>
+            job.id === jobId
+              ? {
+                  ...job,
+                  status: "completed" as const,
+                  successCount: job.successCount + 1,
+                  duration: elapsed,
+                }
+              : job,
+          ),
+        );
+      } else {
+        setJobs((prev) =>
+          prev.map((job) =>
+            job.id === jobId
+              ? {
+                  ...job,
+                  status: "failed" as const,
+                  failureCount: job.failureCount + 1,
+                  duration: elapsed,
+                }
+              : job,
+          ),
+        );
+      }
+    } catch {
       setJobs((prev) =>
         prev.map((job) =>
           job.id === jobId
             ? {
                 ...job,
-                status: "completed" as const,
-                successCount: job.successCount + 1,
-                duration: Math.floor(Math.random() * 120) + 30,
+                status: "failed" as const,
+                failureCount: job.failureCount + 1,
               }
             : job,
         ),
       );
-    }, 3000);
+    }
   };
 
   const handleToggleSchedule = (scheduleId: string) => {
@@ -687,28 +722,47 @@ export default function AutomationHubPage() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div
+                  className={`w-3 h-3 rounded-full ${jobs.filter((j) => j.isActive).length > 0 ? "bg-green-500" : "bg-gray-400"}`}
+                ></div>
                 <div>
                   <p className="font-medium text-sm">Job Scheduler</p>
-                  <p className="text-xs text-gray-500">Running normally</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <div>
-                  <p className="font-medium text-sm">Content Generation</p>
                   <p className="text-xs text-gray-500">
-                    3 articles generated today
+                    {jobs.filter((j) => j.isActive).length} active job
+                    {jobs.filter((j) => j.isActive).length !== 1 ? "s" : ""}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                <div
+                  className={`w-3 h-3 rounded-full ${jobs.filter((j) => j.status === "running").length > 0 ? "bg-blue-500 animate-pulse" : "bg-green-500"}`}
+                ></div>
                 <div>
-                  <p className="font-medium text-sm">External APIs</p>
-                  <p className="text-xs text-gray-500">1 service degraded</p>
+                  <p className="font-medium text-sm">Content Generation</p>
+                  <p className="text-xs text-gray-500">
+                    {jobs.filter(
+                      (j) =>
+                        j.type === "content-generation" &&
+                        j.status === "completed",
+                    ).length > 0
+                      ? `${jobs.filter((j) => j.type === "content-generation").reduce((a, j) => a + j.successCount, 0)} runs completed`
+                      : "No runs yet"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-3 h-3 rounded-full ${jobs.filter((j) => j.status === "failed").length > 0 ? "bg-yellow-500" : "bg-green-500"}`}
+                ></div>
+                <div>
+                  <p className="font-medium text-sm">System Health</p>
+                  <p className="text-xs text-gray-500">
+                    {jobs.filter((j) => j.status === "failed").length > 0
+                      ? `${jobs.filter((j) => j.status === "failed").length} job(s) failed`
+                      : "All systems operational"}
+                  </p>
                 </div>
               </div>
             </div>

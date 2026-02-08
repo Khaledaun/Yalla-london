@@ -1,26 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase'
-import { prisma } from '@/lib/prisma'
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { withAdminAuth } from "@/lib/admin-middleware";
 
+export const dynamic = "force-dynamic";
 
-
-export async function GET(request: NextRequest) {
+export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
-    const supabase = createServiceClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const locale = searchParams.get('locale')
-    const status = searchParams.get('status')
+    const { searchParams } = new URL(request.url);
+    const locale = searchParams.get("locale");
+    const status = searchParams.get("status");
 
     // Build where clause
-    const where: any = {}
-    if (locale) where.locale = locale
-    if (status) where.status = status
+    const where: any = {};
+    if (locale) where.locale = locale;
+    if (status) where.status = status;
 
     // Get topics with real data
     const topics = await prisma.topicProposal.findMany({
@@ -28,102 +21,100 @@ export async function GET(request: NextRequest) {
       include: {
         scheduled_content: {
           include: {
-            topic_proposal: true
-          }
-        }
+            topic_proposal: true,
+          },
+        },
       },
-      orderBy: [
-        { planned_at: 'asc' },
-        { created_at: 'desc' }
-      ]
-    })
+      orderBy: [{ planned_at: "asc" }, { created_at: "desc" }],
+    });
 
     // Get pipeline stats
-    const stats = await getPipelineStats()
+    const stats = await getPipelineStats();
 
     // Get next 7 days schedule
-    const nextWeek = new Date()
-    nextWeek.setDate(nextWeek.getDate() + 7)
-    
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+
     const upcomingSchedule = await prisma.topicProposal.findMany({
       where: {
         planned_at: {
           gte: new Date(),
-          lte: nextWeek
+          lte: nextWeek,
         },
         status: {
-          in: ['planned', 'queued', 'generated']
-        }
+          in: ["planned", "queued", "ready"],
+        },
       },
       orderBy: {
-        planned_at: 'asc'
-      }
-    })
+        planned_at: "asc",
+      },
+    });
 
     return NextResponse.json({
       topics,
       stats,
-      upcomingSchedule
-    })
-
+      upcomingSchedule,
+    });
   } catch (error) {
-    console.error('Error fetching topics data:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error("Error fetching topics data:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
-}
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
-    const supabase = createServiceClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const body = await request.json()
-    const { action, data } = body
+    const body = await request.json();
+    const { action, data } = body;
 
     switch (action) {
-      case 'create_topic':
-        return await handleCreateTopic(data)
-      
-      case 'update_topic':
-        return await handleUpdateTopic(data)
-      
-      case 'queue_for_generation':
-        return await handleQueueForGeneration(data)
-      
-      case 'reschedule_topic':
-        return await handleRescheduleTopic(data)
-      
+      case "create_topic":
+        return await handleCreateTopic(data);
+      case "update_topic":
+        return await handleUpdateTopic(data);
+      case "queue_for_generation":
+        return await handleQueueForGeneration(data);
+      case "reschedule_topic":
+        return await handleRescheduleTopic(data);
       default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
-
   } catch (error) {
-    console.error('Error processing topics request:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error("Error processing topics request:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
-}
+});
 
 async function handleCreateTopic(data: any) {
-  // Validate required fields
   if (!data.title || !data.primary_keyword || !data.locale) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    return NextResponse.json(
+      { error: "Missing required fields" },
+      { status: 400 },
+    );
   }
 
-  // Validate featured long-tails (exactly 2 required)
   if (!data.featured_longtails || data.featured_longtails.length !== 2) {
-    return NextResponse.json({ error: 'Exactly 2 featured long-tails are required' }, { status: 400 })
+    return NextResponse.json(
+      { error: "Exactly 2 featured long-tails are required" },
+      { status: 400 },
+    );
   }
 
-  // Validate authority links (3-4 required)
-  if (!data.authority_links_json || 
-      !Array.isArray(data.authority_links_json) || 
-      data.authority_links_json.length < 3 || 
-      data.authority_links_json.length > 4) {
-    return NextResponse.json({ error: '3-4 authority links are required' }, { status: 400 })
+  if (
+    !data.authority_links_json ||
+    !Array.isArray(data.authority_links_json) ||
+    data.authority_links_json.length < 3 ||
+    data.authority_links_json.length > 4
+  ) {
+    return NextResponse.json(
+      { error: "3-4 authority links are required" },
+      { status: 400 },
+    );
   }
 
   const topic = await prisma.topicProposal.create({
@@ -135,16 +126,16 @@ async function handleCreateTopic(data: any) {
       featured_longtails: data.featured_longtails,
       questions: data.questions || [],
       authority_links_json: data.authority_links_json,
-      intent: data.intent || 'info',
-      suggested_page_type: data.suggested_page_type || 'guide',
+      intent: data.intent || "info",
+      suggested_page_type: data.suggested_page_type || "guide",
       evergreen: data.evergreen !== undefined ? data.evergreen : true,
       season: data.season,
       planned_at: data.planned_at,
-      confidence_score: data.confidence_score
-    }
-  })
+      confidence_score: data.confidence_score,
+    },
+  });
 
-  return NextResponse.json({ success: true, topic })
+  return NextResponse.json({ success: true, topic });
 }
 
 async function handleUpdateTopic(data: any) {
@@ -163,102 +154,92 @@ async function handleUpdateTopic(data: any) {
       season: data.season,
       planned_at: data.planned_at,
       confidence_score: data.confidence_score,
-      updated_at: new Date()
-    }
-  })
+      updated_at: new Date(),
+    },
+  });
 
-  return NextResponse.json({ success: true, topic })
+  return NextResponse.json({ success: true, topic });
 }
 
 async function handleQueueForGeneration(data: any) {
-  const { topicId, scheduledTime } = data
+  const { topicId, scheduledTime } = data;
 
   if (!scheduledTime) {
-    return NextResponse.json({ error: 'Scheduled time is required' }, { status: 400 })
+    return NextResponse.json(
+      { error: "Scheduled time is required" },
+      { status: 400 },
+    );
   }
 
-  // Update topic status to queued
   const topic = await prisma.topicProposal.update({
     where: { id: topicId },
     data: {
-      status: 'queued',
-      planned_at: new Date(scheduledTime)
-    }
-  })
+      status: "queued",
+      planned_at: new Date(scheduledTime),
+    },
+  });
 
-  // Create scheduled content record
   const scheduledContent = await prisma.scheduledContent.create({
     data: {
       title: topic.title,
-      content: '', // Will be generated
-      content_type: 'blog_post',
+      content: "",
+      content_type: "blog_post",
       language: topic.locale,
       scheduled_time: new Date(scheduledTime),
-      status: 'pending',
+      status: "pending",
       topic_proposal_id: topicId,
       page_type: topic.suggested_page_type,
-      generation_source: 'topic_proposal'
-    }
-  })
+      generation_source: "topic_proposal",
+    },
+  });
 
-  return NextResponse.json({ 
-    success: true, 
-    topic, 
-    scheduledContent 
-  })
+  return NextResponse.json({ success: true, topic, scheduledContent });
 }
 
 async function handleRescheduleTopic(data: any) {
-  const { topicId, newScheduledTime } = data
+  const { topicId, newScheduledTime } = data;
 
   const topic = await prisma.topicProposal.update({
     where: { id: topicId },
     data: {
-      planned_at: new Date(newScheduledTime)
-    }
-  })
+      planned_at: new Date(newScheduledTime),
+    },
+  });
 
-  // Update related scheduled content
   await prisma.scheduledContent.updateMany({
     where: { topic_proposal_id: topicId },
     data: {
-      scheduled_time: new Date(newScheduledTime)
-    }
-  })
+      scheduled_time: new Date(newScheduledTime),
+    },
+  });
 
-  return NextResponse.json({ success: true, topic })
+  return NextResponse.json({ success: true, topic });
 }
 
 async function getPipelineStats() {
   const [
     plannedCount,
     queuedCount,
-    generatedCount,
-    draftedCount,
     readyCount,
     publishedCount,
     enCount,
-    arCount
+    arCount,
   ] = await Promise.all([
-    prisma.topicProposal.count({ where: { status: 'planned' } }),
-    prisma.topicProposal.count({ where: { status: 'queued' } }),
-    prisma.topicProposal.count({ where: { status: 'generated' } }),
-    prisma.topicProposal.count({ where: { status: 'drafted' } }),
-    prisma.topicProposal.count({ where: { status: 'ready' } }),
-    prisma.topicProposal.count({ where: { status: 'published' } }),
-    prisma.topicProposal.count({ where: { locale: 'en' } }),
-    prisma.topicProposal.count({ where: { locale: 'ar' } })
-  ])
+    prisma.topicProposal.count({ where: { status: "planned" } }),
+    prisma.topicProposal.count({ where: { status: "queued" } }),
+    prisma.topicProposal.count({ where: { status: "ready" } }),
+    prisma.topicProposal.count({ where: { status: "published" } }),
+    prisma.topicProposal.count({ where: { locale: "en" } }),
+    prisma.topicProposal.count({ where: { locale: "ar" } }),
+  ]);
 
   return {
     planned: plannedCount,
     queued: queuedCount,
-    generated: generatedCount,
-    drafted: draftedCount,
     ready: readyCount,
     published: publishedCount,
     enBacklog: enCount,
     arBacklog: arCount,
-    totalBacklog: enCount + arCount
-  }
+    totalBacklog: enCount + arCount,
+  };
 }

@@ -254,14 +254,38 @@ export default function AnalyticsPage() {
           <StatCard
             title="Sessions"
             value={formatNumber(totals.sessions)}
-            change={8}
+            change={
+              sites.length > 0
+                ? Math.round(
+                    sites.reduce((acc, s) => acc + s.change.sessions, 0) /
+                      sites.length,
+                  )
+                : 0
+            }
             icon={BarChart3}
             color="purple"
           />
           <StatCard
             title="Avg. Duration"
-            value={formatDuration(185)}
-            change={12}
+            value={formatDuration(
+              sites.length > 0
+                ? Math.round(
+                    sites.reduce((acc, s) => acc + s.metrics.avgDuration, 0) /
+                      sites.length,
+                  )
+                : 0,
+            )}
+            change={
+              sites.length > 0
+                ? Math.round(
+                    ((sites.reduce((acc, s) => acc + s.metrics.avgDuration, 0) /
+                      sites.length -
+                      180) /
+                      180) *
+                      100,
+                  )
+                : 0
+            }
             icon={Clock}
             color="amber"
           />

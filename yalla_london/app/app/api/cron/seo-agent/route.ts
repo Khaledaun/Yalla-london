@@ -18,13 +18,25 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   try {
     const { prisma } = await import("@/lib/db");
-    const results = await runSEOAgent(prisma);
+    const { getAllSiteIds, getSiteDomain } = await import("@/config/sites");
+
+    const allResults: Record<string, any> = {};
+    const siteIds = getAllSiteIds();
+
+    for (const siteId of siteIds) {
+      const siteUrl = getSiteDomain(siteId);
+      try {
+        allResults[siteId] = await runSEOAgent(prisma, siteId, siteUrl);
+      } catch (error) {
+        allResults[siteId] = { error: (error as Error).message };
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      agent: "seo-autonomous",
+      agent: "seo-autonomous-multisite",
       runAt: new Date().toISOString(),
-      results,
+      results: allResults,
     });
   } catch (error) {
     console.error("SEO Agent error:", error);
@@ -40,7 +52,7 @@ export async function POST(request: NextRequest) {
   return GET(request);
 }
 
-async function runSEOAgent(prisma: any) {
+async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
   const report: Record<string, any> = {};
   const issues: string[] = [];
   const fixes: string[] = [];
@@ -52,13 +64,13 @@ async function runSEOAgent(prisma: any) {
   report.blogAudit = await auditBlogPosts(prisma, issues, fixes);
 
   // 3. CHECK INDEXING STATUS
-  report.indexingStatus = await checkIndexingStatus(prisma, issues);
+  report.indexingStatus = await checkIndexingStatus(prisma, issues, siteUrl);
 
   // 4. SUBMIT NEW URLS TO SEARCH ENGINES
-  report.urlSubmissions = await submitNewUrls(prisma, fixes);
+  report.urlSubmissions = await submitNewUrls(prisma, fixes, siteUrl);
 
   // 5. VERIFY SITEMAP HEALTH
-  report.sitemapHealth = await verifySitemapHealth(issues);
+  report.sitemapHealth = await verifySitemapHealth(issues, siteUrl);
 
   // 6. CHECK FOR CONTENT GAPS
   report.contentGaps = await detectContentGaps(prisma, issues);
@@ -325,9 +337,15 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[]) {
 /**
  * Check indexing status via Search Console API
  */
-async function checkIndexingStatus(prisma: any, issues: string[]) {
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+async function checkIndexingStatus(
+  prisma: any,
+  issues: string[],
+  siteUrl?: string,
+) {
+  siteUrl =
+    siteUrl ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://www.yalla-london.com";
 
   try {
     const posts = await prisma.blogPost.findMany({
@@ -360,9 +378,11 @@ async function checkIndexingStatus(prisma: any, issues: string[]) {
 /**
  * Submit new/updated URLs to search engines via IndexNow
  */
-async function submitNewUrls(prisma: any, fixes: string[]) {
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string) {
+  siteUrl =
+    siteUrl ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://www.yalla-london.com";
   const indexNowKey = process.env.INDEXNOW_KEY;
 
   try {
@@ -428,9 +448,11 @@ async function submitNewUrls(prisma: any, fixes: string[]) {
 /**
  * Verify sitemap is healthy and accessible
  */
-async function verifySitemapHealth(issues: string[]) {
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+async function verifySitemapHealth(issues: string[], siteUrl?: string) {
+  siteUrl =
+    siteUrl ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://www.yalla-london.com";
 
   try {
     const response = await fetch(`${siteUrl}/sitemap.xml`, {

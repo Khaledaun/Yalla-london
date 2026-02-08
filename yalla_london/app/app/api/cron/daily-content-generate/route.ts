@@ -2,20 +2,27 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import {
+  SITES,
+  getAllSiteIds,
+  getSiteConfig,
+  getSiteDomain,
+} from "@/config/sites";
+import type { SiteConfig, TopicTemplate } from "@/config/sites";
 
 /**
  * Daily Content Generation Cron - Runs at 5am UTC daily
  *
- * Generates exactly 2 articles per day:
+ * Generates 2 articles PER ACTIVE SITE per day:
  * - 1 English article (SEO + AIO optimized)
  * - 1 Arabic article (SEO + AIO optimized)
  *
+ * Loops through all active sites using config/sites.ts.
  * Uses the AI provider layer (Claude/OpenAI/Gemini) for real content generation.
- * Saves to BlogPost table and submits for indexing.
  */
 export async function GET(request: NextRequest) {
   try {
-    const result = await generateDailyContent();
+    const result = await generateDailyContentAllSites();
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     console.error("Daily content generation failed:", error);
@@ -30,10 +37,38 @@ export async function POST(request: NextRequest) {
   return GET(request);
 }
 
-async function generateDailyContent() {
+async function generateDailyContentAllSites() {
   const { prisma } = await import("@/lib/db");
+  const siteIds = getAllSiteIds();
+  const allResults: Record<string, any> = {};
 
-  // Check if we already generated today
+  for (const siteId of siteIds) {
+    const siteConfig = getSiteConfig(siteId);
+    if (!siteConfig) continue;
+
+    try {
+      const result = await generateDailyContentForSite(siteConfig, prisma);
+      allResults[siteId] = result;
+      console.log(
+        `[${siteConfig.name}] Content gen: ${JSON.stringify(result)}`,
+      );
+    } catch (error) {
+      allResults[siteId] = {
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+      console.error(`[${siteConfig.name}] Content gen failed:`, error);
+    }
+  }
+
+  return {
+    message: "Multi-site daily content generation completed",
+    sites: allResults,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+async function generateDailyContentForSite(site: SiteConfig, prisma: any) {
   const today = new Date();
   const startOfDay = new Date(
     today.getFullYear(),
@@ -41,10 +76,11 @@ async function generateDailyContent() {
     today.getDate(),
   );
 
+  // Check if we already generated today for this site
   const todayCount = await prisma.blogPost.count({
     where: {
       created_at: { gte: startOfDay },
-      tags: { has: "auto-generated" },
+      tags: { hasEvery: ["auto-generated", `site-${site.id}`] },
     },
   });
 
@@ -56,28 +92,27 @@ async function generateDailyContent() {
     };
   }
 
-  const remaining = 2 - todayCount;
   const results: any[] = [];
 
-  // Determine which languages still need content
+  // Check EN/AR status for this site
   const todayEN = await prisma.blogPost.count({
     where: {
       created_at: { gte: startOfDay },
-      tags: { hasEvery: ["auto-generated", "primary-en"] },
+      tags: { hasEvery: ["auto-generated", `site-${site.id}`, "primary-en"] },
     },
   });
   const todayAR = await prisma.blogPost.count({
     where: {
       created_at: { gte: startOfDay },
-      tags: { hasEvery: ["auto-generated", "primary-ar"] },
+      tags: { hasEvery: ["auto-generated", `site-${site.id}`, "primary-ar"] },
     },
   });
 
   // Generate EN article if needed
-  if (todayEN === 0 && remaining > 0) {
+  if (todayEN === 0) {
     try {
-      const enArticle = await generateArticle("en", prisma);
-      results.push({ language: "en", status: "success", slug: enArticle.slug });
+      const article = await generateArticle("en", site, prisma);
+      results.push({ language: "en", status: "success", slug: article.slug });
     } catch (error) {
       results.push({
         language: "en",
@@ -88,10 +123,10 @@ async function generateDailyContent() {
   }
 
   // Generate AR article if needed
-  if (todayAR === 0 && remaining > 0) {
+  if (todayAR === 0) {
     try {
-      const arArticle = await generateArticle("ar", prisma);
-      results.push({ language: "ar", status: "success", slug: arArticle.slug });
+      const article = await generateArticle("ar", site, prisma);
+      results.push({ language: "ar", status: "success", slug: article.slug });
     } catch (error) {
       results.push({
         language: "ar",
@@ -105,32 +140,28 @@ async function generateDailyContent() {
   if (results.some((r) => r.status === "success")) {
     await submitForIndexing(
       results.filter((r) => r.status === "success").map((r) => r.slug),
+      site,
     );
   }
 
   return {
-    message: "Daily content generation completed",
+    site: site.name,
+    destination: site.destination,
     generatedToday:
       todayCount + results.filter((r) => r.status === "success").length,
     results,
-    timestamp: new Date().toISOString(),
   };
 }
 
-async function generateArticle(primaryLanguage: "en" | "ar", prisma: any) {
-  // Step 1: Pick a topic (from approved topics or generate one)
-  const topic = await pickTopic(primaryLanguage, prisma);
-
-  // Step 2: Generate content using AI
-  const content = await generateWithAI(topic, primaryLanguage);
-
-  // Step 3: Ensure we have a valid category
-  const category = await getOrCreateCategory(prisma);
-
-  // Step 4: Ensure we have a system user
-  const systemUser = await getOrCreateSystemUser(prisma);
-
-  // Step 5: Save as BlogPost
+async function generateArticle(
+  primaryLanguage: "en" | "ar",
+  site: SiteConfig,
+  prisma: any,
+) {
+  const topic = await pickTopic(primaryLanguage, site, prisma);
+  const content = await generateWithAI(topic, primaryLanguage, site);
+  const category = await getOrCreateCategory(site, prisma);
+  const systemUser = await getOrCreateSystemUser(site, prisma);
   const slug = generateSlug(content.title, primaryLanguage);
 
   const blogPost = await prisma.blogPost.create({
@@ -172,7 +203,13 @@ async function generateArticle(primaryLanguage: "en" | "ar", prisma: any) {
         primaryLanguage === "ar"
           ? content.metaDescription
           : content.metaDescriptionTranslation || "",
-      tags: [...content.tags, "auto-generated", `primary-${primaryLanguage}`],
+      tags: [
+        ...content.tags,
+        "auto-generated",
+        `primary-${primaryLanguage}`,
+        `site-${site.id}`,
+        site.destination.toLowerCase(),
+      ],
       published: true,
       category_id: category.id,
       author_id: systemUser.id,
@@ -193,16 +230,16 @@ async function generateArticle(primaryLanguage: "en" | "ar", prisma: any) {
     } catch {}
   }
 
-  console.log(`Generated ${primaryLanguage} article: ${slug}`);
+  console.log(`[${site.name}] Generated ${primaryLanguage} article: ${slug}`);
   return blogPost;
 }
 
-async function pickTopic(language: string, prisma: any) {
-  // Try to get an approved topic from the database
+async function pickTopic(language: string, site: SiteConfig, prisma: any) {
+  // Try to get a queued/ready topic from the database for this site
   try {
     const topic = await prisma.topicProposal.findFirst({
       where: {
-        status: "approved",
+        status: { in: ["ready", "queued", "planned"] },
         locale: language,
         scheduled_content: { none: {} },
       },
@@ -221,229 +258,36 @@ async function pickTopic(language: string, prisma: any) {
     }
   } catch {}
 
-  // Fallback: generate a dynamic topic based on current trends
-  const topics = language === "en" ? getEnglishTopics() : getArabicTopics();
+  // Fallback: use site-specific topic templates
+  const topics: TopicTemplate[] =
+    language === "en" ? site.topicsEN : site.topicsAR;
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) /
       86400000,
   );
   const topic = topics[dayOfYear % topics.length];
 
-  return {
-    id: null,
-    ...topic,
-  };
+  return { id: null, ...topic };
 }
 
-function getEnglishTopics() {
-  return [
-    {
-      keyword: "luxury boutique hotels London 2026",
-      longtails: [
-        "best boutique hotels Mayfair",
-        "luxury hotels near Hyde Park",
-        "five star hotels London Arab friendly",
-      ],
-      questions: [
-        "Which boutique hotels in London offer Arabic-speaking staff?",
-        "What are the most luxurious hotels near Harrods?",
-      ],
-      pageType: "guide",
-    },
-    {
-      keyword: "best halal restaurants London fine dining",
-      longtails: [
-        "halal fine dining Knightsbridge",
-        "luxury halal restaurants Mayfair",
-        "Arabic restaurants London 2026",
-      ],
-      questions: [
-        "Where can I find Michelin-star halal restaurants in London?",
-        "What are the best Arabic restaurants in Mayfair?",
-      ],
-      pageType: "list",
-    },
-    {
-      keyword: "London shopping guide for Arab visitors",
-      longtails: [
-        "Harrods shopping guide Arabic",
-        "luxury brands Oxford Street",
-        "VAT refund London tourist shopping",
-      ],
-      questions: [
-        "How do Arab tourists get VAT refunds in London?",
-        "What are the best luxury shopping areas in London?",
-      ],
-      pageType: "guide",
-    },
-    {
-      keyword: "family-friendly luxury London experiences",
-      longtails: [
-        "London with kids luxury activities",
-        "best family hotels London 2026",
-        "child friendly fine dining London",
-      ],
-      questions: [
-        "What luxury activities can families enjoy in London?",
-        "Which London hotels offer the best kids clubs?",
-      ],
-      pageType: "guide",
-    },
-    {
-      keyword: "London private tours and exclusive experiences",
-      longtails: [
-        "private guided tours London",
-        "VIP London experiences 2026",
-        "exclusive after-hours museum tours London",
-      ],
-      questions: [
-        "Can you book private tours of Buckingham Palace?",
-        "What exclusive experiences are available in London?",
-      ],
-      pageType: "guide",
-    },
-    {
-      keyword: "best London spas and wellness retreats",
-      longtails: [
-        "luxury spa treatments London",
-        "women-only spa London",
-        "hammam London Turkish bath",
-      ],
-      questions: [
-        "Which London spas offer women-only sessions?",
-        "Where are the best hammam experiences in London?",
-      ],
-      pageType: "list",
-    },
-    {
-      keyword: "London Premier League match day experience",
-      longtails: [
-        "VIP football tickets London",
-        "Arsenal Emirates hospitality",
-        "Chelsea Stamford Bridge tour",
-      ],
-      questions: [
-        "How can I get VIP hospitality tickets for Premier League matches?",
-        "Which London football stadiums offer the best tours?",
-      ],
-      pageType: "guide",
-    },
-  ];
-}
-
-function getArabicTopics() {
-  return [
-    {
-      keyword: "دليل التسوق الفاخر في لندن 2026",
-      longtails: [
-        "أفضل محلات لندن الفاخرة",
-        "تسوق هارودز دليل عربي",
-        "استرداد ضريبة القيمة المضافة لندن",
-      ],
-      questions: [
-        "ما هي أفضل مناطق التسوق الفاخرة في لندن؟",
-        "كيف يمكن للسياح العرب استرداد ضريبة القيمة المضافة؟",
-      ],
-      pageType: "guide",
-    },
-    {
-      keyword: "أفضل الفنادق الفاخرة في لندن للعائلات العربية",
-      longtails: [
-        "فنادق لندن حلال",
-        "فنادق خمس نجوم لندن عائلية",
-        "أجنحة فندقية فاخرة لندن",
-      ],
-      questions: [
-        "ما هي أفضل الفنادق في لندن التي تقدم خدمات باللغة العربية؟",
-        "أي فنادق لندن مناسبة للعائلات العربية؟",
-      ],
-      pageType: "guide",
-    },
-    {
-      keyword: "المطاعم الحلال الفاخرة في لندن",
-      longtails: [
-        "مطاعم حلال نايتسبريدج",
-        "أفضل مطاعم عربية لندن",
-        "مطاعم فاخرة حلال مايفير",
-      ],
-      questions: [
-        "أين أجد أفضل المطاعم الحلال الفاخرة في لندن؟",
-        "ما هي المطاعم العربية المميزة في لندن؟",
-      ],
-      pageType: "list",
-    },
-    {
-      keyword: "أنشطة عائلية في لندن للعرب",
-      longtails: [
-        "لندن مع الأطفال أنشطة",
-        "أماكن ترفيه عائلية لندن",
-        "حدائق لندن للعائلات",
-      ],
-      questions: [
-        "ما هي أفضل الأنشطة العائلية في لندن؟",
-        "أين يمكن أخذ الأطفال في لندن؟",
-      ],
-      pageType: "guide",
-    },
-    {
-      keyword: "جولات خاصة وتجارب حصرية في لندن",
-      longtails: [
-        "جولات VIP لندن",
-        "تجارب فاخرة حصرية لندن 2026",
-        "زيارة قصر باكنغهام خاص",
-      ],
-      questions: [
-        "هل يمكن حجز جولات خاصة في لندن؟",
-        "ما هي التجارب الحصرية المتاحة في لندن؟",
-      ],
-      pageType: "guide",
-    },
-    {
-      keyword: "السياحة العلاجية والسبا في لندن",
-      longtails: [
-        "أفضل سبا لندن للنساء",
-        "حمام تركي لندن",
-        "مراكز تجميل فاخرة لندن",
-      ],
-      questions: [
-        "أين أجد أفضل مراكز السبا في لندن للنساء؟",
-        "ما هي أفضل تجارب الحمام التركي في لندن؟",
-      ],
-      pageType: "list",
-    },
-    {
-      keyword: "تجربة مباريات الدوري الإنجليزي في لندن",
-      longtails: [
-        "تذاكر كرة قدم لندن VIP",
-        "جولة ملعب أرسنال",
-        "تجربة ضيافة تشيلسي",
-      ],
-      questions: [
-        "كيف أحصل على تذاكر VIP لمباريات الدوري الإنجليزي؟",
-        "ما هي أفضل ملاعب كرة القدم للزيارة في لندن؟",
-      ],
-      pageType: "guide",
-    },
-  ];
-}
-
-async function generateWithAI(topic: any, language: "en" | "ar") {
-  // Try the unified AI provider first
+async function generateWithAI(
+  topic: any,
+  language: "en" | "ar",
+  site: SiteConfig,
+) {
   try {
     const { generateJSON } = await import("@/lib/ai/provider");
 
     const systemPrompt =
-      language === "en"
-        ? `You are a luxury travel content writer for Yalla London, a premium travel platform for Arab travelers visiting London. Write SEO-optimized, engaging content. Always respond with valid JSON.`
-        : `أنت كاتب محتوى سفر فاخر لمنصة يالا لندن، منصة سفر متميزة للمسافرين العرب الذين يزورون لندن. اكتب محتوى محسّن لمحركات البحث وجذاب. أجب دائماً بـ JSON صالح.`;
+      language === "en" ? site.systemPromptEN : site.systemPromptAR;
 
     const prompt =
       language === "en"
-        ? `Write a comprehensive, SEO-optimized blog article about "${topic.keyword}" for Yalla London.
+        ? `Write a comprehensive, SEO-optimized blog article about "${topic.keyword}" for ${site.name}.
 
 Requirements:
 - 1500-2000 words
-- Target Arab travelers visiting London
+- Target Arab travelers visiting ${site.destination}
 - Include practical tips, insider advice, luxury recommendations
 - Natural keyword integration: ${topic.longtails?.join(", ") || topic.keyword}
 ${topic.questions?.length ? `\nAnswer these questions within the article:\n${topic.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
@@ -466,11 +310,11 @@ Return JSON with these exact fields:
   "pageType": "guide",
   "seoScore": 90
 }`
-        : `اكتب مقالة مدونة شاملة ومحسّنة لمحركات البحث عن "${topic.keyword}" لمنصة يالا لندن.
+        : `اكتب مقالة مدونة شاملة ومحسّنة لمحركات البحث عن "${topic.keyword}" لمنصة ${site.name}.
 
 المتطلبات:
 - 1500-2000 كلمة
-- استهداف المسافرين العرب الذين يزورون لندن
+- استهداف المسافرين العرب الذين يزورون ${site.destination}
 - تضمين نصائح عملية، معلومات داخلية، توصيات فاخرة
 - دمج الكلمات المفتاحية بشكل طبيعي: ${topic.longtails?.join("، ") || topic.keyword}
 ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقال:\n${topic.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
@@ -494,15 +338,16 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
   "seoScore": 90
 }`;
 
-    const content = await generateJSON<any>(prompt, {
+    return await generateJSON<any>(prompt, {
       systemPrompt,
       maxTokens: 4096,
       temperature: 0.7,
     });
-
-    return content;
   } catch (aiError) {
-    console.warn("AI provider failed, trying AbacusAI fallback:", aiError);
+    console.warn(
+      `[${site.name}] AI provider failed, trying AbacusAI:`,
+      aiError,
+    );
   }
 
   // Fallback to AbacusAI
@@ -524,8 +369,8 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
                 role: "system",
                 content:
                   language === "en"
-                    ? "You are a luxury travel content writer for Yalla London. Write SEO-optimized content for Arab travelers. Respond with valid JSON only."
-                    : "أنت كاتب محتوى سفر فاخر لمنصة يالا لندن. اكتب محتوى محسّن لمحركات البحث. أجب بـ JSON صالح فقط.",
+                    ? `You are a luxury travel content writer for ${site.name}. Write SEO-optimized content about ${site.destination} for Arab travelers. Respond with valid JSON only.`
+                    : `أنت كاتب محتوى سفر فاخر لمنصة ${site.name}. اكتب محتوى محسّن لمحركات البحث عن ${site.destination}. أجب بـ JSON صالح فقط.`,
               },
               {
                 role: "user",
@@ -540,19 +385,22 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
 
       const data = await response.json();
       const raw = data.choices?.[0]?.message?.content || "";
-      // Extract JSON from response
       let jsonStr = raw.trim();
       if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
       if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
       if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
       return JSON.parse(jsonStr.trim());
     } catch (fallbackError) {
-      console.error("AbacusAI fallback also failed:", fallbackError);
+      console.error(
+        `[${site.name}] AbacusAI fallback also failed:`,
+        fallbackError,
+      );
     }
   }
 
-  // No fallback - require real AI content, never publish placeholder articles
-  throw new Error("All AI providers failed - cannot generate content");
+  throw new Error(
+    `All AI providers failed for ${site.name} - cannot generate content`,
+  );
 }
 
 function generateSlug(title: string, language: string): string {
@@ -566,41 +414,44 @@ function generateSlug(title: string, language: string): string {
   return `${cleanTitle}-${date}`;
 }
 
-async function getOrCreateCategory(prisma: any) {
-  const existing = await prisma.category.findFirst({
-    where: { slug: "auto-generated" },
-  });
+async function getOrCreateCategory(site: SiteConfig, prisma: any) {
+  const slug = `auto-generated-${site.id}`;
+  const existing = await prisma.category.findFirst({ where: { slug } });
   if (existing) return existing;
 
   return prisma.category.create({
     data: {
-      name_en: "London Guide",
-      name_ar: "دليل لندن",
-      slug: "auto-generated",
-      description_en: "AI-generated luxury London travel content",
-      description_ar: "محتوى سفر لندن الفاخر المُنشأ بالذكاء الاصطناعي",
+      name_en: site.categoryName.en,
+      name_ar: site.categoryName.ar,
+      slug,
+      description_en: `AI-generated luxury ${site.destination} travel content`,
+      description_ar: `محتوى سفر ${site.destination} الفاخر المُنشأ بالذكاء الاصطناعي`,
     },
   });
 }
 
-async function getOrCreateSystemUser(prisma: any) {
-  const existing = await prisma.user.findFirst({
+async function getOrCreateSystemUser(site: SiteConfig, prisma: any) {
+  const email = `system@${site.domain}`;
+  const existing = await prisma.user.findFirst({ where: { email } });
+  if (existing) return existing;
+
+  // Try the global system user first
+  const globalUser = await prisma.user.findFirst({
     where: { email: "system@yallalondon.com" },
   });
-  if (existing) return existing;
+  if (globalUser) return globalUser;
 
   return prisma.user.create({
     data: {
-      email: "system@yallalondon.com",
-      name: "Yalla London AI",
+      email,
+      name: `${site.name} AI`,
       role: "editor",
     },
   });
 }
 
-async function submitForIndexing(slugs: string[]) {
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+async function submitForIndexing(slugs: string[], site: SiteConfig) {
+  const siteUrl = getSiteDomain(site.id);
   const indexNowKey = process.env.INDEXNOW_KEY;
   const urls = slugs.map((s) => `${siteUrl}/blog/${s}`);
 
@@ -615,9 +466,9 @@ async function submitForIndexing(slugs: string[]) {
           urlList: urls,
         }),
       });
-      console.log(`Submitted ${urls.length} URLs to IndexNow`);
+      console.log(`[${site.name}] Submitted ${urls.length} URLs to IndexNow`);
     } catch (e) {
-      console.warn("IndexNow submission failed:", e);
+      console.warn(`[${site.name}] IndexNow submission failed:`, e);
     }
   }
 }

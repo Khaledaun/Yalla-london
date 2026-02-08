@@ -1,21 +1,21 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-import { NextRequest, NextResponse } from 'next/server';
-import { searchConsole } from '@/lib/integrations/google-search-console';
-import { googleTrends } from '@/lib/integrations/google-trends';
-import { googlePageSpeed } from '@/lib/integrations/google-pagespeed';
+import { NextRequest, NextResponse } from "next/server";
+import { searchConsole } from "@/lib/integrations/google-search-console";
+import { googleTrends } from "@/lib/integrations/google-trends";
+import { googlePageSpeed } from "@/lib/integrations/google-pagespeed";
 
 interface IntegrationStatus {
   name: string;
-  status: 'connected' | 'not_configured' | 'error';
+  status: "connected" | "not_configured" | "error";
   details?: string;
   lastChecked: string;
 }
 
 interface SEOIntegrationsStatus {
   timestamp: string;
-  overall: 'healthy' | 'degraded' | 'error';
+  overall: "healthy" | "degraded" | "error";
   integrations: {
     googleSearchConsole: IntegrationStatus;
     googleAnalytics: IntegrationStatus;
@@ -35,7 +35,7 @@ interface SEOIntegrationsStatus {
 export async function GET(request: NextRequest) {
   const status: SEOIntegrationsStatus = {
     timestamp: new Date().toISOString(),
-    overall: 'healthy',
+    overall: "healthy",
     integrations: {
       googleSearchConsole: await checkGoogleSearchConsole(),
       googleAnalytics: checkGoogleAnalytics(),
@@ -50,11 +50,11 @@ export async function GET(request: NextRequest) {
   };
 
   // Calculate overall status
-  const statuses = Object.values(status.integrations).map(i => i.status);
-  if (statuses.some(s => s === 'error')) {
-    status.overall = 'error';
-  } else if (statuses.some(s => s === 'not_configured')) {
-    status.overall = 'degraded';
+  const statuses = Object.values(status.integrations).map((i) => i.status);
+  if (statuses.some((s) => s === "error")) {
+    status.overall = "error";
+  } else if (statuses.some((s) => s === "not_configured")) {
+    status.overall = "degraded";
   }
 
   // Generate recommendations
@@ -69,60 +69,64 @@ async function checkGoogleSearchConsole(): Promise<IntegrationStatus> {
 
   if (!clientEmail || !privateKey) {
     return {
-      name: 'Google Search Console',
-      status: 'not_configured',
-      details: 'Missing GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL or GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY',
+      name: "Google Search Console",
+      status: "not_configured",
+      details:
+        "Missing GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL or GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY",
       lastChecked: new Date().toISOString(),
     };
   }
 
   try {
     // Test connection by checking if credentials are valid format
-    if (!clientEmail.includes('@') || !privateKey.includes('PRIVATE KEY')) {
+    if (!clientEmail.includes("@") || !privateKey.includes("PRIVATE KEY")) {
       return {
-        name: 'Google Search Console',
-        status: 'error',
-        details: 'Invalid credential format',
+        name: "Google Search Console",
+        status: "error",
+        details: "Invalid credential format",
         lastChecked: new Date().toISOString(),
       };
     }
 
     return {
-      name: 'Google Search Console',
-      status: 'connected',
+      name: "Google Search Console",
+      status: "connected",
       details: `Service account: ${clientEmail}`,
       lastChecked: new Date().toISOString(),
     };
   } catch (error) {
     return {
-      name: 'Google Search Console',
-      status: 'error',
-      details: error instanceof Error ? error.message : 'Unknown error',
+      name: "Google Search Console",
+      status: "error",
+      details: error instanceof Error ? error.message : "Unknown error",
       lastChecked: new Date().toISOString(),
     };
   }
 }
 
 function checkGoogleAnalytics(): IntegrationStatus {
-  const ga4Id = process.env.GA4_MEASUREMENT_ID || process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
+  const ga4Id =
+    process.env.GA4_MEASUREMENT_ID ||
+    process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
   const gaClientEmail = process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL;
   const gaPrivateKey = process.env.GOOGLE_ANALYTICS_PRIVATE_KEY;
 
   if (!ga4Id) {
     return {
-      name: 'Google Analytics',
-      status: 'not_configured',
-      details: 'Missing GA4_MEASUREMENT_ID or NEXT_PUBLIC_GOOGLE_ANALYTICS_ID',
+      name: "Google Analytics",
+      status: "not_configured",
+      details: "Missing GA4_MEASUREMENT_ID or NEXT_PUBLIC_GOOGLE_ANALYTICS_ID",
       lastChecked: new Date().toISOString(),
     };
   }
 
   // Check if GA4 ID format is valid
-  if (!ga4Id.startsWith('G-') && !ga4Id.startsWith('UA-')) {
+  if (!ga4Id.startsWith("G-") && !ga4Id.startsWith("UA-")) {
     return {
-      name: 'Google Analytics',
-      status: 'error',
-      details: 'Invalid Google Analytics ID format (should start with G- or UA-)',
+      name: "Google Analytics",
+      status: "error",
+      details:
+        "Invalid Google Analytics ID format (should start with G- or UA-)",
       lastChecked: new Date().toISOString(),
     };
   }
@@ -130,8 +134,8 @@ function checkGoogleAnalytics(): IntegrationStatus {
   const hasApiAccess = gaClientEmail && gaPrivateKey;
 
   return {
-    name: 'Google Analytics',
-    status: 'connected',
+    name: "Google Analytics",
+    status: "connected",
     details: hasApiAccess
       ? `Tracking ID: ${ga4Id}, API access configured`
       : `Tracking ID: ${ga4Id} (client-side only, no API access)`,
@@ -145,40 +149,43 @@ function checkGoogleTrends(): IntegrationStatus {
 
   if (!serpApiKey && !trendsApiKey) {
     return {
-      name: 'Google Trends',
-      status: 'not_configured',
-      details: 'Missing SERPAPI_API_KEY or GOOGLE_TRENDS_API_KEY - trending topics research disabled',
+      name: "Google Trends",
+      status: "not_configured",
+      details:
+        "Missing SERPAPI_API_KEY or GOOGLE_TRENDS_API_KEY - trending topics research disabled",
       lastChecked: new Date().toISOString(),
     };
   }
 
   return {
-    name: 'Google Trends',
-    status: 'connected',
-    details: `Configured via ${serpApiKey ? 'SerpAPI' : 'Google Trends API'}`,
+    name: "Google Trends",
+    status: "connected",
+    details: `Configured via ${serpApiKey ? "SerpAPI" : "Google Trends API"}`,
     lastChecked: new Date().toISOString(),
   };
 }
 
 async function checkGooglePageSpeed(): Promise<IntegrationStatus> {
-  const apiKey = process.env.GOOGLE_PAGESPEED_API_KEY || process.env.GOOGLE_API_KEY;
+  const apiKey =
+    process.env.GOOGLE_PAGESPEED_API_KEY || process.env.GOOGLE_API_KEY;
 
   try {
     const testResult = await googlePageSpeed.testConnection();
 
     return {
-      name: 'Google PageSpeed Insights',
-      status: testResult.success ? 'connected' : 'error',
+      name: "Google PageSpeed Insights",
+      status: testResult.success ? "connected" : "error",
       details: apiKey
         ? `API key configured - enhanced rate limits`
-        : 'Using public API (rate-limited)',
+        : "Using public API (rate-limited)",
       lastChecked: new Date().toISOString(),
     };
   } catch (error) {
     return {
-      name: 'Google PageSpeed Insights',
-      status: 'error',
-      details: error instanceof Error ? error.message : 'Connection test failed',
+      name: "Google PageSpeed Insights",
+      status: "error",
+      details:
+        error instanceof Error ? error.message : "Connection test failed",
       lastChecked: new Date().toISOString(),
     };
   }
@@ -189,17 +196,18 @@ function checkIndexNow(): IntegrationStatus {
 
   if (!indexNowKey) {
     return {
-      name: 'IndexNow',
-      status: 'not_configured',
-      details: 'Missing INDEXNOW_KEY - automatic indexing via Bing/Yandex disabled',
+      name: "IndexNow",
+      status: "not_configured",
+      details:
+        "Missing INDEXNOW_KEY - automatic indexing via Bing/Yandex disabled",
       lastChecked: new Date().toISOString(),
     };
   }
 
   return {
-    name: 'IndexNow',
-    status: 'connected',
-    details: 'IndexNow key configured for instant indexing',
+    name: "IndexNow",
+    status: "connected",
+    details: "IndexNow key configured for instant indexing",
     lastChecked: new Date().toISOString(),
   };
 }
@@ -209,9 +217,9 @@ async function checkSitemap(): Promise<IntegrationStatus> {
 
   if (!siteUrl) {
     return {
-      name: 'Sitemap',
-      status: 'not_configured',
-      details: 'Missing NEXT_PUBLIC_SITE_URL',
+      name: "Sitemap",
+      status: "not_configured",
+      details: "Missing NEXT_PUBLIC_SITE_URL",
       lastChecked: new Date().toISOString(),
     };
   }
@@ -221,73 +229,80 @@ async function checkSitemap(): Promise<IntegrationStatus> {
     const sitemapUrl = `${siteUrl}/sitemap.xml`;
 
     return {
-      name: 'Sitemap',
-      status: 'connected',
+      name: "Sitemap",
+      status: "connected",
       details: `Sitemap URL: ${sitemapUrl}`,
       lastChecked: new Date().toISOString(),
     };
   } catch (error) {
     return {
-      name: 'Sitemap',
-      status: 'error',
-      details: error instanceof Error ? error.message : 'Failed to verify sitemap',
+      name: "Sitemap",
+      status: "error",
+      details:
+        error instanceof Error ? error.message : "Failed to verify sitemap",
       lastChecked: new Date().toISOString(),
     };
   }
 }
 
 function checkSEOFeatures(): IntegrationStatus {
-  const seoEnabled = process.env.FEATURE_SEO === '1' || process.env.FEATURE_SEO_OPTIMIZATION === 'true';
-  const aiSeoEnabled = process.env.FEATURE_AI_SEO_AUDIT === 'true';
+  const seoEnabled =
+    process.env.FEATURE_SEO === "1" ||
+    process.env.FEATURE_SEO_OPTIMIZATION === "true";
+  const aiSeoEnabled = process.env.FEATURE_AI_SEO_AUDIT === "true";
   const abacusKey = process.env.ABACUSAI_API_KEY;
 
   if (!seoEnabled) {
     return {
-      name: 'SEO Features',
-      status: 'not_configured',
-      details: 'SEO features disabled. Set FEATURE_SEO=1 or FEATURE_SEO_OPTIMIZATION=true',
+      name: "SEO Features",
+      status: "not_configured",
+      details:
+        "SEO features disabled. Set FEATURE_SEO=1 or FEATURE_SEO_OPTIMIZATION=true",
       lastChecked: new Date().toISOString(),
     };
   }
 
   const features = [];
-  if (aiSeoEnabled) features.push('AI SEO Audit');
-  if (abacusKey) features.push('AI Meta Generation');
-  features.push('Schema Generation', 'Internal Linking', 'Sitemap Generation');
+  if (aiSeoEnabled) features.push("AI SEO Audit");
+  if (abacusKey) features.push("AI Meta Generation");
+  features.push("Schema Generation", "Internal Linking", "Sitemap Generation");
 
   return {
-    name: 'SEO Features',
-    status: 'connected',
-    details: `Active features: ${features.join(', ')}`,
+    name: "SEO Features",
+    status: "connected",
+    details: `Active features: ${features.join(", ")}`,
     lastChecked: new Date().toISOString(),
   };
 }
 
-function checkEnvironmentVariables(): { configured: string[]; missing: string[] } {
+function checkEnvironmentVariables(): {
+  configured: string[];
+  missing: string[];
+} {
   const requiredVars = [
-    'NEXT_PUBLIC_SITE_URL',
-    'FEATURE_SEO',
-    'GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL',
-    'GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY',
-    'GA4_MEASUREMENT_ID',
-    'INDEXNOW_KEY',
-    'ABACUSAI_API_KEY',
+    "NEXT_PUBLIC_SITE_URL",
+    "FEATURE_SEO",
+    "GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL",
+    "GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY",
+    "GA4_MEASUREMENT_ID",
+    "INDEXNOW_KEY",
+    "ABACUSAI_API_KEY",
   ];
 
   const optionalVars = [
-    'GOOGLE_ANALYTICS_CLIENT_EMAIL',
-    'GOOGLE_ANALYTICS_PRIVATE_KEY',
-    'GOOGLE_PAGESPEED_API_KEY',
-    'GOOGLE_API_KEY',
-    'SERPAPI_API_KEY',
-    'GOOGLE_TRENDS_API_KEY',
-    'NEXT_PUBLIC_GOOGLE_ANALYTICS_ID',
+    "GOOGLE_ANALYTICS_CLIENT_EMAIL",
+    "GOOGLE_ANALYTICS_PRIVATE_KEY",
+    "GOOGLE_PAGESPEED_API_KEY",
+    "GOOGLE_API_KEY",
+    "SERPAPI_API_KEY",
+    "GOOGLE_TRENDS_API_KEY",
+    "NEXT_PUBLIC_GOOGLE_ANALYTICS_ID",
   ];
 
   const configured: string[] = [];
   const missing: string[] = [];
 
-  [...requiredVars, ...optionalVars].forEach(varName => {
+  [...requiredVars, ...optionalVars].forEach((varName) => {
     if (process.env[varName]) {
       configured.push(varName);
     } else {
@@ -302,56 +317,56 @@ function generateRecommendations(status: SEOIntegrationsStatus): string[] {
   const recommendations: string[] = [];
 
   // Check Google Search Console
-  if (status.integrations.googleSearchConsole.status !== 'connected') {
+  if (status.integrations.googleSearchConsole.status !== "connected") {
     recommendations.push(
-      'Configure Google Search Console service account credentials for URL indexing and search analytics'
+      "Configure Google Search Console service account credentials for URL indexing and search analytics",
     );
   }
 
   // Check Google Analytics
-  if (status.integrations.googleAnalytics.status === 'not_configured') {
+  if (status.integrations.googleAnalytics.status === "not_configured") {
     recommendations.push(
-      'Add GA4_MEASUREMENT_ID for tracking. Format: G-XXXXXXXXXX'
+      "Add GA4_MEASUREMENT_ID for tracking. Format: G-XXXXXXXXXX",
     );
   }
 
   // Check Google Trends
-  if (status.integrations.googleTrends.status === 'not_configured') {
+  if (status.integrations.googleTrends.status === "not_configured") {
     recommendations.push(
-      'Configure SERPAPI_API_KEY for trending topics research and keyword opportunity discovery'
+      "Configure SERPAPI_API_KEY for trending topics research and keyword opportunity discovery",
     );
   }
 
   // Check IndexNow
-  if (status.integrations.indexNow.status === 'not_configured') {
+  if (status.integrations.indexNow.status === "not_configured") {
     recommendations.push(
-      'Configure INDEXNOW_KEY for instant indexing on Bing, Yandex, and other search engines'
+      "Configure INDEXNOW_KEY for instant indexing on Bing, Yandex, and other search engines",
     );
   }
 
   // Check SEO Features
-  if (status.integrations.seoFeatures.status === 'not_configured') {
+  if (status.integrations.seoFeatures.status === "not_configured") {
     recommendations.push(
-      'Enable SEO features by setting FEATURE_SEO=1 in environment variables'
+      "Enable SEO features by setting FEATURE_SEO=1 in environment variables",
     );
   }
 
   // Check for AI capabilities
   if (!process.env.ABACUSAI_API_KEY) {
     recommendations.push(
-      'Add ABACUSAI_API_KEY to enable AI-powered meta description and title generation'
+      "Add ABACUSAI_API_KEY to enable AI-powered meta description and title generation",
     );
   }
 
   // Check PageSpeed API key for enhanced limits
   if (!process.env.GOOGLE_PAGESPEED_API_KEY && !process.env.GOOGLE_API_KEY) {
     recommendations.push(
-      'Consider adding GOOGLE_PAGESPEED_API_KEY for higher rate limits on performance analysis'
+      "Consider adding GOOGLE_PAGESPEED_API_KEY for higher rate limits on performance analysis",
     );
   }
 
   if (recommendations.length === 0) {
-    recommendations.push('All SEO integrations are properly configured!');
+    recommendations.push("All SEO integrations are properly configured!");
   }
 
   return recommendations;
@@ -363,27 +378,31 @@ export async function POST(request: NextRequest) {
     const { action, url } = await request.json();
 
     switch (action) {
-      case 'test-gsc-submission':
+      case "test-gsc-submission":
         if (!url) {
-          return NextResponse.json({ error: 'URL required' }, { status: 400 });
+          return NextResponse.json({ error: "URL required" }, { status: 400 });
         }
         const gscResult = await searchConsole.submitUrl(url);
         return NextResponse.json({
           success: gscResult,
-          message: gscResult ? 'URL submitted to Google Search Console' : 'Failed to submit URL',
+          message: gscResult
+            ? "URL submitted to Google Search Console"
+            : "Failed to submit URL",
         });
 
-      case 'test-indexnow':
+      case "test-indexnow":
         if (!url) {
-          return NextResponse.json({ error: 'URL required' }, { status: 400 });
+          return NextResponse.json({ error: "URL required" }, { status: 400 });
         }
         const indexNowResult = await testIndexNow(url);
         return NextResponse.json({
           success: indexNowResult,
-          message: indexNowResult ? 'URL submitted via IndexNow' : 'Failed to submit via IndexNow',
+          message: indexNowResult
+            ? "URL submitted via IndexNow"
+            : "Failed to submit via IndexNow",
         });
 
-      case 'ping-search-engines':
+      case "ping-search-engines":
         const pingResult = await pingSearchEngines();
         return NextResponse.json({
           success: true,
@@ -391,13 +410,13 @@ export async function POST(request: NextRequest) {
         });
 
       default:
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
   } catch (error) {
-    console.error('Integration test error:', error);
+    console.error("Integration test error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Test failed' },
-      { status: 500 }
+      { error: error instanceof Error ? error.message : "Test failed" },
+      { status: 500 },
     );
   }
 }
@@ -407,12 +426,13 @@ async function testIndexNow(url: string): Promise<boolean> {
   if (!indexNowKey) return false;
 
   try {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
-    const host = siteUrl.replace(/^https?:\/\//, '');
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    const host = siteUrl.replace(/^https?:\/\//, "");
 
-    const response = await fetch('https://api.indexnow.org/indexnow', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const response = await fetch("https://api.indexnow.org/indexnow", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         host,
         key: indexNowKey,
@@ -422,33 +442,44 @@ async function testIndexNow(url: string): Promise<boolean> {
 
     return response.ok || response.status === 202;
   } catch (error) {
-    console.error('IndexNow test failed:', error);
+    console.error("IndexNow test failed:", error);
     return false;
   }
 }
 
-async function pingSearchEngines(): Promise<{ google: boolean; bing: boolean }> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
-  const sitemapUrl = `${siteUrl}/sitemap.xml`;
+async function pingSearchEngines(): Promise<{
+  indexNow: boolean;
+  bing: boolean;
+}> {
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  const indexNowKey = process.env.INDEXNOW_KEY;
 
-  const results = { google: false, bing: false };
+  const results = { indexNow: false, bing: false };
+
+  if (!indexNowKey) return results;
 
   try {
-    // Ping Google
-    const googleResponse = await fetch(
-      `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`,
-      { method: 'GET' }
-    );
-    results.google = googleResponse.ok;
+    // Submit via IndexNow (Google deprecated direct ping in 2023)
+    const indexNowResponse = await fetch("https://api.indexnow.org/indexnow", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        host: new URL(siteUrl).hostname,
+        key: indexNowKey,
+        urlList: [`${siteUrl}/sitemap.xml`],
+      }),
+    });
+    results.indexNow = indexNowResponse.ok;
 
-    // Ping Bing
+    // Also submit to Bing IndexNow directly
     const bingResponse = await fetch(
-      `https://www.bing.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`,
-      { method: 'GET' }
+      `https://www.bing.com/indexnow?url=${encodeURIComponent(siteUrl + "/sitemap.xml")}&key=${indexNowKey}`,
+      { method: "GET" },
     );
     results.bing = bingResponse.ok;
   } catch (error) {
-    console.error('Search engine ping failed:', error);
+    console.error("IndexNow submission failed:", error);
   }
 
   return results;

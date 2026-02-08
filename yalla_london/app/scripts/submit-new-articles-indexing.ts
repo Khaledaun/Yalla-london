@@ -39,8 +39,7 @@ interface IndexNowResult {
   message?: string;
 }
 
-const INDEXNOW_KEY =
-  process.env.INDEXNOW_KEY || "a6db4fe5a00991a21c509c1d5f5d734c";
+const INDEXNOW_KEY = process.env.INDEXNOW_KEY || "";
 
 async function submitToIndexNow(urls: string[]): Promise<IndexNowResult[]> {
   const results: IndexNowResult[] = [];

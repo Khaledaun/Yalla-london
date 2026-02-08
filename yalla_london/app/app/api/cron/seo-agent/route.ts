@@ -76,17 +76,21 @@ async function runSEOAgent(prisma: any) {
     nextRun: getNextRunTime(),
   };
 
-  // Store the report in the database
+  // Store the report in the database using SeoReport model
   try {
-    await prisma.seoHealthReport.create({
+    await prisma.seoReport.create({
       data: {
-        reportDate: new Date(),
-        auditStats: report.blogAudit || {},
-        topIssues: { issues, count: issues.length },
-        schemaCoverage: report.blogAudit?.schemaCoverage || {},
-        performance: report.contentStatus || {},
-        recommendations: generateRecommendations(issues),
-        metadata: {
+        reportType: "health",
+        generatedAt: new Date(),
+        data: {
+          auditStats: report.blogAudit || {},
+          topIssues: { issues, count: issues.length },
+          contentStatus: report.contentStatus || {},
+          indexingStatus: report.indexingStatus || {},
+          sitemapHealth: report.sitemapHealth || {},
+          contentGaps: report.contentGaps || {},
+          autoFixes: report.autoFixes || {},
+          recommendations: generateRecommendations(issues),
           agent: "seo-autonomous",
           runType: "scheduled",
           fixes_applied: fixes.length,
@@ -132,9 +136,9 @@ async function checkContentGeneration(prisma: any, issues: string[]) {
       },
     });
 
-    // Check pending topics
+    // Check pending topics (statuses: planned, queued, ready)
     const pendingTopics = await prisma.topicProposal.count({
-      where: { status: "approved" },
+      where: { status: { in: ["planned", "queued", "ready", "approved"] } },
     });
 
     if (todayContent === 0 && today.getHours() >= 10) {
@@ -254,7 +258,9 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[]) {
             data: { page_type: "guide" },
           });
           fixes.push(`Set page_type='guide' for post: ${post.slug}`);
-        } catch {}
+        } catch (e) {
+          console.warn(`Failed to set page_type for ${post.slug}:`, e);
+        }
       }
 
       // Calculate SEO score
@@ -274,7 +280,9 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[]) {
           fixes.push(
             `Updated SEO score for ${post.slug}: ${post.seo_score || "null"} -> ${score}`,
           );
-        } catch {}
+        } catch (e) {
+          console.warn(`Failed to update SEO score for ${post.slug}:`, e);
+        }
       }
 
       totalScore += score;
@@ -355,7 +363,7 @@ async function checkIndexingStatus(prisma: any, issues: string[]) {
 async function submitNewUrls(prisma: any, fixes: string[]) {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
-  const indexNowKey = process.env.INDEXNOW_API_KEY;
+  const indexNowKey = process.env.INDEXNOW_KEY;
 
   try {
     // Find posts created in the last 24 hours that haven't been submitted
@@ -393,12 +401,23 @@ async function submitNewUrls(prisma: any, fixes: string[]) {
       }
     }
 
-    // Also ping sitemaps
-    try {
-      await fetch(`https://www.google.com/ping?sitemap=${siteUrl}/sitemap.xml`);
-      await fetch(`https://www.bing.com/ping?sitemap=${siteUrl}/sitemap.xml`);
-      fixes.push("Pinged Google and Bing with updated sitemap");
-    } catch {}
+    // Submit sitemap via IndexNow (Google deprecated ping endpoint in 2023)
+    if (indexNowKey) {
+      try {
+        await fetch("https://api.indexnow.org/indexnow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            host: new URL(siteUrl).hostname,
+            key: indexNowKey,
+            urlList: [`${siteUrl}/sitemap.xml`],
+          }),
+        });
+        fixes.push("Submitted sitemap to IndexNow");
+      } catch (e) {
+        console.warn("Sitemap IndexNow submission failed:", e);
+      }
+    }
 
     return { submitted: urls.length, urls };
   } catch {
@@ -528,7 +547,9 @@ async function autoFixSEOIssues(
           },
         });
         fixedCount.metaTitles++;
-      } catch {}
+      } catch (e) {
+        console.warn("Failed to auto-fix meta title:", e);
+      }
     }
 
     if (fixedCount.metaTitles > 0) {

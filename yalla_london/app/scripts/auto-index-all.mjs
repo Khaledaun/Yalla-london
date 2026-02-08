@@ -46,7 +46,7 @@ loadEnv();
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
 const GSC_SITE_URL = process.env.GSC_SITE_URL || SITE_URL;
-const INDEXNOW_KEY = process.env.INDEXNOW_KEY || 'a6db4fe5a00991a21c509c1d5f5d734c';
+const INDEXNOW_KEY = process.env.INDEXNOW_KEY || '';
 const GSC_EMAIL = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL;
 const GSC_KEY = process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY;
 

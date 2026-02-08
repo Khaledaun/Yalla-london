@@ -122,14 +122,14 @@ export async function POST(request: NextRequest) {
 
     // Step 5: Create purchase record (or lead capture for free)
     if (customerEmail) {
-      if (product && !free) {
+      if (product) {
         await prisma.purchase.create({
           data: {
             site_id: "yalla-london",
             product_id: product.id,
             customer_email: customerEmail,
             customer_name: customerName || "",
-            amount: product.price,
+            amount: free ? 0 : product.price,
             currency: product.currency,
             status: free ? "COMPLETED" : "PENDING",
             download_token: downloadToken,
@@ -146,40 +146,38 @@ export async function POST(request: NextRequest) {
             email: customerEmail,
             name: customerName,
             lead_type: "GUIDE_DOWNLOAD",
-            source: "pdf_generator",
+            lead_source: "pdf_generator",
             status: "NEW",
             score: 30,
-            metadata: {
-              destination,
-              template,
-              locale,
-              guide_slug: product?.slug,
-            },
+            interests_json: [destination, template, locale],
+            landing_page: `/products/pdf/${product?.slug || "guide"}`,
           },
         });
       } catch {
-        // Lead might already exist
+        // Lead might already exist (unique constraint on site_id + email)
       }
     }
 
-    // Step 6: Store PDF record
-    try {
-      await prisma.pdfGuide.create({
-        data: {
-          title: `${destination} ${template} Guide`,
-          destination,
-          template,
-          locale,
-          site_id: "yalla-london",
-          file_url: `/api/products/pdf/download?token=${downloadToken}`,
-          file_size: html.length,
-          download_count: 0,
-          config_json: { sections: sections.length, template, locale },
-          status: "published",
-        },
-      });
-    } catch {
-      // PdfGuide table might not exist
+    // Step 6: Update digital product with file info if it exists
+    if (product) {
+      try {
+        await prisma.digitalProduct.update({
+          where: { id: product.id },
+          data: {
+            file_url: `/api/products/pdf/download?token=${downloadToken}`,
+            file_size: html.length,
+            features_json: [
+              `${sections.length} comprehensive sections`,
+              `Available in ${locale === "ar" ? "Arabic" : "English"}`,
+              `${template} style recommendations`,
+              "Packing checklist included",
+              "Offline accessible",
+            ],
+          },
+        });
+      } catch (e) {
+        console.warn("Failed to update digital product file info:", e);
+      }
     }
 
     return NextResponse.json({

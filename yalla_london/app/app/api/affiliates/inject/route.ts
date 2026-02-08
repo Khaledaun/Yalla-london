@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { withAdminAuth } from "@/lib/admin-middleware";
 
 /**
- * Affiliate Link Injection API
+ * Affiliate Link Injection API (Admin-only)
  *
  * GET: Returns affiliate links matched to content keywords
  * POST: Injects affiliate links into specified content or across all content
@@ -229,12 +230,13 @@ interface AffiliateMatch {
 /**
  * GET: Find affiliate links relevant to given content/keywords
  */
-export async function GET(request: NextRequest) {
+export const GET = withAdminAuth(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   const content = searchParams.get("content") || "";
   const keywords = searchParams.get("keywords")?.split(",") || [];
   const category = searchParams.get("category");
-  const limit = parseInt(searchParams.get("limit") || "4");
+  const limitStr = searchParams.get("limit") || "4";
+  const limit = Math.min(Math.max(parseInt(limitStr) || 4, 1), 20);
 
   const matches = findAffiliateMatches(content, keywords, category, limit);
 
@@ -243,13 +245,13 @@ export async function GET(request: NextRequest) {
     matches,
     totalRules: AFFILIATE_RULES.length,
   });
-}
+});
 
 /**
  * POST: Inject affiliate links into content
  * Body: { contentId?, content?, mode: 'preview' | 'apply' | 'bulk' }
  */
-export async function POST(request: NextRequest) {
+export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { contentId, content, mode = "preview", category } = body;
@@ -277,7 +279,7 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});
 
 /**
  * Find matching affiliate links for given content
@@ -327,6 +329,16 @@ function findAffiliateMatches(
     .slice(0, limit);
 }
 
+/** Escape HTML special characters to prevent XSS */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 /**
  * Inject affiliate links into HTML content
  */
@@ -348,11 +360,14 @@ function injectAffiliateLinks(htmlContent: string, categoryFilter?: string) {
   // Strategy 1: Add affiliate CTA boxes after relevant paragraphs
   for (const match of matches.slice(0, 3)) {
     const { affiliate } = match;
+    const safeName = escapeHtml(affiliate.name);
+    const safeCategory = escapeHtml(affiliate.category);
+    const safeUrl = encodeURI(affiliate.url + affiliate.param);
     const affiliateBox = `
-<div class="affiliate-recommendation" data-affiliate="${affiliate.name}" data-category="${affiliate.category}" style="margin: 1.5rem 0; padding: 1rem 1.5rem; background: linear-gradient(135deg, #f8f4ff, #fff8e1); border-left: 4px solid #7c3aed; border-radius: 8px;">
-  <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #4c1d95;">Recommended: ${affiliate.name}</p>
+<div class="affiliate-recommendation" data-affiliate="${safeName}" data-category="${safeCategory}" style="margin: 1.5rem 0; padding: 1rem 1.5rem; background: linear-gradient(135deg, #f8f4ff, #fff8e1); border-left: 4px solid #7c3aed; border-radius: 8px;">
+  <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: #4c1d95;">Recommended: ${safeName}</p>
   <p style="margin: 0 0 0.75rem 0; color: #6b7280; font-size: 0.9rem;">Book through our trusted partner for exclusive rates</p>
-  <a href="${affiliate.url}${affiliate.param}" target="_blank" rel="noopener sponsored" style="display: inline-block; padding: 0.5rem 1.5rem; background: #7c3aed; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">View on ${affiliate.name} &rarr;</a>
+  <a href="${safeUrl}" target="_blank" rel="noopener sponsored" style="display: inline-block; padding: 0.5rem 1.5rem; background: #7c3aed; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">View on ${safeName} &rarr;</a>
 </div>`;
 
     // Find a good insertion point - after a paragraph that mentions the keyword
@@ -380,9 +395,9 @@ function injectAffiliateLinks(htmlContent: string, categoryFilter?: string) {
     ${matches
       .map(
         (m) => `
-    <a href="${m.affiliate.url}${m.affiliate.param}" target="_blank" rel="noopener sponsored" style="display: block; padding: 1rem; background: white; border-radius: 8px; border: 1px solid #e5e7eb; text-decoration: none; color: inherit; transition: box-shadow 0.2s;">
-      <strong style="color: #7c3aed;">${m.affiliate.name}</strong>
-      <span style="display: block; font-size: 0.85rem; color: #6b7280; margin-top: 0.25rem;">${m.affiliate.category}</span>
+    <a href="${encodeURI(m.affiliate.url + m.affiliate.param)}" target="_blank" rel="noopener sponsored" style="display: block; padding: 1rem; background: white; border-radius: 8px; border: 1px solid #e5e7eb; text-decoration: none; color: inherit; transition: box-shadow 0.2s;">
+      <strong style="color: #7c3aed;">${escapeHtml(m.affiliate.name)}</strong>
+      <span style="display: block; font-size: 0.85rem; color: #6b7280; margin-top: 0.25rem;">${escapeHtml(m.affiliate.category)}</span>
     </a>
     `,
       )
@@ -502,6 +517,10 @@ async function bulkInjectAffiliates() {
       });
     }
   }
+
+  console.log(
+    `[Affiliate Bulk Inject] Updated ${injectedCount}/${posts.length} posts at ${new Date().toISOString()}`,
+  );
 
   return NextResponse.json({
     success: true,

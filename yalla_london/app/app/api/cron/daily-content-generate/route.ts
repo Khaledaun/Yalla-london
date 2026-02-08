@@ -224,7 +224,7 @@ async function pickTopic(language: string, prisma: any) {
   // Fallback: generate a dynamic topic based on current trends
   const topics = language === "en" ? getEnglishTopics() : getArabicTopics();
   const dayOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) /
+    (Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) /
       86400000,
   );
   const topic = topics[dayOfYear % topics.length];
@@ -551,7 +551,7 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
     }
   }
 
-  // Final fallback: generate structured placeholder that's still valid
+  // No fallback - require real AI content, never publish placeholder articles
   throw new Error("All AI providers failed - cannot generate content");
 }
 
@@ -601,7 +601,7 @@ async function getOrCreateSystemUser(prisma: any) {
 async function submitForIndexing(slugs: string[]) {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
-  const indexNowKey = process.env.INDEXNOW_API_KEY;
+  const indexNowKey = process.env.INDEXNOW_KEY;
   const urls = slugs.map((s) => `${siteUrl}/blog/${s}`);
 
   if (indexNowKey && urls.length > 0) {
@@ -615,11 +615,9 @@ async function submitForIndexing(slugs: string[]) {
           urlList: urls,
         }),
       });
-    } catch {}
+      console.log(`Submitted ${urls.length} URLs to IndexNow`);
+    } catch (e) {
+      console.warn("IndexNow submission failed:", e);
+    }
   }
-
-  // Ping sitemaps
-  try {
-    await fetch(`https://www.google.com/ping?sitemap=${siteUrl}/sitemap.xml`);
-  } catch {}
 }

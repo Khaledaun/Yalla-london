@@ -50,6 +50,57 @@ interface CrawlResult {
   lastCrawled: string;
 }
 
+interface IndexingStats {
+  totalReports: number;
+  totalSubmissions: number;
+  totalAudits: number;
+  totalGoogleSubmitted: number;
+  totalIndexNowSubmitted: number;
+  lastSubmission: string | null;
+  lastSuccessfulSubmission: string | null;
+  latestSnapshot: {
+    totalPages: number;
+    inspected: number;
+    indexed: number;
+    notIndexed: number;
+    date: string;
+  } | null;
+  latestSubmissionResult: {
+    indexNow: { submitted: number; status: string };
+    googleApi: { submitted: number; failed: number; errors: string[]; status: string };
+  } | null;
+  timeline: {
+    date: string;
+    mode: string;
+    totalPages: number;
+    googleSubmitted: number;
+    googleStatus: string;
+    indexNowSubmitted: number;
+    indexNowStatus: string;
+  }[];
+}
+
+interface IndexingReport {
+  id: string;
+  type: string;
+  date: string;
+  data: {
+    mode: string;
+    totalPages: number;
+    inspected: number;
+    indexed: number;
+    notIndexed: number;
+    indexedPages?: string[];
+    notIndexedPages?: { url: string; label: string; reason: string }[];
+    submission?: {
+      indexNow: { submitted: number; status: string };
+      googleApi: { submitted: number; failed: number; errors: string[]; status: string };
+    };
+    errors?: string[];
+    elapsed: string;
+  };
+}
+
 export default function SEOCommandCenter() {
   const [isLoading, setIsLoading] = useState(true);
   const [seoHealth, setSeoHealth] = useState<SEOHealth>({
@@ -64,6 +115,9 @@ export default function SEOCommandCenter() {
   const [crawlResults, setCrawlResults] = useState<CrawlResult[]>([]);
   const [isCrawling, setIsCrawling] = useState(false);
   const [crawlProgress, setCrawlProgress] = useState(0);
+  const [indexingStats, setIndexingStats] = useState<IndexingStats | null>(null);
+  const [indexingHistory, setIndexingHistory] = useState<IndexingReport[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     loadSEOData();
@@ -119,7 +173,66 @@ export default function SEOCommandCenter() {
       console.error("Failed to load article SEO data:", error);
     }
 
+    // Fetch indexing stats and history
+    try {
+      const [statsRes, historyRes] = await Promise.all([
+        fetch("/api/admin/seo/indexing?type=stats"),
+        fetch("/api/admin/seo/indexing?type=history&limit=10"),
+      ]);
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setIndexingStats(statsData.stats || null);
+      }
+      if (historyRes.ok) {
+        const historyData = await historyRes.json();
+        setIndexingHistory(historyData.reports || []);
+      }
+    } catch (error) {
+      console.error("Failed to load indexing data:", error);
+    }
+
     setIsLoading(false);
+  };
+
+  const submitAllForIndexing = async () => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/seo/check-and-index?submit_all=true");
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(
+          `Submitted ${data.submission?.googleApi?.submitted || 0} pages to Google Indexing API`,
+        );
+        // Reload data to show new submission in history
+        loadSEOData();
+      } else {
+        toast.error("Indexing submission failed");
+      }
+    } catch (error) {
+      toast.error("Failed to submit for indexing");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const runIndexingAudit = async () => {
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/seo/check-and-index?limit=8");
+      if (res.ok) {
+        const data = await res.json();
+        toast.success(
+          `Inspected ${data.summary?.inspected || 0} pages: ${data.summary?.indexed || 0} indexed, ${data.summary?.notIndexed || 0} not indexed`,
+        );
+        loadSEOData();
+      } else {
+        toast.error("Indexing audit failed");
+      }
+    } catch (error) {
+      toast.error("Failed to run indexing audit");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const startCrawl = async () => {
@@ -308,8 +421,9 @@ export default function SEOCommandCenter() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="indexing">Indexing Monitor</TabsTrigger>
             <TabsTrigger value="articles">Article SEO</TabsTrigger>
             <TabsTrigger value="crawl">Analysis Results</TabsTrigger>
           </TabsList>
@@ -419,6 +533,345 @@ export default function SEOCommandCenter() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Indexing Monitor Tab */}
+          <TabsContent value="indexing" className="space-y-6">
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Button
+                onClick={submitAllForIndexing}
+                disabled={isSubmitting}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isSubmitting ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Zap className="h-4 w-4 mr-2" />
+                )}
+                Submit All Pages
+              </Button>
+              <Button
+                onClick={runIndexingAudit}
+                disabled={isSubmitting}
+                variant="outline"
+              >
+                {isSubmitting ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4 mr-2" />
+                )}
+                Check Index Status
+              </Button>
+            </div>
+
+            {/* Current Status Cards */}
+            {indexingStats && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-sm text-gray-500">Total Pages</div>
+                    <div className="text-2xl font-bold">
+                      {indexingStats.latestSnapshot?.totalPages || "—"}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-sm text-gray-500">Confirmed Indexed</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {indexingStats.latestSnapshot?.indexed ?? "—"}
+                    </div>
+                    {indexingStats.latestSnapshot && (
+                      <div className="text-xs text-gray-400">
+                        of {indexingStats.latestSnapshot.inspected} inspected
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-sm text-gray-500">Not Indexed</div>
+                    <div className="text-2xl font-bold text-red-600">
+                      {indexingStats.latestSnapshot?.notIndexed ?? "—"}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-sm text-gray-500">Total Submitted</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {indexingStats.totalGoogleSubmitted}
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      via Google Indexing API
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Latest Submission Result */}
+            {indexingStats?.latestSubmissionResult && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Zap className="h-5 w-5 text-yellow-500" />
+                    Latest Submission
+                    {indexingStats.lastSubmission && (
+                      <span className="text-sm font-normal text-gray-500 ml-2">
+                        {new Date(indexingStats.lastSubmission).toLocaleString()}
+                      </span>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">Google Indexing API</span>
+                        <Badge
+                          className={
+                            indexingStats.latestSubmissionResult.googleApi.status === "success"
+                              ? "bg-green-500"
+                              : "bg-red-500"
+                          }
+                        >
+                          {indexingStats.latestSubmissionResult.googleApi.status}
+                        </Badge>
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {indexingStats.latestSubmissionResult.googleApi.submitted} submitted
+                      </div>
+                      {indexingStats.latestSubmissionResult.googleApi.failed > 0 && (
+                        <div className="text-sm text-red-600">
+                          {indexingStats.latestSubmissionResult.googleApi.failed} failed
+                        </div>
+                      )}
+                    </div>
+                    <div className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">IndexNow (Bing/Yandex)</span>
+                        <Badge
+                          className={
+                            indexingStats.latestSubmissionResult.indexNow.status === "success"
+                              ? "bg-green-500"
+                              : "bg-yellow-500"
+                          }
+                        >
+                          {indexingStats.latestSubmissionResult.indexNow.status}
+                        </Badge>
+                      </div>
+                      <div className="text-2xl font-bold">
+                        {indexingStats.latestSubmissionResult.indexNow.submitted} submitted
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Submission Timeline */}
+            {indexingStats?.timeline && indexingStats.timeline.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Clock className="h-5 w-5 text-yellow-500" />
+                    Submission History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {indexingStats.timeline.map((entry, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between border-b pb-3 last:border-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          {entry.googleStatus === "success" ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                          )}
+                          <div>
+                            <div className="font-medium text-sm">
+                              {entry.mode === "submit-all"
+                                ? "Bulk Submit All"
+                                : "Submit Unindexed"}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(entry.date).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="text-right">
+                            <span className="font-medium">{entry.googleSubmitted}</span>
+                            <span className="text-gray-500 ml-1">Google</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-medium">{entry.indexNowSubmitted}</span>
+                            <span className="text-gray-500 ml-1">IndexNow</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {entry.totalPages} pages
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Detailed Reports */}
+            {indexingHistory.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <FileText className="h-5 w-5 text-yellow-500" />
+                    Detailed Reports
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {indexingHistory.map((report) => (
+                      <div key={report.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              className={
+                                report.type === "indexing_submission"
+                                  ? "bg-blue-500"
+                                  : "bg-gray-500"
+                              }
+                            >
+                              {report.type === "indexing_submission"
+                                ? "Submission"
+                                : "Audit"}
+                            </Badge>
+                            <span className="text-sm text-gray-600">
+                              {new Date(report.date).toLocaleString()}
+                            </span>
+                          </div>
+                          <span className="text-sm text-gray-400">
+                            {report.data.elapsed}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          <div>
+                            <span className="text-gray-500">Total Pages:</span>{" "}
+                            <span className="font-medium">{report.data.totalPages}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Inspected:</span>{" "}
+                            <span className="font-medium">{report.data.inspected}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Indexed:</span>{" "}
+                            <span className="font-medium text-green-600">
+                              {report.data.indexed}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Not Indexed:</span>{" "}
+                            <span className="font-medium text-red-600">
+                              {report.data.notIndexed}
+                            </span>
+                          </div>
+                        </div>
+
+                        {report.data.submission && (
+                          <div className="mt-3 pt-3 border-t flex gap-4 text-sm">
+                            <div>
+                              Google:{" "}
+                              <span className="font-medium">
+                                {report.data.submission.googleApi.submitted} submitted
+                              </span>
+                              {report.data.submission.googleApi.status !== "success" &&
+                                report.data.submission.googleApi.status !== "skipped" && (
+                                  <Badge variant="destructive" className="ml-2 text-xs">
+                                    {report.data.submission.googleApi.status}
+                                  </Badge>
+                                )}
+                            </div>
+                            <div>
+                              IndexNow:{" "}
+                              <span className="font-medium">
+                                {report.data.submission.indexNow.submitted} submitted
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {report.data.notIndexedPages &&
+                          report.data.notIndexedPages.length > 0 && (
+                            <div className="mt-3 pt-3 border-t">
+                              <div className="text-sm text-red-600 mb-2">
+                                Not indexed URLs:
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {report.data.notIndexedPages.map((p: any, i: number) => (
+                                  <Badge key={i} variant="outline" className="text-xs">
+                                    {p.label || p.url}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                        {report.data.errors && report.data.errors.length > 0 && (
+                          <div className="mt-3 pt-3 border-t">
+                            <div className="text-sm text-yellow-600 mb-1">
+                              Errors:
+                            </div>
+                            {report.data.errors.slice(0, 3).map((err: string, i: number) => (
+                              <div key={i} className="text-xs text-gray-500">
+                                {err}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Empty State */}
+            {!indexingStats && indexingHistory.length === 0 && (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Globe className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No Indexing Data Yet
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Run an indexing audit or submit your pages to start tracking.
+                  </p>
+                  <div className="flex justify-center gap-3">
+                    <Button
+                      onClick={runIndexingAudit}
+                      disabled={isSubmitting}
+                      variant="outline"
+                    >
+                      <Search className="h-4 w-4 mr-2" />
+                      Check Index Status
+                    </Button>
+                    <Button
+                      onClick={submitAllForIndexing}
+                      disabled={isSubmitting}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <Zap className="h-4 w-4 mr-2" />
+                      Submit All Pages
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Article SEO Tab */}

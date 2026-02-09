@@ -262,15 +262,15 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     // Recent activity from audit logs
     const recentActivity = await prisma.auditLog.findMany({
       take: 10,
-      orderBy: { created_at: "desc" },
+      orderBy: { timestamp: "desc" },
       select: {
         id: true,
         action: true,
-        entity_type: true,
-        entity_id: true,
+        resource: true,
+        resourceId: true,
         details: true,
-        created_at: true,
-        user_id: true,
+        timestamp: true,
+        userId: true,
       },
     });
 
@@ -309,14 +309,14 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         connectionStates,
         recentActivity: recentActivity.map((activity: any) => ({
           id: activity.id,
-          type: activity.entity_type?.toLowerCase() || "system",
+          type: activity.resource?.toLowerCase() || "system",
           action: activity.action,
-          title: `${activity.action} - ${activity.entity_type}`,
-          description: activity.entity_id
-            ? `Entity: ${activity.entity_id}`
+          title: `${activity.action} - ${activity.resource || "system"}`,
+          description: activity.resourceId
+            ? `Resource: ${activity.resourceId}`
             : "System action",
-          timestamp: activity.created_at,
-          user: activity.user_id,
+          timestamp: activity.timestamp,
+          user: activity.userId,
           status: "success",
         })),
         lastUpdated: new Date().toISOString(),

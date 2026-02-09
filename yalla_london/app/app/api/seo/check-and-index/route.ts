@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+
+const VERCEL_TIMEOUT_MS = 9000; // Leave 1s buffer before Vercel kills us
 
 /**
  * GET /api/seo/check-and-index
@@ -14,15 +16,15 @@ import { NextRequest, NextResponse } from "next/server";
  *
  * Query params:
  *   ?submit=true   — actually submit unindexed pages (default: dry-run)
- *   ?limit=N       — limit URL inspection checks (default: 50, max: 200)
+ *   ?limit=N       — limit URL inspection checks (default: 5, max: 50)
  */
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   const searchParams = request.nextUrl.searchParams;
   const doSubmit = searchParams.get("submit") === "true";
   const inspectLimit = Math.min(
-    parseInt(searchParams.get("limit") || "50", 10),
-    200,
+    parseInt(searchParams.get("limit") || "5", 10),
+    50,
   );
 
   const siteUrl =
@@ -138,6 +140,12 @@ export async function GET(request: NextRequest) {
       const urlsToInspect = allUrls.slice(0, inspectLimit);
 
       for (const item of urlsToInspect) {
+        // Timeout guard: return partial results before Vercel kills the function
+        if (Date.now() - startTime > VERCEL_TIMEOUT_MS) {
+          inspectionErrors.push("Timeout approaching — returning partial results. Use ?limit=N to control batch size.");
+          break;
+        }
+
         try {
           const status = await gsc.checkIndexingStatus(item.url);
           inspected++;
@@ -170,7 +178,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Rate limit: URL Inspection API
-        await new Promise((r) => setTimeout(r, 200));
+        await new Promise((r) => setTimeout(r, 100));
       }
     } catch (gscError) {
       inspectionErrors.push(
@@ -194,7 +202,7 @@ export async function GET(request: NextRequest) {
       ? notIndexed.map((p) => p.url)
       : allUrls.map((p) => p.url);
 
-    if (doSubmit && urlsToSubmit.length > 0) {
+    if (doSubmit && urlsToSubmit.length > 0 && (Date.now() - startTime < VERCEL_TIMEOUT_MS)) {
       // 3a. IndexNow (Bing/Yandex)
       const indexNowKey = process.env.INDEXNOW_KEY;
       if (indexNowKey) {

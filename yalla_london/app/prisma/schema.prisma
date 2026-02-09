@@ -261,14 +261,19 @@ model MediaAsset {
   usage_map       Json?    // Track where asset is used
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
-  
+
+  // Multi-tenant: per-site media pool
+  site_id     String?  // null = shared across all sites
+  category    String?  // hero, blog, gallery, social, background, logo, icon, product
+  folder      String?  // virtual folder path for organization e.g. "london/restaurants"
+
   // Enhanced fields for video hero support
   isVideo     Boolean  @default(false)
   videoPoster String?  // URL to poster frame
   videoVariants Json?  // Different quality/size variants
   isHeroVideo Boolean  @default(false) // Can be used as homepage hero
   duration    Int?     // Video duration in seconds
-  
+
   // Soft delete
   deletedAt   DateTime?
 
@@ -277,6 +282,8 @@ model MediaAsset {
 
   @@index([file_type])
   @@index([created_at])
+  @@index([site_id])
+  @@index([category])
 }
 
 // Phase 3.4 - Homepage Builder
@@ -562,12 +569,24 @@ model MediaEnrichment {
   seo_optimized     Boolean  @default(false)
   processing_status String   @default("pending") // pending, processing, completed, failed
   ai_metadata       Json?    // Additional AI-generated metadata
+
+  // AI-detected structured categories
+  content_type      String?  // landscape, cityscape, food, interior, person, activity, product, abstract
+  use_case          String?  // hero, blog-featured, thumbnail, gallery, social, background
+  mood              String?  // luxury, casual, vibrant, serene, dramatic, cozy, professional
+  destination_tags  String[] // e.g. ["london", "restaurant", "halal", "fine-dining"]
+  objects_detected  String[] // e.g. ["building", "food", "person", "car"]
+  text_detected     String?  // OCR text found in image
+  brand_compliance  Int?     // 0-100 how well image fits site brand
+
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
-  
+
   @@index([processing_status])
   @@index([seo_optimized])
   @@index([created_at])
+  @@index([content_type])
+  @@index([use_case])
 }
 
 // Prompt Template Management with versioning and locale support

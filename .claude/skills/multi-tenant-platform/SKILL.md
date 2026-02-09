@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) { ... }
 export async function POST(request: NextRequest) { return GET(request); }
 ```
 
+**Vercel Pro Plan** - 60s serverless function timeout (not 10s Hobby). Use `export const maxDuration = 60;` for long-running endpoints. Add timeout guards (~55s) to return partial results before Vercel kills the function.
+
 **Environment Variables**:
 - `INDEXNOW_KEY` - For search engine URL submission (NOT `INDEXNOW_API_KEY`)
 - `NEXT_PUBLIC_SITE_URL` - Base site URL
@@ -94,6 +96,21 @@ export async function POST(request: NextRequest) { return GET(request); }
 - Pulls GSC + GA4 + Cloudflare + PageSpeed in parallel
 - Returns performance totals, keyword analysis, quick wins, zero-click queries, country/device, Cloudflare health
 - Scored summary: critical issues, warnings, opportunities
+
+### Check-and-Index Endpoint
+- `GET /api/seo/check-and-index` — comprehensive indexing audit + submission
+- File: `app/api/seo/check-and-index/route.ts`
+- `maxDuration = 60` (requires Vercel Pro plan)
+- 3-tier URL discovery: Database → sitemap.xml → static data (indexing-service.ts)
+- Query params:
+  - `?submit=true` — submit only confirmed unindexed pages
+  - `?submit_all=true` — skip inspection, submit ALL discovered URLs (fast, ~10s)
+  - `?limit=N` — max URLs to inspect per request (default: 30, max: 100)
+  - `?offset=N` — skip first N URLs for batch pagination
+- Response includes `nextBatch` URL for easy multi-request coverage
+- Submits via Google Indexing API + IndexNow (Bing/Yandex)
+- **Performance**: GSC inspection ~6.5s/URL; `submit_all` skips inspection entirely
+- **Important**: `submit_all=true` must skip inspection — otherwise timeout blocks submission
 
 ### New Site SEO Setup Checklist
 1. Add site to `config/sites.ts`

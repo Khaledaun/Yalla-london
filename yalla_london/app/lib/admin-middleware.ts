@@ -6,9 +6,9 @@
  * No hardcoded email addresses.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export interface AdminAuthenticatedRequest extends NextRequest {
   user?: {
@@ -20,43 +20,50 @@ export interface AdminAuthenticatedRequest extends NextRequest {
 
 /** Load admin email whitelist from ADMIN_EMAILS env var only */
 function getAdminEmails(): string[] {
-  return (process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()).filter(Boolean)) || []
+  return (
+    process.env.ADMIN_EMAILS?.split(",")
+      .map((e) => e.trim())
+      .filter(Boolean) || []
+  );
 }
 
 /**
  * Admin authentication middleware for App Router API routes
  * Returns NextResponse with 401 for unauthorized access
  */
-export async function requireAdmin(request: NextRequest): Promise<NextResponse | null> {
+export async function requireAdmin(
+  request: NextRequest,
+): Promise<NextResponse | null> {
   try {
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
+        { error: "Authentication required" },
+        { status: 401 },
       );
     }
 
     // Check admin via session role (from JWT) OR email whitelist from env
-    const userRole = (session.user as any).role
-    const adminEmails = getAdminEmails()
+    const userRole = (session.user as any).role;
+    const adminEmails = getAdminEmails();
 
-    const isAdmin = userRole === 'admin' || adminEmails.includes(session.user.email)
+    const isAdmin =
+      userRole === "admin" || adminEmails.includes(session.user.email);
 
     if (!isAdmin) {
       return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
+        { error: "Admin access required" },
+        { status: 403 },
       );
     }
 
     return null; // null = continue with the request
   } catch (error) {
-    console.error('Admin authentication error:', error);
+    console.error("Admin authentication error:", error);
     return NextResponse.json(
-      { error: 'Authentication failed' },
-      { status: 500 }
+      { error: "Authentication failed" },
+      { status: 500 },
     );
   }
 }
@@ -66,7 +73,7 @@ export async function requireAdmin(request: NextRequest): Promise<NextResponse |
  * Usage: export const GET = withAdminAuth(async (request) => { ... });
  */
 export function withAdminAuth(
-  handler: (request: NextRequest) => Promise<NextResponse>
+  handler: (request: NextRequest) => Promise<NextResponse>,
 ) {
   return async (request: NextRequest): Promise<NextResponse> => {
     const authResult = await requireAdmin(request);
@@ -74,6 +81,36 @@ export function withAdminAuth(
       return authResult;
     }
     return handler(request);
+  };
+}
+
+/**
+ * Wrapper for admin routes with automatic tenant-scoped database access.
+ * Drop-in upgrade from withAdminAuth - adds `db` (auto-filtered by site_id).
+ *
+ * Usage:
+ *   export const GET = withTenantAuth(async (request, { db, siteId }) => {
+ *     const posts = await db.blogPost.findMany(); // Auto-filtered by site_id
+ *     return NextResponse.json({ posts });
+ *   });
+ */
+export function withTenantAuth(
+  handler: (
+    request: NextRequest,
+    context: { db: any; siteId: string; locale: string },
+  ) => Promise<NextResponse>,
+) {
+  return async (request: NextRequest): Promise<NextResponse> => {
+    const authResult = await requireAdmin(request);
+    if (authResult) return authResult;
+
+    const siteId = request.headers.get("x-site-id") || "yalla-london";
+    const locale = request.headers.get("x-site-locale") || "en";
+
+    const { getTenantPrisma } = await import("@/lib/db/tenant-queries");
+    const db = getTenantPrisma(siteId);
+
+    return handler(request, { db, siteId, locale });
   };
 }
 
@@ -92,9 +129,10 @@ export async function getCurrentAdminUser(request: NextRequest): Promise<{
       return null;
     }
 
-    const userRole = (session.user as any).role
-    const adminEmails = getAdminEmails()
-    const isAdmin = userRole === 'admin' || adminEmails.includes(session.user.email)
+    const userRole = (session.user as any).role;
+    const adminEmails = getAdminEmails();
+    const isAdmin =
+      userRole === "admin" || adminEmails.includes(session.user.email);
 
     if (!isAdmin) {
       return null;
@@ -103,10 +141,10 @@ export async function getCurrentAdminUser(request: NextRequest): Promise<{
     return {
       id: (session.user as any).id || session.user.email,
       email: session.user.email,
-      name: session.user.name || undefined
+      name: session.user.name || undefined,
     };
   } catch (error) {
-    console.error('Get current admin user error:', error);
+    console.error("Get current admin user error:", error);
     return null;
   }
 }

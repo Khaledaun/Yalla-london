@@ -1,42 +1,46 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { withAdminAuth } from "@/lib/admin-middleware";
-import { prisma } from "@/lib/db";
+import { withTenantAuth } from "@/lib/admin-middleware";
 
 /**
- * Admin Events CRUD API
- * GET: List all events (including unpublished)
- * POST: Create a new event
+ * Admin Events CRUD API (tenant-scoped)
+ * GET: List all events for current site (including unpublished)
+ * POST: Create a new event for current site
  */
 
-export const GET = withAdminAuth(async (request: NextRequest) => {
-  const { searchParams } = new URL(request.url);
-  const page = Math.max(parseInt(searchParams.get("page") || "1"), 1);
-  const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
-  const category = searchParams.get("category");
+export const GET = withTenantAuth(
+  async (request: NextRequest, { db, siteId }) => {
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(parseInt(searchParams.get("page") || "1"), 1);
+    const limit = Math.min(parseInt(searchParams.get("limit") || "20"), 100);
+    const category = searchParams.get("category");
 
-  const where: any = {};
-  if (category) where.category = category;
+    const where: any = {
+      OR: [{ siteId }, { siteId: null }], // Site-specific + global events
+    };
+    if (category) where.category = category;
 
-  const [events, total] = await Promise.all([
-    prisma.event.findMany({
-      where,
-      orderBy: { date: "asc" },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.event.count({ where }),
-  ]);
+    const { prisma } = await import("@/lib/db");
+    const [events, total] = await Promise.all([
+      prisma.event.findMany({
+        where,
+        orderBy: { date: "asc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.event.count({ where }),
+    ]);
 
-  return NextResponse.json({
-    success: true,
-    events,
-    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-  });
-});
+    return NextResponse.json({
+      success: true,
+      events,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  },
+);
 
-export const POST = withAdminAuth(async (request: NextRequest) => {
+export const POST = withTenantAuth(async (request: NextRequest, { siteId }) => {
   try {
     const body = await request.json();
 
@@ -59,7 +63,6 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       soldOut,
       featured,
       published,
-      siteId,
     } = body;
 
     if (
@@ -81,6 +84,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       );
     }
 
+    const { prisma } = await import("@/lib/db");
     const event = await prisma.event.create({
       data: {
         title_en,
@@ -101,7 +105,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         soldOut: soldOut || false,
         featured: featured || false,
         published: published !== false,
-        siteId: siteId || null,
+        siteId, // Auto-set from tenant context
       },
     });
 

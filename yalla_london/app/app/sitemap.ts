@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { headers } from "next/headers";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
 import { prisma } from "@/lib/prisma";
@@ -7,11 +8,17 @@ import { prisma } from "@/lib/prisma";
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Resolve base URL from tenant context (set by middleware)
+  const headersList = await headers();
+  const hostname = headersList.get("x-hostname") || "www.yalla-london.com";
+  const siteId = headersList.get("x-site-id") || "yalla-london";
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    hostname === "localhost:3000"
+      ? "http://localhost:3000"
+      : `https://${hostname}`;
   const currentDate = new Date().toISOString();
 
-  // Static pages
+  // Static pages (common to all sites)
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
@@ -85,66 +92,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
       },
     },
-    {
-      url: `${baseUrl}/team`,
-      lastModified: currentDate,
-      changeFrequency: "monthly",
-      priority: 0.5,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/team`,
-          ar: `${baseUrl}/ar/team`,
-        },
-      },
-    },
-    {
-      url: `${baseUrl}/privacy`,
-      lastModified: currentDate,
-      changeFrequency: "yearly",
-      priority: 0.3,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/privacy`,
-          ar: `${baseUrl}/ar/privacy`,
-        },
-      },
-    },
-    {
-      url: `${baseUrl}/terms`,
-      lastModified: currentDate,
-      changeFrequency: "yearly",
-      priority: 0.3,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/terms`,
-          ar: `${baseUrl}/ar/terms`,
-        },
-      },
-    },
   ];
 
-  // Blog posts from static content files
-  const staticBlogPages: MetadataRoute.Sitemap = allStaticPosts
-    .filter((post) => post.published)
-    .map((post) => ({
-      url: `${baseUrl}/blog/${post.slug}`,
-      lastModified: post.updated_at.toISOString(),
-      changeFrequency: "weekly" as const,
-      priority: 0.8,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/blog/${post.slug}`,
-          ar: `${baseUrl}/ar/blog/${post.slug}`,
+  // Blog posts from static content files (only for yalla-london)
+  let staticBlogPages: MetadataRoute.Sitemap = [];
+  if (siteId === "yalla-london") {
+    staticBlogPages = allStaticPosts
+      .filter((post) => post.published)
+      .map((post) => ({
+        url: `${baseUrl}/blog/${post.slug}`,
+        lastModified: post.updated_at.toISOString(),
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+        alternates: {
+          languages: {
+            en: `${baseUrl}/blog/${post.slug}`,
+            ar: `${baseUrl}/ar/blog/${post.slug}`,
+          },
         },
-      },
-    }));
+      }));
+  }
 
-  // Blog posts from database (dynamic content)
+  // Blog posts from database (scoped by site_id)
   const staticSlugs = new Set(allStaticPosts.map((p) => p.slug));
   let dbBlogPages: MetadataRoute.Sitemap = [];
   try {
     const dbPosts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null },
+      where: {
+        published: true,
+        deletedAt: null,
+        site_id: siteId,
+      },
       select: { slug: true, updated_at: true },
     });
     dbBlogPages = dbPosts
@@ -165,6 +143,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Database not available - use static content only
   }
 
+  // Events from database (scoped by site)
+  let eventPages: MetadataRoute.Sitemap = [];
+  try {
+    const events = await prisma.event.findMany({
+      where: {
+        published: true,
+        OR: [{ siteId }, { siteId: null }],
+      },
+      select: { id: true, updated_at: true },
+    });
+    eventPages = events.map((event) => ({
+      url: `${baseUrl}/events/${event.id}`,
+      lastModified: event.updated_at?.toISOString() || currentDate,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    }));
+  } catch {
+    // Database not available
+  }
+
   // Category pages
   const categoryPages: MetadataRoute.Sitemap = categories.map((category) => ({
     url: `${baseUrl}/blog/category/${category.slug}`,
@@ -179,5 +177,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   }));
 
-  return [...staticPages, ...staticBlogPages, ...dbBlogPages, ...categoryPages];
+  return [
+    ...staticPages,
+    ...staticBlogPages,
+    ...dbBlogPages,
+    ...eventPages,
+    ...categoryPages,
+  ];
 }

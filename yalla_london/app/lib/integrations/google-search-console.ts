@@ -182,6 +182,12 @@ export class GoogleSearchConsole {
         }),
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`GSC Search Analytics error: HTTP ${response.status} - ${errorText}`);
+        return null;
+      }
+
       return await response.json();
     } catch (error) {
       console.error('Failed to get search analytics:', error);
@@ -209,6 +215,12 @@ export class GoogleSearchConsole {
           siteUrl: this.config.siteUrl,
         }),
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`GSC URL Inspection error: HTTP ${response.status} - ${errorText}`);
+        return null;
+      }
 
       const data = await response.json();
 
@@ -256,6 +268,12 @@ export class GoogleSearchConsole {
           },
         }
       );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`GSC Sitemaps error: HTTP ${response.status} - ${errorText}`);
+        return [];
+      }
 
       const data = await response.json();
 
@@ -441,6 +459,12 @@ export class GoogleSearchConsole {
         }
       );
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`GSC Top Pages error: HTTP ${response.status} - ${errorText}`);
+        return [];
+      }
+
       const data = await response.json();
       return data.rows || [];
     } catch (error) {
@@ -481,6 +505,12 @@ export class GoogleSearchConsole {
         }
       );
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`GSC Top Keywords error: HTTP ${response.status} - ${errorText}`);
+        return [];
+      }
+
       const data = await response.json();
       return data.rows || [];
     } catch (error) {
@@ -520,6 +550,12 @@ export class GoogleSearchConsole {
         }
       );
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`GSC Country Performance error: HTTP ${response.status} - ${errorText}`);
+        return [];
+      }
+
       const data = await response.json();
       return data.rows || [];
     } catch (error) {
@@ -557,6 +593,12 @@ export class GoogleSearchConsole {
           }),
         }
       );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`GSC Device Performance error: HTTP ${response.status} - ${errorText}`);
+        return [];
+      }
 
       const data = await response.json();
       return data.rows || [];

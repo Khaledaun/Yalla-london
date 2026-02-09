@@ -11,6 +11,12 @@
  * - "seasonal"   → Event/holiday/seasonal guides (Ramadan, Eid, etc.)
  * - "listicle"   → "Top N" / "Best N" collection posts
  * - "guide"      → Comprehensive how-to / destination guides
+ *
+ * Diversity engine ensures balanced content mix:
+ * - No single type exceeds 40% of total content
+ * - Seasonal content published ahead of events
+ * - Evergreen content forms the base (minimum 50%)
+ * - Weekly volume targets maintained
  */
 
 import type { SearchPerformanceAnalysis, KeywordIssue } from "./seo-intelligence";
@@ -254,6 +260,208 @@ export async function saveContentProposals(
   }
 
   return { created, skipped };
+}
+
+// ============================================
+// CONTENT DIVERSITY ENGINE
+// ============================================
+
+/** Target distribution for content types (percentages) */
+const CONTENT_TYPE_TARGETS: Record<ContentProposal["contentType"], { min: number; max: number }> = {
+  guide: { min: 20, max: 40 },
+  answer: { min: 10, max: 30 },
+  listicle: { min: 10, max: 25 },
+  comparison: { min: 5, max: 20 },
+  "deep-dive": { min: 5, max: 20 },
+  seasonal: { min: 5, max: 25 },
+};
+
+/** Upcoming events/seasons with lead-time in days */
+const SEASONAL_CALENDAR: { name: string; keywords: string[]; month: number; leadDays: number }[] = [
+  { name: "Ramadan", keywords: ["ramadan", "iftar", "suhoor"], month: 2, leadDays: 45 }, // ~March
+  { name: "Eid al-Fitr", keywords: ["eid al-fitr", "eid fitr", "eid celebration"], month: 3, leadDays: 30 },
+  { name: "Summer Holidays", keywords: ["summer", "july", "august", "family holiday"], month: 6, leadDays: 60 },
+  { name: "Eid al-Adha", keywords: ["eid al-adha", "eid adha", "hajj"], month: 6, leadDays: 30 },
+  { name: "National Day UAE", keywords: ["uae national day", "december dubai"], month: 11, leadDays: 30 },
+  { name: "Christmas & New Year", keywords: ["christmas", "new year", "festive", "nye"], month: 11, leadDays: 45 },
+  { name: "Spring Break", keywords: ["spring", "easter", "april"], month: 3, leadDays: 30 },
+  { name: "Half Term UK", keywords: ["half term", "school holiday", "february"], month: 1, leadDays: 30 },
+  { name: "Winter Getaway", keywords: ["winter", "ski", "cold weather", "january"], month: 10, leadDays: 45 },
+];
+
+export interface ContentDiversityReport {
+  currentMix: Record<string, number>;
+  totalPublished: number;
+  underrepresented: string[];
+  overrepresented: string[];
+  upcomingSeasons: string[];
+  weeklyTarget: number;
+  weeklyActual: number;
+  adjustments: string[];
+}
+
+/**
+ * Analyze current content mix and return diversity metrics.
+ * Used by the SEO agent to understand what types of content to prioritize.
+ */
+export async function analyzeContentDiversity(
+  prisma: any
+): Promise<ContentDiversityReport> {
+  const adjustments: string[] = [];
+
+  // Count published posts by content type (stored in authority_links_json.contentType)
+  const allPosts = await prisma.blogPost.findMany({
+    where: { published: true, deletedAt: null },
+    select: {
+      authority_links_json: true,
+      tags: true,
+      created_at: true,
+      page_type: true,
+    },
+  });
+
+  const totalPublished = allPosts.length;
+  const typeCounts: Record<string, number> = {
+    guide: 0, answer: 0, listicle: 0, comparison: 0, "deep-dive": 0, seasonal: 0,
+  };
+
+  for (const post of allPosts) {
+    const ct = (post.authority_links_json as any)?.contentType;
+    if (ct && ct in typeCounts) {
+      typeCounts[ct]++;
+    } else {
+      // Infer type from page_type or tags
+      const pageType = post.page_type || "";
+      const tags = (post.tags || []) as string[];
+      if (tags.some((t: string) => t.includes("faq") || t.includes("answer"))) {
+        typeCounts.answer++;
+      } else if (pageType === "list" || tags.some((t: string) => t.includes("top") || t.includes("best"))) {
+        typeCounts.listicle++;
+      } else if (tags.some((t: string) => t.includes("comparison") || t.includes("vs"))) {
+        typeCounts.comparison++;
+      } else if (tags.some((t: string) => t.includes("ramadan") || t.includes("eid") || t.includes("seasonal"))) {
+        typeCounts.seasonal++;
+      } else {
+        typeCounts.guide++; // Default bucket
+      }
+    }
+  }
+
+  // Calculate percentages and identify imbalances
+  const currentMix: Record<string, number> = {};
+  const underrepresented: string[] = [];
+  const overrepresented: string[] = [];
+
+  for (const [type, count] of Object.entries(typeCounts)) {
+    const pct = totalPublished > 0 ? (count / totalPublished) * 100 : 0;
+    currentMix[type] = Math.round(pct * 10) / 10;
+
+    const targets = CONTENT_TYPE_TARGETS[type as ContentProposal["contentType"]];
+    if (targets) {
+      if (pct < targets.min && totalPublished >= 10) {
+        underrepresented.push(type);
+        adjustments.push(`${type}: ${pct.toFixed(0)}% (target min ${targets.min}%) — needs more`);
+      }
+      if (pct > targets.max && totalPublished >= 10) {
+        overrepresented.push(type);
+        adjustments.push(`${type}: ${pct.toFixed(0)}% (target max ${targets.max}%) — slow down`);
+      }
+    }
+  }
+
+  // Check upcoming seasonal needs
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0-indexed
+  const upcomingSeasons: string[] = [];
+
+  for (const event of SEASONAL_CALENDAR) {
+    const daysUntil = ((event.month - currentMonth + 12) % 12) * 30;
+    if (daysUntil <= event.leadDays && daysUntil > 0) {
+      upcomingSeasons.push(event.name);
+      adjustments.push(`Seasonal: ${event.name} is ${daysUntil} days away — create content now`);
+    }
+  }
+
+  // Weekly volume check (last 7 days)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const weeklyActual = allPosts.filter(
+    (p: any) => new Date(p.created_at) >= sevenDaysAgo
+  ).length;
+  const weeklyTarget = 14; // 2 per day * 7 days
+
+  if (weeklyActual < weeklyTarget * 0.5) {
+    adjustments.push(`Volume: Only ${weeklyActual}/${weeklyTarget} articles this week — content pipeline may be stalled`);
+  }
+
+  return {
+    currentMix,
+    totalPublished,
+    underrepresented,
+    overrepresented,
+    upcomingSeasons,
+    weeklyTarget,
+    weeklyActual,
+    adjustments,
+  };
+}
+
+/**
+ * Re-prioritize proposals based on diversity needs.
+ * Boosts underrepresented types and dampens overrepresented ones.
+ * Also injects seasonal proposals if upcoming events have no coverage.
+ */
+export function applyDiversityQuotas(
+  proposals: ContentProposal[],
+  diversity: ContentDiversityReport
+): ContentProposal[] {
+  // Boost underrepresented types
+  for (const proposal of proposals) {
+    if (diversity.underrepresented.includes(proposal.contentType)) {
+      proposal.confidenceScore = Math.min(0.99, proposal.confidenceScore + 0.15);
+      if (proposal.priority === "low") proposal.priority = "medium";
+      if (proposal.priority === "medium") proposal.priority = "high";
+    }
+    // Dampen overrepresented types
+    if (diversity.overrepresented.includes(proposal.contentType)) {
+      proposal.confidenceScore = Math.max(0.1, proposal.confidenceScore - 0.15);
+      if (proposal.priority === "critical") proposal.priority = "high";
+      if (proposal.priority === "high") proposal.priority = "medium";
+    }
+  }
+
+  // Inject seasonal proposals for upcoming events without coverage
+  for (const season of diversity.upcomingSeasons) {
+    const event = SEASONAL_CALENDAR.find((e) => e.name === season);
+    if (!event) continue;
+
+    // Check if any proposal already targets this season
+    const hasCoverage = proposals.some((p) =>
+      event.keywords.some((kw) => p.primaryKeyword.toLowerCase().includes(kw))
+    );
+
+    if (!hasCoverage) {
+      proposals.push({
+        title: generateTitle(event.keywords[0], "seasonal"),
+        primaryKeyword: event.keywords[0],
+        longtails: event.keywords.slice(1),
+        questions: [
+          `When is ${event.name} 2026?`,
+          `Best ${event.name} activities for Arab travelers?`,
+          `How to celebrate ${event.name} abroad?`,
+        ],
+        contentType: "seasonal",
+        pageType: "guide",
+        priority: "high",
+        confidenceScore: 0.85,
+        source: "seo-agent-strategy",
+        rationale: `Seasonal: ${event.name} approaching — no existing content coverage`,
+        locale: "en",
+      });
+    }
+  }
+
+  // Sort by adjusted confidence score (highest first)
+  return proposals.sort((a, b) => b.confidenceScore - a.confidenceScore);
 }
 
 // ============================================

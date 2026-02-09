@@ -555,46 +555,83 @@ export async function autoOptimizeLowCTRMeta(
 export async function submitUnindexedPages(
   prisma: any,
   fixes: string[]
-): Promise<{ submitted: number; urls: string[] }> {
+): Promise<{ indexNow: number; gscApi: number; urls: string[] }> {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
   const indexNowKey = process.env.INDEXNOW_KEY;
-
-  if (!indexNowKey) return { submitted: 0, urls: [] };
+  let indexNowCount = 0;
+  let gscApiCount = 0;
 
   try {
     // Get all published posts
     const posts = await prisma.blogPost.findMany({
       where: { published: true, deletedAt: null },
-      select: { slug: true },
+      select: { slug: true, created_at: true },
+      orderBy: { created_at: "desc" },
     });
 
     const allUrls = posts.map((p: any) => `${siteUrl}/blog/${p.slug}`);
 
-    // Submit all URLs (IndexNow is idempotent — already-indexed URLs are ignored)
-    if (allUrls.length > 0) {
-      const response = await fetch("https://api.indexnow.org/indexnow", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          host: new URL(siteUrl).hostname,
-          key: indexNowKey,
-          urlList: allUrls.slice(0, 100), // IndexNow limit
-        }),
-      });
+    // Also include static pages
+    const staticPages = ["", "/blog", "/recommendations", "/events", "/about", "/contact"];
+    const allSubmitUrls = [
+      ...staticPages.map((p) => `${siteUrl}${p}`),
+      ...allUrls,
+    ];
 
-      if (response.ok || response.status === 202) {
-        fixes.push(
-          `Submitted ${Math.min(allUrls.length, 100)} URLs to IndexNow for indexing`
-        );
-        return { submitted: Math.min(allUrls.length, 100), urls: allUrls };
+    // 1. IndexNow (Bing, Yandex — idempotent, submit all)
+    if (indexNowKey && allSubmitUrls.length > 0) {
+      try {
+        const response = await fetch("https://api.indexnow.org/indexnow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            host: new URL(siteUrl).hostname,
+            key: indexNowKey,
+            urlList: allSubmitUrls.slice(0, 100),
+          }),
+        });
+
+        if (response.ok || response.status === 202) {
+          indexNowCount = Math.min(allSubmitUrls.length, 100);
+        }
+      } catch (e) {
+        console.warn("IndexNow submission failed:", e);
       }
     }
 
-    return { submitted: 0, urls: [] };
+    // 2. Google Indexing API (for recent posts — last 7 days, max 10 per run)
+    try {
+      const { GoogleSearchConsoleAPI } = await import("./indexing-service");
+      const gscIndexer = new GoogleSearchConsoleAPI();
+
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const recentUrls = posts
+        .filter((p: any) => new Date(p.created_at) >= sevenDaysAgo)
+        .map((p: any) => `${siteUrl}/blog/${p.slug}`)
+        .slice(0, 10); // Google Indexing API has daily quota (~200/day)
+
+      if (recentUrls.length > 0) {
+        const result = await gscIndexer.submitUrlsForIndexing(recentUrls);
+        gscApiCount = result.submitted;
+        if (result.errors.length > 0) {
+          console.warn("GSC Indexing API errors:", result.errors.slice(0, 3));
+        }
+      }
+    } catch (gscError) {
+      console.warn("GSC Indexing API not available:", gscError);
+    }
+
+    if (indexNowCount > 0 || gscApiCount > 0) {
+      fixes.push(
+        `Indexing: ${indexNowCount} URLs via IndexNow + ${gscApiCount} via Google Indexing API`
+      );
+    }
+
+    return { indexNow: indexNowCount, gscApi: gscApiCount, urls: allSubmitUrls };
   } catch (error) {
-    console.error("IndexNow submission failed:", error);
-    return { submitted: 0, urls: [] };
+    console.error("Indexing submission failed:", error);
+    return { indexNow: 0, gscApi: 0, urls: [] };
   }
 }
 

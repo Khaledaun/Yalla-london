@@ -138,28 +138,105 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
     // 12. SUBMIT ALL PAGES FOR INDEXING (idempotent)
     report.indexingSubmission = await submitUnindexedPages(prisma, fixes);
 
-    // 13. GENERATE STRATEGIC CONTENT PROPOSALS FROM GSC DATA
-    if (searchData) {
-      try {
-        const {
-          generateContentProposals,
-          saveContentProposals,
-        } = await import("@/lib/seo/content-strategy");
+    // 12b. AUTO-INJECT STRUCTURED DATA FOR POSTS MISSING SCHEMAS
+    try {
+      const { enhancedSchemaInjector } = await import(
+        "@/lib/seo/enhanced-schema-injector"
+      );
 
-        // Get existing blog slugs to avoid duplicating content
+      // Find published posts without structured data
+      const postsWithoutSchema = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          deletedAt: null,
+          OR: [
+            { authority_links_json: { equals: null } },
+            { authority_links_json: { equals: {} } },
+          ],
+        },
+        select: {
+          id: true,
+          slug: true,
+          title_en: true,
+          content_en: true,
+          tags: true,
+        },
+        take: 5, // Process 5 per run
+      });
+
+      let schemasInjected = 0;
+      const baseSiteUrl = siteUrl || process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      for (const post of postsWithoutSchema) {
+        if (!post.content_en || post.content_en.length < 100) continue;
+        try {
+          const postUrl = `${baseSiteUrl}/blog/${post.slug}`;
+          await enhancedSchemaInjector.injectSchemas(
+            post.content_en,
+            post.title_en || post.slug,
+            postUrl,
+            post.id,
+            { tags: post.tags }
+          );
+          schemasInjected++;
+        } catch {}
+      }
+
+      if (schemasInjected > 0) {
+        fixes.push(`Auto-injected structured data for ${schemasInjected} posts`);
+      }
+      report.schemaInjection = {
+        processed: postsWithoutSchema.length,
+        injected: schemasInjected,
+      };
+    } catch (schemaError) {
+      console.warn("Schema auto-injection failed (non-fatal):", schemaError);
+    }
+
+    // 13. ANALYZE CONTENT DIVERSITY + GENERATE STRATEGIC PROPOSALS
+    try {
+      const {
+        generateContentProposals,
+        saveContentProposals,
+        analyzeContentDiversity,
+        applyDiversityQuotas,
+      } = await import("@/lib/seo/content-strategy");
+
+      // Analyze current content mix for diversity balance
+      const diversity = await analyzeContentDiversity(prisma);
+      report.contentDiversity = {
+        mix: diversity.currentMix,
+        totalPublished: diversity.totalPublished,
+        underrepresented: diversity.underrepresented,
+        overrepresented: diversity.overrepresented,
+        upcomingSeasons: diversity.upcomingSeasons,
+        weeklyVolume: `${diversity.weeklyActual}/${diversity.weeklyTarget}`,
+        adjustments: diversity.adjustments,
+      };
+
+      if (diversity.adjustments.length > 0) {
+        issues.push(
+          `Content diversity: ${diversity.adjustments.length} adjustments needed (${diversity.underrepresented.join(", ")} underrepresented)`
+        );
+      }
+
+      // Generate proposals from GSC data (if available) then apply diversity quotas
+      if (searchData) {
         const existingPosts = await prisma.blogPost.findMany({
           where: { published: true, deletedAt: null },
           select: { slug: true },
         });
         const existingSlugs = existingPosts.map((p: any) => p.slug);
 
-        const proposals = generateContentProposals(searchData, existingSlugs);
+        let proposals = generateContentProposals(searchData, existingSlugs);
+        proposals = applyDiversityQuotas(proposals, diversity);
+
         const saved = await saveContentProposals(prisma, proposals, fixes);
 
         report.contentStrategy = {
           proposalsGenerated: proposals.length,
           proposalsCreated: saved.created,
           proposalsSkipped: saved.skipped,
+          diversityAdjusted: true,
           types: proposals.reduce(
             (acc: Record<string, number>, p) => {
               acc[p.contentType] = (acc[p.contentType] || 0) + 1;
@@ -168,10 +245,10 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
             {} as Record<string, number>
           ),
         };
-      } catch (strategyError) {
-        console.warn("Content strategy error (non-fatal):", strategyError);
-        report.contentStrategy = { status: "error" };
       }
+    } catch (strategyError) {
+      console.warn("Content strategy error (non-fatal):", strategyError);
+      report.contentStrategy = { status: "error" };
     }
   } catch (intelligenceError) {
     console.warn(
@@ -214,6 +291,8 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
           contentStrengthening: report.contentStrengthening || {},
           indexingSubmission: report.indexingSubmission || {},
           contentStrategy: report.contentStrategy || {},
+          contentDiversity: report.contentDiversity || {},
+          schemaInjection: report.schemaInjection || {},
           recommendations: generateRecommendations(issues),
           agent: "seo-autonomous-v2",
           runType: "scheduled",

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { searchConsole } from "@/lib/integrations/google-search-console";
 import { fetchGA4Metrics, isGA4Configured } from "@/lib/seo/ga4-data-api";
 import { googlePageSpeed } from "@/lib/integrations/google-pagespeed";
+import { cloudflare } from "@/lib/integrations/cloudflare";
 
 /**
  * Full-Site SEO Audit API
@@ -34,9 +35,13 @@ export async function GET(request: NextRequest) {
     const gscConfigured = searchConsole.isConfigured();
     const ga4Configured = isGA4Configured();
 
+    const cfConfigured = cloudflare.isConfigured();
+
     const configStatus = {
       gsc: gscConfigured,
+      gscSiteUrl: searchConsole.getStatus().siteUrl,
       ga4: ga4Configured,
+      cloudflare: cfConfigured,
       pageSpeed: true, // Always available (no key required)
     };
 
@@ -69,6 +74,7 @@ export async function GET(request: NextRequest) {
       devicePerformance,
       sitemaps,
       ga4Data,
+      cfAudit,
     ] = await Promise.all([
       gscConfigured
         ? searchConsole.getSearchAnalytics(startDate, endDate, ["query"])
@@ -93,6 +99,9 @@ export async function GET(request: NextRequest) {
         : [],
       ga4Configured
         ? fetchGA4Metrics(`${days}daysAgo`, "today")
+        : null,
+      cfConfigured
+        ? cloudflare.runAudit()
         : null,
     ]);
 
@@ -369,14 +378,32 @@ export async function GET(request: NextRequest) {
 
       ga4: ga4Analysis,
       pageSpeed: pageSpeedData,
+      cloudflare: cfAudit ? {
+        zone: cfAudit.zone,
+        analytics: cfAudit.analytics,
+        cache: cfAudit.cache,
+        security: cfAudit.security,
+        dns: cfAudit.dns,
+        pageRules: cfAudit.pageRules,
+        botManagement: cfAudit.botManagement,
+      } : null,
 
-      // Actionable summary
+      // Actionable summary (merge Cloudflare issues)
       summary: {
-        criticalIssues,
-        warnings,
-        opportunities,
+        criticalIssues: [
+          ...criticalIssues,
+          ...(cfAudit?.issues || []),
+        ],
+        warnings: [
+          ...warnings,
+        ],
+        opportunities: [
+          ...opportunities,
+          ...(cfAudit?.recommendations || []),
+        ],
         score: Math.max(0, 100
           - (criticalIssues.length * 20)
+          - ((cfAudit?.issues?.length || 0) * 15)
           - (warnings.length * 5)
           + (opportunities.length * 2)
         ),

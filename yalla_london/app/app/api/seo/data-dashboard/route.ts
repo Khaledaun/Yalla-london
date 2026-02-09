@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { searchConsole } from "@/lib/integrations/google-search-console";
 import { googleTrends } from "@/lib/integrations/google-trends";
 import { googlePageSpeed } from "@/lib/integrations/google-pagespeed";
+import { fetchGA4Metrics, isGA4Configured, type GA4Report } from "@/lib/seo/ga4-data-api";
 
 /**
  * SEO Data Dashboard API
@@ -142,6 +143,7 @@ import { googlePageSpeed } from "@/lib/integrations/google-pagespeed";
 interface DashboardData {
   timestamp: string;
   searchConsole: SearchConsoleData | null;
+  analytics: GA4Report | null;
   trends: TrendsData | null;
   pageSpeed: PageSpeedData | null;
   recommendations: string[];
@@ -218,6 +220,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const includeGSC = searchParams.get("gsc") !== "false";
+    const includeGA4 = searchParams.get("ga4") !== "false";
     const includeTrends = searchParams.get("trends") !== "false";
     const includePageSpeed = searchParams.get("pagespeed") !== "false";
     const testUrl =
@@ -228,6 +231,7 @@ export async function GET(request: NextRequest) {
     const dashboard: DashboardData = {
       timestamp: new Date().toISOString(),
       searchConsole: null,
+      analytics: null,
       trends: null,
       pageSpeed: null,
       recommendations: [],
@@ -239,12 +243,17 @@ export async function GET(request: NextRequest) {
       dashboard.searchConsole = await getSearchConsoleData();
     }
 
-    // 2. Google Trends Data
+    // 2. Google Analytics 4 Data
+    if (includeGA4) {
+      dashboard.analytics = await fetchGA4Metrics();
+    }
+
+    // 3. Google Trends Data
     if (includeTrends) {
       dashboard.trends = await getTrendsData();
     }
 
-    // 3. PageSpeed Data
+    // 4. PageSpeed Data
     if (includePageSpeed) {
       dashboard.pageSpeed = await getPageSpeedData(testUrl);
     }
@@ -602,6 +611,15 @@ function generateAlerts(dashboard: DashboardData): Alert[] {
       title: "Search Console Not Configured",
       message: "Connect Google Search Console to track search performance",
       action: "Configure GSC credentials in environment variables",
+    });
+  }
+
+  if (!dashboard.analytics && isGA4Configured() === false) {
+    alerts.push({
+      type: "warning",
+      title: "Google Analytics 4 Not Configured",
+      message: "Connect GA4 to track user behavior, traffic sources, and engagement",
+      action: "Add GA4_PROPERTY_ID and service account credentials to environment variables",
     });
   }
 

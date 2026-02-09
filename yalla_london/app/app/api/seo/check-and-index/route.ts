@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
  * GET /api/seo/check-and-index
  *
  * Comprehensive indexing check & submission endpoint.
- * 1. Fetches ALL published pages from the database
+ * 1. Discovers ALL pages (from database OR sitemap fallback)
  * 2. Checks URL Inspection status via GSC API (which pages are indexed)
  * 3. Submits ALL unindexed pages via IndexNow + Google Indexing API
  * 4. Returns detailed report
@@ -25,22 +25,13 @@ export async function GET(request: NextRequest) {
     200,
   );
 
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  const gscSiteUrl =
+    process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
+
   try {
-    const { prisma } = await import("@/lib/db");
-
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
-    const gscSiteUrl =
-      process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
-
-    // 1. Get all published blog posts from the database
-    const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null },
-      select: { id: true, slug: true, title_en: true, created_at: true },
-      orderBy: { created_at: "desc" },
-    });
-
-    // Build full URL list (static pages + blog posts)
+    // Static pages every site has
     const staticPages = [
       { slug: "", label: "Homepage" },
       { slug: "blog", label: "Blog Index" },
@@ -50,19 +41,85 @@ export async function GET(request: NextRequest) {
       { slug: "contact", label: "Contact" },
     ];
 
-    const allUrls = [
-      ...staticPages.map((p) => ({
-        url: `${siteUrl}/${p.slug}`,
-        label: p.label,
-        type: "static" as const,
-        created: null as Date | null,
-      })),
-      ...posts.map((p: any) => ({
+    // 1. Discover all pages — try database first, fallback to sitemap
+    let blogUrls: { url: string; label: string; type: string; created: Date | null }[] = [];
+    let source = "unknown";
+
+    // Strategy A: Database
+    try {
+      const { prisma } = await import("@/lib/db");
+      const posts = await prisma.blogPost.findMany({
+        where: { published: true, deletedAt: null },
+        select: { id: true, slug: true, title_en: true, created_at: true },
+        orderBy: { created_at: "desc" },
+      });
+
+      blogUrls = posts.map((p: any) => ({
         url: `${siteUrl}/blog/${p.slug}`,
         label: p.title_en || p.slug,
-        type: "blog" as const,
+        type: "blog",
         created: p.created_at,
+      }));
+      source = "database";
+    } catch (dbError) {
+      console.warn("Database unavailable, falling back to sitemap:", dbError);
+
+      // Strategy B: Parse sitemap.xml
+      try {
+        const sitemapResponse = await fetch(`${siteUrl}/sitemap.xml`, {
+          headers: { "User-Agent": "YallaLondon-SEO-Agent/1.0" },
+        });
+
+        if (sitemapResponse.ok) {
+          const sitemapXml = await sitemapResponse.text();
+          // Extract URLs from <loc> tags
+          const locMatches = sitemapXml.match(/<loc>([^<]+)<\/loc>/g) || [];
+          blogUrls = locMatches
+            .map((m) => m.replace(/<\/?loc>/g, ""))
+            .filter((url) => url.includes("/blog/"))
+            .map((url) => ({
+              url,
+              label: url.split("/blog/")[1]?.replace(/-/g, " ") || url,
+              type: "blog",
+              created: null,
+            }));
+          source = "sitemap";
+        }
+      } catch (sitemapError) {
+        console.warn("Sitemap also unavailable:", sitemapError);
+      }
+
+      // Strategy C: Use static data file as last resort
+      if (blogUrls.length === 0) {
+        try {
+          const { getAllIndexableUrls } = await import(
+            "@/lib/seo/indexing-service"
+          );
+          const staticUrls = getAllIndexableUrls();
+          blogUrls = staticUrls
+            .filter((u) => u.includes("/blog/"))
+            .map((url) => ({
+              url,
+              label: url.split("/blog/")[1]?.replace(/-/g, " ") || url,
+              type: "blog",
+              created: null,
+            }));
+          source = "static-data";
+        } catch {
+          source = "none";
+        }
+      }
+    }
+
+    // Combine static + blog URLs
+    const allUrls = [
+      ...staticPages.map((p) => ({
+        url: p.slug ? `${siteUrl}/${p.slug}` : siteUrl,
+        label: p.label,
+        type: "static",
+        created: null as Date | null,
       })),
+      ...blogUrls,
     ];
 
     // 2. Check URL Inspection status via GSC API
@@ -71,7 +128,6 @@ export async function GET(request: NextRequest) {
     const inspectionErrors: string[] = [];
     let inspected = 0;
 
-    // Try URL Inspection API
     let gscAvailable = false;
     try {
       const { GoogleSearchConsoleAPI } = await import(
@@ -79,7 +135,6 @@ export async function GET(request: NextRequest) {
       );
       const gsc = new GoogleSearchConsoleAPI(gscSiteUrl);
 
-      // Check a subset of URLs (URL Inspection API has quota limits ~2000/day)
       const urlsToInspect = allUrls.slice(0, inspectLimit);
 
       for (const item of urlsToInspect) {
@@ -92,7 +147,8 @@ export async function GET(request: NextRequest) {
             const isIndexed =
               status.coverageState === "Submitted and indexed" ||
               status.indexingState === "INDEXING_ALLOWED" ||
-              status.coverageState?.includes("indexed");
+              (status.coverageState &&
+                status.coverageState.toLowerCase().includes("indexed"));
 
             if (isIndexed) {
               indexed.push(item.url);
@@ -107,14 +163,13 @@ export async function GET(request: NextRequest) {
               });
             }
           } else {
-            // null response means API not available
-            if (!gscAvailable) break; // Don't keep trying if first one fails
+            if (!gscAvailable) break;
           }
         } catch (e) {
           inspectionErrors.push(`${item.url}: ${(e as Error).message}`);
         }
 
-        // Rate limit: 1 request per 200ms for URL Inspection API
+        // Rate limit: URL Inspection API
         await new Promise((r) => setTimeout(r, 200));
       }
     } catch (gscError) {
@@ -134,13 +189,13 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    // Build submission list: either just unindexed (if we have inspection data) or ALL urls
+    // Build submission list: either just unindexed or ALL urls
     const urlsToSubmit = gscAvailable
       ? notIndexed.map((p) => p.url)
       : allUrls.map((p) => p.url);
 
     if (doSubmit && urlsToSubmit.length > 0) {
-      // 3a. IndexNow (Bing/Yandex) — submit all, it's idempotent
+      // 3a. IndexNow (Bing/Yandex)
       const indexNowKey = process.env.INDEXNOW_KEY;
       if (indexNowKey) {
         try {
@@ -175,15 +230,14 @@ export async function GET(request: NextRequest) {
         submission.indexNow = { submitted: 0, status: "INDEXNOW_KEY not set" };
       }
 
-      // 3b. Google Indexing API — submit up to 50 URLs per run
+      // 3b. Google Indexing API
       try {
         const { GoogleSearchConsoleAPI } = await import(
           "@/lib/seo/indexing-service"
         );
         const gscIndexer = new GoogleSearchConsoleAPI(gscSiteUrl);
 
-        const batchSize = 50;
-        const urlBatch = urlsToSubmit.slice(0, batchSize);
+        const urlBatch = urlsToSubmit.slice(0, 50);
         const result = await gscIndexer.submitUrlsForIndexing(urlBatch);
 
         submission.googleApi = {
@@ -219,9 +273,10 @@ export async function GET(request: NextRequest) {
         url: siteUrl,
         gscProperty: gscSiteUrl,
       },
+      dataSource: source,
       summary: {
         totalPages: allUrls.length,
-        blogPosts: posts.length,
+        blogPosts: blogUrls.length,
         staticPages: staticPages.length,
         inspected,
         indexed: indexed.length,
@@ -249,7 +304,6 @@ export async function GET(request: NextRequest) {
 
 // Also support POST for manual triggers
 export async function POST(request: NextRequest) {
-  // Force submit mode
   const url = new URL(request.url);
   url.searchParams.set("submit", "true");
   return GET(new NextRequest(url));

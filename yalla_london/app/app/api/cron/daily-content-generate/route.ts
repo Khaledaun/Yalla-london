@@ -253,7 +253,7 @@ async function pickTopic(language: string, site: SiteConfig, prisma: any) {
         longtails: topic.longtails || [],
         questions: topic.questions || [],
         pageType: topic.suggested_page_type || "guide",
-        authorityLinks: topic.authority_links_json || [],
+        authorityLinks: topic.authority_links_json || {},
       };
     }
   } catch {}
@@ -281,9 +281,13 @@ async function generateWithAI(
     const systemPrompt =
       language === "en" ? site.systemPromptEN : site.systemPromptAR;
 
+    // Determine content type from topic metadata
+    const contentType = topic.authorityLinks?.contentType || "guide";
+    const contentTypePrompt = getContentTypePrompt(contentType, topic, site);
+
     const prompt =
       language === "en"
-        ? `Write a comprehensive, SEO-optimized blog article about "${topic.keyword}" for ${site.name}.
+        ? `${contentTypePrompt}
 
 Requirements:
 - 1500-2000 words
@@ -307,7 +311,7 @@ Return JSON with these exact fields:
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
   "keywords": ["keyword1", "keyword2", "keyword3"],
   "questions": ["Q1?", "Q2?", "Q3?"],
-  "pageType": "guide",
+  "pageType": "${topic.pageType || "guide"}",
   "seoScore": 90
 }`
         : `اكتب مقالة مدونة شاملة ومحسّنة لمحركات البحث عن "${topic.keyword}" لمنصة ${site.name}.
@@ -448,6 +452,77 @@ async function getOrCreateSystemUser(site: SiteConfig, prisma: any) {
       role: "editor",
     },
   });
+}
+
+/**
+ * Generate content-type-specific prompts for AI.
+ * Each type produces a different article structure optimized for that format.
+ */
+function getContentTypePrompt(
+  contentType: string,
+  topic: any,
+  site: SiteConfig,
+): string {
+  const keyword = topic.keyword;
+
+  switch (contentType) {
+    case "answer":
+      return `Write a comprehensive FAQ/answer article about "${keyword}" for ${site.name}.
+
+Structure:
+- Start with a direct, clear answer to the question in the first paragraph (this is critical for featured snippets and AIO)
+- Then expand with detailed context, practical information, and related details
+- Include a "Quick Facts" section with key takeaways
+- Add related questions and answers (People Also Ask style)
+- End with practical tips for Arab travelers`;
+
+    case "comparison":
+      return `Write a detailed comparison article about "${keyword}" for ${site.name}.
+
+Structure:
+- Opening: Brief overview of what's being compared and why it matters
+- Comparison table in HTML: key criteria (price, quality, location, halal options, atmosphere)
+- Detailed analysis of each option with pros and cons
+- "Best For" sections: Best for families, Best for couples, Best for luxury, Best value
+- Final verdict with clear recommendation
+- Include real prices and practical booking tips`;
+
+    case "deep-dive":
+      return `Write an in-depth, comprehensive deep-dive article about "${keyword}" for ${site.name}.
+
+Structure:
+- This is an EXPANSION of existing content — make it the definitive resource on this topic
+- 2000+ words with detailed sections
+- Include expert insights, hidden gems, insider tips
+- Add practical details: addresses, opening hours, price ranges, booking tips
+- Include a "What Most Guides Don't Tell You" section
+- Add structured data opportunities: FAQs, How-To steps, reviews`;
+
+    case "listicle":
+      return `Write a curated listicle article about "${keyword}" for ${site.name}.
+
+Structure:
+- Numbered list format (Top 10 or similar)
+- Each item gets: name, description (2-3 sentences), why it's special, practical info (price, location, hours)
+- Include a "Quick Pick" summary at the top for scanners
+- Add a comparison mini-table
+- Highlight halal-friendly and Arabic-speaking options
+- Include booking/reservation tips`;
+
+    case "seasonal":
+      return `Write a timely seasonal guide about "${keyword}" for ${site.name}.
+
+Structure:
+- Lead with dates, times, and essential planning info
+- Include a day-by-day or week-by-week breakdown if applicable
+- Practical logistics: transport, accommodation, what to bring
+- Cultural context for Arab travelers
+- Budget breakdown (luxury vs. mid-range vs. budget)
+- Booking deadlines and advance planning tips`;
+
+    default:
+      return `Write a comprehensive, SEO-optimized blog article about "${keyword}" for ${site.name}.`;
+  }
 }
 
 async function submitForIndexing(slugs: string[], site: SiteConfig) {

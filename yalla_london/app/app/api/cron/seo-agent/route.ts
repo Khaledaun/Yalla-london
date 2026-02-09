@@ -137,6 +137,42 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
 
     // 12. SUBMIT ALL PAGES FOR INDEXING (idempotent)
     report.indexingSubmission = await submitUnindexedPages(prisma, fixes);
+
+    // 13. GENERATE STRATEGIC CONTENT PROPOSALS FROM GSC DATA
+    if (searchData) {
+      try {
+        const {
+          generateContentProposals,
+          saveContentProposals,
+        } = await import("@/lib/seo/content-strategy");
+
+        // Get existing blog slugs to avoid duplicating content
+        const existingPosts = await prisma.blogPost.findMany({
+          where: { published: true, deletedAt: null },
+          select: { slug: true },
+        });
+        const existingSlugs = existingPosts.map((p: any) => p.slug);
+
+        const proposals = generateContentProposals(searchData, existingSlugs);
+        const saved = await saveContentProposals(prisma, proposals, fixes);
+
+        report.contentStrategy = {
+          proposalsGenerated: proposals.length,
+          proposalsCreated: saved.created,
+          proposalsSkipped: saved.skipped,
+          types: proposals.reduce(
+            (acc: Record<string, number>, p) => {
+              acc[p.contentType] = (acc[p.contentType] || 0) + 1;
+              return acc;
+            },
+            {} as Record<string, number>
+          ),
+        };
+      } catch (strategyError) {
+        console.warn("Content strategy error (non-fatal):", strategyError);
+        report.contentStrategy = { status: "error" };
+      }
+    }
   } catch (intelligenceError) {
     console.warn(
       "SEO Intelligence module error (non-fatal):",
@@ -177,6 +213,7 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
           metaOptimizations: report.metaOptimizations || [],
           contentStrengthening: report.contentStrengthening || {},
           indexingSubmission: report.indexingSubmission || {},
+          contentStrategy: report.contentStrategy || {},
           recommendations: generateRecommendations(issues),
           agent: "seo-autonomous-v2",
           runType: "scheduled",

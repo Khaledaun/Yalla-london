@@ -606,56 +606,108 @@ export async function flagContentForStrengthening(
   prisma: any,
   searchData: SearchPerformanceAnalysis,
   fixes: string[]
-): Promise<{ flagged: number; posts: string[] }> {
+): Promise<{ expanded: number; flagged: number; posts: string[] }> {
+  const expandedPosts: string[] = [];
   const flaggedPosts: string[] = [];
 
-  for (const page of searchData.almostPage1) {
-    if (!page.slug) continue;
+  // Only process top 3 per run to manage AI costs
+  for (const page of searchData.almostPage1.slice(0, 3)) {
+    if (!page.slug || page.slug === "") continue;
 
     try {
-      // Check if this post exists and doesn't already have a high SEO score
       const post = await prisma.blogPost.findFirst({
         where: {
           slug: page.slug,
           published: true,
           deletedAt: null,
         },
-        select: { id: true, slug: true, seo_score: true, content_en: true },
+        select: {
+          id: true,
+          slug: true,
+          title_en: true,
+          content_en: true,
+          seo_score: true,
+          keywords_json: true,
+        },
       });
 
       if (!post) continue;
 
-      // Flag posts with short content that are almost on page 1
       const contentLength = (post.content_en || "").length;
-      if (contentLength < 2000) {
-        // Store a topic proposal to expand this content
+
+      // If content is thin (<3000 chars), try to auto-expand with AI
+      if (contentLength < 3000 && contentLength > 200) {
         try {
-          await prisma.topicProposal.create({
-            data: {
-              title: `EXPAND: "${post.slug}" — currently pos ${page.position}, needs content strengthening`,
-              description: `This page ranks at position ${page.position} with ${page.impressions} impressions. Content is ${contentLength} chars. Expanding to 2000+ chars with more depth could push it to page 1.`,
-              status: "approved",
-              priority: "high",
-              source: "seo-agent-intelligence",
-            },
-          });
+          const { generateCompletion } = await import("@/lib/ai/provider");
+
+          const result = await generateCompletion(
+            [
+              {
+                role: "user",
+                content: `You are expanding a blog article that currently ranks at position ${page.position} in Google. It needs more depth to reach page 1.
+
+Current title: "${post.title_en}"
+Current content (${contentLength} characters):
+${(post.content_en || "").slice(0, 1500)}
+
+Expand this article to 2000+ words. Add:
+- More practical details, addresses, prices, opening hours where relevant
+- A FAQ section with 3-5 common questions and answers
+- Expert tips and insider knowledge
+- A "What Most Guides Don't Tell You" paragraph
+- More subheadings (h2, h3) for better structure
+
+Keep the existing content but enhance and expand it. Return ONLY the expanded HTML content (h2, h3, p, ul/ol tags). Do NOT include the title.`,
+              },
+            ],
+            {
+              systemPrompt:
+                "You are a luxury travel content specialist writing for Arab travelers. Write detailed, helpful, SEO-optimized content. Return HTML only.",
+              maxTokens: 4096,
+              temperature: 0.6,
+            }
+          );
+
+          const expandedContent = result.content;
+
+          // Only apply if the expansion is significantly longer
+          if (expandedContent.length > contentLength * 1.3) {
+            await prisma.blogPost.update({
+              where: { id: post.id },
+              data: {
+                content_en: expandedContent,
+                seo_score: Math.min(100, (post.seo_score || 70) + 10),
+              },
+            });
+
+            expandedPosts.push(post.slug);
+            fixes.push(
+              `AUTO-EXPANDED "${post.slug}" from ${contentLength} to ${expandedContent.length} chars (pos ${page.position})`
+            );
+          }
+        } catch (aiError) {
+          console.warn(`AI expansion failed for ${post.slug}:`, aiError);
           flaggedPosts.push(post.slug);
-        } catch {
-          // Topic proposal might fail if duplicate — that's fine
         }
+      } else if (contentLength < 3000) {
+        flaggedPosts.push(post.slug);
       }
     } catch (error) {
-      console.warn(`Failed to flag ${page.slug}:`, error);
+      console.warn(`Failed to process ${page.slug}:`, error);
     }
   }
 
   if (flaggedPosts.length > 0) {
     fixes.push(
-      `Flagged ${flaggedPosts.length} almost-page-1 posts for content expansion`
+      `Flagged ${flaggedPosts.length} almost-page-1 posts for manual content expansion`
     );
   }
 
-  return { flagged: flaggedPosts.length, posts: flaggedPosts };
+  return {
+    expanded: expandedPosts.length,
+    flagged: flaggedPosts.length,
+    posts: [...expandedPosts, ...flaggedPosts],
+  };
 }
 
 // ============================================

@@ -64,7 +64,9 @@ export class GoogleSearchConsole {
     this.config = {
       clientEmail: process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || '',
       privateKey: process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY?.replace(/\\n/g, '\n') || '',
-      siteUrl: process.env.NEXT_PUBLIC_SITE_URL || '',
+      // GSC_SITE_URL takes priority — must match EXACTLY what's in GSC
+      // (e.g. "sc-domain:yalla-london.com" or "https://yalla-london.com")
+      siteUrl: process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '',
     };
   }
 

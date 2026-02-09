@@ -183,6 +183,21 @@ export function middleware(request: NextRequest) {
   response.headers.set("x-site-locale", tenant.locale);
   response.headers.set("x-hostname", hostname);
 
+  // Cloudflare CDN: Vary by site for correct multi-tenant caching
+  // Without this, Cloudflare may serve Site A's cached page to Site B
+  if (!pathname.startsWith("/api/") && !pathname.startsWith("/admin")) {
+    response.headers.set("Vary", "Accept-Encoding, x-site-id");
+  }
+
+  // Home page: short edge cache for dynamic content
+  if (pathname === "/") {
+    response.headers.set(
+      "Cache-Control",
+      "public, max-age=0, s-maxage=300, stale-while-revalidate=600",
+    );
+    response.headers.set("CDN-Cache-Control", "max-age=300");
+  }
+
   // Preserve UTM parameters in a cookie for attribution
   const utmParams = [
     "utm_source",

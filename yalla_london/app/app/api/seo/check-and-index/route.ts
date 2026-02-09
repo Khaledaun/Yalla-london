@@ -131,66 +131,70 @@ export async function GET(request: NextRequest) {
       ...blogUrls,
     ];
 
-    // 2. Check URL Inspection status via GSC API
+    // 2. Check URL Inspection status via GSC API (skip when submit_all to save time)
     const indexed: string[] = [];
     const notIndexed: { url: string; label: string; reason: string }[] = [];
     const inspectionErrors: string[] = [];
     let inspected = 0;
 
     let gscAvailable = false;
-    try {
-      const { GoogleSearchConsoleAPI } = await import(
-        "@/lib/seo/indexing-service"
-      );
-      const gsc = new GoogleSearchConsoleAPI(gscSiteUrl);
 
-      const urlsToInspect = allUrls.slice(offset, offset + inspectLimit);
+    if (!doSubmitAll) {
+      // Only inspect when not doing submit_all (inspection takes ~6.5s per URL)
+      try {
+        const { GoogleSearchConsoleAPI } = await import(
+          "@/lib/seo/indexing-service"
+        );
+        const gsc = new GoogleSearchConsoleAPI(gscSiteUrl);
 
-      for (const item of urlsToInspect) {
-        // Timeout guard: return partial results before Vercel kills the function
-        if (Date.now() - startTime > VERCEL_TIMEOUT_MS) {
-          inspectionErrors.push("Timeout approaching — returning partial results. Use ?limit=N to control batch size.");
-          break;
-        }
+        const urlsToInspect = allUrls.slice(offset, offset + inspectLimit);
 
-        try {
-          const status = await gsc.checkIndexingStatus(item.url);
-          inspected++;
-
-          if (status) {
-            gscAvailable = true;
-            const isIndexed =
-              status.coverageState === "Submitted and indexed" ||
-              status.indexingState === "INDEXING_ALLOWED" ||
-              (status.coverageState &&
-                status.coverageState.toLowerCase().includes("indexed"));
-
-            if (isIndexed) {
-              indexed.push(item.url);
-            } else {
-              notIndexed.push({
-                url: item.url,
-                label: item.label,
-                reason:
-                  status.coverageState ||
-                  status.indexingState ||
-                  "Not indexed",
-              });
-            }
-          } else {
-            if (!gscAvailable) break;
+        for (const item of urlsToInspect) {
+          // Timeout guard: return partial results before Vercel kills the function
+          if (Date.now() - startTime > VERCEL_TIMEOUT_MS) {
+            inspectionErrors.push("Timeout approaching — returning partial results. Use ?limit=N to control batch size.");
+            break;
           }
-        } catch (e) {
-          inspectionErrors.push(`${item.url}: ${(e as Error).message}`);
-        }
 
-        // Rate limit: URL Inspection API
-        await new Promise((r) => setTimeout(r, 100));
+          try {
+            const status = await gsc.checkIndexingStatus(item.url);
+            inspected++;
+
+            if (status) {
+              gscAvailable = true;
+              const isIndexed =
+                status.coverageState === "Submitted and indexed" ||
+                status.indexingState === "INDEXING_ALLOWED" ||
+                (status.coverageState &&
+                  status.coverageState.toLowerCase().includes("indexed"));
+
+              if (isIndexed) {
+                indexed.push(item.url);
+              } else {
+                notIndexed.push({
+                  url: item.url,
+                  label: item.label,
+                  reason:
+                    status.coverageState ||
+                    status.indexingState ||
+                    "Not indexed",
+                });
+              }
+            } else {
+              if (!gscAvailable) break;
+            }
+          } catch (e) {
+            inspectionErrors.push(`${item.url}: ${(e as Error).message}`);
+          }
+
+          // Rate limit: URL Inspection API
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      } catch (gscError) {
+        inspectionErrors.push(
+          `GSC API not available: ${(gscError as Error).message}`,
+        );
       }
-    } catch (gscError) {
-      inspectionErrors.push(
-        `GSC API not available: ${(gscError as Error).message}`,
-      );
     }
 
     // 3. Submit unindexed pages if requested

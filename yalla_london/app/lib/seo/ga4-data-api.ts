@@ -54,9 +54,11 @@ function getCredentials(): GA4Credentials | null {
   const propertyId = process.env.GA4_PROPERTY_ID;
   const clientEmail =
     process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
+    process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL ||
     process.env.GSC_CLIENT_EMAIL;
   const privateKey =
     process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
+    process.env.GOOGLE_ANALYTICS_PRIVATE_KEY ||
     process.env.GSC_PRIVATE_KEY;
 
   if (!propertyId || !clientEmail || !privateKey) {
@@ -285,10 +287,12 @@ export function getGA4ConfigStatus(): {
     propertyId: !!process.env.GA4_PROPERTY_ID,
     clientEmail: !!(
       process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
+      process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL ||
       process.env.GSC_CLIENT_EMAIL
     ),
     privateKey: !!(
       process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY ||
+      process.env.GOOGLE_ANALYTICS_PRIVATE_KEY ||
       process.env.GSC_PRIVATE_KEY
     ),
   };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,8 +31,29 @@ import {
   List,
   Search,
   Filter,
+  PenTool,
 } from "lucide-react";
 import { toast } from "sonner";
+import type { DesignTemplate, DesignElement } from "@/lib/pdf/brand-design-system";
+import type { CanvasActions, CanvasState } from "@/components/design-studio/design-canvas";
+
+// Dynamic imports for canvas components (SSR incompatible)
+const DesignCanvas = dynamic(
+  () => import("@/components/design-studio/design-canvas"),
+  { ssr: false },
+);
+const EditorToolbar = dynamic(
+  () => import("@/components/design-studio/editor-toolbar"),
+  { ssr: false },
+);
+const LayersPanel = dynamic(
+  () => import("@/components/design-studio/layers-panel"),
+  { ssr: false },
+);
+const PropertiesPanel = dynamic(
+  () => import("@/components/design-studio/properties-panel"),
+  { ssr: false },
+);
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -114,6 +136,18 @@ const ASSET_CATEGORIES = [
 
 export default function DesignStudioPage() {
   const [activeSite, setActiveSite] = useState("yalla-london");
+  const [activeTab, setActiveTab] = useState("templates");
+
+  // Shared editor state
+  const [editorTemplate, setEditorTemplate] = useState<DesignTemplate | null>(null);
+  const [canvasState, setCanvasState] = useState<CanvasState | null>(null);
+  const [selectedElement, setSelectedElement] = useState<DesignElement | null>(null);
+  const actionsRef = useRef<CanvasActions | null>(null);
+
+  const openInEditor = (template: DesignTemplate) => {
+    setEditorTemplate(template);
+    setActiveTab("editor");
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -121,7 +155,7 @@ export default function DesignStudioPage() {
         <div>
           <h1 className="text-2xl font-bold">Design Studio</h1>
           <p className="text-muted-foreground">
-            Brand-aware templates, AI design analysis, and media asset management
+            Brand-aware templates, AI design analysis, and visual editor
           </p>
         </div>
         <Select value={activeSite} onValueChange={setActiveSite}>
@@ -138,11 +172,15 @@ export default function DesignStudioPage() {
         </Select>
       </div>
 
-      <Tabs defaultValue="templates" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="templates">
             <Layout className="w-4 h-4 mr-2" />
             Templates
+          </TabsTrigger>
+          <TabsTrigger value="editor">
+            <PenTool className="w-4 h-4 mr-2" />
+            Editor
           </TabsTrigger>
           <TabsTrigger value="similar-design">
             <Wand2 className="w-4 h-4 mr-2" />
@@ -159,11 +197,24 @@ export default function DesignStudioPage() {
         </TabsList>
 
         <TabsContent value="templates">
-          <TemplatesTab siteId={activeSite} />
+          <TemplatesTab siteId={activeSite} onOpenInEditor={openInEditor} />
+        </TabsContent>
+
+        <TabsContent value="editor">
+          <VisualEditorTab
+            template={editorTemplate}
+            siteId={activeSite}
+            canvasState={canvasState}
+            selectedElement={selectedElement}
+            actionsRef={actionsRef}
+            onCanvasStateChange={setCanvasState}
+            onElementSelect={setSelectedElement}
+            onSetTemplate={setEditorTemplate}
+          />
         </TabsContent>
 
         <TabsContent value="similar-design">
-          <SimilarDesignTab siteId={activeSite} />
+          <SimilarDesignTab siteId={activeSite} onOpenInEditor={openInEditor} />
         </TabsContent>
 
         <TabsContent value="media-pool">
@@ -171,7 +222,7 @@ export default function DesignStudioPage() {
         </TabsContent>
 
         <TabsContent value="preview">
-          <PreviewTab />
+          <PreviewTab canvasState={canvasState} actions={actionsRef.current} />
         </TabsContent>
       </Tabs>
     </div>
@@ -180,7 +231,13 @@ export default function DesignStudioPage() {
 
 // ─── Templates Tab ───────────────────────────────────────────────
 
-function TemplatesTab({ siteId }: { siteId: string }) {
+function TemplatesTab({
+  siteId,
+  onOpenInEditor,
+}: {
+  siteId: string;
+  onOpenInEditor?: (template: DesignTemplate) => void;
+}) {
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
   const [brand, setBrand] = useState<BrandInfo | null>(null);
   const [loading, setLoading] = useState(false);
@@ -213,7 +270,7 @@ function TemplatesTab({ siteId }: { siteId: string }) {
     loadTemplates();
   }, [loadTemplates]);
 
-  const generateTemplate = async (category: string) => {
+  const generateTemplate = async (category: string, openEditor = false) => {
     setGenerating(true);
     try {
       const res = await fetch("/api/admin/design-studio", {
@@ -224,7 +281,12 @@ function TemplatesTab({ siteId }: { siteId: string }) {
       const data = await res.json();
       if (data.success) {
         setGeneratedHtml(data.html);
-        toast.success(`Generated ${category} template`);
+        if (openEditor && onOpenInEditor) {
+          onOpenInEditor(data.template);
+          toast.success(`Opened ${category} template in editor`);
+        } else {
+          toast.success(`Generated ${category} template`);
+        }
       } else {
         toast.error(data.error || "Generation failed");
       }
@@ -311,19 +373,31 @@ function TemplatesTab({ siteId }: { siteId: string }) {
                   <span>{template.pageCount} page{template.pageCount > 1 ? "s" : ""}</span>
                   <span>{template.elementCount} elements</span>
                 </div>
-                <Button
-                  className="w-full"
-                  size="sm"
-                  onClick={() => generateTemplate(template.category)}
-                  disabled={generating}
-                >
-                  {generating ? (
-                    <RefreshCw className="w-3 h-3 animate-spin mr-1" />
-                  ) : (
-                    <Palette className="w-3 h-3 mr-1" />
-                  )}
-                  Generate
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => generateTemplate(template.category)}
+                    disabled={generating}
+                  >
+                    <Eye className="w-3 h-3 mr-1" />
+                    Preview
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    size="sm"
+                    onClick={() => generateTemplate(template.category, true)}
+                    disabled={generating}
+                  >
+                    {generating ? (
+                      <RefreshCw className="w-3 h-3 animate-spin mr-1" />
+                    ) : (
+                      <PenTool className="w-3 h-3 mr-1" />
+                    )}
+                    Edit
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -353,11 +427,18 @@ function TemplatesTab({ siteId }: { siteId: string }) {
 
 // ─── Similar Design Tab ──────────────────────────────────────────
 
-function SimilarDesignTab({ siteId }: { siteId: string }) {
+function SimilarDesignTab({
+  siteId,
+  onOpenInEditor,
+}: {
+  siteId: string;
+  onOpenInEditor?: (template: DesignTemplate) => void;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<DesignAnalysis | null>(null);
   const [resultHtml, setResultHtml] = useState<string | null>(null);
+  const [resultTemplate, setResultTemplate] = useState<DesignTemplate | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [locale, setLocale] = useState<"en" | "ar">("en");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -408,6 +489,7 @@ function SimilarDesignTab({ siteId }: { siteId: string }) {
       if (data.success) {
         setAnalysis(data.analysis);
         setResultHtml(data.html);
+        setResultTemplate(data.template);
         toast.success("Design analyzed and adapted!");
       } else {
         toast.error(data.error || "Analysis failed");
@@ -573,10 +655,21 @@ function SimilarDesignTab({ siteId }: { siteId: string }) {
           {resultHtml && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Eye className="w-4 h-4" />
-                  Brand-Adapted Design
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Eye className="w-4 h-4" />
+                    Brand-Adapted Design
+                  </CardTitle>
+                  {resultTemplate && onOpenInEditor && (
+                    <Button
+                      size="sm"
+                      onClick={() => onOpenInEditor(resultTemplate)}
+                    >
+                      <PenTool className="w-3 h-3 mr-1" />
+                      Edit in Studio
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <div
@@ -969,19 +1062,228 @@ function MediaPoolTab({ siteId }: { siteId: string }) {
   );
 }
 
+// ─── Visual Editor Tab ───────────────────────────────────────────
+
+function VisualEditorTab({
+  template,
+  siteId,
+  canvasState,
+  selectedElement,
+  actionsRef,
+  onCanvasStateChange,
+  onElementSelect,
+  onSetTemplate,
+}: {
+  template: DesignTemplate | null;
+  siteId: string;
+  canvasState: CanvasState | null;
+  selectedElement: DesignElement | null;
+  actionsRef: React.MutableRefObject<CanvasActions | null>;
+  onCanvasStateChange: (state: CanvasState) => void;
+  onElementSelect: (element: DesignElement | null) => void;
+  onSetTemplate: (template: DesignTemplate) => void;
+}) {
+  const [generating, setGenerating] = useState(false);
+
+  const quickGenerate = async (category: string) => {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/admin/design-studio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId, category }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        onSetTemplate(data.template);
+        toast.success(`Loaded ${category} template`);
+      }
+    } catch {
+      toast.error("Failed to generate template");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  if (!template) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <PenTool className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+          <p className="text-lg font-medium">Visual Design Editor</p>
+          <p className="text-sm text-muted-foreground mt-2 mb-6">
+            Select a template from the Templates tab, or generate one now to start editing.
+          </p>
+          <div className="flex gap-2 flex-wrap justify-center">
+            {CATEGORIES.slice(0, 4).map((cat) => (
+              <Button
+                key={cat}
+                variant="outline"
+                size="sm"
+                onClick={() => quickGenerate(cat)}
+                disabled={generating}
+              >
+                {generating ? (
+                  <RefreshCw className="w-3 h-3 animate-spin mr-1" />
+                ) : (
+                  <Palette className="w-3 h-3 mr-1" />
+                )}
+                {cat.replace("-", " ")}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-0">
+      {/* Toolbar */}
+      <EditorToolbar
+        state={canvasState}
+        actions={actionsRef.current}
+        selectedElement={selectedElement}
+      />
+
+      {/* Main editor area: layers | canvas | properties */}
+      <div className="flex gap-0 border rounded-b-lg overflow-hidden" style={{ minHeight: 600 }}>
+        {/* Left: Layers */}
+        <div className="w-48 border-r bg-gray-50 overflow-y-auto" style={{ maxHeight: 700 }}>
+          <div className="px-2 py-2 text-xs font-medium text-muted-foreground border-b bg-white">
+            Layers
+          </div>
+          <LayersPanel state={canvasState} actions={actionsRef.current} />
+        </div>
+
+        {/* Center: Canvas */}
+        <div className="flex-1 bg-gray-100 overflow-auto flex items-start justify-center p-4">
+          <DesignCanvas
+            template={template}
+            locale="en"
+            onStateChange={onCanvasStateChange}
+            onElementSelect={onElementSelect}
+            actionsRef={actionsRef}
+          />
+        </div>
+
+        {/* Right: Properties */}
+        <div className="w-56 border-l bg-gray-50 overflow-y-auto" style={{ maxHeight: 700 }}>
+          <div className="px-2 py-2 text-xs font-medium text-muted-foreground border-b bg-white">
+            Properties
+          </div>
+          <PropertiesPanel
+            element={selectedElement}
+            actions={actionsRef.current}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Preview Tab ─────────────────────────────────────────────────
 
-function PreviewTab() {
+function PreviewTab({
+  canvasState,
+  actions,
+}: {
+  canvasState?: CanvasState | null;
+  actions?: CanvasActions | null;
+}) {
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (!actions) return;
+    setExporting(true);
+    try {
+      const dataUrl = await actions.exportToPng();
+      if (dataUrl) {
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = `design-${Date.now()}.png`;
+        a.click();
+        toast.success("Design exported as PNG");
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  if (!canvasState?.template) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Eye className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+          <p className="text-lg font-medium">Design Preview</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Open a template in the Editor tab first. The live preview and export
+            options will appear here.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card>
-      <CardContent className="py-12 text-center">
-        <Eye className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-        <p className="text-lg font-medium">Design Preview</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Generate a template from the Templates tab or analyze a design from the
-          Similar Design tab. The preview will appear here as an editable canvas.
-        </p>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">Current Design</CardTitle>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleExport} disabled={exporting}>
+                {exporting ? (
+                  <RefreshCw className="w-3 h-3 animate-spin mr-1" />
+                ) : (
+                  <Download className="w-3 h-3 mr-1" />
+                )}
+                Export PNG
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Template:</span>{" "}
+              {canvasState.template.name}
+            </div>
+            <div>
+              <span className="text-muted-foreground">Format:</span>{" "}
+              {canvasState.template.format}
+            </div>
+            <div>
+              <span className="text-muted-foreground">Pages:</span>{" "}
+              {canvasState.template.pages.length}
+            </div>
+            <div>
+              <span className="text-muted-foreground">Elements:</span>{" "}
+              {canvasState.template.pages[canvasState.activePage]?.elements.length || 0}
+            </div>
+            <div>
+              <span className="text-muted-foreground">Zoom:</span>{" "}
+              {Math.round(canvasState.zoom * 100)}%
+            </div>
+            <div>
+              <span className="text-muted-foreground">History:</span>{" "}
+              {canvasState.historyIndex + 1} / {canvasState.history.length}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Template JSON (for debugging/export) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Template JSON</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <pre className="text-xs bg-muted p-3 rounded max-h-96 overflow-auto">
+            {JSON.stringify(canvasState.template, null, 2)}
+          </pre>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

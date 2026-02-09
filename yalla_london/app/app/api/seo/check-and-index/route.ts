@@ -95,9 +95,9 @@ export async function GET(request: NextRequest) {
           const { getAllIndexableUrls } = await import(
             "@/lib/seo/indexing-service"
           );
-          const staticUrls = getAllIndexableUrls();
-          blogUrls = staticUrls
-            .filter((u) => u.includes("/blog/"))
+          const staticUrls = await getAllIndexableUrls();
+          blogUrls = (staticUrls as string[])
+            .filter((u: string) => u.includes("/blog/"))
             .map((url) => ({
               url,
               label: url.split("/blog/")[1]?.replace(/-/g, " ") || url,

@@ -628,6 +628,7 @@ model Site {
   site_themes  SiteTheme?   @relation(fields: [theme_id], references: [id])
   team_members TeamMember[]
   domains      Domain[]
+  events       Event[]
 
   @@index([is_active])
   @@index([slug])
@@ -2111,6 +2112,41 @@ enum PurchaseStatus {
   COMPLETED        // Payment successful
   FAILED           // Payment failed
   REFUNDED         // Money returned
+}
+
+// =============================================================================
+// EVENTS SYSTEM
+// =============================================================================
+
+model Event {
+  id            String    @id @default(cuid())
+  title_en      String
+  title_ar      String?
+  description_en String   @db.Text
+  description_ar String?  @db.Text
+  date          DateTime
+  time          String    // e.g. "15:00"
+  venue         String
+  category      String    // Football, Theatre, Festival, Exhibition, Experience
+  price         String    // e.g. "From £120"
+  image         String?   // URL
+  rating        Float     @default(0)
+  bookingUrl    String
+  affiliateTag  String?   // e.g. "stubhub", "ticketmaster"
+  ticketProvider String?  // Display name
+  vipAvailable  Boolean   @default(false)
+  soldOut       Boolean   @default(false)
+  featured      Boolean   @default(false)
+  published     Boolean   @default(true)
+  siteId        String?
+  site          Site?     @relation(fields: [siteId], references: [id])
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  @@index([siteId])
+  @@index([date])
+  @@index([category])
+  @@index([published])
 }
 
 // =============================================================================

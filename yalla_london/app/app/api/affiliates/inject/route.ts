@@ -15,6 +15,28 @@ import { withAdminAuth } from "@/lib/admin-middleware";
  * - Content generation pipeline to embed affiliates in new articles
  */
 
+// Validate affiliate environment variables and log warnings
+const AFFILIATE_ENV_KEYS = [
+  "BOOKING_AFFILIATE_ID",
+  "AGODA_AFFILIATE_ID",
+  "THEFORK_AFFILIATE_ID",
+  "OPENTABLE_AFFILIATE_ID",
+  "GETYOURGUIDE_AFFILIATE_ID",
+  "VIATOR_AFFILIATE_ID",
+  "STUBHUB_AFFILIATE_ID",
+  "TICKETMASTER_AFFILIATE_ID",
+  "BLACKLANE_AFFILIATE_ID",
+] as const;
+
+const missingAffiliateIds = AFFILIATE_ENV_KEYS.filter(
+  (key) => !process.env[key],
+);
+if (missingAffiliateIds.length > 0) {
+  console.warn(
+    `[Affiliate Inject] Missing affiliate IDs (links will have empty params): ${missingAffiliateIds.join(", ")}`,
+  );
+}
+
 // Keyword-to-affiliate mapping for auto-injection
 const AFFILIATE_RULES: AffiliateRule[] = [
   // Hotels

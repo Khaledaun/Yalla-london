@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useLanguage } from "@/components/language-provider";
@@ -19,11 +19,12 @@ import {
   Ticket,
   Search,
   Tag,
+  Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface EventItem {
-  id: number;
+  id: string | number;
   title: { en: string; ar: string };
   description: { en: string; ar: string };
   date: string;
@@ -40,23 +41,25 @@ interface EventItem {
   soldOut?: boolean;
 }
 
-const events: EventItem[] = [
+// Fallback events shown only when DB has no events yet
+const FALLBACK_EVENTS: EventItem[] = [
   {
-    id: 1,
+    id: "fallback-1",
     title: {
       en: "Arsenal vs Chelsea - Premier League",
-      ar: "أرسنال ضد تشيلسي - الدوري الإنجليزي الممتاز",
+      ar: "\u0623\u0631\u0633\u0646\u0627\u0644 \u0636\u062f \u062a\u0634\u064a\u0644\u0633\u064a - \u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
     },
     description: {
       en: "Experience the North London derby at the iconic Emirates Stadium with VIP hospitality packages.",
-      ar: "اختبر ديربي شمال لندن في استاد الإمارات الأيقوني مع باقات الضيافة VIP.",
+      ar: "\u0627\u062e\u062a\u0628\u0631 \u062f\u064a\u0631\u0628\u064a \u0634\u0645\u0627\u0644 \u0644\u0646\u062f\u0646 \u0641\u064a \u0627\u0633\u062a\u0627\u062f \u0627\u0644\u0625\u0645\u0627\u0631\u0627\u062a \u0627\u0644\u0623\u064a\u0642\u0648\u0646\u064a \u0645\u0639 \u0628\u0627\u0642\u0627\u062a \u0627\u0644\u0636\u064a\u0627\u0641\u0629 VIP.",
     },
     date: "2026-03-15",
     time: "15:00",
     venue: "Emirates Stadium",
     category: "Football",
-    price: "From £120",
-    image: "https://i.ytimg.com/vi/I1vtWKrQgNg/maxresdefault.jpg",
+    price: "From \u00a3120",
+    image:
+      "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&h=600&fit=crop",
     rating: 4.9,
     bookingUrl: "https://www.stubhub.co.uk/arsenal-tickets/performer/2161/",
     affiliateTag: "stubhub",
@@ -64,20 +67,20 @@ const events: EventItem[] = [
     vipAvailable: true,
   },
   {
-    id: 2,
+    id: "fallback-2",
     title: {
       en: "The Lion King - Musical Theatre",
-      ar: "الأسد الملك - مسرح موسيقي",
+      ar: "\u0627\u0644\u0623\u0633\u062f \u0627\u0644\u0645\u0644\u0643 - \u0645\u0633\u0631\u062d \u0645\u0648\u0633\u064a\u0642\u064a",
     },
     description: {
       en: "The award-winning musical that brings the Pride Lands to life with stunning costumes and music.",
-      ar: "المسرحية الموسيقية الحائزة على جوائز التي تحيي أراضي الكبرياء بالأزياء والموسيقى المذهلة.",
+      ar: "\u0627\u0644\u0645\u0633\u0631\u062d\u064a\u0629 \u0627\u0644\u0645\u0648\u0633\u064a\u0642\u064a\u0629 \u0627\u0644\u062d\u0627\u0626\u0632\u0629 \u0639\u0644\u0649 \u062c\u0648\u0627\u0626\u0632.",
     },
     date: "2026-03-20",
     time: "19:30",
     venue: "Lyceum Theatre",
     category: "Theatre",
-    price: "From £45",
+    price: "From \u00a345",
     image:
       "https://images.unsplash.com/photo-1503095396549-807759245b35?w=800&h=600&fit=crop",
     rating: 4.8,
@@ -88,130 +91,20 @@ const events: EventItem[] = [
     vipAvailable: true,
   },
   {
-    id: 3,
-    title: {
-      en: "Chelsea vs Manchester City - Premier League",
-      ar: "تشيلسي ضد مانشستر سيتي - الدوري الإنجليزي",
-    },
-    description: {
-      en: "Watch two Premier League giants clash at Stamford Bridge. Premium hospitality available.",
-      ar: "شاهد عمالقة الدوري الإنجليزي في ستامفورد بريدج. ضيافة مميزة متوفرة.",
-    },
-    date: "2026-04-05",
-    time: "16:30",
-    venue: "Stamford Bridge",
-    category: "Football",
-    price: "From £150",
-    image:
-      "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=800&h=600&fit=crop",
-    rating: 4.9,
-    bookingUrl: "https://www.stubhub.co.uk/chelsea-tickets/performer/24/",
-    affiliateTag: "stubhub",
-    ticketProvider: "StubHub",
-    vipAvailable: true,
-  },
-  {
-    id: 4,
-    title: {
-      en: "Wicked - West End Musical",
-      ar: "ويكد - مسرحية ويست إند الموسيقية",
-    },
-    description: {
-      en: "The untold story of the witches of Oz. A spectacular show at the Apollo Victoria Theatre.",
-      ar: "القصة غير المروية لساحرات أوز. عرض مذهل في مسرح أبولو فيكتوريا.",
-    },
-    date: "2026-03-25",
-    time: "19:30",
-    venue: "Apollo Victoria Theatre",
-    category: "Theatre",
-    price: "From £30",
-    image:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=600&fit=crop",
-    rating: 4.8,
-    bookingUrl: "https://www.ticketmaster.co.uk/wicked-tickets/artist/1046581",
-    affiliateTag: "ticketmaster",
-    ticketProvider: "Ticketmaster",
-    vipAvailable: false,
-  },
-  {
-    id: 5,
-    title: {
-      en: "Tottenham vs Liverpool - Premier League",
-      ar: "توتنهام ضد ليفربول - الدوري الإنجليزي",
-    },
-    description: {
-      en: "Premier League action at the state-of-the-art Tottenham Hotspur Stadium. VIP boxes available.",
-      ar: "أكشن الدوري الإنجليزي في استاد توتنهام هوتسبر الحديث. لوجات VIP متاحة.",
-    },
-    date: "2026-04-12",
-    time: "17:30",
-    venue: "Tottenham Hotspur Stadium",
-    category: "Football",
-    price: "From £95",
-    image:
-      "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&h=600&fit=crop",
-    rating: 4.8,
-    bookingUrl:
-      "https://www.stubhub.co.uk/tottenham-hotspur-tickets/performer/7490/",
-    affiliateTag: "stubhub",
-    ticketProvider: "StubHub",
-    vipAvailable: true,
-  },
-  {
-    id: 6,
-    title: { en: "London Food Festival 2026", ar: "مهرجان لندن للطعام 2026" },
-    description: {
-      en: "Taste the world at London's premier food festival. Halal options, celebrity chefs, and VIP dining.",
-      ar: "تذوق العالم في مهرجان لندن الرائد للطعام. خيارات حلال، طهاة مشاهير، وتجارب VIP.",
-    },
-    date: "2026-05-01",
-    time: "11:00",
-    venue: "Regent's Park",
-    category: "Festival",
-    price: "From £25",
-    image:
-      "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800&h=600&fit=crop",
-    rating: 4.6,
-    bookingUrl: "https://www.ticketmaster.co.uk",
-    affiliateTag: "ticketmaster",
-    ticketProvider: "Ticketmaster",
-    vipAvailable: true,
-  },
-  {
-    id: 7,
-    title: { en: "Immersive Van Gogh Experience", ar: "تجربة فان جوخ الغامرة" },
-    description: {
-      en: "Step inside Van Gogh's masterpieces in this stunning immersive digital art experience.",
-      ar: "ادخل إلى عالم لوحات فان جوخ في هذه التجربة الفنية الرقمية الغامرة المذهلة.",
-    },
-    date: "2026-03-01",
-    time: "10:00",
-    venue: "The Old Truman Brewery",
-    category: "Exhibition",
-    price: "From £20",
-    image:
-      "https://images.unsplash.com/photo-1541367777708-7905fe3296c0?w=800&h=600&fit=crop",
-    rating: 4.7,
-    bookingUrl: "https://www.getyourguide.com/london-l57/",
-    affiliateTag: "getyourguide",
-    ticketProvider: "GetYourGuide",
-    vipAvailable: false,
-  },
-  {
-    id: 8,
+    id: "fallback-3",
     title: {
       en: "Thames Luxury Dinner Cruise",
-      ar: "رحلة عشاء فاخرة على نهر التايمز",
+      ar: "\u0631\u062d\u0644\u0629 \u0639\u0634\u0627\u0621 \u0641\u0627\u062e\u0631\u0629 \u0639\u0644\u0649 \u0646\u0647\u0631 \u0627\u0644\u062a\u0627\u064a\u0645\u0632",
     },
     description: {
       en: "Fine dining on the Thames with views of Tower Bridge, Big Ben, and the London Eye. Halal menu available.",
-      ar: "عشاء فاخر على التايمز مع إطلالة على تاور بريدج وبيج بن ولندن آي. قائمة حلال متوفرة.",
+      ar: "\u0639\u0634\u0627\u0621 \u0641\u0627\u062e\u0631 \u0639\u0644\u0649 \u0627\u0644\u062a\u0627\u064a\u0645\u0632 \u0645\u0639 \u0625\u0637\u0644\u0627\u0644\u0629 \u0639\u0644\u0649 \u062a\u0627\u0648\u0631 \u0628\u0631\u064a\u062f\u062c \u0648\u0628\u064a\u062c \u0628\u0646 \u0648\u0644\u0646\u062f\u0646 \u0622\u064a.",
     },
     date: "2026-03-22",
     time: "19:00",
     venue: "Westminster Pier",
     category: "Experience",
-    price: "From £89",
+    price: "From \u00a389",
     image:
       "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&h=600&fit=crop",
     rating: 4.7,
@@ -222,7 +115,7 @@ const events: EventItem[] = [
   },
 ];
 
-const categories = [
+const DEFAULT_CATEGORIES = [
   "All",
   "Football",
   "Theatre",
@@ -237,13 +130,45 @@ export default function EventsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [showVipOnly, setShowVipOnly] = useState(false);
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchEvents() {
+      try {
+        const res = await fetch("/api/events");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.events && data.events.length > 0) {
+            setEvents(data.events);
+            if (data.categories?.length > 1) {
+              setCategories(data.categories);
+            }
+          } else {
+            // No events in DB yet - use fallback
+            setEvents(FALLBACK_EVENTS);
+          }
+        } else {
+          setEvents(FALLBACK_EVENTS);
+        }
+      } catch {
+        setEvents(FALLBACK_EVENTS);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchEvents();
+  }, []);
 
   const filteredEvents = events.filter((event) => {
     const matchesCategory =
       selectedCategory === "All" || event.category === selectedCategory;
     const matchesSearch =
       searchQuery === "" ||
-      event.title[language].toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.title[language]
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
       event.venue.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesVip = !showVipOnly || event.vipAvailable;
     return matchesCategory && matchesSearch && matchesVip;
@@ -316,21 +241,25 @@ export default function EventsPage() {
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
             {language === "en"
               ? "London Events & Tickets"
-              : "فعاليات وتذاكر لندن"}
+              : "\u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0648\u062a\u0630\u0627\u0643\u0631 \u0644\u0646\u062f\u0646"}
           </h1>
           <p className="text-xl md:text-2xl text-gray-200">
             {language === "en"
               ? "Book premium tickets for the best London experiences"
-              : "احجز تذاكر مميزة لأفضل تجارب لندن"}
+              : "\u0627\u062d\u062c\u0632 \u062a\u0630\u0627\u0643\u0631 \u0645\u0645\u064a\u0632\u0629 \u0644\u0623\u0641\u0636\u0644 \u062a\u062c\u0627\u0631\u0628 \u0644\u0646\u062f\u0646"}
           </p>
           <div className="flex items-center justify-center gap-4 mt-6">
             <Badge className="bg-white/20 text-white text-sm px-4 py-1">
               <Ticket className="h-4 w-4 mr-1" />
-              {language === "en" ? "Verified Tickets" : "تذاكر معتمدة"}
+              {language === "en"
+                ? "Verified Tickets"
+                : "\u062a\u0630\u0627\u0643\u0631 \u0645\u0639\u062a\u0645\u062f\u0629"}
             </Badge>
             <Badge className="bg-white/20 text-white text-sm px-4 py-1">
               <Star className="h-4 w-4 mr-1" />
-              {language === "en" ? "VIP Packages" : "باقات VIP"}
+              {language === "en"
+                ? "VIP Packages"
+                : "\u0628\u0627\u0642\u0627\u062a VIP"}
             </Badge>
           </div>
         </motion.div>
@@ -346,7 +275,7 @@ export default function EventsPage() {
                 placeholder={
                   language === "en"
                     ? "Search events, venues..."
-                    : "ابحث عن فعاليات، أماكن..."
+                    : "\u0627\u0628\u062d\u062b \u0639\u0646 \u0641\u0639\u0627\u0644\u064a\u0627\u062a\u060c \u0623\u0645\u0627\u0643\u0646..."
                 }
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -366,7 +295,11 @@ export default function EventsPage() {
                       : ""
                   }
                 >
-                  {cat === "All" ? (language === "en" ? "All" : "الكل") : cat}
+                  {cat === "All"
+                    ? language === "en"
+                      ? "All"
+                      : "\u0627\u0644\u0643\u0644"
+                    : cat}
                 </Button>
               ))}
               <Button
@@ -389,24 +322,37 @@ export default function EventsPage() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-bold text-gray-900">
-              {language === "en"
-                ? `${filteredEvents.length} Events Available`
-                : `${filteredEvents.length} فعالية متاحة`}
+              {loading
+                ? language === "en"
+                  ? "Loading Events..."
+                  : "\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0641\u0639\u0627\u0644\u064a\u0627\u062a..."
+                : language === "en"
+                  ? `${filteredEvents.length} Events Available`
+                  : `${filteredEvents.length} \u0641\u0639\u0627\u0644\u064a\u0629 \u0645\u062a\u0627\u062d\u0629`}
             </h2>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Tag className="h-4 w-4" />
               {language === "en"
                 ? "Powered by trusted ticket partners"
-                : "مدعوم من شركاء التذاكر الموثوقين"}
+                : "\u0645\u062f\u0639\u0648\u0645 \u0645\u0646 \u0634\u0631\u0643\u0627\u0621 \u0627\u0644\u062a\u0630\u0627\u0643\u0631 \u0627\u0644\u0645\u0648\u062b\u0648\u0642\u064a\u0646"}
             </div>
           </div>
 
-          {filteredEvents.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-purple-600 mb-4" />
+              <p className="text-gray-500">
+                {language === "en"
+                  ? "Loading events..."
+                  : "\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0641\u0639\u0627\u0644\u064a\u0627\u062a..."}
+              </p>
+            </div>
+          ) : filteredEvents.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-gray-500 text-lg">
                 {language === "en"
                   ? "No events match your filters"
-                  : "لا توجد فعاليات تطابق التصفية"}
+                  : "\u0644\u0627 \u062a\u0648\u062c\u062f \u0641\u0639\u0627\u0644\u064a\u0627\u062a \u062a\u0637\u0627\u0628\u0642 \u0627\u0644\u062a\u0635\u0641\u064a\u0629"}
               </p>
               <Button
                 variant="outline"
@@ -417,7 +363,9 @@ export default function EventsPage() {
                   setShowVipOnly(false);
                 }}
               >
-                {language === "en" ? "Clear Filters" : "مسح التصفية"}
+                {language === "en"
+                  ? "Clear Filters"
+                  : "\u0645\u0633\u062d \u0627\u0644\u062a\u0635\u0641\u064a\u0629"}
               </Button>
             </div>
           ) : (
@@ -434,8 +382,11 @@ export default function EventsPage() {
                   <Card className="overflow-hidden border-0 luxury-shadow hover:shadow-xl transition-all duration-300 bg-white h-full flex flex-col">
                     <div className="relative aspect-video">
                       <Image
-                        src={event.image}
-                        alt={event.title[language]}
+                        src={
+                          event.image ||
+                          "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&h=600&fit=crop"
+                        }
+                        alt={event.title[language] || event.title.en}
                         fill
                         className="object-cover"
                       />
@@ -465,17 +416,19 @@ export default function EventsPage() {
                       {event.soldOut && (
                         <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                           <Badge className="bg-red-600 text-white text-lg px-4 py-2">
-                            {language === "en" ? "SOLD OUT" : "نفدت التذاكر"}
+                            {language === "en"
+                              ? "SOLD OUT"
+                              : "\u0646\u0641\u062f\u062a \u0627\u0644\u062a\u0630\u0627\u0643\u0631"}
                           </Badge>
                         </div>
                       )}
                     </div>
                     <CardContent className="p-6 flex-1 flex flex-col">
                       <h3 className="text-xl font-bold mb-2 text-gray-900">
-                        {event.title[language]}
+                        {event.title[language] || event.title.en}
                       </h3>
                       <p className="text-gray-600 leading-relaxed mb-4 flex-1">
-                        {event.description[language]}
+                        {event.description[language] || event.description.en}
                       </p>
                       <div className="space-y-2 mb-4">
                         <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -495,7 +448,9 @@ export default function EventsPage() {
                         <div className="mb-4">
                           <span className="inline-flex items-center gap-1 text-xs text-gray-400">
                             <Ticket className="h-3 w-3" />
-                            {language === "en" ? "via" : "عبر"}{" "}
+                            {language === "en"
+                              ? "via"
+                              : "\u0639\u0628\u0631"}{" "}
                             {event.ticketProvider}
                           </span>
                         </div>
@@ -512,10 +467,10 @@ export default function EventsPage() {
                           {event.soldOut
                             ? language === "en"
                               ? "Sold Out"
-                              : "نفدت"
+                              : "\u0646\u0641\u062f\u062a"
                             : language === "en"
                               ? "Get Tickets"
-                              : "احصل على تذاكر"}
+                              : "\u0627\u062d\u0635\u0644 \u0639\u0644\u0649 \u062a\u0630\u0627\u0643\u0631"}
                           {!event.soldOut && (
                             <ExternalLink
                               className={`h-4 w-4 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`}
@@ -539,12 +494,12 @@ export default function EventsPage() {
             <h3 className="text-xl font-semibold text-gray-800 mb-2">
               {language === "en"
                 ? "Our Trusted Ticket Partners"
-                : "شركاء التذاكر الموثوقين"}
+                : "\u0634\u0631\u0643\u0627\u0621 \u0627\u0644\u062a\u0630\u0627\u0643\u0631 \u0627\u0644\u0645\u0648\u062b\u0648\u0642\u064a\u0646"}
             </h3>
             <p className="text-gray-500 text-sm">
               {language === "en"
                 ? "We partner with leading ticket providers to bring you the best deals"
-                : "نتعاون مع مزودي التذاكر الرائدين لنقدم لك أفضل العروض"}
+                : "\u0646\u062a\u0639\u0627\u0648\u0646 \u0645\u0639 \u0645\u0632\u0648\u062f\u064a \u0627\u0644\u062a\u0630\u0627\u0643\u0631 \u0627\u0644\u0631\u0627\u0626\u062f\u064a\u0646 \u0644\u0646\u0642\u062f\u0645 \u0644\u0643 \u0623\u0641\u0636\u0644 \u0627\u0644\u0639\u0631\u0648\u0636"}
             </p>
           </div>
           <div className="flex justify-center gap-8 flex-wrap">
@@ -556,7 +511,9 @@ export default function EventsPage() {
                 >
                   <span className="font-semibold text-gray-700">{partner}</span>
                   <span className="block text-xs text-gray-400 mt-1">
-                    {language === "en" ? "Verified Partner" : "شريك معتمد"}
+                    {language === "en"
+                      ? "Verified Partner"
+                      : "\u0634\u0631\u064a\u0643 \u0645\u0639\u062a\u0645\u062f"}
                   </span>
                 </div>
               ),
@@ -577,12 +534,12 @@ export default function EventsPage() {
             <h2 className="text-4xl font-bold mb-6">
               {language === "en"
                 ? "Can't Find What You're Looking For?"
-                : "لا تجد ما تبحث عنه؟"}
+                : "\u0644\u0627 \u062a\u062c\u062f \u0645\u0627 \u062a\u0628\u062d\u062b \u0639\u0646\u0647\u061f"}
             </h2>
             <p className="text-xl mb-8 text-purple-100">
               {language === "en"
                 ? "Contact us for personalized event recommendations and exclusive VIP access"
-                : "اتصل بنا للحصول على توصيات فعاليات مخصصة ووصول VIP حصري"}
+                : "\u0627\u062a\u0635\u0644 \u0628\u0646\u0627 \u0644\u0644\u062d\u0635\u0648\u0644 \u0639\u0644\u0649 \u062a\u0648\u0635\u064a\u0627\u062a \u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0645\u062e\u0635\u0635\u0629 \u0648\u0648\u0635\u0648\u0644 VIP \u062d\u0635\u0631\u064a"}
             </p>
             <div className="flex gap-4 justify-center flex-wrap">
               <Button
@@ -591,7 +548,9 @@ export default function EventsPage() {
                 className="bg-white text-purple-900 hover:bg-gray-100"
               >
                 <Link href="/contact">
-                  {language === "en" ? "Contact Us" : "اتصل بنا"}
+                  {language === "en"
+                    ? "Contact Us"
+                    : "\u0627\u062a\u0635\u0644 \u0628\u0646\u0627"}
                   <ArrowRight
                     className={`h-5 w-5 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`}
                   />
@@ -606,7 +565,7 @@ export default function EventsPage() {
                 <Link href="/recommendations">
                   {language === "en"
                     ? "View All Recommendations"
-                    : "عرض جميع التوصيات"}
+                    : "\u0639\u0631\u0636 \u062c\u0645\u064a\u0639 \u0627\u0644\u062a\u0648\u0635\u064a\u0627\u062a"}
                   <MapPin
                     className={`h-5 w-5 ${isRTL ? "mr-2 rtl-flip" : "ml-2"}`}
                   />

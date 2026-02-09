@@ -289,9 +289,11 @@ export async function GET(request: NextRequest) {
     const nextOffset = offset + inspected;
     const hasMore = nextOffset < allUrls.length;
 
-    return NextResponse.json({
+    const mode = doSubmitAll ? "submit-all" : doSubmit ? "submit" : "dry-run";
+
+    const responseData = {
       success: true,
-      mode: doSubmitAll ? "submit-all" : doSubmit ? "submit" : "dry-run",
+      mode,
       hint: doSubmit || doSubmitAll
         ? undefined
         : "Add ?submit=true to submit unindexed, or ?submit_all=true to submit ALL pages",
@@ -321,7 +323,36 @@ export async function GET(request: NextRequest) {
         inspectionErrors.length > 0 ? inspectionErrors.slice(0, 10) : undefined,
       elapsed: `${elapsed}ms`,
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    // 4. Persist results to SeoReport for dashboard tracking
+    if (doSubmit || doSubmitAll || inspected > 0) {
+      try {
+        const { prisma } = await import("@/lib/db");
+        await prisma.seoReport.create({
+          data: {
+            reportType: mode === "dry-run" ? "indexing_audit" : "indexing_submission",
+            data: {
+              mode,
+              dataSource: source,
+              totalPages: allUrls.length,
+              inspected,
+              indexed: indexed.length,
+              notIndexed: notIndexed.length,
+              indexedPages: indexed,
+              notIndexedPages: notIndexed,
+              submission: (doSubmit || doSubmitAll) ? submission : null,
+              errors: inspectionErrors.length > 0 ? inspectionErrors : null,
+              elapsed: `${elapsed}ms`,
+            },
+          },
+        });
+      } catch (dbSaveError) {
+        console.warn("Failed to persist indexing report:", dbSaveError);
+      }
+    }
+
+    return NextResponse.json(responseData);
   } catch (error) {
     return NextResponse.json(
       {

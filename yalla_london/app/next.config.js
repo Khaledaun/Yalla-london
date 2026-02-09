@@ -76,7 +76,7 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Credentials', value: 'true' },
         ],
       },
-      // Static assets - long cache
+      // Static assets - long cache with Cloudflare edge
       {
         source: '/:all*(svg|jpg|jpeg|png|gif|ico|webp|avif|woff|woff2)',
         headers: [
@@ -88,6 +88,92 @@ const nextConfig = {
         source: '/_next/static/:path*',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      // Public pages - CDN edge caching for Cloudflare (s-maxage)
+      {
+        source: '/blog/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=600, stale-while-revalidate=3600' },
+          { key: 'CDN-Cache-Control', value: 'max-age=600' },
+          { key: 'Vary', value: 'Accept-Encoding, x-site-id' },
+        ],
+      },
+      {
+        source: '/events/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=600, stale-while-revalidate=3600' },
+          { key: 'CDN-Cache-Control', value: 'max-age=600' },
+          { key: 'Vary', value: 'Accept-Encoding, x-site-id' },
+        ],
+      },
+      {
+        source: '/recommendations/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=600, stale-while-revalidate=3600' },
+          { key: 'CDN-Cache-Control', value: 'max-age=600' },
+          { key: 'Vary', value: 'Accept-Encoding, x-site-id' },
+        ],
+      },
+      // Static pages (about, contact) - longer edge cache
+      {
+        source: '/about',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=60, s-maxage=3600, stale-while-revalidate=86400' },
+          { key: 'CDN-Cache-Control', value: 'max-age=3600' },
+        ],
+      },
+      {
+        source: '/contact',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=60, s-maxage=3600, stale-while-revalidate=86400' },
+          { key: 'CDN-Cache-Control', value: 'max-age=3600' },
+        ],
+      },
+      // Admin pages - never cache
+      {
+        source: '/admin/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
+        ],
+      },
+      // Public API routes - short edge cache
+      {
+        source: '/api/blog/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=300, stale-while-revalidate=600' },
+          { key: 'CDN-Cache-Control', value: 'max-age=300' },
+          { key: 'Vary', value: 'Accept-Encoding, x-site-id' },
+        ],
+      },
+      {
+        source: '/api/events/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=300, stale-while-revalidate=600' },
+          { key: 'CDN-Cache-Control', value: 'max-age=300' },
+          { key: 'Vary', value: 'Accept-Encoding, x-site-id' },
+        ],
+      },
+      // Admin API - never cache
+      {
+        source: '/api/admin/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
+        ],
+      },
+      // Sitemap & robots - hourly edge cache
+      {
+        source: '/sitemap.xml',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400' },
+          { key: 'CDN-Cache-Control', value: 'max-age=3600' },
+        ],
+      },
+      {
+        source: '/robots.txt',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400' },
+          { key: 'CDN-Cache-Control', value: 'max-age=3600' },
         ],
       },
       // SECURITY: Comprehensive security headers on all pages

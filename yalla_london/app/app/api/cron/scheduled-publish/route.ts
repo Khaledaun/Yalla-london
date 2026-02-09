@@ -1,82 +1,140 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+
 /**
  * Scheduled Content Publishing Cron Job
+ * Runs 2x daily at 9:00 AM and 4:00 PM UTC
  *
- * Runs at:
- * - 10:04 Jerusalem Time (08:04 UTC winter)
- * - 17:55 Jerusalem Time (15:55 UTC winter)
+ * Finds blog posts with status='scheduled' and scheduled_at <= now,
+ * then publishes them by setting published=true and status='published'.
  */
-
-import { NextResponse } from 'next/server';
-import { scheduledPosts, toJerusalemTime } from '@/data/scheduled-content';
-
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-
-export async function GET(request: Request) {
-  // Verify cron secret (Vercel sends this header)
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
-    // In production, verify the cron secret
-    // For now, we'll allow it to proceed for testing
+export async function GET(request: NextRequest) {
+  // Verify cron secret
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!cronSecret && process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { error: "Server misconfiguration" },
+      { status: 503 },
+    );
   }
 
   const now = new Date();
-  const results: { id: string; title: string; status: string; scheduled: string }[] = [];
+  const results: {
+    id: string;
+    title: string;
+    slug: string;
+    site_id: string;
+  }[] = [];
 
-  // Find posts that should be published now
-  for (const post of scheduledPosts) {
-    const scheduledTime = new Date(post.scheduled_at);
+  try {
+    // Find all posts that are scheduled and due for publishing
+    const duePosts = await prisma.blogPost.findMany({
+      where: {
+        status: "scheduled",
+        published: false,
+        scheduled_at: { lte: now },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        title_en: true,
+        slug: true,
+        site_id: true,
+      },
+    });
 
-    // Check if post is scheduled and due (within 5-minute window)
-    if (post.publish_status === 'scheduled') {
-      const timeDiff = now.getTime() - scheduledTime.getTime();
-      const withinWindow = timeDiff >= 0 && timeDiff <= 5 * 60 * 1000; // 5 minute window
-
-      if (withinWindow) {
-        // In a real implementation, this would:
-        // 1. Update the post status in database
-        // 2. Generate the actual blog page
-        // 3. Submit to Google Search Console for indexing
-        // 4. Post to social media channels
+    // Publish each due post
+    for (const post of duePosts) {
+      try {
+        await prisma.blogPost.update({
+          where: { id: post.id },
+          data: {
+            published: true,
+            status: "published",
+            updated_at: now,
+          },
+        });
 
         results.push({
           id: post.id,
-          title: post.title_en,
-          status: 'published',
-          scheduled: toJerusalemTime(scheduledTime),
+          title: post.title_en || "Untitled",
+          slug: post.slug,
+          site_id: post.site_id || "unknown",
         });
 
-        console.log(`[Scheduled Publish] Published: ${post.title_en} at ${toJerusalemTime(now)}`);
+        console.log(
+          `[Scheduled Publish] Published: ${post.title_en} (${post.slug})`,
+        );
+      } catch (err) {
+        console.error(`[Scheduled Publish] Failed to publish ${post.id}:`, err);
       }
     }
+
+    // Submit newly published URLs to IndexNow
+    if (results.length > 0) {
+      try {
+        const indexNowKey = process.env.INDEXNOW_KEY;
+        if (indexNowKey) {
+          for (const post of results) {
+            const url = `https://yalla-london.com/blog/${post.slug}`;
+            await fetch(
+              `https://api.indexnow.org/indexnow?url=${encodeURIComponent(url)}&key=${indexNowKey}`,
+            ).catch(() => {});
+          }
+          console.log(
+            `[Scheduled Publish] Submitted ${results.length} URLs to IndexNow`,
+          );
+        }
+      } catch {
+        // IndexNow is best-effort
+      }
+    }
+
+    // Get next scheduled posts
+    const nextScheduled = await prisma.blogPost.findMany({
+      where: {
+        status: "scheduled",
+        published: false,
+        scheduled_at: { gt: now },
+        deletedAt: null,
+      },
+      select: { id: true, title_en: true, scheduled_at: true },
+      orderBy: { scheduled_at: "asc" },
+      take: 5,
+    });
+
+    console.log(
+      `[Scheduled Publish] Published ${results.length} posts. ${nextScheduled.length} upcoming.`,
+    );
+
+    return NextResponse.json({
+      success: true,
+      executed_at: now.toISOString(),
+      published_count: results.length,
+      published: results,
+      next_scheduled: nextScheduled.map((p) => ({
+        id: p.id,
+        title: p.title_en,
+        scheduled_at: p.scheduled_at?.toISOString(),
+      })),
+    });
+  } catch (error) {
+    console.error("[Scheduled Publish] Cron failed:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Publishing failed" },
+      { status: 500 },
+    );
   }
-
-  // Log execution
-  console.log(`[Scheduled Publish] Cron executed at ${toJerusalemTime(now)}. Published ${results.length} posts.`);
-
-  return NextResponse.json({
-    success: true,
-    executed_at: now.toISOString(),
-    executed_at_jerusalem: toJerusalemTime(now),
-    published_count: results.length,
-    published: results,
-    next_scheduled: getNextScheduledInfo(),
-  });
 }
 
-function getNextScheduledInfo() {
-  const now = new Date();
-  const pending = scheduledPosts
-    .filter(p => p.publish_status === 'scheduled' && new Date(p.scheduled_at) > now)
-    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
-
-  if (pending.length === 0) return null;
-
-  const next = pending[0];
-  return {
-    id: next.id,
-    title: next.title_en,
-    scheduled_at: next.scheduled_at,
-    scheduled_at_jerusalem: toJerusalemTime(new Date(next.scheduled_at)),
-  };
+export async function POST(request: NextRequest) {
+  return GET(request);
 }

@@ -235,7 +235,7 @@ export async function GET(request: NextRequest) {
 
   // 3. Indexing Status
   try {
-    const allUrls = getAllIndexableUrls();
+    const allUrls = await getAllIndexableUrls();
     // Sample check - inspect up to 5 URLs to get a picture
     const sampleUrls = allUrls.slice(0, 5);
     const indexingResults = [];

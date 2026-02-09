@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     switch (task) {
       case "daily": {
         // Daily task: Submit new/updated URLs for indexing
-        const newUrls = getNewUrls(1); // Last 24 hours
+        const newUrls = await getNewUrls(1); // Last 24 hours
         let results = null;
 
         if (newUrls.length > 0) {

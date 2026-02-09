@@ -546,7 +546,7 @@ export class GoogleSearchConsoleAPI {
 // URL DISCOVERY & GENERATION
 // ============================================
 
-export function getAllIndexableUrls(): string[] {
+export async function getAllIndexableUrls(): Promise<string[]> {
   const urls: string[] = [];
 
   // Static pages
@@ -557,34 +557,109 @@ export function getAllIndexableUrls(): string[] {
     "/events",
     "/about",
     "/contact",
-    "/team",
   ];
   staticPages.forEach((page) => urls.push(`${BASE_URL}${page}`));
 
-  // Blog posts
+  // Blog posts from static files
+  const staticSlugs = new Set<string>();
   allPosts
     .filter((post) => post.published)
-    .forEach((post) => urls.push(`${BASE_URL}/blog/${post.slug}`));
+    .forEach((post) => {
+      urls.push(`${BASE_URL}/blog/${post.slug}`);
+      staticSlugs.add(post.slug);
+    });
+
+  // Blog posts from database (catch new content created by daily-content-generate)
+  try {
+    const { prisma } = await import("@/lib/db");
+    const dbPosts = await prisma.blogPost.findMany({
+      where: { published: true, deletedAt: null },
+      select: { slug: true },
+    });
+    for (const post of dbPosts) {
+      if (!staticSlugs.has(post.slug)) {
+        urls.push(`${BASE_URL}/blog/${post.slug}`);
+      }
+    }
+  } catch {
+    // Database not available - use static posts only
+  }
 
   return urls;
 }
 
-export function getNewUrls(withinDays: number = 7): string[] {
+export async function getNewUrls(withinDays: number = 7): Promise<string[]> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - withinDays);
+  const urls: string[] = [];
 
-  return allPosts
+  // Static file posts
+  allPosts
     .filter((post) => post.published && post.created_at >= cutoffDate)
-    .map((post) => `${BASE_URL}/blog/${post.slug}`);
+    .forEach((post) => urls.push(`${BASE_URL}/blog/${post.slug}`));
+
+  // Database posts (new content from AI generation)
+  try {
+    const { prisma } = await import("@/lib/db");
+    const dbPosts = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        deletedAt: null,
+        created_at: { gte: cutoffDate },
+      },
+      select: { slug: true },
+    });
+    const existingSlugs = new Set(
+      urls.map((u) => u.split("/blog/")[1]).filter(Boolean),
+    );
+    for (const post of dbPosts) {
+      if (!existingSlugs.has(post.slug)) {
+        urls.push(`${BASE_URL}/blog/${post.slug}`);
+      }
+    }
+  } catch {
+    // Database not available
+  }
+
+  return urls;
 }
 
-export function getUpdatedUrls(withinDays: number = 7): string[] {
+export async function getUpdatedUrls(
+  withinDays: number = 7,
+): Promise<string[]> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - withinDays);
+  const urls: string[] = [];
 
-  return allPosts
+  // Static file posts
+  allPosts
     .filter((post) => post.published && post.updated_at >= cutoffDate)
-    .map((post) => `${BASE_URL}/blog/${post.slug}`);
+    .forEach((post) => urls.push(`${BASE_URL}/blog/${post.slug}`));
+
+  // Database posts
+  try {
+    const { prisma } = await import("@/lib/db");
+    const dbPosts = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        deletedAt: null,
+        updated_at: { gte: cutoffDate },
+      },
+      select: { slug: true },
+    });
+    const existingSlugs = new Set(
+      urls.map((u) => u.split("/blog/")[1]).filter(Boolean),
+    );
+    for (const post of dbPosts) {
+      if (!existingSlugs.has(post.slug)) {
+        urls.push(`${BASE_URL}/blog/${post.slug}`);
+      }
+    }
+  } catch {
+    // Database not available
+  }
+
+  return urls;
 }
 
 // ============================================
@@ -611,18 +686,18 @@ export async function runAutomatedIndexing(
   };
 
   try {
-    // Get URLs based on mode
+    // Get URLs based on mode (now async - queries database for new content)
     let urls: string[];
     switch (mode) {
       case "all":
-        urls = getAllIndexableUrls();
+        urls = await getAllIndexableUrls();
         break;
       case "updated":
-        urls = getUpdatedUrls();
+        urls = await getUpdatedUrls();
         break;
       case "new":
       default:
-        urls = getNewUrls();
+        urls = await getNewUrls();
         break;
     }
 

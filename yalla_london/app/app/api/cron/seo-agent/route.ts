@@ -16,6 +16,20 @@ import { NextRequest, NextResponse } from "next/server";
  * 7. Track progress and report status
  */
 export async function GET(request: NextRequest) {
+  // Verify cron secret for security
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!cronSecret && process.env.NODE_ENV === "production") {
+    console.error("CRON_SECRET not configured in production");
+    return NextResponse.json(
+      { error: "Server misconfiguration" },
+      { status: 503 },
+    );
+  }
+
   try {
     const { prisma } = await import("@/lib/db");
     const { getAllSiteIds, getSiteDomain } = await import("@/config/sites");

@@ -21,6 +21,20 @@ import type { SiteConfig, TopicTemplate } from "@/config/sites";
  * Uses the AI provider layer (Claude/OpenAI/Gemini) for real content generation.
  */
 export async function GET(request: NextRequest) {
+  // Verify cron secret for security
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!cronSecret && process.env.NODE_ENV === "production") {
+    console.error("CRON_SECRET not configured in production");
+    return NextResponse.json(
+      { error: "Server misconfiguration" },
+      { status: 503 },
+    );
+  }
+
   try {
     const result = await generateDailyContentAllSites();
     return NextResponse.json({ success: true, ...result });

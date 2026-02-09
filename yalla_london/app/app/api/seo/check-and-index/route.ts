@@ -16,15 +16,22 @@ const VERCEL_TIMEOUT_MS = 55000; // Pro plan: 60s max, leave 5s buffer
  *
  * Query params:
  *   ?submit=true   — actually submit unindexed pages (default: dry-run)
+ *   ?submit_all=true — submit ALL discovered URLs (skip inspection, useful for bulk submission)
  *   ?limit=N       — limit URL inspection checks (default: 30, max: 100)
+ *   ?offset=N      — skip first N URLs (for batch processing: first call default, next ?offset=9, etc.)
  */
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   const searchParams = request.nextUrl.searchParams;
   const doSubmit = searchParams.get("submit") === "true";
+  const doSubmitAll = searchParams.get("submit_all") === "true";
   const inspectLimit = Math.min(
     parseInt(searchParams.get("limit") || "30", 10),
     100,
+  );
+  const offset = Math.max(
+    parseInt(searchParams.get("offset") || "0", 10),
+    0,
   );
 
   const siteUrl =
@@ -137,7 +144,7 @@ export async function GET(request: NextRequest) {
       );
       const gsc = new GoogleSearchConsoleAPI(gscSiteUrl);
 
-      const urlsToInspect = allUrls.slice(0, inspectLimit);
+      const urlsToInspect = allUrls.slice(offset, offset + inspectLimit);
 
       for (const item of urlsToInspect) {
         // Timeout guard: return partial results before Vercel kills the function
@@ -197,12 +204,16 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    // Build submission list: either just unindexed or ALL urls
-    const urlsToSubmit = gscAvailable
-      ? notIndexed.map((p) => p.url)
-      : allUrls.map((p) => p.url);
+    // Build submission list
+    // submit_all=true → submit every discovered URL (idempotent, safe for already-indexed)
+    // submit=true → submit only confirmed unindexed, or all if GSC unavailable
+    const urlsToSubmit = doSubmitAll
+      ? allUrls.map((p) => p.url)
+      : gscAvailable
+        ? notIndexed.map((p) => p.url)
+        : allUrls.map((p) => p.url);
 
-    if (doSubmit && urlsToSubmit.length > 0 && (Date.now() - startTime < VERCEL_TIMEOUT_MS)) {
+    if ((doSubmit || doSubmitAll) && urlsToSubmit.length > 0 && (Date.now() - startTime < VERCEL_TIMEOUT_MS)) {
       // 3a. IndexNow (Bing/Yandex)
       const indexNowKey = process.env.INDEXNOW_KEY;
       if (indexNowKey) {
@@ -271,12 +282,15 @@ export async function GET(request: NextRequest) {
 
     const elapsed = Date.now() - startTime;
 
+    const nextOffset = offset + inspected;
+    const hasMore = nextOffset < allUrls.length;
+
     return NextResponse.json({
       success: true,
-      mode: doSubmit ? "submit" : "dry-run",
-      hint: doSubmit
+      mode: doSubmitAll ? "submit-all" : doSubmit ? "submit" : "dry-run",
+      hint: doSubmit || doSubmitAll
         ? undefined
-        : "Add ?submit=true to actually submit unindexed pages",
+        : "Add ?submit=true to submit unindexed, or ?submit_all=true to submit ALL pages",
       site: {
         url: siteUrl,
         gscProperty: gscSiteUrl,
@@ -286,14 +300,19 @@ export async function GET(request: NextRequest) {
         totalPages: allUrls.length,
         blogPosts: blogUrls.length,
         staticPages: staticPages.length,
+        offset,
         inspected,
         indexed: indexed.length,
         notIndexed: notIndexed.length,
+        remaining: hasMore ? allUrls.length - nextOffset : 0,
         gscApiAvailable: gscAvailable,
       },
+      nextBatch: hasMore
+        ? `?offset=${nextOffset}&limit=${inspectLimit}`
+        : null,
       indexedPages: indexed,
       notIndexedPages: notIndexed,
-      submission: doSubmit ? submission : "dry-run (add ?submit=true)",
+      submission: (doSubmit || doSubmitAll) ? submission : "dry-run (add ?submit=true or ?submit_all=true)",
       inspectionErrors:
         inspectionErrors.length > 0 ? inspectionErrors.slice(0, 10) : undefined,
       elapsed: `${elapsed}ms`,

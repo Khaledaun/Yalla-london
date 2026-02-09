@@ -234,6 +234,30 @@ async function generateArticle(
     },
   });
 
+  // Auto-inject structured data (JSON-LD) for AIO visibility
+  try {
+    const { enhancedSchemaInjector } = await import(
+      "@/lib/seo/enhanced-schema-injector"
+    );
+    const contentBody =
+      primaryLanguage === "en" ? content.body : content.bodyTranslation || "";
+    const postUrl = `${getSiteDomain(site.id)}/blog/${slug}`;
+    await enhancedSchemaInjector.injectSchemas(
+      contentBody,
+      content.title,
+      postUrl,
+      blogPost.id,
+      {
+        author: `${site.name} Editorial Team`,
+        category: category.name_en,
+        tags: content.tags,
+      },
+    );
+    console.log(`[${site.name}] Auto-injected structured data for: ${slug}`);
+  } catch (schemaError) {
+    console.warn(`[${site.name}] Schema injection failed (non-fatal):`, schemaError);
+  }
+
   // Mark topic as used if from DB
   if (topic.id) {
     try {
@@ -267,7 +291,7 @@ async function pickTopic(language: string, site: SiteConfig, prisma: any) {
         longtails: topic.longtails || [],
         questions: topic.questions || [],
         pageType: topic.suggested_page_type || "guide",
-        authorityLinks: topic.authority_links_json || [],
+        authorityLinks: topic.authority_links_json || {},
       };
     }
   } catch {}
@@ -292,18 +316,33 @@ async function generateWithAI(
   try {
     const { generateJSON } = await import("@/lib/ai/provider");
 
-    const systemPrompt =
+    // Apply humanization layer to system prompt
+    const baseSystemPrompt =
       language === "en" ? site.systemPromptEN : site.systemPromptAR;
+    const writingStyle = pickWritingStyle();
+    const systemPrompt = `${baseSystemPrompt}
+
+${getHumanizationDirectives(writingStyle, site)}`;
+
+    // Determine content type from topic metadata
+    const contentType = topic.authorityLinks?.contentType || "guide";
+    const contentTypePrompt = getContentTypePrompt(contentType, topic, site);
+    const aioDirectives = getAIOOptimizationDirectives(contentType);
 
     const prompt =
       language === "en"
-        ? `Write a comprehensive, SEO-optimized blog article about "${topic.keyword}" for ${site.name}.
+        ? `${contentTypePrompt}
+
+${aioDirectives}
 
 Requirements:
 - 1500-2000 words
 - Target Arab travelers visiting ${site.destination}
 - Include practical tips, insider advice, luxury recommendations
 - Natural keyword integration: ${topic.longtails?.join(", ") || topic.keyword}
+- Write in a ${writingStyle.tone} tone with ${writingStyle.perspective} perspective
+- Include at least one personal insight or "insider tip" that shows real expertise
+- Vary sentence lengths: mix short punchy sentences with longer descriptive ones
 ${topic.questions?.length ? `\nAnswer these questions within the article:\n${topic.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
 
 Return JSON with these exact fields:
@@ -321,7 +360,7 @@ Return JSON with these exact fields:
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
   "keywords": ["keyword1", "keyword2", "keyword3"],
   "questions": ["Q1?", "Q2?", "Q3?"],
-  "pageType": "guide",
+  "pageType": "${topic.pageType || "guide"}",
   "seoScore": 90
 }`
         : `اكتب مقالة مدونة شاملة ومحسّنة لمحركات البحث عن "${topic.keyword}" لمنصة ${site.name}.
@@ -462,6 +501,221 @@ async function getOrCreateSystemUser(site: SiteConfig, prisma: any) {
       role: "editor",
     },
   });
+}
+
+/**
+ * Generate content-type-specific prompts for AI.
+ * Each type produces a different article structure optimized for that format.
+ */
+function getContentTypePrompt(
+  contentType: string,
+  topic: any,
+  site: SiteConfig,
+): string {
+  const keyword = topic.keyword;
+
+  switch (contentType) {
+    case "answer":
+      return `Write a comprehensive FAQ/answer article about "${keyword}" for ${site.name}.
+
+Structure:
+- Start with a direct, clear answer to the question in the first paragraph (this is critical for featured snippets and AIO)
+- Then expand with detailed context, practical information, and related details
+- Include a "Quick Facts" section with key takeaways
+- Add related questions and answers (People Also Ask style)
+- End with practical tips for Arab travelers`;
+
+    case "comparison":
+      return `Write a detailed comparison article about "${keyword}" for ${site.name}.
+
+Structure:
+- Opening: Brief overview of what's being compared and why it matters
+- Comparison table in HTML: key criteria (price, quality, location, halal options, atmosphere)
+- Detailed analysis of each option with pros and cons
+- "Best For" sections: Best for families, Best for couples, Best for luxury, Best value
+- Final verdict with clear recommendation
+- Include real prices and practical booking tips`;
+
+    case "deep-dive":
+      return `Write an in-depth, comprehensive deep-dive article about "${keyword}" for ${site.name}.
+
+Structure:
+- This is an EXPANSION of existing content — make it the definitive resource on this topic
+- 2000+ words with detailed sections
+- Include expert insights, hidden gems, insider tips
+- Add practical details: addresses, opening hours, price ranges, booking tips
+- Include a "What Most Guides Don't Tell You" section
+- Add structured data opportunities: FAQs, How-To steps, reviews`;
+
+    case "listicle":
+      return `Write a curated listicle article about "${keyword}" for ${site.name}.
+
+Structure:
+- Numbered list format (Top 10 or similar)
+- Each item gets: name, description (2-3 sentences), why it's special, practical info (price, location, hours)
+- Include a "Quick Pick" summary at the top for scanners
+- Add a comparison mini-table
+- Highlight halal-friendly and Arabic-speaking options
+- Include booking/reservation tips`;
+
+    case "seasonal":
+      return `Write a timely seasonal guide about "${keyword}" for ${site.name}.
+
+Structure:
+- Lead with dates, times, and essential planning info
+- Include a day-by-day or week-by-week breakdown if applicable
+- Practical logistics: transport, accommodation, what to bring
+- Cultural context for Arab travelers
+- Budget breakdown (luxury vs. mid-range vs. budget)
+- Booking deadlines and advance planning tips`;
+
+    default:
+      return `Write a comprehensive, SEO-optimized blog article about "${keyword}" for ${site.name}.`;
+  }
+}
+
+// ============================================
+// AIO (AI OVERVIEW) OPTIMIZATION DIRECTIVES
+// ============================================
+
+/**
+ * Generate AIO-specific formatting instructions per content type.
+ * Ensures content is structured for AI search engines (Google SGE, ChatGPT, Perplexity)
+ * to extract and cite properly.
+ */
+function getAIOOptimizationDirectives(contentType: string): string {
+  const base = `AIO & Citation Optimization (CRITICAL for AI search visibility):
+- Start EVERY section with a direct, concise answer in the first 1-2 sentences before elaborating
+- Use clear, factual statements that AI can extract as snippets (e.g., "The best halal restaurant in Mayfair is X, located at Y")
+- Include specific data points: prices (£), ratings, distances, opening hours, dates
+- Structure FAQ answers as complete standalone paragraphs (AI extracts these for People Also Ask)
+- Use "According to..." or "Based on..." phrasing for verifiable claims
+- End with a "Key Takeaways" or "Quick Summary" section with 3-5 bullet points
+- Format comparison data in HTML tables that AI engines can parse`;
+
+  switch (contentType) {
+    case "answer":
+      return `${base}
+- FIRST PARAGRAPH must directly answer the question in 2-3 sentences (this is the AI snippet)
+- Include a "Quick Answer" box at the very start: <div class="quick-answer"><strong>Quick Answer:</strong> ...</div>
+- Follow with detailed context, evidence, and nuance
+- Add "Related Questions" section at the end`;
+
+    case "comparison":
+      return `${base}
+- Include a comparison summary table in the first section (AI engines love tables)
+- Use "Best for [use case]:" format that AI can directly quote
+- End each comparison with a clear "Verdict:" statement`;
+
+    case "listicle":
+      return `${base}
+- Start with "Quick Picks" summary (top 3) before the full list
+- Each item: Name, one-line verdict, key details (price, location)
+- AI engines extract numbered lists — ensure consistent formatting`;
+
+    default:
+      return base;
+  }
+}
+
+// ============================================
+// ANTI-PENALTY: E-E-A-T & HUMANIZATION
+// ============================================
+
+interface WritingStyle {
+  tone: string;
+  perspective: string;
+  openingStyle: string;
+  signatureElement: string;
+}
+
+/**
+ * Rotate writing styles to prevent pattern detection.
+ * Each article gets a unique combination of tone, perspective, and structure.
+ */
+function pickWritingStyle(): WritingStyle {
+  const tones = [
+    "conversational and warm",
+    "authoritative yet approachable",
+    "enthusiastic and descriptive",
+    "refined and elegant",
+    "practical and no-nonsense",
+    "storytelling and immersive",
+  ];
+
+  const perspectives = [
+    "first-person (sharing personal experience)",
+    "second-person (speaking directly to the reader)",
+    "editorial (knowledgeable guide)",
+    "journalistic (reporting the facts with personality)",
+  ];
+
+  const openingStyles = [
+    "Start with a vivid scene or sensory description",
+    "Start with a surprising fact or statistic",
+    "Start with a question that hooks the reader",
+    "Start with a brief personal anecdote or observation",
+    "Start with a bold statement or recommendation",
+  ];
+
+  const signatureElements = [
+    "Include a 'Local's Secret' callout box",
+    "Include an 'Editor's Pick' highlight",
+    "Include a 'First-Timer's Tip' sidebar",
+    "Include a 'Budget vs Luxury' comparison",
+    "Include a 'What We Love' personal note",
+  ];
+
+  // Use date-seeded pseudo-random to ensure variety across days
+  const seed = new Date().getTime() % 1000;
+  return {
+    tone: tones[seed % tones.length],
+    perspective: perspectives[seed % perspectives.length],
+    openingStyle: openingStyles[seed % openingStyles.length],
+    signatureElement: signatureElements[seed % signatureElements.length],
+  };
+}
+
+/**
+ * Generate E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness)
+ * and humanization directives for the system prompt.
+ * Prevents Google from flagging content as low-quality AI generation.
+ */
+function getHumanizationDirectives(style: WritingStyle, site: SiteConfig): string {
+  return `CONTENT QUALITY & E-E-A-T GUIDELINES (mandatory):
+
+Writing Style for this article:
+- Tone: ${style.tone}
+- Perspective: ${style.perspective}
+- ${style.openingStyle}
+- ${style.signatureElement}
+
+Experience & Expertise Signals:
+- Reference specific, real places by name with accurate details (streets, neighborhoods)
+- Include sensory details: what you see, smell, taste, hear at each location
+- Mention specific dishes, room types, or experiences by name (not generic descriptions)
+- Add "insider tips" that only someone who has visited would know (e.g., "Ask for a table by the window overlooking...")
+- Reference time of day, seasons, or specific events that affect the experience
+- Include approximate walking times between locations
+
+Authoritativeness:
+- Cite verifiable facts: opening hours, price ranges with £ symbols, booking requirements
+- Reference official ratings, awards, or certifications (e.g., "Michelin-starred", "5-star", "halal-certified by HMC")
+- Link concepts to broader context (e.g., "Part of the growing halal luxury dining scene in London")
+
+Trustworthiness:
+- Be transparent about limitations: "Prices as of 2026 — check directly for current rates"
+- Include balanced perspectives: mention both pros and potential drawbacks
+- Add a brief "About ${site.name}" line: "This guide was researched and written by the ${site.name} editorial team, who regularly visit and review these locations"
+
+Humanization (CRITICAL — avoid AI detection):
+- Vary sentence length dramatically: 5-word sentences mixed with 25-word sentences
+- Use occasional colloquial expressions naturally (e.g., "trust me on this one", "here's the thing")
+- Include one specific personal observation or unexpected detail per section
+- Avoid: "In conclusion", "It's worth noting", "In today's world", "Whether you're a... or a..."
+- Avoid: generic filler phrases, bullet points that all start the same way, perfectly parallel structures
+- Use contractions naturally (don't, won't, it's) — not every sentence, but regularly
+- Break up long sections with a short parenthetical aside or rhetorical question`;
 }
 
 async function submitForIndexing(slugs: string[], site: SiteConfig) {

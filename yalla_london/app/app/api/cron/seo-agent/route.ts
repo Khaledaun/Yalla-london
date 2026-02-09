@@ -92,7 +92,190 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
   // 7. AUTO-FIX SEO ISSUES WHERE POSSIBLE
   report.autoFixes = await autoFixSEOIssues(prisma, issues, fixes);
 
-  // 8. STORE AGENT RUN REPORT
+  // ====================================================
+  // 8. ANALYZE REAL GSC SEARCH PERFORMANCE
+  // ====================================================
+  try {
+    const {
+      analyzeSearchPerformance,
+      analyzeTrafficPatterns,
+      autoOptimizeLowCTRMeta,
+      submitUnindexedPages,
+      flagContentForStrengthening,
+    } = await import("@/lib/seo/seo-intelligence");
+
+    const searchData = await analyzeSearchPerformance(28);
+    if (searchData) {
+      report.searchPerformance = {
+        totals: searchData.totals,
+        lowCTRPages: searchData.lowCTRPages.length,
+        almostPage1: searchData.almostPage1.length,
+        zeroClickQueries: searchData.zeroClickBrandQueries.length,
+        page1NoClicks: searchData.page1NoClicks.length,
+        contentGapKeywords: searchData.contentGapKeywords.length,
+      };
+      issues.push(...searchData.issues);
+
+      // 9. AUTO-OPTIMIZE LOW-CTR META TITLES/DESCRIPTIONS (AI-powered)
+      report.metaOptimizations = await autoOptimizeLowCTRMeta(
+        prisma,
+        searchData,
+        issues,
+        fixes
+      );
+
+      // 10. FLAG ALMOST-PAGE-1 CONTENT FOR STRENGTHENING
+      report.contentStrengthening = await flagContentForStrengthening(
+        prisma,
+        searchData,
+        fixes
+      );
+    } else {
+      report.searchPerformance = { status: "no_data" };
+    }
+
+    // 11. ANALYZE GA4 TRAFFIC PATTERNS
+    const trafficData = await analyzeTrafficPatterns(28);
+    if (trafficData) {
+      report.trafficAnalysis = {
+        sessions: trafficData.sessions,
+        organicShare: trafficData.organicShare,
+        bounceRate: trafficData.bounceRate,
+        engagementRate: trafficData.engagementRate,
+        lowEngagementPages: trafficData.lowEngagementPages.length,
+      };
+      issues.push(...trafficData.issues);
+    } else {
+      report.trafficAnalysis = { status: "no_data" };
+    }
+
+    // 12. SUBMIT ALL PAGES FOR INDEXING (idempotent)
+    report.indexingSubmission = await submitUnindexedPages(prisma, fixes);
+
+    // 12b. AUTO-INJECT STRUCTURED DATA FOR POSTS MISSING SCHEMAS
+    try {
+      const { enhancedSchemaInjector } = await import(
+        "@/lib/seo/enhanced-schema-injector"
+      );
+
+      // Find published posts without structured data
+      const postsWithoutSchema = await prisma.blogPost.findMany({
+        where: {
+          published: true,
+          deletedAt: null,
+          OR: [
+            { authority_links_json: { equals: null } },
+            { authority_links_json: { equals: {} } },
+          ],
+        },
+        select: {
+          id: true,
+          slug: true,
+          title_en: true,
+          content_en: true,
+          tags: true,
+        },
+        take: 5, // Process 5 per run
+      });
+
+      let schemasInjected = 0;
+      const baseSiteUrl = siteUrl || process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      for (const post of postsWithoutSchema) {
+        if (!post.content_en || post.content_en.length < 100) continue;
+        try {
+          const postUrl = `${baseSiteUrl}/blog/${post.slug}`;
+          await enhancedSchemaInjector.injectSchemas(
+            post.content_en,
+            post.title_en || post.slug,
+            postUrl,
+            post.id,
+            { tags: post.tags }
+          );
+          schemasInjected++;
+        } catch {}
+      }
+
+      if (schemasInjected > 0) {
+        fixes.push(`Auto-injected structured data for ${schemasInjected} posts`);
+      }
+      report.schemaInjection = {
+        processed: postsWithoutSchema.length,
+        injected: schemasInjected,
+      };
+    } catch (schemaError) {
+      console.warn("Schema auto-injection failed (non-fatal):", schemaError);
+    }
+
+    // 13. ANALYZE CONTENT DIVERSITY + GENERATE STRATEGIC PROPOSALS
+    try {
+      const {
+        generateContentProposals,
+        saveContentProposals,
+        analyzeContentDiversity,
+        applyDiversityQuotas,
+      } = await import("@/lib/seo/content-strategy");
+
+      // Analyze current content mix for diversity balance
+      const diversity = await analyzeContentDiversity(prisma);
+      report.contentDiversity = {
+        mix: diversity.currentMix,
+        totalPublished: diversity.totalPublished,
+        underrepresented: diversity.underrepresented,
+        overrepresented: diversity.overrepresented,
+        upcomingSeasons: diversity.upcomingSeasons,
+        weeklyVolume: `${diversity.weeklyActual}/${diversity.weeklyTarget}`,
+        adjustments: diversity.adjustments,
+      };
+
+      if (diversity.adjustments.length > 0) {
+        issues.push(
+          `Content diversity: ${diversity.adjustments.length} adjustments needed (${diversity.underrepresented.join(", ")} underrepresented)`
+        );
+      }
+
+      // Generate proposals from GSC data (if available) then apply diversity quotas
+      if (searchData) {
+        const existingPosts = await prisma.blogPost.findMany({
+          where: { published: true, deletedAt: null },
+          select: { slug: true },
+        });
+        const existingSlugs = existingPosts.map((p: any) => p.slug);
+
+        let proposals = generateContentProposals(searchData, existingSlugs);
+        proposals = applyDiversityQuotas(proposals, diversity);
+
+        const saved = await saveContentProposals(prisma, proposals, fixes);
+
+        report.contentStrategy = {
+          proposalsGenerated: proposals.length,
+          proposalsCreated: saved.created,
+          proposalsSkipped: saved.skipped,
+          diversityAdjusted: true,
+          types: proposals.reduce(
+            (acc: Record<string, number>, p) => {
+              acc[p.contentType] = (acc[p.contentType] || 0) + 1;
+              return acc;
+            },
+            {} as Record<string, number>
+          ),
+        };
+      }
+    } catch (strategyError) {
+      console.warn("Content strategy error (non-fatal):", strategyError);
+      report.contentStrategy = { status: "error" };
+    }
+  } catch (intelligenceError) {
+    console.warn(
+      "SEO Intelligence module error (non-fatal):",
+      intelligenceError
+    );
+    report.searchPerformance = {
+      status: "error",
+      error: (intelligenceError as Error).message,
+    };
+  }
+
+  // 13. STORE AGENT RUN REPORT
   report.summary = {
     totalIssues: issues.length,
     totalFixes: fixes.length,
@@ -116,8 +299,16 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
           sitemapHealth: report.sitemapHealth || {},
           contentGaps: report.contentGaps || {},
           autoFixes: report.autoFixes || {},
+          searchPerformance: report.searchPerformance || {},
+          trafficAnalysis: report.trafficAnalysis || {},
+          metaOptimizations: report.metaOptimizations || [],
+          contentStrengthening: report.contentStrengthening || {},
+          indexingSubmission: report.indexingSubmission || {},
+          contentStrategy: report.contentStrategy || {},
+          contentDiversity: report.contentDiversity || {},
+          schemaInjection: report.schemaInjection || {},
           recommendations: generateRecommendations(issues),
-          agent: "seo-autonomous",
+          agent: "seo-autonomous-v2",
           runType: "scheduled",
           fixes_applied: fixes.length,
           health_score: report.summary.healthScore,
@@ -615,6 +806,19 @@ function calculateHealthScore(report: Record<string, any>): number {
 
   // Content gaps
   if (report.contentGaps?.categoryGaps?.length > 2) score -= 10;
+
+  // GSC search performance
+  if (report.searchPerformance?.page1NoClicks > 0) score -= 10;
+  if (report.searchPerformance?.lowCTRPages > 3) score -= 10;
+  if (report.searchPerformance?.totals?.ctr < 3) score -= 5;
+
+  // GA4 traffic analysis
+  if (report.trafficAnalysis?.organicShare < 20) score -= 10;
+  if (report.trafficAnalysis?.bounceRate > 50) score -= 5;
+
+  // Bonus for fixes applied
+  const fixCount = report.metaOptimizations?.length || 0;
+  if (fixCount > 0) score += Math.min(fixCount * 2, 10);
 
   return Math.max(0, Math.min(100, score));
 }

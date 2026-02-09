@@ -153,6 +153,19 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Get hostname from request (used for redirect + tenant resolution)
+  const hostname = request.headers.get("host") || "localhost:3000";
+
+  // SEO: Redirect non-www to www for production domains (consolidate ranking power)
+  if (isProduction && !hostname.startsWith("www.") && !hostname.includes("localhost")) {
+    const wwwHost = `www.${hostname}`;
+    if (DOMAIN_TO_SITE[wwwHost]) {
+      const url = request.nextUrl.clone();
+      url.host = wwwHost;
+      return NextResponse.redirect(url, 301);
+    }
+  }
+
   // SECURITY: CSRF protection for mutating requests
   const method = request.method.toUpperCase();
   if (
@@ -167,9 +180,6 @@ export function middleware(request: NextRequest) {
       );
     }
   }
-
-  // Get hostname from request
-  const hostname = request.headers.get("host") || "localhost:3000";
 
   // Resolve tenant from hostname
   const tenant = DOMAIN_TO_SITE[hostname] || DEFAULT_SITE;

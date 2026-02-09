@@ -3,7 +3,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 
-const VERCEL_TIMEOUT_MS = 9000; // Leave 1s buffer before Vercel kills us
+const VERCEL_TIMEOUT_MS = 55000; // Pro plan: 60s max, leave 5s buffer
 
 /**
  * GET /api/seo/check-and-index
@@ -16,15 +16,15 @@ const VERCEL_TIMEOUT_MS = 9000; // Leave 1s buffer before Vercel kills us
  *
  * Query params:
  *   ?submit=true   — actually submit unindexed pages (default: dry-run)
- *   ?limit=N       — limit URL inspection checks (default: 5, max: 50)
+ *   ?limit=N       — limit URL inspection checks (default: 30, max: 100)
  */
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   const searchParams = request.nextUrl.searchParams;
   const doSubmit = searchParams.get("submit") === "true";
   const inspectLimit = Math.min(
-    parseInt(searchParams.get("limit") || "5", 10),
-    50,
+    parseInt(searchParams.get("limit") || "30", 10),
+    100,
   );
 
   const siteUrl =

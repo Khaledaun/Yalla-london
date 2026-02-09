@@ -81,6 +81,9 @@ export async function POST(request: NextRequest) { return GET(request); }
 ### Cloudflare Integration
 - Client: `@/lib/integrations/cloudflare.ts`
 - Auth: `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ZONE_ID`
+- **Token permissions needed**: Zone Read, Zone Settings Edit, DNS Edit, Cache Purge, Page Rules Edit, SSL/Certs Edit
+  - "Zone Settings:Read" only allows GET — PATCH requires "Zone Settings:Edit"
+  - Missing Edit permission causes silent auth errors (code 10000/9109)
 - Audit: `GET /api/cloudflare/audit` (zone, DNS, cache, security, page rules, bot mgmt)
 - Actions: `POST /api/cloudflare/actions` (purge_all, purge_urls, set_browser_cache_ttl, set_cache_level, set_always_https, set_minify, set_ssl, create_page_rule)
 - For AIO: AI crawl control must be "Allow"
@@ -95,7 +98,7 @@ export async function POST(request: NextRequest) { return GET(request); }
 ### New Site SEO Setup Checklist
 1. Add site to `config/sites.ts`
 2. Add to `middleware.ts` domain routing
-3. Vercel env vars:
+3. Vercel env vars (**use `echo -n` to avoid trailing newlines**):
    - `GSC_SITE_URL` = exact GSC property URL (e.g. `sc-domain:newsite.com`)
    - `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ZONE_ID`
    - `GA4_PROPERTY_ID` (numeric)
@@ -103,9 +106,10 @@ export async function POST(request: NextRequest) { return GET(request); }
    - `INDEXNOW_KEY`
 4. Add service account to new GSC property (Full permissions)
 5. Add service account to new GA4 property (Viewer role)
-6. Submit sitemap
-7. Verify: `/api/seo/full-audit?days=7` + `/api/cloudflare/audit`
-8. Cloudflare: SSL=full/strict, Always HTTPS=on, browser TTL=14400+, AI crawlers=allow
+6. Create Cloudflare API token with **Zone Settings:Edit** (not just Read)
+7. Submit sitemap
+8. Verify: `/api/seo/full-audit?days=7` + `/api/cloudflare/audit`
+9. Cloudflare: SSL=full/strict, Always HTTPS=on, browser TTL=14400+, AI crawlers=allow
 
 ### Content Generation
 - AI provider layer at `@/lib/ai/provider` with automatic fallback (Claude -> OpenAI -> Gemini)

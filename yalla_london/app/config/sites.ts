@@ -31,6 +31,10 @@ export interface SiteConfig {
   primaryKeywordsEN: string[];
   primaryKeywordsAR: string[];
   categoryName: { en: string; ar: string };
+  // WordPress integration (optional — set type: "wordpress" to enable WP REST API management)
+  type?: "native" | "wordpress";
+  wpApiUrl?: string; // e.g. "https://example.com/wp-json/wp/v2"
+  wpSiteProfile?: Record<string, unknown>; // SiteProfile from audit — used for AI content alignment
 }
 
 export interface TopicTemplate {

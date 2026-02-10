@@ -214,14 +214,41 @@ GSC data → identify gaps → typed proposals (answer/comparison/deep-dive/list
 ## New Site Deployment Checklist
 1. Add site to `config/sites.ts` (set `type: "native"` or `"wordpress"`)
 2. Add to `middleware.ts` domain routing
-3. Vercel env vars (**use `echo -n` to avoid trailing newlines**):
+3. Create `sites/{site-id}/` directory (with `.gitkeep`)
+4. Create Vercel project, set env vars (**use `echo -n` to avoid trailing newlines**):
+   - `SITE_ID` = the site's ID (e.g. `yalla-london`) — required for selective deployment
    - `GSC_SITE_URL`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID`, `GA4_PROPERTY_ID`
    - `GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL` + `_PRIVATE_KEY`, `INDEXNOW_KEY`
-4. Add service account to GSC (Full permissions) + GA4 (Viewer role)
-5. Create Cloudflare API token with **Zone Settings:Edit**
-6. If WordPress: set `WP_{SITE_ID}_*` env vars, run audit, add profile to config
-7. Verify: `/api/seo/full-audit?days=7` + `/api/cloudflare/audit`
-8. Cloudflare: SSL=full/strict, Always HTTPS=on, browser TTL=14400+, AI crawlers=allow
+5. Set Vercel Ignored Build Step: `bash scripts/should-deploy.sh`
+6. Add service account to GSC (Full permissions) + GA4 (Viewer role)
+7. Create Cloudflare API token with **Zone Settings:Edit**
+8. If WordPress: set `WP_{SITE_ID}_*` env vars, run audit, add profile to config
+9. Verify: `/api/seo/full-audit?days=7` + `/api/cloudflare/audit`
+10. Cloudflare: SSL=full/strict, Always HTTPS=on, browser TTL=14400+, AI crawlers=allow
+
+## Selective Deployment
+
+Each Vercel project uses `scripts/should-deploy.sh` as its Ignored Build Step.
+
+### How it works
+- **Core files changed** (`lib/`, `components/`, `app/`, `middleware.ts`, `config/`, `package.json`, `prisma/`) → ALL sites rebuild
+- **Only `sites/{site-id}/` changed** → only that site's Vercel project rebuilds
+- **Only non-deploy files changed** (`.claude/`, `docs/`, `*.md`, `scripts/`) → NO sites rebuild
+
+### File classification
+```
+Core (all sites build):     lib/ components/ app/ config/ middleware.ts
+                            package.json yarn.lock next.config.* prisma/
+                            public/ styles/ tsconfig.json .eslintrc.json
+
+Site-specific (one site):   sites/{site-id}/*
+
+Non-deploy (no build):      .claude/ docs/ *.md scripts/ .github/
+```
+
+### Setup per Vercel project
+1. Settings → Git → Ignored Build Step: `bash scripts/should-deploy.sh`
+2. Settings → Environment Variables → `SITE_ID` = `yalla-london`
 
 ## Content Generation
 - AI provider layer at `@/lib/ai/provider` with automatic fallback (Claude -> OpenAI -> Gemini)

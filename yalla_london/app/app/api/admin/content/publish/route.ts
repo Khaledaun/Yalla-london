@@ -236,27 +236,51 @@ export async function POST(request: NextRequest) {
         });
 
         if (!recentAudit) {
-          // Create basic SEO audit
-          const auditScore = 70 + Math.floor(Math.random() * 25); // Random score 70-95
+          // Perform real content-based SEO audit
+          const auditBreakdown = computeSeoAudit(content, content_type);
+          const auditScore = Math.round(
+            auditBreakdown.title_optimization * 0.15 +
+            auditBreakdown.meta_description * 0.15 +
+            auditBreakdown.content_quality * 0.25 +
+            auditBreakdown.keyword_optimization * 0.15 +
+            auditBreakdown.technical_seo * 0.15 +
+            auditBreakdown.user_experience * 0.15
+          );
+
+          const suggestions: string[] = [];
+          const quickFixes: string[] = [];
+
+          if (auditBreakdown.title_optimization < 70) {
+            suggestions.push("Optimize title length to 50-60 characters for best CTR");
+          }
+          if (auditBreakdown.meta_description < 70) {
+            quickFixes.push("Add or improve meta description (120-155 characters)");
+          }
+          if (auditBreakdown.content_quality < 70) {
+            suggestions.push("Increase content depth with more sections and detail (aim for 800+ words)");
+          }
+          if (auditBreakdown.keyword_optimization < 70) {
+            suggestions.push("Add more relevant keywords and long-tail phrases in headings and body");
+          }
+          if (!content?.featured_image) {
+            quickFixes.push("Add a featured image with descriptive alt text");
+          }
+          if (auditBreakdown.technical_seo < 80) {
+            suggestions.push("Add structured data markup and internal links");
+          }
+          if (suggestions.length === 0) {
+            suggestions.push("Content meets SEO best practices - consider adding internal links for further improvement");
+          }
 
           await prisma.seoAuditResult.create({
             data: {
               content_id,
               content_type,
               score: auditScore,
-              breakdown_json: {
-                content_quality: 85,
-                keyword_optimization: auditScore - 10,
-                technical_seo: 90,
-                user_experience: auditScore + 5,
-              },
-              suggestions: [
-                "Add more internal links",
-                "Optimize images for better loading",
-                "Include location-specific schema markup",
-              ],
-              quick_fixes: ["Add meta description", "Optimize title length"],
-              audit_version: "4C.1",
+              breakdown_json: auditBreakdown,
+              suggestions,
+              quick_fixes: quickFixes,
+              audit_version: "4C.2",
             },
           });
 
@@ -291,14 +315,39 @@ export async function POST(request: NextRequest) {
           select: { id: true, email: true },
         });
 
-        // TODO: Send notification emails
-        console.log(
-          `Would notify ${subscribers.length} subscribers about new content`,
-        );
+        // Queue notification emails for confirmed subscribers
+        if (subscribers.length > 0) {
+          const contentTitle = content_type === "blog_post"
+            ? (content as any)?.title_en || "New content"
+            : (content as any)?.title || "New content";
+          const contentUrl = publishUrl;
+
+          // Create a background job to send notifications asynchronously
+          try {
+            await prisma.backgroundJob.create({
+              data: {
+                job_name: "subscriber_notification",
+                job_type: "triggered",
+                parameters_json: {
+                  subscriber_ids: subscribers.map((s: any) => s.id),
+                  content_title: contentTitle,
+                  content_url: contentUrl,
+                  content_type,
+                  content_id,
+                  subscriber_count: subscribers.length,
+                },
+                status: "pending",
+                max_retries: 3,
+              },
+            });
+          } catch (jobError) {
+            console.error("Failed to create notification job:", jobError);
+          }
+        }
 
         publishResult.subscriber_notification = {
           sent: subscribers.length,
-          status: "queued",
+          status: subscribers.length > 0 ? "queued" : "no_subscribers",
         };
       } catch (error) {
         console.error("Failed to notify subscribers:", error);
@@ -344,4 +393,97 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+/**
+ * Compute a real SEO audit score based on actual content analysis.
+ * Replaces the previous random score generation (70-95) with deterministic,
+ * content-based scoring across 6 dimensions.
+ */
+function computeSeoAudit(content: any, contentType: string) {
+  let titleScore = 0;
+  let metaScore = 0;
+  let contentScore = 0;
+  let keywordScore = 0;
+  let technicalScore = 0;
+  let uxScore = 0;
+
+  if (contentType === "blog_post") {
+    // Title optimization (0-100)
+    const title = content?.title_en || "";
+    if (title.length >= 30 && title.length <= 60) titleScore = 100;
+    else if (title.length >= 20 && title.length <= 70) titleScore = 75;
+    else if (title.length > 0) titleScore = 40;
+
+    // Meta description (0-100)
+    const metaDesc = content?.meta_description_en || content?.excerpt_en || "";
+    if (metaDesc.length >= 120 && metaDesc.length <= 160) metaScore = 100;
+    else if (metaDesc.length >= 80 && metaDesc.length <= 200) metaScore = 70;
+    else if (metaDesc.length > 0) metaScore = 40;
+    else metaScore = 0;
+
+    // Content quality (0-100) - based on word count, headings, paragraphs
+    const bodyContent = content?.content_en || "";
+    const wordCount = bodyContent.split(/\s+/).filter(Boolean).length;
+    const hasHeadings = /<h[2-4]/i.test(bodyContent) || /#{2,4}\s/.test(bodyContent);
+    const paragraphCount = (bodyContent.match(/<p[\s>]/gi) || bodyContent.split(/\n\n+/)).length;
+
+    if (wordCount >= 1200) contentScore += 40;
+    else if (wordCount >= 800) contentScore += 30;
+    else if (wordCount >= 300) contentScore += 20;
+    else contentScore += 5;
+
+    if (hasHeadings) contentScore += 30;
+    else contentScore += 5;
+
+    if (paragraphCount >= 5) contentScore += 30;
+    else if (paragraphCount >= 3) contentScore += 20;
+    else contentScore += 10;
+
+    // Keyword optimization (0-100) - tags, keywords JSON, long-tail presence
+    const tags = content?.tags || [];
+    const keywordsJson = content?.keywords_json || [];
+    const featuredLongtails = content?.featured_longtails_json || [];
+
+    if (tags.length >= 5) keywordScore += 35;
+    else if (tags.length >= 3) keywordScore += 25;
+    else if (tags.length > 0) keywordScore += 10;
+
+    if (keywordsJson.length >= 3) keywordScore += 35;
+    else if (keywordsJson.length > 0) keywordScore += 15;
+
+    if (featuredLongtails.length >= 2) keywordScore += 30;
+    else if (featuredLongtails.length > 0) keywordScore += 15;
+
+    // Technical SEO (0-100) - featured image, slug, category, schema
+    if (content?.featured_image) technicalScore += 25;
+    if (content?.slug && content.slug.length > 0) technicalScore += 25;
+    if (content?.category) technicalScore += 25;
+    if (content?.authority_links_json && (content.authority_links_json as any[]).length > 0) technicalScore += 25;
+    else technicalScore += 10; // Base score
+
+    // User experience (0-100) - readability, AR support, excerpt
+    if (content?.excerpt_en && content.excerpt_en.length >= 50) uxScore += 25;
+    if (content?.content_ar && content.content_ar.length > 50) uxScore += 25;
+    if (content?.title_ar && content.title_ar.length > 0) uxScore += 25;
+    if (wordCount >= 300 && wordCount <= 2500) uxScore += 25;
+    else if (wordCount > 0) uxScore += 10;
+  } else {
+    // Scheduled content or other types - basic scoring
+    titleScore = content?.title ? 60 : 0;
+    metaScore = content?.metadata?.metaDescription ? 60 : 0;
+    contentScore = content?.content ? 60 : 0;
+    keywordScore = (content?.tags?.length || 0) >= 3 ? 60 : 30;
+    technicalScore = 50;
+    uxScore = 50;
+  }
+
+  return {
+    title_optimization: Math.min(100, titleScore),
+    meta_description: Math.min(100, metaScore),
+    content_quality: Math.min(100, contentScore),
+    keyword_optimization: Math.min(100, keywordScore),
+    technical_seo: Math.min(100, technicalScore),
+    user_experience: Math.min(100, uxScore),
+  };
 }

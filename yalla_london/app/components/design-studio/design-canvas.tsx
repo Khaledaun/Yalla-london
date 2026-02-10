@@ -53,9 +53,25 @@ interface DesignCanvasProps {
 // ─── Stage Dimensions ────────────────────────────────────────────
 
 const FORMAT_SIZES: Record<string, { width: number; height: number }> = {
+  // Print formats
   A4: { width: 595, height: 842 },
   A5: { width: 420, height: 595 },
   letter: { width: 612, height: 792 },
+  // Social media formats
+  "instagram-post": { width: 1080, height: 1080 },
+  "instagram-story": { width: 1080, height: 1920 },
+  "instagram-reel": { width: 1080, height: 1920 },
+  "facebook-post": { width: 1200, height: 630 },
+  "facebook-cover": { width: 820, height: 312 },
+  "twitter-post": { width: 1200, height: 675 },
+  "twitter-header": { width: 1500, height: 500 },
+  "linkedin-post": { width: 1200, height: 627 },
+  "linkedin-cover": { width: 1584, height: 396 },
+  "tiktok-video": { width: 1080, height: 1920 },
+  "youtube-thumbnail": { width: 1280, height: 720 },
+  "pinterest-pin": { width: 1000, height: 1500 },
+  "og-image": { width: 1200, height: 630 },
+  // Generic formats
   square: { width: 600, height: 600 },
   story: { width: 540, height: 960 },
   landscape: { width: 842, height: 595 },

@@ -9,10 +9,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fetchGA4Metrics, isGA4Configured } from "@/lib/seo/ga4-data-api";
 import { gscApi } from "@/lib/seo/indexing-service";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const range = searchParams.get("range") || "30d";

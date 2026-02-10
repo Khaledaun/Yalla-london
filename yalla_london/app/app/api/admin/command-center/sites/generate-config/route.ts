@@ -7,8 +7,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSiteConfig } from '@/lib/ai/site-generator';
 import { isAIAvailable } from '@/lib/ai/provider';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { prompt, preset } = await request.json();
 

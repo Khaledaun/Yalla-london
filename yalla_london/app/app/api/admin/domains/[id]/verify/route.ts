@@ -6,12 +6,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 interface RouteParams {
   params: { id: string };
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const domain = await prisma.domain.findUnique({
       where: { id: params.id },

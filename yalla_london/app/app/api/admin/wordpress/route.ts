@@ -6,6 +6,7 @@ import {
   createWPClient,
   type WPCredentials,
 } from "@/lib/integrations/wordpress";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * GET /api/admin/wordpress
@@ -20,6 +21,9 @@ import {
  *   ?search=keyword             — search
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
   const siteId = searchParams.get("siteId");
   const action = searchParams.get("action") || "test";
@@ -123,6 +127,9 @@ export async function GET(request: NextRequest) {
  *           "test-connection"
  */
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { siteId, action, data } = body;

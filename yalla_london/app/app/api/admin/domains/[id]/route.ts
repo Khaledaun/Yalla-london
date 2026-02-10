@@ -8,12 +8,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 interface RouteParams {
   params: { id: string };
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const domain = await prisma.domain.findUnique({
       where: { id: params.id },
@@ -49,6 +53,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { is_primary, ssl_status } = body;
@@ -103,6 +110,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const domain = await prisma.domain.findUnique({
       where: { id: params.id },

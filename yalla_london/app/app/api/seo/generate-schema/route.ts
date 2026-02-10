@@ -3,11 +3,15 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { SchemaGenerator } from '@/lib/seo/schema-generator';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * Auto-generate schema markup for articles and pages
  */
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { 
@@ -149,6 +153,9 @@ export async function POST(request: NextRequest) {
  * Get available schema types and validation
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const articleId = searchParams.get('articleId');

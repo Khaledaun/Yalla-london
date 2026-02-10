@@ -4,8 +4,12 @@ export const revalidate = 0;
 
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { title, description, type = 'website' } = await request.json();
 
@@ -56,6 +60,9 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint for the actual OG image generation (placeholder)
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
   const title = searchParams.get('title') || 'Yalla London';
   const description = searchParams.get('description') || 'Your Guide to London';

@@ -10,12 +10,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SkillService, SkillCategory } from '@/lib/domains/team';
 import { requirePermission } from '@/lib/rbac';
 import type { UpdateSkillInput } from '@/lib/domains/team';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 interface RouteParams {
   params: { id: string };
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     await requirePermission(request, 'view_analytics');
 
@@ -42,6 +46,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     await requirePermission(request, 'manage_system');
 
@@ -100,6 +107,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     await requirePermission(request, 'manage_system');
 

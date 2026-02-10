@@ -9,8 +9,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SkillService, SkillCategory } from '@/lib/domains/team';
 import { requirePermission } from '@/lib/rbac';
 import type { CreateSkillInput, SkillFilters } from '@/lib/domains/team';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Require at least viewer permission
     await requirePermission(request, 'view_analytics');
@@ -49,6 +53,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Require admin permission to create skills
     await requirePermission(request, 'manage_system');

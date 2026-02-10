@@ -6,6 +6,7 @@ import {
   getNewUrls,
   gscApi,
 } from "@/lib/seo/indexing-service";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,9 @@ export const dynamic = "force-dynamic";
  * Visit: /api/seo/test
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
   const action = searchParams.get("action") || "info";
 

@@ -7,6 +7,7 @@ import {
   type VideoCategory,
   type VideoFormat,
 } from "@/lib/video/brand-video-engine";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * GET /api/admin/video-studio
@@ -23,6 +24,9 @@ import {
  *   &duration=15
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const sp = request.nextUrl.searchParams;
   const action = sp.get("action") || "templates";
 
@@ -78,6 +82,9 @@ export async function GET(request: NextRequest) {
  * action: "render-still"   — render a single frame as PNG (thumbnail)
  */
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { action = "generate", siteId, category, format, locale, title, subtitle, images, duration, frame } = body;

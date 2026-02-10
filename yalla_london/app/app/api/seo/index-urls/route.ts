@@ -8,11 +8,15 @@ import {
   runAutomatedIndexing,
   gscApi,
 } from "@/lib/seo/indexing-service";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * GET: List all indexable URLs and their count
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
   const action = searchParams.get("action");
 
@@ -84,6 +88,9 @@ export async function GET(request: NextRequest) {
  * POST: Submit URLs for indexing
  */
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { urls, mode = "new", pingOnly = false } = body;

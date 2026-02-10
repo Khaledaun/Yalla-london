@@ -1,8 +1,9 @@
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cloudflare } from "@/lib/integrations/cloudflare";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * Cloudflare Audit API
@@ -11,7 +12,10 @@ import { cloudflare } from "@/lib/integrations/cloudflare";
  * Runs a comprehensive Cloudflare audit: zone, DNS, analytics,
  * cache settings, security, page rules, and bot management.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     if (!cloudflare.isConfigured()) {
       return NextResponse.json({

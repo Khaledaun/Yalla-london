@@ -4,6 +4,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { runWordPressAudit, type WPSiteAudit } from "@/lib/integrations/wordpress-audit";
 import { type WPCredentials } from "@/lib/integrations/wordpress";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * POST /api/admin/wordpress/audit
@@ -21,6 +22,9 @@ import { type WPCredentials } from "@/lib/integrations/wordpress";
  * Returns: Full WPSiteAudit including generated SiteProfile
  */
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { apiUrl, username, appPassword, siteId } = body;
@@ -76,6 +80,9 @@ export async function POST(request: NextRequest) {
  * Query: ?siteId=my-wp-site
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const siteId = request.nextUrl.searchParams.get("siteId");
   if (!siteId) {
     return NextResponse.json(

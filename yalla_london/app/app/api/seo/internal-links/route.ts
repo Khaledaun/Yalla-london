@@ -4,6 +4,7 @@ export const revalidate = 0;
 
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 interface InternalLink {
   fromUrl: string;
@@ -36,6 +37,9 @@ interface PageContent {
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   // Check SEO feature flag directly
   const seoEnabled = process.env.FEATURE_SEO === '1';
   if (!seoEnabled) {
@@ -81,6 +85,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   // Check SEO feature flag directly
   const seoEnabled = process.env.FEATURE_SEO === '1';
   if (!seoEnabled) {

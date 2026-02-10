@@ -6,6 +6,8 @@ import { searchConsole } from "@/lib/integrations/google-search-console";
 import { fetchGA4Metrics, isGA4Configured } from "@/lib/seo/ga4-data-api";
 import { googlePageSpeed } from "@/lib/integrations/google-pagespeed";
 import { cloudflare } from "@/lib/integrations/cloudflare";
+import { requireAdmin } from "@/lib/admin-middleware";
+import { getSiteSeoConfig } from "@/config/sites";
 
 /**
  * Full-Site SEO Audit API
@@ -15,16 +17,26 @@ import { cloudflare } from "@/lib/integrations/cloudflare";
  * a comprehensive audit with actionable fixes.
  *
  * Query params:
+ *   ?siteId=X      - Target site (default: from x-site-id header or yalla-london)
  *   ?days=30       - Date range (default 30)
  *   ?pagespeed=true - Include PageSpeed analysis (slower)
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const startTime = Date.now();
 
   try {
     const { searchParams } = new URL(request.url);
     const days = parseInt(searchParams.get("days") || "30", 10);
     const includePageSpeed = searchParams.get("pagespeed") === "true";
+
+    // Per-site scoping: query param > header > default
+    const siteId = searchParams.get("siteId")
+      || request.headers.get("x-site-id")
+      || "yalla-london";
+    const seoConfig = getSiteSeoConfig(siteId);
 
     const endDate = new Date().toISOString().split("T")[0];
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
@@ -299,7 +311,7 @@ export async function GET(request: NextRequest) {
     // Optional PageSpeed
     let pageSpeedData = null;
     if (includePageSpeed) {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      const siteUrl = seoConfig.siteUrl;
       try {
         const [mobile, desktop] = await Promise.all([
           googlePageSpeed.analyze(siteUrl, "mobile"),
@@ -341,6 +353,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      siteId,
+      siteUrl: seoConfig.siteUrl,
       auditDate: new Date().toISOString(),
       dateRange: { startDate, endDate, days },
       configStatus,

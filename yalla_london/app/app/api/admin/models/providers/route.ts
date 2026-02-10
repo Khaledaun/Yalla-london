@@ -8,6 +8,7 @@ import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/rbac';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 // Encryption key from environment (should be 32 bytes)
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32);
@@ -66,6 +67,9 @@ function decryptApiKey(encryptedData: string): string {
 
 // GET - List model providers
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Feature flag check
     if (!isFeatureEnabled('FEATURE_LLM_ROUTER')) {
@@ -132,6 +136,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new model provider
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Feature flag check
     if (!isFeatureEnabled('FEATURE_LLM_ROUTER')) {

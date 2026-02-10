@@ -7,6 +7,7 @@ import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/rbac';
 import { z } from 'zod';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 // Zod schemas for validation
 const UpdateTopicSchema = z.object({
@@ -30,6 +31,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Feature flag check
     // Feature flag check removed
@@ -90,6 +94,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Feature flag check
     // Feature flag check removed
@@ -190,6 +197,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Feature flag check
     // Feature flag check removed

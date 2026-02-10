@@ -157,6 +157,16 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       report.trafficAnalysis = { status: "no_data" };
     }
 
+    // 11b. FEEDBACK LOOP: Auto-queue rewrites for underperforming content
+    try {
+      report.contentRewrites = await queueContentRewrites(
+        prisma, searchData, trafficData, siteId, fixes
+      );
+    } catch (rewriteError) {
+      console.warn("Content rewrite queue error (non-fatal):", rewriteError);
+      report.contentRewrites = { status: "error" };
+    }
+
     // 12. SUBMIT ALL PAGES FOR INDEXING (idempotent)
     report.indexingSubmission = await submitUnindexedPages(prisma, fixes);
 
@@ -314,6 +324,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           metaOptimizations: report.metaOptimizations || [],
           contentStrengthening: report.contentStrengthening || {},
           indexingSubmission: report.indexingSubmission || {},
+          contentRewrites: report.contentRewrites || {},
           contentStrategy: report.contentStrategy || {},
           contentDiversity: report.contentDiversity || {},
           schemaInjection: report.schemaInjection || {},
@@ -867,4 +878,130 @@ function generateRecommendations(issues: string[]) {
       return { type: "info", issue, priority: 3 };
     })
     .sort((a, b) => a.priority - b.priority);
+}
+
+/**
+ * FEEDBACK LOOP: Auto-queue content rewrites for underperforming posts.
+ *
+ * Criteria for rewrite:
+ * - Published 30+ days ago (had time to rank)
+ * - Low CTR (< 1%) with decent impressions (50+), OR
+ * - Low engagement from GA4 (appears in lowEngagementPages)
+ *
+ * Creates a TopicProposal with source "seo-agent-rewrite" so the
+ * daily-content-generate cron can pick it up and regenerate the content.
+ */
+async function queueContentRewrites(
+  prisma: any,
+  searchData: any,
+  trafficData: any,
+  siteId: string | undefined,
+  fixes: string[],
+): Promise<{ queued: number; skipped: number; candidates: string[] }> {
+  const siteFilter = siteId ? { site_id: siteId } : {};
+  const blogSiteFilter = siteId ? { siteId } : {};
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  // Collect underperforming slugs from GSC data
+  const rewriteCandidates = new Set<string>();
+
+  if (searchData?.lowCTRPages) {
+    for (const page of searchData.lowCTRPages) {
+      const url: string = page.url || page.keys?.[0] || "";
+      const slugMatch = url.match(/\/blog\/([^/?#]+)/);
+      if (slugMatch) {
+        const impressions = page.impressions || 0;
+        const ctr = page.ctr || 0;
+        // Low CTR with meaningful impressions
+        if (ctr < 0.01 && impressions >= 50) {
+          rewriteCandidates.add(slugMatch[1]);
+        }
+      }
+    }
+  }
+
+  // Add low-engagement pages from GA4
+  if (trafficData?.lowEngagementPages) {
+    for (const page of trafficData.lowEngagementPages) {
+      const path: string = page.path || page.pagePath || "";
+      const slugMatch = path.match(/\/blog\/([^/?#]+)/);
+      if (slugMatch) {
+        rewriteCandidates.add(slugMatch[1]);
+      }
+    }
+  }
+
+  if (rewriteCandidates.size === 0) {
+    return { queued: 0, skipped: 0, candidates: [] };
+  }
+
+  // Find the actual blog posts that are old enough
+  const candidateSlugs = Array.from(rewriteCandidates);
+  const postsToRewrite = await prisma.blogPost.findMany({
+    where: {
+      published: true,
+      deletedAt: null,
+      ...blogSiteFilter,
+      slug: { in: candidateSlugs },
+      created_at: { lt: thirtyDaysAgo },
+    },
+    select: {
+      id: true,
+      slug: true,
+      title_en: true,
+      meta_title_en: true,
+      tags: true,
+    },
+  });
+
+  let queued = 0;
+  let skipped = 0;
+
+  for (const post of postsToRewrite) {
+    // Check if rewrite already queued
+    const existingProposal = await prisma.topicProposal.findFirst({
+      where: {
+        ...siteFilter,
+        source: "seo-agent-rewrite",
+        status: { in: ["planned", "queued", "ready"] },
+        primary_keyword: post.slug,
+      },
+    });
+
+    if (existingProposal) {
+      skipped++;
+      continue;
+    }
+
+    // Create rewrite proposal
+    await prisma.topicProposal.create({
+      data: {
+        title: `[REWRITE] ${post.title_en || post.slug}`,
+        description: `Auto-queued rewrite: Low CTR/engagement after 30+ days. Original slug: ${post.slug}`,
+        primary_keyword: post.slug,
+        longtails: post.tags || [],
+        questions: [],
+        suggested_page_type: "guide",
+        locale: "en",
+        status: "ready",
+        confidence_score: 0.8,
+        source: "seo-agent-rewrite",
+        intent: "rewrite",
+        evergreen: true,
+        ...siteFilter,
+        authority_links_json: {
+          contentType: "rewrite",
+          originalPostId: post.id,
+          reason: "low_ctr_or_engagement",
+        },
+      },
+    });
+    queued++;
+  }
+
+  if (queued > 0) {
+    fixes.push(`Queued ${queued} content rewrites for underperforming posts`);
+  }
+
+  return { queued, skipped, candidates: candidateSlugs };
 }

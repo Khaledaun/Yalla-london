@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * GET /api/admin/seo/indexing
@@ -14,6 +15,9 @@ import { NextRequest, NextResponse } from "next/server";
  *   ?limit=N       — max reports to return (default: 20)
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const type = request.nextUrl.searchParams.get("type") || "history";
   const limit = Math.min(
     parseInt(request.nextUrl.searchParams.get("limit") || "20", 10),

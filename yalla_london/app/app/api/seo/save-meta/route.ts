@@ -7,8 +7,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { seoMetaService } from '@/lib/seo/seo-meta-service';
 import { isSEOEnabled } from '@/lib/flags';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Check if SEO features are enabled
     if (!isSEOEnabled()) {
@@ -86,6 +90,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Check if SEO features are enabled
     if (!isSEOEnabled()) {

@@ -9,10 +9,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { gscApi } from "@/lib/seo/indexing-service";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const startTime = Date.now();
   const limit = parseInt(request.nextUrl.searchParams.get("limit") || "50");
 

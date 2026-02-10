@@ -6,6 +6,7 @@ import { searchConsole } from "@/lib/integrations/google-search-console";
 import { googleTrends } from "@/lib/integrations/google-trends";
 import { googlePageSpeed } from "@/lib/integrations/google-pagespeed";
 import { fetchGA4Metrics, isGA4Configured, type GA4Report } from "@/lib/seo/ga4-data-api";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * SEO Data Dashboard API
@@ -217,6 +218,9 @@ interface Alert {
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const includeGSC = searchParams.get("gsc") !== "false";

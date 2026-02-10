@@ -7,6 +7,7 @@ import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 // Zod schemas for validation
 const SubscribeSchema = z.object({
@@ -31,6 +32,9 @@ const SubscribeSchema = z.object({
 
 // POST - Subscribe user (with double opt-in)
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Feature flag check
     if (!isFeatureEnabled('FEATURE_CRM_MINIMAL')) {
@@ -156,6 +160,9 @@ export async function POST(request: NextRequest) {
 
 // GET - Confirm subscription (double opt-in)
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     if (!isFeatureEnabled('FEATURE_CRM_MINIMAL')) {
       return NextResponse.json(

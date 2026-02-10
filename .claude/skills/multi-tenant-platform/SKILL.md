@@ -72,10 +72,50 @@ The project uses `next`, `next/core-web-vitals`, and `security` ESLint plugins o
 
 ---
 
+## Creative & Design Philosophy
+
+### Philosophy-First Design
+Before creating any visual asset (PDF, image, video, social post), generate a **design philosophy** for the piece. This isn't just a style choice — it's a named aesthetic movement that guides every decision:
+
+1. **Name the aesthetic** — Give it a distinctive name (e.g., "Arabian Deco", "Desert Minimalism", "Gulf Luxury Noir")
+2. **Write the manifesto** — 3-4 sentences describing how the philosophy manifests through space, form, color, scale, rhythm, and composition
+3. **Embed the subtle reference** — Every piece should contain one conceptual thread tied to the destination/brand that only attentive viewers will notice. Like a jazz musician quoting another song — invisible to casual viewers, rewarding for those who catch it.
+4. **Execute with mastery** — The final work must appear as though it "took countless hours to create" by "someone at the absolute top of their field." Prioritize: meticulously crafted spacing, painstaking color selection, expert-level composition.
+5. **Refine, don't add** — After the first pass, always assume "it isn't perfect enough" and do a polish pass focused on improving what exists, not adding more elements.
+
+### Anti-Convergence Design Rules
+Avoid generic "AI-generated" aesthetics. Every visual must have distinctive character:
+
+**Typography** — NEVER default to Inter, Roboto, Arial, or system fonts. Choose fonts that are beautiful, unique, and contextually appropriate. Pair a distinctive display font with a refined body font. For Arabic: use Noto Kufi Arabic, Tajawal, or Cairo — never generic Naskh.
+
+**Color Strategy** — Dominant colors with sharp accents outperform timid, evenly-distributed palettes. Each site has brand colors in `config/sites.ts` — use them as the foundation but add site-specific accent colors that create atmosphere:
+- Yalla London: Deep navy + gold accents (British luxury)
+- Arabaldives: Turquoise + coral (tropical warmth)
+- Dubai: Black + rose gold (modern opulence)
+- Istanbul: Burgundy + copper (historical richness)
+- Thailand: Emerald + saffron (natural vibrancy)
+
+**Layout** — Break predictable patterns. Use asymmetry, overlap, diagonal flow, grid-breaking elements, generous negative space OR controlled density. Never center-align everything.
+
+**Motion** — Focus on high-impact moments. One well-orchestrated animation with staggered reveals creates more delight than scattered micro-interactions. Prioritize CSS-only solutions; use animation libraries only for complex sequences.
+
+**Backgrounds** — Create atmosphere: gradient meshes, noise textures, geometric patterns, layered transparencies, grain overlays. Never default to solid white or solid colors.
+
+### Brainstorming & Planning Protocol
+Before any feature, design, or content strategy implementation, follow this structured process:
+
+1. **Understanding** — Review project state, ask one question at a time, prefer multiple-choice questions, focus on purpose/constraints/success criteria
+2. **Exploring approaches** — Propose 2-3 approaches with trade-offs, lead with recommended option, explain rationale
+3. **Presenting the design** — Break into digestible sections (200-300 words), check understanding after each section, cover architecture/components/data flow/error handling
+4. **Key principles**: YAGNI ruthlessly, one question at a time, always explore alternatives, incremental validation
+5. **The differentiation question**: "What makes this UNFORGETTABLE? What's the one thing someone will remember?"
+
+---
+
 ## Design Studio
 
 ### Architecture
-Brand-aware PDF/image design system with Canva-like visual editor using react-konva.
+Brand-aware PDF/image design system with Canva-like visual editor using react-konva. Follows the philosophy-first design approach — every template starts with a named aesthetic, not generic layouts.
 
 ### Key Files
 - `lib/pdf/brand-design-system.ts` — `BrandProfile` per site, 8 template categories, `DesignElement` schema (percentage-based positioning), `renderDesignToHTML()`
@@ -91,6 +131,15 @@ Brand-aware PDF/image design system with Canva-like visual editor using react-ko
 - `GET/POST /api/admin/design-studio` — Generate branded templates by site, category, locale
 - `POST /api/admin/design-studio/analyze` — Upload design image → AI analysis → similar template generation
 - `GET/POST/PATCH/DELETE /api/admin/design-studio/media-pool` — Per-site asset CRUD with AI enrichment
+
+### Design Template Philosophy
+When generating templates, the AI must:
+1. Generate a named design philosophy for the piece before laying out any elements
+2. Use minimal text as visual elements — never paragraphs, only headlines and labels
+3. Apply the anti-convergence rules (no generic fonts, no predictable layouts)
+4. Embed a subtle thematic reference tied to the destination (e.g., a London template might echo Underground signage proportions)
+5. Always do a refinement pass: "How can I make what's already here more of a piece of art?"
+6. Match complexity to vision: maximalist travel posters need elaborate detail; minimalist guides need precision and restraint
 
 ### Patterns
 - Templates use percentage-based coordinates (0-100) for responsive rendering
@@ -564,13 +613,79 @@ Non-deploy (no build):      .claude/ docs/ *.md scripts/ .github/
 2. Settings → Environment Variables → `SITE_ID` = `yalla-london`
 
 ## Content Generation
+
+### AI Content Pipeline
 - AI provider layer at `@/lib/ai/provider` with automatic fallback (Claude -> OpenAI -> Gemini)
 - Use `generateJSON<T>()` for structured output
 - Daily quota: 2 articles (1 EN + 1 AR)
 - Tag auto-generated content with `auto-generated` and `primary-en`/`primary-ar`
 - WordPress sites: use `wpSiteProfile` system prompt for voice alignment
 
+### Autonomous Content Lifecycle
+The platform runs a fully autonomous content loop across all 5 sites:
+
+1. **Discovery**: SEO agent analyzes GSC search data → identifies content gaps, low-CTR pages, keyword opportunities
+2. **Strategy**: Content strategy engine classifies keywords → generates typed proposals (answer/comparison/deep-dive/listicle/seasonal/guide/rewrite)
+3. **Diversity**: Content diversity balancer ensures healthy mix of content types per site, adjusts proposal priorities
+4. **Generation**: Daily content generator picks highest-priority proposals → generates bilingual articles with structured SEO data
+5. **Quality Gates**: Auto-injects structured data (JSON-LD), validates meta lengths, assigns SEO scores
+6. **Publishing**: Daily publisher picks approved content → sets publish date → marks proposals as published
+7. **Indexing**: SEO agent submits new URLs to Google Indexing API + IndexNow → tracks per-URL status
+8. **Monitoring**: Agent checks indexing coverage, crawl rates, ranking changes
+9. **Optimization**: Auto-optimizes low-CTR meta titles/descriptions using AI (reads GSC performance → rewrites metas → applies directly)
+10. **Feedback Loop**: Posts with sustained low CTR or high bounce (30+ days) get auto-queued for full content rewrites
+
+### Content Rewrite System
+The feedback loop (`queueContentRewrites` in seo-agent) auto-detects underperforming content:
+- **Trigger**: Published 30+ days, CTR < 1% with 50+ impressions, OR appears in GA4 low-engagement pages
+- **Action**: Creates `TopicProposal` with `source: "seo-agent-rewrite"`, `intent: "rewrite"`, links to original post via `authority_links_json.originalPostId`
+- **Execution**: Daily content generator picks up rewrite proposals and regenerates the content
+- **Dedup**: Won't queue a rewrite if one is already pending/queued/ready for the same slug
+
+### Resilience & Multi-Site Safety
+- `lib/resilience.ts` provides `createDeadline()`, `fetchWithRetry()`, `forEachSite()` for timeout-safe multi-site processing
+- All cron jobs use deadline guards (~55s) to return partial results before Vercel's 60s timeout
+- Per-site error isolation: one site failing doesn't stop others from being processed
+- Per-site env var convention: `{VAR_NAME}_{SITE_ID_UPPER}` falls back to global (via `getSiteSeoConfig()`)
+
+### Security
+- ALL admin API routes are protected with `requireAdmin` authentication guard
+- Cron routes require `CRON_SECRET` — no hardcoded fallbacks
+- CSRF protection validates Origin header on all mutating `/api/` requests (except cron/webhook/internal)
+- Rate limits: 429/503 responses handled with exponential backoff via `fetchWithRetry()`
+
+## Frontend Design Standards
+
+When building or modifying admin UI, public pages, or any frontend component, follow these principles:
+
+### Design Thinking Before Code
+Before writing any frontend code, consider:
+- **Purpose**: What problem does this interface solve? Who uses it?
+- **Tone**: Pick a clear aesthetic direction aligned with the site's brand identity
+- **Constraints**: Framework (Next.js App Router), performance, mobile-first, RTL support
+- **Differentiation**: "What makes this UNFORGETTABLE?" — avoid generic dashboards and cookie-cutter layouts
+
+### Anti-Generic Rules
+- Never use default component library styling without customization
+- Never use generic chart colors — use site brand colors
+- Admin dashboards should feel like premium SaaS, not open-source boilerplate
+- Arabic interfaces: proper RTL layout (not just `dir="rtl"`), culturally appropriate imagery, Arabic-first typography
+- Use CSS variables from the site's theme for consistency
+
+### Spatial Composition
+- Unexpected layouts beat predictable grids
+- Generous whitespace for data-heavy pages (SEO dashboards, analytics)
+- Controlled density for action-heavy pages (content editors, command center)
+- Card-based layouts with visual hierarchy through size variation
+
 ## HTML Injection Safety
 - Always escape user-provided data with HTML entity encoding
 - Use `rel="noopener sponsored"` on affiliate links
 - Check for `affiliate-recommendation` class to prevent duplicate injection
+
+## Automation Tracking Models
+Three new Prisma models support full automation visibility:
+
+- **URLIndexingStatus** — Per-URL indexing state (discovered → submitted → indexed). Tracks IndexNow, Google API, and sitemap submission separately. Stores full GSC inspection results.
+- **CronJobLog** — Every cron execution logged with status, duration, items processed/succeeded/failed, multi-site tracking (which sites were processed vs. skipped due to timeout).
+- **SiteHealthCheck** — Periodic aggregated health snapshots per site: SEO score, indexing rate, GSC metrics, GA4 traffic, content counts, automation status, PageSpeed scores.

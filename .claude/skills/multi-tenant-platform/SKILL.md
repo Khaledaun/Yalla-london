@@ -11,7 +11,8 @@ This is a Next.js 14 App Router application with Prisma ORM and Supabase Postgre
 
 ### Multi-Tenant Resolution
 - Tenant resolved via `middleware.ts` headers: `x-site-id`, `x-site-name`, `x-site-locale`
-- 5 branded sites: `yalla-london`, `arabaldives`, `gulf-maldives`, `arab-bali`, `luxury-escapes-me`
+- 5 branded sites: `yalla-london`, `arabaldives`, `dubai`, `istanbul`, `thailand`
+- Legacy domains redirect: `gulfmaldives.com` → arabaldives, `arabbali.com` → thailand, `luxuryescapes.me` → dubai
 - Site config stored in `config/sites.ts` (`SiteConfig` interface)
 - All content models have optional `site_id` field for tenant scoping
 - Sites can be `type: "native"` (Next.js managed) or `type: "wordpress"` (WP REST API managed)
@@ -211,20 +212,332 @@ WP_{SITE_ID}_APP_PASSWORD=xxxx xxxx xxxx xxxx
 ### Autonomous SEO Agent Loop
 GSC data → identify gaps → typed proposals (answer/comparison/deep-dive/listicle/seasonal/guide) → generate bilingual → publish → index → monitor → repeat
 
-## New Site Deployment Checklist
-1. Add site to `config/sites.ts` (set `type: "native"` or `"wordpress"`)
-2. Add to `middleware.ts` domain routing
-3. Create `sites/{site-id}/` directory (with `.gitkeep`)
-4. Create Vercel project, set env vars (**use `echo -n` to avoid trailing newlines**):
-   - `SITE_ID` = the site's ID (e.g. `yalla-london`) — required for selective deployment
-   - `GSC_SITE_URL`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID`, `GA4_PROPERTY_ID`
-   - `GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL` + `_PRIVATE_KEY`, `INDEXNOW_KEY`
-5. Set Vercel Ignored Build Step: `bash scripts/should-deploy.sh`
-6. Add service account to GSC (Full permissions) + GA4 (Viewer role)
-7. Create Cloudflare API token with **Zone Settings:Edit**
-8. If WordPress: set `WP_{SITE_ID}_*` env vars, run audit, add profile to config
-9. Verify: `/api/seo/full-audit?days=7` + `/api/cloudflare/audit`
-10. Cloudflare: SSL=full/strict, Always HTTPS=on, browser TTL=14400+, AI crawlers=allow
+## Adding a New Website — Complete Guide
+
+This is the step-by-step process for adding a new branded site to the multi-tenant platform. Each site gets its own domain, Vercel project, SEO integrations, and content strategy — all powered by the shared codebase.
+
+### Prerequisites
+
+Before starting, ensure you have:
+- A registered domain name for the new site
+- Access to the Vercel team (Pro plan)
+- Access to Google Cloud Console (for service account)
+- Access to Cloudflare (for DNS/CDN)
+- A Google Analytics 4 property created for the domain
+- The domain added as a property in Google Search Console
+
+### Step 1: Define Site Identity
+
+Choose values for the new site. Use existing sites as reference:
+
+| Field | Example | Notes |
+|-------|---------|-------|
+| `id` | `"bali"` | Unique key in SITES record. Used as `site_id` in DB. |
+| `name` | `"Yalla Bali"` | Display name shown in UI and emails |
+| `slug` | `"yalla-bali"` | URL-safe slug for internal routing |
+| `domain` | `"yallabali.com"` | Bare domain (no www, no https) |
+| `locale` | `"en"` or `"ar"` | Primary locale — determines default content language |
+| `direction` | `"ltr"` or `"rtl"` | Text direction — `"rtl"` for Arabic-primary sites |
+| `destination` | `"Bali"` | Travel destination name (used in AI prompts & templates) |
+| `country` | `"Indonesia"` | Country name (used in geo-targeting & content) |
+| `currency` | `"USD"` | Currency code for pricing displays |
+| `primaryColor` | `"#16A34A"` | Hex color — used in Design Studio, Video Studio, UI |
+| `secondaryColor` | `"#22D3EE"` | Hex color — accent/secondary brand color |
+
+### Step 2: Write Content Strategy
+
+Prepare these content-related fields before adding to config:
+
+**System Prompts** — AI personality for content generation:
+```typescript
+systemPromptEN: "You are a luxury travel content writer for Yalla Bali, a premium travel platform for Arab travelers visiting Bali and Indonesia. Write SEO-optimized, engaging content about Bali's resorts, temples, cuisine, and wellness experiences. Always respond with valid JSON.",
+systemPromptAR: "أنت كاتب محتوى سفر فاخر لمنصة يالا بالي... أجب دائماً بـ JSON صالح.",
+```
+
+**Topic Templates** — Seed topics for the autonomous content engine (5-7 per language):
+```typescript
+topicsEN: [
+  {
+    keyword: "best luxury resorts Bali for Arab families 2026",
+    longtails: ["halal resorts Bali", "private villa Ubud luxury", "beachfront resort Seminyak"],
+    questions: ["Which Bali resorts offer halal dining?", "Best family villas in Ubud?"],
+    pageType: "guide",  // guide | list | comparison | deep-dive | answer | seasonal
+  },
+  // ... 4-6 more topics
+],
+topicsAR: [ /* Arabic equivalents */ ],
+```
+
+**Primary Keywords** — 4-6 high-value SEO target keywords per language:
+```typescript
+primaryKeywordsEN: ["bali guide for arabs", "halal bali", "luxury resorts bali", "bali for arab families"],
+primaryKeywordsAR: ["دليل بالي للعرب", "بالي حلال", "منتجعات فاخرة بالي", "بالي للعائلات العربية"],
+```
+
+**Affiliate Categories** — Which affiliate types apply to this destination:
+```typescript
+affiliateCategories: ["hotel", "activity", "transport"],
+// Available: hotel, restaurant, activity, tickets, shopping, transport
+```
+
+**Category Name** — Blog category label for this site:
+```typescript
+categoryName: { en: "Bali Guide", ar: "دليل بالي" },
+```
+
+### Step 3: Add to `config/sites.ts`
+
+Add the new site entry to the `SITES` record:
+
+```typescript
+// In config/sites.ts
+export const SITES: Record<string, SiteConfig> = {
+  // ... existing sites ...
+
+  bali: {
+    id: "bali",
+    name: "Yalla Bali",
+    slug: "yalla-bali",
+    domain: "yallabali.com",
+    locale: "en",
+    direction: "ltr",
+    destination: "Bali",
+    country: "Indonesia",
+    currency: "USD",
+    primaryColor: "#16A34A",
+    secondaryColor: "#22D3EE",
+    systemPromptEN: "...",
+    systemPromptAR: "...",
+    topicsEN: [ /* ... */ ],
+    topicsAR: [ /* ... */ ],
+    affiliateCategories: ["hotel", "activity", "transport"],
+    primaryKeywordsEN: ["bali guide for arabs", "halal bali", ...],
+    primaryKeywordsAR: ["دليل بالي للعرب", "بالي حلال", ...],
+    categoryName: { en: "Bali Guide", ar: "دليل بالي" },
+    // Optional WordPress fields (only if type is "wordpress"):
+    // type: "wordpress",
+    // wpApiUrl: "https://yallabali.com/wp-json/wp/v2",
+    // wpSiteProfile: { /* auto-generated from audit */ },
+  },
+};
+```
+
+**For WordPress sites**, add these optional fields:
+- `type: "wordpress"` — enables WP REST API management
+- `wpApiUrl` — WP REST API endpoint (e.g. `https://example.com/wp-json/wp/v2`)
+- `wpSiteProfile` — auto-generated after running audit (leave empty initially)
+
+### Step 4: Add to `middleware.ts`
+
+Add domain mappings (always include both bare and `www` variants):
+
+```typescript
+// In middleware.ts — DOMAIN_TO_SITE record
+"yallabali.com": { siteId: "bali", siteName: "Yalla Bali", locale: "en" },
+"www.yallabali.com": { siteId: "bali", siteName: "Yalla Bali", locale: "en" },
+```
+
+Also add to the `ALLOWED_ORIGINS` set for CSRF protection:
+```typescript
+const ALLOWED_ORIGINS = new Set([
+  // ... existing origins ...
+  "https://yallabali.com",
+  "https://www.yallabali.com",
+]);
+```
+
+**Legacy/redirect domains**: If the new site absorbs an older domain, add that domain too with the new site's `siteId`.
+
+### Step 5: Create Site Directory
+
+Create the per-site directory for selective deployment:
+
+```bash
+mkdir -p sites/{site-id}
+touch sites/{site-id}/.gitkeep
+```
+
+This directory is used by `scripts/should-deploy.sh` for selective deployment. Site-specific assets, content overrides, and component overrides go here.
+
+### Step 6: Set Up Vercel Project
+
+1. **Create new Vercel project** linked to the same Git repo
+2. **Set Framework Preset**: Next.js
+3. **Set Root Directory**: `yalla_london/app` (or wherever your Next.js app root is)
+
+#### Required Environment Variables
+
+**CRITICAL**: Use `echo -n "value" | vercel env add NAME production` to avoid trailing newlines that silently break API auth.
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `SITE_ID` | `bali` | **Required** — selective deployment + site identification |
+| `NEXT_PUBLIC_SITE_URL` | `https://www.yallabali.com` | Public base URL |
+| `GSC_SITE_URL` | `sc-domain:yallabali.com` or `https://www.yallabali.com` | **Must match exact GSC property format** |
+| `GA4_PROPERTY_ID` | `504032313` (numeric) | Server-side GA4 Data API |
+| `GA4_MEASUREMENT_ID` | `G-XXXXXXXXXX` | Client-side gtag.js tracking |
+| `GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL` | `svc@project.iam.gserviceaccount.com` | Shared service account email |
+| `GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY` | `-----BEGIN PRIVATE KEY-----\n...` | Service account private key |
+| `CLOUDFLARE_API_TOKEN` | `cf_token_xxx` | Per-zone API token (see Step 8) |
+| `CLOUDFLARE_ZONE_ID` | `zone_id_xxx` | Cloudflare zone for this domain |
+| `INDEXNOW_KEY` | `random-uuid-string` | For IndexNow search submission |
+
+**Shared variables** (same across all sites — inherit from Vercel team env):
+- `DATABASE_URL` — Supabase connection string
+- `NEXTAUTH_SECRET` — Auth secret
+- `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_AI_API_KEY` — AI providers
+- `ADMIN_EMAILS` — Admin whitelist
+
+**WordPress-specific** (only if `type: "wordpress"`):
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `WP_BALI_API_URL` | `https://yallabali.com/wp-json/wp/v2` | WP REST API URL |
+| `WP_BALI_USERNAME` | `admin` | WP user with Application Passwords |
+| `WP_BALI_APP_PASSWORD` | `xxxx xxxx xxxx xxxx` | WP Application Password |
+
+4. **Set Ignored Build Step**: Settings → Git → Ignored Build Step: `bash scripts/should-deploy.sh`
+
+### Step 7: Google Search Console Setup
+
+1. **Add property** in [Google Search Console](https://search.google.com/search-console):
+   - Prefer **domain property** (`sc-domain:yallabali.com`) for full coverage
+   - Or **URL prefix** (`https://www.yallabali.com`) if domain verification isn't possible
+2. **Add service account** as a user with **Full** permissions:
+   - Go to Settings → Users and permissions → Add user
+   - Email: the value from `GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL`
+   - Permission: **Full**
+3. **Set `GSC_SITE_URL`** env var to match the **exact** property format:
+   - Domain property → `sc-domain:yallabali.com`
+   - URL prefix → `https://www.yallabali.com` (no trailing slash)
+   - **Mismatch = empty data with no error** — this is the #1 gotcha
+
+### Step 8: Google Analytics 4 Setup
+
+1. **Create GA4 property** in [Google Analytics](https://analytics.google.com)
+2. **Add data stream** for the website URL
+3. **Get two IDs** (they are NOT the same):
+   - `GA4_PROPERTY_ID` — numeric ID (e.g. `504032313`), found in Admin → Property Settings
+   - `GA4_MEASUREMENT_ID` — tracking code (e.g. `G-XXXXXXXXXX`), found in Data Streams → your stream
+4. **Add service account** as viewer:
+   - Admin → Property Access Management → Add user
+   - Email: same service account as GSC
+   - Role: **Viewer**
+
+### Step 9: Cloudflare Setup
+
+1. **Add domain** to Cloudflare (or ensure it's already there)
+2. **Get Zone ID** from the domain's Overview page (right sidebar)
+3. **Create API token** with these permissions for the specific zone:
+   - Zone: Read
+   - Zone Settings: **Edit** (not just Read — PATCH requires Edit)
+   - DNS: Edit
+   - Cache Purge: Purge
+   - Page Rules: Edit
+   - SSL and Certificates: Edit
+4. **Configure DNS**: Point domain to Vercel
+   - `A` record: `@` → `76.76.21.21` (Vercel IP)
+   - `CNAME` record: `www` → `cname.vercel-dns.com`
+   - Proxy status: DNS only (orange cloud off) for initial setup, then enable proxy after SSL is confirmed
+5. **Configure security settings**:
+   - SSL/TLS: Full (strict)
+   - Always Use HTTPS: On
+   - Browser Cache TTL: 14400+ (4 hours)
+   - AI crawlers: **Allow** (required for AIO/AI search visibility)
+
+### Step 10: WordPress Setup (if applicable)
+
+Only for sites with `type: "wordpress"`:
+
+1. **Enable Application Passwords** on the WordPress site (WP 5.6+, enabled by default)
+2. **Create Application Password**:
+   - Go to WP Admin → Users → your user → Application Passwords
+   - Create new password, save it
+3. **Set environment variables**: `WP_{SITE_ID}_API_URL`, `WP_{SITE_ID}_USERNAME`, `WP_{SITE_ID}_APP_PASSWORD`
+4. **Run site audit**: `POST /api/admin/wordpress/audit`
+   - This analyzes content, writing style, languages, SEO, design, media, and technical setup
+   - Generates AI-aligned content profile
+5. **Add profile to config**: Copy the generated `wpSiteProfile` to `config/sites.ts`
+6. **Verify connection**: `GET /api/admin/wordpress?action=test`
+
+### Step 11: Database Considerations
+
+No schema changes needed — all models use optional `site_id` fields. The new site's content is automatically scoped by the `site_id` value set in `config/sites.ts`.
+
+**Models that will have data scoped to the new site** (20+ models):
+- `BlogPost`, `TopicProposal`, `Category` — content
+- `MediaAsset`, `MediaEnrichment` — media pool
+- `Lead`, `Subscriber`, `ConsentLog` — CRM
+- `DigitalProduct`, `Purchase` — shop
+- `AffiliateClick`, `Conversion` — affiliates
+- `SeoReport`, `AnalyticsSnapshot` — SEO data
+- `PageView`, `ExitIntentImpression` — analytics
+- `BackgroundJob`, `Credential` — system
+
+### Step 12: Brand Integration
+
+The new site's `primaryColor` and `secondaryColor` are automatically used by:
+
+- **Design Studio**: `lib/pdf/brand-design-system.ts` generates brand-aware templates using the site's colors, destination name, and category
+- **Video Studio**: `lib/video/brand-video-engine.ts` applies brand colors to video template backgrounds, text, and overlays
+- **Admin UI**: Theme colors in the admin dashboard
+- **PDF Generator**: Brand-colored PDF reports and guides
+
+No additional configuration needed — these systems read from `config/sites.ts` automatically.
+
+### Step 13: Deploy & Verify
+
+1. **Commit and push** all code changes (config/sites.ts, middleware.ts, sites/ dir)
+2. **Verify selective deployment**: Only the new site + any core changes should trigger builds
+3. **Run verification endpoints** after deployment:
+
+```
+GET /api/seo/full-audit?days=7&pagespeed=true
+```
+Expected: GSC data (may be empty initially), GA4 data, Cloudflare status, PageSpeed scores
+
+```
+GET /api/cloudflare/audit
+```
+Expected: Zone details, DNS records, security settings, cache configuration
+
+```
+GET /api/seo/check-and-index?submit_all=true
+```
+Expected: Discovers all indexable URLs and submits them to Google + IndexNow
+
+4. **Check admin dashboard**: Visit `/admin` and verify the site appears correctly
+
+### Step 14: Post-Launch SEO Workflow
+
+After the site is live:
+
+1. **Submit sitemap** to GSC: `https://www.yallabali.com/sitemap.xml`
+2. **Submit all URLs** for indexing: `GET /api/seo/check-and-index?submit_all=true`
+3. **Monitor indexing** (expect 24-72 hours): `GET /api/admin/seo/indexing?type=stats`
+4. **Let the autonomous agent work**: It will analyze GSC gaps, generate topic proposals, create bilingual content, publish, and submit for indexing automatically
+5. **Review content quality** in `/admin/articles` within the first week
+
+### Quick Reference: File Changes for New Site
+
+| File | Change | Affects |
+|------|--------|---------|
+| `config/sites.ts` | Add `SiteConfig` entry | All sites (core file) |
+| `middleware.ts` | Add domain mapping + CSRF origin | All sites (core file) |
+| `sites/{site-id}/.gitkeep` | Create directory | Only new site |
+| Vercel Dashboard | New project + env vars | Only new site |
+| GSC / GA4 / Cloudflare | External service setup | Only new site |
+
+### Troubleshooting
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| GSC returns empty data | `GSC_SITE_URL` doesn't match property format | Check GSC Settings → Property type; set env var exactly |
+| GA4 returns no data | Wrong property ID or no service account access | Verify `GA4_PROPERTY_ID` is numeric, service account has Viewer role |
+| Cloudflare settings update fails | Token has Read-only, not Edit | Recreate token with Zone Settings:Edit |
+| Env var has trailing newline | Used `echo` without `-n` | Use `echo -n "value" \| vercel env add` |
+| Build triggers for wrong sites | Missing `SITE_ID` env var or wrong path | Verify `SITE_ID` is set, check `should-deploy.sh` output |
+| Middleware returns default site | Domain not in `DOMAIN_TO_SITE` | Add both bare and www variants |
+| CSRF blocks API requests | Domain not in `ALLOWED_ORIGINS` | Add https://domain to the Set |
 
 ## Selective Deployment
 

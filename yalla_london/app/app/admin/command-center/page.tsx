@@ -168,8 +168,11 @@ export default function CommandCenterPage() {
     loadDashboardData();
   }, []);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const loadDashboardData = async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       // Load sites and system status
       const [sitesRes, statusRes] = await Promise.all([
@@ -179,21 +182,35 @@ export default function CommandCenterPage() {
 
       if (sitesRes.ok) {
         const data = await sitesRes.json();
-        setSites(data.sites || mockSites);
+        setSites(data.sites || []);
       } else {
-        setSites(mockSites);
+        setSites([]);
+        setLoadError('Failed to load sites data. Check API connection.');
       }
 
       if (statusRes.ok) {
         const data = await statusRes.json();
         setSystemStatus(data);
       } else {
-        setSystemStatus(mockStatus);
+        setSystemStatus({
+          aiStatus: 'offline',
+          contentQueue: 0,
+          scheduledPosts: 0,
+          pendingTasks: 0,
+          lastSync: 'Never',
+        });
       }
     } catch (error) {
-      // Use mock data for demo
-      setSites(mockSites);
-      setSystemStatus(mockStatus);
+      console.error('Dashboard data load error:', error);
+      setSites([]);
+      setSystemStatus({
+        aiStatus: 'offline',
+        contentQueue: 0,
+        scheduledPosts: 0,
+        pendingTasks: 0,
+        lastSync: 'Never',
+      });
+      setLoadError('Unable to connect to the server. Please check your connection and try again.');
     }
     setIsLoading(false);
   };
@@ -303,6 +320,38 @@ export default function CommandCenterPage() {
 
         {/* Main Content */}
         <main className="flex-1 p-6">
+          {/* Error Banner */}
+          {loadError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm text-red-700">{loadError}</p>
+              </div>
+              <button
+                onClick={loadDashboardData}
+                className="text-sm text-red-600 hover:text-red-800 font-medium"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && sites.length === 0 && !loadError && (
+            <div className="bg-white border border-gray-200 rounded-xl p-8 mb-6 text-center">
+              <Globe className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">No sites yet</h3>
+              <p className="text-gray-500 mb-4">Create your first site to get started with content management.</p>
+              <Link
+                href="/admin/command-center/sites/new"
+                className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4" />
+                Create Your First Site
+              </Link>
+            </div>
+          )}
+
           {/* Welcome Banner */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 mb-6 text-white">
             <h1 className="text-2xl font-bold mb-2">Welcome to your Command Center</h1>

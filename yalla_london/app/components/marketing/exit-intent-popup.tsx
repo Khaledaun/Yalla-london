@@ -152,7 +152,7 @@ export function ExitIntentPopup({
 
   // Exit intent detection
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return undefined;
 
     // Wait for minimum delay before enabling
     timeoutRef.current = setTimeout(() => {

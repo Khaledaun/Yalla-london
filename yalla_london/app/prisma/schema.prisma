@@ -43,6 +43,9 @@ model User {
   // Team & Expertise
   teamMemberProfile TeamMember[]
 
+  @@index([role])
+  @@index([isActive])
+  @@index([createdAt])
   @@map(name: "users")
 }
 
@@ -1967,6 +1970,7 @@ model Lead {
   activities      LeadActivity[]
 
   @@unique([site_id, email])
+  @@index([email])
   @@index([site_id, created_at])
   @@index([lead_type])
   @@index([status])
@@ -2037,6 +2041,7 @@ model PageView {
   viewed_at   DateTime @default(now())
 
   @@index([site_id, viewed_at])
+  @@index([site_id, path])
   @@index([path])
   @@index([content_id])
   @@index([session_id])

@@ -81,7 +81,7 @@ export function SocialProof({
 
   // Cycle through recent bookings
   useEffect(() => {
-    if (recentBookings.length <= 1) return;
+    if (recentBookings.length <= 1) return undefined;
 
     const interval = setInterval(() => {
       setCurrentBookingIndex((prev) => (prev + 1) % recentBookings.length);

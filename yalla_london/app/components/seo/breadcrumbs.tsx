@@ -54,6 +54,7 @@ export function Breadcrumbs({ items }: BreadcrumbProps) {
         }
       };
     }
+    return undefined;
   }, [breadcrumbItems]);
 
   if (breadcrumbItems.length <= 1) {

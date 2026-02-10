@@ -3,8 +3,12 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server'
 import { analyticsService } from '@/lib/analytics';
+import { publicLimiter } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
+  const blocked = publicLimiter(request);
+  if (blocked) return blocked;
+
   try {
     const { 
       event, 

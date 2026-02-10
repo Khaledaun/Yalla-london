@@ -34,6 +34,8 @@ export default function AdminCommandCenter() {
   });
 
   const [error, setError] = useState<string | null>(null);
+  const [readyToPublishItems, setReadyToPublishItems] = useState<any[]>([]);
+  const [upcomingGeneration, setUpcomingGeneration] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -129,9 +131,6 @@ export default function AdminCommandCenter() {
       description: "Run SEO analysis",
     },
   ];
-
-  const [readyToPublishItems, setReadyToPublishItems] = useState<any[]>([]);
-  const [upcomingGeneration, setUpcomingGeneration] = useState<any[]>([]);
 
   return (
     <div>

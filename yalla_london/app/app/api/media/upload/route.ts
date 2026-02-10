@@ -6,8 +6,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { uploadFile, getPublicUrl } from '@/lib/s3'
 import sharp from 'sharp'
+import { apiLimiter } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
+  const blocked = apiLimiter(request);
+  if (blocked) return blocked;
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File

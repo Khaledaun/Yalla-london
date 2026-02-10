@@ -27,6 +27,7 @@ import {
   getGA4ConfigStatus,
 } from "@/lib/seo/ga4-data-api";
 import { gscApi } from "@/lib/seo/indexing-service";
+import { logCronExecution } from "@/lib/cron-logger";
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const _cronStart = Date.now();
   console.log(`[ANALYTICS-CRON] Starting at ${new Date().toISOString()}`);
 
   try {
@@ -181,6 +183,15 @@ export async function GET(request: NextRequest) {
     const durationMs = Date.now() - startTime;
     console.log(`[ANALYTICS-CRON] Completed in ${durationMs}ms`);
 
+    await logCronExecution("analytics", "completed", {
+      durationMs: Date.now() - _cronStart,
+      resultSummary: {
+        ga4: results.ga4,
+        gsc: results.gsc,
+        snapshot: results.snapshot,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       timestamp: new Date().toISOString(),
@@ -190,6 +201,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const durationMs = Date.now() - startTime;
     console.error(`[ANALYTICS-CRON] Failed after ${durationMs}ms:`, error);
+    await logCronExecution("analytics", "failed", {
+      durationMs: Date.now() - _cronStart,
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+    });
     return NextResponse.json(
       {
         success: false,

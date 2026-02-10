@@ -3,30 +3,33 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logCronExecution } from "@/lib/cron-logger";
 
 /**
  * Weekly Topic Generation Cron Job
  * Generates 30 topics weekly + triggers on low backlog
  */
 export async function POST(request: NextRequest) {
+  // Verify cron secret for security
+  const authHeader = request.headers.get('authorization');
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error('CRON_SECRET not configured');
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+  }
+
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    console.error('❌ Unauthorized cron request');
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
+  const _cronStart = Date.now();
+
   try {
     console.log('🕐 Weekly topic generation cron triggered');
-
-    // Verify cron secret for security
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret) {
-      console.error('CRON_SECRET not configured');
-      return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-    }
-    
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      console.error('❌ Unauthorized cron request');
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
 
     // Check feature flags directly
     const phase4bEnabled = process.env.FEATURE_PHASE4B_ENABLED === 'true';
@@ -121,6 +124,18 @@ export async function POST(request: NextRequest) {
     const totalGenerated = (topicData?.count || 0) + (arabicData?.count || 0);
     console.log(`✅ Topic generation completed: ${totalGenerated} topics created`);
 
+    await logCronExecution("weekly-topics", "completed", {
+      durationMs: Date.now() - _cronStart,
+      itemsProcessed: totalGenerated,
+      resultSummary: {
+        reason,
+        english: topicData?.count || 0,
+        arabic: arabicData?.count || 0,
+        total: totalGenerated,
+        pendingCountBefore: pendingCount,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Weekly topic generation completed',
@@ -136,6 +151,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('❌ Weekly topic generation failed:', error);
+    await logCronExecution("weekly-topics", "failed", {
+      durationMs: Date.now() - _cronStart,
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+    });
     return NextResponse.json(
       { 
         error: 'Weekly topic generation failed',

@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import { logCronExecution } from "@/lib/cron-logger";
 
 /**
  * Autonomous SEO Agent - Runs 3x daily (7am, 1pm, 8pm UTC)
@@ -30,6 +31,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const _cronStart = Date.now();
+
   try {
     const { prisma } = await import("@/lib/db");
     const { getAllSiteIds, getSiteDomain } = await import("@/config/sites");
@@ -47,6 +50,12 @@ export async function GET(request: NextRequest) {
       7_000 // 7s safety margin for response serialization
     );
 
+    await logCronExecution("seo-agent", loopResult.timedOut ? "timed_out" : "completed", {
+      durationMs: Date.now() - _cronStart,
+      sitesProcessed: Object.keys(loopResult.results || {}),
+      resultSummary: { message: `completed=${loopResult.completed}, failed=${loopResult.failed}, skipped=${loopResult.skipped}` },
+    });
+
     return NextResponse.json({
       success: true,
       agent: "seo-autonomous-multisite",
@@ -60,6 +69,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("SEO Agent error:", error);
+    await logCronExecution("seo-agent", "failed", {
+      durationMs: Date.now() - _cronStart,
+      errorMessage: error instanceof Error ? error.message : "SEO agent failed",
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "SEO Agent failed" },
       { status: 500 },

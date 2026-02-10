@@ -3,17 +3,19 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auditOnPublishUpdate } from '@/lib/audit-engine';
+import { logCronExecution } from '@/lib/cron-logger';
 
 /**
  * Real-time optimization triggers
  * Monitors GA4 traffic and triggers SEO optimization when needed
  */
 export async function POST(request: NextRequest) {
+  const _cronStart = Date.now();
   try {
     // Verify this is a legitimate cron request
     const authHeader = request.headers.get('Authorization');
     const cronSecret = process.env.CRON_SECRET;
-    
+
     if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -99,6 +101,19 @@ export async function POST(request: NextRequest) {
       await sendOptimizationNotification(optimizationResults);
     }
 
+    await logCronExecution("real-time-optimization", "completed", {
+      durationMs: Date.now() - _cronStart,
+      itemsProcessed: optimizationResults.articles_checked,
+      itemsSucceeded: optimizationResults.optimizations_triggered,
+      itemsFailed: optimizationResults.errors.length,
+      resultSummary: {
+        articles_checked: optimizationResults.articles_checked,
+        optimizations_triggered: optimizationResults.optimizations_triggered,
+        score_improvements: optimizationResults.score_improvements,
+        low_traffic_articles: optimizationResults.low_traffic_articles,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       results: optimizationResults,
@@ -107,10 +122,14 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Real-time optimization error:', error);
+    await logCronExecution("real-time-optimization", "failed", {
+      durationMs: Date.now() - _cronStart,
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+    });
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Optimization check failed' 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Optimization check failed'
       },
       { status: 500 }
     );

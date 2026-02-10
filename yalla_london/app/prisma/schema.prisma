@@ -148,6 +148,8 @@ model BlogPost {
   @@index([place_id])
   @@index([seo_score])
   @@index([siteId])
+  @@index([siteId, published])
+  @@index([siteId, created_at])
   @@index([published])
   @@index([category_id])
   @@index([author_id])
@@ -399,6 +401,8 @@ model TopicProposal {
   scheduled_content       ScheduledContent[]
   
   @@index([site_id])
+  @@index([site_id, status])
+  @@index([site_id, locale, status])
   @@index([locale, status])
   @@index([suggested_window_start, suggested_window_end])
   @@index([status, confidence_score])
@@ -1446,12 +1450,16 @@ model SeoContentAnalysis {
 
 model SeoReport {
   id          String    @id @default(cuid())
+  site_id     String?   // Multi-tenant: which site this report is for
   reportType  String    // sitemap, analytics, performance, health
   generatedAt DateTime  @default(now())
   data        Json
   periodStart DateTime?
   periodEnd   DateTime?
 
+  @@index([site_id])
+  @@index([site_id, reportType])
+  @@index([reportType, generatedAt])
   @@map(name: "seo_reports")
 }
 

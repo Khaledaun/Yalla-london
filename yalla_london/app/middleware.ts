@@ -173,11 +173,18 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/api/")
   ) {
     const origin = request.headers.get("origin");
-    if (origin && !ALLOWED_ORIGINS.has(origin)) {
-      return NextResponse.json(
-        { error: "Forbidden: Invalid origin" },
-        { status: 403 },
-      );
+    // Allow cron/webhook routes without Origin (server-to-server calls)
+    const isInternalRoute =
+      pathname.startsWith("/api/cron/") ||
+      pathname.startsWith("/api/webhooks/") ||
+      pathname.startsWith("/api/internal/");
+    if (!isInternalRoute) {
+      if (!origin || !ALLOWED_ORIGINS.has(origin)) {
+        return NextResponse.json(
+          { error: "Forbidden: Invalid origin" },
+          { status: 403 },
+        );
+      }
     }
   }
 

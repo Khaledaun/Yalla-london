@@ -4,6 +4,7 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { withRateLimit, RateLimitPresets } from '@/lib/rate-limiting'
 
 interface GenerateContentRequest {
   prompt: string
@@ -28,7 +29,7 @@ function sanitizePrompt(input: string): string {
     .slice(0, 2000) // Limit input length
 }
 
-export async function POST(request: NextRequest) {
+async function generateContentHandler(request: NextRequest) {
   try {
     // SECURITY: Require authentication for content generation (costs money)
     const session = await getServerSession(authOptions)
@@ -193,7 +194,7 @@ Format each recommendation with: Name, type (hotel/restaurant/attraction), descr
       },
     })
 
-    return new Response(stream, {
+    return new NextResponse(stream, {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache',
@@ -209,3 +210,6 @@ Format each recommendation with: Name, type (hotel/restaurant/attraction), descr
     )
   }
 }
+
+// SECURITY: Rate limit content generation — 2 requests per minute per IP (expensive LLM calls)
+export const POST = withRateLimit(RateLimitPresets.HEAVY_OPERATIONS, generateContentHandler);

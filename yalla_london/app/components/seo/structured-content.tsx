@@ -46,6 +46,7 @@ export function StructuredFAQ({ faqs, className = '' }: StructuredFAQProps) {
         }
       };
     }
+    return undefined;
   }, [faqs]);
 
   return (

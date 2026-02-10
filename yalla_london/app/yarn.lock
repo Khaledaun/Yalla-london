@@ -2568,6 +2568,11 @@
   resolved "https://registry.npmjs.org/@remotion/compositor-linux-x64-gnu/-/compositor-linux-x64-gnu-4.0.420.tgz"
   integrity sha512-n441g77KwcYuHUPQx1ClsWu2S60Qlpw131NPy2PxJIc+DIAmM+K1rTq7Ycg+Ad9JQ4qrhAA7DUPL9lLG1ML4PA==
 
+"@remotion/compositor-linux-x64-musl@4.0.420":
+  version "4.0.420"
+  resolved "https://registry.npmjs.org/@remotion/compositor-linux-x64-musl/-/compositor-linux-x64-musl-4.0.420.tgz"
+  integrity sha512-BCsqBPtNM0w4efJzfzbuPdqNdVjC6rjCpwmQVNdVSh1AlUqFMROpiXO1mevMx36BvWRWIv/wjDLrB7nXyT2SUQ==
+
 "@remotion/licensing@4.0.420":
   version "4.0.420"
   resolved "https://registry.npmjs.org/@remotion/licensing/-/licensing-4.0.420.tgz"
@@ -10912,6 +10917,11 @@ strip-json-comments@^3.1.1:
   version "3.1.1"
   resolved "https://registry.npmjs.org/strip-json-comments/-/strip-json-comments-3.1.1.tgz"
   integrity sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==
+
+stripe@^20.3.1:
+  version "20.3.1"
+  resolved "https://registry.npmjs.org/stripe/-/stripe-20.3.1.tgz"
+  integrity sha512-k990yOT5G5rhX3XluRPw5Y8RLdJDW4dzQ29wWT66piHrbnM2KyamJ1dKgPsw4HzGHRWjDiSSdcI2WdxQUPV3aQ==
 
 strnum@^2.1.0:
   version "2.1.1"

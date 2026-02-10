@@ -49,16 +49,18 @@ import {
 } from 'lucide-react'
 
 // MOPHY-styled Navigation Structure
+// All admin pages must be reachable from the sidebar.
 const mainNavigation = [
   {
     id: 'dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
-    href: '/admin/dashboard',
+    href: '/admin',
     children: [
-      { label: 'Overview', href: '/admin/dashboard' },
+      { label: 'Command Center', href: '/admin' },
       { label: 'Analytics', href: '/admin/command-center/analytics' },
-      { label: 'Performance', href: '/admin/seo-audits' },
+      { label: 'SEO Audits', href: '/admin/seo-audits' },
+      { label: 'SEO Command', href: '/admin/seo-command' },
     ]
   },
   {
@@ -70,36 +72,34 @@ const mainNavigation = [
     children: [
       { label: 'All Articles', href: '/admin/articles' },
       { label: 'New Article', href: '/admin/articles/new' },
+      { label: 'Topics Pipeline', href: '/admin/topics' },
+      { label: 'Content Pipeline', href: '/admin/pipeline' },
       { label: 'Categories', href: '/admin/content-types' },
-      { label: 'Media Library', href: '/admin/media' },
-      { label: 'Photo Pool', href: '/admin/photo-pool' },
-      { label: 'Pipeline', href: '/admin/pipeline' },
+      { label: 'WordPress', href: '/admin/wordpress' },
     ]
   },
   {
-    id: 'monetization',
-    label: 'Monetization',
-    icon: Store,
-    href: '/admin/shop',
-    badge: 'New',
+    id: 'media',
+    label: 'Media',
+    icon: ImageIcon,
+    href: '/admin/media',
     children: [
-      { label: 'Shop & Products', href: '/admin/shop' },
-      { label: 'Affiliate Pool', href: '/admin/affiliate-pool' },
-      { label: 'PDF Generator', href: '/admin/pdf-generator' },
-      { label: 'Transactions', href: '/admin/transactions' },
+      { label: 'Media Library', href: '/admin/media' },
+      { label: 'Photo Pool', href: '/admin/photo-pool' },
+      { label: 'Upload', href: '/admin/media/upload' },
     ]
   },
   {
     id: 'seo',
     label: 'SEO & Marketing',
     icon: TrendingUp,
-    href: '/admin/seo-audits',
+    href: '/admin/seo',
     badge: 'AI',
     children: [
-      { label: 'SEO Audits', href: '/admin/seo-audits' },
-      { label: 'Keywords', href: '/admin/seo' },
-      { label: 'Topics Research', href: '/admin/topics-pipeline' },
-      { label: 'Affiliates', href: '/admin/affiliates' },
+      { label: 'SEO Dashboard', href: '/admin/seo' },
+      { label: 'Keywords & GSC', href: '/admin/seo/report' },
+      { label: 'Affiliates', href: '/admin/affiliate-marketing' },
+      { label: 'Affiliate Pool', href: '/admin/affiliate-pool' },
     ]
   },
   {
@@ -111,32 +111,56 @@ const mainNavigation = [
     children: [
       { label: 'Automation Hub', href: '/admin/automation-hub' },
       { label: 'AI Studio', href: '/admin/ai-studio' },
-      { label: 'Prompts', href: '/admin/prompts' },
-      { label: 'Scheduler', href: '/admin/automation-hub' },
+      { label: 'Prompt Studio', href: '/admin/ai-prompt-studio' },
+      { label: 'Workflow', href: '/admin/workflow' },
     ]
   },
   {
     id: 'design',
-    label: 'Design',
+    label: 'Design & Media',
     icon: Palette,
-    href: '/admin/design/homepage',
+    href: '/admin/design-studio',
     children: [
+      { label: 'Design Studio', href: '/admin/design-studio' },
+      { label: 'Video Studio', href: '/admin/video-studio' },
+      { label: 'PDF Generator', href: '/admin/pdf-generator' },
       { label: 'Homepage Builder', href: '/admin/design/homepage' },
       { label: 'Brand Assets', href: '/admin/brand-assets' },
-      { label: 'Theme Settings', href: '/admin/settings/theme' },
+    ]
+  },
+  {
+    id: 'monetization',
+    label: 'Monetization',
+    icon: Store,
+    href: '/admin/shop',
+    children: [
+      { label: 'Shop & Products', href: '/admin/shop' },
+      { label: 'Transactions', href: '/admin/transactions' },
+      { label: 'Billing', href: '/admin/billing' },
     ]
   },
   {
     id: 'command',
-    label: 'Command Center',
-    icon: Command,
+    label: 'Multi-Site',
+    icon: Globe,
     href: '/admin/command-center',
     badge: 'Pro',
     children: [
-      { label: 'Overview', href: '/admin/command-center' },
-      { label: 'Sites', href: '/admin/command-center/sites/new' },
-      { label: 'Social Media', href: '/admin/command-center/social' },
+      { label: 'All Sites', href: '/admin/command-center/sites' },
+      { label: 'Add New Site', href: '/admin/command-center/sites/new' },
       { label: 'Autopilot', href: '/admin/command-center/autopilot' },
+      { label: 'Social Media', href: '/admin/command-center/social' },
+    ]
+  },
+  {
+    id: 'team',
+    label: 'People',
+    icon: Users,
+    href: '/admin/team',
+    children: [
+      { label: 'Team', href: '/admin/team' },
+      { label: 'CRM', href: '/admin/crm' },
+      { label: 'Members', href: '/admin/people/members' },
     ]
   },
   {
@@ -148,7 +172,8 @@ const mainNavigation = [
       { label: 'Theme', href: '/admin/settings/theme' },
       { label: 'API Keys', href: '/admin/command-center/settings/api-keys' },
       { label: 'Feature Flags', href: '/admin/feature-flags' },
-      { label: 'Site Settings', href: '/admin/site' },
+      { label: 'Site Control', href: '/admin/site-control' },
+      { label: 'API Security', href: '/admin/api-security' },
     ]
   },
 ]

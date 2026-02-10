@@ -1,120 +1,131 @@
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const dynamic = "force-dynamic";
 
+import { NextRequest, NextResponse } from "next/server";
 
-
-import { NextRequest, NextResponse } from 'next/server'
-import { notifications } from '@/lib/integrations/notifications'
-import { emailMarketing } from '@/lib/integrations/email-marketing'
-
+/**
+ * Stripe Webhook Handler
+ * POST /api/webhooks/stripe
+ *
+ * Handles both:
+ * 1. Subscription/billing events (checkout, subscription changes, invoices)
+ * 2. Payment events (payment_intent succeeded/failed for bookings)
+ *
+ * Verifies webhook signature with Stripe SDK for security.
+ */
 export async function POST(request: NextRequest) {
-  const body = await request.text()
-  const signature = request.headers.get('stripe-signature')
+  const body = await request.text();
+  const signature = request.headers.get("stripe-signature");
 
-  if (!signature || !process.env.STRIPE_WEBHOOK_SECRET) {
+  if (!signature) {
     return NextResponse.json(
-      { error: 'Missing signature or webhook secret' },
-      { status: 400 }
-    )
+      { error: "Missing stripe-signature header" },
+      { status: 400 },
+    );
+  }
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("STRIPE_WEBHOOK_SECRET not configured");
+    return NextResponse.json(
+      { error: "Webhook secret not configured" },
+      { status: 503 },
+    );
   }
 
   try {
-    // Verify webhook signature (simplified - in production use Stripe SDK)
-    // const event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET)
-    
-    // For now, parse the event directly
-    const event = JSON.parse(body)
+    const { isStripeConfigured, getStripe, handleStripeWebhook } = await import(
+      "@/lib/billing/stripe"
+    );
 
-    switch (event.type) {
-      case 'payment_intent.succeeded':
-        await handleSuccessfulPayment(event.data.object)
-        break
-        
-      case 'payment_intent.payment_failed':
-        await handleFailedPayment(event.data.object)
-        break
-        
-      default:
-        console.log(`Unhandled event type: ${event.type}`)
+    if (!isStripeConfigured()) {
+      return NextResponse.json(
+        { error: "Stripe not configured" },
+        { status: 503 },
+      );
     }
 
-    return NextResponse.json({ received: true })
-    
+    const stripe = getStripe();
+    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+
+    // Handle billing/subscription events
+    const result = await handleStripeWebhook(event);
+    console.log(`[Stripe Webhook] ${event.type} → ${result.action}`);
+
+    // Handle legacy booking payment events
+    if (event.type === "payment_intent.succeeded") {
+      await handleBookingPayment(event.data.object as unknown as Record<string, unknown>);
+    }
+
+    return NextResponse.json({
+      received: true,
+      type: event.type,
+      action: result.action,
+    });
   } catch (error) {
-    console.error('Stripe webhook error:', error)
+    console.error("[Stripe Webhook] Error:", error);
     return NextResponse.json(
-      { error: 'Webhook processing failed' },
-      { status: 500 }
-    )
+      {
+        error:
+          error instanceof Error ? error.message : "Webhook processing failed",
+      },
+      { status: 400 },
+    );
   }
 }
 
-async function handleSuccessfulPayment(paymentIntent: any) {
-  const metadata = paymentIntent.metadata
-  const customerEmail = metadata.customer_email
-  const customerName = metadata.customer_name
-  const eventName = metadata.event_name
-  const totalAmount = paymentIntent.amount / 100
+/** Handle booking payment success (legacy flow from event tickets) */
+async function handleBookingPayment(paymentIntent: Record<string, unknown>) {
+  try {
+    const metadata = (paymentIntent.metadata || {}) as Record<string, string>;
+    const customerEmail = metadata.customer_email;
+    const customerName = metadata.customer_name;
+    const eventName = metadata.event_name;
+    const totalAmount = ((paymentIntent.amount as number) || 0) / 100;
 
-  console.log('Payment succeeded:', {
-    id: paymentIntent.id,
-    customer: customerName,
-    event: eventName,
-    amount: totalAmount
-  })
+    console.log("[Stripe Webhook] Booking payment:", {
+      id: paymentIntent.id,
+      customer: customerName,
+      event: eventName,
+      amount: totalAmount,
+    });
 
-  // Send notification
-  await notifications.notifyBooking(customerName, eventName, totalAmount)
-
-  // Send confirmation email
-  if (customerEmail) {
-    const { SendGridAPI } = await import('@/lib/integrations/email-marketing')
-    const sendgrid = new SendGridAPI()
-    
-    const subject = 'Booking Confirmed - Yalla London'
-    const htmlContent = `
-      <div style="font-family: 'Tajawal', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #7c3aed;">Booking Confirmed!</h1>
-        <p>Dear ${customerName},</p>
-        <p>Your booking has been confirmed. Here are the details:</p>
-        <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3>Booking Details:</h3>
-          <p><strong>Event:</strong> ${eventName}</p>
-          <p><strong>Tickets:</strong> ${metadata.ticket_quantity}</p>
-          <p><strong>Total Paid:</strong> £${totalAmount}</p>
-          <p><strong>Booking Reference:</strong> ${paymentIntent.id}</p>
-        </div>
-        <p>We look forward to seeing you at this exclusive London experience!</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="https://yalla-london.com/events" style="background: #7c3aed; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">View My Bookings</a>
-        </div>
-      </div>
-    `
-    
-    await sendgrid.sendEmail(customerEmail, subject, htmlContent)
-  }
-}
-
-async function handleFailedPayment(paymentIntent: any) {
-  const metadata = paymentIntent.metadata
-  const customerEmail = metadata.customer_email
-  const customerName = metadata.customer_name
-  
-  console.log('Payment failed:', {
-    id: paymentIntent.id,
-    customer: customerName,
-    reason: paymentIntent.last_payment_error?.message
-  })
-
-  // Send notification about failed payment
-  await notifications.send({
-    title: 'Payment Failed',
-    message: `Payment failed for ${customerName} - ${paymentIntent.last_payment_error?.message}`,
-    type: 'warning',
-    data: {
-      paymentIntentId: paymentIntent.id,
-      customerEmail: customerEmail,
-      failureReason: paymentIntent.last_payment_error?.message
+    // Send notification (best-effort)
+    try {
+      const { notifications } = await import(
+        "@/lib/integrations/notifications"
+      );
+      await notifications.notifyBooking(
+        customerName || "Unknown",
+        eventName || "Unknown Event",
+        totalAmount,
+      );
+    } catch {
+      // Notifications are best-effort
     }
-  })
+
+    // Send confirmation email (best-effort)
+    if (customerEmail) {
+      try {
+        const { SendGridAPI } = await import(
+          "@/lib/integrations/email-marketing"
+        );
+        const sendgrid = new SendGridAPI();
+        await sendgrid.sendEmail(
+          customerEmail,
+          "Booking Confirmed - Yalla London",
+          `<div style="font-family: 'Tajawal', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #7c3aed;">Booking Confirmed!</h1>
+            <p>Dear ${customerName},</p>
+            <p>Your booking for <strong>${eventName}</strong> has been confirmed.</p>
+            <p><strong>Total Paid:</strong> £${totalAmount}</p>
+            <p><strong>Reference:</strong> ${paymentIntent.id}</p>
+          </div>`,
+        );
+      } catch {
+        // Email is best-effort
+      }
+    }
+  } catch (err) {
+    console.error("[Stripe Webhook] Booking handler error:", err);
+  }
 }

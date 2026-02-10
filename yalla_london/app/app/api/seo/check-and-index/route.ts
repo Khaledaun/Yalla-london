@@ -140,6 +140,29 @@ export async function GET(request: NextRequest) {
       ...blogUrls,
     ];
 
+    // Track all discovered URLs in URLIndexingStatus
+    try {
+      const { prisma } = await import("@/lib/db");
+      await Promise.allSettled(
+        allUrls.map((item) =>
+          prisma.uRLIndexingStatus.upsert({
+            where: { site_id_url: { site_id: siteId, url: item.url } },
+            create: {
+              site_id: siteId,
+              url: item.url,
+              slug: item.url.split("/blog/")[1] || null,
+              status: "discovered",
+            },
+            update: {
+              slug: item.url.split("/blog/")[1] || null,
+            },
+          })
+        )
+      );
+    } catch (trackError) {
+      console.warn("Failed to track discovered URLs:", trackError);
+    }
+
     // 2. Check URL Inspection status via GSC API (skip when submit_all to save time)
     const indexed: string[] = [];
     const notIndexed: { url: string; label: string; reason: string }[] = [];
@@ -188,6 +211,33 @@ export async function GET(request: NextRequest) {
                     status.indexingState ||
                     "Not indexed",
                 });
+              }
+
+              // Update URLIndexingStatus with inspection result
+              try {
+                const { prisma } = await import("@/lib/db");
+                await prisma.uRLIndexingStatus.upsert({
+                  where: { site_id_url: { site_id: siteId, url: item.url } },
+                  create: {
+                    site_id: siteId,
+                    url: item.url,
+                    slug: item.url.split("/blog/")[1] || null,
+                    status: isIndexed ? "indexed" : "not_indexed",
+                    coverage_state: status.coverageState || null,
+                    indexing_state: status.indexingState || null,
+                    last_inspected_at: new Date(),
+                    inspection_result: status as object,
+                  },
+                  update: {
+                    status: isIndexed ? "indexed" : "not_indexed",
+                    coverage_state: status.coverageState || null,
+                    indexing_state: status.indexingState || null,
+                    last_inspected_at: new Date(),
+                    inspection_result: status as object,
+                  },
+                });
+              } catch (trackError) {
+                console.warn("Failed to track inspection result:", trackError);
               }
             } else {
               if (!gscAvailable) break;
@@ -246,6 +296,33 @@ export async function GET(request: NextRequest) {
               submitted: Math.min(urlsToSubmit.length, 100),
               status: "success",
             };
+
+            // Track IndexNow submission in URLIndexingStatus
+            try {
+              const { prisma } = await import("@/lib/db");
+              const submittedBatch = urlsToSubmit.slice(0, 100);
+              await Promise.allSettled(
+                submittedBatch.map((url) =>
+                  prisma.uRLIndexingStatus.upsert({
+                    where: { site_id_url: { site_id: siteId, url } },
+                    create: {
+                      site_id: siteId,
+                      url,
+                      slug: url.split("/blog/")[1] || null,
+                      status: "submitted",
+                      submitted_indexnow: true,
+                      last_submitted_at: new Date(),
+                    },
+                    update: {
+                      submitted_indexnow: true,
+                      last_submitted_at: new Date(),
+                    },
+                  })
+                )
+              );
+            } catch (trackError) {
+              console.warn("Failed to track IndexNow submission:", trackError);
+            }
           } else {
             submission.indexNow = {
               submitted: 0,
@@ -283,6 +360,37 @@ export async function GET(request: NextRequest) {
                 ? "errors"
                 : "no_credentials",
         };
+
+        // Track Google API submission in URLIndexingStatus
+        if (result.submitted > 0) {
+          try {
+            const { prisma } = await import("@/lib/db");
+            const googleBatch = urlsToSubmit.slice(0, 50);
+            await Promise.allSettled(
+              googleBatch.map((url) =>
+                prisma.uRLIndexingStatus.upsert({
+                  where: { site_id_url: { site_id: siteId, url } },
+                  create: {
+                    site_id: siteId,
+                    url,
+                    slug: url.split("/blog/")[1] || null,
+                    status: "submitted",
+                    submitted_google_api: true,
+                    last_submitted_at: new Date(),
+                    submission_attempts: 1,
+                  },
+                  update: {
+                    submitted_google_api: true,
+                    last_submitted_at: new Date(),
+                    submission_attempts: { increment: 1 },
+                  },
+                })
+              )
+            );
+          } catch (trackError) {
+            console.warn("Failed to track Google API submission:", trackError);
+          }
+        }
       } catch (e) {
         submission.googleApi = {
           submitted: 0,

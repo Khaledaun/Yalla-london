@@ -2,8 +2,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { withCronLog } from "@/lib/cron-logger";
+import { getSiteDomain } from "@/config/sites";
 
 /**
  * Scheduled Content Publishing Cron Job
@@ -12,129 +12,130 @@ import { prisma } from "@/lib/db";
  * Finds blog posts with status='scheduled' and scheduled_at <= now,
  * then publishes them by setting published=true and status='published'.
  */
-export async function GET(request: NextRequest) {
-  // Verify cron secret
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!cronSecret && process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "Server misconfiguration" },
-      { status: 503 },
-    );
-  }
-
+export const GET = withCronLog("scheduled-publish", async (log) => {
+  const { prisma } = await import("@/lib/db");
   const now = new Date();
-  const results: {
-    id: string;
-    title: string;
-    slug: string;
-    site_id: string;
-  }[] = [];
 
-  try {
-    // Find all posts that are scheduled and due for publishing
-    const duePosts = await prisma.blogPost.findMany({
-      where: {
-        status: "scheduled",
-        published: false,
-        scheduled_at: { lte: now },
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        title_en: true,
-        slug: true,
-        site_id: true,
-      },
-    });
+  const results: { id: string; title: string; slug: string; site_id: string }[] = [];
 
-    // Publish each due post
-    for (const post of duePosts) {
-      try {
-        await prisma.blogPost.update({
-          where: { id: post.id },
-          data: {
-            published: true,
-            status: "published",
-            updated_at: now,
-          },
-        });
+  // Find all posts that are scheduled and due for publishing
+  const duePosts = await prisma.blogPost.findMany({
+    where: {
+      status: "scheduled",
+      published: false,
+      scheduled_at: { lte: now },
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      title_en: true,
+      slug: true,
+      site_id: true,
+      siteId: true,
+    },
+  });
 
-        results.push({
-          id: post.id,
-          title: post.title_en || "Untitled",
-          slug: post.slug,
-          site_id: post.site_id || "unknown",
-        });
+  // Publish each due post
+  for (const post of duePosts) {
+    if (log.isExpired()) break;
 
-        console.log(
-          `[Scheduled Publish] Published: ${post.title_en} (${post.slug})`,
-        );
-      } catch (err) {
-        console.error(`[Scheduled Publish] Failed to publish ${post.id}:`, err);
-      }
+    const siteId = post.siteId || post.site_id || "yalla-london";
+    log.addSite(siteId);
+
+    try {
+      await prisma.blogPost.update({
+        where: { id: post.id },
+        data: {
+          published: true,
+          status: "published",
+          updated_at: now,
+        },
+      });
+
+      results.push({
+        id: post.id,
+        title: post.title_en || "Untitled",
+        slug: post.slug,
+        site_id: siteId,
+      });
+      log.trackItem(true);
+    } catch (err) {
+      console.error(`[Scheduled Publish] Failed to publish ${post.id}:`, err);
+      log.trackItem(false);
     }
-
-    // Submit newly published URLs to IndexNow
-    if (results.length > 0) {
-      try {
-        const indexNowKey = process.env.INDEXNOW_KEY;
-        if (indexNowKey) {
-          for (const post of results) {
-            const url = `https://yalla-london.com/blog/${post.slug}`;
-            await fetch(
-              `https://api.indexnow.org/indexnow?url=${encodeURIComponent(url)}&key=${indexNowKey}`,
-            ).catch(() => {});
-          }
-          console.log(
-            `[Scheduled Publish] Submitted ${results.length} URLs to IndexNow`,
-          );
-        }
-      } catch {
-        // IndexNow is best-effort
-      }
-    }
-
-    // Get next scheduled posts
-    const nextScheduled = await prisma.blogPost.findMany({
-      where: {
-        status: "scheduled",
-        published: false,
-        scheduled_at: { gt: now },
-        deletedAt: null,
-      },
-      select: { id: true, title_en: true, scheduled_at: true },
-      orderBy: { scheduled_at: "asc" },
-      take: 5,
-    });
-
-    console.log(
-      `[Scheduled Publish] Published ${results.length} posts. ${nextScheduled.length} upcoming.`,
-    );
-
-    return NextResponse.json({
-      success: true,
-      executed_at: now.toISOString(),
-      published_count: results.length,
-      published: results,
-      next_scheduled: nextScheduled.map((p) => ({
-        id: p.id,
-        title: p.title_en,
-        scheduled_at: p.scheduled_at?.toISOString(),
-      })),
-    });
-  } catch (error) {
-    console.error("[Scheduled Publish] Cron failed:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Publishing failed" },
-      { status: 500 },
-    );
   }
-}
 
-export async function POST(request: NextRequest) {
-  return GET(request);
-}
+  // Submit newly published URLs to IndexNow (per-site domain)
+  if (results.length > 0) {
+    try {
+      const indexNowKey = process.env.INDEXNOW_KEY;
+      if (indexNowKey) {
+        for (const post of results) {
+          const siteUrl = getSiteDomain(post.site_id);
+          const url = `${siteUrl}/blog/${post.slug}`;
+          await fetch(
+            `https://api.indexnow.org/indexnow?url=${encodeURIComponent(url)}&key=${indexNowKey}`,
+          ).catch(() => {});
+        }
+      }
+    } catch {
+      // IndexNow is best-effort
+    }
+  }
+
+  // Get next scheduled posts
+  const nextScheduled = await prisma.blogPost.findMany({
+    where: {
+      status: "scheduled",
+      published: false,
+      scheduled_at: { gt: now },
+      deletedAt: null,
+    },
+    select: { id: true, title_en: true, scheduled_at: true },
+    orderBy: { scheduled_at: "asc" },
+    take: 5,
+  });
+
+  return {
+    published_count: results.length,
+    published: results,
+    next_scheduled: nextScheduled.map((p) => ({
+      id: p.id,
+      title: p.title_en,
+      scheduled_at: p.scheduled_at?.toISOString(),
+    })),
+  };
+}, { maxDurationMs: 30_000 });
+
+export const POST = withCronLog("scheduled-publish-manual", async (log) => {
+  // Delegate to the same logic by re-importing the GET handler's logic
+  const { prisma } = await import("@/lib/db");
+  const now = new Date();
+
+  const duePosts = await prisma.blogPost.findMany({
+    where: {
+      status: "scheduled",
+      published: false,
+      scheduled_at: { lte: now },
+      deletedAt: null,
+    },
+    select: { id: true, title_en: true, slug: true, siteId: true, site_id: true },
+  });
+
+  let published = 0;
+  for (const post of duePosts) {
+    if (log.isExpired()) break;
+    try {
+      await prisma.blogPost.update({
+        where: { id: post.id },
+        data: { published: true, status: "published", updated_at: now },
+      });
+      published++;
+      log.trackItem(true);
+    } catch {
+      log.trackItem(false);
+    }
+  }
+
+  return { published_count: published, total_due: duePosts.length };
+}, { maxDurationMs: 30_000 });

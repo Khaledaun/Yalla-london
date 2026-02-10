@@ -2312,3 +2312,102 @@ model SiteHealthCheck {
   @@index([checked_at])
   @@map("site_health_checks")
 }
+
+// ─── Billing & Payments ──────────────────────────────────────
+
+/// Operating entity that owns multiple sites and holds a Stripe account
+model BillingEntity {
+  id                 String   @id @default(cuid())
+  name               String   // e.g. "Yalla Media Group"
+  email              String   @unique
+  stripe_customer_id String?  @unique // Stripe Customer ID (cus_xxx)
+  stripe_account_id  String?  // Stripe Connect account (for marketplace)
+  default_currency   String   @default("GBP")
+  country            String   @default("GB")
+  vat_number         String?
+  address_json       Json?    // { line1, line2, city, state, postal_code, country }
+  metadata_json      Json?
+
+  // Relations
+  subscriptions      Subscription[]
+  payment_methods    PaymentMethod[]
+  invoices           Invoice[]
+
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  @@map("billing_entities")
+}
+
+/// Subscription linking a billing entity to site(s)
+model Subscription {
+  id                    String   @id @default(cuid())
+  billing_entity_id     String
+  billing_entity        BillingEntity @relation(fields: [billing_entity_id], references: [id])
+  stripe_subscription_id String?  @unique // sub_xxx
+  stripe_price_id       String?  // price_xxx
+  plan_name             String   @default("pro") // free, starter, pro, enterprise
+  status                String   @default("active") // active, past_due, canceled, trialing, paused
+  site_ids              String[] // site IDs covered by this subscription
+  quantity              Int      @default(1) // number of sites
+  current_period_start  DateTime?
+  current_period_end    DateTime?
+  cancel_at_period_end  Boolean  @default(false)
+  trial_end             DateTime?
+  metadata_json         Json?
+
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@index([billing_entity_id])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+/// Stored payment method (card, bank account)
+model PaymentMethod {
+  id                    String   @id @default(cuid())
+  billing_entity_id     String
+  billing_entity        BillingEntity @relation(fields: [billing_entity_id], references: [id])
+  stripe_payment_method_id String? @unique // pm_xxx
+  type                  String   @default("card") // card, bank_account, sepa_debit
+  last4                 String?
+  brand                 String?  // visa, mastercard, amex
+  exp_month             Int?
+  exp_year              Int?
+  is_default            Boolean  @default(false)
+
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@index([billing_entity_id])
+  @@map("payment_methods")
+}
+
+/// Invoice record (mirrors Stripe invoices)
+model Invoice {
+  id                    String   @id @default(cuid())
+  billing_entity_id     String
+  billing_entity        BillingEntity @relation(fields: [billing_entity_id], references: [id])
+  stripe_invoice_id     String?  @unique // in_xxx
+  number                String?  // INV-2024-001
+  status                String   @default("draft") // draft, open, paid, void, uncollectible
+  amount_due            Int      @default(0) // in smallest currency unit (cents/pence)
+  amount_paid           Int      @default(0)
+  currency              String   @default("GBP")
+  period_start          DateTime?
+  period_end            DateTime?
+  paid_at               DateTime?
+  hosted_invoice_url    String?  // Stripe-hosted invoice page
+  pdf_url               String?  // Invoice PDF download
+  site_ids              String[] // which sites this invoice covers
+  line_items_json       Json?    // line item details
+  metadata_json         Json?
+
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+
+  @@index([billing_entity_id])
+  @@index([status])
+  @@map("invoices")
+}

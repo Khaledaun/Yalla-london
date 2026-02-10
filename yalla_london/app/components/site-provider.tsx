@@ -9,68 +9,34 @@ import {
 } from "react";
 import { Site } from "@/lib/prisma-types";
 
-// Default site for Yalla London
-const DEFAULT_SITE: Site = {
-  id: "yalla-london-main",
-  name: "Yalla London",
-  slug: "yalla-london",
-  domain: "yallalondon.com",
-  theme_id: null,
-  settings_json: {},
-  homepage_json: null,
-  logo_url: null,
-  is_active: true,
-  created_at: new Date(),
-  updated_at: new Date(),
-  default_locale: "en",
-  direction: "ltr",
-  favicon_url: null,
-  primary_color: "#1A1F36",
-  secondary_color: "#E8634B",
-  features_json: null,
-};
+/**
+ * Fallback sites matching config/sites.ts identities.
+ * IDs MUST match the actual site IDs used by cron jobs, SEO agent, and middleware.
+ * The API at /api/admin/sites replaces these with DB data on mount.
+ */
+function makeSite(
+  id: string, name: string, slug: string, domain: string,
+  locale: string, direction: string, primaryColor: string, secondaryColor: string,
+): Site {
+  return {
+    id, name, slug, domain, theme_id: null, settings_json: {}, homepage_json: null,
+    logo_url: null, is_active: true, created_at: new Date(), updated_at: new Date(),
+    default_locale: locale, direction, favicon_url: null,
+    primary_color: primaryColor, secondary_color: secondaryColor, features_json: null,
+  };
+}
 
-// Mock sites for development - in production this would come from the database
-const MOCK_SITES: Site[] = [
+const DEFAULT_SITE: Site = makeSite(
+  "yalla-london", "Yalla London", "yalla-london", "yalla-london.com",
+  "en", "ltr", "#1A1F36", "#E8634B",
+);
+
+const FALLBACK_SITES: Site[] = [
   DEFAULT_SITE,
-  {
-    id: "arab-maldives",
-    name: "Arab Maldives",
-    slug: "arab-maldives",
-    domain: "arabmaldives.com",
-    theme_id: null,
-    settings_json: {},
-    homepage_json: null,
-    logo_url: null,
-    is_active: true,
-    created_at: new Date(),
-    updated_at: new Date(),
-    default_locale: "ar",
-    direction: "rtl",
-    favicon_url: null,
-    primary_color: "#0C4A6E",
-    secondary_color: "#0EA5E9",
-    features_json: null,
-  },
-  {
-    id: "dubai-travel-guide",
-    name: "Dubai Travel Guide",
-    slug: "dubai-travel-guide",
-    domain: "dubaitravelguide.com",
-    theme_id: null,
-    settings_json: {},
-    homepage_json: null,
-    logo_url: null,
-    is_active: true,
-    created_at: new Date(),
-    updated_at: new Date(),
-    default_locale: "en",
-    direction: "ltr",
-    favicon_url: null,
-    primary_color: "#B45309",
-    secondary_color: "#F59E0B",
-    features_json: null,
-  },
+  makeSite("arabaldives", "Arab Aldives", "arabaldives", "arabaldives.com", "ar", "rtl", "#0C4A6E", "#0EA5E9"),
+  makeSite("dubai", "Dubai Travel Guide", "dubai", "arabluxurytravel.com", "en", "ltr", "#B45309", "#F59E0B"),
+  makeSite("istanbul", "Istanbul Guide", "istanbul", "arabistanbul.com", "en", "ltr", "#DC2626", "#F97316"),
+  makeSite("thailand", "Thailand Guide", "thailand", "arabtravels.com", "en", "ltr", "#059669", "#10B981"),
 ];
 
 interface SiteContextType {
@@ -97,7 +63,7 @@ const SiteContext = createContext<SiteContextType | null>(null);
 
 export function SiteProvider({ children }: { children: React.ReactNode }) {
   const [currentSite, setCurrentSiteState] = useState<Site>(DEFAULT_SITE);
-  const [sites, setSites] = useState<Site[]>(MOCK_SITES);
+  const [sites, setSites] = useState<Site[]>(FALLBACK_SITES);
   const [isLoading, setIsLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
 
@@ -175,7 +141,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Failed to refresh sites:", error);
-      // Keep using mock sites on error
+      // Keep using fallback sites on error
     } finally {
       setIsLoading(false);
     }

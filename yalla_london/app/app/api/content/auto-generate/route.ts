@@ -5,6 +5,7 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server';
 import { ContentGenerationService } from '@/lib/content-generation-service';
 import { aiLimiter } from '@/lib/rate-limit';
+import { detectPromptInjection, sanitizePromptInput } from '@/lib/prompt-safety';
 
 // Auto-generate content endpoint
 export async function POST(request: NextRequest) {
@@ -13,6 +14,23 @@ export async function POST(request: NextRequest) {
 
   try {
     const { type, category, language, keywords, customPrompt, topicId, saveAsBlogPost } = await request.json();
+
+    // SECURITY: Check custom prompt for injection attempts
+    if (customPrompt) {
+      const injectionCheck = detectPromptInjection(customPrompt);
+      if (!injectionCheck.safe) {
+        console.warn('Prompt injection detected in auto-generate:', injectionCheck.flags);
+        return NextResponse.json(
+          { error: 'Your prompt was flagged by our safety system. Please rephrase your request.' },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Sanitize text inputs
+    const sanitizedCategory = category ? sanitizePromptInput(category, 200) : category;
+    const sanitizedKeywords = keywords?.map((k: string) => sanitizePromptInput(k, 100));
+    const sanitizedPrompt = customPrompt ? sanitizePromptInput(customPrompt, 4000) : customPrompt;
 
     let generatedContent;
 
@@ -25,17 +43,17 @@ export async function POST(request: NextRequest) {
         category,
         keywords
       });
-    } else if (customPrompt) {
-      // Generate from custom prompt
-      generatedContent = await ContentGenerationService.generateFromPrompt(customPrompt, {
+    } else if (sanitizedPrompt) {
+      // Generate from custom prompt (sanitized)
+      generatedContent = await ContentGenerationService.generateFromPrompt(sanitizedPrompt, {
         type,
         language: language || 'en',
-        category,
-        keywords
+        category: sanitizedCategory,
+        keywords: sanitizedKeywords
       });
     } else {
       // Fallback to direct generation
-      generatedContent = await generateContentDirect(type, category, language, keywords, customPrompt);
+      generatedContent = await generateContentDirect(type, sanitizedCategory, language, sanitizedKeywords, sanitizedPrompt);
     }
 
     // Save as blog post if requested

@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-10
 **Scope:** Security hardening, code quality, database optimization, testing
-**Status:** Phase 1 & Phase 2 Complete
+**Status:** Phase 1, Phase 2, Phase 2.5 (Bulk Affiliate Links) & Phase 3 Complete
 
 ---
 
@@ -158,37 +158,143 @@ New test file: `test/integration/phase2-enhancements.spec.ts` — **35 tests, al
 
 ---
 
-## Phase 3: Planned (Next Sprint)
+## Phase 2.5: Bulk Affiliate Links (Implemented)
 
-### 3.1 Security Hardening
+### Bulk Affiliate Link Management
 
-| Task | Priority | Description |
-|------|----------|-------------|
-| Enable `strictNullChecks` | HIGH | Fix ~100+ null-related patterns across codebase |
-| Enable `noImplicitAny` | HIGH | Add types to ~50+ untyped parameters |
-| Prompt injection defenses | HIGH | Add structured prompt templates with clear delimiters to AI endpoints |
-| GDPR data export/deletion | MEDIUM | Implement right-to-portability and right-to-erasure endpoints |
+| Component | File | Description | Status |
+|-----------|------|-------------|--------|
+| Rule engine | `lib/affiliate-link-rules.ts` | Flexible content targeting: by ID, filter, service type, tags, categories, page types, sites | DONE |
+| Bulk API | `app/api/admin/affiliate-links/bulk/route.ts` | POST (6 actions) + GET (summary stats) with Zod validation | DONE |
+| Admin page | `app/admin/affiliate-links/page.tsx` | Full management UI with filters, dry-run preview, results display | DONE |
 
-### 3.2 Content Management
+**Supported Actions:**
 
-| Task | Priority | Description |
-|------|----------|-------------|
-| Approval workflow | HIGH | Multi-step content approval with reviewer assignment |
-| Content calendar view | HIGH | Month/week/day calendar with drag-drop scheduling |
-| Content versioning UI | HIGH | Version history timeline with diff view |
+| Action | Description |
+|--------|-------------|
+| `assign` | Assign affiliate partner to matched content with placement/priority options |
+| `unassign` | Remove affiliate assignments from matched content |
+| `activate` | Activate disabled assignments |
+| `deactivate` | Deactivate without removing |
+| `update_priority` | Change display priority (1-100) |
+| `update_placement` | Change link position (auto, top, bottom, inline, sidebar, cta_button) |
 
-### 3.3 Automation & Design
+**Targeting Modes:**
 
-| Task | Priority | Description |
-|------|----------|-------------|
-| Plagiarism detection | HIGH | Integrate plagiarism API check before auto-publishing |
-| Image crop/resize tools | HIGH | In-canvas crop, resize, and filter tools |
-| Stock image integration | HIGH | Unsplash/Pexels API integration for stock photos |
-| Generation queue UI | MEDIUM | Real-time generation progress in Automation Hub |
+| Mode | Description |
+|------|-------------|
+| Specific | Target exact content IDs (up to 500) |
+| Filter | Target by category, tags, page type, site, partner type, title search, published status |
+
+**Key Features:**
+- Service-based auto-matching (hotel keywords → hotel content, restaurant keywords → restaurant content, etc.)
+- Dry-run preview before executing
+- Skip existing assignments option
+- Max links per content limit (default 5)
+- Audit logging with `bulk_affiliate_` prefix
+- Safety cap of 500 results per filter query
+- Dashboard summary stats (total/active assignments, by content type, by partner)
+
+### Phase 2.5 Testing
+
+New test file: `test/integration/bulk-affiliate-links.spec.ts` — **45 tests, all passing**
+
+| Test Suite | Tests | Description |
+|------------|-------|-------------|
+| Rule engine | 17 | All actions, content types, placements, filters, dry_run, skip_existing, audit logging |
+| Bulk API | 13 | POST/GET handlers, Zod validation, action validation, error handling |
+| Admin page | 15 | UI elements, filters, actions, placements, API integration |
 
 ---
 
-## Phase 3: Future (Backlog)
+## Phase 3: Implemented
+
+### 3.1 Prompt Injection Defenses
+
+| Component | File | Description | Status |
+|-----------|------|-------------|--------|
+| Safety module | `lib/prompt-safety.ts` | Multi-layer defense: sanitization, injection detection, structured prompts, output validation | DONE |
+| AI generate integration | `app/api/ai/generate/route.ts` | Added `processPromptSafely` + `validateLLMOutput` to generation pipeline | DONE |
+| Auto-generate integration | `app/api/content/auto-generate/route.ts` | Added `detectPromptInjection` + `sanitizePromptInput` for custom prompts | DONE |
+
+**Defense Layers:**
+
+| Layer | Description |
+|-------|-------------|
+| Input sanitization | Strip control chars, zero-width unicode, normalize whitespace, enforce max length |
+| Injection detection | 12 pattern categories with weighted risk scoring (0-100), threshold at 70 |
+| Structured prompts | Security preamble + clear delimiters separating system instructions from user input |
+| Output validation | Check for leaked system prompts, delimiter markers, API key patterns |
+
+**Injection Patterns Detected:**
+
+| Pattern | Weight | Description |
+|---------|--------|-------------|
+| `instruction_override` | 90 | "Ignore previous instructions" |
+| `instruction_disregard` | 90 | "Disregard all rules" |
+| `instruction_forget` | 85 | "Forget everything" |
+| `role_override` | 80 | "You are now a..." |
+| `role_impersonation` | 70 | "Act as if you are..." |
+| `role_pretend` | 70 | "Pretend you're..." |
+| `prompt_extraction` | 95 | "Reveal your system prompt" |
+| `prompt_query` | 60 | "What are your instructions?" |
+| `delimiter_injection` | 85 | Fake code block delimiters |
+| `delimiter_injection_tags` | 90 | LLM-specific tags ([SYSTEM], [INST], etc.) |
+| `jailbreak_dan` | 95 | DAN jailbreak pattern |
+| `jailbreak_mode` | 80 | Developer/debug/god mode |
+| `data_exfiltration` | 75 | API key/secret/password queries |
+| `encoding_trick` | 50 | Base64/ROT13 encoding references |
+| `multi_turn_manipulation` | 60 | "In your next response, only..." |
+
+### 3.2 Content Approval Workflow
+
+| Component | File | Description | Status |
+|-----------|------|-------------|--------|
+| Approval API | `app/api/admin/content/approval/route.ts` | GET (list queue), POST (submit for review), PUT (approve/reject/request changes) | DONE |
+| Workflow states | — | draft → pending_review → approved/rejected/changes_requested → published | DONE |
+| Reviewer assignment | — | Assign specific reviewer to each submission | DONE |
+| Feedback system | — | Reviewers can provide feedback with each action | DONE |
+| Approval history | — | Full audit trail of all workflow state transitions | DONE |
+| State validation | — | Enforces valid transitions (only submit from draft/changes_requested, only review from pending_review) | DONE |
+| Audit logging | — | All approval actions logged to AuditLog with `content_` prefix | DONE |
+
+### 3.3 Content Versioning
+
+| Component | File | Description | Status |
+|-----------|------|-------------|--------|
+| Versioning API | `app/api/admin/content/versions/route.ts` | GET (list versions), POST (create snapshot), PUT (restore version) | DONE |
+| Content snapshots | — | Full post snapshot: bilingual title/content/excerpt, SEO metadata, tags, category, image, score | DONE |
+| Diff computation | — | Field-by-field diff with old/new values (truncated for long content) | DONE |
+| Version restore | — | Restore any previous version; auto-saves current state before restore | DONE |
+| Version numbering | — | Sequential version numbers per post | DONE |
+| Storage | — | Uses AuditLog table with `content_version` action type (no schema changes needed) | DONE |
+
+### 3.4 Generation Queue Status
+
+| Component | File | Description | Status |
+|-----------|------|-------------|--------|
+| Queue API | `app/api/admin/generation-queue/route.ts` | GET with filtering by status/type/language, pagination | DONE |
+| Status summary | — | Counts by status (pending/published/failed/cancelled) | DONE |
+| Daily budget tracking | — | Shows daily_generated, daily_budget (20), budget_remaining | DONE |
+| Recent activity | — | Last 10 cron execution logs from AuditLog | DONE |
+| SEO metadata | — | SEO score, meta title/description for each queue item | DONE |
+
+### 3.5 Phase 3 Testing
+
+New test file: `test/integration/phase3-enhancements.spec.ts` — **73 tests, all passing**
+
+| Test Suite | Tests | Description |
+|------------|-------|-------------|
+| Prompt safety module | 22 | All exports, injection patterns, sanitization, structured prompts, output validation |
+| AI generate integration | 6 | Import, detection, rejection, structured prompts, output validation |
+| Auto-generate integration | 4 | Import, injection check, rejection, sanitization |
+| Content approval workflow | 16 | All statuses, actions, Zod validation, state transitions, audit logging, pagination |
+| Content versioning | 11 | Snapshots, diffs, restore, auto-save, version numbering, storage |
+| Generation queue status | 10 | Query parameters, status summary, daily budget, recent activity, pagination |
+
+---
+
+## Phase 4: Future (Backlog)
 
 | Task | Priority | Description |
 |------|----------|-------------|
@@ -240,6 +346,27 @@ New test file: `test/integration/phase2-enhancements.spec.ts` — **35 tests, al
 | `components/design-studio/design-canvas.tsx` | Added 13 social media format presets |
 | `test/integration/phase2-enhancements.spec.ts` | **NEW** — 35 comprehensive tests for all Phase 2 enhancements |
 
+### Phase 2.5
+
+| File | Changes |
+|------|---------|
+| `lib/affiliate-link-rules.ts` | **NEW** — Flexible bulk affiliate link rule engine with content matching |
+| `app/api/admin/affiliate-links/bulk/route.ts` | **NEW** — Bulk affiliate operations API (6 actions, Zod validation, audit-logged) |
+| `app/admin/affiliate-links/page.tsx` | **NEW** — Bulk affiliate link management admin page |
+| `test/integration/bulk-affiliate-links.spec.ts` | **NEW** — 45 comprehensive tests for bulk affiliate feature |
+
+### Phase 3
+
+| File | Changes |
+|------|---------|
+| `lib/prompt-safety.ts` | **NEW** — Prompt injection defense module (sanitization, detection, structured prompts, output validation) |
+| `app/api/ai/generate/route.ts` | Integrated `processPromptSafely` + `validateLLMOutput` into generation pipeline |
+| `app/api/content/auto-generate/route.ts` | Added `detectPromptInjection` + `sanitizePromptInput` for custom prompts |
+| `app/api/admin/content/approval/route.ts` | **NEW** — Content approval workflow API (submit, approve, reject, request changes) |
+| `app/api/admin/content/versions/route.ts` | **NEW** — Content versioning API (snapshots, diffs, restore) |
+| `app/api/admin/generation-queue/route.ts` | **NEW** — Generation queue status API with daily budget tracking |
+| `test/integration/phase3-enhancements.spec.ts` | **NEW** — 73 comprehensive tests for all Phase 3 enhancements |
+
 ---
 
 ## Verification
@@ -247,8 +374,10 @@ New test file: `test/integration/phase2-enhancements.spec.ts` — **35 tests, al
 - **TypeScript compilation:** Zero errors (`npx tsc --noEmit`)
 - **Phase 1 tests:** 24/24 passing (`npx vitest run test/security/audit-fixes.spec.ts`)
 - **Phase 2 tests:** 35/35 passing (`npx vitest run test/integration/phase2-enhancements.spec.ts`)
-- **Total:** 59 new tests, all passing
-- **Existing tests:** No regressions (pre-existing failures in smoke tests due to missing `node-mocks-http` dependency are unrelated)
+- **Phase 2.5 tests:** 45/45 passing (`npx vitest run test/integration/bulk-affiliate-links.spec.ts`)
+- **Phase 3 tests:** 73/73 passing (`npx vitest run test/integration/phase3-enhancements.spec.ts`)
+- **Total:** 177 new tests, all passing
+- **Existing tests:** No regressions
 
 ---
 

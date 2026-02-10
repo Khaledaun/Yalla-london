@@ -312,7 +312,8 @@ export async function sendEmail(params: SendEmailParams): Promise<void> {
     }
 
     // Dynamic import so nodemailer is only required when SMTP is selected
-    const nodemailer = await import("nodemailer");
+    // @ts-ignore — nodemailer may not be installed; runtime check only
+    const nodemailer = await import(/* webpackIgnore: true */ "nodemailer");
 
     const transporter = nodemailer.createTransport({
       host,

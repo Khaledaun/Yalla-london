@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cookies, headers } from 'next/headers';
+import { apiLimiter } from '@/lib/rate-limit';
 
 // Lead types
 type LeadType = 'NEWSLETTER' | 'PDF_GUIDE' | 'QUOTE_REQUEST' | 'CONTACT';
@@ -23,6 +24,9 @@ interface CreateLeadInput {
 }
 
 export async function POST(request: NextRequest) {
+  const blocked = apiLimiter(request);
+  if (blocked) return blocked;
+
   try {
     const body: CreateLeadInput = await request.json();
 

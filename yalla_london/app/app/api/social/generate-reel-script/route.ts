@@ -4,8 +4,12 @@ export const revalidate = 0;
 
 
 import { NextRequest, NextResponse } from 'next/server'
+import { aiLimiter } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
+  const blocked = aiLimiter(request);
+  if (blocked) return blocked;
+
   try {
     const { topic, language = 'en' } = await request.json()
 

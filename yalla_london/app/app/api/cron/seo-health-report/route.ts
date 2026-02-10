@@ -2,12 +2,14 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import { NextRequest, NextResponse } from "next/server";
+import { logCronExecution } from "@/lib/cron-logger";
 
 /**
  * SEO Health Dashboard - Weekly auto-report generation
  * Generates comprehensive reports using SeoReport model + BlogPost data
  */
 export async function POST(request: NextRequest) {
+  const _cronStart = Date.now();
   try {
     const authHeader = request.headers.get("Authorization");
     const cronSecret = process.env.CRON_SECRET;
@@ -42,6 +44,15 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
+    await logCronExecution("seo-health-report", "completed", {
+      durationMs: Date.now() - _cronStart,
+      resultSummary: {
+        total_articles: report.auditStats.total_articles,
+        avg_seo_score: report.auditStats.avg_seo_score,
+        issues_found: report.topIssues.total_issues,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       report: {
@@ -53,6 +64,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("SEO health report error:", error);
+    await logCronExecution("seo-health-report", "failed", {
+      durationMs: Date.now() - _cronStart,
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+    });
     return NextResponse.json(
       {
         success: false,

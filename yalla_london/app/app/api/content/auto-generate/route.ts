@@ -4,9 +4,13 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ContentGenerationService } from '@/lib/content-generation-service';
+import { aiLimiter } from '@/lib/rate-limit';
 
 // Auto-generate content endpoint
 export async function POST(request: NextRequest) {
+  const blocked = aiLimiter(request);
+  if (blocked) return blocked;
+
   try {
     const { type, category, language, keywords, customPrompt, topicId, saveAsBlogPost } = await request.json();
 

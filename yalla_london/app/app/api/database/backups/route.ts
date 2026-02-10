@@ -9,10 +9,13 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 import fs from 'fs/promises'
 import path from 'path'
+import { apiLimiter } from '@/lib/rate-limit'
 
 const execAsync = promisify(exec)
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const blocked = apiLimiter(request);
+  if (blocked) return blocked;
   try {
     const backups = await prisma.databaseBackup.findMany({
       orderBy: { created_at: 'desc' }
@@ -29,6 +32,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const blocked = apiLimiter(request);
+  if (blocked) return blocked;
+
   try {
     const body = await request.json()
     const { backupName, backupType = 'manual' } = body

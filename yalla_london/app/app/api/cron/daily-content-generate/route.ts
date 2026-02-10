@@ -9,6 +9,7 @@ import {
   getSiteDomain,
 } from "@/config/sites";
 import type { SiteConfig, TopicTemplate } from "@/config/sites";
+import { logCronExecution } from "@/lib/cron-logger";
 
 /**
  * Daily Content Generation Cron - Runs at 5am UTC daily
@@ -35,11 +36,22 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const _cronStart = Date.now();
+
   try {
     const result = await generateDailyContentAllSites();
+    await logCronExecution("daily-content-generate", result.timedOut ? "timed_out" : "completed", {
+      durationMs: Date.now() - _cronStart,
+      sitesProcessed: Object.keys(result.sites || {}),
+      resultSummary: { message: result.message, sites: Object.keys(result.sites || {}).length },
+    });
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     console.error("Daily content generation failed:", error);
+    await logCronExecution("daily-content-generate", "failed", {
+      durationMs: Date.now() - _cronStart,
+      errorMessage: error instanceof Error ? error.message : "Generation failed",
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Generation failed" },
       { status: 500 },

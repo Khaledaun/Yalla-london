@@ -1,136 +1,121 @@
 'use client'
 
-import { useState } from 'react'
-import { 
-  Lightbulb, 
-  Plus, 
-  Filter, 
-  Search, 
+import { useState, useEffect } from 'react'
+import {
+  Lightbulb,
+  Search,
   Calendar,
   Zap,
   Clock,
   CheckCircle,
   AlertCircle,
-  Edit,
-  Trash2,
-  ArrowUp,
-  ArrowDown,
-  GripVertical
+  Loader2,
+  RefreshCw,
 } from 'lucide-react'
+
+interface Topic {
+  id: string;
+  title: string;
+  locale: string;
+  primary_keyword: string;
+  longtails: string[];
+  featured_longtails: string[];
+  suggested_page_type: string;
+  evergreen: boolean;
+  season: string | null;
+  status: string;
+  planned_at: string | null;
+  confidence_score: number | null;
+  site_id: string | null;
+  created_at: string;
+}
+
+interface PipelineStats {
+  planned: number;
+  queued: number;
+  ready: number;
+  published: number;
+  enBacklog: number;
+  arBacklog: number;
+  totalBacklog: number;
+}
 
 export default function TopicsPipeline() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterLocale, setFilterLocale] = useState('all')
-  const [filterPriority, setFilterPriority] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
+  const [topics, setTopics] = useState<Topic[]>([])
+  const [stats, setStats] = useState<PipelineStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  const topics = [
-    {
-      id: 1,
-      title: 'Best Luxury Hotels in Mayfair',
-      locale: 'en',
-      pageType: 'guide',
-      primaryKeyword: 'luxury hotels mayfair',
-      longTail1: 'best luxury hotels mayfair london',
-      longTail2: '5 star hotels mayfair london',
-      authorityLink1: 'https://www.timeout.com/london/hotels/best-luxury-hotels-mayfair',
-      authorityLink2: 'https://www.cntraveler.com/gallery/best-hotels-mayfair-london',
-      authorityLink3: 'https://www.telegraph.co.uk/travel/destinations/europe/united-kingdom/england/london/hotels/mayfair/',
-      authorityLink4: 'https://www.condenasttraveler.com/gallery/best-hotels-mayfair-london',
-      priority: 0, // P0
-      isEvergreen: true,
-      isSeasonal: false,
-      plannedGenerationTime: '2024-01-15T10:00:00Z',
-      status: 'scheduled'
-    },
-    {
-      id: 2,
-      title: 'أفضل المطاعم العربية في لندن',
-      locale: 'ar',
-      pageType: 'guide',
-      primaryKeyword: 'مطاعم عربية لندن',
-      longTail1: 'أفضل المطاعم العربية في لندن 2024',
-      longTail2: 'مطاعم عربية حلال في لندن',
-      authorityLink1: 'https://www.timeout.com/london/restaurants/best-arabic-restaurants',
-      authorityLink2: 'https://www.cntraveler.com/gallery/best-middle-eastern-restaurants-london',
-      authorityLink3: 'https://www.telegraph.co.uk/travel/destinations/europe/united-kingdom/england/london/restaurants/arabic/',
-      authorityLink4: null,
-      priority: 1, // P1
-      isEvergreen: true,
-      isSeasonal: false,
-      plannedGenerationTime: '2024-01-15T14:00:00Z',
-      status: 'scheduled'
-    },
-    {
-      id: 3,
-      title: 'Chelsea FC Stadium Tour Guide',
-      locale: 'en',
-      pageType: 'event',
-      primaryKeyword: 'chelsea stadium tour',
-      longTail1: 'chelsea fc stadium tour london',
-      longTail2: 'stamford bridge tour tickets',
-      authorityLink1: 'https://www.chelseafc.com/en/stadium-tours',
-      authorityLink2: 'https://www.timeout.com/london/attractions/chelsea-fc-stadium-tour',
-      authorityLink3: 'https://www.visitlondon.com/things-to-do/place/281311-stamford-bridge',
-      authorityLink4: 'https://www.londonpass.com/london-attractions/stamford-bridge-tour.html',
-      priority: 2, // P2
-      isEvergreen: false,
-      isSeasonal: true,
-      plannedGenerationTime: '2024-01-16T09:00:00Z',
-      status: 'pending'
-    },
-    {
-      id: 4,
-      title: 'London Shopping Guide 2024',
-      locale: 'en',
-      pageType: 'guide',
-      primaryKeyword: 'london shopping guide',
-      longTail1: 'best shopping areas london 2024',
-      longTail2: 'london shopping districts guide',
-      authorityLink1: 'https://www.timeout.com/london/shopping/best-shopping-areas',
-      authorityLink2: 'https://www.cntraveler.com/gallery/best-shopping-london',
-      authorityLink3: 'https://www.telegraph.co.uk/travel/destinations/europe/united-kingdom/england/london/shopping/',
-      authorityLink4: 'https://www.visitlondon.com/things-to-do/shopping',
-      priority: 3, // P3
-      isEvergreen: true,
-      isSeasonal: false,
-      plannedGenerationTime: null,
-      status: 'pending'
-    }
-  ]
+  useEffect(() => {
+    fetchTopics()
+  }, [])
 
-  const getPriorityColor = (priority: number) => {
-    switch (priority) {
-      case 0: return 'bg-red-100 text-red-800'
-      case 1: return 'bg-orange-100 text-orange-800'
-      case 2: return 'bg-yellow-100 text-yellow-800'
-      case 3: return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
+  async function fetchTopics() {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/topics')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setTopics(data.topics || [])
+      setStats(data.stats || null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load topics')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const getPriorityLabel = (priority: number) => {
-    return `P${priority}`
+  async function queueForGeneration(topicId: string) {
+    setActionLoading(topicId)
+    try {
+      const res = await fetch('/api/admin/topics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'queue_for_generation',
+          data: { topicId, scheduledTime: new Date().toISOString() },
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to queue topic')
+      await fetchTopics()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Queue failed')
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'scheduled': return 'bg-blue-100 text-blue-800'
-      case 'pending': return 'bg-gray-100 text-gray-800'
-      case 'generating': return 'bg-yellow-100 text-yellow-800'
-      case 'completed': return 'bg-green-100 text-green-800'
+      case 'queued': return 'bg-blue-100 text-blue-800'
+      case 'planned': return 'bg-indigo-100 text-indigo-800'
+      case 'ready': return 'bg-yellow-100 text-yellow-800'
+      case 'published': return 'bg-green-100 text-green-800'
+      case 'generating': return 'bg-orange-100 text-orange-800'
       default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'published': return <CheckCircle className="h-3 w-3" />
+      case 'queued': case 'planned': return <Clock className="h-3 w-3" />
+      case 'ready': return <Zap className="h-3 w-3" />
+      default: return <AlertCircle className="h-3 w-3" />
     }
   }
 
   const filteredTopics = topics.filter(topic => {
     const matchesSearch = topic.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         topic.primaryKeyword.toLowerCase().includes(searchTerm.toLowerCase())
+                         topic.primary_keyword.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesLocale = filterLocale === 'all' || topic.locale === filterLocale
-    const matchesPriority = filterPriority === 'all' || topic.priority.toString() === filterPriority
     const matchesStatus = filterStatus === 'all' || topic.status === filterStatus
-    
-    return matchesSearch && matchesLocale && matchesPriority && matchesStatus
+    return matchesSearch && matchesLocale && matchesStatus
   })
 
   return (
@@ -143,38 +128,66 @@ export default function TopicsPipeline() {
               <Lightbulb className="h-8 w-8 text-yellow-500" />
               Topics & Pipeline
             </h1>
-            <p className="text-gray-600 mt-1">Priority, queue, Generate Now</p>
+            <p className="text-gray-600 mt-1">
+              {stats ? `${stats.totalBacklog} topics in backlog — ${stats.queued} queued, ${stats.ready} ready` : 'Loading pipeline...'}
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors">
-              <Zap className="h-4 w-4" />
-              Generate More Topics
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors">
-              <Plus className="h-4 w-4" />
-              Add Topic
+            <button
+              onClick={fetchTopics}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
             </button>
           </div>
         </div>
       </div>
 
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-red-500" />
+          <span className="text-red-700">{error}</span>
+          <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-700 text-sm">Dismiss</button>
+        </div>
+      )}
+
+      {/* Stats Cards */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+          {[
+            { label: 'Planned', value: stats.planned, color: 'text-indigo-600' },
+            { label: 'Queued', value: stats.queued, color: 'text-blue-600' },
+            { label: 'Ready', value: stats.ready, color: 'text-yellow-600' },
+            { label: 'Published', value: stats.published, color: 'text-green-600' },
+            { label: 'EN Backlog', value: stats.enBacklog, color: 'text-blue-600' },
+            { label: 'AR Backlog', value: stats.arBacklog, color: 'text-green-600' },
+            { label: 'Total', value: stats.totalBacklog, color: 'text-gray-900' },
+          ].map((stat) => (
+            <div key={stat.label} className="bg-white p-4 rounded-lg border border-gray-200 text-center">
+              <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+              <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-white p-6 rounded-lg border border-gray-200 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search topics..."
+                placeholder="Search topics or keywords..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent w-full"
               />
             </div>
           </div>
-          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Locale</label>
             <select
@@ -187,22 +200,6 @@ export default function TopicsPipeline() {
               <option value="ar">Arabic</option>
             </select>
           </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-            >
-              <option value="all">All Priorities</option>
-              <option value="0">P0 - Critical</option>
-              <option value="1">P1 - High</option>
-              <option value="2">P2 - Medium</option>
-              <option value="3">P3 - Low</option>
-            </select>
-          </div>
-          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
             <select
@@ -211,10 +208,10 @@ export default function TopicsPipeline() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
             >
               <option value="all">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="generating">Generating</option>
-              <option value="completed">Completed</option>
+              <option value="planned">Planned</option>
+              <option value="queued">Queued</option>
+              <option value="ready">Ready</option>
+              <option value="published">Published</option>
             </select>
           </div>
         </div>
@@ -225,176 +222,112 @@ export default function TopicsPipeline() {
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Topics ({filteredTopics.length})</h2>
         </div>
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Topic
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Locale
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Priority
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Scheduled Time
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredTopics.map((topic) => (
-                <tr key={topic.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <GripVertical className="h-4 w-4 text-gray-400 mr-2 cursor-move" />
+
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-yellow-500" />
+          </div>
+        ) : filteredTopics.length === 0 ? (
+          <div className="py-12 text-center text-gray-500">
+            {topics.length === 0 ? 'No topics in the pipeline yet.' : 'No topics match your filters.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Topic</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Locale</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scheduled</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredTopics.map((topic) => (
+                  <tr key={topic.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
                       <div>
                         <div className="text-sm font-medium text-gray-900">{topic.title}</div>
-                        <div className="text-sm text-gray-500 mb-1">
-                          <span className="font-medium">Primary:</span> {topic.primaryKeyword}
+                        <div className="text-sm text-gray-500">
+                          <span className="font-medium">Keyword:</span> {topic.primary_keyword}
                         </div>
-                        <div className="text-xs text-gray-600 mb-1">
-                          <span className="font-medium">Longtails:</span> {topic.longTail1}, {topic.longTail2}
-                        </div>
+                        {topic.longtails && topic.longtails.length > 0 && (
+                          <div className="text-xs text-gray-400 mt-1">
+                            {topic.longtails.slice(0, 2).join(' · ')}
+                          </div>
+                        )}
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500">{topic.pageType}</span>
-                          {topic.isEvergreen && (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                              Evergreen
-                            </span>
+                          <span className="text-xs text-gray-500">{topic.suggested_page_type || 'guide'}</span>
+                          {topic.evergreen && (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">Evergreen</span>
                           )}
-                          {topic.isSeasonal && (
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                              Seasonal
-                            </span>
+                          {topic.season && (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">{topic.season}</span>
+                          )}
+                          {topic.site_id && (
+                            <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">{topic.site_id}</span>
                           )}
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      topic.locale === 'en' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                    }`}>
-                      {topic.locale.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(topic.priority)}`}>
-                      {getPriorityLabel(topic.priority)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(topic.status)}`}>
-                      {topic.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {topic.plannedGenerationTime ? (
-                      <div className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4 text-gray-400" />
-                        {new Date(topic.plannedGenerationTime).toLocaleDateString()}
-                        <br />
-                        <span className="text-xs text-gray-500">
-                          {new Date(topic.plannedGenerationTime).toLocaleTimeString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        topic.locale === 'en' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                      }`}>
+                        {topic.locale.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(topic.status)}`}>
+                        {getStatusIcon(topic.status)}
+                        {topic.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {topic.confidence_score != null ? (
+                        <span className={`font-medium ${topic.confidence_score >= 70 ? 'text-green-600' : topic.confidence_score >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
+                          {Math.round(topic.confidence_score)}%
                         </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {topic.planned_at ? (
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4 text-gray-400" />
+                          <span>{new Date(topic.planned_at).toLocaleDateString()}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">Not scheduled</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        {topic.status !== 'published' && topic.status !== 'queued' && (
+                          <button
+                            onClick={() => queueForGeneration(topic.id)}
+                            disabled={actionLoading === topic.id}
+                            className="text-yellow-600 hover:text-yellow-900 disabled:opacity-50"
+                            title="Queue for Generation"
+                          >
+                            {actionLoading === topic.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Zap className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
                       </div>
-                    ) : (
-                      <span className="text-gray-400">Not scheduled</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center gap-2">
-                      <button className="text-yellow-600 hover:text-yellow-900" title="Generate Now">
-                        <Zap className="h-4 w-4" />
-                      </button>
-                      <button className="text-blue-600 hover:text-blue-900" title="Edit">
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button className="text-gray-600 hover:text-gray-900" title="Change Priority">
-                        <ArrowUp className="h-4 w-4" />
-                      </button>
-                      <button className="text-red-600 hover:text-red-900" title="Delete">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Backlog Counters */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Backlog Counters</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">English Topics</span>
-              <span className="text-sm font-medium text-gray-900">
-                {topics.filter(t => t.locale === 'en').length} topics
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Arabic Topics</span>
-              <span className="text-sm font-medium text-gray-900">
-                {topics.filter(t => t.locale === 'ar').length} topics
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Scheduled for Generation</span>
-              <span className="text-sm font-medium text-gray-900">
-                {topics.filter(t => t.status === 'scheduled').length} topics
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">Pending Topics</span>
-              <span className="text-sm font-medium text-gray-900">
-                {topics.filter(t => t.status === 'pending').length} topics
-              </span>
-            </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Priority Distribution</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">P0 - Critical</span>
-              <span className="text-sm font-medium text-red-600">
-                {topics.filter(t => t.priority === 0).length} topics
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">P1 - High</span>
-              <span className="text-sm font-medium text-orange-600">
-                {topics.filter(t => t.priority === 1).length} topics
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">P2 - Medium</span>
-              <span className="text-sm font-medium text-yellow-600">
-                {topics.filter(t => t.priority === 2).length} topics
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">P3 - Low</span>
-              <span className="text-sm font-medium text-gray-600">
-                {topics.filter(t => t.priority === 3).length} topics
-              </span>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   )

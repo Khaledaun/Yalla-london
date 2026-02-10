@@ -5,6 +5,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { googleTrends } from "@/lib/integrations/google-trends";
 import { prisma } from "@/lib/db";
+import { logCronExecution } from "@/lib/cron-logger";
 
 /**
  * Google Trends Monitoring Cron Job
@@ -65,11 +66,29 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  const _cronStart = Date.now();
+
   try {
     const results = await runTrendsMonitoring();
+
+    await logCronExecution("trends-monitor", "completed", {
+      durationMs: Date.now() - _cronStart,
+      resultSummary: {
+        trendingTopics: results.trendingTopics.length,
+        keywordTrends: results.keywordTrends.length,
+        contentOpportunities: results.contentOpportunities.length,
+        relevantTrendingTopics: results.summary.relevantTrendingTopics,
+        risingKeywords: results.summary.risingKeywords.length,
+      },
+    });
+
     return NextResponse.json(results);
   } catch (error) {
     console.error("Trends monitoring failed:", error);
+    await logCronExecution("trends-monitor", "failed", {
+      durationMs: Date.now() - _cronStart,
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Monitoring failed" },
       { status: 500 },

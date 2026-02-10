@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { runDueTasks } from '@/lib/scheduler';
+import { logCronExecution } from "@/lib/cron-logger";
 
 // Vercel cron requires GET method
 export async function GET(request: NextRequest) {
@@ -29,8 +30,15 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const _cronStart = Date.now();
+
   try {
     const result = await runDueTasks();
+
+    await logCronExecution("autopilot", "completed", {
+      durationMs: Date.now() - _cronStart,
+      resultSummary: result as Record<string, unknown>,
+    });
 
     return NextResponse.json({
       success: true,
@@ -39,6 +47,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Cron autopilot failed:', error);
+    await logCronExecution("autopilot", "failed", {
+      durationMs: Date.now() - _cronStart,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    });
     return NextResponse.json(
       {
         success: false,

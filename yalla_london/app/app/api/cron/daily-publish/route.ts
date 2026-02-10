@@ -3,30 +3,33 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { logCronExecution } from "@/lib/cron-logger";
 
 /**
  * Daily Publishing Automation Cron Job
  * Publishes 1 general + 1 date-relevant topic daily
  */
 export async function POST(request: NextRequest) {
+  // Verify cron secret for security
+  const authHeader = request.headers.get('authorization');
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error('CRON_SECRET not configured');
+    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
+  }
+
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    console.error('❌ Unauthorized cron request');
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
+  const _cronStart = Date.now();
+
   try {
     console.log('🕐 Daily publishing cron triggered');
-
-    // Verify cron secret for security
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    if (!cronSecret) {
-      console.error('CRON_SECRET not configured');
-      return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-    }
-    
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      console.error('❌ Unauthorized cron request');
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
 
     // Check feature flags directly
     const phase4bEnabled = process.env.FEATURE_PHASE4B_ENABLED === 'true';
@@ -127,17 +130,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const publishedCount = publishedContent.filter(p => p.status === 'published').length;
+    const failedCount = publishedContent.filter(p => p.status === 'failed').length;
+
+    await logCronExecution("daily-publish", "completed", {
+      durationMs: Date.now() - _cronStart,
+      itemsProcessed: publishedContent.length,
+      itemsSucceeded: publishedCount,
+      itemsFailed: failedCount,
+      resultSummary: { publishedCount, failedCount },
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Daily publishing completed',
-      publishedCount: publishedContent.filter(p => p.status === 'published').length,
-      failedCount: publishedContent.filter(p => p.status === 'failed').length,
+      publishedCount,
+      failedCount,
       publishedContent,
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
     console.error('❌ Daily publishing failed:', error);
+    await logCronExecution("daily-publish", "failed", {
+      durationMs: Date.now() - _cronStart,
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+    });
     return NextResponse.json(
       { 
         error: 'Daily publishing failed',

@@ -6,8 +6,12 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server'
 import { stripePayments } from '@/lib/integrations/payment-booking'
 import { notifications } from '@/lib/integrations/notifications'
+import { apiLimiter } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
+  const blocked = apiLimiter(request);
+  if (blocked) return blocked;
+
   try {
     const { 
       eventId, 

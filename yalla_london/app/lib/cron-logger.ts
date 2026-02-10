@@ -40,6 +40,47 @@ interface CronLogOptions {
  * Wraps a cron handler with CronJobLog persistence.
  * Handles: auth check, log creation, timing, error capture, log completion.
  */
+/**
+ * Lightweight logging for existing cron routes that don't use withCronLog.
+ * Call at the end of a cron handler to record the run without restructuring.
+ */
+export async function logCronExecution(
+  jobName: string,
+  status: "completed" | "failed" | "timed_out",
+  details: {
+    durationMs: number;
+    itemsProcessed?: number;
+    itemsSucceeded?: number;
+    itemsFailed?: number;
+    sitesProcessed?: string[];
+    errorMessage?: string;
+    resultSummary?: Record<string, unknown>;
+  },
+): Promise<void> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    await prisma.cronJobLog.create({
+      data: {
+        job_name: jobName,
+        job_type: "scheduled",
+        status,
+        started_at: new Date(Date.now() - details.durationMs),
+        completed_at: new Date(),
+        duration_ms: details.durationMs,
+        items_processed: details.itemsProcessed ?? 0,
+        items_succeeded: details.itemsSucceeded ?? 0,
+        items_failed: details.itemsFailed ?? 0,
+        sites_processed: details.sitesProcessed ?? [],
+        error_message: details.errorMessage ?? null,
+        result_summary: details.resultSummary as Record<string, unknown> | undefined,
+        timed_out: status === "timed_out",
+      },
+    });
+  } catch {
+    // best-effort — never break the cron route
+  }
+}
+
 export function withCronLog(
   jobName: string,
   handler: (log: CronLogHandle, request: NextRequest) => Promise<Record<string, unknown>>,

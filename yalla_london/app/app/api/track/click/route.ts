@@ -12,8 +12,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackClick, getPartnerBySlug, generateAffiliateUrl } from '@/lib/domains/affiliate';
 import { cookies } from 'next/headers';
+import { publicLimiter } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
+  const blocked = publicLimiter(request);
+  if (blocked) return blocked;
+
   try {
     const body = await request.json();
     const { partner_slug, target_url, resort_id, product_id, article_id, link_type } = body;

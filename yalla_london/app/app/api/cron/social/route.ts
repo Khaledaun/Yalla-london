@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { logCronExecution } from '@/lib/cron-logger';
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -14,6 +15,8 @@ export async function GET(request: NextRequest) {
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const _cronStart = Date.now();
 
   try {
     const now = new Date();
@@ -110,6 +113,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const published = results.filter((r) => r.status === 'published').length;
+    const failed = results.filter((r) => r.status === 'failed').length;
+
+    await logCronExecution("social", "completed", {
+      durationMs: Date.now() - _cronStart,
+      itemsProcessed: duePosts.length,
+      itemsSucceeded: published,
+      itemsFailed: failed,
+      resultSummary: {
+        postsProcessed: duePosts.length,
+        published,
+        failed,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       timestamp: now.toISOString(),
@@ -118,6 +136,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Social cron failed:', error);
+    await logCronExecution("social", "failed", {
+      durationMs: Date.now() - _cronStart,
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+    });
     return NextResponse.json(
       {
         success: false,

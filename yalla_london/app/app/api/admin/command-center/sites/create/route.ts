@@ -8,8 +8,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generateContentIdeas } from '@/lib/ai/content-generator';
 import { isAIAvailable } from '@/lib/ai/provider';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const config = await request.json();
     const {

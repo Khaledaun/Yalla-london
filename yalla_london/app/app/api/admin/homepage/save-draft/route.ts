@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { prisma } from '@/lib/db';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Check authentication
     const session = await getServerSession();

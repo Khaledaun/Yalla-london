@@ -136,7 +136,7 @@ function performTopicSafetyCheck(topic: any): { passed: boolean; flags: string[]
 
 async function callTopicResearchAPI(category: string, locale: string): Promise<any> {
   const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  const cronSecret = process.env.CRON_SECRET || 'default-secret';
+  const cronSecret = process.env.CRON_SECRET || '';
   
   const response = await fetch(`${baseUrl}/api/phase4b/topics/research`, {
     method: 'POST',

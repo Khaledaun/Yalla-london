@@ -13,8 +13,12 @@ import {
   generateTravelGuide,
 } from '@/lib/ai/content-generator';
 import { isAIAvailable } from '@/lib/ai/provider';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const {
       prompt,

@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 // Validation schema for prompt templates
 const PromptTemplateSchema = z.object({
@@ -26,6 +27,9 @@ const PromptTemplateSchema = z.object({
 
 // Get all prompt templates
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
@@ -119,6 +123,9 @@ export async function GET(request: NextRequest) {
 
 // Create a new prompt template
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
 

@@ -11,6 +11,7 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { searchConsole } from '@/lib/integrations/google-search-console';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 interface ContentPerformance {
   id: string;
@@ -52,6 +53,9 @@ interface ContentPerformance {
 
 // Get content performance data
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const contentId = searchParams.get('id');

@@ -7,6 +7,7 @@ import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/rbac';
 import { z } from 'zod';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 // Zod schemas for validation
 const BacklinkInspectionSchema = z.object({
@@ -20,6 +21,9 @@ const BacklinkInspectionSchema = z.object({
 
 // POST - Inspect content for backlink opportunities
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Feature flag check
     if (!isFeatureEnabled('FEATURE_BACKLINK_INSPECTOR')) {

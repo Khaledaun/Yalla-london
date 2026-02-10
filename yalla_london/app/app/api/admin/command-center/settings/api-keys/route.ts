@@ -9,6 +9,7 @@ export const revalidate = 0;
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 interface ApiKeyConfig {
   id: string;
@@ -48,7 +49,10 @@ function validateKeyFormat(key: string, provider: string): boolean {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const keys: ApiKeyConfig[] = [];
 
   // Check Claude/Anthropic
@@ -209,6 +213,9 @@ function generateRecommendations(keys: ApiKeyConfig[], integrations: any): strin
 
 // POST - Test an API key
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { keyId, action } = await request.json();
 
@@ -319,6 +326,9 @@ async function testGeminiKey(): Promise<{ success: boolean; message: string }> {
 
 // PUT - Save API key (for future use when we want to store in database)
 export async function PUT(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   return NextResponse.json(
     {
       error: 'API keys should be configured via environment variables (.env file) for security',

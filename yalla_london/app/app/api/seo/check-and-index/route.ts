@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin-middleware";
+import { getSiteSeoConfig } from "@/config/sites";
 
 const VERCEL_TIMEOUT_MS = 55000; // Pro plan: 60s max, leave 5s buffer
 
@@ -15,12 +17,16 @@ const VERCEL_TIMEOUT_MS = 55000; // Pro plan: 60s max, leave 5s buffer
  * 4. Returns detailed report
  *
  * Query params:
+ *   ?siteId=X      — target site (default: from x-site-id header or yalla-london)
  *   ?submit=true   — actually submit unindexed pages (default: dry-run)
  *   ?submit_all=true — submit ALL discovered URLs (skip inspection, useful for bulk submission)
  *   ?limit=N       — limit URL inspection checks (default: 30, max: 100)
  *   ?offset=N      — skip first N URLs (for batch processing: first call default, next ?offset=9, etc.)
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const startTime = Date.now();
   const searchParams = request.nextUrl.searchParams;
   const doSubmit = searchParams.get("submit") === "true";
@@ -34,10 +40,13 @@ export async function GET(request: NextRequest) {
     0,
   );
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
-  const gscSiteUrl =
-    process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "";
+  // Per-site scoping: query param > header > default
+  const siteId = searchParams.get("siteId")
+    || request.headers.get("x-site-id")
+    || "yalla-london";
+  const seoConfig = getSiteSeoConfig(siteId);
+  const siteUrl = seoConfig.siteUrl;
+  const gscSiteUrl = seoConfig.gscSiteUrl;
 
   try {
     // Static pages every site has
@@ -58,7 +67,7 @@ export async function GET(request: NextRequest) {
     try {
       const { prisma } = await import("@/lib/db");
       const posts = await prisma.blogPost.findMany({
-        where: { published: true, deletedAt: null },
+        where: { published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
         select: { id: true, slug: true, title_en: true, created_at: true },
         orderBy: { created_at: "desc" },
       });
@@ -219,7 +228,7 @@ export async function GET(request: NextRequest) {
 
     if ((doSubmit || doSubmitAll) && urlsToSubmit.length > 0 && (Date.now() - startTime < VERCEL_TIMEOUT_MS)) {
       // 3a. IndexNow (Bing/Yandex)
-      const indexNowKey = process.env.INDEXNOW_KEY;
+      const indexNowKey = seoConfig.indexNowKey;
       if (indexNowKey) {
         try {
           const response = await fetch("https://api.indexnow.org/indexnow", {
@@ -332,8 +341,10 @@ export async function GET(request: NextRequest) {
         await prisma.seoReport.create({
           data: {
             reportType: mode === "dry-run" ? "indexing_audit" : "indexing_submission",
+            site_id: siteId,
             data: {
               mode,
+              siteId,
               dataSource: source,
               totalPages: allUrls.length,
               inspected,
@@ -366,6 +377,9 @@ export async function GET(request: NextRequest) {
 
 // Also support POST for manual triggers
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const url = new URL(request.url);
   url.searchParams.set("submit", "true");
   return GET(new NextRequest(url));

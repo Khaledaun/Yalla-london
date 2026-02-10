@@ -5,10 +5,14 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 
 // Update brand configuration (this would typically update environment variables or config files)
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const brandConfig = await request.json();
 

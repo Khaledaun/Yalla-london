@@ -9,6 +9,7 @@ import {
   verifyAndSubmitForIndexing,
 } from "@/lib/seo/seo-workflow-orchestrator";
 import { getAllIndexableUrls } from "@/lib/seo/indexing-service";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * SEO Workflow API
@@ -27,6 +28,9 @@ import { getAllIndexableUrls } from "@/lib/seo/indexing-service";
  * GET: Check workflow status and GSC connection
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
   const action = searchParams.get("action");
 
@@ -114,6 +118,9 @@ export async function GET(request: NextRequest) {
  * POST: Run SEO workflows
  */
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const {

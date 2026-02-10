@@ -3,6 +3,7 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { googleTrends } from '@/lib/integrations/google-trends';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * Content Calendar API
@@ -68,6 +69,9 @@ const NEIGHBORHOOD_CONTENT = [
 ];
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const month = searchParams.get('month');
@@ -99,6 +103,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { startDate, weeks, categories, locales, customKeywords } = body;

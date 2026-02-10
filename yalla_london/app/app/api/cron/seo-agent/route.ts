@@ -33,24 +33,30 @@ export async function GET(request: NextRequest) {
   try {
     const { prisma } = await import("@/lib/db");
     const { getAllSiteIds, getSiteDomain } = await import("@/config/sites");
+    const { forEachSite } = await import("@/lib/resilience");
 
-    const allResults: Record<string, any> = {};
     const siteIds = getAllSiteIds();
 
-    for (const siteId of siteIds) {
-      const siteUrl = getSiteDomain(siteId);
-      try {
-        allResults[siteId] = await runSEOAgent(prisma, siteId, siteUrl);
-      } catch (error) {
-        allResults[siteId] = { error: (error as Error).message };
-      }
-    }
+    // Use forEachSite for timeout-aware per-site iteration
+    const loopResult = await forEachSite(
+      siteIds,
+      async (siteId) => {
+        const siteUrl = getSiteDomain(siteId);
+        return runSEOAgent(prisma, siteId, siteUrl);
+      },
+      7_000 // 7s safety margin for response serialization
+    );
 
     return NextResponse.json({
       success: true,
       agent: "seo-autonomous-multisite",
       runAt: new Date().toISOString(),
-      results: allResults,
+      completed: loopResult.completed,
+      failed: loopResult.failed,
+      skipped: loopResult.skipped,
+      timedOut: loopResult.timedOut,
+      results: loopResult.results,
+      errors: loopResult.errors,
     });
   } catch (error) {
     console.error("SEO Agent error:", error);
@@ -66,31 +72,33 @@ export async function POST(request: NextRequest) {
   return GET(request);
 }
 
-async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
-  const report: Record<string, any> = {};
+async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
+  const report: Record<string, any> = { siteId };
   const issues: string[] = [];
   const fixes: string[] = [];
+  // Site filter for all DB queries — ensures tenant isolation
+  const siteFilter = siteId ? { siteId } : {};
 
   // 1. CHECK CONTENT GENERATION STATUS
-  report.contentStatus = await checkContentGeneration(prisma, issues);
+  report.contentStatus = await checkContentGeneration(prisma, issues, siteId);
 
   // 2. AUDIT ALL PUBLISHED BLOG POSTS
-  report.blogAudit = await auditBlogPosts(prisma, issues, fixes);
+  report.blogAudit = await auditBlogPosts(prisma, issues, fixes, siteId);
 
   // 3. CHECK INDEXING STATUS
-  report.indexingStatus = await checkIndexingStatus(prisma, issues, siteUrl);
+  report.indexingStatus = await checkIndexingStatus(prisma, issues, siteUrl, siteId);
 
   // 4. SUBMIT NEW URLS TO SEARCH ENGINES
-  report.urlSubmissions = await submitNewUrls(prisma, fixes, siteUrl);
+  report.urlSubmissions = await submitNewUrls(prisma, fixes, siteUrl, siteId);
 
   // 5. VERIFY SITEMAP HEALTH
   report.sitemapHealth = await verifySitemapHealth(issues, siteUrl);
 
   // 6. CHECK FOR CONTENT GAPS
-  report.contentGaps = await detectContentGaps(prisma, issues);
+  report.contentGaps = await detectContentGaps(prisma, issues, siteId);
 
   // 7. AUTO-FIX SEO ISSUES WHERE POSSIBLE
-  report.autoFixes = await autoFixSEOIssues(prisma, issues, fixes);
+  report.autoFixes = await autoFixSEOIssues(prisma, issues, fixes, siteId);
 
   // ====================================================
   // 8. ANALYZE REAL GSC SEARCH PERFORMANCE
@@ -149,6 +157,16 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
       report.trafficAnalysis = { status: "no_data" };
     }
 
+    // 11b. FEEDBACK LOOP: Auto-queue rewrites for underperforming content
+    try {
+      report.contentRewrites = await queueContentRewrites(
+        prisma, searchData, trafficData, siteId, fixes
+      );
+    } catch (rewriteError) {
+      console.warn("Content rewrite queue error (non-fatal):", rewriteError);
+      report.contentRewrites = { status: "error" };
+    }
+
     // 12. SUBMIT ALL PAGES FOR INDEXING (idempotent)
     report.indexingSubmission = await submitUnindexedPages(prisma, fixes);
 
@@ -163,6 +181,7 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
         where: {
           published: true,
           deletedAt: null,
+          ...siteFilter,
           OR: [
             { authority_links_json: { equals: null } },
             { authority_links_json: { equals: {} } },
@@ -236,7 +255,7 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
       // Generate proposals from GSC data (if available) then apply diversity quotas
       if (searchData) {
         const existingPosts = await prisma.blogPost.findMany({
-          where: { published: true, deletedAt: null },
+          where: { published: true, deletedAt: null, ...siteFilter },
           select: { slug: true },
         });
         const existingSlugs = existingPosts.map((p: any) => p.slug);
@@ -290,6 +309,7 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
     await prisma.seoReport.create({
       data: {
         reportType: "health",
+        site_id: siteId || null,
         generatedAt: new Date(),
         data: {
           auditStats: report.blogAudit || {},
@@ -304,6 +324,7 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
           metaOptimizations: report.metaOptimizations || [],
           contentStrengthening: report.contentStrengthening || {},
           indexingSubmission: report.indexingSubmission || {},
+          contentRewrites: report.contentRewrites || {},
           contentStrategy: report.contentStrategy || {},
           contentDiversity: report.contentDiversity || {},
           schemaInjection: report.schemaInjection || {},
@@ -328,13 +349,15 @@ async function runSEOAgent(prisma: any, siteId?: string, siteUrl?: string) {
 /**
  * Check if daily content generation happened on schedule
  */
-async function checkContentGeneration(prisma: any, issues: string[]) {
+async function checkContentGeneration(prisma: any, issues: string[], siteId?: string) {
   const today = new Date();
   const startOfDay = new Date(
     today.getFullYear(),
     today.getMonth(),
     today.getDate(),
   );
+  const siteFilter = siteId ? { site_id: siteId } : {};
+  const blogSiteFilter = siteId ? { siteId } : {};
 
   try {
     // Check for content generated today
@@ -342,6 +365,7 @@ async function checkContentGeneration(prisma: any, issues: string[]) {
       where: {
         created_at: { gte: startOfDay },
         content_type: "blog_post",
+        ...siteFilter,
       },
     });
 
@@ -350,12 +374,13 @@ async function checkContentGeneration(prisma: any, issues: string[]) {
       where: {
         created_at: { gte: startOfDay },
         published: true,
+        ...blogSiteFilter,
       },
     });
 
     // Check pending topics (statuses: planned, queued, ready)
     const pendingTopics = await prisma.topicProposal.count({
-      where: { status: { in: ["planned", "queued", "ready", "approved"] } },
+      where: { status: { in: ["planned", "queued", "ready", "approved"] }, ...siteFilter },
     });
 
     if (todayContent === 0 && today.getHours() >= 10) {
@@ -398,10 +423,11 @@ async function checkContentGeneration(prisma: any, issues: string[]) {
 /**
  * Audit all published blog posts for SEO issues
  */
-async function auditBlogPosts(prisma: any, issues: string[], fixes: string[]) {
+async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], siteId?: string) {
+  const blogSiteFilter = siteId ? { siteId } : {};
   try {
     const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null },
+      where: { published: true, deletedAt: null, ...blogSiteFilter },
       select: {
         id: true,
         title_en: true,
@@ -546,15 +572,17 @@ async function checkIndexingStatus(
   prisma: any,
   issues: string[],
   siteUrl?: string,
+  siteId?: string,
 ) {
   siteUrl =
     siteUrl ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://www.yalla-london.com";
+  const blogSiteFilter = siteId ? { siteId } : {};
 
   try {
     const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null },
+      where: { published: true, deletedAt: null, ...blogSiteFilter },
       select: { slug: true, created_at: true },
       orderBy: { created_at: "desc" },
       take: 20,
@@ -583,12 +611,13 @@ async function checkIndexingStatus(
 /**
  * Submit new/updated URLs to search engines via IndexNow
  */
-async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string) {
+async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, siteId?: string) {
   siteUrl =
     siteUrl ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://www.yalla-london.com";
   const indexNowKey = process.env.INDEXNOW_KEY;
+  const blogSiteFilter = siteId ? { siteId } : {};
 
   try {
     // Find posts created in the last 24 hours that haven't been submitted
@@ -598,6 +627,7 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string) {
         published: true,
         deletedAt: null,
         created_at: { gte: oneDayAgo },
+        ...blogSiteFilter,
       },
       select: { slug: true },
     });
@@ -691,7 +721,7 @@ async function verifySitemapHealth(issues: string[], siteUrl?: string) {
 /**
  * Detect content gaps - categories without recent content
  */
-async function detectContentGaps(prisma: any, issues: string[]) {
+async function detectContentGaps(prisma: any, issues: string[], siteId?: string) {
   try {
     const categories = await prisma.category.findMany({
       include: {
@@ -721,11 +751,12 @@ async function detectContentGaps(prisma: any, issues: string[]) {
     }
 
     // Check language balance
+    const siteFilterForPosts = siteId ? { siteId } : {};
     const enPosts = await prisma.blogPost.count({
-      where: { published: true, content_en: { not: "" }, deletedAt: null },
+      where: { published: true, content_en: { not: "" }, deletedAt: null, ...siteFilterForPosts },
     });
     const arPosts = await prisma.blogPost.count({
-      where: { published: true, content_ar: { not: "" }, deletedAt: null },
+      where: { published: true, content_ar: { not: "" }, deletedAt: null, ...siteFilterForPosts },
     });
 
     if (arPosts < enPosts * 0.5) {
@@ -747,8 +778,10 @@ async function autoFixSEOIssues(
   prisma: any,
   issues: string[],
   fixes: string[],
+  siteId?: string,
 ) {
   const fixedCount = { metaTitles: 0, metaDescriptions: 0, slugs: 0 };
+  const blogSiteFilter = siteId ? { siteId } : {};
 
   try {
     // Fix posts with missing meta titles
@@ -756,6 +789,7 @@ async function autoFixSEOIssues(
       where: {
         published: true,
         deletedAt: null,
+        ...blogSiteFilter,
         OR: [{ meta_title_en: null }, { meta_title_en: "" }],
       },
       select: { id: true, title_en: true, title_ar: true, excerpt_en: true },
@@ -844,4 +878,130 @@ function generateRecommendations(issues: string[]) {
       return { type: "info", issue, priority: 3 };
     })
     .sort((a, b) => a.priority - b.priority);
+}
+
+/**
+ * FEEDBACK LOOP: Auto-queue content rewrites for underperforming posts.
+ *
+ * Criteria for rewrite:
+ * - Published 30+ days ago (had time to rank)
+ * - Low CTR (< 1%) with decent impressions (50+), OR
+ * - Low engagement from GA4 (appears in lowEngagementPages)
+ *
+ * Creates a TopicProposal with source "seo-agent-rewrite" so the
+ * daily-content-generate cron can pick it up and regenerate the content.
+ */
+async function queueContentRewrites(
+  prisma: any,
+  searchData: any,
+  trafficData: any,
+  siteId: string | undefined,
+  fixes: string[],
+): Promise<{ queued: number; skipped: number; candidates: string[] }> {
+  const siteFilter = siteId ? { site_id: siteId } : {};
+  const blogSiteFilter = siteId ? { siteId } : {};
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  // Collect underperforming slugs from GSC data
+  const rewriteCandidates = new Set<string>();
+
+  if (searchData?.lowCTRPages) {
+    for (const page of searchData.lowCTRPages) {
+      const url: string = page.url || page.keys?.[0] || "";
+      const slugMatch = url.match(/\/blog\/([^/?#]+)/);
+      if (slugMatch) {
+        const impressions = page.impressions || 0;
+        const ctr = page.ctr || 0;
+        // Low CTR with meaningful impressions
+        if (ctr < 0.01 && impressions >= 50) {
+          rewriteCandidates.add(slugMatch[1]);
+        }
+      }
+    }
+  }
+
+  // Add low-engagement pages from GA4
+  if (trafficData?.lowEngagementPages) {
+    for (const page of trafficData.lowEngagementPages) {
+      const path: string = page.path || page.pagePath || "";
+      const slugMatch = path.match(/\/blog\/([^/?#]+)/);
+      if (slugMatch) {
+        rewriteCandidates.add(slugMatch[1]);
+      }
+    }
+  }
+
+  if (rewriteCandidates.size === 0) {
+    return { queued: 0, skipped: 0, candidates: [] };
+  }
+
+  // Find the actual blog posts that are old enough
+  const candidateSlugs = Array.from(rewriteCandidates);
+  const postsToRewrite = await prisma.blogPost.findMany({
+    where: {
+      published: true,
+      deletedAt: null,
+      ...blogSiteFilter,
+      slug: { in: candidateSlugs },
+      created_at: { lt: thirtyDaysAgo },
+    },
+    select: {
+      id: true,
+      slug: true,
+      title_en: true,
+      meta_title_en: true,
+      tags: true,
+    },
+  });
+
+  let queued = 0;
+  let skipped = 0;
+
+  for (const post of postsToRewrite) {
+    // Check if rewrite already queued
+    const existingProposal = await prisma.topicProposal.findFirst({
+      where: {
+        ...siteFilter,
+        source: "seo-agent-rewrite",
+        status: { in: ["planned", "queued", "ready"] },
+        primary_keyword: post.slug,
+      },
+    });
+
+    if (existingProposal) {
+      skipped++;
+      continue;
+    }
+
+    // Create rewrite proposal
+    await prisma.topicProposal.create({
+      data: {
+        title: `[REWRITE] ${post.title_en || post.slug}`,
+        description: `Auto-queued rewrite: Low CTR/engagement after 30+ days. Original slug: ${post.slug}`,
+        primary_keyword: post.slug,
+        longtails: post.tags || [],
+        questions: [],
+        suggested_page_type: "guide",
+        locale: "en",
+        status: "ready",
+        confidence_score: 0.8,
+        source: "seo-agent-rewrite",
+        intent: "rewrite",
+        evergreen: true,
+        ...siteFilter,
+        authority_links_json: {
+          contentType: "rewrite",
+          originalPostId: post.id,
+          reason: "low_ctr_or_engagement",
+        },
+      },
+    });
+    queued++;
+  }
+
+  if (queued > 0) {
+    fixes.push(`Queued ${queued} content rewrites for underperforming posts`);
+  }
+
+  return { queued, skipped, candidates: candidateSlugs };
 }

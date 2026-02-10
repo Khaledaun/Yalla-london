@@ -4,14 +4,18 @@
  * Returns system status including AI availability, pending tasks, and sync status.
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { isAIAvailable, getProvidersStatus } from '@/lib/ai';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 // Force dynamic rendering to avoid build-time database access
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Check AI status
     const aiAvailable = await isAIAvailable();

@@ -53,10 +53,18 @@ export async function POST(request: NextRequest) {
 
 async function generateDailyContentAllSites() {
   const { prisma } = await import("@/lib/db");
+  const { createDeadline } = await import("@/lib/resilience");
   const siteIds = getAllSiteIds();
   const allResults: Record<string, any> = {};
+  const deadline = createDeadline(7_000); // 7s margin for response
 
   for (const siteId of siteIds) {
+    if (deadline.isExpired()) {
+      allResults[siteId] = { status: "skipped", reason: "timeout_approaching" };
+      console.warn(`[${siteId}] Skipped — timeout approaching (${deadline.elapsedMs()}ms elapsed)`);
+      continue;
+    }
+
     const siteConfig = getSiteConfig(siteId);
     if (!siteConfig) continue;
 
@@ -78,6 +86,7 @@ async function generateDailyContentAllSites() {
   return {
     message: "Multi-site daily content generation completed",
     sites: allResults,
+    timedOut: deadline.isExpired(),
     timestamp: new Date().toISOString(),
   };
 }
@@ -225,6 +234,7 @@ async function generateArticle(
         site.destination.toLowerCase(),
       ],
       published: true,
+      siteId: site.id,
       category_id: category.id,
       author_id: systemUser.id,
       page_type: content.pageType || "guide",
@@ -279,6 +289,7 @@ async function pickTopic(language: string, site: SiteConfig, prisma: any) {
       where: {
         status: { in: ["ready", "queued", "planned"] },
         locale: language,
+        site_id: site.id,
         scheduled_content: { none: {} },
       },
       orderBy: [{ confidence_score: "desc" }, { created_at: "asc" }],

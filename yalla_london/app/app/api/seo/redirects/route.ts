@@ -4,6 +4,7 @@ export const revalidate = 0;
 
 
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 interface Redirect {
   id: string;
@@ -27,6 +28,9 @@ interface RedirectRule {
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   if (process.env.FEATURE_SEO !== '1') {
     return NextResponse.json(
       { error: 'SEO features disabled' }, 
@@ -70,6 +74,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   if (process.env.FEATURE_SEO !== '1') {
     return NextResponse.json(
       { error: 'SEO features disabled' }, 
@@ -105,6 +112,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   if (process.env.FEATURE_SEO !== '1') {
     return NextResponse.json(
       { error: 'SEO features disabled' }, 
@@ -133,6 +143,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   if (process.env.FEATURE_SEO !== '1') {
     return NextResponse.json(
       { error: 'SEO features disabled' }, 

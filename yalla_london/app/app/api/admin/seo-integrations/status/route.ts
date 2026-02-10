@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { searchConsole } from "@/lib/integrations/google-search-console";
 import { googleTrends } from "@/lib/integrations/google-trends";
 import { googlePageSpeed } from "@/lib/integrations/google-pagespeed";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 interface IntegrationStatus {
   name: string;
@@ -33,6 +34,9 @@ interface SEOIntegrationsStatus {
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const status: SEOIntegrationsStatus = {
     timestamp: new Date().toISOString(),
     overall: "healthy",
@@ -374,6 +378,9 @@ function generateRecommendations(status: SEOIntegrationsStatus): string[] {
 
 // POST endpoint to test indexing submission
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { action, url } = await request.json();
 

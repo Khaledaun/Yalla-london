@@ -4,10 +4,14 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 
 // Get all API settings
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const settings = await prisma.apiSettings.findMany({
       select: {
@@ -55,6 +59,9 @@ export async function GET(request: NextRequest) {
 
 // Create or update API setting
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { keyName, keyValue, isActive = true } = await request.json();
 
@@ -107,6 +114,9 @@ export async function POST(request: NextRequest) {
 
 // Delete API setting
 export async function DELETE(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const keyName = searchParams.get('keyName');

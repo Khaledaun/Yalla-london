@@ -12,8 +12,12 @@ import {
   PDFGuideConfig,
   PDF_TEMPLATES,
 } from '@/lib/pdf';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const {
       guideId,
@@ -144,6 +148,9 @@ export async function POST(request: NextRequest) {
  * Preview endpoint - returns just the HTML
  */
 export async function PUT(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const {
       title,

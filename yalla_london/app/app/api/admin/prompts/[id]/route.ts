@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 const UpdatePromptTemplateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -28,6 +29,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const id = params.id;
 
@@ -112,6 +116,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const id = params.id;
     const body = await request.json();
@@ -213,6 +220,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const id = params.id;
 

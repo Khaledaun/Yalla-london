@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/rbac";
 import { backgroundJobService } from "@/lib/background-jobs";
 import { z } from "zod";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 // Zod schemas for validation
 const PublishContentSchema = z.object({
@@ -22,6 +23,9 @@ const PublishContentSchema = z.object({
 
 // POST - Publish content with enhanced workflow
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Permission check
     const permissionCheck = await requirePermission(request, "publish_content");

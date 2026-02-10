@@ -7,8 +7,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { enhancedSchemaInjector } from '@/lib/seo/enhanced-schema-injector';
 import { isSEOEnabled } from '@/lib/flags';
 import { prisma } from '@/lib/db';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     if (!isSEOEnabled()) {
       return NextResponse.json(
@@ -50,6 +54,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     if (!isSEOEnabled()) {
       return NextResponse.json(

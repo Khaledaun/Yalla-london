@@ -4,10 +4,14 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 
 // Get all scheduled content
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
@@ -61,6 +65,9 @@ export async function GET(request: NextRequest) {
 
 // Create new scheduled content
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { 
       title, 
@@ -118,6 +125,9 @@ export async function POST(request: NextRequest) {
 
 // Update scheduled content status
 export async function PATCH(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { contentId, status, publishedTime } = await request.json();
 
@@ -163,6 +173,9 @@ export async function PATCH(request: NextRequest) {
 
 // Delete scheduled content
 export async function DELETE(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const contentId = searchParams.get('id');

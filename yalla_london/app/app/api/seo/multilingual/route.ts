@@ -3,12 +3,16 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MultilingualSeoEngine } from '@/lib/seo/multilingual-seo';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * Multilingual SEO enhancements API
  * Handles hreflang generation, duplicate detection, and locale-specific optimization
  */
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { action, articleId, language, data } = body;
@@ -65,6 +69,9 @@ export async function POST(request: NextRequest) {
  * Get multilingual SEO status and recommendations
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const articleId = searchParams.get('articleId');

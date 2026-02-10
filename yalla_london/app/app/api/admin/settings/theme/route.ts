@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { requireAdmin } from "@/lib/admin-middleware";
 
 interface ThemeConfig {
   primaryColor: string
@@ -11,7 +12,10 @@ interface ThemeConfig {
   spacing: 'compact' | 'normal' | 'spacious'
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Get theme settings from database
     const themeSettings = await prisma.apiSettings.findFirst({
@@ -53,6 +57,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const themeConfig: ThemeConfig = await request.json()
 

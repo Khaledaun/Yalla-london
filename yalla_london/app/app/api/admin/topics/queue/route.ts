@@ -13,6 +13,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { z } from 'zod';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 // Validation schemas
 const QueueTopicsSchema = z.object({
@@ -31,6 +32,9 @@ const UpdateQueueSchema = z.object({
 
 // Get queue status and queued topics
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || 'queued';
@@ -152,6 +156,9 @@ export async function GET(request: NextRequest) {
 
 // Queue topics for content generation
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
 
@@ -268,6 +275,9 @@ export async function POST(request: NextRequest) {
 
 // Update queue priorities or reschedule
 export async function PUT(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
 

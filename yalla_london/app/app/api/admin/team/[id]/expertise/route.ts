@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ExpertiseService, TeamService } from '@/lib/domains/team';
 import { requirePermission } from '@/lib/rbac';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 // Define Proficiency enum locally to match Prisma schema
 enum Proficiency {
@@ -23,6 +24,9 @@ interface RouteParams {
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     await requirePermission(request, 'manage_users');
 
@@ -76,6 +80,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     await requirePermission(request, 'manage_users');
 
@@ -151,6 +158,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     await requirePermission(request, 'manage_users');
 

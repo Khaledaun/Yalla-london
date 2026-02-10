@@ -5,8 +5,12 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server'
 import { internalLinking } from '@/lib/seo/internal-linking'
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { content, title, keywords, language = 'en' } = await request.json()
 

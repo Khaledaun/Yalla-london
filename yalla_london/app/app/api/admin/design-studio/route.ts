@@ -6,6 +6,7 @@ import {
   renderDesignToHTML,
   getBrandProfile,
 } from "@/lib/pdf/brand-design-system";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * GET /api/admin/design-studio
@@ -18,6 +19,9 @@ import {
  *   ?locale=en|ar          — locale (default: en)
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
   const siteId = searchParams.get("siteId");
   const categoryParam = searchParams.get("category");
@@ -96,6 +100,9 @@ export async function GET(request: NextRequest) {
  * Body: { siteId, category, locale?, format? }
  */
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { siteId, category, locale = "en" } = body;

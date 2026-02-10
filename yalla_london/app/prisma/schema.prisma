@@ -148,6 +148,8 @@ model BlogPost {
   @@index([place_id])
   @@index([seo_score])
   @@index([siteId])
+  @@index([siteId, published])
+  @@index([siteId, created_at])
   @@index([published])
   @@index([category_id])
   @@index([author_id])
@@ -399,6 +401,8 @@ model TopicProposal {
   scheduled_content       ScheduledContent[]
   
   @@index([site_id])
+  @@index([site_id, status])
+  @@index([site_id, locale, status])
   @@index([locale, status])
   @@index([suggested_window_start, suggested_window_end])
   @@index([status, confidence_score])
@@ -1446,12 +1450,16 @@ model SeoContentAnalysis {
 
 model SeoReport {
   id          String    @id @default(cuid())
+  site_id     String?   // Multi-tenant: which site this report is for
   reportType  String    // sitemap, analytics, performance, health
   generatedAt DateTime  @default(now())
   data        Json
   periodStart DateTime?
   periodEnd   DateTime?
 
+  @@index([site_id])
+  @@index([site_id, reportType])
+  @@index([reportType, generatedAt])
   @@map(name: "seo_reports")
 }
 
@@ -2173,3 +2181,134 @@ model Event {
 // =============================================================================
 // Note: Temporarily commented out to fix build issues
 // These models will be added back once the schema is stable
+
+// =============================================================================
+// AUTOMATION TRACKING MODELS
+// =============================================================================
+
+// Per-URL indexing status — tracks each URL's journey through indexing
+model URLIndexingStatus {
+  id            String   @id @default(cuid())
+  site_id       String
+  url           String
+  slug          String?  // Blog post slug for quick lookup
+
+  // Indexing state
+  status        String   @default("discovered") // discovered, submitted, indexed, deindexed, error
+  coverage_state String? // GSC coverage state ("Submitted and indexed", "Crawled - currently not indexed", etc.)
+  indexing_state String? // GSC indexing state ("INDEXING_ALLOWED", etc.)
+
+  // Submission tracking
+  submitted_indexnow   Boolean  @default(false)
+  submitted_google_api Boolean  @default(false)
+  submitted_sitemap    Boolean  @default(false)
+  last_submitted_at    DateTime?
+
+  // Inspection results
+  last_inspected_at    DateTime?
+  last_crawled_at      DateTime?
+  inspection_result    Json?    // Full GSC URL Inspection response
+
+  // Retry tracking
+  submission_attempts  Int      @default(0)
+  last_error           String?
+
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@unique([site_id, url])
+  @@index([site_id, status])
+  @@index([site_id, slug])
+  @@index([status])
+  @@index([last_submitted_at])
+  @@map("url_indexing_status")
+}
+
+// Cron job execution log — tracks every cron run for monitoring & debugging
+model CronJobLog {
+  id            String   @id @default(cuid())
+  site_id       String?  // null for multi-site runs
+
+  // Job identification
+  job_name      String   // "seo-agent", "daily-content-generate", "weekly-topics", "daily-publish"
+  job_type      String   @default("scheduled") // scheduled, manual, triggered
+
+  // Execution
+  status        String   @default("running") // running, completed, failed, timeout, partial
+  started_at    DateTime @default(now())
+  completed_at  DateTime?
+  duration_ms   Int?
+
+  // Results
+  result_summary Json?   // { issues: 5, fixes: 3, healthScore: 72 }
+  items_processed Int    @default(0)
+  items_succeeded Int    @default(0)
+  items_failed    Int    @default(0)
+
+  // Error tracking
+  error_message  String?  @db.Text
+  error_stack    String?  @db.Text
+
+  // Multi-site tracking
+  sites_processed String[] // ["yalla-london", "arabaldives"]
+  sites_skipped   String[] // Sites skipped due to timeout
+  timed_out       Boolean  @default(false)
+
+  created_at    DateTime @default(now())
+
+  @@index([job_name, started_at])
+  @@index([site_id, job_name])
+  @@index([status])
+  @@index([started_at])
+  @@map("cron_job_logs")
+}
+
+// Periodic site health snapshots — aggregated health metrics per site
+model SiteHealthCheck {
+  id            String   @id @default(cuid())
+  site_id       String
+
+  // SEO health
+  health_score       Int?     // 0-100 from SEO agent
+  indexed_pages      Int?
+  total_pages        Int?
+  indexing_rate       Float?   // percentage indexed
+
+  // GSC performance
+  gsc_clicks         Int?
+  gsc_impressions    Int?
+  gsc_ctr            Float?
+  gsc_avg_position   Float?
+
+  // GA4 traffic
+  ga4_sessions       Int?
+  ga4_bounce_rate    Float?
+  ga4_engagement_rate Float?
+  ga4_organic_share  Float?
+
+  // Content health
+  total_posts        Int?
+  posts_published    Int?
+  posts_pending      Int?
+  avg_seo_score      Float?
+
+  // Automation health
+  last_agent_run     DateTime?
+  last_content_gen   DateTime?
+  pending_proposals  Int?
+  rewrite_queue      Int?
+
+  // PageSpeed (optional)
+  pagespeed_mobile   Int?
+  pagespeed_desktop  Int?
+
+  // Full snapshot data
+  snapshot_data      Json?
+
+  checked_at    DateTime @default(now())
+
+  @@index([site_id, checked_at])
+  @@index([site_id])
+  @@index([checked_at])
+  @@map("site_health_checks")
+}

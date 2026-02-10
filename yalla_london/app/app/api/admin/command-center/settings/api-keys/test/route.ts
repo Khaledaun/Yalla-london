@@ -8,8 +8,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { testApiKey, AIProvider } from '@/lib/ai/provider';
 import { decrypt } from '@/lib/encryption';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { keyId, provider, key } = await request.json();
 

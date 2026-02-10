@@ -1167,3 +1167,42 @@ export function getSiteDomain(siteId: string): string {
     return process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
   return `https://www.${site.domain}`;
 }
+
+/**
+ * Get per-site SEO integration config.
+ *
+ * Env var convention: `{VAR_NAME}_{SITE_ID_UPPER}` for per-site overrides.
+ * Falls back to global env var if per-site is not set.
+ *
+ * Example: GSC_SITE_URL_ARABALDIVES → GSC_SITE_URL → sc-domain:{domain}
+ */
+export function getSiteSeoConfig(siteId: string): {
+  gscSiteUrl: string;
+  ga4PropertyId: string;
+  ga4MeasurementId: string;
+  siteUrl: string;
+  indexNowKey: string;
+} {
+  const site = SITES[siteId];
+  const envKey = siteId.toUpperCase().replace(/-/g, "_");
+
+  return {
+    gscSiteUrl:
+      process.env[`GSC_SITE_URL_${envKey}`] ||
+      process.env.GSC_SITE_URL ||
+      (site ? `sc-domain:${site.domain}` : ""),
+    ga4PropertyId:
+      process.env[`GA4_PROPERTY_ID_${envKey}`] ||
+      process.env.GA4_PROPERTY_ID ||
+      "",
+    ga4MeasurementId:
+      process.env[`GA4_MEASUREMENT_ID_${envKey}`] ||
+      process.env.GA4_MEASUREMENT_ID ||
+      "",
+    siteUrl: site ? `https://www.${site.domain}` : process.env.NEXT_PUBLIC_SITE_URL || "",
+    indexNowKey:
+      process.env[`INDEXNOW_KEY_${envKey}`] ||
+      process.env.INDEXNOW_KEY ||
+      "",
+  };
+}

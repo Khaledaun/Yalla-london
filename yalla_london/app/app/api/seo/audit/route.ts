@@ -6,8 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { aiSEOAudit } from '@/lib/seo/ai-seo-audit';
 import { isSEOEnabled } from '@/lib/flags';
+import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     if (!isSEOEnabled()) {
       return NextResponse.json(
@@ -57,6 +61,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     if (!isSEOEnabled()) {
       return NextResponse.json(

@@ -9,6 +9,7 @@ import {
   bulkEnrichAssets,
   deleteAsset,
 } from "@/lib/media/asset-pool";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * GET /api/admin/design-studio/media-pool
@@ -26,6 +27,9 @@ import {
  *   ?stats=true             — return pool statistics instead of assets
  */
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
   const siteId = searchParams.get("siteId") || undefined;
   const showStats = searchParams.get("stats") === "true";
@@ -78,6 +82,9 @@ export async function GET(request: NextRequest) {
  *   - enrichWithAI: "true"|"false" (default "true")
  */
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -135,6 +142,9 @@ export async function POST(request: NextRequest) {
  * Body: { siteId?: string, limit?: number }
  */
 export async function PATCH(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { siteId, limit = 10 } = body;
@@ -163,6 +173,9 @@ export async function PATCH(request: NextRequest) {
  * Body: { assetId: string }
  */
 export async function DELETE(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const body = await request.json();
     const { assetId } = body;

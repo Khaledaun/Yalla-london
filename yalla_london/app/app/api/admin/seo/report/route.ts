@@ -12,9 +12,13 @@ import {
   getGA4ConfigStatus,
 } from "@/lib/seo/ga4-data-api";
 import { gscApi, getAllIndexableUrls } from "@/lib/seo/indexing-service";
+import { requireAdmin } from "@/lib/admin-middleware";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const startTime = Date.now();
   const range = request.nextUrl.searchParams.get("range") || "30d";
 

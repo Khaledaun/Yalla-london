@@ -4,6 +4,7 @@ export const maxDuration = 30;
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeDesignImage, generateDesignFromAnalysis } from "@/lib/pdf/design-analyzer";
 import { renderDesignToHTML } from "@/lib/pdf/brand-design-system";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * POST /api/admin/design-studio/analyze
@@ -17,6 +18,9 @@ import { renderDesignToHTML } from "@/lib/pdf/brand-design-system";
  *   - locale: "en" | "ar" (optional, default "en")
  */
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;

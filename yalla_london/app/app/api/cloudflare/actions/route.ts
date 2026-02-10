@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { cloudflare } from "@/lib/integrations/cloudflare";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * Cloudflare Actions API
@@ -22,6 +23,9 @@ import { cloudflare } from "@/lib/integrations/cloudflare";
  *   create_page_rule       - { url: string, actions: Array<{id,value}> }
  */
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     if (!cloudflare.isConfigured()) {
       return NextResponse.json(

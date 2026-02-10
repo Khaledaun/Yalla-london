@@ -232,7 +232,7 @@ export class BackgroundJobService {
           // Extract entities: proper nouns, locations, brands from content
           const entityPattern = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g;
           const rawEntities = bodyText.match(entityPattern) || [];
-          const uniqueEntities = [...new Set(rawEntities)].filter(e => e.length > 2);
+          const uniqueEntities = [...new Set<string>(rawEntities)].filter(e => e.length > 2);
 
           // Identify backlink opportunities based on entities and missing authority links
           const existingLinkDomains = authorityLinks.map((l: any) => {

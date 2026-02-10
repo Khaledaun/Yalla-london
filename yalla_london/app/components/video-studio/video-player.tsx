@@ -12,9 +12,9 @@ import { Player, type PlayerRef } from "@remotion/player";
 import { VideoComposition } from "./video-composition";
 import type { VideoTemplateConfig } from "@/lib/video/brand-video-engine";
 
-// The Player component requires Record<string, unknown>, so we cast
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const VideoCompositionForPlayer = VideoComposition as any;
+// The Player component expects LooseComponentType<Record<string, unknown>>,
+// but VideoComposition is strictly typed — cast through unknown to bridge the gap
+const VideoCompositionForPlayer = VideoComposition as unknown as React.ComponentType<Record<string, unknown>>;
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {

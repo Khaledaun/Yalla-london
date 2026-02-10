@@ -355,35 +355,52 @@ export class BackgroundJobService {
 
       let topQueries: Array<{ query: string; clicks: number; impressions: number }> = [];
 
-      // Attempt to fetch real data from GA4/GSC integrations
+      // Attempt to fetch real data from Google Search Console
       let usedRealData = false;
       try {
         const { searchConsole } = await import('@/lib/integrations/google-search-console');
-        const { googleAnalytics } = await import('@/lib/integrations/google-analytics');
 
-        const [gscData, gaData] = await Promise.allSettled([
-          searchConsole?.getSearchAnalytics?.('7d'),
-          googleAnalytics?.getSessions?.('7d'),
-        ]);
+        if (searchConsole.isConfigured()) {
+          const endDate = new Date().toISOString().split('T')[0];
+          const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-        const gscResult = gscData.status === 'fulfilled' ? gscData.value : null;
-        const gaResult = gaData.status === 'fulfilled' ? gaData.value : null;
+          const gscResult = await searchConsole.getSearchAnalytics(startDate, endDate, ['query']);
 
-        if (gscResult || gaResult) {
-          usedRealData = true;
-          syncResult = {
-            ga4_sessions: gaResult?.sessions || 0,
-            gsc_impressions: gscResult?.impressions || 0,
-            gsc_clicks: gscResult?.clicks || 0,
-            indexed_pages: gscResult?.indexedPages || 0,
-            avg_position: gscResult?.avgPosition || 0,
-            sync_timestamp: new Date(),
-            data_source: 'api',
-          };
-          topQueries = gscResult?.topQueries || [];
+          if (gscResult?.rows) {
+            usedRealData = true;
+
+            let totalClicks = 0;
+            let totalImpressions = 0;
+            let totalPosition = 0;
+
+            topQueries = gscResult.rows.slice(0, 20).map((row: any) => {
+              totalClicks += row.clicks || 0;
+              totalImpressions += row.impressions || 0;
+              totalPosition += row.position || 0;
+              return {
+                query: row.keys?.[0] || '',
+                clicks: row.clicks || 0,
+                impressions: row.impressions || 0,
+              };
+            });
+
+            const avgPosition = gscResult.rows.length > 0
+              ? totalPosition / gscResult.rows.length
+              : 0;
+
+            syncResult = {
+              ga4_sessions: 0,
+              gsc_impressions: totalImpressions,
+              gsc_clicks: totalClicks,
+              indexed_pages: 0,
+              avg_position: avgPosition,
+              sync_timestamp: new Date(),
+              data_source: 'api',
+            };
+          }
         }
       } catch {
-        // API integrations not configured - fall back to database-derived data
+        // GSC not configured or API call failed - fall back to database-derived data
       }
 
       // Fallback: derive metrics from actual database content

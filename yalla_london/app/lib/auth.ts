@@ -119,7 +119,8 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: 'jwt' as const,
-    maxAge: 24 * 60 * 60, // 24 hours
+    maxAge: parseInt(process.env.SESSION_MAX_AGE_SECONDS || '28800', 10), // Default: 8 hours (configurable via env)
+    updateAge: 15 * 60, // Refresh session every 15 minutes of activity
   },
   callbacks: {
     async jwt({ token, user }: any) {

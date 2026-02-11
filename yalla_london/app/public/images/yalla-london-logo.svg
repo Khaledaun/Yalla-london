@@ -5,6 +5,6 @@
     .london { font-family: 'Anybody', 'Source Serif 4', -apple-system, sans-serif; font-weight: 500; font-size: 32px; }
   </style>
   <text x="0" y="42" class="yalla" fill="#1C1917">Yalla</text>
-  <text x="95" y="42" class="london" fill="#A3A3A3">London</text>
+  <text x="95" y="42" class="london" fill="#78716C">London</text>
   <circle cx="220" cy="34" r="6" fill="#C8322B"/>
 </svg>

@@ -80,17 +80,17 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
     return (
       <div className={`${isRTL ? 'rtl' : 'ltr'} min-h-screen flex items-center justify-center`}>
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+          <h1 className="text-2xl font-bold text-charcoal mb-4">
             {language === 'en' ? 'Post Not Found' : 'المقال غير موجود'}
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-stone mb-6">
             {language === 'en'
               ? 'The blog post you\'re looking for doesn\'t exist or has been removed.'
               : 'المقال الذي تبحث عنه غير موجود أو تم حذفه.'
             }
           </p>
           <Link href="/blog">
-            <Button className="bg-purple-900 hover:bg-purple-800">
+            <Button className="bg-london-600 hover:bg-london-700">
               <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
               {language === 'en' ? 'Back to Stories' : 'العودة للقصص'}
             </Button>
@@ -123,14 +123,14 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
               transition={{ duration: 0.8 }}
             >
               <div className="mb-4">
-                <span className="bg-yellow-500 text-gray-900 px-4 py-2 rounded-full text-sm font-medium">
+                <span className="bg-yalla-gold-500 text-charcoal px-4 py-2 rounded-full text-sm font-medium">
                   {post.category ? (language === 'en' ? post.category.name_en : post.category.name_ar) : ''}
                 </span>
               </div>
               <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
                 {language === 'en' ? post.title_en : post.title_ar}
               </h1>
-              <div className="flex items-center justify-center gap-6 text-gray-200">
+              <div className="flex items-center justify-center gap-6 text-cream-200">
                 <span className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
                   {formatDate(post.created_at)}
@@ -185,7 +185,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
 
             {/* Article Body */}
             <div
-              className="text-gray-800 leading-relaxed prose-headings:font-display prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-a:text-purple-700 prose-strong:text-gray-900"
+              className="text-charcoal leading-relaxed prose-headings:font-display prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-a:text-london-600 prose-strong:text-charcoal"
               dangerouslySetInnerHTML={{
                 __html: language === 'en' ? post.content_en : post.content_ar
               }}
@@ -195,7 +195,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
       </section>
 
       {/* Related Posts */}
-      <section className="py-12 bg-gray-50">
+      <section className="py-12 bg-cream">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -209,13 +209,13 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
             </h3>
 
             <div className="bg-white rounded-lg p-8 luxury-shadow">
-              <p className="text-gray-600 mb-6">
+              <p className="text-stone mb-6">
                 {language === 'en'
                   ? 'Discover more curated London experiences and insider stories on our blog.'
                   : 'اكتشف المزيد من التجارب المنسقة والقصص الداخلية في لندن على مدونتنا.'
                 }
               </p>
-              <Button asChild className="bg-purple-900 hover:bg-purple-800">
+              <Button asChild className="bg-london-600 hover:bg-london-700">
                 <Link href="/blog">
                   <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
                   {language === 'en' ? 'View All Stories' : 'عرض جميع القصص'}

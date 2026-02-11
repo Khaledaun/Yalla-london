@@ -97,7 +97,7 @@ export default function AboutPage() {
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold mb-6">
                 {t('founderTitle')}
               </h1>
-              <p className="text-xl md:text-2xl text-amber-50/90">
+              <p className="text-xl md:text-2xl text-cream-100/90">
                 {language === 'en'
                   ? 'Your personal guide to London\'s most exclusive experiences'
                   : 'دليلك الشخصي للتجارب الأكثر حصرية في لندن'
@@ -122,7 +122,7 @@ export default function AboutPage() {
               <h2 className="text-4xl font-display font-bold gradient-text">
                 {language === 'en' ? 'A Passionate Explorer' : 'مستكشفة شغوفة'}
               </h2>
-              <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
+              <div className="space-y-4 text-lg text-stone leading-relaxed">
                 <p>
                   {language === 'en'
                     ? 'After moving to London over a decade ago, I fell deeply in love with this incredible city. What started as personal curiosity evolved into an expertise in discovering London\'s most refined experiences.'
@@ -165,7 +165,7 @@ export default function AboutPage() {
                   className="object-cover"
                 />
               </div>
-              <div className="absolute -bottom-6 -left-6 bg-yellow-500 text-gray-900 p-4 rounded-xl luxury-shadow">
+              <div className="absolute -bottom-6 -left-6 bg-yalla-gold-500 text-charcoal p-4 rounded-xl luxury-shadow">
                 <div className="text-2xl font-bold">10+</div>
                 <div className="text-sm font-medium">
                   {language === 'en' ? 'Years Experience' : 'سنوات خبرة'}
@@ -177,7 +177,7 @@ export default function AboutPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-cream">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             className="text-center mb-16"
@@ -189,7 +189,7 @@ export default function AboutPage() {
             <h2 className="text-4xl font-display font-bold gradient-text mb-4">
               {language === 'en' ? 'By the Numbers' : 'بالأرقام'}
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-stone">
               {language === 'en'
                 ? 'A testament to years of exploration and discovery'
                 : 'شهادة على سنوات من الاستكشاف والاكتشاف'
@@ -215,7 +215,7 @@ export default function AboutPage() {
                     <div className="text-3xl font-bold text-brand-primary mb-2">
                       {stat.number}
                     </div>
-                    <div className="text-gray-600 font-medium">
+                    <div className="text-stone font-medium">
                       {language === 'en' ? stat.label_en : stat.label_ar}
                     </div>
                   </CardContent>
@@ -239,7 +239,7 @@ export default function AboutPage() {
             <h2 className="text-4xl font-display font-bold gradient-text mb-4">
               {language === 'en' ? 'My Values' : 'قيمي'}
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-stone">
               {language === 'en'
                 ? 'The principles that guide every recommendation'
                 : 'المبادئ التي توجه كل توصية'
@@ -262,10 +262,10 @@ export default function AboutPage() {
                     <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-cream to-cream-200 rounded-full flex items-center justify-center">
                       <value.icon className="h-10 w-10 text-brand-primary" />
                     </div>
-                    <h3 className="text-2xl font-display font-bold mb-4 text-gray-900">
+                    <h3 className="text-2xl font-display font-bold mb-4 text-charcoal">
                       {language === 'en' ? value.title_en : value.title_ar}
                     </h3>
-                    <p className="text-gray-600 leading-relaxed">
+                    <p className="text-stone leading-relaxed">
                       {language === 'en' ? value.description_en : value.description_ar}
                     </p>
                   </CardContent>
@@ -291,13 +291,13 @@ export default function AboutPage() {
                 : 'دعونا نستكشف لندن معاً'
               }
             </h2>
-            <p className="text-xl mb-8 text-amber-50/90">
+            <p className="text-xl mb-8 text-cream-100/90">
               {language === 'en'
                 ? 'Have questions about London? Looking for personalized recommendations? I\'d love to help you discover this amazing city.'
                 : 'لديك أسئلة حول لندن؟ تبحث عن توصيات شخصية؟ أود أن أساعدك في اكتشاف هذه المدينة المذهلة.'
               }
             </p>
-            <Button asChild size="lg" className="bg-white text-london-900 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+            <Button asChild size="lg" className="bg-white text-london-900 hover:bg-cream-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
               <a href="mailto:hello@yalla-london.com">
                 <Mail className="mr-2 h-5 w-5" />
                 {language === 'en' ? 'Send a Message' : 'أرسل رسالة'}

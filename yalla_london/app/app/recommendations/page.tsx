@@ -141,7 +141,7 @@ export default function RecommendationsPage() {
       stars.push(
         <Star
           key={i}
-          className={`h-4 w-4 ${i < Math.floor(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+          className={`h-4 w-4 ${i < Math.floor(rating) ? 'fill-yalla-gold-400 text-yalla-gold-400' : 'text-sand'}`}
         />
       )
     }
@@ -151,7 +151,7 @@ export default function RecommendationsPage() {
   return (
     <div className={`py-12 ${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Header */}
-      <section className="bg-gradient-to-br from-purple-50 to-yellow-50 py-16">
+      <section className="bg-gradient-to-br from-cream to-cream-100 py-16">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             className="text-center"
@@ -162,7 +162,7 @@ export default function RecommendationsPage() {
             <h1 className="text-5xl font-display font-bold gradient-text mb-4">
               {t('recommendations')}
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-stone max-w-2xl mx-auto">
               {language === 'en'
                 ? 'Handpicked luxury experiences across London\'s finest establishments'
                 : 'تجارب فاخرة مختارة يدوياً من أفضل المؤسسات في لندن'
@@ -183,7 +183,7 @@ export default function RecommendationsPage() {
           >
             <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone" />
                 <Input
                   placeholder={language === 'en' ? 'Search recommendations...' : 'البحث في التوصيات...'}
                   value={searchTerm}
@@ -217,7 +217,7 @@ export default function RecommendationsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-stone">
               {filteredRecommendations.length} {language === 'en' ? 'recommendations' : 'توصية'}
             </div>
           </motion.div>
@@ -245,10 +245,10 @@ export default function RecommendationsPage() {
                       className="object-cover"
                     />
                     <div className="absolute top-4 left-4 flex gap-2">
-                      <Badge className="bg-white/90 text-gray-900 hover:bg-white">
+                      <Badge className="bg-white/90 text-charcoal hover:bg-white">
                         {t(item.type === 'hotel' ? 'hotels' : item.type === 'restaurant' ? 'restaurants' : 'attractions')}
                       </Badge>
-                      <Badge variant="secondary" className="bg-yellow-500/90 text-gray-900 hover:bg-yellow-500">
+                      <Badge variant="secondary" className="bg-yalla-gold-500 text-charcoal hover:bg-yalla-gold-500">
                         {t(item.category)}
                       </Badge>
                     </div>
@@ -256,30 +256,30 @@ export default function RecommendationsPage() {
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        <h3 className="text-xl font-semibold text-charcoal mb-2">
                           {language === 'en' ? item.name_en : item.name_ar}
                         </h3>
                         <div className="flex items-center gap-2 mb-2">
                           <div className="flex items-center">
                             {renderStars(item.rating)}
                           </div>
-                          <span className="text-sm text-gray-600">
+                          <span className="text-sm text-stone">
                             {item.rating} / 5
                           </span>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-semibold text-purple-800">
+                        <div className="text-lg font-semibold text-london-600">
                           {item.price_range}
                         </div>
                       </div>
                     </div>
                     
-                    <p className="text-gray-600 leading-relaxed mb-4">
+                    <p className="text-stone leading-relaxed mb-4">
                       {language === 'en' ? item.description_en : item.description_ar}
                     </p>
                     
-                    <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-stone mb-4">
                       <MapPin className="h-4 w-4" />
                       <span>{language === 'en' ? item.address_en : item.address_ar}</span>
                     </div>
@@ -309,7 +309,7 @@ export default function RecommendationsPage() {
                         </Button>
                       )}
                       {item.website && (
-                        <Button asChild size="sm" className="flex-1 bg-purple-800 hover:bg-purple-900">
+                        <Button asChild size="sm" className="flex-1 bg-london-600 hover:bg-london-700">
                           <a href={item.website} target="_blank" rel="noopener noreferrer">
                             <Globe className="h-4 w-4 mr-2" />
                             {language === 'en' ? 'Visit' : 'زيارة'}
@@ -330,7 +330,7 @@ export default function RecommendationsPage() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6 }}
             >
-              <p className="text-xl text-gray-500">
+              <p className="text-xl text-stone">
                 {language === 'en' 
                   ? 'No recommendations found matching your criteria.'
                   : 'لم يتم العثور على توصيات تطابق معاييرك.'

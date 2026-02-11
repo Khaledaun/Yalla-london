@@ -175,11 +175,11 @@ export default function EventsPage() {
   });
 
   const categoryColors: Record<string, string> = {
-    Football: "bg-green-100 text-green-800",
-    Theatre: "bg-rose-100 text-rose-800",
-    Festival: "bg-pink-100 text-pink-800",
-    Exhibition: "bg-blue-100 text-blue-800",
-    Experience: "bg-amber-100 text-amber-800",
+    Football: "bg-cream-100 text-forest",
+    Theatre: "bg-london-100 text-london-800",
+    Festival: "bg-yalla-gold-100 text-yalla-gold-800",
+    Exhibition: "bg-thames-100 text-thames-800",
+    Experience: "bg-cream-200 text-charcoal",
   };
 
   const formatDate = (dateStr: string) => {
@@ -243,7 +243,7 @@ export default function EventsPage() {
               ? "London Events & Tickets"
               : "\u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0648\u062a\u0630\u0627\u0643\u0631 \u0644\u0646\u062f\u0646"}
           </h1>
-          <p className="text-xl md:text-2xl text-gray-200">
+          <p className="text-xl md:text-2xl text-cream-200">
             {language === "en"
               ? "Book premium tickets for the best London experiences"
               : "\u0627\u062d\u062c\u0632 \u062a\u0630\u0627\u0643\u0631 \u0645\u0645\u064a\u0632\u0629 \u0644\u0623\u0641\u0636\u0644 \u062a\u062c\u0627\u0631\u0628 \u0644\u0646\u062f\u0646"}
@@ -270,7 +270,7 @@ export default function EventsPage() {
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-4">
           <div className="flex flex-col md:flex-row gap-4 items-center">
             <div className="relative flex-1 w-full">
-              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400`} />
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-stone`} />
               <Input
                 placeholder={
                   language === "en"
@@ -318,10 +318,10 @@ export default function EventsPage() {
       </section>
 
       {/* Events Grid */}
-      <section className="py-12 bg-gray-50">
+      <section className="py-12 bg-cream">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-display font-bold text-gray-900">
+            <h2 className="text-2xl font-display font-bold text-charcoal">
               {loading
                 ? language === "en"
                   ? "Loading Events..."
@@ -330,7 +330,7 @@ export default function EventsPage() {
                   ? `${filteredEvents.length} Events Available`
                   : `${filteredEvents.length} \u0641\u0639\u0627\u0644\u064a\u0629 \u0645\u062a\u0627\u062d\u0629`}
             </h2>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-stone">
               <Tag className="h-4 w-4" />
               {language === "en"
                 ? "Powered by trusted ticket partners"
@@ -341,7 +341,7 @@ export default function EventsPage() {
           {loading ? (
             <div className="text-center py-20">
               <Loader2 className="h-8 w-8 animate-spin mx-auto text-brand-primary mb-4" />
-              <p className="text-gray-500">
+              <p className="text-stone">
                 {language === "en"
                   ? "Loading events..."
                   : "\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0641\u0639\u0627\u0644\u064a\u0627\u062a..."}
@@ -349,7 +349,7 @@ export default function EventsPage() {
             </div>
           ) : filteredEvents.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-gray-500 text-lg">
+              <p className="text-stone text-lg">
                 {language === "en"
                   ? "No events match your filters"
                   : "\u0644\u0627 \u062a\u0648\u062c\u062f \u0641\u0639\u0627\u0644\u064a\u0627\u062a \u062a\u0637\u0627\u0628\u0642 \u0627\u0644\u062a\u0635\u0641\u064a\u0629"}
@@ -395,21 +395,21 @@ export default function EventsPage() {
                         <Badge
                           className={
                             categoryColors[event.category] ||
-                            "bg-gray-100 text-gray-800"
+                            "bg-cream-100 text-charcoal"
                           }
                         >
                           {event.category}
                         </Badge>
                         {event.vipAvailable && (
-                          <Badge className="bg-yellow-500 text-white">
+                          <Badge className="bg-yalla-gold-500 text-white">
                             VIP
                           </Badge>
                         )}
                       </div>
                       <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full`}>
                         <div className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm font-medium text-gray-900">
+                          <Star className="h-3 w-3 fill-yalla-gold-400 text-yalla-gold-400" />
+                          <span className="text-sm font-medium text-charcoal">
                             {event.rating}
                           </span>
                         </div>
@@ -425,29 +425,29 @@ export default function EventsPage() {
                       )}
                     </div>
                     <CardContent className="p-6 flex-1 flex flex-col">
-                      <h3 className="text-xl font-semibold mb-2 text-gray-900">
+                      <h3 className="text-xl font-semibold mb-2 text-charcoal">
                         {event.title[language] || event.title.en}
                       </h3>
-                      <p className="text-gray-600 leading-relaxed mb-4 flex-1">
+                      <p className="text-stone leading-relaxed mb-4 flex-1">
                         {event.description[language] || event.description.en}
                       </p>
                       <div className="space-y-2 mb-4">
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-stone">
                           <Calendar className="h-4 w-4 flex-shrink-0" />
                           <span>{formatDate(event.date)}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-stone">
                           <Clock className="h-4 w-4 flex-shrink-0" />
                           <span>{event.time}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-stone">
                           <MapPin className="h-4 w-4 flex-shrink-0" />
                           <span>{event.venue}</span>
                         </div>
                       </div>
                       {event.ticketProvider && (
                         <div className="mb-4">
-                          <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+                          <span className="inline-flex items-center gap-1 text-xs text-stone">
                             <Ticket className="h-3 w-3" />
                             {language === "en"
                               ? "via"
@@ -492,12 +492,12 @@ export default function EventsPage() {
       <section className="py-12 bg-white">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-8">
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+            <h3 className="text-xl font-semibold text-charcoal mb-2">
               {language === "en"
                 ? "Our Trusted Ticket Partners"
                 : "\u0634\u0631\u0643\u0627\u0621 \u0627\u0644\u062a\u0630\u0627\u0643\u0631 \u0627\u0644\u0645\u0648\u062b\u0648\u0642\u064a\u0646"}
             </h3>
-            <p className="text-gray-500 text-sm">
+            <p className="text-stone text-sm">
               {language === "en"
                 ? "We partner with leading ticket providers to bring you the best deals"
                 : "\u0646\u062a\u0639\u0627\u0648\u0646 \u0645\u0639 \u0645\u0632\u0648\u062f\u064a \u0627\u0644\u062a\u0630\u0627\u0643\u0631 \u0627\u0644\u0631\u0627\u0626\u062f\u064a\u0646 \u0644\u0646\u0642\u062f\u0645 \u0644\u0643 \u0623\u0641\u0636\u0644 \u0627\u0644\u0639\u0631\u0648\u0636"}
@@ -508,10 +508,10 @@ export default function EventsPage() {
               (partner) => (
                 <div
                   key={partner}
-                  className="text-center px-6 py-4 rounded-lg border border-gray-100 hover:border-yalla-gold-400/40 hover:bg-cream transition-all"
+                  className="text-center px-6 py-4 rounded-lg border border-sand hover:border-yalla-gold-400/40 hover:bg-cream transition-all"
                 >
-                  <span className="font-semibold text-gray-700">{partner}</span>
-                  <span className="block text-xs text-gray-400 mt-1">
+                  <span className="font-semibold text-stone">{partner}</span>
+                  <span className="block text-xs text-stone mt-1">
                     {language === "en"
                       ? "Verified Partner"
                       : "\u0634\u0631\u064a\u0643 \u0645\u0639\u062a\u0645\u062f"}
@@ -537,7 +537,7 @@ export default function EventsPage() {
                 ? "Can't Find What You're Looking For?"
                 : "\u0644\u0627 \u062a\u062c\u062f \u0645\u0627 \u062a\u0628\u062d\u062b \u0639\u0646\u0647\u061f"}
             </h2>
-            <p className="text-xl mb-8 text-amber-50/90">
+            <p className="text-xl mb-8 text-cream-100/90">
               {language === "en"
                 ? "Contact us for personalized event recommendations and exclusive VIP access"
                 : "\u0627\u062a\u0635\u0644 \u0628\u0646\u0627 \u0644\u0644\u062d\u0635\u0648\u0644 \u0639\u0644\u0649 \u062a\u0648\u0635\u064a\u0627\u062a \u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0645\u062e\u0635\u0635\u0629 \u0648\u0648\u0635\u0648\u0644 VIP \u062d\u0635\u0631\u064a"}
@@ -546,7 +546,7 @@ export default function EventsPage() {
               <Button
                 asChild
                 size="lg"
-                className="bg-white text-london-900 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                className="bg-white text-london-900 hover:bg-cream-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 <Link href="/contact">
                   {language === "en"

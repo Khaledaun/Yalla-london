@@ -132,9 +132,8 @@ export default function RootLayout({
         </NextAuthSessionProvider>
 
         {/* Google Analytics */}
-        {(process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
-          process.env.GA4_MEASUREMENT_ID) && (() => {
-          const gaId = (process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.GA4_MEASUREMENT_ID || '').trim();
+        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (() => {
+          const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID.trim();
           return gaId ? (
             <>
               <Script
@@ -149,6 +148,8 @@ export default function RootLayout({
                   gtag('config', '${gaId}', {
                     page_title: document.title,
                     page_location: window.location.href,
+                    send_page_view: true,
+                    cookie_flags: 'SameSite=None;Secure',
                   });
                 `}
               </Script>

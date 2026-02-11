@@ -53,50 +53,64 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Custom brand colors
-        burgundy: {
-          50: '#fdf2f4',
-          100: '#fce7eb',
-          200: '#f9d0d9',
-          300: '#f5a8bb',
-          400: '#ee7694',
-          500: '#e34d70',
-          600: '#ce2d54',
-          700: '#ad2145',
-          800: '#8B1538',
-          900: '#5C0A23',
-          950: '#3d0515',
+        // Brand Kit v2 — Yalla London
+        london: {
+          50: '#fef2f2',
+          100: '#fde3e3',
+          200: '#fccbcb',
+          300: '#f9a3a3',
+          400: '#f06b6b',
+          500: '#e34040',
+          600: '#C8322B',  // PRIMARY — London Red
+          700: '#a82520',
+          800: '#8b1f1c',
+          900: '#751d1b',
+          950: '#400b0a',
         },
-        gold: {
-          50: '#fbf9eb',
-          100: '#f6f1cb',
-          200: '#efe299',
-          300: '#E8D5A3',
-          400: '#D4AF37',
-          500: '#C5A572',
-          600: '#a78532',
-          700: '#856429',
-          800: '#6f5126',
-          900: '#5f4424',
-          950: '#372411',
+        'yalla-gold': {
+          50: '#fbf8eb',
+          100: '#f5eecb',
+          200: '#ede09a',
+          300: '#e2cc60',
+          400: '#d9b938',
+          500: '#C49A2A',  // SECONDARY — Gold
+          600: '#a87a22',
+          700: '#8a5c1e',
+          800: '#724a20',
+          900: '#5f3e20',
+          950: '#371f0e',
+        },
+        thames: {
+          50: '#f0f7fa',
+          100: '#dbeef4',
+          200: '#bbdee9',
+          300: '#8bc6d9',
+          400: '#54a6c1',
+          500: '#3B7EA1',  // Thames Blue — links, info
+          600: '#326b8b',
+          700: '#2d5872',
+          800: '#2b4a5f',
+          900: '#283e50',
+          950: '#172735',
+        },
+        stamp: {
+          DEFAULT: '#4A7BA8',  // Stamp Blue — LDN stamp, interactive
+        },
+        charcoal: {
+          DEFAULT: '#1C1917',  // Dark bg, primary text
+          light: '#3D3835',    // Graphite — borders, cards
+        },
+        stone: {
+          DEFAULT: '#78716C',  // Secondary text, metadata
+        },
+        sand: {
+          DEFAULT: '#D6D0C4',  // Light mode borders, dividers
         },
         cream: {
-          50: '#FFFDF8',
-          100: '#FDF8F3',
-          200: '#F5EDE4',
-          300: '#e8ddd0',
-          400: '#d4c4b0',
-          500: '#bea78f',
-          600: '#ab8f74',
-          700: '#8f7561',
-          800: '#766153',
-          900: '#615146',
-          950: '#332a24',
+          DEFAULT: '#FAF8F4',  // Light mode background
         },
-        warm: {
-          gray: '#6B5B4F',
-          charcoal: '#3D2F27',
-          text: '#2D1810',
+        forest: {
+          DEFAULT: '#2D5A3D',  // Success states
         },
       },
       borderRadius: {
@@ -107,10 +121,13 @@ const config: Config = {
         'card': '16px',
       },
       boxShadow: {
-        'luxury': '0 4px 20px rgba(139, 21, 56, 0.08)',
-        'elegant': '0 8px 40px rgba(139, 21, 56, 0.12)',
-        'card': '0 2px 12px rgba(45, 24, 16, 0.06)',
-        'hover': '0 12px 32px rgba(139, 21, 56, 0.15)',
+        'sm': '0 1px 3px rgba(28, 25, 23, 0.06)',
+        'md': '0 4px 12px rgba(28, 25, 23, 0.08)',
+        'luxury': '0 4px 20px rgba(28, 25, 23, 0.08)',
+        'elegant': '0 8px 40px rgba(28, 25, 23, 0.12)',
+        'card': '0 2px 12px rgba(28, 25, 23, 0.06)',
+        'hover': '0 12px 32px rgba(28, 25, 23, 0.15)',
+        'xl': '0 20px 60px rgba(28, 25, 23, 0.16)',
       },
       keyframes: {
         "accordion-down": {
@@ -147,16 +164,21 @@ const config: Config = {
         "shimmer": "shimmer 2s infinite linear",
       },
       fontFamily: {
-        'sans': ['var(--font-inter)'],
-        'cairo': ['var(--font-cairo)'],
+        'sans': ['var(--font-body)'],
+        'display': ['var(--font-display)'],
+        'editorial': ['var(--font-editorial)'],
+        'mono': ['var(--font-system)'],
         'arabic': ['var(--font-arabic)'],
-        'serif': ['var(--font-serif)'],
-        'playfair': ['var(--font-serif)'],
+        // Legacy aliases
+        'serif': ['var(--font-editorial)'],
+        'cairo': ['var(--font-arabic)'],
+        'playfair': ['var(--font-display)'],
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-luxury': 'linear-gradient(135deg, #8B1538 0%, #5C0A23 100%)',
-        'gradient-gold': 'linear-gradient(135deg, #D4AF37 0%, #C5A572 100%)',
+        'gradient-luxury': 'linear-gradient(135deg, #C8322B 0%, #8b1f1c 100%)',
+        'gradient-gold': 'linear-gradient(135deg, #C49A2A 0%, #d9b938 100%)',
+        'gradient-tricolor': 'linear-gradient(90deg, #C8322B, #C49A2A, #3B7EA1)',
         'pattern-arabesque': "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23D4AF37' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")",
       },
       spacing: {

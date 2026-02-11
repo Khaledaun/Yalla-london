@@ -84,12 +84,12 @@ export const luxuryGuideTemplate: BrandConfig = {
   businessType: 'luxury-guide',
 
   colors: {
-    primary: "#8B1538", // Rich Burgundy
-    secondary: "#D4AF37", // Gold
-    accent: "#C5A572", // Warm Gold
-    background: "#FFFDF8", // Warm Cream
-    text: "#2D1810", // Deep Brown
-    muted: "#6B5B4F" // Warm Gray
+    primary: "#C8322B", // London Red
+    secondary: "#C49A2A", // Gold
+    accent: "#3B7EA1", // Thames Blue
+    background: "#FAF8F4", // Cream
+    text: "#1C1917", // Charcoal
+    muted: "#78716C" // Stone
   },
   
   navigation: [

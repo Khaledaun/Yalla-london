@@ -104,57 +104,57 @@ export const yallaLondonTheme: DestinationTheme = {
   destination: "London",
   tagline: "Luxury London Guide",
   taglineAr: "دليل لندن الفاخر",
-  mood: "Rich burgundy meets gold — classic luxury with a warm editorial feel",
+  mood: "London Red meets Gold & Thames Blue — boarding-pass luxury with editorial warmth",
 
   colors: {
-    primary: "#8B1538",
-    primaryLight: "#B91C4A",
-    primaryDark: "#6D0F2B",
-    secondary: "#D4AF37",
-    secondaryLight: "#E8C96A",
-    accent: "#C5A572",
-    background: "#FFFDF8",
+    primary: "#C8322B",      // London Red
+    primaryLight: "#e34040",
+    primaryDark: "#8b1f1c",
+    secondary: "#C49A2A",    // Gold
+    secondaryLight: "#d9b938",
+    accent: "#3B7EA1",       // Thames Blue
+    background: "#FAF8F4",   // Cream
     surface: "#FFFFFF",
-    text: "#2D1810",
-    textMuted: "#6B5B4F",
+    text: "#1C1917",         // Charcoal
+    textMuted: "#78716C",    // Stone
     textOnPrimary: "#FFFFFF",
-    textOnSecondary: "#2D1810",
-    border: "#E8DDD4",
-    success: "#15803D",
-    warning: "#B45309",
-    error: "#DC2626",
+    textOnSecondary: "#1C1917",
+    border: "#D6D0C4",       // Sand
+    success: "#2D5A3D",      // Forest
+    warning: "#C49A2A",      // Gold
+    error: "#C8322B",        // London Red
   },
 
   gradients: {
-    hero: "linear-gradient(135deg, #8B1538 0%, #6D0F2B 40%, #D4AF37 100%)",
-    card: "linear-gradient(180deg, transparent 0%, rgba(139, 21, 56, 0.85) 100%)",
-    cta: "linear-gradient(135deg, #D4AF37 0%, #C5A572 100%)",
-    subtle: "linear-gradient(180deg, #FFFDF8 0%, #F5EDE4 100%)",
-    overlay: "linear-gradient(0deg, rgba(45, 24, 16, 0.7) 0%, transparent 60%)",
+    hero: "linear-gradient(135deg, #C8322B 0%, #8b1f1c 40%, #C49A2A 100%)",
+    card: "linear-gradient(180deg, transparent 0%, rgba(28, 25, 23, 0.85) 100%)",
+    cta: "linear-gradient(135deg, #C49A2A 0%, #d9b938 100%)",
+    subtle: "linear-gradient(180deg, #FAF8F4 0%, #D6D0C4 100%)",
+    overlay: "linear-gradient(0deg, rgba(28, 25, 23, 0.7) 0%, transparent 60%)",
   },
 
   typography: {
-    headingFont: "Playfair Display",
-    headingFontAr: "Cairo",
-    bodyFont: "Inter",
-    bodyFontAr: "Cairo",
-    displayFont: "Playfair Display",
-    displayFontAr: "Cairo",
+    headingFont: "Anybody",
+    headingFontAr: "IBM Plex Sans Arabic",
+    bodyFont: "Source Serif 4",
+    bodyFontAr: "IBM Plex Sans Arabic",
+    displayFont: "Anybody",
+    displayFontAr: "IBM Plex Sans Arabic",
     headingWeight: 700,
     bodyWeight: 400,
-    letterSpacing: { tight: "-0.02em", normal: "0", wide: "0.05em" },
+    letterSpacing: { tight: "-1px", normal: "0", wide: "1.5px" },
   },
 
   shadows: {
-    card: "0 4px 20px rgba(139, 21, 56, 0.08)",
-    cardHover: "0 12px 32px rgba(139, 21, 56, 0.15)",
-    elevated: "0 8px 40px rgba(139, 21, 56, 0.12)",
-    button: "0 4px 12px rgba(212, 175, 55, 0.3)",
-    inner: "inset 0 2px 4px rgba(139, 21, 56, 0.06)",
+    card: "0 1px 3px rgba(28, 25, 23, 0.06)",
+    cardHover: "0 12px 40px rgba(28, 25, 23, 0.12)",
+    elevated: "0 4px 12px rgba(28, 25, 23, 0.08)",
+    button: "0 4px 12px rgba(196, 154, 42, 0.3)",
+    inner: "inset 0 2px 4px rgba(28, 25, 23, 0.06)",
   },
 
   shape: {
-    borderRadius: { sm: "6px", md: "12px", lg: "16px", xl: "24px", full: "9999px" },
+    borderRadius: { sm: "2px", md: "4px", lg: "8px", xl: "16px", full: "9999px" },
     borderWidth: "1px",
     borderStyle: "solid",
   },
@@ -168,9 +168,9 @@ export const yallaLondonTheme: DestinationTheme = {
   },
 
   patterns: {
-    decorativeBorder: "linear-gradient(90deg, #D4AF37, #C5A572, #D4AF37)",
-    sectionDivider: "none",
-    backgroundTexture: "radial-gradient(circle at 20% 80%, rgba(212, 175, 55, 0.03) 0%, transparent 50%)",
+    decorativeBorder: "linear-gradient(90deg, #C8322B, #C49A2A, #3B7EA1)",
+    sectionDivider: "tricolor",
+    backgroundTexture: "radial-gradient(circle at 20% 80%, rgba(196, 154, 42, 0.03) 0%, transparent 50%)",
   },
 };
 

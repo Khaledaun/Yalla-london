@@ -145,7 +145,7 @@ export function CookieConsentBanner() {
         <CardContent>
           {!showSettings ? (
             <div>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-stone mb-4">
                 We use cookies to enhance your experience, analyze site usage, and provide personalized content. 
                 You can choose which cookies to accept below. Essential cookies are always active.
               </p>
@@ -183,7 +183,7 @@ export function CookieConsentBanner() {
                 <div className="flex items-center justify-between p-3 border rounded">
                   <div className="flex-1">
                     <h4 className="font-medium">Necessary Cookies</h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-stone">
                       Essential for website functionality, security, and basic features.
                     </p>
                   </div>
@@ -194,7 +194,7 @@ export function CookieConsentBanner() {
                 <div className="flex items-center justify-between p-3 border rounded">
                   <div className="flex-1">
                     <h4 className="font-medium">Analytics Cookies</h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-stone">
                       Help us understand how visitors interact with our website.
                     </p>
                   </div>
@@ -208,7 +208,7 @@ export function CookieConsentBanner() {
                 <div className="flex items-center justify-between p-3 border rounded">
                   <div className="flex-1">
                     <h4 className="font-medium">Functional Cookies</h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-stone">
                       Remember your preferences and enhance functionality.
                     </p>
                   </div>
@@ -222,7 +222,7 @@ export function CookieConsentBanner() {
                 <div className="flex items-center justify-between p-3 border rounded">
                   <div className="flex-1">
                     <h4 className="font-medium">Marketing Cookies</h4>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-stone">
                       Used to show relevant advertisements and measure campaign effectiveness.
                     </p>
                   </div>
@@ -248,10 +248,10 @@ export function CookieConsentBanner() {
             </div>
           )}
           
-          <p className="text-xs text-gray-500 mt-4">
+          <p className="text-xs text-stone mt-4">
             By continuing to use our website, you agree to our{' '}
-            <Link href="/privacy" className="underline hover:text-gray-700">Privacy Policy</Link> and{' '}
-            <Link href="/terms" className="underline hover:text-gray-700">Terms of Use</Link>.
+            <Link href="/privacy" className="underline hover:text-charcoal">Privacy Policy</Link> and{' '}
+            <Link href="/terms" className="underline hover:text-charcoal">Terms of Use</Link>.
           </p>
         </CardContent>
       </Card>

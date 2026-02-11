@@ -276,23 +276,23 @@ export function ExitIntentPopup({
           className="bg-white rounded-2xl max-w-md w-full p-8 text-center animate-in fade-in zoom-in duration-300"
           dir={isArabic ? 'rtl' : 'ltr'}
         >
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="h-10 w-10 text-green-600" />
+          <div className="w-20 h-20 bg-cream-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="h-10 w-10 text-forest" />
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-2">{t.successTitle}</h3>
-          <p className="text-gray-600 mb-6">
+          <h3 className="text-2xl font-bold text-charcoal mb-2">{t.successTitle}</h3>
+          <p className="text-stone mb-6">
             {variant === 'guide' && t.successGuide}
             {variant === 'discount' && t.successDiscount}
             {variant === 'newsletter' && t.successNewsletter}
           </p>
           {variant === 'discount' && (
-            <div className="bg-yellow-50 border-2 border-dashed border-yellow-400 rounded-lg p-4 mb-6">
-              <span className="text-2xl font-mono font-bold text-yellow-700">{discountCode}</span>
+            <div className="bg-cream-100 border-2 border-dashed border-yalla-gold-400 rounded-lg p-4 mb-6">
+              <span className="text-2xl font-mono font-bold text-yalla-gold-700">{discountCode}</span>
             </div>
           )}
           <button
             onClick={handleClose}
-            className="text-gray-500 hover:text-gray-700 underline"
+            className="text-stone hover:text-charcoal underline"
           >
             {isArabic ? 'إغلاق' : 'Close'}
           </button>
@@ -330,25 +330,25 @@ export function ExitIntentPopup({
 
   const colorClasses = {
     blue: {
-      bg: 'bg-blue-600',
-      hover: 'hover:bg-blue-700',
-      light: 'bg-blue-100',
-      text: 'text-blue-600',
-      gradient: 'from-blue-600 to-indigo-700',
+      bg: 'bg-london-600',
+      hover: 'hover:bg-london-700',
+      light: 'bg-london-100',
+      text: 'text-london-600',
+      gradient: 'from-london-600 to-london-800',
     },
     amber: {
-      bg: 'bg-amber-500',
-      hover: 'hover:bg-amber-600',
-      light: 'bg-amber-100',
-      text: 'text-amber-600',
-      gradient: 'from-amber-500 to-orange-600',
+      bg: 'bg-yalla-gold-500',
+      hover: 'hover:bg-yalla-gold-600',
+      light: 'bg-yalla-gold-100',
+      text: 'text-yalla-gold-600',
+      gradient: 'from-yalla-gold-500 to-yalla-gold-700',
     },
     purple: {
-      bg: 'bg-purple-600',
-      hover: 'hover:bg-purple-700',
-      light: 'bg-purple-100',
-      text: 'text-purple-600',
-      gradient: 'from-purple-600 to-pink-600',
+      bg: 'bg-thames-500',
+      hover: 'hover:bg-thames-600',
+      light: 'bg-thames-100',
+      text: 'text-thames-500',
+      gradient: 'from-thames-500 to-thames-700',
     },
   };
 
@@ -363,7 +363,7 @@ export function ExitIntentPopup({
         {/* Close button */}
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-10"
+          className="absolute top-4 right-4 p-2 text-stone hover:text-charcoal hover:bg-cream-100 rounded-full transition-colors z-10"
           aria-label="Close"
         >
           <X className="h-5 w-5" />
@@ -406,7 +406,7 @@ export function ExitIntentPopup({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t.emailPlaceholder}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+              className="w-full px-4 py-3 border border-sand rounded-lg focus:ring-2 focus:ring-london-600 focus:border-transparent text-lg"
               disabled={status === 'loading'}
               autoFocus
             />
@@ -427,13 +427,13 @@ export function ExitIntentPopup({
               )}
             </button>
 
-            <p className="text-gray-400 text-xs text-center">{t.privacy}</p>
+            <p className="text-stone text-xs text-center">{t.privacy}</p>
           </form>
 
           {variant === 'discount' && (
             <button
               onClick={handleClose}
-              className="w-full mt-3 text-gray-400 hover:text-gray-600 text-sm underline"
+              className="w-full mt-3 text-stone hover:text-charcoal text-sm underline"
             >
               {t.noThanks}
             </button>

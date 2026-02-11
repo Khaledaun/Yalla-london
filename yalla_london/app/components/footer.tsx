@@ -21,9 +21,9 @@ export function Footer() {
   ]
 
   return (
-    <footer className={`bg-burgundy-900 text-cream-100 ${isRTL ? 'rtl' : 'ltr'}`}>
+    <footer className={`bg-london-900 text-cream-100 ${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Decorative top border */}
-      <div className="h-1 w-full bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
+      <div className="h-1 w-full bg-gradient-to-r from-transparent via-yalla-gold-400 to-transparent" />
 
       {/* Main Footer Content */}
       <div className="max-w-7xl mx-auto px-6 py-16">
@@ -38,7 +38,7 @@ export function Footer() {
                 height={40}
                 className="h-10 w-auto mb-2"
               />
-              <p className="text-gold-400 text-sm font-medium">
+              <p className="text-yalla-gold-400 text-sm font-medium">
                 {language === 'en' ? 'Luxury London Guide' : 'دليل لندن الفاخر'}
               </p>
             </div>
@@ -56,7 +56,7 @@ export function Footer() {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-lg bg-burgundy-800 hover:bg-gold-400 text-cream-200 hover:text-burgundy-900 flex items-center justify-center transition-all duration-300 hover:-translate-y-1"
+                  className="w-10 h-10 rounded-lg bg-london-800 hover:bg-yalla-gold-400 text-cream-200 hover:text-london-900 flex items-center justify-center transition-all duration-300 hover:-translate-y-1"
                   aria-label={language === 'ar' ? social.labelAr : social.label}
                 >
                   <social.icon size={18} />
@@ -68,7 +68,7 @@ export function Footer() {
           {/* Quick Links */}
           <div>
             <h4 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <span className="w-8 h-0.5 bg-gold-400" />
+              <span className="w-8 h-0.5 bg-yalla-gold-400" />
               {language === 'en' ? 'Explore' : 'استكشف'}
             </h4>
             <ul className="space-y-3">
@@ -82,9 +82,9 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-cream-300 hover:text-gold-400 transition-colors duration-300 flex items-center gap-2 group"
+                    className="text-cream-300 hover:text-yalla-gold-400 transition-colors duration-300 flex items-center gap-2 group"
                   >
-                    <span className="w-0 group-hover:w-2 h-0.5 bg-gold-400 transition-all duration-300" />
+                    <span className="w-0 group-hover:w-2 h-0.5 bg-yalla-gold-400 transition-all duration-300" />
                     {language === 'en' ? link.en : link.ar}
                   </Link>
                 </li>
@@ -95,7 +95,7 @@ export function Footer() {
           {/* Categories */}
           <div>
             <h4 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <span className="w-8 h-0.5 bg-gold-400" />
+              <span className="w-8 h-0.5 bg-yalla-gold-400" />
               {language === 'en' ? 'Categories' : 'التصنيفات'}
             </h4>
             <ul className="space-y-3">
@@ -109,9 +109,9 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-cream-300 hover:text-gold-400 transition-colors duration-300 flex items-center gap-2 group"
+                    className="text-cream-300 hover:text-yalla-gold-400 transition-colors duration-300 flex items-center gap-2 group"
                   >
-                    <span className="w-0 group-hover:w-2 h-0.5 bg-gold-400 transition-all duration-300" />
+                    <span className="w-0 group-hover:w-2 h-0.5 bg-yalla-gold-400 transition-all duration-300" />
                     {language === 'en' ? link.en : link.ar}
                   </Link>
                 </li>
@@ -122,7 +122,7 @@ export function Footer() {
           {/* Contact & Newsletter */}
           <div>
             <h4 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <span className="w-8 h-0.5 bg-gold-400" />
+              <span className="w-8 h-0.5 bg-yalla-gold-400" />
               {language === 'en' ? 'Stay Connected' : 'ابق على تواصل'}
             </h4>
 
@@ -130,19 +130,19 @@ export function Footer() {
             <div className="space-y-4 mb-6">
               <a
                 href="mailto:hello@yallalondon.com"
-                className="flex items-center gap-3 text-cream-300 hover:text-gold-400 transition-colors"
+                className="flex items-center gap-3 text-cream-300 hover:text-yalla-gold-400 transition-colors"
               >
-                <Mail size={18} className="text-gold-400" />
+                <Mail size={18} className="text-yalla-gold-400" />
                 <span>hello@yallalondon.com</span>
               </a>
               <div className="flex items-center gap-3 text-cream-300">
-                <MapPin size={18} className="text-gold-400" />
+                <MapPin size={18} className="text-yalla-gold-400" />
                 <span>{language === 'en' ? 'London, United Kingdom' : 'لندن، المملكة المتحدة'}</span>
               </div>
             </div>
 
             {/* Newsletter */}
-            <div className="bg-burgundy-800/50 rounded-xl p-4 border border-gold-400/10">
+            <div className="bg-london-800/50 rounded-xl p-4 border border-yalla-gold-400/10">
               <p className="text-sm text-cream-300 mb-3">
                 {language === 'en'
                   ? 'Subscribe to our newsletter for exclusive updates'
@@ -153,11 +153,11 @@ export function Footer() {
                 <input
                   type="email"
                   placeholder={language === 'en' ? 'Your email' : 'بريدك الإلكتروني'}
-                  className="flex-1 px-4 py-2 bg-burgundy-900 border border-gold-400/20 rounded-lg text-cream-100 placeholder:text-cream-500 focus:outline-none focus:border-gold-400 transition-colors text-sm"
+                  className="flex-1 px-4 py-2 bg-london-900 border border-yalla-gold-400/20 rounded-lg text-cream-100 placeholder:text-cream-500 focus:outline-none focus:border-yalla-gold-400 transition-colors text-sm"
                 />
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-gold-400 text-burgundy-900 rounded-lg font-medium hover:bg-gold-300 transition-colors"
+                  className="px-4 py-2 bg-yalla-gold-400 text-london-900 rounded-lg font-medium hover:bg-yalla-gold-300 transition-colors"
                 >
                   <Mail size={18} />
                 </button>
@@ -168,9 +168,9 @@ export function Footer() {
 
         {/* Decorative Divider */}
         <div className="flex items-center gap-4 my-8">
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gold-400/30 to-transparent" />
-          <div className="w-2 h-2 bg-gold-400 rotate-45" />
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gold-400/30 to-transparent" />
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yalla-gold-400/30 to-transparent" />
+          <div className="w-2 h-2 bg-yalla-gold-400 rotate-45" />
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yalla-gold-400/30 to-transparent" />
         </div>
 
         {/* Bottom Bar */}
@@ -179,15 +179,15 @@ export function Footer() {
             © {currentYear} Yalla London. {language === 'en' ? 'All rights reserved.' : 'جميع الحقوق محفوظة.'}
           </p>
           <div className="flex items-center gap-6 text-sm">
-            <Link href="/privacy" className="text-cream-400 hover:text-gold-400 transition-colors">
+            <Link href="/privacy" className="text-cream-400 hover:text-yalla-gold-400 transition-colors">
               {language === 'en' ? 'Privacy Policy' : 'سياسة الخصوصية'}
             </Link>
-            <Link href="/terms" className="text-cream-400 hover:text-gold-400 transition-colors">
+            <Link href="/terms" className="text-cream-400 hover:text-yalla-gold-400 transition-colors">
               {language === 'en' ? 'Terms of Use' : 'شروط الاستخدام'}
             </Link>
             <a
               href="mailto:legal@yalla-london.com"
-              className="text-cream-400 hover:text-gold-400 transition-colors"
+              className="text-cream-400 hover:text-yalla-gold-400 transition-colors"
             >
               {language === 'en' ? 'Legal' : 'القانونية'}
             </a>

@@ -62,26 +62,26 @@ export function Breadcrumbs({ items }: BreadcrumbProps) {
   }
 
   return (
-    <nav className="flex items-center space-x-1 text-sm text-gray-500 mb-6" aria-label="Breadcrumb">
+    <nav className="flex items-center space-x-1 text-sm text-stone mb-6" aria-label="Breadcrumb">
       <ol className="flex items-center space-x-1">
         {breadcrumbItems.map((item, index) => {
           const isLast = index === breadcrumbItems.length - 1;
-          
+
           return (
             <li key={item.url} className="flex items-center">
               {index > 0 && (
-                <ChevronRight className="w-4 h-4 mx-2 text-gray-400" aria-hidden="true" />
+                <ChevronRight className="w-4 h-4 mx-2 text-stone" aria-hidden="true" />
               )}
-              
+
               {isLast ? (
-                <span className="text-gray-900 font-medium" aria-current="page">
+                <span className="text-charcoal font-medium" aria-current="page">
                   {index === 0 && <Home className="w-4 h-4 mr-1 inline" />}
                   {item.name}
                 </span>
               ) : (
                 <Link
                   href={item.url}
-                  className="text-gray-500 hover:text-purple-600 transition-colors duration-200 flex items-center"
+                  className="text-stone hover:text-london-600 transition-colors duration-200 flex items-center"
                 >
                   {index === 0 && <Home className="w-4 h-4 mr-1" />}
                   {item.name}
@@ -116,11 +116,11 @@ export function EnhancedBreadcrumbs({
   const getSeparatorIcon = () => {
     switch (separator) {
       case 'slash':
-        return <span className="mx-2 text-gray-400">/</span>;
+        return <span className="mx-2 text-stone">/</span>;
       case 'arrow':
-        return <span className="mx-2 text-gray-400">→</span>;
+        return <span className="mx-2 text-stone">→</span>;
       default:
-        return <ChevronRight className="w-4 h-4 mx-2 text-gray-400" />;
+        return <ChevronRight className="w-4 h-4 mx-2 text-stone" />;
     }
   };
 
@@ -149,8 +149,8 @@ export function EnhancedBreadcrumbs({
               {index > 0 && getSeparatorIcon()}
               
               {isLast ? (
-                <span 
-                  className="text-gray-900 font-medium" 
+                <span
+                  className="text-charcoal font-medium"
                   aria-current="page"
                   itemProp="name"
                 >
@@ -160,7 +160,7 @@ export function EnhancedBreadcrumbs({
               ) : (
                 <Link
                   href={item.url}
-                  className="text-gray-500 hover:text-purple-600 transition-colors duration-200 flex items-center"
+                  className="text-stone hover:text-london-600 transition-colors duration-200 flex items-center"
                   itemProp="item"
                 >
                   <span itemProp="name">

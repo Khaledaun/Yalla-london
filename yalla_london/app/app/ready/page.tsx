@@ -95,13 +95,13 @@ export default function ReadyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-cream py-12">
       <div className="max-w-4xl mx-auto px-4">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl font-bold text-charcoal mb-4">
             🚀 Deployment Status
           </h1>
-          <p className="text-lg text-gray-600">
+          <p className="text-lg text-stone">
             Yalla London Application Health Check
           </p>
         </div>
@@ -131,21 +131,21 @@ export default function ReadyPage() {
           <CardContent>
             {loading ? (
               <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                <p className="mt-2 text-gray-600">Checking health status...</p>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-london-600 mx-auto"></div>
+                <p className="mt-2 text-stone">Checking health status...</p>
               </div>
             ) : healthStatus ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600">Environment</p>
+                  <p className="text-sm text-stone">Environment</p>
                   <p className="font-semibold capitalize">{healthStatus.environment}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Version</p>
+                  <p className="text-sm text-stone">Version</p>
                   <p className="font-semibold">{healthStatus.version || 'Unknown'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Last Checked</p>
+                  <p className="text-sm text-stone">Last Checked</p>
                   <p className="font-semibold">
                     {lastChecked?.toLocaleTimeString() || 'Never'}
                   </p>
@@ -180,7 +180,7 @@ export default function ReadyPage() {
                   /api/health
                 </Button>
                 {healthStatus && (
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-stone">
                     <p>Status: {healthStatus.ok ? '✅ Healthy' : '❌ Issues'}</p>
                     {healthStatus.uptime && (
                       <p>Uptime: {Math.round(healthStatus.uptime)}s</p>
@@ -209,7 +209,7 @@ export default function ReadyPage() {
                   /api/seo/health
                 </Button>
                 {seoHealthStatus && (
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-stone">
                     <p>Status: {seoHealthStatus.ok ? '✅ Ready' : '❌ Issues'}</p>
                     <p>SEO: {seoHealthStatus.seo.enabled ? '✅ Enabled' : '❌ Disabled'}</p>
                     <p>DB: {seoHealthStatus.seo.databaseConnected ? '✅ Connected' : '❌ Issues'}</p>
@@ -236,7 +236,7 @@ export default function ReadyPage() {
                   <h4 className="font-semibold mb-2">Feature Flags</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {Object.entries(seoHealthStatus.featureFlags).map(([flag, status]) => (
-                      <div key={flag} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div key={flag} className="flex items-center justify-between p-2 bg-cream rounded">
                         <span className="text-sm font-mono">{flag}</span>
                         <Badge variant={status.enabled ? 'default' : 'secondary'}>
                           {status.enabled ? 'ON' : 'OFF'}
@@ -261,10 +261,10 @@ export default function ReadyPage() {
                 {/* Recommendations */}
                 {seoHealthStatus.recommendations.length > 0 && (
                   <div>
-                    <h4 className="font-semibold mb-2 text-blue-600">Recommendations</h4>
+                    <h4 className="font-semibold mb-2 text-thames-500">Recommendations</h4>
                     <ul className="list-disc list-inside space-y-1">
                       {seoHealthStatus.recommendations.map((rec, index) => (
-                        <li key={index} className="text-sm text-blue-600">{rec}</li>
+                        <li key={index} className="text-sm text-thames-500">{rec}</li>
                       ))}
                     </ul>
                   </div>
@@ -275,7 +275,7 @@ export default function ReadyPage() {
         )}
 
         {/* Footer */}
-        <div className="text-center mt-8 text-gray-500">
+        <div className="text-center mt-8 text-stone">
           <p className="text-sm">
             Last updated: {lastChecked?.toLocaleString() || 'Never'} | 
             Environment: {healthStatus?.environment || 'Unknown'}

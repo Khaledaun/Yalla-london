@@ -32,12 +32,12 @@ export function DynamicHeader() {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-white/98 backdrop-blur-md shadow-luxury border-b border-gold-300/20'
+          ? 'bg-white/98 backdrop-blur-md shadow-luxury border-b border-yalla-gold-300/20'
           : 'bg-white/95 backdrop-blur-sm'
       }`}
     >
       {/* Decorative gold line at top */}
-      <div className="h-1 w-full bg-gradient-to-r from-transparent via-gold-400 to-transparent" />
+      <div className="h-1 w-full bg-gradient-to-r from-transparent via-yalla-gold-400 to-transparent" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-18 py-3">
@@ -59,13 +59,13 @@ export function DynamicHeader() {
               <Link
                 key={item.key}
                 href={item.href}
-                className="relative px-4 py-2 text-warm-charcoal font-medium transition-all duration-300 hover:text-burgundy-800 group"
+                className="relative px-4 py-2 text-charcoal font-medium transition-all duration-300 hover:text-london-800 group"
               >
                 <span className="relative z-10">
                   {language === 'en' ? item.labelEn : item.labelAr}
                 </span>
                 {/* Hover underline effect */}
-                <span className="absolute bottom-1 left-4 right-4 h-0.5 bg-gradient-to-r from-gold-400 to-gold-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+                <span className="absolute bottom-1 left-4 right-4 h-0.5 bg-gradient-to-r from-yalla-gold-400 to-yalla-gold-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
               </Link>
             ))}
           </nav>
@@ -77,16 +77,16 @@ export function DynamicHeader() {
               variant="ghost"
               size="sm"
               onClick={toggleLanguage}
-              className="hidden sm:flex items-center gap-2 text-warm-charcoal hover:text-burgundy-800 hover:bg-cream-100 rounded-lg transition-all"
+              className="hidden sm:flex items-center gap-2 text-charcoal hover:text-london-800 hover:bg-cream-100 rounded-lg transition-all"
             >
-              <Globe className="h-4 w-4 text-gold-500" />
+              <Globe className="h-4 w-4 text-yalla-gold-500" />
               <span className="font-medium">{language === 'en' ? 'العربية' : 'English'}</span>
             </Button>
 
             {/* CTA Button - Desktop */}
             <Link
               href="/contact"
-              className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-burgundy-800 text-white rounded-lg font-medium shadow-luxury hover:bg-burgundy-900 hover:shadow-elegant transition-all duration-300 hover:-translate-y-0.5"
+              className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-london-800 text-white rounded-lg font-medium shadow-luxury hover:bg-london-900 hover:shadow-elegant transition-all duration-300 hover:-translate-y-0.5"
             >
               <span>{language === 'en' ? 'Get in Touch' : 'تواصل معنا'}</span>
             </Link>
@@ -99,9 +99,9 @@ export function DynamicHeader() {
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               {isMenuOpen ? (
-                <X className="h-6 w-6 text-burgundy-800" />
+                <X className="h-6 w-6 text-london-800" />
               ) : (
-                <Menu className="h-6 w-6 text-burgundy-800" />
+                <Menu className="h-6 w-6 text-london-800" />
               )}
             </Button>
           </div>
@@ -113,16 +113,16 @@ export function DynamicHeader() {
             isMenuOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
           }`}
         >
-          <div className="py-4 space-y-1 border-t border-gold-200/30">
+          <div className="py-4 space-y-1 border-t border-yalla-gold-200/30">
             {navigation.map((item) => (
               <Link
                 key={item.key}
                 href={item.href}
-                className="flex items-center justify-between px-4 py-3 text-warm-charcoal hover:text-burgundy-800 hover:bg-cream-100 rounded-lg font-medium transition-all"
+                className="flex items-center justify-between px-4 py-3 text-charcoal hover:text-london-800 hover:bg-cream-100 rounded-lg font-medium transition-all"
                 onClick={() => setIsMenuOpen(false)}
               >
                 <span>{language === 'en' ? item.labelEn : item.labelAr}</span>
-                <ChevronDown className={`h-4 w-4 text-gold-500 ${isRTL ? 'rotate-90' : '-rotate-90'}`} />
+                <ChevronDown className={`h-4 w-4 text-yalla-gold-500 ${isRTL ? 'rotate-90' : '-rotate-90'}`} />
               </Link>
             ))}
 
@@ -132,9 +132,9 @@ export function DynamicHeader() {
                 toggleLanguage();
                 setIsMenuOpen(false);
               }}
-              className="flex items-center gap-3 w-full px-4 py-3 text-warm-charcoal hover:text-burgundy-800 hover:bg-cream-100 rounded-lg font-medium transition-all"
+              className="flex items-center gap-3 w-full px-4 py-3 text-charcoal hover:text-london-800 hover:bg-cream-100 rounded-lg font-medium transition-all"
             >
-              <Globe className="h-5 w-5 text-gold-500" />
+              <Globe className="h-5 w-5 text-yalla-gold-500" />
               <span>{language === 'en' ? 'العربية' : 'English'}</span>
             </button>
 
@@ -142,7 +142,7 @@ export function DynamicHeader() {
             <div className="pt-3 px-4">
               <Link
                 href="/contact"
-                className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-burgundy-800 text-white rounded-lg font-medium shadow-luxury hover:bg-burgundy-900 transition-all"
+                className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-london-800 text-white rounded-lg font-medium shadow-luxury hover:bg-london-900 transition-all"
                 onClick={() => setIsMenuOpen(false)}
               >
                 <span>{language === 'en' ? 'Get in Touch' : 'تواصل معنا'}</span>

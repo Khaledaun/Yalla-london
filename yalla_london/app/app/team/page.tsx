@@ -150,10 +150,10 @@ export default function TeamPage() {
   return (
     <div className={`min-h-screen ${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Hero Section */}
-      <section className="relative py-20 bg-gradient-to-br from-purple-900 via-purple-800 to-yellow-600 text-white overflow-hidden">
+      <section className="relative py-20 bg-gradient-to-br from-charcoal via-london-900 to-yalla-gold-500 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-yellow-500 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500 rounded-full blur-3xl" />
+          <div className="absolute top-0 left-0 w-96 h-96 bg-yalla-gold-500 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-london-500 rounded-full blur-3xl" />
         </div>
 
         <div className="relative max-w-6xl mx-auto px-6">
@@ -164,13 +164,13 @@ export default function TeamPage() {
             className="text-center"
           >
             <div className="flex items-center justify-center gap-3 mb-6">
-              <Sparkles className="h-8 w-8 text-yellow-400" />
+              <Sparkles className="h-8 w-8 text-yalla-gold-400" />
               <h1 className="text-5xl md:text-6xl font-display font-bold">
                 {language === 'en' ? 'Our Team' : 'فريقنا'}
               </h1>
-              <Sparkles className="h-8 w-8 text-yellow-400" />
+              <Sparkles className="h-8 w-8 text-yalla-gold-400" />
             </div>
-            <p className="text-xl md:text-2xl text-purple-100 max-w-3xl mx-auto">
+            <p className="text-xl md:text-2xl text-london-100 max-w-3xl mx-auto">
               {language === 'en'
                 ? 'World-class experts passionate about creating exceptional experiences'
                 : 'خبراء عالميون متحمسون لخلق تجارب استثنائية'}
@@ -188,7 +188,7 @@ export default function TeamPage() {
                 <TabsTrigger
                   key={cat.value}
                   value={cat.value}
-                  className="data-[state=active]:bg-purple-800 data-[state=active]:text-white flex items-center gap-2 px-4 py-2"
+                  className="data-[state=active]:bg-london-600 data-[state=active]:text-white flex items-center gap-2 px-4 py-2"
                 >
                   {cat.icon}
                   <span className="hidden sm:inline">
@@ -203,7 +203,7 @@ export default function TeamPage() {
 
       {/* Featured Team Section */}
       {featuredMembers.length > 0 && activeCategory === 'all' && (
-        <section className="py-16 bg-gray-50">
+        <section className="py-16 bg-cream">
           <div className="max-w-6xl mx-auto px-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -214,7 +214,7 @@ export default function TeamPage() {
               <h2 className="text-3xl font-display font-bold gradient-text mb-4">
                 {language === 'en' ? 'Featured Experts' : 'الخبراء المميزون'}
               </h2>
-              <p className="text-gray-600">
+              <p className="text-stone">
                 {language === 'en'
                   ? 'Meet our leading specialists and thought leaders'
                   : 'تعرف على متخصصينا الرائدين وقادة الفكر'}
@@ -233,7 +233,7 @@ export default function TeamPage() {
                   <Link href={`/team/${member.slug}`}>
                     <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 border-0 luxury-shadow h-full">
                       {/* Cover Image */}
-                      <div className="relative h-48 bg-gradient-to-br from-purple-600 to-yellow-500">
+                      <div className="relative h-48 bg-gradient-to-br from-london-600 to-yalla-gold-500">
                         {member.cover_image_url && (
                           <Image
                             src={member.cover_image_url}
@@ -243,7 +243,7 @@ export default function TeamPage() {
                           />
                         )}
                         <div className="absolute top-4 right-4">
-                          <Badge className="bg-yellow-500 text-gray-900">
+                          <Badge className="bg-yalla-gold-500 text-charcoal">
                             <Star className="h-3 w-3 mr-1" />
                             {language === 'en' ? 'Featured' : 'مميز'}
                           </Badge>
@@ -254,7 +254,7 @@ export default function TeamPage() {
                       <div className="relative -mt-12 px-6">
                         <Avatar className="h-24 w-24 border-4 border-white shadow-lg">
                           <AvatarImage src={member.avatar_url || undefined} />
-                          <AvatarFallback className="text-2xl bg-purple-100 text-purple-800">
+                          <AvatarFallback className="text-2xl bg-london-100 text-london-600">
                             {getInitials(member.name_en)}
                           </AvatarFallback>
                         </Avatar>
@@ -262,7 +262,7 @@ export default function TeamPage() {
 
                       <CardContent className="p-6 pt-4">
                         <h3 className="text-xl font-bold mb-1">{getName(member)}</h3>
-                        <p className="text-purple-600 font-medium mb-3">{getTitle(member)}</p>
+                        <p className="text-london-600 font-medium mb-3">{getTitle(member)}</p>
 
                         {/* Primary Skills */}
                         <div className="flex flex-wrap gap-2 mb-4">
@@ -277,7 +277,7 @@ export default function TeamPage() {
                             ))}
                         </div>
 
-                        <p className="text-gray-600 text-sm line-clamp-2 mb-4">
+                        <p className="text-stone text-sm line-clamp-2 mb-4">
                           {getBio(member)}
                         </p>
 
@@ -290,7 +290,7 @@ export default function TeamPage() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="text-gray-400 hover:text-blue-600 transition-colors"
+                                className="text-stone hover:text-thames-500 transition-colors"
                               >
                                 <Linkedin className="h-4 w-4" />
                               </a>
@@ -301,14 +301,14 @@ export default function TeamPage() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="text-gray-400 hover:text-sky-500 transition-colors"
+                                className="text-stone hover:text-thames-500 transition-colors"
                               >
                                 <Twitter className="h-4 w-4" />
                               </a>
                             )}
                           </div>
 
-                          <span className="text-purple-600 text-sm font-medium group-hover:underline flex items-center gap-1">
+                          <span className="text-london-600 text-sm font-medium group-hover:underline flex items-center gap-1">
                             {language === 'en' ? 'View Profile' : 'عرض الملف'}
                             <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                           </span>
@@ -338,7 +338,7 @@ export default function TeamPage() {
                 ]}{' '}
                 {language === 'en' ? 'Experts' : 'خبراء'}
               </h2>
-              <p className="text-gray-600">
+              <p className="text-stone">
                 {filteredMembers.length}{' '}
                 {language === 'en' ? 'team members' : 'عضو في الفريق'}
               </p>
@@ -360,15 +360,15 @@ export default function TeamPage() {
 
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600" />
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-london-600" />
             </div>
           ) : filteredMembers.length === 0 ? (
             <div className="text-center py-12">
-              <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <Users className="mx-auto h-12 w-12 text-stone mb-4" />
+              <h3 className="text-lg font-medium text-charcoal mb-2">
                 {language === 'en' ? 'No team members found' : 'لم يتم العثور على أعضاء'}
               </h3>
-              <p className="text-gray-500">
+              <p className="text-stone">
                 {language === 'en'
                   ? 'Try selecting a different category'
                   : 'حاول اختيار فئة مختلفة'}
@@ -391,24 +391,24 @@ export default function TeamPage() {
                     <Card className="group hover:shadow-lg transition-all duration-300 h-full">
                       <CardContent className="p-6">
                         <div className="flex flex-col items-center text-center">
-                          <Avatar className="h-20 w-20 mb-4 border-2 border-purple-100 group-hover:border-purple-300 transition-colors">
+                          <Avatar className="h-20 w-20 mb-4 border-2 border-london-100 group-hover:border-london-300 transition-colors">
                             <AvatarImage src={member.avatar_url || undefined} />
-                            <AvatarFallback className="text-lg bg-purple-100 text-purple-800">
+                            <AvatarFallback className="text-lg bg-london-100 text-london-600">
                               {getInitials(member.name_en)}
                             </AvatarFallback>
                           </Avatar>
 
                           {member.is_featured && (
-                            <Badge className="mb-2 bg-yellow-100 text-yellow-800">
+                            <Badge className="mb-2 bg-yalla-gold-100 text-yalla-gold-800">
                               <Star className="h-3 w-3 mr-1" />
                               {language === 'en' ? 'Featured' : 'مميز'}
                             </Badge>
                           )}
 
-                          <h3 className="font-bold mb-1 group-hover:text-purple-600 transition-colors">
+                          <h3 className="font-bold mb-1 group-hover:text-london-600 transition-colors">
                             {getName(member)}
                           </h3>
-                          <p className="text-sm text-gray-600 mb-3">{getTitle(member)}</p>
+                          <p className="text-sm text-stone mb-3">{getTitle(member)}</p>
 
                           {/* Skills */}
                           <div className="flex flex-wrap justify-center gap-1">
@@ -427,13 +427,13 @@ export default function TeamPage() {
                           {/* Social Icons */}
                           <div className="flex items-center gap-2 mt-4">
                             {member.linkedin_url && (
-                              <Linkedin className="h-4 w-4 text-gray-400" />
+                              <Linkedin className="h-4 w-4 text-stone" />
                             )}
                             {member.twitter_url && (
-                              <Twitter className="h-4 w-4 text-gray-400" />
+                              <Twitter className="h-4 w-4 text-stone" />
                             )}
                             {member.instagram_url && (
-                              <Instagram className="h-4 w-4 text-gray-400" />
+                              <Instagram className="h-4 w-4 text-stone" />
                             )}
                           </div>
                         </div>
@@ -448,7 +448,7 @@ export default function TeamPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-br from-purple-900 to-purple-800 text-white">
+      <section className="py-16 bg-gradient-to-br from-charcoal to-london-700 text-white">
         <div className="max-w-4xl mx-auto text-center px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -458,12 +458,12 @@ export default function TeamPage() {
             <h2 className="text-3xl font-display font-bold mb-4">
               {language === 'en' ? 'Join Our Team' : 'انضم إلى فريقنا'}
             </h2>
-            <p className="text-purple-100 mb-8">
+            <p className="text-london-100 mb-8">
               {language === 'en'
                 ? "We're always looking for talented individuals to join our mission"
                 : 'نحن نبحث دائمًا عن أفراد موهوبين للانضمام إلى مهمتنا'}
             </p>
-            <Button asChild size="lg" className="bg-yellow-500 text-gray-900 hover:bg-yellow-400">
+            <Button asChild size="lg" className="bg-yalla-gold-500 text-charcoal hover:bg-yalla-gold-400">
               <a href="mailto:careers@yalla-london.com">
                 <Mail className="mr-2 h-5 w-5" />
                 {language === 'en' ? 'Contact Us' : 'تواصل معنا'}

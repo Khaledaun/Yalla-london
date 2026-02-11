@@ -77,7 +77,7 @@ export function TrustBadges({
           <Lock className="h-4 w-4" />
           <span>{t.secureCheckout}</span>
         </div>
-        <div className="flex items-center gap-1 text-gray-500 text-sm">
+        <div className="flex items-center gap-1 text-stone text-sm">
           <Shield className="h-4 w-4" />
           <span>{t.sslEncrypted}</span>
         </div>
@@ -133,17 +133,17 @@ export function TrustBadges({
 
       {/* Payment Methods */}
       {showPayments && (
-        <div className="border-t border-gray-100 pt-6">
-          <p className="text-center text-sm text-gray-500 mb-4">{t.paymentMethods}</p>
+        <div className="border-t border-sand pt-6">
+          <p className="text-center text-sm text-stone mb-4">{t.paymentMethods}</p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             {PAYMENT_METHODS.map((method) => (
               <div
                 key={method.name}
-                className="w-12 h-8 bg-white border border-gray-200 rounded flex items-center justify-center"
+                className="w-12 h-8 bg-white border border-sand rounded flex items-center justify-center"
                 title={method.alt}
               >
                 {/* Using placeholder styling since actual SVGs might not exist */}
-                <span className="text-xs font-medium text-gray-400">{method.name.slice(0, 2)}</span>
+                <span className="text-xs font-medium text-stone">{method.name.slice(0, 2)}</span>
               </div>
             ))}
           </div>
@@ -152,8 +152,8 @@ export function TrustBadges({
 
       {/* Partner Logos */}
       {showPartners && (
-        <div className="border-t border-gray-100 pt-6">
-          <p className="text-center text-sm text-gray-500 mb-4">{t.trustedPartners}</p>
+        <div className="border-t border-sand pt-6">
+          <p className="text-center text-sm text-stone mb-4">{t.trustedPartners}</p>
           <div className="flex flex-wrap items-center justify-center gap-6">
             {PARTNER_LOGOS.map((partner) => (
               <div
@@ -161,7 +161,7 @@ export function TrustBadges({
                 className="grayscale hover:grayscale-0 transition-all opacity-60 hover:opacity-100"
               >
                 <div className="h-8 flex items-center">
-                  <span className="text-sm font-medium text-gray-500">{partner.name}</span>
+                  <span className="text-sm font-medium text-stone">{partner.name}</span>
                 </div>
               </div>
             ))}
@@ -177,7 +177,7 @@ export function TrustBadges({
  */
 function TrustBadge({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
-    <div className="flex items-center gap-2 text-gray-600">
+    <div className="flex items-center gap-2 text-stone">
       <span className="text-green-600">{icon}</span>
       <span className="text-sm font-medium">{text}</span>
     </div>
@@ -202,8 +202,8 @@ function SecurityBadge({
         {icon}
       </div>
       <div>
-        <div className="font-semibold text-gray-900">{title}</div>
-        <div className="text-sm text-gray-500">{description}</div>
+        <div className="font-semibold text-charcoal">{title}</div>
+        <div className="text-sm text-stone">{description}</div>
       </div>
     </div>
   );
@@ -219,33 +219,33 @@ export function FooterTrustStrip({ locale = 'en' }: { locale?: 'en' | 'ar' }) {
 
   return (
     <div
-      className="bg-gray-50 border-y border-gray-100 py-6"
+      className="bg-cream border-y border-sand py-6"
       dir={isArabic ? 'rtl' : 'ltr'}
     >
       <div className="max-w-6xl mx-auto px-6">
         <div className="flex flex-wrap items-center justify-center gap-8">
-          <div className="flex items-center gap-2 text-gray-600">
+          <div className="flex items-center gap-2 text-stone">
             <Lock className="h-5 w-5 text-green-600" />
             <span className="text-sm">{isArabic ? 'دفع آمن 100%' : '100% Secure Payment'}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-gray-600">
+          <div className="flex items-center gap-2 text-stone">
             <CheckCircle className="h-5 w-5 text-green-600" />
             <span className="text-sm">{isArabic ? 'ضمان أفضل سعر' : 'Best Price Guarantee'}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-gray-600">
-            <Star className="h-5 w-5 text-yellow-500" />
+          <div className="flex items-center gap-2 text-stone">
+            <Star className="h-5 w-5 text-yalla-gold-500" />
             <span className="text-sm">{isArabic ? 'تقييم 4.9/5' : '4.9/5 Rating'}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-gray-600">
-            <Globe className="h-5 w-5 text-blue-600" />
+          <div className="flex items-center gap-2 text-stone">
+            <Globe className="h-5 w-5 text-thames-600" />
             <span className="text-sm">{isArabic ? 'خدمة عربي/إنجليزي' : 'Arabic/English Support'}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-gray-600">
-            <Headphones className="h-5 w-5 text-purple-600" />
+          <div className="flex items-center gap-2 text-stone">
+            <Headphones className="h-5 w-5 text-london-600" />
             <span className="text-sm">{isArabic ? 'دعم 24/7' : '24/7 Support'}</span>
           </div>
         </div>

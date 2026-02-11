@@ -129,15 +129,15 @@ export function SocialProof({
             <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500" />
           </span>
           <span className="font-semibold text-green-600">{displayStats.active_viewers}</span>
-          <span className="text-gray-600">{t.viewingNow}</span>
+          <span className="text-stone">{t.viewingNow}</span>
         </motion.div>
       )}
 
       {/* Weekly Views */}
       {showViewers && displayStats.views_week > 0 && (
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Eye className="h-4 w-4 text-purple-500" />
-          <span className="font-semibold text-gray-900">{displayStats.views_week.toLocaleString()}</span>
+        <div className="flex items-center gap-2 text-sm text-stone">
+          <Eye className="h-4 w-4 text-london-500" />
+          <span className="font-semibold text-charcoal">{displayStats.views_week.toLocaleString()}</span>
           <span>{t.viewedThisWeek}</span>
         </div>
       )}

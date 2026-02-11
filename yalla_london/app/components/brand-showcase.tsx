@@ -30,10 +30,10 @@ export function BrandShowcase() {
             <h2 className="text-3xl font-bold gradient-brand-text mb-2">
               {translations.siteName}
             </h2>
-            <p className="text-lg text-gray-600 mb-4">
+            <p className="text-lg text-stone mb-4">
               {translations.tagline}
             </p>
-            <p className="text-gray-600">
+            <p className="text-stone">
               {translations.description}
             </p>
           </div>
@@ -60,7 +60,7 @@ export function BrandShowcase() {
           </div>
 
           <div className="text-center">
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-stone mb-4">
               Current Brand: <span className="font-semibold">{config.businessType}</span>
             </p>
           </div>
@@ -78,15 +78,15 @@ export function BrandShowcase() {
                 key={key}
                 className={`p-4 border rounded-lg cursor-pointer transition-all ${
                   selectedBrand === key 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-london-500 bg-london-50'
+                    : 'border-sand hover:border-stone'
                 }`}
                 onClick={() => setSelectedBrand(key as BusinessType)}
               >
                 <div className="flex justify-between items-center">
                   <div>
                     <h3 className="font-semibold">{template.siteName}</h3>
-                    <p className="text-sm text-gray-600">{template.tagline}</p>
+                    <p className="text-sm text-stone">{template.tagline}</p>
                     <div className="flex space-x-2 mt-2">
                       <div 
                         className="w-4 h-4 rounded"

@@ -80,9 +80,9 @@ const CATEGORY_INFO: Record<
   string,
   { label_en: string; label_ar: string; icon: React.ReactNode; color: string }
 > = {
-  ENGINEERING: { label_en: 'Engineering', label_ar: 'الهندسة', icon: <Code className="h-5 w-5" />, color: 'bg-blue-500' },
-  AI_ML: { label_en: 'AI & Machine Learning', label_ar: 'الذكاء الاصطناعي', icon: <Brain className="h-5 w-5" />, color: 'bg-purple-500' },
-  DESIGN: { label_en: 'Design', label_ar: 'التصميم', icon: <Palette className="h-5 w-5" />, color: 'bg-pink-500' },
+  ENGINEERING: { label_en: 'Engineering', label_ar: 'الهندسة', icon: <Code className="h-5 w-5" />, color: 'bg-thames-500' },
+  AI_ML: { label_en: 'AI & Machine Learning', label_ar: 'الذكاء الاصطناعي', icon: <Brain className="h-5 w-5" />, color: 'bg-london-500' },
+  DESIGN: { label_en: 'Design', label_ar: 'التصميم', icon: <Palette className="h-5 w-5" />, color: 'bg-london-400' },
   DATA: { label_en: 'Data', label_ar: 'البيانات', icon: <BarChart3 className="h-5 w-5" />, color: 'bg-green-500' },
   CONTENT: { label_en: 'Content', label_ar: 'المحتوى', icon: <PenTool className="h-5 w-5" />, color: 'bg-orange-500' },
   MARKETING: { label_en: 'Marketing', label_ar: 'التسويق', icon: <Megaphone className="h-5 w-5" />, color: 'bg-red-500' },
@@ -92,10 +92,10 @@ const CATEGORY_INFO: Record<
 }
 
 const PROFICIENCY_INFO: Record<string, { label_en: string; label_ar: string; icon: React.ReactNode; color: string }> = {
-  LEARNING: { label_en: 'Learning', label_ar: 'يتعلم', icon: <BookOpen className="h-4 w-4" />, color: 'bg-yellow-500' },
-  PROFICIENT: { label_en: 'Proficient', label_ar: 'متمكن', icon: <GraduationCap className="h-4 w-4" />, color: 'bg-blue-500' },
+  LEARNING: { label_en: 'Learning', label_ar: 'يتعلم', icon: <BookOpen className="h-4 w-4" />, color: 'bg-yalla-gold-500' },
+  PROFICIENT: { label_en: 'Proficient', label_ar: 'متمكن', icon: <GraduationCap className="h-4 w-4" />, color: 'bg-thames-500' },
   EXPERT: { label_en: 'Expert', label_ar: 'خبير', icon: <Trophy className="h-4 w-4" />, color: 'bg-green-500' },
-  THOUGHT_LEADER: { label_en: 'Thought Leader', label_ar: 'قائد فكري', icon: <Lightbulb className="h-4 w-4" />, color: 'bg-purple-500' },
+  THOUGHT_LEADER: { label_en: 'Thought Leader', label_ar: 'قائد فكري', icon: <Lightbulb className="h-4 w-4" />, color: 'bg-london-500' },
 }
 
 export default function TeamMemberProfilePage() {
@@ -145,7 +145,7 @@ export default function TeamMemberProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600" />
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-london-600" />
       </div>
     )
   }
@@ -154,11 +154,11 @@ export default function TeamMemberProfilePage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Users className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+          <Users className="mx-auto h-16 w-16 text-stone mb-4" />
           <h1 className="text-2xl font-bold mb-2">
             {language === 'en' ? 'Team member not found' : 'لم يتم العثور على العضو'}
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-stone mb-6">
             {language === 'en'
               ? 'The team member you are looking for does not exist.'
               : 'العضو الذي تبحث عنه غير موجود.'}
@@ -204,7 +204,7 @@ export default function TeamMemberProfilePage() {
       {/* Hero Section with Cover Image */}
       <section className="relative">
         {/* Cover Image */}
-        <div className="h-64 md:h-80 bg-gradient-to-br from-purple-600 to-yellow-500 relative overflow-hidden">
+        <div className="h-64 md:h-80 bg-gradient-to-br from-london-600 to-yalla-gold-500 relative overflow-hidden">
           {member.cover_image_url && (
             <Image
               src={member.cover_image_url}
@@ -214,7 +214,7 @@ export default function TeamMemberProfilePage() {
               priority
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 to-transparent" />
         </div>
 
         {/* Back Button */}
@@ -232,7 +232,7 @@ export default function TeamMemberProfilePage() {
           <div className="absolute bottom-0 transform translate-y-1/2 flex items-end gap-6">
             <Avatar className="h-32 w-32 md:h-40 md:w-40 border-4 border-white shadow-xl">
               <AvatarImage src={member.avatar_url || undefined} />
-              <AvatarFallback className="text-4xl bg-purple-100 text-purple-800">
+              <AvatarFallback className="text-4xl bg-london-100 text-london-600">
                 {getInitials(member.name_en)}
               </AvatarFallback>
             </Avatar>
@@ -252,13 +252,13 @@ export default function TeamMemberProfilePage() {
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-3xl md:text-4xl font-display font-bold">{getName()}</h1>
               {member.is_featured && (
-                <Badge className="bg-yellow-500 text-gray-900">
+                <Badge className="bg-yalla-gold-500 text-charcoal">
                   <Star className="h-3 w-3 mr-1" />
                   {language === 'en' ? 'Featured' : 'مميز'}
                 </Badge>
               )}
             </div>
-            <p className="text-xl text-purple-600 font-medium mb-4">{getTitle()}</p>
+            <p className="text-xl text-london-600 font-medium mb-4">{getTitle()}</p>
 
             {/* Social Links */}
             <div className="flex items-center gap-4">
@@ -267,7 +267,7 @@ export default function TeamMemberProfilePage() {
                   href={member.linkedin_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-blue-600 transition-colors"
+                  className="text-stone hover:text-thames-500 transition-colors"
                 >
                   <Linkedin className="h-6 w-6" />
                 </a>
@@ -277,7 +277,7 @@ export default function TeamMemberProfilePage() {
                   href={member.twitter_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-sky-500 transition-colors"
+                  className="text-stone hover:text-thames-500 transition-colors"
                 >
                   <Twitter className="h-6 w-6" />
                 </a>
@@ -287,7 +287,7 @@ export default function TeamMemberProfilePage() {
                   href={member.instagram_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-pink-500 transition-colors"
+                  className="text-stone hover:text-london-400 transition-colors"
                 >
                   <Instagram className="h-6 w-6" />
                 </a>
@@ -297,7 +297,7 @@ export default function TeamMemberProfilePage() {
                   href={member.website_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-stone hover:text-stone transition-colors"
                 >
                   <Globe className="h-6 w-6" />
                 </a>
@@ -305,7 +305,7 @@ export default function TeamMemberProfilePage() {
               {member.email_public && (
                 <a
                   href={`mailto:${member.email_public}`}
-                  className="text-gray-400 hover:text-purple-600 transition-colors"
+                  className="text-stone hover:text-london-600 transition-colors"
                 >
                   <Mail className="h-6 w-6" />
                 </a>
@@ -322,14 +322,14 @@ export default function TeamMemberProfilePage() {
               className="mb-8"
             >
               <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <Award className="h-5 w-5 text-yellow-500" />
+                <Award className="h-5 w-5 text-yalla-gold-500" />
                 {language === 'en' ? 'Primary Expertise' : 'الخبرات الرئيسية'}
               </h2>
               <div className="flex flex-wrap gap-3">
                 {primarySkills.map((exp) => (
                   <Badge
                     key={exp.id}
-                    className={`${CATEGORY_INFO[exp.skill.category]?.color || 'bg-gray-500'} text-white px-4 py-2 text-sm`}
+                    className={`${CATEGORY_INFO[exp.skill.category]?.color || 'bg-stone'} text-white px-4 py-2 text-sm`}
                   >
                     {exp.skill.icon && <span className="mr-2">{exp.skill.icon}</span>}
                     {getSkillName(exp.skill)}
@@ -353,8 +353,8 @@ export default function TeamMemberProfilePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="prose prose-purple max-w-none">
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{getBio()}</p>
+                <div className="prose max-w-none">
+                  <p className="text-stone leading-relaxed whitespace-pre-wrap">{getBio()}</p>
                 </div>
               </CardContent>
             </Card>
@@ -367,14 +367,14 @@ export default function TeamMemberProfilePage() {
             transition={{ delay: 0.3 }}
           >
             <h2 className="text-2xl font-display font-bold mb-6 flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-yellow-500" />
+              <Sparkles className="h-6 w-6 text-yalla-gold-500" />
               {language === 'en' ? 'Skills & Expertise' : 'المهارات والخبرات'}
             </h2>
 
             <div className="grid gap-6">
               {Object.entries(skillsByCategory).map(([category, skills]) => (
-                <Card key={category} className="overflow-hidden border-0 shadow-md">
-                  <div className={`${CATEGORY_INFO[category]?.color || 'bg-gray-500'} p-4`}>
+                <Card key={category} className="overflow-hidden border-0 shadow-card">
+                  <div className={`${CATEGORY_INFO[category]?.color || 'bg-stone'} p-4`}>
                     <h3 className="font-bold text-white flex items-center gap-2">
                       {CATEGORY_INFO[category]?.icon}
                       {getCategoryLabel(category)}
@@ -385,7 +385,7 @@ export default function TeamMemberProfilePage() {
                       {skills.map((exp) => (
                         <div
                           key={exp.id}
-                          className="flex items-start gap-4 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                          className="flex items-start gap-4 p-3 rounded-lg bg-cream hover:bg-cream-100 transition-colors"
                         >
                           {exp.skill.icon && (
                             <span className="text-2xl">{exp.skill.icon}</span>
@@ -394,25 +394,25 @@ export default function TeamMemberProfilePage() {
                             <div className="flex items-center gap-2 flex-wrap mb-1">
                               <span className="font-medium">{getSkillName(exp.skill)}</span>
                               {exp.is_primary && (
-                                <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                                <Badge variant="outline" className="text-yalla-gold-600 border-yalla-gold-600">
                                   <Star className="h-3 w-3 mr-1" />
                                   {language === 'en' ? 'Primary' : 'رئيسية'}
                                 </Badge>
                               )}
                             </div>
                             <div className="flex items-center gap-3 text-sm">
-                              <Badge className={`${PROFICIENCY_INFO[exp.proficiency]?.color || 'bg-gray-500'} text-white`}>
+                              <Badge className={`${PROFICIENCY_INFO[exp.proficiency]?.color || 'bg-stone'} text-white`}>
                                 {PROFICIENCY_INFO[exp.proficiency]?.icon}
                                 <span className="ml-1">{getProficiencyLabel(exp.proficiency)}</span>
                               </Badge>
                               {exp.years_experience && (
-                                <span className="text-gray-500">
+                                <span className="text-stone">
                                   {exp.years_experience} {language === 'en' ? 'years' : 'سنوات'}
                                 </span>
                               )}
                             </div>
                             {exp.description_en && (
-                              <p className="text-sm text-gray-600 mt-2">
+                              <p className="text-sm text-stone mt-2">
                                 {language === 'ar' && exp.description_ar
                                   ? exp.description_ar
                                   : exp.description_en}
@@ -436,17 +436,17 @@ export default function TeamMemberProfilePage() {
               transition={{ delay: 0.4 }}
               className="mt-12"
             >
-              <Card className="bg-gradient-to-br from-purple-600 to-purple-800 text-white border-0">
+              <Card className="bg-gradient-to-br from-london-600 to-london-700 text-white border-0">
                 <CardContent className="p-8 text-center">
                   <h3 className="text-2xl font-bold mb-2">
                     {language === 'en' ? `Get in touch with ${member.name_en.split(' ')[0]}` : `تواصل مع ${member.name_ar?.split(' ')[0] || member.name_en.split(' ')[0]}`}
                   </h3>
-                  <p className="text-purple-100 mb-6">
+                  <p className="text-london-100 mb-6">
                     {language === 'en'
                       ? 'Have questions or want to collaborate? Reach out directly.'
                       : 'لديك أسئلة أو تريد التعاون؟ تواصل مباشرة.'}
                   </p>
-                  <Button asChild size="lg" className="bg-white text-purple-800 hover:bg-gray-100">
+                  <Button asChild size="lg" className="bg-white text-london-600 hover:bg-cream-100">
                     <a href={`mailto:${member.email_public}`}>
                       <Mail className="mr-2 h-5 w-5" />
                       {language === 'en' ? 'Send Email' : 'أرسل بريدًا'}

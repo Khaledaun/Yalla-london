@@ -24,7 +24,7 @@ export default function OfflinePage() {
           <div className="mx-auto w-16 h-16 bg-cream-100 rounded-full flex items-center justify-center mb-6">
             <WifiOff className="h-8 w-8 text-stone" />
           </div>
-          <h1 className="text-3xl font-bold text-charcoal mb-4">
+          <h1 className="text-2xl sm:text-3xl font-display font-bold text-charcoal mb-4">
             You're offline
           </h1>
           <p className="text-stone mb-8">
@@ -47,7 +47,7 @@ export default function OfflinePage() {
         </div>
 
         <div className="mt-8 pt-8 border-t border-sand">
-          <h3 className="font-semibold text-charcoal mb-3">Available Offline:</h3>
+          <h3 className="font-display font-semibold text-charcoal mb-3">Available Offline:</h3>
           <div className="space-y-2 text-left">
             <Link href="/" className="block text-sm text-thames-500 hover:text-thames-700">
               • Home page

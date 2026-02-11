@@ -14,9 +14,9 @@ export default function NotFound() {
     <div className={`min-h-screen flex items-center justify-center bg-gradient-to-br from-cream to-cream-100 ${isRTL ? 'rtl' : 'ltr'}`}>
       <div className="max-w-md w-full mx-auto px-6 text-center">
         <div className="mb-8">
-          <h1 className="text-9xl font-bold text-sand select-none">404</h1>
+          <h1 className="text-8xl sm:text-9xl font-display font-bold text-sand select-none">404</h1>
           <div className="relative -mt-8">
-            <h2 className="text-2xl font-bold text-charcoal mb-4">
+            <h2 className="text-xl sm:text-2xl font-display font-bold text-charcoal mb-4">
               {t('pageNotFound') || 'Page Not Found'}
             </h2>
             <p className="text-stone mb-8">

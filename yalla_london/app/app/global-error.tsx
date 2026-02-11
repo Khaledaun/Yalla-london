@@ -25,13 +25,13 @@ export default function GlobalError({
   return (
     <html>
       <body>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-red-100">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cream to-cream-100">
           <div className="max-w-md w-full mx-auto px-6 text-center">
             <div className="mb-8">
               <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
                 <AlertTriangle className="h-8 w-8 text-red-600" />
               </div>
-              <h1 className="text-3xl font-bold text-charcoal mb-4">
+              <h1 className="text-2xl sm:text-3xl font-bold text-charcoal mb-4">
                 Something went wrong
               </h1>
               <p className="text-stone mb-8">

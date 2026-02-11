@@ -14,10 +14,10 @@ export function Footer() {
   const currentYear = new Date().getFullYear()
 
   const socialLinks = [
-    { icon: Instagram, href: 'https://instagram.com/yallalondon', label: 'Instagram' },
-    { icon: Facebook, href: 'https://facebook.com/yallalondon', label: 'Facebook' },
-    { icon: Twitter, href: 'https://twitter.com/yallalondon', label: 'Twitter' },
-    { icon: Youtube, href: 'https://youtube.com/yallalondon', label: 'YouTube' },
+    { icon: Instagram, href: 'https://instagram.com/yallalondon', label: 'Instagram', labelAr: 'انستغرام' },
+    { icon: Facebook, href: 'https://facebook.com/yallalondon', label: 'Facebook', labelAr: 'فيسبوك' },
+    { icon: Twitter, href: 'https://twitter.com/yallalondon', label: 'Twitter', labelAr: 'تويتر' },
+    { icon: Youtube, href: 'https://youtube.com/yallalondon', label: 'YouTube', labelAr: 'يوتيوب' },
   ]
 
   return (
@@ -57,7 +57,7 @@ export function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-10 h-10 rounded-lg bg-burgundy-800 hover:bg-gold-400 text-cream-200 hover:text-burgundy-900 flex items-center justify-center transition-all duration-300 hover:-translate-y-1"
-                  aria-label={social.label}
+                  aria-label={language === 'ar' ? social.labelAr : social.label}
                 >
                   <social.icon size={18} />
                 </a>

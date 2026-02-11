@@ -238,7 +238,7 @@ export default function EventsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1 }}
         >
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6">
             {language === "en"
               ? "London Events & Tickets"
               : "\u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0648\u062a\u0630\u0627\u0643\u0631 \u0644\u0646\u062f\u0646"}
@@ -267,10 +267,10 @@ export default function EventsPage() {
 
       {/* Search & Filter Bar */}
       <section className="bg-white border-b sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6 py-4">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-4">
           <div className="flex flex-col md:flex-row gap-4 items-center">
             <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400`} />
               <Input
                 placeholder={
                   language === "en"
@@ -457,11 +457,11 @@ export default function EventsPage() {
                         </div>
                       )}
                       <div className="flex items-center justify-between mt-auto">
-                        <span className="text-lg font-bold text-purple-800">
+                        <span className="text-lg font-bold text-brand-primary">
                           {event.price}
                         </span>
                         <Button
-                          className="bg-purple-800 hover:bg-purple-900"
+                          className="bg-brand-primary hover:bg-[#5C0A23] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B1538]"
                           disabled={event.soldOut}
                           onClick={() => handleBooking(event)}
                         >

@@ -142,7 +142,7 @@ export default function AboutPage() {
                   }
                 </p>
               </div>
-              <Button asChild size="lg" className="bg-purple-800 hover:bg-purple-900">
+              <Button asChild size="lg" className="bg-brand-primary hover:bg-[#5C0A23] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B1538]">
                 <a href="mailto:hello@yalla-london.com">
                   <Mail className="mr-2 h-5 w-5" />
                   {language === 'en' ? 'Get in Touch' : 'تواصل معي'}
@@ -277,7 +277,7 @@ export default function AboutPage() {
       </section>
 
       {/* Contact CTA */}
-      <section className="py-20 bg-gradient-to-br from-purple-900 via-purple-800 to-yellow-600 text-white">
+      <section className="py-20 bg-gradient-to-br from-[#5C0A23] via-[#8B1538] to-[#D4AF37] text-white">
         <div className="max-w-4xl mx-auto text-center px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -291,13 +291,13 @@ export default function AboutPage() {
                 : 'دعونا نستكشف لندن معاً'
               }
             </h2>
-            <p className="text-xl mb-8 text-purple-100">
+            <p className="text-xl mb-8 text-amber-50/90">
               {language === 'en'
                 ? 'Have questions about London? Looking for personalized recommendations? I\'d love to help you discover this amazing city.'
                 : 'لديك أسئلة حول لندن؟ تبحث عن توصيات شخصية؟ أود أن أساعدك في اكتشاف هذه المدينة المذهلة.'
               }
             </p>
-            <Button asChild size="lg" className="bg-white text-purple-900 hover:bg-gray-100">
+            <Button asChild size="lg" className="bg-white text-[#5C0A23] hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
               <a href="mailto:hello@yalla-london.com">
                 <Mail className="mr-2 h-5 w-5" />
                 {language === 'en' ? 'Send a Message' : 'أرسل رسالة'}

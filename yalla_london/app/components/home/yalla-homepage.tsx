@@ -477,7 +477,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   const textOffset = scrollProgress * 120
 
   return (
-    <div className="min-h-screen bg-white" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: isRTL ? 'Cairo, sans-serif' : 'Plus Jakarta Sans, sans-serif' }}>
+    <div className={`min-h-screen bg-white ${isRTL ? 'font-cairo' : 'font-inter'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Language Toggle */}
       <div className={`fixed top-20 ${isRTL ? 'left-5' : 'right-5'} z-50 flex gap-0.5 bg-white p-1 rounded-lg shadow-md border border-gray-200`}>
         <button

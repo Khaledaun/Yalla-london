@@ -91,7 +91,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
   return (
     <div className={`py-12 ${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Header */}
-      <section className="bg-gradient-to-br from-purple-50 to-yellow-50 py-16">
+      <section className="bg-gradient-to-br from-[#FDF8F3] to-[#F5EDE4] py-16">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             className="text-center"
@@ -99,7 +99,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h1 className="text-5xl font-playfair font-bold gradient-text mb-4">
+            <h1 className="text-4xl sm:text-5xl font-playfair font-bold gradient-text mb-4">
               {t('blog')}
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Download, Check, AlertCircle, RefreshCw, ArrowLeft, FileText } from 'lucide-react'
@@ -19,6 +19,20 @@ interface DownloadInfo {
 }
 
 export default function DownloadPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-cream flex items-center justify-center p-6">
+        <div className="w-16 h-16 bg-cream-100 rounded-full flex items-center justify-center animate-pulse">
+          <RefreshCw className="w-8 h-8 text-stone animate-spin" />
+        </div>
+      </div>
+    }>
+      <DownloadPageContent />
+    </Suspense>
+  )
+}
+
+function DownloadPageContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
 

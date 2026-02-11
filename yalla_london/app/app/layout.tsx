@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Script from "next/script";
 import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
@@ -15,7 +16,6 @@ import { brandConfig } from "@/config/brand-config";
 export const metadata: Metadata = {
   title: `${brandConfig.siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
   description: brandConfig.description,
-  keywords: brandConfig.seo.keywords,
   authors: [{ name: brandConfig.seo.author }],
   creator: brandConfig.seo.author,
   publisher: brandConfig.seo.author,
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_GB",
     alternateLocale: "ar_SA",
-    url: process.env.NEXT_PUBLIC_SITE_URL || "https://example.com",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com",
     siteName: brandConfig.siteName,
     title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
     description: brandConfig.description,
@@ -61,6 +61,8 @@ export const metadata: Metadata = {
       "en-GB":
         process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com",
       "ar-SA": `${process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com"}/ar`,
+      "x-default":
+        process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com",
     },
   },
 };
@@ -108,14 +110,19 @@ export default function RootLayout({
             <ThemeProvider
               attribute="class"
               defaultTheme="light"
-              enableSystem={false}
+              enableSystem
               disableTransitionOnChange
             >
               <LanguageProvider>
-                <AnalyticsTracker />
+                <Suspense fallback={null}>
+                  <AnalyticsTracker />
+                </Suspense>
+                <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-white focus:text-charcoal focus:rounded focus:shadow-lg focus:text-sm focus:font-semibold">
+                  Skip to content
+                </a>
                 <div className="min-h-screen flex flex-col">
                   <DynamicHeader />
-                  <main className="flex-1 pt-16">{children}</main>
+                  <main id="main-content" className="flex-1 pt-16">{children}</main>
                   <Footer />
                 </div>
                 <CookieConsentBanner />
@@ -126,25 +133,28 @@ export default function RootLayout({
 
         {/* Google Analytics */}
         {(process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
-          process.env.GA4_MEASUREMENT_ID) && (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.GA4_MEASUREMENT_ID}`}
-              strategy="afterInteractive"
-            />
-            <Script id="google-analytics" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.GA4_MEASUREMENT_ID}', {
-                  page_title: document.title,
-                  page_location: window.location.href,
-                });
-              `}
-            </Script>
-          </>
-        )}
+          process.env.GA4_MEASUREMENT_ID) && (() => {
+          const gaId = (process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.GA4_MEASUREMENT_ID || '').trim();
+          return gaId ? (
+            <>
+              <Script
+                src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+                strategy="afterInteractive"
+              />
+              <Script id="google-analytics" strategy="afterInteractive">
+                {`
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${gaId}', {
+                    page_title: document.title,
+                    page_location: window.location.href,
+                  });
+                `}
+              </Script>
+            </>
+          ) : null;
+        })()}
 
         {/* Performance monitoring */}
         <script

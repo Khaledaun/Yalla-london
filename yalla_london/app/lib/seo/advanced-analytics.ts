@@ -12,7 +12,7 @@ export class AdvancedAnalytics {
   private language: 'en' | 'ar';
 
   constructor(language: 'en' | 'ar' = 'en') {
-    this.gaId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || '';
+    this.gaId = (process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || '').trim();
     this.language = language;
   }
 

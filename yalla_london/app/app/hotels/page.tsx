@@ -222,7 +222,7 @@ export default function HotelsPage() {
   const [selectedArea, setSelectedArea] = useState('All Areas')
 
   return (
-    <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: isRTL ? 'Cairo, sans-serif' : 'Plus Jakarta Sans, sans-serif' }}>
+    <div className={`min-h-screen bg-gray-50 ${isRTL ? 'font-cairo' : 'font-inter'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Navbar */}
       <div className="fixed top-0 left-0 right-0 z-50 flex justify-center p-4 pointer-events-none">
         <nav className="flex items-center justify-between px-6 py-3 bg-white/95 backdrop-blur-xl rounded-full shadow-lg w-full max-w-4xl pointer-events-auto border border-gray-100">
@@ -250,13 +250,13 @@ export default function HotelsPage() {
 
           {/* Search Bar */}
           <div className="max-w-xl mx-auto relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400`} />
             <input
               type="text"
               placeholder={t.search}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-[#E8634B]"
+              className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-[#E8634B]`}
             />
           </div>
         </div>
@@ -289,8 +289,8 @@ export default function HotelsPage() {
           {hotels[locale].map((hotel) => (
             <div key={hotel.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all group">
               <div className="relative h-56">
-                <Image src={hotel.image} alt={hotel.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                <span className="absolute top-3 left-3 px-3 py-1 bg-[#1A1F36] text-white text-xs font-semibold rounded-full">
+                <Image src={hotel.image} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} px-3 py-1 bg-[#1A1F36] text-white text-xs font-semibold rounded-full`}>
                   {hotel.badge}
                 </span>
               </div>
@@ -304,7 +304,7 @@ export default function HotelsPage() {
                 </div>
 
                 {/* Name & Location */}
-                <h3 className="text-xl font-bold text-[#1A1F36] mb-1">{hotel.name}</h3>
+                <h3 className="text-xl font-bold text-[#1A1F36] mb-1 line-clamp-2">{hotel.name}</h3>
                 <p className="text-sm text-gray-500 flex items-center gap-1 mb-4">
                   <MapPin className="w-4 h-4" /> {hotel.location}
                 </p>
@@ -324,7 +324,7 @@ export default function HotelsPage() {
                     <span className="text-2xl font-bold text-[#1A1F36]">£{hotel.price}</span>
                     <span className="text-sm text-gray-500">{t.perNight}</span>
                   </div>
-                  <button className="px-4 py-2 bg-[#E8634B] text-white text-sm font-medium rounded-lg hover:bg-[#d4543d] transition-colors">
+                  <button className="px-4 py-2 bg-[#E8634B] text-white text-sm font-medium rounded-lg hover:bg-[#d4543d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E8634B] transition-colors">
                     {t.viewDetails}
                   </button>
                 </div>

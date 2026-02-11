@@ -388,9 +388,10 @@ export default function EventsPage() {
                         }
                         alt={event.title[language] || event.title.en}
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover"
                       />
-                      <div className="absolute top-4 left-4 flex gap-2">
+                      <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} flex gap-2`}
                         <Badge
                           className={
                             categoryColors[event.category] ||
@@ -405,7 +406,7 @@ export default function EventsPage() {
                           </Badge>
                         )}
                       </div>
-                      <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full">
+                      <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full`}>
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                           <span className="text-sm font-medium text-gray-900">

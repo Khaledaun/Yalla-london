@@ -79,10 +79,11 @@ export default function AboutPage() {
             src={founderImages[1]}
             alt="Founder workspace"
             fill
+            sizes="100vw"
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-900/80 to-yellow-600/70" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#5C0A23]/85 to-[#D4AF37]/70" />
         </div>
         
         <div className="relative z-10 h-full flex items-center">
@@ -93,10 +94,10 @@ export default function AboutPage() {
               transition={{ duration: 0.8 }}
               className="max-w-2xl"
             >
-              <h1 className="text-5xl md:text-6xl font-playfair font-bold mb-6">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-playfair font-bold mb-6">
                 {t('founderTitle')}
               </h1>
-              <p className="text-xl md:text-2xl text-purple-100">
+              <p className="text-xl md:text-2xl text-amber-50/90">
                 {language === 'en'
                   ? 'Your personal guide to London\'s most exclusive experiences'
                   : 'دليلك الشخصي للتجارب الأكثر حصرية في لندن'

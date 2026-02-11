@@ -379,6 +379,12 @@
   [dir="rtl"] .link-animated::after {
     left: auto;
     right: 0;
+    /* Animate from the right side in RTL mode */
+    transform-origin: right;
+  }
+
+  [dir="rtl"] .link-animated:hover::after {
+    width: 100%;
   }
 }
 

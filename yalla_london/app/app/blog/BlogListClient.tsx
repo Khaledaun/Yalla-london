@@ -177,10 +177,11 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                         src={post.featured_image || '/images/placeholder-blog.jpg'}
                         alt={title}
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover group-hover:scale-110 transition-transform duration-500"
                       />
-                      <div className="absolute top-4 left-4">
-                        <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-purple-800">
+                      <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'}`}>
+                        <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-brand-primary">
                           {categoryName}
                         </span>
                       </div>
@@ -196,13 +197,13 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                           {language === 'en' ? 'Editorial Team' : 'فريق التحرير'}
                         </span>
                       </div>
-                      <h3 className="text-xl font-semibold mb-3 text-gray-900 group-hover:text-purple-800 transition-colors">
+                      <h3 className="text-xl font-semibold mb-3 text-gray-900 group-hover:text-brand-primary transition-colors line-clamp-2">
                         {title}
                       </h3>
-                      <p className="text-gray-600 leading-relaxed flex-1 mb-4">
+                      <p className="text-gray-600 leading-relaxed flex-1 mb-4 line-clamp-3">
                         {excerpt}
                       </p>
-                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-purple-800 hover:text-purple-900">
+                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-brand-primary hover:text-[#5C0A23]">
                         <Link href={`/blog/${post.slug}`}>
                           {t('readMore')}
                           <ArrowRight className={`ml-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />

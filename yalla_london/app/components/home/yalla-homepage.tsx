@@ -500,8 +500,9 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         <div className="absolute inset-0 z-0" style={{ opacity: 1 - scrollProgress }}>
           <Image
             src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80"
-            alt="London"
+            alt="London skyline"
             fill
+            sizes="100vw"
             className="object-cover"
             priority
           />
@@ -534,6 +535,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
               src="https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=1200&q=80"
               alt="London Experience"
               fill
+              sizes="(max-width: 768px) 95vw, 80vw"
               className="object-cover"
             />
           )}
@@ -543,13 +545,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         {/* Title */}
         <div className="relative z-10 flex flex-col items-center text-center gap-4">
           <motion.h1
-            className="text-6xl md:text-8xl font-bold text-white drop-shadow-lg"
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-white drop-shadow-lg"
             style={{ transform: `translateX(${isRTL ? textOffset : -textOffset}vw)`, textShadow: '0 4px 30px rgba(0,0,0,0.5)' }}
           >
             {locale === 'ar' ? 'اكتشف' : 'Discover'}
           </motion.h1>
           <motion.h1
-            className="text-6xl md:text-8xl font-bold text-white drop-shadow-lg"
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-white drop-shadow-lg"
             style={{ transform: `translateX(${isRTL ? -textOffset : textOffset}vw)`, textShadow: '0 4px 30px rgba(0,0,0,0.5)' }}
           >
             {locale === 'ar' ? 'لندن' : 'London'}

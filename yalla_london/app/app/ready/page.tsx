@@ -98,7 +98,7 @@ export default function ReadyPage() {
     <div className="min-h-screen bg-cream py-12">
       <div className="max-w-4xl mx-auto px-4">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-charcoal mb-4">
+          <h1 className="text-3xl md:text-4xl font-display font-bold text-charcoal mb-4">
             🚀 Deployment Status
           </h1>
           <p className="text-lg text-stone">

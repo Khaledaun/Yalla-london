@@ -45,7 +45,7 @@
   --font-arabic: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
   /* Legacy aliases */
   --font-inter: 'Source Serif 4', Georgia, serif;
-  --font-serif: 'Anybody', sans-serif;
+  --font-serif: 'Source Serif 4', Georgia, serif;
   --font-cairo: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
 
   /* Shadows and effects */

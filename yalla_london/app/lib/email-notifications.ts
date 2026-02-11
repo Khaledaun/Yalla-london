@@ -469,6 +469,145 @@ export function buildNotificationEmail(data: NotificationEmailData): string {
 }
 
 // ---------------------------------------------------------------------------
+// sendPurchaseDeliveryEmail
+// ---------------------------------------------------------------------------
+
+export interface PurchaseDeliveryEmailParams {
+  to: string;
+  customerName?: string;
+  productName: string;
+  amount: number; // cents
+  currency: string;
+  downloadUrl: string;
+}
+
+/**
+ * Send a purchase confirmation + download delivery email after a
+ * successful digital product purchase.
+ */
+export async function sendPurchaseDeliveryEmail(
+  params: PurchaseDeliveryEmailParams,
+): Promise<void> {
+  const { to, customerName, productName, amount, currency, downloadUrl } =
+    params;
+
+  const formattedAmount =
+    amount === 0
+      ? "Free"
+      : `${currency === "USD" ? "$" : currency === "GBP" ? "£" : currency + " "}${(amount / 100).toFixed(2)}`;
+
+  const greeting = customerName ? `Dear ${escapeHtml(customerName)},` : "Hello,";
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Purchase – ${escapeHtml(productName)}</title>
+  <style>
+    body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    body { margin: 0; padding: 0; width: 100% !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    @media only screen and (max-width: 620px) {
+      .container { width: 100% !important; padding: 0 16px !important; }
+      .content-cell { padding: 24px 16px !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f7;">
+  <div style="display: none; max-height: 0; overflow: hidden;">
+    Your download is ready – ${escapeHtml(productName)}
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f7;">
+    <tr>
+      <td align="center" style="padding: 40px 0;">
+
+        <!-- Header -->
+        <table role="presentation" class="container" width="580" cellpadding="0" cellspacing="0" style="max-width: 580px; width: 100%;">
+          <tr>
+            <td align="center" style="padding-bottom: 24px;">
+              <span style="font-size: 24px; font-weight: 700; color: #1A1F36; letter-spacing: -0.5px;">
+                Yalla London
+              </span>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Body Card -->
+        <table role="presentation" class="container" width="580" cellpadding="0" cellspacing="0" style="max-width: 580px; width: 100%; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="height: 4px; background: linear-gradient(90deg, #E8634B, #1A1F36);"></td>
+          </tr>
+          <tr>
+            <td class="content-cell" style="padding: 40px 48px;">
+              <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 600; color: #1A1F36;">
+                Thank you for your purchase!
+              </h1>
+              <p style="margin: 0 0 24px; font-size: 16px; color: #4a4a68; line-height: 1.6;">
+                ${greeting}
+              </p>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px; background: #f8f9fc; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <p style="margin: 0 0 4px; font-size: 14px; color: #6b7280;">Product</p>
+                    <p style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #1A1F36;">${escapeHtml(productName)}</p>
+                    <p style="margin: 0 0 4px; font-size: 14px; color: #6b7280;">Amount Paid</p>
+                    <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1A1F36;">${formattedAmount}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0 0 24px; font-size: 16px; color: #4a4a68; line-height: 1.6;">
+                Click the button below to download your product. You can download it up to 5 times.
+              </p>
+
+              <!-- CTA Button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 28px;">
+                <tr>
+                  <td align="center" style="border-radius: 8px; background-color: #E8634B;">
+                    <a href="${escapeHtml(downloadUrl)}"
+                       target="_blank"
+                       style="display: inline-block; padding: 16px 40px; font-size: 16px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 8px;">
+                      Download Now
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
+                If the button does not work, copy this link into your browser:<br />
+                <a href="${escapeHtml(downloadUrl)}" style="color: #E8634B; word-break: break-all;">${escapeHtml(downloadUrl)}</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Footer -->
+        <table role="presentation" class="container" width="580" cellpadding="0" cellspacing="0" style="max-width: 580px; width: 100%;">
+          <tr>
+            <td style="padding: 28px 48px; text-align: center;">
+              <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
+                &copy; ${new Date().getFullYear()} Yalla London. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  await sendEmail({
+    to,
+    subject: `Your Download is Ready – ${productName}`,
+    html,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

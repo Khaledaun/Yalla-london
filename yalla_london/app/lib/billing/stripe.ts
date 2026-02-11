@@ -415,3 +415,100 @@ export async function handleStripeWebhook(
       };
   }
 }
+
+// ─── Digital Product Purchase Handling ─────────────────────
+
+/**
+ * Handle a completed checkout for a digital product.
+ * Called from the webhook route when metadata indicates purchase_type === "digital_product".
+ *
+ * 1. Marks the Purchase as COMPLETED
+ * 2. Sends a delivery email with the download link
+ */
+export async function handleDigitalProductPurchase(
+  session: {
+    id: string;
+    payment_intent?: string | null;
+    metadata?: Record<string, string> | null;
+  },
+): Promise<{ action: string; details: Record<string, unknown> }> {
+  const { prisma } = await import("@/lib/db");
+
+  const purchaseId = session.metadata?.purchase_id;
+  const downloadToken = session.metadata?.download_token;
+  const customerEmail = session.metadata?.customer_email;
+
+  if (!purchaseId) {
+    return {
+      action: "digital_product_purchase_skipped",
+      details: { reason: "no purchase_id in metadata" },
+    };
+  }
+
+  // Mark purchase as completed
+  const purchase = await prisma.purchase.update({
+    where: { id: purchaseId },
+    data: {
+      status: "COMPLETED",
+      payment_id:
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : null,
+      completed_at: new Date(),
+    },
+    include: { product: true },
+  });
+
+  // Send delivery email (best-effort)
+  if (customerEmail || purchase.customer_email) {
+    try {
+      const { sendPurchaseDeliveryEmail } = await import(
+        "@/lib/email-notifications"
+      );
+      const baseUrl =
+        process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      await sendPurchaseDeliveryEmail({
+        to: customerEmail || purchase.customer_email,
+        customerName: purchase.customer_name || undefined,
+        productName: purchase.product.name_en,
+        amount: purchase.amount,
+        currency: purchase.currency,
+        downloadUrl: `${baseUrl}/shop/download?token=${downloadToken || purchase.download_token}`,
+      });
+    } catch (emailError) {
+      console.error(
+        "[Stripe] Failed to send delivery email:",
+        emailError,
+      );
+    }
+  }
+
+  // Capture as lead (best-effort)
+  try {
+    await prisma.lead.create({
+      data: {
+        site_id: purchase.site_id,
+        email: purchase.customer_email,
+        name: purchase.customer_name,
+        lead_type: "GUIDE_DOWNLOAD",
+        lead_source: "stripe_checkout",
+        status: "CONVERTED",
+        score: 80,
+        interests_json: [purchase.product.name_en, purchase.product.product_type],
+        landing_page: `/shop/${purchase.product.slug}`,
+      },
+    });
+  } catch {
+    // Lead may already exist
+  }
+
+  return {
+    action: "digital_product_purchased",
+    details: {
+      purchaseId: purchase.id,
+      productId: purchase.product_id,
+      amount: purchase.amount,
+      email: purchase.customer_email,
+    },
+  };
+}

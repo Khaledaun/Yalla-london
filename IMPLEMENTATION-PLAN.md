@@ -1,8 +1,8 @@
-# Audit Recommendations Implementation Plan
+# Audit Recommendations & Revenue Implementation Plan
 
-**Date:** 2026-02-10
-**Scope:** Security hardening, code quality, database optimization, testing
-**Status:** Phase 1, Phase 2, Phase 2.5 (Bulk Affiliate Links) & Phase 3 Complete
+**Date:** 2026-02-11
+**Scope:** Security hardening, code quality, database optimization, testing, digital product commerce, revenue operations
+**Status:** Phase 1–3 Complete | Phase 4 (Revenue Commerce) Complete | Phase 5 (Revenue Operations) — YOUR ACTION REQUIRED
 
 ---
 
@@ -294,7 +294,128 @@ New test file: `test/integration/phase3-enhancements.spec.ts` — **73 tests, al
 
 ---
 
-## Phase 4: Future (Backlog)
+## Phase 4: Digital Product Commerce (Implemented)
+
+**Context:** GPT advisor audit identified the #1 revenue blocker: digital product commerce existed in the Prisma schema (DigitalProduct, Purchase models) but had no working end-to-end flow. The shop page used hardcoded mock data, the admin dashboard showed fake numbers, Stripe only supported subscription mode, and there was no post-purchase delivery email.
+
+### 4.1 Stripe Checkout for Digital Products
+
+| Component | File | Description | Status |
+|-----------|------|-------------|--------|
+| Checkout API | `app/api/checkout/digital-product/route.ts` | **NEW** — Creates Stripe Checkout Session with `mode: "payment"` (one-time purchase) | DONE |
+| Free product flow | — | Free products bypass Stripe, create COMPLETED purchase directly with download token | DONE |
+| Paid product flow | — | Creates PENDING purchase → Stripe Checkout → webhook confirms → COMPLETED | DONE |
+| UTM attribution | — | Captures `utm_source`, `utm_campaign` on purchase records for channel tracking | DONE |
+
+### 4.2 Stripe Webhook — Digital Product Handling
+
+| Component | File | Description | Status |
+|-----------|------|-------------|--------|
+| Webhook router | `app/api/webhooks/stripe/route.ts` | Routes `checkout.session.completed` by metadata: digital products vs subscriptions | DONE |
+| Purchase handler | `lib/billing/stripe.ts` | **NEW** `handleDigitalProductPurchase()` — marks Purchase COMPLETED, sends delivery email, captures lead | DONE |
+| Lead capture | — | Auto-creates Lead record (status: CONVERTED, score: 80) on purchase completion | DONE |
+
+### 4.3 Purchase Delivery Email
+
+| Component | File | Description | Status |
+|-----------|------|-------------|--------|
+| Email function | `lib/email-notifications.ts` | **NEW** `sendPurchaseDeliveryEmail()` — branded HTML email with download CTA button | DONE |
+| Template | — | Responsive HTML with product name, amount paid, download link, 5-download limit notice | DONE |
+| Provider support | — | Uses existing multi-provider sendEmail (Resend, SendGrid, SMTP) | DONE |
+
+### 4.4 Download & Fulfillment
+
+| Component | File | Description | Status |
+|-----------|------|-------------|--------|
+| Download endpoint | `app/api/products/pdf/generate/route.ts` GET | Fixed: redirects to S3/R2 file URL when available, validates token, checks limits | DONE |
+| Download page | `app/shop/download/page.tsx` | **NEW** — Customer-facing download UI: validates token, shows product info, download button | DONE |
+| Purchase lookup | `app/shop/purchases/page.tsx` | **NEW** — Customer self-service: enter email → see all purchases with re-download links | DONE |
+| Purchases API | `app/api/shop/purchases/route.ts` | **NEW** — Returns all purchases for a given email | DONE |
+
+### 4.5 Shop Pages — Database Integration
+
+| Component | File | Description | Status |
+|-----------|------|-------------|--------|
+| Products API | `app/api/shop/products/route.ts` | **NEW** — Queries DigitalProduct table with filtering (category, featured, search) | DONE |
+| Shop page | `app/shop/page.tsx` | Rewired: fetches from DB, falls back to hardcoded products, working checkout button → Stripe | DONE |
+| Product detail | `app/shop/[slug]/page.tsx` | **NEW** — Individual product page with full description, features, buy-now button | DONE |
+| Checkout flow | — | Cart → email prompt → POST /api/checkout/digital-product → Stripe hosted checkout | DONE |
+
+### 4.6 Admin Revenue Dashboard — Real Data
+
+| Component | File | Description | Status |
+|-----------|------|-------------|--------|
+| Stats API | `app/api/admin/shop/stats/route.ts` | **NEW** — Queries real revenue, sales count, monthly growth %, recent orders from DB | DONE |
+| Admin page | `app/admin/shop/page.tsx` | Replaced hardcoded mock data with live DB queries, added recent orders table | DONE |
+| Monthly growth | — | Compares last 30 days revenue vs previous 30 days, calculates % change | DONE |
+
+### Phase 4 Files Modified/Created
+
+| File | Changes |
+|------|---------|
+| `app/api/checkout/digital-product/route.ts` | **NEW** — Stripe one-time payment checkout |
+| `app/api/shop/products/route.ts` | **NEW** — Public products API |
+| `app/api/shop/purchases/route.ts` | **NEW** — Customer purchase lookup API |
+| `app/api/admin/shop/stats/route.ts` | **NEW** — Admin revenue stats API |
+| `app/api/webhooks/stripe/route.ts` | Added digital product routing via metadata |
+| `app/api/products/pdf/generate/route.ts` | Fixed download endpoint: redirect to file URLs |
+| `app/shop/page.tsx` | Rewired to DB with fallback, working checkout flow |
+| `app/shop/[slug]/page.tsx` | **NEW** — Product detail page |
+| `app/shop/download/page.tsx` | **NEW** — Customer download page |
+| `app/shop/purchases/page.tsx` | **NEW** — Customer purchase history |
+| `app/admin/shop/page.tsx` | Replaced hardcoded data with real DB queries |
+| `lib/billing/stripe.ts` | Added `handleDigitalProductPurchase()` function |
+| `lib/email-notifications.ts` | Added `sendPurchaseDeliveryEmail()` function |
+
+---
+
+## Phase 5: Revenue Operations — YOUR ACTION REQUIRED
+
+> **This phase requires YOUR manual action** — environment variables, Stripe setup, product creation, and content decisions that cannot be automated by code changes.
+
+### 5.1 MUST-DO: Infrastructure Setup (Week 1)
+
+| # | Task | What You Need To Do | Priority |
+|---|------|---------------------|----------|
+| 1 | **Stripe API keys** | Go to [Stripe Dashboard](https://dashboard.stripe.com/apikeys) → copy Secret Key and Publishable Key → add to Vercel env vars as `STRIPE_SECRET_KEY` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | CRITICAL |
+| 2 | **Stripe webhook** | Stripe Dashboard → Developers → Webhooks → Add endpoint: `https://yourdomain.com/api/webhooks/stripe` → select events: `checkout.session.completed`, `payment_intent.succeeded`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed` → copy signing secret → add to Vercel as `STRIPE_WEBHOOK_SECRET` | CRITICAL |
+| 3 | **Email provider** | Pick one: Resend (recommended, simplest) or SendGrid → Get API key → add to Vercel: `EMAIL_PROVIDER=resend` + `RESEND_API_KEY=xxx` (or `EMAIL_PROVIDER=sendgrid` + `SENDGRID_API_KEY=xxx`) | CRITICAL |
+| 4 | **Site URL** | Set `NEXT_PUBLIC_SITE_URL=https://www.yalla-london.com` in Vercel env vars (used in download links and emails) | CRITICAL |
+| 5 | **Image domains** | Add product image domains to `next.config.js` `images.remotePatterns` if using external image hosting | HIGH |
+
+### 5.2 MUST-DO: Product Creation (Week 1-2)
+
+| # | Task | What You Need To Do | Priority |
+|---|------|---------------------|----------|
+| 6 | **Create 2-3 PDF products** | Write/design your first paid PDF guides (London Guide, Halal Restaurant Guide, etc.) | CRITICAL |
+| 7 | **Upload PDFs to S3/R2** | Upload PDF files to your storage bucket and note the URLs | CRITICAL |
+| 8 | **Seed DigitalProduct records** | Use Prisma Studio (`npx prisma studio`) or a seed script to create DigitalProduct records with: `name_en`, `name_ar`, `slug`, `description_en`, `price` (in **cents**, e.g. 999 = $9.99), `file_url` (S3 URL), `is_active: true`, `currency: "GBP"` | CRITICAL |
+| 9 | **Create a free lead magnet** | Create one free PDF (e.g. "Top 10 Things to Do in London") → seed as DigitalProduct with `price: 0` → use for email capture | HIGH |
+| 10 | **Product cover images** | Create cover images for each product → upload → set `cover_image` field | HIGH |
+
+### 5.3 SHOULD-DO: Revenue Optimization (Weeks 2-4)
+
+| # | Task | What You Need To Do | Priority |
+|---|------|---------------------|----------|
+| 11 | **Set up Google Analytics** | Set `NEXT_PUBLIC_GA_ID` env var with your GA4 measurement ID | HIGH |
+| 12 | **Configure email sequences** | Set up Mailchimp/ConvertKit welcome sequence (lead magnet → nurture → product pitch) | HIGH |
+| 13 | **Review affiliate placements** | Go to `/admin/affiliate-links` → bulk-assign affiliates to high-intent content using existing rule engine | HIGH |
+| 14 | **Identify top 50 money pages** | Audit content for high-intent keywords (best hotels, itineraries, visa, where to stay) → prioritize for affiliate placements | MEDIUM |
+| 15 | **Test the full purchase flow** | In Stripe test mode: browse shop → add to cart → checkout → receive email → download | HIGH |
+
+### 5.4 NICE-TO-HAVE: Growth Accelerators (Weeks 4-8)
+
+| # | Task | What You Need To Do | Priority |
+|---|------|---------------------|----------|
+| 16 | **Add upsell products** | Create premium bundles ($79-149) with seasonal content, Arabic versions | MEDIUM |
+| 17 | **Social media scheduling** | Use `/admin/command-center/social` to schedule social posts promoting products | MEDIUM |
+| 18 | **Retargeting pixels** | Add Meta Pixel and Google Ads tag for retargeting visitors who didn't purchase | LOW |
+| 19 | **Partner pages** | Create dedicated landing pages for luxury hotel partners, tour operators | LOW |
+| 20 | **Multi-site launch** | Use the multi-site infrastructure to launch 2-3 niche sites (Dubai, Maldives, Istanbul) | LOW |
+
+---
+
+## Phase 6: Technical Debt (Backlog)
 
 | Task | Priority | Description |
 |------|----------|-------------|
@@ -371,13 +492,91 @@ New test file: `test/integration/phase3-enhancements.spec.ts` — **73 tests, al
 
 ## Verification
 
-- **TypeScript compilation:** Zero errors (`npx tsc --noEmit`)
+- **Next.js build:** Passing (`npx next build` — zero errors)
 - **Phase 1 tests:** 24/24 passing (`npx vitest run test/security/audit-fixes.spec.ts`)
 - **Phase 2 tests:** 35/35 passing (`npx vitest run test/integration/phase2-enhancements.spec.ts`)
 - **Phase 2.5 tests:** 45/45 passing (`npx vitest run test/integration/bulk-affiliate-links.spec.ts`)
 - **Phase 3 tests:** 73/73 passing (`npx vitest run test/integration/phase3-enhancements.spec.ts`)
-- **Total:** 177 new tests, all passing
+- **Phase 4:** Build verified — all 13 new/modified files compile cleanly
+- **Total:** 177 automated tests + Phase 4 build verification
 - **Existing tests:** No regressions
+
+---
+
+## Purchase Flow Architecture (Phase 4)
+
+```
+┌─────────────┐     ┌──────────────────────┐     ┌─────────────────────┐
+│  /shop      │────>│ /shop/[slug]          │────>│ Customer enters     │
+│  Browse     │     │ Product detail        │     │ email               │
+│  products   │     │ Buy Now button        │     └─────────┬───────────┘
+└─────────────┘     └──────────────────────┘               │
+                                                            ▼
+                                              ┌──────────────────────┐
+                                              │ POST /api/checkout/  │
+                                              │ digital-product      │
+                                              │ Creates Purchase     │
+                                              │ (PENDING)            │
+                                              └─────────┬────────────┘
+                                                        │
+                           ┌────────────────────────────┼────────────────────────┐
+                           │ price === 0                │ price > 0              │
+                           ▼                            ▼                        │
+                  ┌────────────────┐         ┌──────────────────┐               │
+                  │ Mark COMPLETED │         │ Stripe Checkout   │               │
+                  │ Return download│         │ Session created   │               │
+                  │ URL directly   │         │ Redirect customer │               │
+                  └────────────────┘         └────────┬─────────┘               │
+                                                      │                         │
+                                                      ▼                         │
+                                           ┌──────────────────┐                 │
+                                           │ Customer pays on  │                 │
+                                           │ Stripe hosted page│                 │
+                                           └────────┬─────────┘                 │
+                                                    │                           │
+                                                    ▼                           │
+                                         ┌────────────────────┐                 │
+                                         │ Webhook:            │                 │
+                                         │ checkout.session.   │                 │
+                                         │ completed           │                 │
+                                         │ metadata.purchase_  │                 │
+                                         │ type = digital_     │                 │
+                                         │ product             │                 │
+                                         └────────┬───────────┘                 │
+                                                  │                             │
+                                                  ▼                             │
+                                       ┌──────────────────────┐                 │
+                                       │ handleDigitalProduct  │                 │
+                                       │ Purchase():           │                 │
+                                       │ 1. Mark COMPLETED     │                 │
+                                       │ 2. Send delivery email│                 │
+                                       │ 3. Capture lead       │                 │
+                                       └──────────┬───────────┘                 │
+                                                  │                             │
+                                                  ▼                             │
+                                       ┌──────────────────────┐                 │
+                                       │ Customer receives     │                 │
+                                       │ email with download   │                 │
+                                       │ link → /shop/download │                 │
+                                       │ ?token=xxx            │                 │
+                                       └──────────────────────┘
+```
+
+---
+
+## Revenue Dashboard Architecture (Phase 4)
+
+**Admin Dashboard** (`/admin/shop`):
+- Queries `GET /api/admin/shop/stats` which reads from:
+  - `DigitalProduct` table → product list, active count
+  - `Purchase` table (status: COMPLETED) → revenue, sales count, monthly growth
+  - Last 10 completed purchases → recent orders table
+
+**Public Shop** (`/shop`):
+- Queries `GET /api/shop/products` which reads from:
+  - `DigitalProduct` table (is_active: true) → product cards
+  - Purchase count per product → social proof (X sold)
+- Falls back to hardcoded products if DB is empty/unavailable
 
 ---
 
@@ -387,3 +586,4 @@ New test file: `test/integration/phase3-enhancements.spec.ts` — **73 tests, al
 - `AUDIT_REPORT.md` — CMS & admin dashboard audit (2026-02-10)
 - `docs/security-review-checklist.md` — OWASP compliance checklist
 - `docs/security-monitoring-setup.md` — Monitoring & alerting guide
+- GPT advisor revenue audit (2026-02-11) — Identified commerce gaps, recommended revenue readiness checklist

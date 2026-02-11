@@ -1,242 +1,151 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
-  Download, Star, ShoppingCart, Check, Filter, Search,
-  ChevronDown, MapPin, Utensils, Plane, ShoppingBag,
-  FileText, Crown, Sparkles, ArrowRight, Menu, X
+  Download, Star, ShoppingCart, Check, Search,
+  MapPin, Utensils, ShoppingBag,
+  FileText, Crown, Sparkles, ArrowRight, Loader2
 } from 'lucide-react'
 import { useLanguage } from '@/components/language-provider'
 
-// Product categories
-const categories = [
-  { id: 'all', label: { en: 'All Products', ar: 'جميع المنتجات' }, icon: FileText },
-  { id: 'guides', label: { en: 'Travel Guides', ar: 'أدلة السفر' }, icon: MapPin },
-  { id: 'food', label: { en: 'Food & Dining', ar: 'الطعام والمطاعم' }, icon: Utensils },
-  { id: 'shopping', label: { en: 'Shopping', ar: 'التسوق' }, icon: ShoppingBag },
-  { id: 'bundles', label: { en: 'Bundle Deals', ar: 'عروض الباقات' }, icon: Crown },
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface Product {
+  id: string
+  name_en: string
+  name_ar?: string
+  slug: string
+  description_en: string
+  description_ar?: string
+  price: number          // display units (not cents)
+  originalPrice: number | null
+  currency: string
+  type: string
+  image: string | null
+  features: string[]
+  featured: boolean
+  salesCount: number
+}
+
+// ---------------------------------------------------------------------------
+// Fallback products (shown when DB is empty or API unavailable)
+// ---------------------------------------------------------------------------
+
+const fallbackProducts: Product[] = [
+  {
+    id: 'fb-1', name_en: 'Complete London Guide 2026', name_ar: 'دليل لندن الشامل 2026',
+    slug: 'complete-london-guide-2026',
+    description_en: 'The ultimate 45-page guide covering everything you need to know for your London visit. Includes halal restaurants, prayer facilities, attractions, and insider tips.',
+    description_ar: 'الدليل النهائي المؤلف من 45 صفحة يغطي كل ما تحتاج معرفته لزيارتك للندن.',
+    price: 9.99, originalPrice: 14.99, currency: 'GBP', type: 'PDF_GUIDE',
+    image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80',
+    features: ['45 Pages', 'Printable PDF', 'Offline Maps', 'Regular Updates'],
+    featured: true, salesCount: 234,
+  },
+  {
+    id: 'fb-2', name_en: 'Halal Restaurant Guide London', name_ar: 'دليل المطاعم الحلال في لندن',
+    slug: 'halal-restaurant-guide-london',
+    description_en: 'Discover 100+ halal restaurants across London. From fine dining to street food, organized by cuisine, location, and price range.',
+    description_ar: 'اكتشف أكثر من 100 مطعم حلال في لندن.',
+    price: 7.99, originalPrice: null, currency: 'GBP', type: 'PDF_GUIDE',
+    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
+    features: ['100+ Restaurants', 'Location Maps', 'Price Ranges', 'Review Scores'],
+    featured: false, salesCount: 156,
+  },
+  {
+    id: 'fb-3', name_en: 'London Shopping Secrets', name_ar: 'أسرار التسوق في لندن',
+    slug: 'london-shopping-secrets',
+    description_en: 'Your insider guide to shopping in London. Best boutiques, outlet deals, tax-free shopping tips, and exclusive discount codes.',
+    description_ar: 'دليلك للتسوق في لندن. أفضل المحلات والعروض.',
+    price: 6.99, originalPrice: 9.99, currency: 'GBP', type: 'PDF_GUIDE',
+    image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80',
+    features: ['28 Pages', 'Discount Codes', 'Store Directory', 'Sale Calendar'],
+    featured: false, salesCount: 189,
+  },
+  {
+    id: 'fb-4', name_en: 'Family London Adventure Pack', name_ar: 'حزمة مغامرة العائلة في لندن',
+    slug: 'family-london-adventure-pack',
+    description_en: 'Complete family travel bundle with kid-friendly attractions, family restaurants, and activity guides.',
+    description_ar: 'باقة سفر عائلية كاملة مع معالم مناسبة للأطفال.',
+    price: 14.99, originalPrice: 24.99, currency: 'GBP', type: 'BUNDLE',
+    image: 'https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=600&q=80',
+    features: ['3 Guides in 1', 'Activity Sheets', 'Family Discounts', 'Itineraries'],
+    featured: true, salesCount: 312,
+  },
+  {
+    id: 'fb-5', name_en: 'Prayer Times & Mosques Guide', name_ar: 'دليل أوقات الصلاة والمساجد',
+    slug: 'prayer-times-mosques-guide',
+    description_en: 'Comprehensive guide to mosques and prayer facilities across London.',
+    description_ar: 'دليل شامل للمساجد ومرافق الصلاة في لندن.',
+    price: 4.99, originalPrice: null, currency: 'GBP', type: 'PDF_GUIDE',
+    image: 'https://images.unsplash.com/photo-1564769625392-651b89c75a66?w=600&q=80',
+    features: ['50+ Mosques', 'Prayer Times', 'Directions', 'Contact Info'],
+    featured: false, salesCount: 98,
+  },
+  {
+    id: 'fb-6', name_en: 'Ultimate London Bundle', name_ar: 'الباقة الكاملة للندن',
+    slug: 'ultimate-london-bundle',
+    description_en: 'All our guides in one discounted package. Save 40% and get everything you need for the perfect London experience.',
+    description_ar: 'جميع أدلتنا في حزمة واحدة بخصم. وفر 40%.',
+    price: 29.99, originalPrice: 49.99, currency: 'GBP', type: 'BUNDLE',
+    image: 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=600&q=80',
+    features: ['5 Guides', 'Lifetime Updates', 'Priority Support', 'Bonus Content'],
+    featured: true, salesCount: 87,
+  },
 ]
 
-// Products data
-const products = {
-  en: [
-    {
-      id: '1',
-      title: 'Complete London Guide 2026',
-      description: 'The ultimate 45-page guide covering everything you need to know for your London visit. Includes halal restaurants, prayer facilities, attractions, and insider tips.',
-      price: 9.99,
-      originalPrice: 14.99,
-      category: 'guides',
-      image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80',
-      badge: 'Bestseller',
-      pages: 45,
-      rating: 4.9,
-      reviews: 234,
-      features: ['45 Pages', 'Printable PDF', 'Offline Maps', 'Regular Updates']
-    },
-    {
-      id: '2',
-      title: 'Halal Restaurant Guide London',
-      description: 'Discover 100+ halal restaurants across London. From fine dining to street food, organized by cuisine, location, and price range.',
-      price: 7.99,
-      originalPrice: null,
-      category: 'food',
-      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
-      badge: 'New',
-      pages: 32,
-      rating: 4.8,
-      reviews: 156,
-      features: ['100+ Restaurants', 'Location Maps', 'Price Ranges', 'Review Scores']
-    },
-    {
-      id: '3',
-      title: 'London Shopping Secrets',
-      description: 'Your insider guide to shopping in London. Best boutiques, outlet deals, tax-free shopping tips, and exclusive discount codes.',
-      price: 6.99,
-      originalPrice: 9.99,
-      category: 'shopping',
-      image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80',
-      badge: '30% Off',
-      pages: 28,
-      rating: 4.7,
-      reviews: 189,
-      features: ['28 Pages', 'Discount Codes', 'Store Directory', 'Sale Calendar']
-    },
-    {
-      id: '4',
-      title: 'Family London Adventure Pack',
-      description: 'Complete family travel bundle with kid-friendly attractions, family restaurants, and activity guides.',
-      price: 14.99,
-      originalPrice: 24.99,
-      category: 'bundles',
-      image: 'https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=600&q=80',
-      badge: 'Best Value',
-      pages: 60,
-      rating: 4.9,
-      reviews: 312,
-      features: ['3 Guides in 1', 'Activity Sheets', 'Family Discounts', 'Itineraries']
-    },
-    {
-      id: '5',
-      title: 'Prayer Times & Mosques Guide',
-      description: 'Comprehensive guide to mosques and prayer facilities across London. Includes Jummah times, Eid gatherings, and Islamic centers.',
-      price: 4.99,
-      originalPrice: null,
-      category: 'guides',
-      image: 'https://images.unsplash.com/photo-1564769625392-651b89c75a66?w=600&q=80',
-      badge: null,
-      pages: 18,
-      rating: 4.8,
-      reviews: 98,
-      features: ['50+ Mosques', 'Prayer Times', 'Directions', 'Contact Info']
-    },
-    {
-      id: '6',
-      title: 'Ultimate London Bundle',
-      description: 'All our guides in one discounted package. Save 40% and get everything you need for the perfect London experience.',
-      price: 29.99,
-      originalPrice: 49.99,
-      category: 'bundles',
-      image: 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=600&q=80',
-      badge: 'Save 40%',
-      pages: 150,
-      rating: 5.0,
-      reviews: 87,
-      features: ['5 Guides', 'Lifetime Updates', 'Priority Support', 'Bonus Content']
-    },
-  ],
-  ar: [
-    {
-      id: '1',
-      title: 'دليل لندن الشامل 2026',
-      description: 'الدليل النهائي المؤلف من 45 صفحة يغطي كل ما تحتاج معرفته لزيارتك للندن. يشمل المطاعم الحلال ومرافق الصلاة والمعالم السياحية.',
-      price: 9.99,
-      originalPrice: 14.99,
-      category: 'guides',
-      image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80',
-      badge: 'الأكثر مبيعاً',
-      pages: 45,
-      rating: 4.9,
-      reviews: 234,
-      features: ['45 صفحة', 'PDF قابل للطباعة', 'خرائط بدون إنترنت', 'تحديثات مستمرة']
-    },
-    {
-      id: '2',
-      title: 'دليل المطاعم الحلال في لندن',
-      description: 'اكتشف أكثر من 100 مطعم حلال في لندن. من المطاعم الفاخرة إلى الوجبات السريعة، منظمة حسب المطبخ والموقع والأسعار.',
-      price: 7.99,
-      originalPrice: null,
-      category: 'food',
-      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
-      badge: 'جديد',
-      pages: 32,
-      rating: 4.8,
-      reviews: 156,
-      features: ['100+ مطعم', 'خرائط المواقع', 'نطاقات الأسعار', 'تقييمات']
-    },
-    {
-      id: '3',
-      title: 'أسرار التسوق في لندن',
-      description: 'دليلك للتسوق في لندن. أفضل المحلات والعروض ونصائح التسوق المعفى من الضرائب وأكواد الخصم الحصرية.',
-      price: 6.99,
-      originalPrice: 9.99,
-      category: 'shopping',
-      image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80',
-      badge: 'خصم 30%',
-      pages: 28,
-      rating: 4.7,
-      reviews: 189,
-      features: ['28 صفحة', 'أكواد خصم', 'دليل المتاجر', 'جدول التخفيضات']
-    },
-    {
-      id: '4',
-      title: 'حزمة مغامرة العائلة في لندن',
-      description: 'باقة سفر عائلية كاملة مع معالم مناسبة للأطفال ومطاعم عائلية وأدلة أنشطة.',
-      price: 14.99,
-      originalPrice: 24.99,
-      category: 'bundles',
-      image: 'https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=600&q=80',
-      badge: 'أفضل قيمة',
-      pages: 60,
-      rating: 4.9,
-      reviews: 312,
-      features: ['3 أدلة في 1', 'أوراق أنشطة', 'خصومات عائلية', 'برامج رحلات']
-    },
-    {
-      id: '5',
-      title: 'دليل أوقات الصلاة والمساجد',
-      description: 'دليل شامل للمساجد ومرافق الصلاة في لندن. يشمل أوقات الجمعة وتجمعات العيد والمراكز الإسلامية.',
-      price: 4.99,
-      originalPrice: null,
-      category: 'guides',
-      image: 'https://images.unsplash.com/photo-1564769625392-651b89c75a66?w=600&q=80',
-      badge: null,
-      pages: 18,
-      rating: 4.8,
-      reviews: 98,
-      features: ['50+ مسجد', 'أوقات الصلاة', 'اتجاهات', 'معلومات الاتصال']
-    },
-    {
-      id: '6',
-      title: 'الباقة الكاملة للندن',
-      description: 'جميع أدلتنا في حزمة واحدة بخصم. وفر 40% واحصل على كل ما تحتاجه لتجربة لندن المثالية.',
-      price: 29.99,
-      originalPrice: 49.99,
-      category: 'bundles',
-      image: 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=600&q=80',
-      badge: 'وفر 40%',
-      pages: 150,
-      rating: 5.0,
-      reviews: 87,
-      features: ['5 أدلة', 'تحديثات مدى الحياة', 'دعم أولوية', 'محتوى إضافي']
-    },
-  ]
-}
+// ---------------------------------------------------------------------------
+// Categories & text
+// ---------------------------------------------------------------------------
+
+const categories = [
+  { id: 'all', label: { en: 'All Products', ar: 'جميع المنتجات' }, icon: FileText },
+  { id: 'PDF_GUIDE', label: { en: 'Travel Guides', ar: 'أدلة السفر' }, icon: MapPin },
+  { id: 'TEMPLATE', label: { en: 'Templates', ar: 'قوالب' }, icon: Utensils },
+  { id: 'BUNDLE', label: { en: 'Bundle Deals', ar: 'عروض الباقات' }, icon: Crown },
+  { id: 'SPREADSHEET', label: { en: 'Planners', ar: 'مخططات' }, icon: ShoppingBag },
+]
 
 const text = {
   en: {
     title: 'Digital Guides Shop',
     subtitle: 'Expert guides crafted for Arab visitors to London',
     search: 'Search guides...',
-    filter: 'Filter',
     addToCart: 'Add to Cart',
-    download: 'Download Now',
     pages: 'pages',
     reviews: 'reviews',
-    features: 'What\'s Included',
-    popular: 'Popular',
-    new: 'New',
-    sale: 'Sale',
-    cartTitle: 'Your Cart',
     checkout: 'Checkout',
-    emptyCart: 'Your cart is empty',
     instantDownload: 'Instant digital download',
     securePayment: 'Secure payment',
     lifetime: 'Lifetime access',
+    viewDetails: 'View Details',
+    loading: 'Loading products...',
+    sold: 'sold',
   },
   ar: {
     title: 'متجر الأدلة الرقمية',
     subtitle: 'أدلة متخصصة مصممة للزوار العرب في لندن',
     search: 'ابحث في الأدلة...',
-    filter: 'تصفية',
     addToCart: 'أضف للسلة',
-    download: 'تحميل الآن',
     pages: 'صفحة',
     reviews: 'تقييم',
-    features: 'ماذا يتضمن',
-    popular: 'شائع',
-    new: 'جديد',
-    sale: 'تخفيض',
-    cartTitle: 'سلة التسوق',
     checkout: 'إتمام الشراء',
-    emptyCart: 'سلتك فارغة',
     instantDownload: 'تحميل رقمي فوري',
     securePayment: 'دفع آمن',
     lifetime: 'وصول مدى الحياة',
+    viewDetails: 'عرض التفاصيل',
+    loading: 'جاري تحميل المنتجات...',
+    sold: 'مبيعات',
   }
 }
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function ShopPage() {
   const { language } = useLanguage()
@@ -247,13 +156,32 @@ export default function ShopPage() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [cart, setCart] = useState<string[]>([])
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [products, setProducts] = useState<Product[]>(fallbackProducts)
+  const [loading, setLoading] = useState(true)
+  const [checkingOut, setCheckingOut] = useState(false)
 
-  const filteredProducts = products[locale].filter(product => {
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory
+  // Fetch products from DB
+  useEffect(() => {
+    fetch('/api/shop/products')
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to fetch')
+        const data = await res.json()
+        if (data.products && data.products.length > 0) {
+          setProducts(data.products)
+        }
+      })
+      .catch(() => {
+        // Keep fallback products
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  const filteredProducts = products.filter(product => {
+    const matchesCategory = selectedCategory === 'all' || product.type === selectedCategory
     const matchesSearch = !searchQuery ||
-      product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase())
+      product.name_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (product.description_en || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (product.name_ar || '').includes(searchQuery)
     return matchesCategory && matchesSearch
   })
 
@@ -264,9 +192,52 @@ export default function ShopPage() {
   }
 
   const cartTotal = cart.reduce((sum, id) => {
-    const product = products[locale].find(p => p.id === id)
+    const product = products.find(p => p.id === id)
     return sum + (product?.price || 0)
   }, 0)
+
+  const currencySymbol = (c: string) => c === 'GBP' ? '£' : c === 'USD' ? '$' : c === 'EUR' ? '€' : c + ' '
+
+  const handleCheckout = useCallback(async () => {
+    if (cart.length === 0 || checkingOut) return
+    setCheckingOut(true)
+
+    // For MVP: checkout the first item in cart
+    // A full cart system would batch these
+    const product = products.find(p => p.id === cart[0])
+    if (!product) return
+
+    const email = prompt('Enter your email to complete the purchase:')
+    if (!email) {
+      setCheckingOut(false)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/checkout/digital-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          customerEmail: email,
+        }),
+      })
+
+      const data = await res.json()
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl
+      } else if (data.downloadUrl) {
+        // Free product
+        window.location.href = data.downloadUrl
+      } else {
+        alert(data.error || 'Checkout failed. Please try again.')
+      }
+    } catch {
+      alert('Checkout failed. Please try again.')
+    } finally {
+      setCheckingOut(false)
+    }
+  }, [cart, products, checkingOut])
 
   return (
     <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: isRTL ? 'Cairo, sans-serif' : 'Plus Jakarta Sans, sans-serif' }}>
@@ -365,79 +336,105 @@ export default function ShopPage() {
 
       {/* Products Grid */}
       <div className="max-w-6xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredProducts.map((product) => (
-            <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-gray-100">
-              {/* Image */}
-              <div className="relative h-48">
-                <Image src={product.image} alt={product.title} fill className="object-cover" />
-                {product.badge && (
-                  <span className="absolute top-3 left-3 px-3 py-1 bg-[#E8634B] text-white text-xs font-semibold rounded-full">
-                    {product.badge}
-                  </span>
-                )}
-                <div className="absolute bottom-3 right-3 px-2 py-1 bg-white/90 backdrop-blur rounded-full text-xs font-semibold">
-                  {product.pages} {t.pages}
-                </div>
-              </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 text-[#E8634B] animate-spin" />
+            <span className="ml-3 text-gray-500">{t.loading}</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredProducts.map((product) => {
+              const sym = currencySymbol(product.currency)
+              return (
+                <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-gray-100">
+                  {/* Image */}
+                  <Link href={`/shop/${product.slug}`}>
+                    <div className="relative h-48">
+                      {product.image ? (
+                        <Image src={product.image} alt={isRTL ? (product.name_ar || product.name_en) : product.name_en} fill className="object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-[#1A1F36] to-[#E8634B] flex items-center justify-center">
+                          <FileText className="w-16 h-16 text-white/30" />
+                        </div>
+                      )}
+                      {product.featured && (
+                        <span className="absolute top-3 left-3 px-3 py-1 bg-[#E8634B] text-white text-xs font-semibold rounded-full">
+                          {isRTL ? 'مميز' : 'Featured'}
+                        </span>
+                      )}
+                      {product.originalPrice && (
+                        <span className="absolute top-3 right-3 px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full">
+                          {Math.round((1 - product.price / product.originalPrice) * 100)}% Off
+                        </span>
+                      )}
+                    </div>
+                  </Link>
 
-              {/* Content */}
-              <div className="p-6">
-                {/* Rating */}
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                    <span className="text-sm font-semibold">{product.rating}</span>
+                  {/* Content */}
+                  <div className="p-6">
+                    {/* Sales count */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                        <span className="text-sm font-semibold">{product.salesCount}</span>
+                      </div>
+                      <span className="text-sm text-gray-400">{t.sold}</span>
+                    </div>
+
+                    {/* Title */}
+                    <Link href={`/shop/${product.slug}`}>
+                      <h3 className="text-lg font-bold text-[#1A1F36] mb-2 hover:text-[#E8634B] transition-colors">
+                        {isRTL ? (product.name_ar || product.name_en) : product.name_en}
+                      </h3>
+                    </Link>
+
+                    {/* Description */}
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                      {isRTL ? (product.description_ar || product.description_en) : product.description_en}
+                    </p>
+
+                    {/* Features */}
+                    <div className="flex flex-wrap gap-2 mb-5">
+                      {(product.features as string[]).slice(0, 3).map((feature, i) => (
+                        <span key={i} className="px-2 py-1 bg-gray-100 text-xs text-gray-600 rounded">
+                          {feature}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Price & CTA */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl font-bold text-[#1A1F36]">{sym}{product.price.toFixed(2)}</span>
+                        {product.originalPrice && (
+                          <span className="text-sm text-gray-400 line-through">{sym}{product.originalPrice.toFixed(2)}</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => addToCart(product.id)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${
+                          cart.includes(product.id)
+                            ? 'bg-green-500 text-white'
+                            : 'bg-[#E8634B] hover:bg-[#d4543d] text-white'
+                        }`}
+                      >
+                        {cart.includes(product.id) ? (
+                          <>
+                            <Check className="w-4 h-4" /> Added
+                          </>
+                        ) : (
+                          <>
+                            <ShoppingCart className="w-4 h-4" /> {t.addToCart}
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                  <span className="text-sm text-gray-400">({product.reviews} {t.reviews})</span>
                 </div>
-
-                {/* Title */}
-                <h3 className="text-lg font-bold text-[#1A1F36] mb-2">{product.title}</h3>
-
-                {/* Description */}
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{product.description}</p>
-
-                {/* Features */}
-                <div className="flex flex-wrap gap-2 mb-5">
-                  {product.features.slice(0, 3).map((feature, i) => (
-                    <span key={i} className="px-2 py-1 bg-gray-100 text-xs text-gray-600 rounded">
-                      {feature}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Price & CTA */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-[#1A1F36]">£{product.price}</span>
-                    {product.originalPrice && (
-                      <span className="text-sm text-gray-400 line-through">£{product.originalPrice}</span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => addToCart(product.id)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${
-                      cart.includes(product.id)
-                        ? 'bg-green-500 text-white'
-                        : 'bg-[#E8634B] hover:bg-[#d4543d] text-white'
-                    }`}
-                  >
-                    {cart.includes(product.id) ? (
-                      <>
-                        <Check className="w-4 h-4" /> Added
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart className="w-4 h-4" /> {t.addToCart}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Floating Cart Summary */}
@@ -450,8 +447,18 @@ export default function ShopPage() {
             </div>
             <div className="w-px h-6 bg-gray-600" />
             <span className="text-lg font-bold">£{cartTotal.toFixed(2)}</span>
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#E8634B] rounded-full font-semibold hover:bg-[#d4543d] transition-colors">
-              {t.checkout} <ArrowRight className="w-4 h-4" />
+            <button
+              onClick={handleCheckout}
+              disabled={checkingOut}
+              className="flex items-center gap-2 px-4 py-2 bg-[#E8634B] rounded-full font-semibold hover:bg-[#d4543d] transition-colors disabled:opacity-50"
+            >
+              {checkingOut ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  {t.checkout} <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -469,7 +476,7 @@ export default function ShopPage() {
           </div>
           <p className="text-gray-400 mb-6">Your trusted guide to exploring London</p>
           <div className="text-gray-500 text-sm">
-            © 2026 Yalla London. All rights reserved.
+            &copy; 2026 Yalla London. All rights reserved.
           </div>
         </div>
       </footer>

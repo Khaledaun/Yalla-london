@@ -171,12 +171,13 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   const transaction = performanceMonitor.startTransaction('AI Generate', 'ai.generation');
   
   try {
-    // Check if AI features are enabled
-    if (process.env.FEATURE_CONTENT_PIPELINE !== 'true') {
+    // Check if AI features are enabled (accepts '1' or 'true')
+    const pipelineFlag = process.env.FEATURE_CONTENT_PIPELINE;
+    if (pipelineFlag !== 'true' && pipelineFlag !== '1') {
       return NextResponse.json(
-        { 
-          status: 'error', 
-          error: 'AI content generation is not enabled. Set FEATURE_CONTENT_PIPELINE=true to enable.' 
+        {
+          status: 'error',
+          error: 'AI content generation is not enabled. Set FEATURE_CONTENT_PIPELINE=1 to enable.'
         },
         { status: 403 }
       );
@@ -384,7 +385,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const status = {
-      enabled: process.env.FEATURE_CONTENT_PIPELINE === 'true',
+      enabled: process.env.FEATURE_CONTENT_PIPELINE === 'true' || process.env.FEATURE_CONTENT_PIPELINE === '1',
       providers: {
         abacus: {
           configured: !!process.env.ABACUSAI_API_KEY,

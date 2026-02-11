@@ -477,7 +477,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   const textOffset = scrollProgress * 120
 
   return (
-    <div className="min-h-screen bg-white" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: isRTL ? 'Cairo, sans-serif' : 'Plus Jakarta Sans, sans-serif' }}>
+    <div className={`min-h-screen bg-white ${isRTL ? 'font-cairo' : 'font-inter'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Language Toggle */}
       <div className={`fixed top-20 ${isRTL ? 'left-5' : 'right-5'} z-50 flex gap-0.5 bg-white p-1 rounded-lg shadow-md border border-gray-200`}>
         <button
@@ -500,8 +500,9 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         <div className="absolute inset-0 z-0" style={{ opacity: 1 - scrollProgress }}>
           <Image
             src="https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80"
-            alt="London"
+            alt="London skyline"
             fill
+            sizes="100vw"
             className="object-cover"
             priority
           />
@@ -534,6 +535,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
               src="https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=1200&q=80"
               alt="London Experience"
               fill
+              sizes="(max-width: 768px) 95vw, 80vw"
               className="object-cover"
             />
           )}
@@ -543,13 +545,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         {/* Title */}
         <div className="relative z-10 flex flex-col items-center text-center gap-4">
           <motion.h1
-            className="text-6xl md:text-8xl font-bold text-white drop-shadow-lg"
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-playfair font-bold text-white drop-shadow-lg"
             style={{ transform: `translateX(${isRTL ? textOffset : -textOffset}vw)`, textShadow: '0 4px 30px rgba(0,0,0,0.5)' }}
           >
             {locale === 'ar' ? 'اكتشف' : 'Discover'}
           </motion.h1>
           <motion.h1
-            className="text-6xl md:text-8xl font-bold text-white drop-shadow-lg"
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-playfair font-bold text-white drop-shadow-lg"
             style={{ transform: `translateX(${isRTL ? -textOffset : textOffset}vw)`, textShadow: '0 4px 30px rgba(0,0,0,0.5)' }}
           >
             {locale === 'ar' ? 'لندن' : 'London'}
@@ -629,7 +631,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             <div className="lg:col-span-2 space-y-10">
               {/* Section Header */}
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-[#1A1F36]">{t.latestArticles}</h2>
+                <h2 className="text-2xl font-playfair font-bold text-[#1A1F36]">{t.latestArticles}</h2>
                 <Link href="/blog" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
                   {t.viewAll} <ChevronRight className="w-4 h-4" />
                 </Link>
@@ -642,7 +644,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     <article className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-5 bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow border border-gray-100 cursor-pointer">
                       <div className="space-y-3">
                         <span className="text-xs font-semibold text-[#E8634B] uppercase tracking-wide">{article.category}</span>
-                        <h3 className="text-xl font-bold text-[#1A1F36] group-hover:text-[#E8634B] transition-colors">
+                        <h3 className="text-xl font-semibold text-[#1A1F36] group-hover:text-[#E8634B] transition-colors">
                           {article.title}
                         </h3>
                         <p className="text-gray-600 text-sm line-clamp-2">{article.excerpt}</p>
@@ -664,7 +666,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             <div className="space-y-8">
               {/* Most Read */}
               <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-[#1A1F36] mb-4 pb-3 border-b border-gray-100">{t.mostRead}</h3>
+                <h3 className="text-lg font-playfair font-bold text-[#1A1F36] mb-4 pb-3 border-b border-gray-100">{t.mostRead}</h3>
                 <ul className="space-y-3">
                   {mostRead[locale].map((item, i) => (
                     <li key={i}>
@@ -679,7 +681,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
               {/* Newsletter */}
               <div className="bg-gradient-to-br from-[#1A1F36] to-[#2d3452] rounded-xl p-6 text-white">
-                <h3 className="text-lg font-bold mb-2">{t.newsletter}</h3>
+                <h3 className="text-lg font-playfair font-bold mb-2">{t.newsletter}</h3>
                 <p className="text-sm text-gray-300 mb-4">{t.newsletterDesc}</p>
                 <div className="space-y-3">
                   <input
@@ -689,7 +691,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E8634B]"
                   />
-                  <button className="w-full py-3 bg-[#E8634B] hover:bg-[#d4543d] text-white font-semibold rounded-lg transition-colors">
+                  <button className="w-full py-3 bg-[#E8634B] hover:bg-[#d4543d] text-white font-semibold rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E8634B]">
                     {t.subscribeBtn}
                   </button>
                 </div>
@@ -702,7 +704,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         <section className="bg-white py-16">
           <div className="max-w-6xl mx-auto px-6">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-[#1A1F36]">{t.upcomingEvents}</h2>
+              <h2 className="text-2xl font-playfair font-bold text-[#1A1F36]">{t.upcomingEvents}</h2>
               <Link href="/events" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
                 {t.viewAll} <ChevronRight className="w-4 h-4" />
               </Link>
@@ -718,13 +720,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     </div>
                   </div>
                   <div className="p-5">
-                    <h3 className="font-bold text-[#1A1F36] mb-1">{event.title}</h3>
+                    <h3 className="font-semibold text-[#1A1F36] mb-1">{event.title}</h3>
                     <p className="text-sm text-gray-500 flex items-center gap-1 mb-3">
                       <MapPin className="w-4 h-4" /> {event.venue}
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-[#1A1F36]">{event.price}</span>
-                      <button className="px-4 py-2 bg-[#E8634B] text-white text-sm font-medium rounded-lg hover:bg-[#d4543d] transition-colors">
+                      <button className="px-4 py-2 bg-[#E8634B] text-white text-sm font-medium rounded-lg hover:bg-[#d4543d] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E8634B]">
                         {t.getTickets}
                       </button>
                     </div>
@@ -739,7 +741,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         <section className="bg-gray-50 py-16">
           <div className="max-w-6xl mx-auto px-6">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-[#1A1F36]">{t.pdfGuides}</h2>
+              <h2 className="text-2xl font-playfair font-bold text-[#1A1F36]">{t.pdfGuides}</h2>
               <Link href="/shop" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
                 {t.viewAll} <ChevronRight className="w-4 h-4" />
               </Link>
@@ -756,11 +758,11 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     )}
                   </div>
                   <div className="p-5">
-                    <h3 className="font-bold text-[#1A1F36] mb-2">{guide.title}</h3>
+                    <h3 className="font-semibold text-[#1A1F36] mb-2">{guide.title}</h3>
                     <p className="text-sm text-gray-500 mb-4">{guide.pages}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-lg font-bold text-[#1A1F36]">{guide.price}</span>
-                      <button className="flex items-center gap-2 px-4 py-2 bg-[#1A1F36] text-white text-sm font-medium rounded-lg hover:bg-[#2d3452] transition-colors">
+                      <button className="flex items-center gap-2 px-4 py-2 bg-[#1A1F36] text-white text-sm font-medium rounded-lg hover:bg-[#2d3452] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A1F36]">
                         <Download className="w-4 h-4" /> {t.downloadNow}
                       </button>
                     </div>
@@ -775,7 +777,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         <section className="bg-white py-16">
           <div className="max-w-6xl mx-auto px-6">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-[#1A1F36]">{t.experiences}</h2>
+              <h2 className="text-2xl font-playfair font-bold text-[#1A1F36]">{t.experiences}</h2>
               <Link href="/experiences" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
                 {t.viewAll} <ChevronRight className="w-4 h-4" />
               </Link>
@@ -808,7 +810,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         <section className="bg-gray-50 py-16">
           <div className="max-w-6xl mx-auto px-6">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-[#1A1F36]">{t.luxuryHotels}</h2>
+              <h2 className="text-2xl font-playfair font-bold text-[#1A1F36]">{t.luxuryHotels}</h2>
               <Link href="/hotels" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
                 {t.viewAll} <ChevronRight className="w-4 h-4" />
               </Link>
@@ -828,13 +830,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                         <Star key={i} className="w-4 h-4 text-amber-500 fill-amber-500" />
                       ))}
                     </div>
-                    <h3 className="font-bold text-[#1A1F36] mb-1">{hotel.name}</h3>
+                    <h3 className="font-semibold text-[#1A1F36] mb-1">{hotel.name}</h3>
                     <p className="text-sm text-gray-500 flex items-center gap-1 mb-3">
                       <MapPin className="w-4 h-4" /> {hotel.location}
                     </p>
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-[#1A1F36]">{hotel.price}</span>
-                      <button className="px-4 py-2 border-2 border-[#1A1F36] text-[#1A1F36] text-sm font-medium rounded-lg hover:bg-[#1A1F36] hover:text-white transition-colors">
+                      <button className="px-4 py-2 border-2 border-[#1A1F36] text-[#1A1F36] text-sm font-medium rounded-lg hover:bg-[#1A1F36] hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A1F36]">
                         {t.viewDeals}
                       </button>
                     </div>

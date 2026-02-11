@@ -176,7 +176,7 @@ export default function EventsPage() {
 
   const categoryColors: Record<string, string> = {
     Football: "bg-green-100 text-green-800",
-    Theatre: "bg-purple-100 text-purple-800",
+    Theatre: "bg-rose-100 text-rose-800",
     Festival: "bg-pink-100 text-pink-800",
     Exhibition: "bg-blue-100 text-blue-800",
     Experience: "bg-amber-100 text-amber-800",
@@ -238,7 +238,7 @@ export default function EventsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1 }}
         >
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-playfair font-bold mb-6">
             {language === "en"
               ? "London Events & Tickets"
               : "\u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0648\u062a\u0630\u0627\u0643\u0631 \u0644\u0646\u062f\u0646"}
@@ -267,10 +267,10 @@ export default function EventsPage() {
 
       {/* Search & Filter Bar */}
       <section className="bg-white border-b sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6 py-4">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-4">
           <div className="flex flex-col md:flex-row gap-4 items-center">
             <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400`} />
               <Input
                 placeholder={
                   language === "en"
@@ -291,7 +291,7 @@ export default function EventsPage() {
                   onClick={() => setSelectedCategory(cat)}
                   className={
                     selectedCategory === cat
-                      ? "bg-purple-800 hover:bg-purple-900"
+                      ? "bg-brand-primary hover:bg-[#5C0A23]"
                       : ""
                   }
                 >
@@ -321,7 +321,7 @@ export default function EventsPage() {
       <section className="py-12 bg-gray-50">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl font-playfair font-bold text-gray-900">
               {loading
                 ? language === "en"
                   ? "Loading Events..."
@@ -340,7 +340,7 @@ export default function EventsPage() {
 
           {loading ? (
             <div className="text-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto text-purple-600 mb-4" />
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-brand-primary mb-4" />
               <p className="text-gray-500">
                 {language === "en"
                   ? "Loading events..."
@@ -388,9 +388,10 @@ export default function EventsPage() {
                         }
                         alt={event.title[language] || event.title.en}
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover"
                       />
-                      <div className="absolute top-4 left-4 flex gap-2">
+                      <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} flex gap-2`}>
                         <Badge
                           className={
                             categoryColors[event.category] ||
@@ -405,7 +406,7 @@ export default function EventsPage() {
                           </Badge>
                         )}
                       </div>
-                      <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full">
+                      <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full`}>
                         <div className="flex items-center gap-1">
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                           <span className="text-sm font-medium text-gray-900">
@@ -424,7 +425,7 @@ export default function EventsPage() {
                       )}
                     </div>
                     <CardContent className="p-6 flex-1 flex flex-col">
-                      <h3 className="text-xl font-bold mb-2 text-gray-900">
+                      <h3 className="text-xl font-semibold mb-2 text-gray-900">
                         {event.title[language] || event.title.en}
                       </h3>
                       <p className="text-gray-600 leading-relaxed mb-4 flex-1">
@@ -456,11 +457,11 @@ export default function EventsPage() {
                         </div>
                       )}
                       <div className="flex items-center justify-between mt-auto">
-                        <span className="text-lg font-bold text-purple-800">
+                        <span className="text-lg font-bold text-brand-primary">
                           {event.price}
                         </span>
                         <Button
-                          className="bg-purple-800 hover:bg-purple-900"
+                          className="bg-brand-primary hover:bg-[#5C0A23] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B1538]"
                           disabled={event.soldOut}
                           onClick={() => handleBooking(event)}
                         >
@@ -507,7 +508,7 @@ export default function EventsPage() {
               (partner) => (
                 <div
                   key={partner}
-                  className="text-center px-6 py-4 rounded-lg border border-gray-100 hover:border-purple-200 hover:bg-purple-50/50 transition-all"
+                  className="text-center px-6 py-4 rounded-lg border border-gray-100 hover:border-[#D4AF37]/40 hover:bg-[#FDF8F3] transition-all"
                 >
                   <span className="font-semibold text-gray-700">{partner}</span>
                   <span className="block text-xs text-gray-400 mt-1">
@@ -523,7 +524,7 @@ export default function EventsPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-gradient-to-br from-purple-900 via-purple-800 to-yellow-600 text-white">
+      <section className="py-20 bg-gradient-to-br from-[#5C0A23] via-[#8B1538] to-[#D4AF37] text-white">
         <div className="max-w-4xl mx-auto text-center px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -531,12 +532,12 @@ export default function EventsPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-bold mb-6">
+            <h2 className="text-4xl font-playfair font-bold mb-6">
               {language === "en"
                 ? "Can't Find What You're Looking For?"
                 : "\u0644\u0627 \u062a\u062c\u062f \u0645\u0627 \u062a\u0628\u062d\u062b \u0639\u0646\u0647\u061f"}
             </h2>
-            <p className="text-xl mb-8 text-purple-100">
+            <p className="text-xl mb-8 text-amber-50/90">
               {language === "en"
                 ? "Contact us for personalized event recommendations and exclusive VIP access"
                 : "\u0627\u062a\u0635\u0644 \u0628\u0646\u0627 \u0644\u0644\u062d\u0635\u0648\u0644 \u0639\u0644\u0649 \u062a\u0648\u0635\u064a\u0627\u062a \u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0645\u062e\u0635\u0635\u0629 \u0648\u0648\u0635\u0648\u0644 VIP \u062d\u0635\u0631\u064a"}
@@ -545,7 +546,7 @@ export default function EventsPage() {
               <Button
                 asChild
                 size="lg"
-                className="bg-white text-purple-900 hover:bg-gray-100"
+                className="bg-white text-[#5C0A23] hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 <Link href="/contact">
                   {language === "en"

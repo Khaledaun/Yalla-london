@@ -171,6 +171,58 @@ async function main() {
     console.log(`Created recommendation: ${recommendation.name_en}`)
   }
 
+  // Create content schedule rules for automated content generation
+  const scheduleRules = [
+    {
+      name: 'Daily English Blog Posts',
+      content_type: 'blog_post',
+      language: 'en',
+      frequency_hours: 24,
+      auto_publish: false,
+      min_hours_between: 8,
+      max_posts_per_day: 2,
+      preferred_times: ['09:00', '15:00'],
+      categories: ['food-drink', 'style-shopping', 'culture-art', 'uk-travel'],
+      is_active: true,
+    },
+    {
+      name: 'Daily Arabic Blog Posts',
+      content_type: 'blog_post',
+      language: 'ar',
+      frequency_hours: 24,
+      auto_publish: false,
+      min_hours_between: 8,
+      max_posts_per_day: 2,
+      preferred_times: ['10:00', '16:00'],
+      categories: ['food-drink', 'style-shopping', 'culture-art', 'uk-travel'],
+      is_active: true,
+    },
+    {
+      name: 'Bilingual Weekend Features',
+      content_type: 'blog_post',
+      language: 'both',
+      frequency_hours: 168, // Weekly
+      auto_publish: false,
+      min_hours_between: 12,
+      max_posts_per_day: 1,
+      preferred_times: ['11:00'],
+      categories: ['food-drink', 'culture-art', 'uk-travel'],
+      is_active: true,
+    },
+  ]
+
+  for (const rule of scheduleRules) {
+    const existing = await prisma.contentScheduleRule.findFirst({
+      where: { name: rule.name },
+    })
+    if (!existing) {
+      await prisma.contentScheduleRule.create({ data: rule })
+      console.log(`Created schedule rule: ${rule.name}`)
+    } else {
+      console.log(`Schedule rule already exists: ${rule.name}`)
+    }
+  }
+
   console.log('Database seeding completed successfully!')
 }
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Script from "next/script";
 import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
@@ -113,7 +114,9 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               <LanguageProvider>
-                <AnalyticsTracker />
+                <Suspense fallback={null}>
+                  <AnalyticsTracker />
+                </Suspense>
                 <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-white focus:text-charcoal focus:rounded focus:shadow-lg focus:text-sm focus:font-semibold">
                   Skip to content
                 </a>

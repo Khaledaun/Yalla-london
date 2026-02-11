@@ -108,10 +108,47 @@ const config: Config = {
         },
         cream: {
           DEFAULT: '#FAF8F4',  // Light mode background
+          50: '#FDFCFA',
+          100: '#F5F1E8',
+          200: '#EDE8DC',
+          300: '#DED8CC',
+          400: '#C4BEB2',
+          500: '#A9A498',
+          900: '#3D3835',
+          950: '#2A2523',
         },
         forest: {
           DEFAULT: '#2D5A3D',  // Success states
         },
+        // Legacy aliases — maps old Brand Kit v1 class names to Brand Kit v2 values
+        burgundy: {
+          50: '#fef2f2',
+          100: '#fde3e3',
+          200: '#fccbcb',
+          300: '#f9a3a3',
+          400: '#f06b6b',
+          500: '#e34040',
+          600: '#C8322B',
+          700: '#a82520',
+          800: '#8b1f1c',
+          900: '#751d1b',
+          950: '#400b0a',
+        },
+        gold: {
+          50: '#fbf8eb',
+          100: '#f5eecb',
+          200: '#ede09a',
+          300: '#e2cc60',
+          400: '#d9b938',
+          500: '#C49A2A',
+          600: '#a87a22',
+          700: '#8a5c1e',
+          800: '#724a20',
+          900: '#5f3e20',
+          950: '#371f0e',
+        },
+        'warm-charcoal': '#1C1917',
+        'warm-gray': '#78716C',
       },
       borderRadius: {
         lg: "var(--radius)",

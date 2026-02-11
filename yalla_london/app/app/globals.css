@@ -327,14 +327,14 @@
     background-color: white;
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
-    border: 1px solid rgba(212, 175, 55, 0.1);
+    border: 1px solid rgba(196, 154, 42, 0.1);
     transition: all 0.3s ease;
   }
 
   .card-elegant:hover {
     box-shadow: var(--shadow-luxury);
     transform: translateY(-4px);
-    border-color: rgba(212, 175, 55, 0.3);
+    border-color: rgba(196, 154, 42, 0.3);
   }
 
   /* Decorative heading with underline */

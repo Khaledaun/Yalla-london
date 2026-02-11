@@ -91,7 +91,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
   return (
     <div className={`py-12 ${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Header */}
-      <section className="bg-gradient-to-br from-[#FDF8F3] to-[#F5EDE4] py-16">
+      <section className="bg-gradient-to-br from-cream to-cream-200 py-16">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             className="text-center"
@@ -203,7 +203,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                       <p className="text-gray-600 leading-relaxed flex-1 mb-4 line-clamp-3">
                         {excerpt}
                       </p>
-                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-brand-primary hover:text-[#5C0A23] transition-colors">
+                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-brand-primary hover:text-london-800 transition-colors">
                         <Link href={`/blog/${post.slug}`}>
                           {t('readMore')}
                           <ArrowRight className={`ml-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />

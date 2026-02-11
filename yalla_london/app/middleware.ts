@@ -118,8 +118,16 @@ const EXCLUDED_PATHS = [
   "/api/webhooks",
   "/_next",
   "/favicon.ico",
+  "/favicon.png",
+  "/favicon.svg",
   "/robots.txt",
   "/sitemap.xml",
+  "/manifest.json",
+  "/og-image.jpg",
+  "/icons/",
+  "/images/",
+  "/branding/",
+  "/screenshots/",
 ];
 
 // SECURITY: Allowed origins for CSRF protection
@@ -270,5 +278,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|public/).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|favicon\\.png|favicon\\.svg|og-image\\.jpg|icons/|images/|branding/|screenshots/|public/).*)",
+  ],
 };

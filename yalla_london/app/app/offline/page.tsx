@@ -17,9 +17,9 @@ export default function OfflinePage() {
           <Image
             src="/images/yalla-london-logo.svg"
             alt="Yalla London"
-            width={160}
+            width={200}
             height={36}
-            className="mx-auto mb-6"
+            className="mx-auto mb-6 h-9 w-auto"
           />
           <div className="mx-auto w-16 h-16 bg-cream-100 rounded-full flex items-center justify-center mb-6">
             <WifiOff className="h-8 w-8 text-stone" />

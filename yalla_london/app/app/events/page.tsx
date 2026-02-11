@@ -391,7 +391,7 @@ export default function EventsPage() {
                         sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover"
                       />
-                      <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} flex gap-2`}
+                      <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} flex gap-2`}>
                         <Badge
                           className={
                             categoryColors[event.category] ||

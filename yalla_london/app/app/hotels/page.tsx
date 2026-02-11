@@ -222,48 +222,29 @@ export default function HotelsPage() {
   const [selectedArea, setSelectedArea] = useState('All Areas')
 
   return (
-    <div className={`min-h-screen bg-gray-50 ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Navbar */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex justify-center p-4 pointer-events-none">
-        <nav className="flex items-center justify-between px-6 py-3 bg-white/95 backdrop-blur-xl rounded-full shadow-lg w-full max-w-4xl pointer-events-auto border border-gray-100">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[#1C1917] rounded-lg flex items-center justify-center relative">
-              <span className="text-white font-bold">Y</span>
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#C8322B] rounded-full"></span>
-            </div>
-            <span className="text-xl font-bold text-[#1C1917]">Yalla<span className="font-normal text-[#A3A3A3]">London</span></span>
-          </Link>
-          <div className="hidden md:flex items-center gap-4">
-            <Link href="/" className="text-sm font-medium text-gray-600 hover:text-[#1C1917]">Home</Link>
-            <Link href="/experiences" className="text-sm font-medium text-gray-600 hover:text-[#1C1917]">Experiences</Link>
-            <Link href="/hotels" className="text-sm font-medium text-[#1C1917]">Hotels</Link>
-            <Link href="/shop" className="text-sm font-medium text-gray-600 hover:text-[#1C1917]">Shop</Link>
-          </div>
-        </nav>
-      </div>
-
+    <div className={`bg-cream ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Hero Section */}
-      <div className="pt-24 pb-12 bg-gradient-to-b from-[#1C1917] to-[#3D3835]">
-        <div className="max-w-6xl mx-auto px-6 text-center">
+      <div className="pb-12 bg-gradient-to-b from-charcoal to-charcoal-light">
+        <div className="max-w-6xl mx-auto px-6 pt-8 text-center">
           <h1 className="text-4xl md:text-5xl font-display font-bold text-white mb-4">{t.title}</h1>
-          <p className="text-xl text-gray-300 mb-8">{t.subtitle}</p>
+          <p className="text-xl text-cream-300 mb-8">{t.subtitle}</p>
 
           {/* Search Bar */}
           <div className="max-w-xl mx-auto relative">
-            <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400`} />
+            <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5 text-stone`} />
             <input
               type="text"
               placeholder={t.search}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-[#C8322B]`}
+              className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-london-600`}
             />
           </div>
         </div>
       </div>
 
       {/* Area Filter */}
-      <div className="bg-white border-b py-4 sticky top-20 z-40">
+      <div className="bg-white border-b border-sand py-4 sticky top-16 z-40">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center gap-3 overflow-x-auto pb-2">
             {t.areas.map((area) => (
@@ -272,8 +253,8 @@ export default function HotelsPage() {
                 onClick={() => setSelectedArea(area)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedArea === area
-                    ? 'bg-[#1C1917] text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-charcoal text-white'
+                    : 'bg-cream-100 text-stone hover:bg-cream-200'
                 }`}
               >
                 {area}
@@ -287,10 +268,10 @@ export default function HotelsPage() {
       <div className="max-w-6xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {hotels[locale].map((hotel) => (
-            <div key={hotel.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all group">
+            <div key={hotel.id} className="bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-all group border border-sand/50">
               <div className="relative h-56">
                 <Image src={hotel.image} alt={hotel.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} px-3 py-1 bg-[#1C1917] text-white text-xs font-semibold rounded-full`}>
+                <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} px-3 py-1 bg-charcoal text-white text-xs font-semibold rounded-full`}>
                   {hotel.badge}
                 </span>
               </div>
@@ -300,31 +281,31 @@ export default function HotelsPage() {
                   {Array.from({ length: hotel.rating }).map((_, i) => (
                     <Star key={i} className="w-4 h-4 text-amber-500 fill-amber-500" />
                   ))}
-                  <span className="text-sm text-gray-500 ml-2">({hotel.reviews} {t.reviews})</span>
+                  <span className="text-sm text-stone ml-2">({hotel.reviews} {t.reviews})</span>
                 </div>
 
                 {/* Name & Location */}
-                <h3 className="text-xl font-semibold text-[#1C1917] mb-1 line-clamp-2">{hotel.name}</h3>
-                <p className="text-sm text-gray-500 flex items-center gap-1 mb-4">
+                <h3 className="text-xl font-semibold text-charcoal mb-1 line-clamp-2">{hotel.name}</h3>
+                <p className="text-sm text-stone flex items-center gap-1 mb-4">
                   <MapPin className="w-4 h-4" /> {hotel.location}
                 </p>
 
                 {/* Amenities */}
                 <div className="flex flex-wrap gap-2 mb-4">
                   {hotel.amenities.slice(0, 3).map((amenity) => (
-                    <span key={amenity} className="px-2 py-1 bg-gray-100 text-xs text-gray-600 rounded">
+                    <span key={amenity} className="px-2 py-1 bg-cream-100 text-xs text-stone rounded">
                       {amenity}
                     </span>
                   ))}
                 </div>
 
                 {/* Price & CTA */}
-                <div className="flex items-center justify-between pt-4 border-t">
+                <div className="flex items-center justify-between pt-4 border-t border-sand">
                   <div>
-                    <span className="text-2xl font-bold text-[#1C1917]">£{hotel.price}</span>
-                    <span className="text-sm text-gray-500">{t.perNight}</span>
+                    <span className="text-2xl font-bold text-charcoal">£{hotel.price}</span>
+                    <span className="text-sm text-stone">{t.perNight}</span>
                   </div>
-                  <button className="px-4 py-2 bg-[#C8322B] text-white text-sm font-medium rounded-lg hover:bg-[#a82520] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C8322B] transition-colors">
+                  <button className="px-4 py-2 bg-london-600 text-white text-sm font-medium rounded-lg hover:bg-london-700 transition-colors">
                     {t.viewDetails}
                   </button>
                 </div>
@@ -333,20 +314,6 @@ export default function HotelsPage() {
           ))}
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="bg-[#1C1917] text-white py-12">
-        <div className="max-w-6xl mx-auto px-6 text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center relative">
-              <span className="text-[#1C1917] font-bold text-lg">Y</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-[#C8322B] rounded-full"></span>
-            </div>
-            <span className="text-2xl font-bold">Yalla<span className="font-normal text-gray-400">London</span></span>
-          </div>
-          <p className="text-gray-400">© 2026 Yalla London. All rights reserved.</p>
-        </div>
-      </footer>
     </div>
   )
 }

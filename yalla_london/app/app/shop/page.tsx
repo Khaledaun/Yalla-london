@@ -240,54 +240,25 @@ export default function ShopPage() {
   }, [cart, products, checkingOut])
 
   return (
-    <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: isRTL ? 'IBM Plex Sans Arabic, sans-serif' : 'Anybody, sans-serif' }}>
-      {/* Floating Navbar */}
-      <div className="fixed top-0 left-0 right-0 z-50 flex justify-center p-4 pointer-events-none">
-        <nav className="flex items-center justify-between px-6 py-3 bg-white/95 backdrop-blur-xl rounded-full shadow-lg w-full max-w-4xl pointer-events-auto border border-gray-100">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[#1C1917] rounded-lg flex items-center justify-center relative">
-              <span className="text-white font-bold">Y</span>
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#C8322B] rounded-full"></span>
-            </div>
-            <span className="text-xl font-bold text-[#1C1917]">Yalla<span className="font-normal text-[#A3A3A3]">London</span></span>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-4">
-            <Link href="/" className="text-sm font-medium text-gray-600 hover:text-[#1C1917]">Home</Link>
-            <Link href="/blog" className="text-sm font-medium text-gray-600 hover:text-[#1C1917]">Blog</Link>
-            <Link href="/shop" className="text-sm font-medium text-[#1C1917]">Shop</Link>
-          </div>
-
-          {/* Cart Button */}
-          <button className="relative p-2.5 bg-[#1C1917] text-white rounded-full">
-            <ShoppingCart className="w-5 h-5" />
-            {cart.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#C8322B] rounded-full text-xs flex items-center justify-center">
-                {cart.length}
-              </span>
-            )}
-          </button>
-        </nav>
-      </div>
-
+    <div className={`bg-cream ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Hero Section */}
-      <div className="pt-24 pb-12 bg-gradient-to-b from-[#1C1917] to-[#3D3835]">
-        <div className="max-w-6xl mx-auto px-6 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{t.title}</h1>
-          <p className="text-xl text-gray-300 mb-8">{t.subtitle}</p>
+      <div className="pb-12 bg-gradient-to-b from-charcoal to-charcoal-light">
+        <div className="max-w-6xl mx-auto px-6 pt-8 text-center">
+          <h1 className="text-4xl md:text-5xl font-display font-bold text-white mb-4">{t.title}</h1>
+          <p className="text-xl text-cream-300 mb-8">{t.subtitle}</p>
 
           {/* Trust Badges */}
           <div className="flex items-center justify-center gap-8 flex-wrap">
-            <div className="flex items-center gap-2 text-gray-300">
-              <Download className="w-5 h-5 text-[#C8322B]" />
+            <div className="flex items-center gap-2 text-cream-300">
+              <Download className="w-5 h-5 text-london-600" />
               <span className="text-sm">{t.instantDownload}</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-300">
-              <Check className="w-5 h-5 text-green-500" />
+            <div className="flex items-center gap-2 text-cream-300">
+              <Check className="w-5 h-5 text-forest" />
               <span className="text-sm">{t.securePayment}</span>
             </div>
-            <div className="flex items-center gap-2 text-gray-300">
-              <Sparkles className="w-5 h-5 text-amber-400" />
+            <div className="flex items-center gap-2 text-cream-300">
+              <Sparkles className="w-5 h-5 text-yalla-gold-400" />
               <span className="text-sm">{t.lifetime}</span>
             </div>
           </div>
@@ -295,7 +266,7 @@ export default function ShopPage() {
       </div>
 
       {/* Filters & Search */}
-      <div className="sticky top-20 z-40 bg-white shadow-sm py-4 border-b">
+      <div className="sticky top-16 z-40 bg-white shadow-sm py-4 border-b border-sand">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             {/* Categories */}
@@ -308,8 +279,8 @@ export default function ShopPage() {
                     onClick={() => setSelectedCategory(cat.id)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                       selectedCategory === cat.id
-                        ? 'bg-[#1C1917] text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? 'bg-charcoal text-white'
+                        : 'bg-cream-100 text-stone hover:bg-cream-200'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -321,13 +292,13 @@ export default function ShopPage() {
 
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-4 h-4 text-stone`} />
               <input
                 type="text"
                 placeholder={t.search}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 w-64 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#C8322B]/20 focus:border-[#C8322B]"
+                className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2 w-64 border border-sand rounded-full focus:outline-none focus:ring-2 focus:ring-london-600/20 focus:border-london-600`}
               />
             </div>
           </div>
@@ -338,32 +309,32 @@ export default function ShopPage() {
       <div className="max-w-6xl mx-auto px-6 py-12">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-[#C8322B] animate-spin" />
-            <span className="ml-3 text-gray-500">{t.loading}</span>
+            <Loader2 className="w-8 h-8 text-london-600 animate-spin" />
+            <span className="ml-3 text-stone">{t.loading}</span>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredProducts.map((product) => {
               const sym = currencySymbol(product.currency)
               return (
-                <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow border border-gray-100">
+                <div key={product.id} className="bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-shadow border border-sand/50">
                   {/* Image */}
                   <Link href={`/shop/${product.slug}`}>
                     <div className="relative h-48">
                       {product.image ? (
                         <Image src={product.image} alt={isRTL ? (product.name_ar || product.name_en) : product.name_en} fill className="object-cover" />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-[#1C1917] to-[#C8322B] flex items-center justify-center">
+                        <div className="w-full h-full bg-gradient-luxury flex items-center justify-center">
                           <FileText className="w-16 h-16 text-white/30" />
                         </div>
                       )}
                       {product.featured && (
-                        <span className="absolute top-3 left-3 px-3 py-1 bg-[#C8322B] text-white text-xs font-semibold rounded-full">
+                        <span className="absolute top-3 left-3 px-3 py-1 bg-london-600 text-white text-xs font-semibold rounded-full">
                           {isRTL ? 'مميز' : 'Featured'}
                         </span>
                       )}
                       {product.originalPrice && (
-                        <span className="absolute top-3 right-3 px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full">
+                        <span className="absolute top-3 right-3 px-3 py-1 bg-forest text-white text-xs font-semibold rounded-full">
                           {Math.round((1 - product.price / product.originalPrice) * 100)}% Off
                         </span>
                       )}
@@ -378,25 +349,25 @@ export default function ShopPage() {
                         <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
                         <span className="text-sm font-semibold">{product.salesCount}</span>
                       </div>
-                      <span className="text-sm text-gray-400">{t.sold}</span>
+                      <span className="text-sm text-stone">{t.sold}</span>
                     </div>
 
                     {/* Title */}
                     <Link href={`/shop/${product.slug}`}>
-                      <h3 className="text-lg font-bold text-[#1C1917] mb-2 hover:text-[#C8322B] transition-colors">
+                      <h3 className="text-lg font-bold text-charcoal mb-2 hover:text-london-600 transition-colors">
                         {isRTL ? (product.name_ar || product.name_en) : product.name_en}
                       </h3>
                     </Link>
 
                     {/* Description */}
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                    <p className="text-sm text-stone mb-4 line-clamp-2">
                       {isRTL ? (product.description_ar || product.description_en) : product.description_en}
                     </p>
 
                     {/* Features */}
                     <div className="flex flex-wrap gap-2 mb-5">
                       {(product.features as string[]).slice(0, 3).map((feature, i) => (
-                        <span key={i} className="px-2 py-1 bg-gray-100 text-xs text-gray-600 rounded">
+                        <span key={i} className="px-2 py-1 bg-cream-100 text-xs text-stone rounded">
                           {feature}
                         </span>
                       ))}
@@ -405,17 +376,17 @@ export default function ShopPage() {
                     {/* Price & CTA */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-[#1C1917]">{sym}{product.price.toFixed(2)}</span>
+                        <span className="text-2xl font-bold text-charcoal">{sym}{product.price.toFixed(2)}</span>
                         {product.originalPrice && (
-                          <span className="text-sm text-gray-400 line-through">{sym}{product.originalPrice.toFixed(2)}</span>
+                          <span className="text-sm text-stone line-through">{sym}{product.originalPrice.toFixed(2)}</span>
                         )}
                       </div>
                       <button
                         onClick={() => addToCart(product.id)}
                         className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${
                           cart.includes(product.id)
-                            ? 'bg-green-500 text-white'
-                            : 'bg-[#C8322B] hover:bg-[#a82520] text-white'
+                            ? 'bg-forest text-white'
+                            : 'bg-london-600 hover:bg-london-700 text-white'
                         }`}
                       >
                         {cart.includes(product.id) ? (
@@ -440,17 +411,17 @@ export default function ShopPage() {
       {/* Floating Cart Summary */}
       {cart.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-          <div className="flex items-center gap-4 px-6 py-4 bg-[#1C1917] text-white rounded-full shadow-2xl">
+          <div className="flex items-center gap-4 px-6 py-4 bg-charcoal text-white rounded-full shadow-elegant">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" />
               <span className="font-medium">{cart.length} items</span>
             </div>
-            <div className="w-px h-6 bg-gray-600" />
+            <div className="w-px h-6 bg-cream-900" />
             <span className="text-lg font-bold">£{cartTotal.toFixed(2)}</span>
             <button
               onClick={handleCheckout}
               disabled={checkingOut}
-              className="flex items-center gap-2 px-4 py-2 bg-[#C8322B] rounded-full font-semibold hover:bg-[#a82520] transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-london-600 rounded-full font-semibold hover:bg-london-700 transition-colors disabled:opacity-50"
             >
               {checkingOut ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -463,23 +434,6 @@ export default function ShopPage() {
           </div>
         </div>
       )}
-
-      {/* Footer */}
-      <footer className="bg-[#1C1917] text-white py-12 mt-16">
-        <div className="max-w-6xl mx-auto px-6 text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center relative">
-              <span className="text-[#1C1917] font-bold text-lg">Y</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-[#C8322B] rounded-full"></span>
-            </div>
-            <span className="text-2xl font-bold">Yalla<span className="font-normal text-gray-400">London</span></span>
-          </div>
-          <p className="text-gray-400 mb-6">Your trusted guide to exploring London</p>
-          <div className="text-gray-500 text-sm">
-            &copy; 2026 Yalla London. All rights reserved.
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }

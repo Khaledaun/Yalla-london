@@ -307,7 +307,7 @@ export default function EventsPage() {
                 size="sm"
                 onClick={() => setShowVipOnly(!showVipOnly)}
                 className={
-                  showVipOnly ? "bg-yellow-600 hover:bg-yellow-700" : ""
+                  showVipOnly ? "bg-yalla-gold-500 hover:bg-yalla-gold-600 text-white" : ""
                 }
               >
                 <Star className="h-3 w-3 mr-1" /> VIP

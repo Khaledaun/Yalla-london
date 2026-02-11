@@ -481,22 +481,6 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
   return (
     <div className={`min-h-screen bg-cream ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Language Toggle */}
-      <div className={`fixed top-20 ${isRTL ? 'left-5' : 'right-5'} z-50 flex gap-0.5 bg-white p-1 rounded-lg shadow-md border border-gray-200`}>
-        <button
-          onClick={() => window.location.href = '?locale=en'}
-          className={`px-3 py-2 text-sm font-semibold rounded-md transition-colors ${locale === 'en' ? 'bg-charcoal text-white' : 'text-gray-500'}`}
-        >
-          EN
-        </button>
-        <button
-          onClick={() => window.location.href = '?locale=ar'}
-          className={`px-3 py-2 text-sm font-semibold rounded-md transition-colors ${locale === 'ar' ? 'bg-charcoal text-white' : 'text-gray-500'}`}
-        >
-          عربي
-        </button>
-      </div>
-
       {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-london-950">
         {/* Background */}

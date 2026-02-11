@@ -13,11 +13,14 @@ interface YallaHomepageProps {
   locale?: 'en' | 'ar'
 }
 
-// Brand Colors
+// Brand Colors — Brand Kit v2
 const colors = {
-  primary: '#1A1F36',
-  accent: '#E8634B',
-  gray: '#A3A3A3'
+  primary: '#C8322B',    // London Red
+  secondary: '#C49A2A',  // Gold
+  accent: '#3B7EA1',     // Thames Blue
+  dark: '#1C1917',       // Charcoal
+  cream: '#FAF8F4',      // Background
+  muted: '#78716C',      // Stone
 }
 
 // Trending items
@@ -477,25 +480,25 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   const textOffset = scrollProgress * 120
 
   return (
-    <div className={`min-h-screen bg-white ${isRTL ? 'font-cairo' : 'font-inter'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen bg-cream ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Language Toggle */}
       <div className={`fixed top-20 ${isRTL ? 'left-5' : 'right-5'} z-50 flex gap-0.5 bg-white p-1 rounded-lg shadow-md border border-gray-200`}>
         <button
           onClick={() => window.location.href = '?locale=en'}
-          className={`px-3 py-2 text-sm font-semibold rounded-md transition-colors ${locale === 'en' ? 'bg-[#1A1F36] text-white' : 'text-gray-500'}`}
+          className={`px-3 py-2 text-sm font-semibold rounded-md transition-colors ${locale === 'en' ? 'bg-charcoal text-white' : 'text-gray-500'}`}
         >
           EN
         </button>
         <button
           onClick={() => window.location.href = '?locale=ar'}
-          className={`px-3 py-2 text-sm font-semibold rounded-md transition-colors ${locale === 'ar' ? 'bg-[#1A1F36] text-white' : 'text-gray-500'}`}
+          className={`px-3 py-2 text-sm font-semibold rounded-md transition-colors ${locale === 'ar' ? 'bg-charcoal text-white' : 'text-gray-500'}`}
         >
           عربي
         </button>
       </div>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-gray-900">
+      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-london-950">
         {/* Background */}
         <div className="absolute inset-0 z-0" style={{ opacity: 1 - scrollProgress }}>
           <Image
@@ -506,7 +509,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-gray-900/50 via-gray-900/30 to-gray-900/70" />
+          <div className="absolute inset-0 bg-gradient-to-b from-london-950/50 via-london-950/30 to-london-950/70" />
         </div>
 
         {/* Expanding Media Container */}
@@ -520,7 +523,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            boxShadow: '0 25px 80px rgba(232, 99, 75, 0.2), 0 10px 30px rgba(0, 0, 0, 0.3)'
+            boxShadow: '0 25px 80px rgba(200, 50, 43, 0.25), 0 10px 30px rgba(0, 0, 0, 0.3)'
           }}
         >
           {mediaType === 'video' ? (
@@ -539,25 +542,25 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
               className="object-cover"
             />
           )}
-          <div className="absolute inset-0 bg-[#1A1F36]/20" style={{ opacity: 0.5 - scrollProgress * 0.3 }} />
+          <div className="absolute inset-0 bg-charcoal/20" style={{ opacity: 0.5 - scrollProgress * 0.3 }} />
         </div>
 
         {/* Title */}
         <div className="relative z-10 flex flex-col items-center text-center gap-4">
           <motion.h1
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-playfair font-bold text-white drop-shadow-lg"
-            style={{ transform: `translateX(${isRTL ? textOffset : -textOffset}vw)`, textShadow: '0 4px 30px rgba(0,0,0,0.5)' }}
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-display font-bold text-white drop-shadow-lg"
+            style={{ transform: `translateX(${isRTL ? textOffset : -textOffset}vw)`, textShadow: '0 4px 30px rgba(200,50,43,0.5)' }}
           >
             {locale === 'ar' ? 'اكتشف' : 'Discover'}
           </motion.h1>
           <motion.h1
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-playfair font-bold text-white drop-shadow-lg"
-            style={{ transform: `translateX(${isRTL ? -textOffset : textOffset}vw)`, textShadow: '0 4px 30px rgba(0,0,0,0.5)' }}
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-display font-bold text-white drop-shadow-lg"
+            style={{ transform: `translateX(${isRTL ? -textOffset : textOffset}vw)`, textShadow: '0 4px 30px rgba(200,50,43,0.5)' }}
           >
             {locale === 'ar' ? 'لندن' : 'London'}
           </motion.h1>
           <motion.p
-            className="text-lg tracking-widest uppercase text-[#E8634B]/80"
+            className="text-lg tracking-widest uppercase text-yalla-gold-400/90"
             style={{ opacity: 1 - scrollProgress * 1.5 }}
           >
             {locale === 'ar' ? 'دليلك العربي لاستكشاف لندن' : 'Your guide to the extraordinary'}
@@ -589,13 +592,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       <div className={`fixed bottom-6 ${isRTL ? 'left-6' : 'right-6'} z-50 flex gap-1 bg-white/95 backdrop-blur-lg p-1.5 rounded-full shadow-lg`}>
         <button
           onClick={() => setMediaType('image')}
-          className={`p-2.5 rounded-full transition-colors ${mediaType === 'image' ? 'bg-[#1A1F36] text-white' : 'text-gray-500'}`}
+          className={`p-2.5 rounded-full transition-colors ${mediaType === 'image' ? 'bg-charcoal text-white' : 'text-gray-500'}`}
         >
           <ImageIcon className="w-4 h-4" />
         </button>
         <button
           onClick={() => setMediaType('video')}
-          className={`p-2.5 rounded-full transition-colors ${mediaType === 'video' ? 'bg-[#1A1F36] text-white' : 'text-gray-500'}`}
+          className={`p-2.5 rounded-full transition-colors ${mediaType === 'video' ? 'bg-charcoal text-white' : 'text-gray-500'}`}
         >
           <Play className="w-4 h-4" />
         </button>
@@ -603,20 +606,20 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
       {/* Main Content - Revealed after scroll */}
       <motion.div
-        className="bg-gray-50"
+        className="bg-cream"
         initial={{ opacity: 0 }}
         animate={{ opacity: showContent ? 1 : 0 }}
         transition={{ duration: 0.7 }}
       >
         {/* Trending Bar */}
-        <div className="bg-gray-50 border-b border-gray-200 py-3.5 px-6">
+        <div className="bg-cream border-b border-sand py-3.5 px-6">
           <div className="max-w-6xl mx-auto flex items-center gap-6 overflow-x-auto">
-            <div className="flex items-center gap-2 text-xs font-bold text-[#E8634B] uppercase tracking-wide whitespace-nowrap">
-              <span className="w-2 h-2 bg-[#E8634B] rounded-full animate-pulse"></span>
+            <div className="flex items-center gap-2 text-xs font-bold text-london-600 uppercase tracking-wide whitespace-nowrap">
+              <span className="w-2 h-2 bg-london-600 rounded-full animate-pulse"></span>
               {t.trending}
             </div>
             {trendingItems.map((item, i) => (
-              <Link key={i} href="#" className="flex items-center gap-3 text-sm text-gray-700 hover:text-[#1A1F36] whitespace-nowrap transition-colors">
+              <Link key={i} href="#" className="flex items-center gap-3 text-sm text-gray-700 hover:text-charcoal whitespace-nowrap transition-colors">
                 {item[locale]}
                 <span className="text-xs text-gray-400">2h</span>
               </Link>
@@ -631,8 +634,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             <div className="lg:col-span-2 space-y-10">
               {/* Section Header */}
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-playfair font-bold text-[#1A1F36]">{t.latestArticles}</h2>
-                <Link href="/blog" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
+                <h2 className="text-2xl font-display font-bold text-charcoal">{t.latestArticles}</h2>
+                <Link href="/blog" className="flex items-center gap-1 text-sm font-medium text-london-600 hover:underline">
                   {t.viewAll} <ChevronRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -641,10 +644,10 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
               <div className="space-y-6">
                 {articles[locale].map((article) => (
                   <Link key={article.id} href={`/blog/${article.slug}`}>
-                    <article className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-5 bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow border border-gray-100 cursor-pointer">
+                    <article className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-5 bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow border border-sand/50 cursor-pointer">
                       <div className="space-y-3">
-                        <span className="text-xs font-semibold text-[#E8634B] uppercase tracking-wide">{article.category}</span>
-                        <h3 className="text-xl font-semibold text-[#1A1F36] group-hover:text-[#E8634B] transition-colors">
+                        <span className="text-xs font-semibold text-london-600 uppercase tracking-wide">{article.category}</span>
+                        <h3 className="text-xl font-semibold text-charcoal group-hover:text-london-600 transition-colors">
                           {article.title}
                         </h3>
                         <p className="text-gray-600 text-sm line-clamp-2">{article.excerpt}</p>
@@ -665,14 +668,14 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             {/* Sidebar */}
             <div className="space-y-8">
               {/* Most Read */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-playfair font-bold text-[#1A1F36] mb-4 pb-3 border-b border-gray-100">{t.mostRead}</h3>
+              <div className="bg-white rounded-xl p-6 shadow-sm border border-sand/50">
+                <h3 className="text-lg font-display font-bold text-charcoal mb-4 pb-3 border-b border-gray-100">{t.mostRead}</h3>
                 <ul className="space-y-3">
                   {mostRead[locale].map((item, i) => (
                     <li key={i}>
                       <Link href="#" className="flex items-start gap-3 group">
-                        <span className="text-xl font-bold text-gray-300 group-hover:text-[#E8634B] transition-colors">{i + 1}</span>
-                        <span className="text-sm text-gray-700 group-hover:text-[#1A1F36] transition-colors">{item}</span>
+                        <span className="text-xl font-bold text-gray-300 group-hover:text-london-600 transition-colors">{i + 1}</span>
+                        <span className="text-sm text-gray-700 group-hover:text-charcoal transition-colors">{item}</span>
                       </Link>
                     </li>
                   ))}
@@ -680,8 +683,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
               </div>
 
               {/* Newsletter */}
-              <div className="bg-gradient-to-br from-[#1A1F36] to-[#2d3452] rounded-xl p-6 text-white">
-                <h3 className="text-lg font-playfair font-bold mb-2">{t.newsletter}</h3>
+              <div className="bg-gradient-to-br from-london-900 to-london-800 rounded-xl p-6 text-white">
+                <h3 className="text-lg font-display font-bold mb-2">{t.newsletter}</h3>
                 <p className="text-sm text-gray-300 mb-4">{t.newsletterDesc}</p>
                 <div className="space-y-3">
                   <input
@@ -689,9 +692,9 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     placeholder={t.emailPlaceholder}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E8634B]"
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-london-600"
                   />
-                  <button className="w-full py-3 bg-[#E8634B] hover:bg-[#d4543d] text-white font-semibold rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E8634B]">
+                  <button className="w-full py-3 bg-london-600 hover:bg-london-700 text-white font-semibold rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600">
                     {t.subscribeBtn}
                   </button>
                 </div>
@@ -701,32 +704,32 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </main>
 
         {/* Events Section */}
-        <section className="bg-white py-16">
+        <section className="bg-white/80 py-16">
           <div className="max-w-6xl mx-auto px-6">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-playfair font-bold text-[#1A1F36]">{t.upcomingEvents}</h2>
-              <Link href="/events" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
+              <h2 className="text-2xl font-display font-bold text-charcoal">{t.upcomingEvents}</h2>
+              <Link href="/events" className="flex items-center gap-1 text-sm font-medium text-london-600 hover:underline">
                 {t.viewAll} <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {events[locale].map((event) => (
-                <div key={event.id} className="bg-gray-50 rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-100">
+                <div key={event.id} className="bg-gray-50 rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-sand/50">
                   <div className="relative h-40">
                     <Image src={event.image} alt={event.title} fill className="object-cover" />
                     <div className="absolute top-3 left-3 bg-white rounded-lg px-3 py-2 text-center shadow-md">
-                      <div className="text-2xl font-bold text-[#1A1F36]">{event.date.day}</div>
+                      <div className="text-2xl font-bold text-charcoal">{event.date.day}</div>
                       <div className="text-xs text-gray-500 uppercase">{event.date.month}</div>
                     </div>
                   </div>
                   <div className="p-5">
-                    <h3 className="font-semibold text-[#1A1F36] mb-1">{event.title}</h3>
+                    <h3 className="font-semibold text-charcoal mb-1">{event.title}</h3>
                     <p className="text-sm text-gray-500 flex items-center gap-1 mb-3">
                       <MapPin className="w-4 h-4" /> {event.venue}
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-[#1A1F36]">{event.price}</span>
-                      <button className="px-4 py-2 bg-[#E8634B] text-white text-sm font-medium rounded-lg hover:bg-[#d4543d] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E8634B]">
+                      <span className="text-sm font-semibold text-charcoal">{event.price}</span>
+                      <button className="px-4 py-2 bg-london-600 text-white text-sm font-medium rounded-lg hover:bg-london-700 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600">
                         {t.getTickets}
                       </button>
                     </div>
@@ -738,31 +741,31 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </section>
 
         {/* Guides Section */}
-        <section className="bg-gray-50 py-16">
+        <section className="bg-cream py-16">
           <div className="max-w-6xl mx-auto px-6">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-playfair font-bold text-[#1A1F36]">{t.pdfGuides}</h2>
-              <Link href="/shop" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
+              <h2 className="text-2xl font-display font-bold text-charcoal">{t.pdfGuides}</h2>
+              <Link href="/shop" className="flex items-center gap-1 text-sm font-medium text-london-600 hover:underline">
                 {t.viewAll} <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {guides[locale].map((guide) => (
-                <div key={guide.id} className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-100">
+                <div key={guide.id} className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-sand/50">
                   <div className="relative h-48">
                     <Image src={guide.image} alt={guide.title} fill className="object-cover" />
                     {guide.badge && (
-                      <span className="absolute top-3 left-3 px-3 py-1 bg-[#E8634B] text-white text-xs font-semibold rounded-full">
+                      <span className="absolute top-3 left-3 px-3 py-1 bg-london-600 text-white text-xs font-semibold rounded-full">
                         {guide.badge}
                       </span>
                     )}
                   </div>
                   <div className="p-5">
-                    <h3 className="font-semibold text-[#1A1F36] mb-2">{guide.title}</h3>
+                    <h3 className="font-semibold text-charcoal mb-2">{guide.title}</h3>
                     <p className="text-sm text-gray-500 mb-4">{guide.pages}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-lg font-bold text-[#1A1F36]">{guide.price}</span>
-                      <button className="flex items-center gap-2 px-4 py-2 bg-[#1A1F36] text-white text-sm font-medium rounded-lg hover:bg-[#2d3452] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A1F36]">
+                      <span className="text-lg font-bold text-charcoal">{guide.price}</span>
+                      <button className="flex items-center gap-2 px-4 py-2 bg-charcoal text-white text-sm font-medium rounded-lg hover:bg-charcoal-light transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-charcoal">
                         <Download className="w-4 h-4" /> {t.downloadNow}
                       </button>
                     </div>
@@ -774,11 +777,11 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </section>
 
         {/* Experiences Section */}
-        <section className="bg-white py-16">
+        <section className="bg-white/80 py-16">
           <div className="max-w-6xl mx-auto px-6">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-playfair font-bold text-[#1A1F36]">{t.experiences}</h2>
-              <Link href="/experiences" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
+              <h2 className="text-2xl font-display font-bold text-charcoal">{t.experiences}</h2>
+              <Link href="/experiences" className="flex items-center gap-1 text-sm font-medium text-london-600 hover:underline">
                 {t.viewAll} <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
@@ -797,8 +800,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-[#1A1F36]">{exp.price}</span>
-                    <button className="text-xs text-[#E8634B] font-medium hover:underline">{t.bookNow}</button>
+                    <span className="text-sm font-semibold text-charcoal">{exp.price}</span>
+                    <button className="text-xs text-london-600 font-medium hover:underline">{t.bookNow}</button>
                   </div>
                 </div>
               ))}
@@ -807,20 +810,20 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </section>
 
         {/* Hotels Section */}
-        <section className="bg-gray-50 py-16">
+        <section className="bg-cream py-16">
           <div className="max-w-6xl mx-auto px-6">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-playfair font-bold text-[#1A1F36]">{t.luxuryHotels}</h2>
-              <Link href="/hotels" className="flex items-center gap-1 text-sm font-medium text-[#E8634B] hover:underline">
+              <h2 className="text-2xl font-display font-bold text-charcoal">{t.luxuryHotels}</h2>
+              <Link href="/hotels" className="flex items-center gap-1 text-sm font-medium text-london-600 hover:underline">
                 {t.viewAll} <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {hotels[locale].map((hotel) => (
-                <div key={hotel.id} className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-gray-100">
+                <div key={hotel.id} className="bg-white rounded-xl overflow-hidden hover:shadow-lg transition-shadow border border-sand/50">
                   <div className="relative h-48">
                     <Image src={hotel.image} alt={hotel.name} fill className="object-cover" />
-                    <span className="absolute top-3 right-3 px-3 py-1 bg-[#1A1F36] text-white text-xs font-semibold rounded-full">
+                    <span className="absolute top-3 right-3 px-3 py-1 bg-charcoal text-white text-xs font-semibold rounded-full">
                       {hotel.badge}
                     </span>
                   </div>
@@ -830,13 +833,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                         <Star key={i} className="w-4 h-4 text-amber-500 fill-amber-500" />
                       ))}
                     </div>
-                    <h3 className="font-semibold text-[#1A1F36] mb-1">{hotel.name}</h3>
+                    <h3 className="font-semibold text-charcoal mb-1">{hotel.name}</h3>
                     <p className="text-sm text-gray-500 flex items-center gap-1 mb-3">
                       <MapPin className="w-4 h-4" /> {hotel.location}
                     </p>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-[#1A1F36]">{hotel.price}</span>
-                      <button className="px-4 py-2 border-2 border-[#1A1F36] text-[#1A1F36] text-sm font-medium rounded-lg hover:bg-[#1A1F36] hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A1F36]">
+                      <span className="text-sm font-semibold text-charcoal">{hotel.price}</span>
+                      <button className="px-4 py-2 border-2 border-charcoal text-charcoal text-sm font-medium rounded-lg hover:bg-charcoal hover:text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-charcoal">
                         {t.viewDeals}
                       </button>
                     </div>

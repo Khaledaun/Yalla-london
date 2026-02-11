@@ -94,7 +94,7 @@ export default function AboutPage() {
               transition={{ duration: 0.8 }}
               className="max-w-2xl"
             >
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-playfair font-bold mb-6">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold mb-6">
                 {t('founderTitle')}
               </h1>
               <p className="text-xl md:text-2xl text-amber-50/90">
@@ -119,7 +119,7 @@ export default function AboutPage() {
               transition={{ duration: 0.8 }}
               className="space-y-6"
             >
-              <h2 className="text-4xl font-playfair font-bold gradient-text">
+              <h2 className="text-4xl font-display font-bold gradient-text">
                 {language === 'en' ? 'A Passionate Explorer' : 'مستكشفة شغوفة'}
               </h2>
               <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
@@ -186,7 +186,7 @@ export default function AboutPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-playfair font-bold gradient-text mb-4">
+            <h2 className="text-4xl font-display font-bold gradient-text mb-4">
               {language === 'en' ? 'By the Numbers' : 'بالأرقام'}
             </h2>
             <p className="text-xl text-gray-600">
@@ -236,7 +236,7 @@ export default function AboutPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-playfair font-bold gradient-text mb-4">
+            <h2 className="text-4xl font-display font-bold gradient-text mb-4">
               {language === 'en' ? 'My Values' : 'قيمي'}
             </h2>
             <p className="text-xl text-gray-600">
@@ -262,7 +262,7 @@ export default function AboutPage() {
                     <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-cream to-cream-200 rounded-full flex items-center justify-center">
                       <value.icon className="h-10 w-10 text-brand-primary" />
                     </div>
-                    <h3 className="text-2xl font-playfair font-bold mb-4 text-gray-900">
+                    <h3 className="text-2xl font-display font-bold mb-4 text-gray-900">
                       {language === 'en' ? value.title_en : value.title_ar}
                     </h3>
                     <p className="text-gray-600 leading-relaxed">
@@ -285,7 +285,7 @@ export default function AboutPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-playfair font-bold mb-6">
+            <h2 className="text-4xl font-display font-bold mb-6">
               {language === 'en' 
                 ? 'Let\'s Explore London Together'
                 : 'دعونا نستكشف لندن معاً'

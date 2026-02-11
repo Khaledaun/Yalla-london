@@ -56,7 +56,7 @@ export default function EditorToolbar({
       text: {
         content: "New Text",
         fontSize: 24,
-        fontFamily: "Plus Jakarta Sans, sans-serif",
+        fontFamily: "Anybody, sans-serif",
         fontWeight: 400,
         color: "#000000",
         alignment: "center",

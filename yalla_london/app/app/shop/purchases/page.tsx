@@ -72,26 +72,26 @@ export default function PurchasesPage() {
       <div className="fixed top-0 left-0 right-0 z-50 flex justify-center p-4 pointer-events-none">
         <nav className="flex items-center justify-between px-6 py-3 bg-white/95 backdrop-blur-xl rounded-full shadow-lg w-full max-w-4xl pointer-events-auto border border-gray-100">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[#1A1F36] rounded-lg flex items-center justify-center relative">
+            <div className="w-9 h-9 bg-[#1C1917] rounded-lg flex items-center justify-center relative">
               <span className="text-white font-bold">Y</span>
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#E8634B] rounded-full"></span>
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#C8322B] rounded-full"></span>
             </div>
-            <span className="text-xl font-bold text-[#1A1F36]">Yalla<span className="font-normal text-[#A3A3A3]">London</span></span>
+            <span className="text-xl font-bold text-[#1C1917]">Yalla<span className="font-normal text-[#A3A3A3]">London</span></span>
           </Link>
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/shop" className="text-sm font-medium text-gray-600 hover:text-[#1A1F36]">Shop</Link>
-            <Link href="/shop/purchases" className="text-sm font-medium text-[#1A1F36]">My Purchases</Link>
+            <Link href="/shop" className="text-sm font-medium text-gray-600 hover:text-[#1C1917]">Shop</Link>
+            <Link href="/shop/purchases" className="text-sm font-medium text-[#1C1917]">My Purchases</Link>
           </div>
         </nav>
       </div>
 
       <div className="pt-28 pb-16 max-w-2xl mx-auto px-6">
-        <Link href="/shop" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#1A1F36] mb-6">
+        <Link href="/shop" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#1C1917] mb-6">
           <ArrowLeft className="w-4 h-4" />
           {isRTL ? 'العودة للمتجر' : 'Back to Shop'}
         </Link>
 
-        <h1 className="text-3xl font-bold text-[#1A1F36] mb-2">
+        <h1 className="text-3xl font-bold text-[#1C1917] mb-2">
           {isRTL ? 'مشترياتي' : 'My Purchases'}
         </h1>
         <p className="text-gray-500 mb-8">
@@ -108,13 +108,13 @@ export default function PurchasesPage() {
               placeholder={isRTL ? 'أدخل بريدك الإلكتروني...' : 'Enter your email address...'}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E8634B]/20 focus:border-[#E8634B]"
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#C8322B]/20 focus:border-[#C8322B]"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-3 bg-[#E8634B] hover:bg-[#d4543d] text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
+            className="px-6 py-3 bg-[#C8322B] hover:bg-[#a82520] text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isRTL ? 'بحث' : 'Look Up')}
           </button>
@@ -136,7 +136,7 @@ export default function PurchasesPage() {
                 <p className="text-gray-500 mb-4">
                   {isRTL ? 'لم نجد أي مشتريات لهذا البريد الإلكتروني.' : 'No purchases found for this email address.'}
                 </p>
-                <Link href="/shop" className="text-[#E8634B] hover:underline font-medium">
+                <Link href="/shop" className="text-[#C8322B] hover:underline font-medium">
                   {isRTL ? 'تصفح المتجر' : 'Browse Shop'}
                 </Link>
               </div>
@@ -146,13 +146,13 @@ export default function PurchasesPage() {
                   <div key={purchase.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
                     <div className="flex items-start gap-4">
                       {/* Icon */}
-                      <div className="w-12 h-12 bg-[#E8634B]/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <FileText className="w-6 h-6 text-[#E8634B]" />
+                      <div className="w-12 h-12 bg-[#C8322B]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-6 h-6 text-[#C8322B]" />
                       </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-[#1A1F36] truncate">
+                          <h3 className="font-semibold text-[#1C1917] truncate">
                             {isRTL ? (purchase.product.name_ar || purchase.product.name_en) : purchase.product.name_en}
                           </h3>
                           {statusIcon(purchase.status)}
@@ -174,7 +174,7 @@ export default function PurchasesPage() {
                       {purchase.downloadUrl && purchase.downloadsRemaining > 0 && (
                         <a
                           href={purchase.downloadUrl}
-                          className="flex items-center gap-2 px-4 py-2 bg-[#E8634B] hover:bg-[#d4543d] text-white font-medium rounded-lg transition-colors flex-shrink-0"
+                          className="flex items-center gap-2 px-4 py-2 bg-[#C8322B] hover:bg-[#a82520] text-white font-medium rounded-lg transition-colors flex-shrink-0"
                         >
                           <Download className="w-4 h-4" />
                           {isRTL ? 'تحميل' : 'Download'}

@@ -165,7 +165,7 @@ export default function TeamPage() {
           >
             <div className="flex items-center justify-center gap-3 mb-6">
               <Sparkles className="h-8 w-8 text-yellow-400" />
-              <h1 className="text-5xl md:text-6xl font-playfair font-bold">
+              <h1 className="text-5xl md:text-6xl font-display font-bold">
                 {language === 'en' ? 'Our Team' : 'فريقنا'}
               </h1>
               <Sparkles className="h-8 w-8 text-yellow-400" />
@@ -211,7 +211,7 @@ export default function TeamPage() {
               viewport={{ once: true }}
               className="text-center mb-12"
             >
-              <h2 className="text-3xl font-playfair font-bold gradient-text mb-4">
+              <h2 className="text-3xl font-display font-bold gradient-text mb-4">
                 {language === 'en' ? 'Featured Experts' : 'الخبراء المميزون'}
               </h2>
               <p className="text-gray-600">
@@ -332,7 +332,7 @@ export default function TeamPage() {
               animate={{ opacity: 1, y: 0 }}
               className="text-center mb-12"
             >
-              <h2 className="text-3xl font-playfair font-bold gradient-text mb-4">
+              <h2 className="text-3xl font-display font-bold gradient-text mb-4">
                 {SKILL_CATEGORIES.find((c) => c.value === activeCategory)?.[
                   language === 'en' ? 'label_en' : 'label_ar'
                 ]}{' '}
@@ -352,7 +352,7 @@ export default function TeamPage() {
               viewport={{ once: true }}
               className="text-center mb-12"
             >
-              <h2 className="text-3xl font-playfair font-bold gradient-text mb-4">
+              <h2 className="text-3xl font-display font-bold gradient-text mb-4">
                 {language === 'en' ? 'All Team Members' : 'جميع أعضاء الفريق'}
               </h2>
             </motion.div>
@@ -455,7 +455,7 @@ export default function TeamPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-3xl font-playfair font-bold mb-4">
+            <h2 className="text-3xl font-display font-bold mb-4">
               {language === 'en' ? 'Join Our Team' : 'انضم إلى فريقنا'}
             </h2>
             <p className="text-purple-100 mb-8">

@@ -248,28 +248,28 @@ export default function ExperiencesPage() {
   })
 
   return (
-    <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: isRTL ? 'Cairo, sans-serif' : 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: isRTL ? 'IBM Plex Sans Arabic, sans-serif' : 'Anybody, sans-serif' }}>
       {/* Navbar */}
       <div className="fixed top-0 left-0 right-0 z-50 flex justify-center p-4 pointer-events-none">
         <nav className="flex items-center justify-between px-6 py-3 bg-white/95 backdrop-blur-xl rounded-full shadow-lg w-full max-w-4xl pointer-events-auto border border-gray-100">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[#1A1F36] rounded-lg flex items-center justify-center relative">
+            <div className="w-9 h-9 bg-[#1C1917] rounded-lg flex items-center justify-center relative">
               <span className="text-white font-bold">Y</span>
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#E8634B] rounded-full"></span>
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#C8322B] rounded-full"></span>
             </div>
-            <span className="text-xl font-bold text-[#1A1F36]">Yalla<span className="font-normal text-[#A3A3A3]">London</span></span>
+            <span className="text-xl font-bold text-[#1C1917]">Yalla<span className="font-normal text-[#A3A3A3]">London</span></span>
           </Link>
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/" className="text-sm font-medium text-gray-600 hover:text-[#1A1F36]">Home</Link>
-            <Link href="/experiences" className="text-sm font-medium text-[#1A1F36]">Experiences</Link>
-            <Link href="/hotels" className="text-sm font-medium text-gray-600 hover:text-[#1A1F36]">Hotels</Link>
-            <Link href="/shop" className="text-sm font-medium text-gray-600 hover:text-[#1A1F36]">Shop</Link>
+            <Link href="/" className="text-sm font-medium text-gray-600 hover:text-[#1C1917]">Home</Link>
+            <Link href="/experiences" className="text-sm font-medium text-[#1C1917]">Experiences</Link>
+            <Link href="/hotels" className="text-sm font-medium text-gray-600 hover:text-[#1C1917]">Hotels</Link>
+            <Link href="/shop" className="text-sm font-medium text-gray-600 hover:text-[#1C1917]">Shop</Link>
           </div>
         </nav>
       </div>
 
       {/* Hero Section */}
-      <div className="pt-24 pb-12 bg-gradient-to-b from-[#1A1F36] to-[#2d3452]">
+      <div className="pt-24 pb-12 bg-gradient-to-b from-[#1C1917] to-[#3D3835]">
         <div className="max-w-6xl mx-auto px-6 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{t.title}</h1>
           <p className="text-xl text-gray-300 mb-8">{t.subtitle}</p>
@@ -282,7 +282,7 @@ export default function ExperiencesPage() {
               placeholder={t.search}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-[#E8634B]"
+              className="w-full pl-12 pr-4 py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-[#C8322B]"
             />
           </div>
         </div>
@@ -298,7 +298,7 @@ export default function ExperiencesPage() {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === cat
-                    ? 'bg-[#1A1F36] text-white'
+                    ? 'bg-[#1C1917] text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -317,7 +317,7 @@ export default function ExperiencesPage() {
               <div className="relative aspect-[4/3]">
                 <Image src={exp.image} alt={exp.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                 {exp.featured && (
-                  <span className="absolute top-3 left-3 px-3 py-1 bg-[#E8634B] text-white text-xs font-semibold rounded-full">
+                  <span className="absolute top-3 left-3 px-3 py-1 bg-[#C8322B] text-white text-xs font-semibold rounded-full">
                     {t.featured}
                   </span>
                 )}
@@ -326,8 +326,8 @@ export default function ExperiencesPage() {
                 </div>
               </div>
               <div className="p-5">
-                <div className="text-xs text-[#E8634B] font-medium mb-1">{exp.category}</div>
-                <h3 className="font-bold text-[#1A1F36] mb-2">{exp.title}</h3>
+                <div className="text-xs text-[#C8322B] font-medium mb-1">{exp.category}</div>
+                <h3 className="font-bold text-[#1C1917] mb-2">{exp.title}</h3>
                 <div className="flex items-center gap-3 text-sm text-gray-500 mb-3">
                   <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> {exp.location}</span>
                   <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> {exp.duration}</span>
@@ -335,9 +335,9 @@ export default function ExperiencesPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-xs text-gray-400">{t.from}</span>
-                    <span className="text-lg font-bold text-[#1A1F36] ml-1">£{exp.price}</span>
+                    <span className="text-lg font-bold text-[#1C1917] ml-1">£{exp.price}</span>
                   </div>
-                  <button className="px-4 py-2 bg-[#E8634B] text-white text-sm font-medium rounded-lg hover:bg-[#d4543d] transition-colors">
+                  <button className="px-4 py-2 bg-[#C8322B] text-white text-sm font-medium rounded-lg hover:bg-[#a82520] transition-colors">
                     {t.bookNow}
                   </button>
                 </div>
@@ -348,12 +348,12 @@ export default function ExperiencesPage() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-[#1A1F36] text-white py-12">
+      <footer className="bg-[#1C1917] text-white py-12">
         <div className="max-w-6xl mx-auto px-6 text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center relative">
-              <span className="text-[#1A1F36] font-bold text-lg">Y</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-[#E8634B] rounded-full"></span>
+              <span className="text-[#1C1917] font-bold text-lg">Y</span>
+              <span className="absolute top-2 right-2 w-2 h-2 bg-[#C8322B] rounded-full"></span>
             </div>
             <span className="text-2xl font-bold">Yalla<span className="font-normal text-gray-400">London</span></span>
           </div>

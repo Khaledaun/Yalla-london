@@ -127,7 +127,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                   {post.category ? (language === 'en' ? post.category.name_en : post.category.name_ar) : ''}
                 </span>
               </div>
-              <h1 className="text-4xl md:text-5xl font-playfair font-bold mb-6">
+              <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
                 {language === 'en' ? post.title_en : post.title_ar}
               </h1>
               <div className="flex items-center justify-center gap-6 text-gray-200">
@@ -185,7 +185,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
 
             {/* Article Body */}
             <div
-              className="text-gray-800 leading-relaxed prose-headings:font-playfair prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-a:text-purple-700 prose-strong:text-gray-900"
+              className="text-gray-800 leading-relaxed prose-headings:font-display prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-a:text-purple-700 prose-strong:text-gray-900"
               dangerouslySetInnerHTML={{
                 __html: language === 'en' ? post.content_en : post.content_ar
               }}
@@ -204,7 +204,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
             transition={{ duration: 0.8 }}
             className="text-center"
           >
-            <h3 className="text-3xl font-playfair font-bold mb-8 gradient-text">
+            <h3 className="text-3xl font-display font-bold mb-8 gradient-text">
               {language === 'en' ? 'More London Stories' : 'المزيد من حكايات لندن'}
             </h3>
 

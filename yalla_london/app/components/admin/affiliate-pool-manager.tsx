@@ -297,7 +297,7 @@ export function AffiliatePoolManager() {
       {/* Category Filter Cards */}
       <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
         <Card
-          className={`cursor-pointer transition-all ${selectedType === 'all' ? 'ring-2 ring-[#E8634B]' : ''}`}
+          className={`cursor-pointer transition-all ${selectedType === 'all' ? 'ring-2 ring-[#C8322B]' : ''}`}
           onClick={() => setSelectedType('all')}
         >
           <CardContent className="p-3 text-center">
@@ -312,7 +312,7 @@ export function AffiliatePoolManager() {
           return (
             <Card
               key={type.id}
-              className={`cursor-pointer transition-all ${selectedType === type.id ? 'ring-2 ring-[#E8634B]' : ''}`}
+              className={`cursor-pointer transition-all ${selectedType === type.id ? 'ring-2 ring-[#C8322B]' : ''}`}
               onClick={() => setSelectedType(type.id)}
             >
               <CardContent className="p-3 text-center">
@@ -350,7 +350,7 @@ export function AffiliatePoolManager() {
                 if (!open) resetForm()
               }}>
                 <DialogTrigger asChild>
-                  <Button className="bg-[#1A1F36] hover:bg-[#2d3452]">
+                  <Button className="bg-[#1C1917] hover:bg-[#3D3835]">
                     <Plus className="w-4 h-4 mr-2" /> Add Affiliate Link
                   </Button>
                 </DialogTrigger>
@@ -455,7 +455,7 @@ export function AffiliatePoolManager() {
 
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit} className="bg-[#E8634B] hover:bg-[#d4543d]">
+                    <Button onClick={handleSubmit} className="bg-[#C8322B] hover:bg-[#a82520]">
                       {editingAffiliate ? 'Update' : 'Add'} Affiliate Link
                     </Button>
                   </DialogFooter>

@@ -559,7 +559,8 @@ export default function SiteControl() {
                       <option value="Open Sans">Open Sans (Sans-serif)</option>
                       <option value="Lato">Lato (Sans-serif)</option>
                       <option value="Montserrat">Montserrat (Sans-serif)</option>
-                      <option value="Playfair Display">Playfair Display (Serif)</option>
+                      <option value="Anybody">Anybody (Display)</option>
+                      <option value="Source Serif 4">Source Serif 4 (Editorial)</option>
                       <option value="Merriweather">Merriweather (Serif)</option>
                     </select>
                   </div>

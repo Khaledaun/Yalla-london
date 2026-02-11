@@ -28,7 +28,7 @@ function makeSite(
 
 const DEFAULT_SITE: Site = makeSite(
   "yalla-london", "Yalla London", "yalla-london", "yalla-london.com",
-  "en", "ltr", "#1A1F36", "#E8634B",
+  "en", "ltr", "#1C1917", "#C8322B",
 );
 
 const FALLBACK_SITES: Site[] = [

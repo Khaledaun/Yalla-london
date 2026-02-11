@@ -124,7 +124,7 @@ const DEFAULT_HOMEPAGE_VARIANTS: ABTestVariant[] = [
           accent: '#E74C3C'
         },
         fonts: {
-          heading: 'Playfair Display',
+          heading: 'Anybody',
           body: 'Source Sans Pro'
         },
         spacing: {

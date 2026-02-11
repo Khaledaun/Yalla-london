@@ -238,7 +238,7 @@ export default function EventsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1 }}
         >
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-playfair font-bold mb-6">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold mb-6">
             {language === "en"
               ? "London Events & Tickets"
               : "\u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0648\u062a\u0630\u0627\u0643\u0631 \u0644\u0646\u062f\u0646"}
@@ -321,7 +321,7 @@ export default function EventsPage() {
       <section className="py-12 bg-gray-50">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-playfair font-bold text-gray-900">
+            <h2 className="text-2xl font-display font-bold text-gray-900">
               {loading
                 ? language === "en"
                   ? "Loading Events..."
@@ -532,7 +532,7 @@ export default function EventsPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-playfair font-bold mb-6">
+            <h2 className="text-4xl font-display font-bold mb-6">
               {language === "en"
                 ? "Can't Find What You're Looking For?"
                 : "\u0644\u0627 \u062a\u062c\u062f \u0645\u0627 \u062a\u0628\u062d\u062b \u0639\u0646\u0647\u061f"}

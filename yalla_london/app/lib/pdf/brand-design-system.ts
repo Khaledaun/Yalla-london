@@ -151,8 +151,8 @@ function getDefaultBrandProfile(siteId: string): BrandProfile {
     siteName: "Yalla",
     destination: "Destination",
     colors: {
-      primary: "#1A1F36",
-      secondary: "#E8634B",
+      primary: "#1C1917",
+      secondary: "#C8322B",
       accent: "#F0816D",
       background: "#F9FAFB",
       text: "#111827",
@@ -589,7 +589,7 @@ export function renderDesignToHTML(template: DesignTemplate, locale: "en" | "ar"
 <html lang="${locale}" dir="${isRTL ? "rtl" : "ltr"}">
 <head>
   <meta charset="UTF-8">
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Cairo:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Anybody:wght@400;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     @page { size: ${dims.width} ${dims.height}; margin: 0; }

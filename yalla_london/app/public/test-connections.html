@@ -100,16 +100,22 @@ function addResult(sectionId, name, status, detail) {
 
   const cls = status === 'pass' ? 'pass' : status === 'fail' ? 'fail' : 'warn';
   const icon = status === 'pass' ? '\u2713' : status === 'fail' ? '\u2717' : '\u26A0';
+  const safeDetail = detail ? escapeHtml(String(detail)) : '';
   const html = `<div class="test-row">
-    <div><div class="test-name">${name}</div>${detail ? `<div class="detail">${detail}</div>` : ''}</div>
+    <div><div class="test-name">${escapeHtml(name)}</div>${safeDetail ? `<div class="detail">${safeDetail}</div>` : ''}</div>
     <div class="test-status ${cls}">${icon} ${status.toUpperCase()}</div>
   </div>`;
   document.getElementById('tests-' + sectionId).insertAdjacentHTML('beforeend', html);
   updateSummary();
 }
 
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function addJsonBlock(sectionId, data) {
-  const html = `<div class="json-block">${JSON.stringify(data, null, 2)}</div>`;
+  const escaped = escapeHtml(JSON.stringify(data, null, 2));
+  const html = `<div class="json-block">${escaped}</div>`;
   document.getElementById('tests-' + sectionId).insertAdjacentHTML('beforeend', html);
 }
 

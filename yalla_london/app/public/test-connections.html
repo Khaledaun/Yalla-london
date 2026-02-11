@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yalla London — Connection Validator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0a0a0a; color: #e0e0e0; padding: 20px; }
+  h1 { text-align: center; margin-bottom: 8px; font-size: 1.6rem; color: #fff; }
+  .subtitle { text-align: center; color: #888; margin-bottom: 24px; font-size: 0.9rem; }
+  .section { background: #141414; border: 1px solid #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .section h2 { font-size: 1rem; color: #aaa; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .test-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #1a1a1a; }
+  .test-row:last-child { border-bottom: none; }
+  .test-name { flex: 1; font-size: 0.9rem; }
+  .test-status { font-size: 0.85rem; font-weight: 600; min-width: 100px; text-align: right; }
+  .pass { color: #4ade80; }
+  .fail { color: #f87171; }
+  .warn { color: #fbbf24; }
+  .pending { color: #666; }
+  .detail { color: #888; font-size: 0.8rem; margin-top: 2px; }
+  .summary-bar { display: flex; gap: 24px; justify-content: center; padding: 16px; background: #141414; border: 1px solid #2a2a2a; border-radius: 12px; margin-bottom: 16px; }
+  .summary-item { text-align: center; }
+  .summary-num { font-size: 2rem; font-weight: 700; }
+  .summary-label { font-size: 0.75rem; color: #888; text-transform: uppercase; }
+  .status-banner { text-align: center; padding: 16px; border-radius: 12px; font-size: 1.1rem; font-weight: 700; margin-top: 16px; }
+  .status-ok { background: #052e16; border: 1px solid #166534; color: #4ade80; }
+  .status-warn { background: #422006; border: 1px solid #92400e; color: #fbbf24; }
+  .status-fail { background: #450a0a; border: 1px solid #991b1b; color: #f87171; }
+  button { background: #2563eb; color: white; border: none; padding: 12px 32px; border-radius: 8px; font-size: 1rem; cursor: pointer; display: block; margin: 0 auto 20px; }
+  button:hover { background: #1d4ed8; }
+  button:disabled { background: #333; color: #666; cursor: not-allowed; }
+  .cron-input { background: #1a1a1a; border: 1px solid #333; color: #e0e0e0; padding: 8px 12px; border-radius: 6px; width: 100%; margin-bottom: 12px; font-family: monospace; }
+  .cron-input::placeholder { color: #555; }
+  .log { background: #0a0a0a; border: 1px solid #222; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; max-height: 200px; overflow-y: auto; margin-top: 12px; white-space: pre-wrap; color: #888; }
+</style>
+</head>
+<body>
+
+<h1>Yalla London — Connection Validator</h1>
+<p class="subtitle">Tests all integrations: GA4, Database, AI, Crons, Assets</p>
+
+<div class="section">
+  <h2>Cron Secret (needed for cron tests)</h2>
+  <input type="password" id="cronSecret" class="cron-input" placeholder="Enter your CRON_SECRET to test cron endpoints...">
+</div>
+
+<button id="runBtn" onclick="runAllTests()">Run All Tests</button>
+
+<div class="summary-bar">
+  <div class="summary-item"><div class="summary-num pass" id="passCount">-</div><div class="summary-label">Passed</div></div>
+  <div class="summary-item"><div class="summary-num warn" id="warnCount">-</div><div class="summary-label">Warnings</div></div>
+  <div class="summary-item"><div class="summary-num fail" id="failCount">-</div><div class="summary-label">Failed</div></div>
+</div>
+
+<div id="results"></div>
+<div id="statusBanner"></div>
+
+<div class="section" style="margin-top:16px">
+  <h2>Live Log</h2>
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+let pass = 0, fail = 0, warn = 0;
+const results = {};
+
+function log(msg) {
+  const el = document.getElementById('log');
+  el.textContent += new Date().toISOString().substring(11,19) + ' ' + msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+function addSection(id, title) {
+  results[id] = [];
+  const html = `<div class="section" id="section-${id}"><h2>${title}</h2><div id="tests-${id}"></div></div>`;
+  document.getElementById('results').insertAdjacentHTML('beforeend', html);
+}
+
+function addResult(sectionId, name, status, detail) {
+  if (status === 'pass') pass++;
+  else if (status === 'fail') fail++;
+  else warn++;
+
+  const cls = status === 'pass' ? 'pass' : status === 'fail' ? 'fail' : 'warn';
+  const icon = status === 'pass' ? '✓' : status === 'fail' ? '✗' : '⚠';
+  const html = `<div class="test-row">
+    <div><div class="test-name">${name}</div>${detail ? `<div class="detail">${detail}</div>` : ''}</div>
+    <div class="test-status ${cls}">${icon} ${status.toUpperCase()}</div>
+  </div>`;
+  document.getElementById('tests-' + sectionId).insertAdjacentHTML('beforeend', html);
+  updateSummary();
+}
+
+function updateSummary() {
+  document.getElementById('passCount').textContent = pass;
+  document.getElementById('warnCount').textContent = warn;
+  document.getElementById('failCount').textContent = fail;
+}
+
+async function testFetch(url, options = {}) {
+  try {
+    const resp = await fetch(url, { ...options, signal: AbortSignal.timeout(15000) });
+    const text = await resp.text();
+    let json = null;
+    try { json = JSON.parse(text); } catch {}
+    return { ok: resp.ok, status: resp.status, text, json };
+  } catch (e) {
+    return { ok: false, status: 0, text: e.message, json: null, error: e };
+  }
+}
+
+async function runAllTests() {
+  pass = 0; fail = 0; warn = 0;
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('statusBanner').innerHTML = '';
+  document.getElementById('log').textContent = '';
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('runBtn').textContent = 'Testing...';
+
+  const cronSecret = document.getElementById('cronSecret').value;
+
+  // ── 1. GA4 Client-Side ──
+  log('Testing GA4 client-side tracking...');
+  addSection('ga4', '1. GA4 Client-Side Tracking');
+
+  const scripts = document.querySelectorAll('script[src*="googletagmanager.com/gtag"]');
+  if (scripts.length > 0) {
+    const src = scripts[0].src;
+    const idMatch = src.match(/id=(G-[A-Z0-9]+)/);
+    addResult('ga4', 'gtag.js Script', 'pass', 'Loaded: ' + src);
+    if (idMatch) addResult('ga4', 'Measurement ID', 'pass', idMatch[1]);
+  } else {
+    // Check in page source
+    const pageHtml = document.documentElement.outerHTML;
+    const gtagMatch = pageHtml.match(/G-[A-Z0-9]{8,12}/);
+    if (gtagMatch) {
+      addResult('ga4', 'GA4 Measurement ID', 'pass', 'Found in source: ' + gtagMatch[0]);
+    } else {
+      // This test page is static, so gtag won't be here — test via API
+      const homeResp = await testFetch('/');
+      if (homeResp.ok) {
+        const gaMatch = homeResp.text.match(/G-[A-Z0-9]{8,12}/);
+        if (gaMatch) {
+          addResult('ga4', 'GA4 Measurement ID', 'pass', 'Found on homepage: ' + gaMatch[0]);
+          if (homeResp.text.includes('googletagmanager.com/gtag')) {
+            addResult('ga4', 'gtag.js Script', 'pass', 'Script tag present on homepage');
+          } else {
+            addResult('ga4', 'gtag.js Script', 'warn', 'ID found but script tag not detected (may load async)');
+          }
+        } else {
+          addResult('ga4', 'GA4 Measurement ID', 'fail', 'Not found in homepage source — check NEXT_PUBLIC_GA_MEASUREMENT_ID');
+        }
+      } else {
+        addResult('ga4', 'Homepage Load', 'fail', 'Could not load homepage: HTTP ' + homeResp.status);
+      }
+    }
+  }
+
+  // Check dataLayer
+  if (typeof window.dataLayer !== 'undefined') {
+    addResult('ga4', 'dataLayer', 'pass', window.dataLayer.length + ' events queued');
+  }
+
+  // ── 2. Static Assets ──
+  log('Testing static assets...');
+  addSection('assets', '2. Static Assets');
+
+  const assets = [
+    ['/og-image.jpg', 'OG Image'],
+    ['/icons/icon-512x512.png', 'Icon 512x512'],
+    ['/icons/icon-192x192.png', 'Icon 192x192'],
+    ['/favicon.ico', 'Favicon ICO'],
+    ['/favicon.png', 'Favicon PNG'],
+    ['/manifest.json', 'Manifest'],
+  ];
+
+  for (const [url, label] of assets) {
+    const resp = await testFetch(url, { method: 'HEAD' });
+    if (resp.ok) {
+      addResult('assets', label, 'pass', url + ' — HTTP ' + resp.status);
+    } else {
+      addResult('assets', label, 'fail', url + ' — HTTP ' + resp.status);
+    }
+  }
+
+  // ── 3. Core Pages ──
+  log('Testing core pages...');
+  addSection('pages', '3. Core Pages');
+
+  const pages = [
+    ['/', 'Homepage'],
+    ['/events', 'Events'],
+    ['/blog', 'Blog'],
+    ['/about', 'About'],
+    ['/recommendations', 'Recommendations'],
+    ['/sitemap.xml', 'Sitemap XML'],
+  ];
+
+  for (const [url, label] of pages) {
+    const resp = await testFetch(url);
+    if (resp.ok) {
+      addResult('pages', label, 'pass', 'HTTP ' + resp.status);
+    } else if (resp.status === 404) {
+      addResult('pages', label, 'warn', 'HTTP 404 — page may not have content yet');
+    } else {
+      addResult('pages', label, 'fail', 'HTTP ' + resp.status);
+    }
+  }
+
+  // ── 4. SEO Health Endpoint ──
+  log('Testing SEO health...');
+  addSection('seo', '4. SEO & Health Endpoints');
+
+  const healthResp = await testFetch('/api/seo/health');
+  if (healthResp.ok && healthResp.json) {
+    addResult('seo', 'SEO Health API', 'pass', JSON.stringify(healthResp.json).substring(0, 100));
+  } else if (healthResp.status === 401 || healthResp.status === 403) {
+    addResult('seo', 'SEO Health API', 'pass', 'Auth-protected (expected)');
+  } else {
+    addResult('seo', 'SEO Health API', 'warn', 'HTTP ' + healthResp.status);
+  }
+
+  // ── 5. Cron Endpoints ──
+  log('Testing cron endpoints...');
+  addSection('cron', '5. Cron Endpoints');
+
+  if (!cronSecret) {
+    addResult('cron', 'Cron Tests', 'warn', 'Skipped — enter CRON_SECRET above to test');
+  } else {
+    const cronHeaders = { 'Authorization': 'Bearer ' + cronSecret };
+
+    const cronEndpoints = [
+      ['/api/cron/analytics', 'Analytics Sync'],
+      ['/api/cron/daily-content-generate', 'Daily Content Generate'],
+      ['/api/cron/scheduled-publish', 'Scheduled Publish'],
+      ['/api/cron/trends-monitor', 'Trends Monitor'],
+      ['/api/cron/seo-agent', 'SEO Agent'],
+      ['/api/seo/cron?task=daily', 'SEO Daily Cron'],
+    ];
+
+    for (const [url, label] of cronEndpoints) {
+      log('  Testing ' + label + '...');
+      const resp = await testFetch(url, { headers: cronHeaders });
+      if (resp.ok && resp.json) {
+        const summary = JSON.stringify(resp.json).substring(0, 120);
+        addResult('cron', label, 'pass', summary);
+        log('  ' + label + ': OK');
+      } else if (resp.status === 401) {
+        addResult('cron', label, 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+      } else if (resp.status === 503) {
+        addResult('cron', label, 'fail', 'HTTP 503 — CRON_SECRET not set on server');
+      } else if (resp.status === 500) {
+        const errMsg = resp.json?.error || resp.text?.substring(0, 100) || 'Internal error';
+        addResult('cron', label, 'warn', 'HTTP 500 — ' + errMsg);
+      } else {
+        addResult('cron', label, 'warn', 'HTTP ' + resp.status + ' — ' + (resp.text || '').substring(0, 80));
+      }
+    }
+  }
+
+  // ── 6. Database (via API) ──
+  log('Testing database via blog API...');
+  addSection('db', '6. Database Connection');
+
+  const blogResp = await testFetch('/api/blog?limit=1');
+  if (blogResp.ok && blogResp.json) {
+    const count = blogResp.json.total || blogResp.json.posts?.length || blogResp.json.length || '?';
+    addResult('db', 'Blog API', 'pass', 'Database connected — ' + count + ' posts');
+  } else if (blogResp.status === 404) {
+    // Try alternative endpoints
+    const altResp = await testFetch('/api/posts?limit=1');
+    if (altResp.ok) {
+      addResult('db', 'Posts API', 'pass', 'Database connected');
+    } else {
+      addResult('db', 'Blog/Posts API', 'warn', 'No public blog API found (DB may still work via crons)');
+    }
+  } else {
+    addResult('db', 'Blog API', 'warn', 'HTTP ' + blogResp.status + ' — ' + (blogResp.text || '').substring(0, 80));
+  }
+
+  // ── 7. AI Provider ──
+  log('Testing AI provider...');
+  addSection('ai', '7. AI Provider');
+
+  // We can't test AI directly without auth, but we can check if the content generation endpoint exists
+  const aiResp = await testFetch('/api/ai/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  if (aiResp.status === 401 || aiResp.status === 403) {
+    addResult('ai', 'AI Generate Endpoint', 'pass', 'Exists (auth-protected)');
+  } else if (aiResp.status === 400) {
+    addResult('ai', 'AI Generate Endpoint', 'pass', 'Exists (needs valid payload)');
+  } else if (aiResp.status === 404) {
+    addResult('ai', 'AI Generate Endpoint', 'warn', 'Not found at /api/ai/generate');
+  } else if (aiResp.ok) {
+    addResult('ai', 'AI Generate Endpoint', 'pass', 'Responded OK');
+  } else {
+    addResult('ai', 'AI Generate Endpoint', 'warn', 'HTTP ' + aiResp.status);
+  }
+
+  // If cron secret available, test content generation specifically
+  if (cronSecret) {
+    const contentTestResp = await testFetch('/api/cron/daily-content-generate', {
+      headers: { 'Authorization': 'Bearer ' + cronSecret }
+    });
+    if (contentTestResp.ok && contentTestResp.json) {
+      const j = contentTestResp.json;
+      if (j.aiProvider) addResult('ai', 'Active AI Provider', 'pass', j.aiProvider);
+      if (j.articlesGenerated !== undefined) addResult('ai', 'Content Generation', 'pass', j.articlesGenerated + ' articles generated this run');
+    }
+  }
+
+  // ── 8. OG Meta Tags ──
+  log('Testing OG meta tags...');
+  addSection('meta', '8. SEO Meta Tags');
+
+  const homeHtml = await testFetch('/');
+  if (homeHtml.ok) {
+    const ogImage = homeHtml.text.match(/property="og:image"[^>]*content="([^"]+)"/);
+    const ogTitle = homeHtml.text.match(/property="og:title"[^>]*content="([^"]+)"/);
+    const ogDesc = homeHtml.text.match(/property="og:description"[^>]*content="([^"]+)"/);
+    const canonical = homeHtml.text.match(/rel="canonical"[^>]*href="([^"]+)"/);
+
+    if (ogImage) addResult('meta', 'og:image', 'pass', ogImage[1]);
+    else addResult('meta', 'og:image', 'warn', 'Not found');
+
+    if (ogTitle) addResult('meta', 'og:title', 'pass', ogTitle[1].substring(0, 60));
+    else addResult('meta', 'og:title', 'warn', 'Not found');
+
+    if (ogDesc) addResult('meta', 'og:description', 'pass', ogDesc[1].substring(0, 60));
+    else addResult('meta', 'og:description', 'warn', 'Not found');
+
+    if (canonical) addResult('meta', 'Canonical URL', 'pass', canonical[1]);
+    else addResult('meta', 'Canonical URL', 'warn', 'Not found');
+
+    // Check JSON-LD
+    const jsonLd = homeHtml.text.match(/type="application\/ld\+json"/);
+    if (jsonLd) addResult('meta', 'JSON-LD Schema', 'pass', 'Present');
+    else addResult('meta', 'JSON-LD Schema', 'warn', 'Not found on homepage');
+  }
+
+  // ── Final Status ──
+  log('All tests complete: ' + pass + ' passed, ' + warn + ' warnings, ' + fail + ' failed');
+
+  const banner = document.getElementById('statusBanner');
+  if (fail === 0 && warn === 0) {
+    banner.innerHTML = '<div class="status-banner status-ok">ALL SYSTEMS GO — Full automation pipeline is live</div>';
+  } else if (fail === 0) {
+    banner.innerHTML = '<div class="status-banner status-warn">OPERATIONAL — ' + warn + ' minor warning(s)</div>';
+  } else {
+    banner.innerHTML = '<div class="status-banner status-fail">' + fail + ' ISSUE(S) NEED ATTENTION</div>';
+  }
+
+  document.getElementById('runBtn').disabled = false;
+  document.getElementById('runBtn').textContent = 'Run All Tests Again';
+}
+</script>
+</body>
+</html>

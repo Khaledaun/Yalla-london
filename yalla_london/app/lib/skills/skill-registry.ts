@@ -565,6 +565,196 @@ Cover: happy paths, error states, edge cases, auth boundaries, bilingual content
     enabled: true,
   },
 
+  // ── ARABIC COPYWRITING ─────────────────────────
+
+  {
+    id: "arabic-copywriting",
+    name: "Arabic Copywriting",
+    nameAr: "كتابة المحتوى العربي",
+    description:
+      "Specialized Arabic content creation, cultural adaptation, RTL quality assurance, and Arabic SEO optimization for Gulf/Levantine audiences.",
+    category: "content",
+    icon: "PenTool",
+    triggers: {
+      filePatterns: ["**/*ar*", "**/*.ar.*", "**/i18n*", "**/translations*"],
+      keywords: [
+        "arabic",
+        "copywriting",
+        "ar-content",
+        "translation",
+        "arabicization",
+        "rtl",
+        "bilingual",
+        "عربي",
+        "محتوى",
+        "ترجمة",
+      ],
+      events: ["cron-daily", "manual"],
+      directories: ["app/blog/", "app/api/cron/", "lib/content-automation/"],
+    },
+    actions: [
+      {
+        id: "arabic-content-generation",
+        name: "Arabic Content Generation",
+        nameAr: "توليد المحتوى العربي",
+        type: "generate",
+        description:
+          "Generates native Arabic content (not translations) with proper MSA/Gulf dialect balance, cultural references, and travel-specific terminology",
+        systemPrompt: `أنت كاتب محتوى عربي متخصص في السفر الفاخر. اكتب محتوى أصلياً بالعربية (ليس ترجمة).
+
+قواعد الكتابة:
+- استخدم العربية الفصحى المعاصرة (MSA) مع لمسات خليجية طبيعية
+- تجنب الترجمة الحرفية من الإنجليزية — اكتب كما يكتب كاتب عربي أصلي
+- استخدم مصطلحات السفر العربية الصحيحة (وليس transliterations)
+- اكتب الأرقام بالصيغة العربية عند الحاجة (١، ٢، ٣) والغربية للأسعار (£150)
+- استخدم التشكيل فقط عند الغموض في المعنى
+- تأكد من صحة علامات الترقيم العربية (،) (؛) (؟)
+
+المصطلحات المفضلة:
+- "حلال" بدلاً من "Halal-certified" المترجمة
+- "مطعم فاخر" بدلاً من "fine dining restaurant"
+- "جولة سياحية" بدلاً من "tour"
+- "إقامة فندقية" بدلاً من "hotel stay"
+- "تجربة فريدة" بدلاً من "unique experience"
+
+استهداف الجمهور:
+- مسافرون عرب أثرياء (خليجيون بالدرجة الأولى)
+- عائلات تبحث عن خيارات حلال ومناسبة ثقافياً
+- شباب عرب مهتمون بالسفر الفاخر والتجارب الحصرية`,
+      },
+      {
+        id: "arabic-cultural-adaptation",
+        name: "Cultural Adaptation Validator",
+        nameAr: "مدقق التكيف الثقافي",
+        type: "validate",
+        description:
+          "Validates Arabic content for cultural sensitivity, halal compliance mentions, and appropriate terminology for Arab audiences",
+        systemPrompt: `Validate Arabic content for cultural adaptation quality:
+
+1. Cultural Sensitivity:
+   - References to alcohol should be replaced with non-alcoholic alternatives or removed
+   - Nightlife content should focus on halal entertainment, family-friendly options
+   - Dress code mentions should include modest options
+   - Prayer time and mosque proximity information should be included where relevant
+
+2. Halal Compliance:
+   - Restaurant recommendations must mention halal certification (HMC, HFA)
+   - Accommodation should note prayer facilities, qibla direction availability
+   - Food content should distinguish between halal-certified, halal-friendly, and vegetarian options
+
+3. Audience Awareness:
+   - Gulf Arabic preferences: formal, respectful, luxury-focused
+   - Levantine audience: slightly more casual, experience-focused
+   - Price references should include both GBP and AED/SAR equivalents
+   - Seasonal awareness: Ramadan, Eid, school holidays (different from Western calendar)
+
+4. Terminology Check:
+   - No transliterated English where Arabic terms exist
+   - Proper use of honorifics and polite forms
+   - Correct geographic names in Arabic (لندن not "London" in Arabic text body)`,
+      },
+      {
+        id: "arabic-rtl-quality",
+        name: "RTL & Typography Check",
+        nameAr: "فحص الاتجاه والطباعة",
+        type: "check",
+        description:
+          "Validates RTL text direction, Arabic font rendering, bidirectional text handling, and proper HTML lang attributes",
+        systemPrompt: `Check Arabic content for RTL and typography issues:
+
+1. HTML Direction:
+   - All Arabic content blocks have dir="rtl" attribute
+   - Mixed content (Arabic + English) uses proper bdi/bdo tags
+   - Numbers and Latin text within Arabic are properly isolated with Unicode markers
+
+2. Typography:
+   - Arabic text uses appropriate font stack (Noto Naskh Arabic, Amiri, or similar)
+   - Font sizes account for Arabic characters being typically smaller than Latin at same size
+   - Line height is adequate for Arabic diacritics (min 1.8)
+   - Letter-spacing is not applied (breaks Arabic connected letters)
+
+3. Layout:
+   - Text alignment is right-aligned for Arabic blocks
+   - Lists use Arabic-indic numbering or proper RTL bullet points
+   - Breadcrumbs and navigation flow right-to-left
+   - Images and icons are mirrored where directionally appropriate
+
+4. Content Integrity:
+   - No broken Arabic ligatures in HTML output
+   - Proper Unicode normalization (NFC form)
+   - No stray LTR/RTL marks disrupting text flow`,
+      },
+      {
+        id: "arabic-seo-optimization",
+        name: "Arabic SEO Optimizer",
+        nameAr: "محسّن SEO العربي",
+        type: "check",
+        description:
+          "Optimizes Arabic content for Arabic-language search: keyword variations with/without diacritics, proper hreflang, and Arabic meta tags",
+        systemPrompt: `Optimize Arabic content for Arabic-language search engines:
+
+1. Keyword Strategy:
+   - Include keywords both with and without diacritics (تشكيل)
+   - Account for common Arabic spelling variations (ة vs ه, أ vs ا)
+   - Use Arabic long-tail keywords naturally within content
+   - Include Arabic voice-search-friendly phrases (conversational queries)
+
+2. Meta Tags:
+   - Arabic meta title: 50-60 characters (Arabic chars count differently)
+   - Arabic meta description: 140-155 characters
+   - Arabic keywords include dialectal variations (Gulf + Levantine)
+   - Open Graph tags have Arabic content for Arabic pages
+
+3. Structured Data:
+   - JSON-LD schema includes Arabic @language: "ar"
+   - FAQ schema uses Arabic questions and answers
+   - Breadcrumb schema uses Arabic names
+   - Review schema includes Arabic review text
+
+4. Hreflang & Canonical:
+   - hreflang="ar" tags point to Arabic version
+   - x-default points to English version
+   - Canonical URLs are properly set for Arabic pages
+   - Alternate links connect EN ↔ AR versions`,
+      },
+      {
+        id: "arabic-readability",
+        name: "Arabic Readability Scorer",
+        nameAr: "تقييم سهولة القراءة",
+        type: "report",
+        description:
+          "Calculates Arabic readability score based on sentence length, vocabulary complexity, and Gunning Fog adaptation for Arabic text",
+        systemPrompt: `Analyze Arabic text readability and generate a quality report:
+
+1. Readability Metrics:
+   - Average sentence length (target: 15-20 words for Arabic)
+   - Vocabulary complexity (MSA formality level: 1-5 scale)
+   - Paragraph length (target: 3-5 sentences)
+   - Use of connectors and transition words (يجب أن, بالإضافة إلى, من ناحية أخرى)
+
+2. Engagement Signals:
+   - Questions to engage reader (هل تعلم؟, ما رأيك؟)
+   - Sensory language usage (descriptive words for sights, tastes, sounds)
+   - Call-to-action clarity in Arabic
+   - Emotional hooks appropriate for Arab audience
+
+3. Quality Score (0-100):
+   - 90-100: Publication-ready native Arabic
+   - 70-89: Good quality, minor adjustments needed
+   - 50-69: Needs significant editing (likely translation artifacts)
+   - Below 50: Rewrite needed (machine translation detected)
+
+4. Common Issues to Flag:
+   - Sentences that read like translated English
+   - Overuse of passive voice (common in bad translations)
+   - Missing or incorrect idafa (إضافة) constructions
+   - Unnatural word order (SVO instead of VSO where appropriate)`,
+      },
+    ],
+    priority: "high",
+    enabled: true,
+  },
+
   // ── DEPLOYMENT ──────────────────────────────────
 
   {

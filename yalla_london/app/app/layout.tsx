@@ -61,6 +61,8 @@ export const metadata: Metadata = {
       "en-GB":
         process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com",
       "ar-SA": `${process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com"}/ar`,
+      "x-default":
+        process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com",
     },
   },
 };
@@ -126,25 +128,28 @@ export default function RootLayout({
 
         {/* Google Analytics */}
         {(process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
-          process.env.GA4_MEASUREMENT_ID) && (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.GA4_MEASUREMENT_ID}`}
-              strategy="afterInteractive"
-            />
-            <Script id="google-analytics" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.GA4_MEASUREMENT_ID}', {
-                  page_title: document.title,
-                  page_location: window.location.href,
-                });
-              `}
-            </Script>
-          </>
-        )}
+          process.env.GA4_MEASUREMENT_ID) && (() => {
+          const gaId = (process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.GA4_MEASUREMENT_ID || '').trim();
+          return gaId ? (
+            <>
+              <Script
+                src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+                strategy="afterInteractive"
+              />
+              <Script id="google-analytics" strategy="afterInteractive">
+                {`
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${gaId}', {
+                    page_title: document.title,
+                    page_location: window.location.href,
+                  });
+                `}
+              </Script>
+            </>
+          ) : null;
+        })()}
 
         {/* Performance monitoring */}
         <script

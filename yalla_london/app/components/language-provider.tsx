@@ -34,10 +34,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const isRTL = language === 'ar'
 
-  if (!mounted) {
-    return null
-  }
-
+  // Always render children — returning null blocks SSR and makes crawlers see an empty page
   return (
     <LanguageContext.Provider value={{ language, setLanguage, isRTL }}>
       {children}

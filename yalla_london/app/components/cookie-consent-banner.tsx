@@ -49,18 +49,19 @@ export function CookieConsentBanner() {
   const applyCookieSettings = (prefs: CookiePreferences) => {
     // Apply analytics cookies
     if (prefs.analytics && typeof window !== 'undefined') {
-      // Enable Google Analytics
-      if (process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID) {
+      // Enable Google Analytics — use same env var as layout.tsx, with .trim() to strip newlines
+      const gaId = (process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || '').trim()
+      if (gaId) {
         const script = document.createElement('script')
-        script.src = `https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID}`
+        script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`
         document.head.appendChild(script)
-        
+
         const script2 = document.createElement('script')
         script2.innerHTML = `
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', '${process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID}', {
+          gtag('config', '${gaId}', {
             anonymize_ip: true,
             cookie_flags: 'secure;samesite=strict'
           });

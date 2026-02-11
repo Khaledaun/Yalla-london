@@ -45,7 +45,8 @@ import {
   Link2,
   Store,
   Package,
-  Brush
+  Brush,
+  Activity
 } from 'lucide-react'
 
 // MOPHY-styled Navigation Structure
@@ -61,6 +62,18 @@ const mainNavigation = [
       { label: 'Analytics', href: '/admin/command-center/analytics' },
       { label: 'SEO Audits', href: '/admin/seo-audits' },
       { label: 'SEO Command', href: '/admin/seo-command' },
+    ]
+  },
+  {
+    id: 'operations',
+    label: 'Operations',
+    icon: Activity,
+    href: '/admin/operations',
+    badge: 'Ops',
+    children: [
+      { label: 'Operations Hub', href: '/admin/operations' },
+      { label: 'Stripe MCP', href: '/admin/operations/mcp/stripe' },
+      { label: 'Mercury Bank', href: '/admin/operations/mcp/mercury' },
     ]
   },
   {
@@ -329,6 +342,7 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
                                 ${item.badge === 'CMS' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : ''}
                                 ${item.badge === 'New' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : ''}
                                 ${item.badge === 'Pro' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' : ''}
+                                ${item.badge === 'Ops' ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400' : ''}
                               `}>
                                 {item.badge}
                               </span>

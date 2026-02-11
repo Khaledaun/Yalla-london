@@ -34,9 +34,9 @@ export function Footer() {
               <Image
                 src="/images/yalla-london-logo-white.svg"
                 alt="Yalla London"
-                width={180}
-                height={40}
-                className="h-10 w-auto mb-2"
+                width={200}
+                height={36}
+                className="h-9 w-auto mb-2"
               />
               <p className="text-yalla-gold-400 text-sm font-medium">
                 {language === 'en' ? 'Luxury London Guide' : 'دليل لندن الفاخر'}

@@ -46,9 +46,9 @@ export function DynamicHeader() {
             <Image
               src="/images/yalla-london-logo.svg"
               alt="Yalla London"
-              width={180}
-              height={40}
-              className="h-10 w-auto transition-opacity group-hover:opacity-80"
+              width={200}
+              height={36}
+              className="h-9 w-auto transition-opacity group-hover:opacity-80"
               priority
             />
           </Link>

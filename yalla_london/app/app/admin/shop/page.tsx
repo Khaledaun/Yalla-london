@@ -90,7 +90,7 @@ export default function AdminShopPage() {
               Manage digital products and track revenue
             </p>
           </div>
-          <Button className="bg-[#1A1F36] hover:bg-[#2d3452]">
+          <Button className="bg-[#1C1917] hover:bg-[#3D3835]">
             <Plus className="w-4 h-4 mr-2" /> Add Product
           </Button>
         </div>

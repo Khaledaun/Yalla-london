@@ -159,7 +159,7 @@ export default function RecommendationsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h1 className="text-5xl font-playfair font-bold gradient-text mb-4">
+            <h1 className="text-5xl font-display font-bold gradient-text mb-4">
               {t('recommendations')}
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">

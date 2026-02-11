@@ -526,7 +526,7 @@ export async function sendPurchaseDeliveryEmail(
         <table role="presentation" class="container" width="580" cellpadding="0" cellspacing="0" style="max-width: 580px; width: 100%;">
           <tr>
             <td align="center" style="padding-bottom: 24px;">
-              <span style="font-size: 24px; font-weight: 700; color: #1A1F36; letter-spacing: -0.5px;">
+              <span style="font-size: 24px; font-weight: 700; color: #1C1917; letter-spacing: -0.5px;">
                 Yalla London
               </span>
             </td>
@@ -536,11 +536,11 @@ export async function sendPurchaseDeliveryEmail(
         <!-- Body Card -->
         <table role="presentation" class="container" width="580" cellpadding="0" cellspacing="0" style="max-width: 580px; width: 100%; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
           <tr>
-            <td style="height: 4px; background: linear-gradient(90deg, #E8634B, #1A1F36);"></td>
+            <td style="height: 4px; background: linear-gradient(90deg, #C8322B, #1C1917);"></td>
           </tr>
           <tr>
             <td class="content-cell" style="padding: 40px 48px;">
-              <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 600; color: #1A1F36;">
+              <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 600; color: #1C1917;">
                 Thank you for your purchase!
               </h1>
               <p style="margin: 0 0 24px; font-size: 16px; color: #4a4a68; line-height: 1.6;">
@@ -551,9 +551,9 @@ export async function sendPurchaseDeliveryEmail(
                 <tr>
                   <td style="padding: 20px;">
                     <p style="margin: 0 0 4px; font-size: 14px; color: #6b7280;">Product</p>
-                    <p style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #1A1F36;">${escapeHtml(productName)}</p>
+                    <p style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #1C1917;">${escapeHtml(productName)}</p>
                     <p style="margin: 0 0 4px; font-size: 14px; color: #6b7280;">Amount Paid</p>
-                    <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1A1F36;">${formattedAmount}</p>
+                    <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1C1917;">${formattedAmount}</p>
                   </td>
                 </tr>
               </table>
@@ -565,7 +565,7 @@ export async function sendPurchaseDeliveryEmail(
               <!-- CTA Button -->
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 0 auto 28px;">
                 <tr>
-                  <td align="center" style="border-radius: 8px; background-color: #E8634B;">
+                  <td align="center" style="border-radius: 8px; background-color: #C8322B;">
                     <a href="${escapeHtml(downloadUrl)}"
                        target="_blank"
                        style="display: inline-block; padding: 16px 40px; font-size: 16px; font-weight: 700; color: #ffffff; text-decoration: none; border-radius: 8px;">
@@ -577,7 +577,7 @@ export async function sendPurchaseDeliveryEmail(
 
               <p style="margin: 0; font-size: 13px; color: #9ca3af; line-height: 1.5;">
                 If the button does not work, copy this link into your browser:<br />
-                <a href="${escapeHtml(downloadUrl)}" style="color: #E8634B; word-break: break-all;">${escapeHtml(downloadUrl)}</a>
+                <a href="${escapeHtml(downloadUrl)}" style="color: #C8322B; word-break: break-all;">${escapeHtml(downloadUrl)}</a>
               </p>
             </td>
           </tr>

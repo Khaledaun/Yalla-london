@@ -194,7 +194,7 @@ function parseAnalysisJSON(text: string): DesignAnalysis | null {
 function getDefaultAnalysis(): DesignAnalysis {
   return {
     layout: { type: "hero-centered", headerPosition: "center", textDensity: "minimal", imageRatio: 60 },
-    colors: { dominant: "#1A1F36", secondary: "#E8634B", accent: "#F59E0B", background: "#FFFFFF", textColor: "#111827" },
+    colors: { dominant: "#1C1917", secondary: "#C8322B", accent: "#F59E0B", background: "#FFFFFF", textColor: "#111827" },
     typography: { headingStyle: "bold", headingSize: "large", bodySize: "medium", alignment: "center" },
     elements: { hasLogo: true, hasHeroImage: true, hasOverlay: true, hasIcons: false, hasDividers: true, hasCTA: true, hasGrid: false, numberOfImages: 1, numberOfTextBlocks: 3 },
     mood: "modern",

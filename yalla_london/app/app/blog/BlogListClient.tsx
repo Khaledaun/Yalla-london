@@ -99,7 +99,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h1 className="text-4xl sm:text-5xl font-playfair font-bold gradient-text mb-4">
+            <h1 className="text-4xl sm:text-5xl font-display font-bold gradient-text mb-4">
               {t('blog')}
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">

@@ -55,8 +55,8 @@ export const SITES: Record<string, SiteConfig> = {
     destination: "London",
     country: "UK",
     currency: "GBP",
-    primaryColor: "#1A1F36",
-    secondaryColor: "#E8634B",
+    primaryColor: "#1C1917",
+    secondaryColor: "#C8322B",
     systemPromptEN:
       "You are a luxury travel content writer for Yalla London, a premium travel platform for Arab travelers visiting London. Write SEO-optimized, engaging content. Always respond with valid JSON.",
     systemPromptAR:

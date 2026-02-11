@@ -240,29 +240,29 @@ export default function ShopPage() {
   }, [cart, products, checkingOut])
 
   return (
-    <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: isRTL ? 'Cairo, sans-serif' : 'Plus Jakarta Sans, sans-serif' }}>
+    <div className="min-h-screen bg-gray-50" dir={isRTL ? 'rtl' : 'ltr'} style={{ fontFamily: isRTL ? 'IBM Plex Sans Arabic, sans-serif' : 'Anybody, sans-serif' }}>
       {/* Floating Navbar */}
       <div className="fixed top-0 left-0 right-0 z-50 flex justify-center p-4 pointer-events-none">
         <nav className="flex items-center justify-between px-6 py-3 bg-white/95 backdrop-blur-xl rounded-full shadow-lg w-full max-w-4xl pointer-events-auto border border-gray-100">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-[#1A1F36] rounded-lg flex items-center justify-center relative">
+            <div className="w-9 h-9 bg-[#1C1917] rounded-lg flex items-center justify-center relative">
               <span className="text-white font-bold">Y</span>
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#E8634B] rounded-full"></span>
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#C8322B] rounded-full"></span>
             </div>
-            <span className="text-xl font-bold text-[#1A1F36]">Yalla<span className="font-normal text-[#A3A3A3]">London</span></span>
+            <span className="text-xl font-bold text-[#1C1917]">Yalla<span className="font-normal text-[#A3A3A3]">London</span></span>
           </Link>
 
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/" className="text-sm font-medium text-gray-600 hover:text-[#1A1F36]">Home</Link>
-            <Link href="/blog" className="text-sm font-medium text-gray-600 hover:text-[#1A1F36]">Blog</Link>
-            <Link href="/shop" className="text-sm font-medium text-[#1A1F36]">Shop</Link>
+            <Link href="/" className="text-sm font-medium text-gray-600 hover:text-[#1C1917]">Home</Link>
+            <Link href="/blog" className="text-sm font-medium text-gray-600 hover:text-[#1C1917]">Blog</Link>
+            <Link href="/shop" className="text-sm font-medium text-[#1C1917]">Shop</Link>
           </div>
 
           {/* Cart Button */}
-          <button className="relative p-2.5 bg-[#1A1F36] text-white rounded-full">
+          <button className="relative p-2.5 bg-[#1C1917] text-white rounded-full">
             <ShoppingCart className="w-5 h-5" />
             {cart.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#E8634B] rounded-full text-xs flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#C8322B] rounded-full text-xs flex items-center justify-center">
                 {cart.length}
               </span>
             )}
@@ -271,7 +271,7 @@ export default function ShopPage() {
       </div>
 
       {/* Hero Section */}
-      <div className="pt-24 pb-12 bg-gradient-to-b from-[#1A1F36] to-[#2d3452]">
+      <div className="pt-24 pb-12 bg-gradient-to-b from-[#1C1917] to-[#3D3835]">
         <div className="max-w-6xl mx-auto px-6 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{t.title}</h1>
           <p className="text-xl text-gray-300 mb-8">{t.subtitle}</p>
@@ -279,7 +279,7 @@ export default function ShopPage() {
           {/* Trust Badges */}
           <div className="flex items-center justify-center gap-8 flex-wrap">
             <div className="flex items-center gap-2 text-gray-300">
-              <Download className="w-5 h-5 text-[#E8634B]" />
+              <Download className="w-5 h-5 text-[#C8322B]" />
               <span className="text-sm">{t.instantDownload}</span>
             </div>
             <div className="flex items-center gap-2 text-gray-300">
@@ -308,7 +308,7 @@ export default function ShopPage() {
                     onClick={() => setSelectedCategory(cat.id)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                       selectedCategory === cat.id
-                        ? 'bg-[#1A1F36] text-white'
+                        ? 'bg-[#1C1917] text-white'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
@@ -327,7 +327,7 @@ export default function ShopPage() {
                 placeholder={t.search}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 w-64 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#E8634B]/20 focus:border-[#E8634B]"
+                className="pl-10 pr-4 py-2 w-64 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#C8322B]/20 focus:border-[#C8322B]"
               />
             </div>
           </div>
@@ -338,7 +338,7 @@ export default function ShopPage() {
       <div className="max-w-6xl mx-auto px-6 py-12">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-[#E8634B] animate-spin" />
+            <Loader2 className="w-8 h-8 text-[#C8322B] animate-spin" />
             <span className="ml-3 text-gray-500">{t.loading}</span>
           </div>
         ) : (
@@ -353,12 +353,12 @@ export default function ShopPage() {
                       {product.image ? (
                         <Image src={product.image} alt={isRTL ? (product.name_ar || product.name_en) : product.name_en} fill className="object-cover" />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-[#1A1F36] to-[#E8634B] flex items-center justify-center">
+                        <div className="w-full h-full bg-gradient-to-br from-[#1C1917] to-[#C8322B] flex items-center justify-center">
                           <FileText className="w-16 h-16 text-white/30" />
                         </div>
                       )}
                       {product.featured && (
-                        <span className="absolute top-3 left-3 px-3 py-1 bg-[#E8634B] text-white text-xs font-semibold rounded-full">
+                        <span className="absolute top-3 left-3 px-3 py-1 bg-[#C8322B] text-white text-xs font-semibold rounded-full">
                           {isRTL ? 'مميز' : 'Featured'}
                         </span>
                       )}
@@ -383,7 +383,7 @@ export default function ShopPage() {
 
                     {/* Title */}
                     <Link href={`/shop/${product.slug}`}>
-                      <h3 className="text-lg font-bold text-[#1A1F36] mb-2 hover:text-[#E8634B] transition-colors">
+                      <h3 className="text-lg font-bold text-[#1C1917] mb-2 hover:text-[#C8322B] transition-colors">
                         {isRTL ? (product.name_ar || product.name_en) : product.name_en}
                       </h3>
                     </Link>
@@ -405,7 +405,7 @@ export default function ShopPage() {
                     {/* Price & CTA */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-[#1A1F36]">{sym}{product.price.toFixed(2)}</span>
+                        <span className="text-2xl font-bold text-[#1C1917]">{sym}{product.price.toFixed(2)}</span>
                         {product.originalPrice && (
                           <span className="text-sm text-gray-400 line-through">{sym}{product.originalPrice.toFixed(2)}</span>
                         )}
@@ -415,7 +415,7 @@ export default function ShopPage() {
                         className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${
                           cart.includes(product.id)
                             ? 'bg-green-500 text-white'
-                            : 'bg-[#E8634B] hover:bg-[#d4543d] text-white'
+                            : 'bg-[#C8322B] hover:bg-[#a82520] text-white'
                         }`}
                       >
                         {cart.includes(product.id) ? (
@@ -440,7 +440,7 @@ export default function ShopPage() {
       {/* Floating Cart Summary */}
       {cart.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-          <div className="flex items-center gap-4 px-6 py-4 bg-[#1A1F36] text-white rounded-full shadow-2xl">
+          <div className="flex items-center gap-4 px-6 py-4 bg-[#1C1917] text-white rounded-full shadow-2xl">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" />
               <span className="font-medium">{cart.length} items</span>
@@ -450,7 +450,7 @@ export default function ShopPage() {
             <button
               onClick={handleCheckout}
               disabled={checkingOut}
-              className="flex items-center gap-2 px-4 py-2 bg-[#E8634B] rounded-full font-semibold hover:bg-[#d4543d] transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 bg-[#C8322B] rounded-full font-semibold hover:bg-[#a82520] transition-colors disabled:opacity-50"
             >
               {checkingOut ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -465,12 +465,12 @@ export default function ShopPage() {
       )}
 
       {/* Footer */}
-      <footer className="bg-[#1A1F36] text-white py-12 mt-16">
+      <footer className="bg-[#1C1917] text-white py-12 mt-16">
         <div className="max-w-6xl mx-auto px-6 text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center relative">
-              <span className="text-[#1A1F36] font-bold text-lg">Y</span>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-[#E8634B] rounded-full"></span>
+              <span className="text-[#1C1917] font-bold text-lg">Y</span>
+              <span className="absolute top-2 right-2 w-2 h-2 bg-[#C8322B] rounded-full"></span>
             </div>
             <span className="text-2xl font-bold">Yalla<span className="font-normal text-gray-400">London</span></span>
           </div>

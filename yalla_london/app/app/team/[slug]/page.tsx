@@ -250,7 +250,7 @@ export default function TeamMemberProfilePage() {
             className="mb-8"
           >
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl md:text-4xl font-playfair font-bold">{getName()}</h1>
+              <h1 className="text-3xl md:text-4xl font-display font-bold">{getName()}</h1>
               {member.is_featured && (
                 <Badge className="bg-yellow-500 text-gray-900">
                   <Star className="h-3 w-3 mr-1" />
@@ -366,7 +366,7 @@ export default function TeamMemberProfilePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <h2 className="text-2xl font-playfair font-bold mb-6 flex items-center gap-2">
+            <h2 className="text-2xl font-display font-bold mb-6 flex items-center gap-2">
               <Sparkles className="h-6 w-6 text-yellow-500" />
               {language === 'en' ? 'Skills & Expertise' : 'المهارات والخبرات'}
             </h2>

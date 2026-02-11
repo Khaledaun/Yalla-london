@@ -209,10 +209,10 @@ export default function AboutPage() {
               >
                 <Card className="p-6 border-0 luxury-shadow hover:shadow-xl transition-shadow duration-300">
                   <CardContent className="p-0">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full flex items-center justify-center">
-                      <stat.icon className="h-8 w-8 text-purple-800" />
+                    <div className="w-16 h-16 mx-auto mb-4 bg-[#FDF8F3] rounded-full flex items-center justify-center">
+                      <stat.icon className="h-8 w-8 text-brand-primary" />
                     </div>
-                    <div className="text-3xl font-bold text-purple-800 mb-2">
+                    <div className="text-3xl font-bold text-brand-primary mb-2">
                       {stat.number}
                     </div>
                     <div className="text-gray-600 font-medium">
@@ -259,8 +259,8 @@ export default function AboutPage() {
               >
                 <Card className="p-8 border-0 luxury-shadow hover:shadow-xl transition-all duration-300 h-full">
                   <CardContent className="p-0">
-                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-purple-100 to-yellow-50 rounded-full flex items-center justify-center">
-                      <value.icon className="h-10 w-10 text-purple-800" />
+                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-[#FDF8F3] to-[#F5EDE4] rounded-full flex items-center justify-center">
+                      <value.icon className="h-10 w-10 text-brand-primary" />
                     </div>
                     <h3 className="text-2xl font-playfair font-bold mb-4 text-gray-900">
                       {language === 'en' ? value.title_en : value.title_ar}

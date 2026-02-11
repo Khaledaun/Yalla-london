@@ -203,7 +203,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                       <p className="text-gray-600 leading-relaxed flex-1 mb-4 line-clamp-3">
                         {excerpt}
                       </p>
-                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-brand-primary hover:text-[#5C0A23]">
+                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-brand-primary hover:text-[#5C0A23] transition-colors">
                         <Link href={`/blog/${post.slug}`}>
                           {t('readMore')}
                           <ArrowRight className={`ml-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />

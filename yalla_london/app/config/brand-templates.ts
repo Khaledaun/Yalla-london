@@ -79,8 +79,8 @@ export const luxuryGuideTemplate: BrandConfig = {
   siteNameAr: "يالا لندن",
   tagline: "Luxury London Guide",
   taglineAr: "دليل لندن الفاخر",
-  description: "Your curated guide to the finest luxury experiences in London",
-  descriptionAr: "دليلك المنسق لأفضل التجارب الفاخرة في لندن",
+  description: "Yalla London connects Arab travellers with London's finest luxury hotels, halal restaurants, and exclusive experiences. Bilingual guide in English & Arabic.",
+  descriptionAr: "يالا لندن يربط المسافرين العرب بأفخم فنادق لندن والمطاعم الحلال والتجارب الحصرية. دليل ثنائي اللغة بالعربية والإنجليزية.",
   businessType: 'luxury-guide',
 
   colors: {

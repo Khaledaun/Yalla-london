@@ -15,7 +15,6 @@ import { brandConfig } from "@/config/brand-config";
 export const metadata: Metadata = {
   title: `${brandConfig.siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
   description: brandConfig.description,
-  keywords: brandConfig.seo.keywords,
   authors: [{ name: brandConfig.seo.author }],
   creator: brandConfig.seo.author,
   publisher: brandConfig.seo.author,
@@ -23,7 +22,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_GB",
     alternateLocale: "ar_SA",
-    url: process.env.NEXT_PUBLIC_SITE_URL || "https://example.com",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com",
     siteName: brandConfig.siteName,
     title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
     description: brandConfig.description,
@@ -110,14 +109,17 @@ export default function RootLayout({
             <ThemeProvider
               attribute="class"
               defaultTheme="light"
-              enableSystem={false}
+              enableSystem
               disableTransitionOnChange
             >
               <LanguageProvider>
                 <AnalyticsTracker />
+                <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-white focus:text-charcoal focus:rounded focus:shadow-lg focus:text-sm focus:font-semibold">
+                  Skip to content
+                </a>
                 <div className="min-h-screen flex flex-col">
                   <DynamicHeader />
-                  <main className="flex-1 pt-16">{children}</main>
+                  <main id="main-content" className="flex-1 pt-16">{children}</main>
                   <Footer />
                 </div>
                 <CookieConsentBanner />

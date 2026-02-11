@@ -45,11 +45,6 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
       "url": baseUrl,
       "description": language === 'en' ? brandConfig.description : brandConfig.descriptionAr,
       "inLanguage": [language],
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": `${baseUrl}/search?q={search_term_string}`,
-        "query-input": "required name=search_term_string"
-      },
       "publisher": {
         "@type": "Organization",
         "name": brandConfig.seo.author,

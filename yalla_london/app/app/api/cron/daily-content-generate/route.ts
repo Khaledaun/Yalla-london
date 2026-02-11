@@ -256,6 +256,30 @@ async function generateArticle(
     },
   });
 
+  // Arabic content quality gate — validate before publishing
+  if (primaryLanguage === "ar") {
+    try {
+      const { validateArabicContent } = await import(
+        "@/lib/skills/arabic-copywriting"
+      );
+      const arContent = content.body || "";
+      const qualityReport = validateArabicContent(arContent);
+      console.log(
+        `[${site.name}] Arabic quality: score=${qualityReport.score} grade=${qualityReport.grade} issues=${qualityReport.issues.length}`,
+      );
+
+      // If quality is too low, log warnings (but still publish — editorial can review)
+      if (qualityReport.grade === "rewrite") {
+        console.warn(
+          `[${site.name}] Arabic content scored ${qualityReport.score}/100 — may need editorial review`,
+          qualityReport.issues.map((i) => i.message),
+        );
+      }
+    } catch (qualityError) {
+      console.warn(`[${site.name}] Arabic quality check failed (non-fatal):`, qualityError);
+    }
+  }
+
   // Auto-inject structured data (JSON-LD) for AIO visibility
   try {
     const { enhancedSchemaInjector } = await import(
@@ -343,9 +367,25 @@ async function generateWithAI(
     const baseSystemPrompt =
       language === "en" ? site.systemPromptEN : site.systemPromptAR;
     const writingStyle = pickWritingStyle();
+
+    // Inject Arabic copywriting directives for AR content
+    let arabicDirectives = "";
+    if (language === "ar") {
+      try {
+        const { getArabicCopywritingDirectives } = await import(
+          "@/lib/skills/arabic-copywriting"
+        );
+        arabicDirectives = "\n\n" + getArabicCopywritingDirectives({
+          destination: site.destination,
+          contentType: topic.authorityLinks?.contentType || "guide",
+          audience: "gulf",
+        });
+      } catch {}
+    }
+
     const systemPrompt = `${baseSystemPrompt}
 
-${getHumanizationDirectives(writingStyle, site)}`;
+${getHumanizationDirectives(writingStyle, site)}${arabicDirectives}`;
 
     // Determine content type from topic metadata
     const contentType = topic.authorityLinks?.contentType || "guide";

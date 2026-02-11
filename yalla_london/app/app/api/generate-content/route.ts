@@ -61,9 +61,24 @@ async function generateContentHandler(request: NextRequest) {
     // SECURITY: Sanitize prompt input
     const cleanPrompt = sanitizePrompt(prompt)
 
+    // Inject Arabic copywriting directives for AR content
+    let arabicBoost = '';
+    if (language === 'ar') {
+      try {
+        const { getArabicCopywritingDirectives } = await import(
+          '@/lib/skills/arabic-copywriting'
+        );
+        arabicBoost = '\n\n' + getArabicCopywritingDirectives({
+          destination: 'London',
+          contentType: type === 'blog_topic' ? 'listicle' : type === 'blog_content' ? 'guide' : 'recommendation',
+          audience: 'gulf',
+        });
+      } catch {}
+    }
+
     // Create system prompts based on content type and language
     let systemPrompt = ''
-    
+
     if (type === 'blog_topic') {
       systemPrompt = language === 'en' 
         ? `You are a luxury travel content creator for "Yalla London", a bilingual London guide targeting affluent Arab tourists and English-speaking travelers. Generate 5-8 engaging blog topic ideas related to luxury London experiences. Focus on: high-end dining, exclusive shopping, cultural experiences, luxury accommodations, and premium entertainment. Each topic should be specific, engaging, and appeal to sophisticated travelers with significant disposable income.
@@ -88,6 +103,11 @@ Format each recommendation with: Name, type (hotel/restaurant/attraction), descr
         : `أنت مستشار سفر فاخر لـ"يالا لندن". قم بإنشاء توصيات مفصلة لتجارب لندن المميزة. اشمل أسماء الأماكن المحددة والأوصاف والميزات الفريدة ونطاقات الأسعار ومعلومات الاتصال والنصائح من الداخل. ركز على المؤسسات عالية الجودة التي تلبي احتياجات المسافرين الأثرياء الباحثين عن التجارب الحصرية.
 
 قم بتنسيق كل توصية مع: الاسم، النوع (فندق/مطعم/معلم)، الوصف، الميزات الرئيسية، نطاق السعر، والنصائح العملية.`
+    }
+
+    // Append Arabic copywriting directives to AR system prompts
+    if (language === 'ar' && arabicBoost) {
+      systemPrompt += arabicBoost;
     }
 
     const messages = [

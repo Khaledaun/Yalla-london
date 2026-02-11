@@ -72,6 +72,7 @@ const mainNavigation = [
     badge: 'Ops',
     children: [
       { label: 'Operations Hub', href: '/admin/operations' },
+      { label: 'Skills Engine', href: '/admin/operations/skills' },
       { label: 'Stripe MCP', href: '/admin/operations/mcp/stripe' },
       { label: 'Mercury Bank', href: '/admin/operations/mcp/mercury' },
     ]

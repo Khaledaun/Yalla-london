@@ -291,7 +291,7 @@ export default function EventsPage() {
                   onClick={() => setSelectedCategory(cat)}
                   className={
                     selectedCategory === cat
-                      ? "bg-brand-primary hover:bg-[#5C0A23]"
+                      ? "bg-brand-primary hover:bg-london-800"
                       : ""
                   }
                 >
@@ -461,7 +461,7 @@ export default function EventsPage() {
                           {event.price}
                         </span>
                         <Button
-                          className="bg-brand-primary hover:bg-[#5C0A23] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B1538]"
+                          className="bg-brand-primary hover:bg-london-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600"
                           disabled={event.soldOut}
                           onClick={() => handleBooking(event)}
                         >
@@ -508,7 +508,7 @@ export default function EventsPage() {
               (partner) => (
                 <div
                   key={partner}
-                  className="text-center px-6 py-4 rounded-lg border border-gray-100 hover:border-[#D4AF37]/40 hover:bg-[#FDF8F3] transition-all"
+                  className="text-center px-6 py-4 rounded-lg border border-gray-100 hover:border-yalla-gold-400/40 hover:bg-cream transition-all"
                 >
                   <span className="font-semibold text-gray-700">{partner}</span>
                   <span className="block text-xs text-gray-400 mt-1">
@@ -524,7 +524,7 @@ export default function EventsPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-gradient-to-br from-[#5C0A23] via-[#8B1538] to-[#D4AF37] text-white">
+      <section className="py-20 bg-gradient-to-br from-london-900 via-london-600 to-yalla-gold-500 text-white">
         <div className="max-w-4xl mx-auto text-center px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -546,7 +546,7 @@ export default function EventsPage() {
               <Button
                 asChild
                 size="lg"
-                className="bg-white text-[#5C0A23] hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                className="bg-white text-london-900 hover:bg-gray-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 <Link href="/contact">
                   {language === "en"

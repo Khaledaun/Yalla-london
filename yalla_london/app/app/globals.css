@@ -3,47 +3,60 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Google Fonts - Inter + Playfair Display + Cairo for elegant Arabic typography */
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
+/* Brand Kit v2 — Design Tokens & Animations */
+@import './yalla-tokens.css';
+@import './yalla-animations.css';
 
-/* Dynamic Brand Theming System - Middle Eastern Inspired Luxury */
+/* Google Fonts — Brand Kit v2 Typography Stack */
+@import url('https://fonts.googleapis.com/css2?family=Anybody:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+
+/* Yalla London — Brand Kit v2 Theming System */
 :root {
-  /* Primary palette - Rich burgundy and gold */
-  --color-primary: #8B1538;
-  --color-secondary: #D4AF37;
-  --color-accent: #C5A572;
-  --color-background: #FFFDF8;
-  --color-text: #2D1810;
-  --color-muted: #6B5B4F;
+  /* Primary palette — London Red & Gold */
+  --color-primary: #C8322B;
+  --color-secondary: #C49A2A;
+  --color-accent: #3B7EA1;
+  --color-background: #FAF8F4;
+  --color-text: #1C1917;
+  --color-muted: #78716C;
 
   /* Extended palette */
-  --color-cream: #FDF8F3;
-  --color-sand: #F5EDE4;
-  --color-deep-burgundy: #5C0A23;
-  --color-gold-light: #E8D5A3;
-  --color-warm-gray: #9C8B7A;
-  --color-charcoal: #3D2F27;
+  --color-cream: #FAF8F4;
+  --color-sand: #D6D0C4;
+  --color-deep-burgundy: #8b1f1c;
+  --color-gold-light: #d9b938;
+  --color-warm-gray: #78716C;
+  --color-charcoal: #1C1917;
+  --color-graphite: #3D3835;
+  --color-thames: #3B7EA1;
+  --color-stamp: #4A7BA8;
+  --color-forest: #2D5A3D;
 
   /* Semantic color mappings */
   --color-brand-primary: var(--color-primary);
   --color-brand-secondary: var(--color-secondary);
   --color-brand-accent: var(--color-accent);
 
-  /* Font families */
-  --font-inter: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
-  --font-serif: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
-  --font-cairo: 'Cairo', 'Inter', 'Segoe UI', 'Arial', sans-serif;
-  --font-arabic: 'Cairo', 'Inter', 'Segoe UI', 'Arial', sans-serif;
+  /* Font families — Brand Kit v2 */
+  --font-display: 'Anybody', sans-serif;
+  --font-editorial: 'Source Serif 4', Georgia, serif;
+  --font-body: 'Source Serif 4', Georgia, serif;
+  --font-system: 'IBM Plex Mono', 'Courier New', monospace;
+  --font-arabic: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
+  /* Legacy aliases */
+  --font-inter: 'Source Serif 4', Georgia, serif;
+  --font-serif: 'Anybody', sans-serif;
+  --font-cairo: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
 
   /* Shadows and effects */
-  --shadow-luxury: 0 4px 20px rgba(139, 21, 56, 0.08);
-  --shadow-elegant: 0 8px 40px rgba(139, 21, 56, 0.12);
-  --shadow-card: 0 2px 12px rgba(45, 24, 16, 0.06);
+  --shadow-luxury: 0 4px 20px rgba(28, 25, 23, 0.08);
+  --shadow-elegant: 0 8px 40px rgba(28, 25, 23, 0.12);
+  --shadow-card: 0 2px 12px rgba(28, 25, 23, 0.06);
 
   /* Border radius */
-  --radius-soft: 12px;
-  --radius-card: 16px;
-  --radius-button: 8px;
+  --radius-soft: 8px;
+  --radius-card: 4px;
+  --radius-button: 4px;
 }
 
 /* Platform-specific brand classes */
@@ -77,24 +90,34 @@
 
 /* Elegant gold gradient */
 .gradient-gold {
-  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-accent) 50%, var(--color-gold-light) 100%);
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-gold-light) 100%);
 }
 
 .gradient-gold-text {
-  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-accent) 100%);
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-gold-light) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
 }
 
+/* Tri-color bar — signature brand element */
+.tricolor-bar {
+  display: flex;
+  height: var(--yalla-bar-height, 3px);
+  gap: 0;
+}
+.tricolor-bar .bar-london { flex: 1; background: var(--color-primary); }
+.tricolor-bar .bar-gold   { flex: 1; background: var(--color-secondary); }
+.tricolor-bar .bar-sky    { flex: 1; background: var(--color-accent); }
+
 /* Warm cream backgrounds */
 .bg-cream { background-color: var(--color-cream); }
 .bg-sand { background-color: var(--color-sand); }
 
-/* Decorative border with Islamic-inspired pattern */
+/* Decorative border — tri-color gradient */
 .border-decorative {
-  border-image: linear-gradient(90deg, var(--color-secondary), var(--color-accent), var(--color-secondary)) 1;
+  border-image: linear-gradient(90deg, var(--color-primary), var(--color-secondary), var(--color-accent)) 1;
 }
 
 /* Ornamental divider */
@@ -154,29 +177,41 @@
     text-wrap: balance;
   }
 
-  .font-inter {
-    font-family: var(--font-inter);
+  .font-display {
+    font-family: var(--font-display);
   }
 
-  .font-cairo {
-    font-family: var(--font-cairo);
+  .font-editorial {
+    font-family: var(--font-editorial);
+  }
+
+  .font-system {
+    font-family: var(--font-system);
   }
 
   .font-arabic {
     font-family: var(--font-arabic);
   }
 
+  /* Legacy aliases */
+  .font-inter {
+    font-family: var(--font-body);
+  }
+
+  .font-cairo {
+    font-family: var(--font-arabic);
+  }
+
   .font-serif {
-    font-family: var(--font-serif);
+    font-family: var(--font-editorial);
   }
 
   .font-prestige {
-    font-family: var(--font-serif);
+    font-family: var(--font-display);
   }
 
-  /* Legacy support - map tajawal to cairo */
   .font-tajawal {
-    font-family: var(--font-cairo);
+    font-family: var(--font-arabic);
   }
 
   /* Enhanced typography for admin interface */
@@ -292,14 +327,14 @@
     background-color: white;
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
-    border: 1px solid rgba(212, 175, 55, 0.1);
+    border: 1px solid rgba(196, 154, 42, 0.1);
     transition: all 0.3s ease;
   }
 
   .card-elegant:hover {
     box-shadow: var(--shadow-luxury);
     transform: translateY(-4px);
-    border-color: rgba(212, 175, 55, 0.3);
+    border-color: rgba(196, 154, 42, 0.3);
   }
 
   /* Decorative heading with underline */
@@ -473,13 +508,14 @@
   background: var(--color-secondary);
 }
 
-/* Dark mode adjustments */
+/* Dark mode adjustments — Brand Kit v2 */
 .dark {
-  --color-background: #1A1412;
-  --color-text: #F5EDE4;
-  --color-muted: #9C8B7A;
-  --color-cream: #2D2420;
-  --color-sand: #3D3530;
+  --color-background: #1C1917;
+  --color-text: #FAF8F4;
+  --color-muted: #78716C;
+  --color-cream: #1C1917;
+  --color-sand: #3D3835;
+  --color-charcoal: #FAF8F4;
   --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
   --shadow-luxury: 0 4px 20px rgba(0, 0, 0, 0.4);
 }

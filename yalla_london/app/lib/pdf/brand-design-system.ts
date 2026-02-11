@@ -131,10 +131,10 @@ export function getBrandProfile(siteId: string): BrandProfile {
       textLight: "#6B7280",
     },
     fonts: {
-      heading: "Plus Jakarta Sans",
-      headingAr: "Cairo",
-      body: "Inter",
-      bodyAr: "Cairo",
+      heading: "Anybody",
+      headingAr: "IBM Plex Sans Arabic",
+      body: "Source Serif 4",
+      bodyAr: "IBM Plex Sans Arabic",
     },
     logoSvg: generateLogoSvg(site),
     patterns: {
@@ -159,10 +159,10 @@ function getDefaultBrandProfile(siteId: string): BrandProfile {
       textLight: "#6B7280",
     },
     fonts: {
-      heading: "Plus Jakarta Sans",
-      headingAr: "Cairo",
-      body: "Inter",
-      bodyAr: "Cairo",
+      heading: "Anybody",
+      headingAr: "IBM Plex Sans Arabic",
+      body: "Source Serif 4",
+      bodyAr: "IBM Plex Sans Arabic",
     },
     logoSvg: "",
     patterns: {

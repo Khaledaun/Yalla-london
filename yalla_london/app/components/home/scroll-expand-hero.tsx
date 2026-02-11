@@ -191,7 +191,7 @@ const ScrollExpandHero = ({
                   height: `${mediaHeight}px`,
                   maxWidth: '95vw',
                   maxHeight: '85vh',
-                  boxShadow: '0 25px 80px rgba(139, 21, 56, 0.25), 0 10px 30px rgba(0, 0, 0, 0.2)',
+                  boxShadow: '0 25px 80px rgba(200, 50, 43, 0.25), 0 10px 30px rgba(0, 0, 0, 0.2)',
                 }}
               >
                 {mediaType === 'video' ? (
@@ -292,7 +292,7 @@ const ScrollExpandHero = ({
                   className="text-5xl md:text-6xl lg:text-8xl font-serif font-bold text-cream-50 drop-shadow-lg"
                   style={{
                     transform: `translateX(-${textTranslateX}vw)`,
-                    textShadow: '0 4px 30px rgba(139, 21, 56, 0.5)'
+                    textShadow: '0 4px 30px rgba(200, 50, 43, 0.5)'
                   }}
                 >
                   {firstHalf}
@@ -301,7 +301,7 @@ const ScrollExpandHero = ({
                   className="text-5xl md:text-6xl lg:text-8xl font-serif font-bold text-center text-cream-50 drop-shadow-lg"
                   style={{
                     transform: `translateX(${textTranslateX}vw)`,
-                    textShadow: '0 4px 30px rgba(139, 21, 56, 0.5)'
+                    textShadow: '0 4px 30px rgba(200, 50, 43, 0.5)'
                   }}
                 >
                   {secondHalf}

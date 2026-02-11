@@ -1,0 +1,209 @@
+/* ═══════════════════════════════════════════════════════════════
+   YALLA LONDON — Brand Animation Library
+   Version 2.0 | IBM Plex Sans Arabic / Anybody / Source Serif 4
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── CORE: Stamp Entry ─── */
+/* Use: Logo/stamp first appearance on page load */
+@keyframes yalla-stamp-in {
+  0%   { transform: scale(2) rotate(-20deg); opacity: 0; }
+  60%  { transform: scale(0.95) rotate(-5deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-5deg); opacity: 1; }
+}
+.yalla-stamp-in {
+  animation: yalla-stamp-in 0.8s ease both;
+}
+
+/* ─── CORE: Stamp Bounce ─── */
+/* Use: Stamp reveal with elastic overshoot — hero sections */
+@keyframes yalla-stamp-bounce {
+  0%   { transform: scale(0.3) rotate(-30deg); opacity: 0; }
+  50%  { transform: scale(1.1) rotate(-3deg); opacity: 1; }
+  70%  { transform: scale(0.95) rotate(-6deg); }
+  100% { transform: scale(1) rotate(-5deg); opacity: 1; }
+}
+.yalla-stamp-bounce {
+  animation: yalla-stamp-bounce 0.8s ease both;
+}
+
+/* ─── CORE: Tri-Color Bar Reveal ─── */
+/* Use: Tri-color divider bars — stagger with delays */
+@keyframes yalla-bar-slide {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+.yalla-bar-london { animation: yalla-bar-slide 0.6s ease 0s both; }
+.yalla-bar-gold   { animation: yalla-bar-slide 0.6s ease 0.15s both; }
+.yalla-bar-sky    { animation: yalla-bar-slide 0.6s ease 0.3s both; }
+
+/* ─── CORE: Fade Up ─── */
+/* Use: Staggered text/element reveal. Apply with delays. */
+@keyframes yalla-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.yalla-fade-up      { animation: yalla-fade-up 0.5s ease both; }
+.yalla-fade-up-d1   { animation: yalla-fade-up 0.5s ease 0.1s both; }
+.yalla-fade-up-d2   { animation: yalla-fade-up 0.5s ease 0.2s both; }
+.yalla-fade-up-d3   { animation: yalla-fade-up 0.5s ease 0.3s both; }
+.yalla-fade-up-d4   { animation: yalla-fade-up 0.5s ease 0.4s both; }
+.yalla-fade-up-d5   { animation: yalla-fade-up 0.5s ease 0.5s both; }
+.yalla-fade-up-d6   { animation: yalla-fade-up 0.5s ease 0.6s both; }
+.yalla-fade-up-d7   { animation: yalla-fade-up 0.5s ease 0.7s both; }
+
+/* ─── CORE: Fade In ─── */
+@keyframes yalla-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.yalla-fade-in { animation: yalla-fade-in 0.4s ease both; }
+
+/* ─── CORE: Page Transition — Boarding Pass Color Wipe ─── */
+/* Use: Full-page transitions between routes */
+@keyframes yalla-slide-right {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+.yalla-transition-london { animation: yalla-slide-right 0.4s ease 0s both; }
+.yalla-transition-gold   { animation: yalla-slide-right 0.4s ease 0.1s both; }
+.yalla-transition-sky    { animation: yalla-slide-right 0.4s ease 0.2s both; }
+
+/* ─── CORE: Tri-Color Pulse ─── */
+/* Use: Loading indicator — three dots */
+@keyframes yalla-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%      { opacity: 1; transform: scale(1); }
+}
+.yalla-pulse-london { animation: yalla-pulse 1.2s ease 0s infinite; }
+.yalla-pulse-gold   { animation: yalla-pulse 1.2s ease 0.2s infinite; }
+.yalla-pulse-sky    { animation: yalla-pulse 1.2s ease 0.4s infinite; }
+
+/* ─── EXTENDED: Slide Up ─── */
+/* Use: Toast notifications, bottom sheets, mobile elements */
+@keyframes yalla-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.yalla-slide-up      { animation: yalla-slide-up 0.3s ease both; }
+.yalla-slide-up-d1   { animation: yalla-slide-up 0.3s ease 0.1s both; }
+.yalla-slide-up-d2   { animation: yalla-slide-up 0.3s ease 0.2s both; }
+.yalla-slide-up-d3   { animation: yalla-slide-up 0.3s ease 0.3s both; }
+
+/* ─── EXTENDED: Counter Up ─── */
+/* Use: Statistics counters, number reveals */
+@keyframes yalla-counter-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.yalla-counter-up    { animation: yalla-counter-up 0.5s ease both; }
+.yalla-counter-up-d1 { animation: yalla-counter-up 0.5s ease 0.15s both; }
+.yalla-counter-up-d2 { animation: yalla-counter-up 0.5s ease 0.3s both; }
+.yalla-counter-up-d3 { animation: yalla-counter-up 0.5s ease 0.45s both; }
+
+/* ─── EXTENDED: Shimmer ─── */
+/* Use: Skeleton loading placeholders */
+@keyframes yalla-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.yalla-skeleton {
+  background: linear-gradient(90deg, var(--yalla-border) 25%, var(--yalla-skeleton-highlight, #4a4540) 50%, var(--yalla-border) 75%);
+  background-size: 200% 100%;
+  animation: yalla-shimmer 1.5s infinite;
+  border-radius: 3px;
+}
+
+/* ─── EXTENDED: Float ─── */
+/* Use: Floating action button, hovering elements */
+@keyframes yalla-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.yalla-float { animation: yalla-float 3s ease infinite; }
+
+/* ─── EXTENDED: Glow ─── */
+/* Use: Premium CTA pulse, gold accent elements */
+@keyframes yalla-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(196, 154, 42, 0); }
+  50%      { box-shadow: 0 0 20px 4px rgba(196, 154, 42, 0.15); }
+}
+.yalla-glow       { animation: yalla-glow 2s ease infinite; }
+.yalla-glow-london { animation: yalla-glow 2s ease infinite; --glow-color: rgba(200, 50, 43, 0.15); }
+
+/* ─── EXTENDED: Typewriter ─── */
+/* Use: Tagline reveal, hero text effects */
+@keyframes yalla-typewriter {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+@keyframes yalla-blink {
+  50% { border-color: transparent; }
+}
+.yalla-typewriter {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid var(--yalla-london);
+  animation: yalla-typewriter 2s steps(20) 1s both, yalla-blink 0.8s step-end infinite;
+}
+
+/* ─── EXTENDED: Ticket Tear ─── */
+/* Use: Modal/page reveal with circular clip */
+@keyframes yalla-ticket-tear {
+  from { clip-path: circle(0% at 50% 50%); }
+  to   { clip-path: circle(100% at 50% 50%); }
+}
+.yalla-ticket-tear { animation: yalla-ticket-tear 0.6s ease both; }
+
+/* ─── EXTENDED: Nav Slide ─── */
+/* Use: Sticky navigation entry */
+@keyframes yalla-nav-slide {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.yalla-nav-slide { animation: yalla-nav-slide 0.4s ease both; }
+
+/* ─── EXTENDED: Card Hover ─── */
+/* Use: Service/experience cards on hover */
+@keyframes yalla-card-lift {
+  0%   { transform: translateY(0); box-shadow: 0 0 0 rgba(0,0,0,0); }
+  100% { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(28,25,23,0.12); }
+}
+
+/* ─── EXTENDED: Progress Fill ─── */
+/* Use: Booking progress bar, loading bars */
+@keyframes yalla-progress-fill {
+  from { width: 0; }
+  to   { width: var(--fill, 100%); }
+}
+.yalla-progress-fill { animation: yalla-progress-fill 0.8s ease both; }
+
+/* ═══════════════════════════════════════
+   TRANSITION UTILITIES
+   ═══════════════════════════════════════ */
+.yalla-hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.yalla-hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(28, 25, 23, 0.12);
+}
+
+.yalla-transition-color { transition: color 0.2s ease; }
+.yalla-transition-bg    { transition: background-color 0.2s ease; }
+.yalla-transition-all   { transition: all 0.2s ease; }
+.yalla-transition-slow  { transition: all 0.4s ease; }
+
+/* ═══════════════════════════════════════
+   FOCUS STATES
+   ═══════════════════════════════════════ */
+.yalla-focus-ring:focus {
+  outline: none;
+  border-color: var(--yalla-gold);
+  box-shadow: 0 0 0 3px rgba(196, 154, 42, 0.15);
+}
+
+.yalla-focus-ring-london:focus {
+  outline: none;
+  border-color: var(--yalla-london);
+  box-shadow: 0 0 0 3px rgba(200, 50, 43, 0.15);
+}

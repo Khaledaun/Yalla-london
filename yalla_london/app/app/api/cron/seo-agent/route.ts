@@ -143,7 +143,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       flagContentForStrengthening,
     } = await import("@/lib/seo/seo-intelligence");
 
-    const searchData = await analyzeSearchPerformance(28);
+    const searchData = await analyzeSearchPerformance(28, siteId);
     if (searchData) {
       report.searchPerformance = {
         totals: searchData.totals,
@@ -174,7 +174,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     }
 
     // 11. ANALYZE GA4 TRAFFIC PATTERNS
-    const trafficData = await analyzeTrafficPatterns(28);
+    const trafficData = await analyzeTrafficPatterns(28, siteId);
     if (trafficData) {
       report.trafficAnalysis = {
         sessions: trafficData.sessions,
@@ -199,7 +199,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     }
 
     // 12. SUBMIT ALL PAGES FOR INDEXING (idempotent)
-    report.indexingSubmission = await submitUnindexedPages(prisma, fixes);
+    report.indexingSubmission = await submitUnindexedPages(prisma, fixes, siteId);
 
     // 12b. AUTO-INJECT STRUCTURED DATA FOR POSTS MISSING SCHEMAS
     try {
@@ -386,20 +386,20 @@ async function checkContentGeneration(prisma: any, issues: string[], siteId?: st
     today.getMonth(),
     today.getDate(),
   );
-  const siteFilter = siteId ? { site_id: siteId } : {};
+  // ScheduledContent has no site_id column — filter only on models that have it
   const blogSiteFilter = siteId ? { siteId } : {};
+  const topicSiteFilter = siteId ? { site_id: siteId } : {};
 
   try {
-    // Check for content generated today
+    // Check for content generated today (ScheduledContent has no site_id — filter by content_type only)
     const todayContent = await prisma.scheduledContent.count({
       where: {
         created_at: { gte: startOfDay },
         content_type: "blog_post",
-        ...siteFilter,
       },
     });
 
-    // Check for content published today
+    // Check for content published today (BlogPost has siteId)
     const todayPublished = await prisma.blogPost.count({
       where: {
         created_at: { gte: startOfDay },
@@ -408,9 +408,9 @@ async function checkContentGeneration(prisma: any, issues: string[], siteId?: st
       },
     });
 
-    // Check pending topics (statuses: planned, queued, ready)
+    // Check pending topics (TopicProposal has site_id)
     const pendingTopics = await prisma.topicProposal.count({
-      where: { status: { in: ["planned", "queued", "ready", "approved"] }, ...siteFilter },
+      where: { status: { in: ["planned", "queued", "ready", "approved"] }, ...topicSiteFilter },
     });
 
     if (todayContent === 0 && today.getHours() >= 10) {
@@ -440,7 +440,8 @@ async function checkContentGeneration(prisma: any, issues: string[], siteId?: st
             ? "partial"
             : "stalled",
     };
-  } catch {
+  } catch (err) {
+    console.error(`[seo-agent] DB check failed for ${siteId}:`, err instanceof Error ? err.message : err);
     return {
       status: "db_unavailable",
       contentGeneratedToday: 0,

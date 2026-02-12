@@ -159,6 +159,100 @@ model BlogPost {
   @@index([created_at])
 }
 
+// ─────────────────────────────────────────────────────────
+// Information Hub Models
+// ─────────────────────────────────────────────────────────
+
+model InformationSection {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name_en         String
+  name_ar         String
+  description_en  String?
+  description_ar  String?
+  icon            String?
+  featured_image  String?
+  sort_order      Int      @default(1)
+  published       Boolean  @default(true)
+  subsections     Json?    // Array of { id, title_en, title_ar, content_en, content_ar }
+
+  siteId          String?
+  deletedAt       DateTime?
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  articles        InformationArticle[]
+
+  @@index([siteId])
+  @@index([published])
+  @@index([sort_order])
+  @@map("information_sections")
+}
+
+model InformationCategory {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name_en         String
+  name_ar         String
+  description_en  String?
+  description_ar  String?
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  articles        InformationArticle[]
+
+  @@map("information_categories")
+}
+
+model InformationArticle {
+  id                   String   @id @default(cuid())
+  slug                 String   @unique
+  section_id           String
+  category_id          String
+  title_en             String
+  title_ar             String
+  excerpt_en           String?
+  excerpt_ar           String?
+  content_en           String   @db.Text
+  content_ar           String   @db.Text
+  featured_image       String?
+  reading_time         Int      @default(5)
+  published            Boolean  @default(false)
+
+  // SEO fields
+  meta_title_en        String?
+  meta_title_ar        String?
+  meta_description_en  String?
+  meta_description_ar  String?
+  tags                 String[]
+  keywords             String[]
+  page_type            String?  @default("article")
+  seo_score            Int?     @default(0)
+  faq_questions        Json?    // Array of { question_en, question_ar, answer_en, answer_ar }
+
+  // Multi-tenant and soft delete
+  siteId               String?
+  deletedAt            DateTime?
+
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  section              InformationSection  @relation(fields: [section_id], references: [id])
+  category             InformationCategory @relation(fields: [category_id], references: [id])
+
+  @@index([section_id])
+  @@index([category_id])
+  @@index([siteId])
+  @@index([siteId, published])
+  @@index([published])
+  @@index([page_type])
+  @@index([seo_score])
+  @@index([created_at])
+  @@map("information_articles")
+}
+
 model Recommendation {
   id           String   @id @default(cuid())
   name_en      String

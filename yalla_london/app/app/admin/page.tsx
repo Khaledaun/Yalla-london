@@ -20,6 +20,8 @@ import {
   Eye,
   Calendar,
   Zap,
+  BookOpen,
+  Layers,
 } from "lucide-react";
 
 export default function AdminCommandCenter() {
@@ -31,6 +33,15 @@ export default function AdminCommandCenter() {
     totalTopics: 0,
     seoScore: 0,
     automationJobs: 0,
+  });
+
+  const [infoHubStats, setInfoHubStats] = useState({
+    totalArticles: 0,
+    publishedArticles: 0,
+    draftArticles: 0,
+    totalSections: 0,
+    publishedSections: 0,
+    avgSeoScore: 0,
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +66,9 @@ export default function AdminCommandCenter() {
         });
         setReadyToPublishItems(data.recentDrafts || []);
         setUpcomingGeneration(data.upcomingTopics || []);
+        if (data.informationHub) {
+          setInfoHubStats(data.informationHub);
+        }
       } catch (err) {
         console.error("Dashboard fetch error:", err);
         setError("Failed to load dashboard data");
@@ -262,6 +276,85 @@ export default function AdminCommandCenter() {
               </p>
             </div>
             <Zap className="h-8 w-8 text-orange-500" />
+          </div>
+        </div>
+      </div>
+
+      {/* Information Hub Stats */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-indigo-500" />
+            Information Hub
+          </h2>
+          <Link
+            href="/admin/information"
+            className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+          >
+            Manage Hub &rarr;
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-lg border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">
+                  Info Articles
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {infoHubStats.publishedArticles}
+                  <span className="text-sm font-normal text-gray-500">
+                    /{infoHubStats.totalArticles}
+                  </span>
+                </p>
+              </div>
+              <FileText className="h-7 w-7 text-indigo-500" />
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-lg border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">
+                  Sections
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {infoHubStats.publishedSections}
+                  <span className="text-sm font-normal text-gray-500">
+                    /{infoHubStats.totalSections}
+                  </span>
+                </p>
+              </div>
+              <Layers className="h-7 w-7 text-indigo-500" />
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-lg border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">
+                  Draft Guides
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {infoHubStats.draftArticles}
+                </p>
+              </div>
+              <Edit3 className="h-7 w-7 text-yellow-500" />
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-lg border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">
+                  Hub SEO Score
+                </p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {infoHubStats.avgSeoScore}%
+                </p>
+              </div>
+              <TrendingUp className="h-7 w-7 text-indigo-500" />
+            </div>
           </div>
         </div>
       </div>

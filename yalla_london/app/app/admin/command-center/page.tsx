@@ -183,12 +183,18 @@ export default function CommandCenterPage() {
         fetch('/api/admin/command-center/status'),
       ]);
 
+      // Auth failures — show empty state, no error banner
+      const sitesAuthFail = sitesRes.status === 401 || sitesRes.status === 403;
+      const statusAuthFail = statusRes.status === 401 || statusRes.status === 403;
+
       if (sitesRes.ok) {
         const data = await sitesRes.json();
         setSites(data.sites || []);
       } else {
         setSites([]);
-        setLoadError('Failed to load sites data. Check API connection.');
+        if (!sitesAuthFail) {
+          setLoadError('Failed to load sites data. Check API connection.');
+        }
       }
 
       if (statusRes.ok) {
@@ -196,7 +202,7 @@ export default function CommandCenterPage() {
         setSystemStatus(data);
       } else {
         setSystemStatus({
-          aiStatus: 'offline',
+          aiStatus: statusAuthFail ? 'degraded' : 'offline',
           contentQueue: 0,
           scheduledPosts: 0,
           pendingTasks: 0,

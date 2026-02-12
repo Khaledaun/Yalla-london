@@ -20,13 +20,13 @@
       "maxDuration": 15
     },
     "app/api/seo/**/*.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "app/api/health/**/*.ts": {
       "maxDuration": 10
     },
     "app/api/cron/**/*.ts": {
-      "maxDuration": 60
+      "maxDuration": 120
     }
   },
   "env": {

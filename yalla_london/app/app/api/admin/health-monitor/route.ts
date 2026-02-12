@@ -120,11 +120,11 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     } satisfies HealthMonitorResponse);
   }
 
-  // 2. Fetch data in parallel
+  // 2. Fetch data in parallel (resilient to missing tables)
   const [sites, cronJobs, recentErrors] = await Promise.all([
-    fetchSiteHealth(),
-    fetchCronJobStatus(),
-    fetchRecentErrors(),
+    fetchSiteHealth().catch(() => fallbackSiteHealth()),
+    fetchCronJobStatus().catch(() => fallbackCronJobStatus()),
+    fetchRecentErrors().catch(() => [] as RecentError[]),
   ]);
 
   // 3. Build summary
@@ -315,5 +315,34 @@ async function fetchRecentErrors(): Promise<RecentError[]> {
     error: e.error_message ?? "Unknown error",
     timestamp: e.started_at?.toISOString() ?? new Date().toISOString(),
     durationMs: e.duration_ms,
+  }));
+}
+
+// ─── Fallbacks when tables don't exist yet ──────────────────────────
+
+function fallbackSiteHealth(): SiteHealth[] {
+  const siteIds = getAllSiteIds();
+  return siteIds.map((id) => {
+    const cfg = getSiteConfig(id);
+    return {
+      siteId: id,
+      siteName: cfg?.name ?? id,
+      domain: cfg?.domain ?? "",
+      healthScore: null,
+      lastChecked: null,
+      status: "unknown" as const,
+    };
+  });
+}
+
+function fallbackCronJobStatus(): CronJobStatus[] {
+  return MONITORED_CRONS.map((jobName) => ({
+    jobName,
+    lastRun: null,
+    status: "never_run",
+    durationMs: null,
+    error: null,
+    itemsProcessed: 0,
+    itemsFailed: 0,
   }));
 }

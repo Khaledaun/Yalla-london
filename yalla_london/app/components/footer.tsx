@@ -73,6 +73,7 @@ export function Footer() {
             </h4>
             <ul className="space-y-3">
               {[
+                { href: '/information', en: 'Information Hub', ar: 'مركز المعلومات' },
                 { href: '/blog', en: 'London Stories', ar: 'حكايات لندن' },
                 { href: '/recommendations', en: 'Recommendations', ar: 'التوصيات' },
                 { href: '/events', en: 'Events & Tickets', ar: 'الفعاليات والتذاكر' },

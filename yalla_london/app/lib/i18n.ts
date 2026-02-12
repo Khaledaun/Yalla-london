@@ -6,6 +6,7 @@ export const translations = {
     // Navigation
     home: 'Home',
     blog: 'London Stories',
+    information: 'Information',
     recommendations: 'Recommendations',
     eventsTickets: 'Events Tickets',
     about: 'The Founder',
@@ -32,6 +33,31 @@ export const translations = {
       'uk-travel': 'UK Travel'
     },
     
+    // Information Hub
+    informationHub: 'Information Hub',
+    informationHubSubtitle: 'Your complete guide to exploring London',
+    planYourTrip: 'Plan Your Trip',
+    attractionsLandmarks: 'Attractions & Landmarks',
+    neighbourhoodGuides: 'Neighbourhood Guides',
+    transportation: 'Transportation',
+    foodRestaurants: 'Food & Restaurants',
+    familyKids: 'Family & Kids',
+    hiddenGems: 'Hidden Gems & Free Activities',
+    dosAndDonts: 'Dos & Don\'ts',
+    practicalInfo: 'Practical Information',
+    couponsDeals: 'Coupons & Deals',
+    emergencyHealthcare: 'Emergency & Healthcare',
+    eDocumentShop: 'E-Document Shop',
+    informationArticles: 'Travel Articles',
+    downloadPlanner: 'Download our London Planner',
+    viewAllArticles: 'View All Articles',
+    affiliateDisclosure: 'This page contains affiliate links. We may earn a commission at no extra cost to you.',
+    lastUpdated: 'Last updated',
+    travelTip: 'Travel Tip',
+    quickFacts: 'Quick Facts',
+    usefulLinks: 'Useful Links',
+    relatedArticles: 'Related Articles',
+
     // Common
     readMore: 'Read More',
     viewAll: 'View All',
@@ -39,7 +65,7 @@ export const translations = {
     search: 'Search',
     filter: 'Filter',
     share: 'Share',
-    
+
     // Footer
     footerText: 'Discover the luxury side of London',
     
@@ -66,6 +92,7 @@ export const translations = {
     // Navigation
     home: 'الرئيسية',
     blog: 'حكايات لندن',
+    information: 'معلومات',
     recommendations: 'التوصيات',
     eventsTickets: 'تذاكر الفعاليات',
     about: 'المؤسسة',
@@ -92,6 +119,31 @@ export const translations = {
       'uk-travel': 'السفر في بريطانيا'
     },
     
+    // Information Hub
+    informationHub: 'مركز المعلومات',
+    informationHubSubtitle: 'دليلك الشامل لاستكشاف لندن',
+    planYourTrip: 'خطط لرحلتك',
+    attractionsLandmarks: 'المعالم والأماكن السياحية',
+    neighbourhoodGuides: 'أدلة الأحياء',
+    transportation: 'المواصلات',
+    foodRestaurants: 'الطعام والمطاعم',
+    familyKids: 'العائلة والأطفال',
+    hiddenGems: 'الجواهر الخفية والأنشطة المجانية',
+    dosAndDonts: 'ما يجب فعله وما يجب تجنبه',
+    practicalInfo: 'معلومات عملية',
+    couponsDeals: 'كوبونات وعروض',
+    emergencyHealthcare: 'الطوارئ والرعاية الصحية',
+    eDocumentShop: 'متجر المستندات الإلكترونية',
+    informationArticles: 'مقالات السفر',
+    downloadPlanner: 'حمّل مخطط لندن الخاص بنا',
+    viewAllArticles: 'عرض جميع المقالات',
+    affiliateDisclosure: 'تحتوي هذه الصفحة على روابط تابعة. قد نكسب عمولة دون أي تكلفة إضافية عليك.',
+    lastUpdated: 'آخر تحديث',
+    travelTip: 'نصيحة سفر',
+    quickFacts: 'حقائق سريعة',
+    usefulLinks: 'روابط مفيدة',
+    relatedArticles: 'مقالات ذات صلة',
+
     // Common
     readMore: 'اقرأ المزيد',
     viewAll: 'عرض الكل',
@@ -99,7 +151,7 @@ export const translations = {
     search: 'البحث',
     filter: 'تصفية',
     share: 'مشاركة',
-    
+
     // Footer
     footerText: 'اكتشف الجانب الفاخر من لندن',
     

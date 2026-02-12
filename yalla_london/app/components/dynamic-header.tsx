@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
-import { Menu, X, Globe, ChevronDown } from 'lucide-react';
+import { Menu, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBrandConfig, useNavigationTranslations } from '@/hooks/use-brand-config';
 import { useLanguage } from '@/components/language-provider';
@@ -32,97 +32,108 @@ export function DynamicHeader() {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-white/98 backdrop-blur-md shadow-luxury border-b border-yalla-gold-300/20'
+          ? 'bg-white/98 backdrop-blur-md shadow-luxury border-b border-sand/30'
           : 'bg-white/95 backdrop-blur-sm'
       }`}
     >
-      {/* Decorative gold line at top */}
-      <div className="h-1 w-full bg-gradient-to-r from-transparent via-yalla-gold-400 to-transparent" />
+      {/* V2 Tri-color bar — 3px, full-width */}
+      <div className="flex h-[3px] w-full">
+        <div className="flex-1 bg-london-600" />
+        <div className="flex-1 bg-yalla-gold-500" />
+        <div className="flex-1 bg-thames-500" />
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-18 py-3">
-          {/* Logo */}
+      <div className="max-w-7xl mx-auto px-5 sm:px-7">
+        <div className="flex justify-between items-center py-3.5">
+          {/* Logo — 90px wide per v2 spec */}
           <Link href="/" className="flex items-center group">
             <Image
               src="/images/yalla-london-logo.svg"
               alt="Yalla London"
-              width={200}
-              height={36}
-              className="h-9 w-auto transition-opacity group-hover:opacity-80"
+              width={90}
+              height={16}
+              className="h-auto w-[90px] transition-opacity group-hover:opacity-80"
               priority
             />
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-0.5">
+          {/* Desktop Navigation — IBM Plex Mono 10px/500, 1.5px tracking, uppercase, Stone */}
+          <nav className="hidden lg:flex items-center gap-1">
             {navigation.map((item) => (
               <Link
                 key={item.key}
                 href={item.href}
-                className="relative px-3 py-2 text-sm text-charcoal font-medium transition-all duration-300 hover:text-london-800 group whitespace-nowrap"
+                className={`relative px-3.5 py-2 font-mono text-[10px] font-medium uppercase text-stone transition-all duration-200 hover:text-charcoal group whitespace-nowrap ${
+                  isRTL ? 'font-arabic tracking-normal text-[13px] normal-case' : 'tracking-[1.5px]'
+                }`}
               >
                 <span className="relative z-10">
                   {language === 'en' ? item.labelEn : item.labelAr}
                 </span>
-                {/* Hover underline effect */}
-                <span className="absolute bottom-1 left-3 right-3 h-0.5 bg-gradient-to-r from-yalla-gold-400 to-yalla-gold-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+                {/* Hover underline — gold accent */}
+                <span className="absolute bottom-1 left-3 right-3 h-0.5 bg-yalla-gold-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
               </Link>
             ))}
           </nav>
 
           {/* Language Toggle & CTA */}
           <div className="flex items-center gap-3">
-            {/* Language Toggle */}
-            <Button
-              variant="ghost"
-              size="sm"
+            {/* Language Toggle — Stone, 13px/500 */}
+            <button
               onClick={toggleLanguage}
-              className="hidden sm:flex items-center gap-2 text-charcoal hover:text-london-800 hover:bg-cream-100 rounded-lg transition-all"
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded transition-all duration-200 hover:bg-cream-100 ${
+                language === 'en'
+                  ? 'font-arabic text-[13px] font-medium text-stone hover:text-charcoal'
+                  : 'font-mono text-[10px] font-medium tracking-[1.5px] uppercase text-stone hover:text-charcoal'
+              }`}
             >
-              <Globe className="h-4 w-4 text-yalla-gold-500" />
-              <span className="font-medium">{language === 'en' ? 'العربية' : 'English'}</span>
-            </Button>
+              {language === 'en' ? 'عربي' : 'EN'}
+            </button>
 
-            {/* CTA Button - Desktop */}
+            {/* CTA Button — Primary small: London Red bg, Cream text, IBM Plex Mono 9px/600, 1.5px tracking, uppercase */}
             <Link
               href="/contact"
-              className="hidden lg:flex items-center gap-2 px-4 py-2 bg-london-800 text-white text-sm rounded-lg font-medium shadow-luxury hover:bg-london-900 hover:shadow-elegant transition-all duration-300 hover:-translate-y-0.5"
+              className={`hidden lg:flex items-center px-4 py-2 bg-london-600 text-cream rounded font-mono text-[9px] font-semibold uppercase transition-all duration-200 hover:bg-london-700 ${
+                isRTL ? 'font-arabic tracking-normal text-[12px] normal-case' : 'tracking-[1.5px]'
+              }`}
             >
-              <span>{language === 'en' ? 'Get in Touch' : 'تواصل معنا'}</span>
+              {language === 'en' ? 'Get in Touch' : 'تواصل معنا'}
             </Link>
 
             {/* Mobile menu button */}
             <Button
               variant="ghost"
               size="sm"
-              className="lg:hidden p-2 hover:bg-cream-100 rounded-lg"
+              className="lg:hidden p-2 hover:bg-cream-100 rounded"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               {isMenuOpen ? (
-                <X className="h-6 w-6 text-london-800" />
+                <X className="h-5 w-5 text-charcoal" />
               ) : (
-                <Menu className="h-6 w-6 text-london-800" />
+                <Menu className="h-5 w-5 text-charcoal" />
               )}
             </Button>
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation — Anybody 18px/600 per v2 spec */}
         <div
           className={`lg:hidden overflow-hidden transition-all duration-300 ease-in-out ${
             isMenuOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
           }`}
         >
-          <div className="py-4 space-y-1 border-t border-yalla-gold-200/30">
+          <div className="py-4 space-y-1 border-t border-sand/40">
             {navigation.map((item) => (
               <Link
                 key={item.key}
                 href={item.href}
-                className="flex items-center justify-between px-4 py-3 text-charcoal hover:text-london-800 hover:bg-cream-100 rounded-lg font-medium transition-all"
+                className={`flex items-center justify-between px-4 py-3 font-display text-lg font-semibold text-charcoal hover:text-london-600 hover:bg-cream-100 rounded transition-all ${
+                  isRTL ? 'flex-row-reverse font-arabic' : ''
+                }`}
                 onClick={() => setIsMenuOpen(false)}
               >
                 <span>{language === 'en' ? item.labelEn : item.labelAr}</span>
-                <ChevronDown className={`h-4 w-4 text-yalla-gold-500 ${isRTL ? 'rotate-90' : '-rotate-90'}`} />
+                <ChevronDown className={`h-4 w-4 text-stone ${isRTL ? 'rotate-90' : '-rotate-90'}`} />
               </Link>
             ))}
 
@@ -132,21 +143,35 @@ export function DynamicHeader() {
                 toggleLanguage();
                 setIsMenuOpen(false);
               }}
-              className="flex items-center gap-3 w-full px-4 py-3 text-charcoal hover:text-london-800 hover:bg-cream-100 rounded-lg font-medium transition-all"
+              className={`flex items-center gap-3 w-full px-4 py-3 font-display text-lg font-semibold text-charcoal hover:text-london-600 hover:bg-cream-100 rounded transition-all ${
+                isRTL ? 'flex-row-reverse' : ''
+              }`}
             >
-              <Globe className="h-5 w-5 text-yalla-gold-500" />
-              <span>{language === 'en' ? 'العربية' : 'English'}</span>
+              <span className={language === 'en' ? 'font-arabic' : 'font-mono text-sm tracking-[1.5px] uppercase'}>
+                {language === 'en' ? 'العربية' : 'English'}
+              </span>
             </button>
 
-            {/* Mobile CTA */}
+            {/* Mobile CTA — full-width Primary button */}
             <div className="pt-3 px-4">
               <Link
                 href="/contact"
-                className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-london-800 text-white rounded-lg font-medium shadow-luxury hover:bg-london-900 transition-all"
+                className={`flex items-center justify-center w-full px-5 py-3 bg-london-600 text-cream rounded font-mono text-[10px] font-semibold uppercase transition-all duration-200 hover:bg-london-700 ${
+                  isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'
+                }`}
                 onClick={() => setIsMenuOpen(false)}
               >
-                <span>{language === 'en' ? 'Get in Touch' : 'تواصل معنا'}</span>
+                {language === 'en' ? 'Get in Touch' : 'تواصل معنا'}
               </Link>
+            </div>
+
+            {/* Arabic wordmark + tri-bar below mobile nav per v2 spec */}
+            <div className="pt-4 px-4">
+              <div className="flex h-[3px] w-full rounded-full overflow-hidden">
+                <div className="flex-1 bg-london-600" />
+                <div className="flex-1 bg-yalla-gold-500" />
+                <div className="flex-1 bg-thames-500" />
+              </div>
             </div>
           </div>
         </div>

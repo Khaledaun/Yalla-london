@@ -79,7 +79,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'Everything you need to plan the perfect London trip — visas, best times to visit, packing tips, and itineraries.',
     description_ar: 'كل ما تحتاجه للتخطيط لرحلة لندن المثالية — التأشيرات، أفضل أوقات الزيارة، نصائح التعبئة، والبرامج السياحية.',
     icon: 'map',
-    featured_image: '/images/information/plan-your-trip.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=800&q=80',
     sort_order: 1,
     published: true,
     subsections: [
@@ -114,7 +114,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'Iconic landmarks, world-class museums, royal palaces, and must-see sights across London.',
     description_ar: 'المعالم الشهيرة، المتاحف العالمية، القصور الملكية، والأماكن التي يجب زيارتها في لندن.',
     icon: 'landmark',
-    featured_image: '/images/information/attractions-landmarks.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1486299267070-83823f5448dd?w=800&q=80',
     sort_order: 2,
     published: true,
     subsections: [
@@ -142,7 +142,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'Explore London neighbourhood by neighbourhood — from Mayfair and Knightsbridge to Camden and Shoreditch.',
     description_ar: 'استكشف لندن حياً بحي — من مايفير ونايتسبريدج إلى كامدن وشورديتش.',
     icon: 'map-pin',
-    featured_image: '/images/information/neighbourhood-guides.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1506501139174-099022df5260?w=800&q=80',
     sort_order: 3,
     published: true,
     subsections: [
@@ -170,7 +170,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'Navigate London like a local — Oyster cards, the Tube, buses, taxis, and airport transfers.',
     description_ar: 'تنقل في لندن كالمحليين — بطاقة أويستر، المترو، الحافلات، سيارات الأجرة، والتنقل من المطار.',
     icon: 'train',
-    featured_image: '/images/information/transportation.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=800&q=80',
     sort_order: 4,
     published: true,
     subsections: [
@@ -198,7 +198,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'Halal dining, fine restaurants, street food markets, and the best culinary experiences in London.',
     description_ar: 'المطاعم الحلال، المطاعم الفاخرة، أسواق الطعام، وأفضل التجارب الغذائية في لندن.',
     icon: 'utensils-crossed',
-    featured_image: '/images/information/food-restaurants.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
     sort_order: 5,
     published: true,
     subsections: [
@@ -226,7 +226,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'Family-friendly attractions, kids\' activities, theme parks, and tips for travelling with children.',
     description_ar: 'الأماكن المناسبة للعائلات، أنشطة الأطفال، المتنزهات الترفيهية، ونصائح السفر مع الأطفال.',
     icon: 'baby',
-    featured_image: '/images/information/family-kids.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1508003297330-a1f44f6b19c6?w=800&q=80',
     sort_order: 6,
     published: true,
     subsections: [
@@ -254,7 +254,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'Secret spots, free museums, beautiful parks, and off-the-beaten-path experiences.',
     description_ar: 'الأماكن السرية، المتاحف المجانية، الحدائق الجميلة، والتجارب البعيدة عن المسارات التقليدية.',
     icon: 'gem',
-    featured_image: '/images/information/hidden-gems.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1543799382-9a0208331ef7?w=800&q=80',
     sort_order: 7,
     published: true,
     subsections: [
@@ -282,7 +282,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'Cultural etiquette, tipping customs, safety tips, and common mistakes to avoid in London.',
     description_ar: 'آداب السلوك الثقافي، عادات البقشيش، نصائح السلامة، والأخطاء الشائعة التي يجب تجنبها في لندن.',
     icon: 'alert-circle',
-    featured_image: '/images/information/dos-and-donts.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=800&q=80',
     sort_order: 8,
     published: true,
     subsections: [
@@ -310,7 +310,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'Currency, weather, SIM cards, Wi-Fi, electricity, and essential practical tips for London.',
     description_ar: 'العملة، الطقس، شرائح الاتصال، الواي فاي، الكهرباء، ونصائح عملية أساسية للندن.',
     icon: 'info',
-    featured_image: '/images/information/practical-info.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1551537482-f2075a1d41f2?w=800&q=80',
     sort_order: 9,
     published: true,
     subsections: [
@@ -338,7 +338,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'Exclusive discounts, London Pass deals, outlet shopping, and money-saving tips.',
     description_ar: 'خصومات حصرية، عروض بطاقة لندن، التسوق من المنافذ، ونصائح لتوفير المال.',
     icon: 'ticket',
-    featured_image: '/images/information/coupons-deals.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1528698827591-e19cef791f58?w=800&q=80',
     sort_order: 10,
     published: true,
     subsections: [
@@ -366,7 +366,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'NHS access, pharmacies, emergency numbers, travel insurance, and healthcare for visitors.',
     description_ar: 'الوصول إلى الخدمات الصحية، الصيدليات، أرقام الطوارئ، تأمين السفر، والرعاية الصحية للزوار.',
     icon: 'shield',
-    featured_image: '/images/information/emergency-healthcare.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=800&q=80',
     sort_order: 11,
     published: true,
     subsections: [
@@ -394,7 +394,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'Downloadable travel planners, checklists, itinerary templates, and London pocket guides.',
     description_ar: 'مخططات سفر قابلة للتحميل، قوائم تحقق، قوالب برامج سياحية، وأدلة لندن الجيبية.',
     icon: 'file-text',
-    featured_image: '/images/information/e-document-shop.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800&q=80',
     sort_order: 12,
     published: true,
     subsections: [
@@ -422,7 +422,7 @@ export const informationSections: InformationSection[] = [
     description_en: 'Exclusive VIP experiences, private tours, luxury shopping, and high-end London living.',
     description_ar: 'تجارب VIP حصرية، جولات خاصة، تسوق فاخر، والحياة الراقية في لندن.',
     icon: 'crown',
-    featured_image: '/images/information/luxury-experiences.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1520986606214-8b456906c813?w=800&q=80',
     sort_order: 13,
     published: true,
     subsections: [
@@ -530,7 +530,7 @@ London is Europe's best city for halal food. Key areas: Edgware Road (Lebanese/E
 - احمل ملابس متعددة الطبقات
 - البقشيش: 10-15% في المطاعم
 - احترم الطوابير — إنها مقدسة في بريطانيا`,
-    featured_image: '/images/information/london-guide-arab-visitors.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1488747279002-c8523379faaa?w=800&q=80',
     reading_time: 15,
     published: true,
     created_at: new Date('2025-01-15'),
@@ -613,7 +613,7 @@ London's halal dining scene is one of the most diverse in the world, offering ev
 - استخدم تطبيقات **HalalTrip** و **Zabihah** للتحقق
 - ابحث عن شهادات **HMC** أو **HFA**
 - اتصل مسبقاً بالمطاعم الراقية للتأكد`,
-    featured_image: '/images/information/halal-restaurants-london.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
     reading_time: 12,
     published: true,
     created_at: new Date('2025-01-12'),
@@ -693,7 +693,7 @@ London is one of the world's best cities for families. With free museums, magnif
 ## نصائح عملية
 - **الأطفال دون 11 عاماً يسافرون مجاناً** في الحافلات والمترو
 - **مسارات عربات الأطفال:** استخدم الحافلات بدلاً من المترو`,
-    featured_image: '/images/information/london-family-kids.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1526129318478-62ed807ebdf9?w=800&q=80',
     reading_time: 10,
     published: true,
     created_at: new Date('2025-01-10'),
@@ -782,7 +782,7 @@ Limited but growing. Key step-free stations: King's Cross, Westminster, Stratfor
 ## خطوط مفيدة للسياح
 - **خط بيكاديلي:** هيثرو ← ساحة بيكاديلي ← كوفنت غاردن
 - **خط الدائرة/الحي:** بادينغتون ← ساوث كنسينغتون ← وستمنستر`,
-    featured_image: '/images/information/london-underground-guide.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1534430480872-3498386e7856?w=800&q=80',
     reading_time: 8,
     published: true,
     created_at: new Date('2025-01-08'),
@@ -869,7 +869,7 @@ Non-UK visitors can claim back the 20% VAT on purchases:
 1. اطلب نموذج استرداد في المتجر
 2. اختمه في الجمارك بالمطار
 3. استلم المبلغ من مكتب الاسترداد`,
-    featured_image: '/images/information/luxury-shopping-london.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1528698827591-e19cef791f58?w=800&q=80',
     reading_time: 11,
     published: true,
     created_at: new Date('2025-01-05'),
@@ -976,7 +976,7 @@ The British are known for dry, sarcastic humour and understatement. If someone s
 - لا تتحدث بصوت عالٍ في المواصلات
 - لا تقفز في الطوابير
 - لا تأكل في المترو`,
-    featured_image: '/images/information/british-etiquette-guide.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=800&q=80',
     reading_time: 7,
     published: true,
     created_at: new Date('2025-01-03'),
@@ -1065,7 +1065,7 @@ London can be expensive, but many of its best experiences are completely free. H
 ## جواهر مخفية مجانية
 19. **نيلز يارد** — فناء ملون في كوفنت غاردن
 20. **ليتل فينيس** — قوارب قنوات بالقرب من بادينغتون`,
-    featured_image: '/images/information/free-london-activities.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1508003297330-a1f44f6b19c6?w=800&q=80',
     reading_time: 9,
     published: true,
     created_at: new Date('2025-01-01'),
@@ -1157,7 +1157,7 @@ Walking distance to Big Ben, London Eye, Buckingham Palace, and St James's Park.
 | طعام حلال | إدجوير رود |
 | تسوق فاخر | نايتسبريدج |
 | متاحف وأطفال | ساوث كنسينغتون |`,
-    featured_image: '/images/information/london-neighbourhoods-arab.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1517394834181-95ed159986c7?w=800&q=80',
     reading_time: 10,
     published: true,
     created_at: new Date('2024-12-28'),
@@ -1267,7 +1267,7 @@ London weather is famously unpredictable. Even in summer you might need a jacket
 - سترة مقاومة للماء (كل المواسم)
 - أحذية مريحة للمشي
 - مظلة مدمجة`,
-    featured_image: '/images/information/london-weather-packing.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1485470733090-0aae1788d668?w=800&q=80',
     reading_time: 7,
     published: true,
     created_at: new Date('2024-12-25'),
@@ -1366,7 +1366,7 @@ Walk across for free and enjoy Thames views. The Tower Bridge Exhibition (£11.4
 - اشترِ **بطاقة لندن** لـ 3+ معالم
 - احجز **أونلاين مسبقاً** لأسعار أرخص
 - زُر **المتاحف المجانية**`,
-    featured_image: '/images/information/london-attractions-landmarks.jpg',
+    featured_image: 'https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=800&q=80',
     reading_time: 12,
     published: true,
     created_at: new Date('2024-12-20'),

@@ -45,14 +45,14 @@ export function DynamicHeader() {
 
       <div className="max-w-7xl mx-auto px-5 sm:px-7">
         <div className="flex justify-between items-center py-3.5">
-          {/* Logo — v2 brand kit wordmark, 90px wide */}
+          {/* Logo — v2 brand kit wordmark, 3x size (270px) */}
           <Link href="/" className="flex items-center group">
             <Image
               src="/branding/yalla-london/brand-kit/01-logos-svg/yalla-wordmark-dark.svg"
               alt="Yalla London"
-              width={200}
-              height={36}
-              className="h-auto w-[90px] transition-opacity group-hover:opacity-80"
+              width={600}
+              height={108}
+              className="h-auto w-[270px] transition-opacity group-hover:opacity-80"
               priority
             />
           </Link>

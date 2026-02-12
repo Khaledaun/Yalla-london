@@ -46,7 +46,8 @@ import {
   Store,
   Package,
   Brush,
-  Activity
+  Activity,
+  BookOpen,
 } from 'lucide-react'
 
 // MOPHY-styled Navigation Structure
@@ -90,6 +91,18 @@ const mainNavigation = [
       { label: 'Content Pipeline', href: '/admin/pipeline' },
       { label: 'Categories', href: '/admin/content-types' },
       { label: 'WordPress', href: '/admin/wordpress' },
+    ]
+  },
+  {
+    id: 'information',
+    label: 'Information Hub',
+    icon: BookOpen,
+    href: '/admin/information',
+    badge: 'Guide',
+    children: [
+      { label: 'Overview', href: '/admin/information' },
+      { label: 'Sections', href: '/admin/information' },
+      { label: 'Articles', href: '/admin/information' },
     ]
   },
   {

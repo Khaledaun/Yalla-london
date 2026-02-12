@@ -2,10 +2,19 @@ import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
+import {
+  informationSections,
+  informationArticles as baseInfoArticles,
+  informationCategories,
+} from "@/data/information-hub-content";
+import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import { prisma } from "@/lib/prisma";
 
 // Combine all static blog posts
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
+
+// Combine all information hub articles
+const allInfoArticles = [...baseInfoArticles, ...extendedInformationArticles];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Resolve base URL from tenant context (set by middleware)
@@ -177,11 +186,76 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   }));
 
+  // Information Hub pages
+  const infoHubPages: MetadataRoute.Sitemap = [
+    // Main information hub page
+    {
+      url: `${baseUrl}/information`,
+      lastModified: currentDate,
+      changeFrequency: "weekly" as const,
+      priority: 0.9,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/information`,
+          ar: `${baseUrl}/ar/information`,
+        },
+      },
+    },
+    // Information articles listing page
+    {
+      url: `${baseUrl}/information/articles`,
+      lastModified: currentDate,
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/information/articles`,
+          ar: `${baseUrl}/ar/information/articles`,
+        },
+      },
+    },
+  ];
+
+  // Information Hub section pages
+  const infoSectionPages: MetadataRoute.Sitemap = informationSections
+    .filter((section) => section.published)
+    .map((section) => ({
+      url: `${baseUrl}/information/${section.slug}`,
+      lastModified: currentDate,
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/information/${section.slug}`,
+          ar: `${baseUrl}/ar/information/${section.slug}`,
+        },
+      },
+    }));
+
+  // Information Hub article pages
+  const infoArticlePages: MetadataRoute.Sitemap = allInfoArticles
+    .filter((article) => article.published)
+    .map((article) => ({
+      url: `${baseUrl}/information/articles/${article.slug}`,
+      lastModified: article.updated_at.toISOString(),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/information/articles/${article.slug}`,
+          ar: `${baseUrl}/ar/information/articles/${article.slug}`,
+        },
+      },
+    }));
+
   return [
     ...staticPages,
     ...staticBlogPages,
     ...dbBlogPages,
     ...eventPages,
     ...categoryPages,
+    ...infoHubPages,
+    ...infoSectionPages,
+    ...infoArticlePages,
   ];
 }

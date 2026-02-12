@@ -50,15 +50,21 @@ export async function GET(request: NextRequest) {
   if (searchParams.get("healthcheck") === "true") {
     try {
       const { prisma } = await import("@/lib/db");
-      const lastRun = await prisma.cronLog.findFirst({
-        where: { job_name: "seo-cron" },
-        orderBy: { started_at: "desc" },
-        select: { status: true, started_at: true, duration_ms: true },
-      });
+      let lastRun = null;
+      try {
+        lastRun = await prisma.cronJobLog.findFirst({
+          where: { job_name: "seo-cron" },
+          orderBy: { started_at: "desc" },
+          select: { status: true, started_at: true, duration_ms: true },
+        });
+      } catch {
+        // cron_job_logs table may not exist yet — still healthy
+        await prisma.$queryRaw`SELECT 1`;
+      }
       return NextResponse.json({
         status: "healthy",
         endpoint: "seo-cron",
-        lastRun: lastRun || null,
+        lastRun,
         timestamp: new Date().toISOString(),
       });
     } catch {

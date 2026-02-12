@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Lock, Mail, User, Shield } from 'lucide-react'
 
@@ -17,30 +16,14 @@ export default function AdminLogin() {
   const [checkingSetup, setCheckingSetup] = useState(true)
   const router = useRouter()
 
-  // Check if initial setup is needed + handle NextAuth error redirects
+  // Check if initial setup is needed
   useEffect(() => {
-    // NextAuth redirects here with ?error= on auth failures
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const authError = params.get('error')
-      if (authError) {
-        const errorMessages: Record<string, string> = {
-          CredentialsSignin: 'Invalid email or password.',
-          Configuration: 'Server configuration error. Please contact support.',
-          AccessDenied: 'Access denied.',
-          Default: 'An authentication error occurred.',
-        }
-        setError(errorMessages[authError] || errorMessages.Default)
-      }
-    }
-
     async function checkSetup() {
       try {
         const res = await fetch('/api/admin/setup')
         const data = await res.json()
         setNeedsSetup(data.needsSetup === true)
       } catch {
-        // If check fails, show normal login
         setNeedsSetup(false)
       } finally {
         setCheckingSetup(false)
@@ -55,28 +38,19 @@ export default function AdminLogin() {
     setError('')
 
     try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       })
 
-      if (result?.error) {
-        // Show the actual error type for debugging
-        if (result.error === 'CredentialsSignin') {
-          setError('Invalid email or password.')
-        } else {
-          setError(`Login error: ${result.error}`)
-        }
-      } else if (result?.ok) {
-        const session = await getSession()
-        if (session) {
-          router.push('/admin')
-        } else {
-          setError('Login succeeded but session not found. Please try again.')
-        }
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        // Session cookie is set by the API. Navigate to dashboard.
+        window.location.href = '/admin'
       } else {
-        setError('Login failed. Please try again.')
+        setError(data.error || 'Login failed. Please try again.')
       }
     } catch (err) {
       setError(`Connection error: ${err instanceof Error ? err.message : 'Please try again.'}`)
@@ -92,38 +66,37 @@ export default function AdminLogin() {
     setSuccess('')
 
     try {
-      const res = await fetch('/api/admin/setup', {
+      // Step 1: Create the admin account
+      const setupRes = await fetch('/api/admin/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name }),
       })
 
-      const data = await res.json()
+      const setupData = await setupRes.json()
 
-      if (res.ok && data.success) {
-        setSuccess('Admin account created! Signing you in...')
-        // Auto-sign in after creating account
-        const result = await signIn('credentials', {
-          email,
-          password,
-          redirect: false,
-        })
+      if (!setupRes.ok || !setupData.success) {
+        setError(setupData.error || 'Setup failed. Please try again.')
+        return
+      }
 
-        if (result?.error) {
-          setSuccess('')
-          setError('Account created but auto-login failed. Please sign in manually.')
-          setNeedsSetup(false)
-        } else {
-          const session = await getSession()
-          if (session) {
-            router.push('/admin')
-          } else {
-            setNeedsSetup(false)
-            setSuccess('Account created! Please sign in.')
-          }
-        }
+      setSuccess('Admin account created! Signing you in...')
+
+      // Step 2: Log in with the new credentials
+      const loginRes = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const loginData = await loginRes.json()
+
+      if (loginRes.ok && loginData.success) {
+        window.location.href = '/admin'
       } else {
-        setError(data.error || 'Setup failed. Please try again.')
+        setSuccess('')
+        setError('Account created but login failed: ' + (loginData.error || 'Unknown error'))
+        setNeedsSetup(false)
       }
     } catch {
       setError('Connection error. Please check your network and try again.')

@@ -276,132 +276,139 @@ async function runAllTests() {
     // ── 7. Content Generation Pipeline ──
     log('Testing content generation pipeline...');
     addSection('pipeline', '7. Content Generation Pipeline');
-
-    // Test daily-content-generate (GET = dry run / status check)
-    log('  Testing daily-content-generate...');
-    const contentResp = await testFetch('/api/cron/daily-content-generate', { headers: cronHeaders });
-    if (contentResp.ok && contentResp.json) {
-      const j = contentResp.json;
-      addResult('pipeline', 'Daily Content Generate', 'pass', j.message || 'OK');
-      if (j.sites) addResult('pipeline', 'Active Sites', 'pass', j.sites.map(s => s.name || s.siteId).join(', '));
-      if (j.generated !== undefined) addResult('pipeline', 'Articles Generated', 'pass', j.generated + ' articles this run');
-      if (j.totalGenerated !== undefined) addResult('pipeline', 'Total Generated Today', 'pass', j.totalGenerated + ' articles today');
-      if (j.skippedSites?.length) addResult('pipeline', 'Skipped Sites', 'warn', j.skippedSites.map(s => s.name + ': ' + s.reason).join('; '));
-      addJsonBlock('pipeline', j);
-    } else if (contentResp.status === 401) {
-      addResult('pipeline', 'Daily Content Generate', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
-    } else {
-      const err = contentResp.json?.error || contentResp.text?.substring(0, 150) || 'Unknown error';
-      addResult('pipeline', 'Daily Content Generate', 'fail', 'HTTP ' + contentResp.status + ' — ' + err);
-      if (contentResp.json) addJsonBlock('pipeline', contentResp.json);
-    }
+    try {
+      log('  Testing daily-content-generate...');
+      const contentResp = await testFetch('/api/cron/daily-content-generate', { headers: cronHeaders });
+      if (contentResp.ok && contentResp.json) {
+        const j = contentResp.json;
+        addResult('pipeline', 'Daily Content Generate', 'pass', j.message || 'OK');
+        if (Array.isArray(j.sites)) addResult('pipeline', 'Active Sites', 'pass', j.sites.map(s => s.name || s.siteId || 'unknown').join(', '));
+        if (j.generated !== undefined) addResult('pipeline', 'Articles Generated', 'pass', j.generated + ' articles this run');
+        if (j.totalGenerated !== undefined) addResult('pipeline', 'Total Generated Today', 'pass', j.totalGenerated + ' articles today');
+        if (Array.isArray(j.skippedSites) && j.skippedSites.length) addResult('pipeline', 'Skipped Sites', 'warn', j.skippedSites.map(s => (s.name || '') + ': ' + (s.reason || '')).join('; '));
+        addJsonBlock('pipeline', j);
+      } else if (contentResp.status === 401) {
+        addResult('pipeline', 'Daily Content Generate', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+      } else {
+        const err = contentResp.json?.error || contentResp.text?.substring(0, 150) || 'Unknown error';
+        addResult('pipeline', 'Daily Content Generate', 'fail', 'HTTP ' + contentResp.status + ' — ' + err);
+        if (contentResp.json) addJsonBlock('pipeline', contentResp.json);
+      }
+    } catch (e) { log('  ERROR in section 7: ' + e.message); addResult('pipeline', 'Daily Content Generate', 'fail', 'JS Error: ' + e.message); }
 
     // ── 8. Scheduled Publish ──
     log('  Testing scheduled-publish...');
     addSection('publish', '8. Scheduled Publish');
-
-    const publishResp = await testFetch('/api/cron/scheduled-publish', { headers: cronHeaders });
-    if (publishResp.ok && publishResp.json) {
-      const j = publishResp.json;
-      addResult('publish', 'Scheduled Publish', 'pass', j.message || 'OK');
-      if (j.published !== undefined) addResult('publish', 'Posts Published', 'pass', j.published + ' posts published this run');
-      if (j.pending !== undefined) addResult('publish', 'Pending Schedule', 'pass', j.pending + ' posts pending');
-      if (j.nextScheduled?.length) addResult('publish', 'Next Scheduled', 'pass', j.nextScheduled.map(p => p.title?.substring(0,40) + ' @ ' + p.scheduled_at).join('; '));
-      addJsonBlock('publish', j);
-    } else if (publishResp.status === 401) {
-      addResult('publish', 'Scheduled Publish', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
-    } else {
-      addResult('publish', 'Scheduled Publish', 'warn', 'HTTP ' + publishResp.status + ' — ' + (publishResp.json?.error || publishResp.text?.substring(0,100) || ''));
-      if (publishResp.json) addJsonBlock('publish', publishResp.json);
-    }
+    try {
+      const publishResp = await testFetch('/api/cron/scheduled-publish', { headers: cronHeaders });
+      if (publishResp.ok && publishResp.json) {
+        const j = publishResp.json;
+        addResult('publish', 'Scheduled Publish', 'pass', j.message || 'OK');
+        if (j.published !== undefined) addResult('publish', 'Posts Published', 'pass', j.published + ' posts published this run');
+        if (j.pending !== undefined) addResult('publish', 'Pending Schedule', 'pass', j.pending + ' posts pending');
+        if (Array.isArray(j.nextScheduled) && j.nextScheduled.length) addResult('publish', 'Next Scheduled', 'pass', j.nextScheduled.map(p => (p.title || '').substring(0,40) + ' @ ' + (p.scheduled_at || '')).join('; '));
+        addJsonBlock('publish', j);
+      } else if (publishResp.status === 401) {
+        addResult('publish', 'Scheduled Publish', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+      } else {
+        addResult('publish', 'Scheduled Publish', 'warn', 'HTTP ' + publishResp.status + ' — ' + (publishResp.json?.error || publishResp.text?.substring(0,100) || ''));
+        if (publishResp.json) addJsonBlock('publish', publishResp.json);
+      }
+    } catch (e) { log('  ERROR in section 8: ' + e.message); addResult('publish', 'Scheduled Publish', 'fail', 'JS Error: ' + e.message); }
 
     // ── 9. Weekly Topics ──
     log('  Testing weekly-topics...');
     addSection('topics', '9. Weekly Topics Research');
-
-    const topicsResp = await testFetch('/api/cron/weekly-topics', { headers: cronHeaders });
-    if (topicsResp.ok && topicsResp.json) {
-      const j = topicsResp.json;
-      addResult('topics', 'Weekly Topics', 'pass', j.message || 'OK');
-      if (j.topicsGenerated !== undefined) addResult('topics', 'Topics Generated', 'pass', j.topicsGenerated + ' topics');
-      if (j.pendingCount !== undefined) addResult('topics', 'Pending Backlog', 'pass', j.pendingCount + ' topics in backlog');
-      if (j.skipped) addResult('topics', 'Status', 'pass', 'Skipped (not Sunday / backlog sufficient)');
-      addJsonBlock('topics', j);
-    } else if (topicsResp.status === 401) {
-      addResult('topics', 'Weekly Topics', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
-    } else {
-      addResult('topics', 'Weekly Topics', 'warn', 'HTTP ' + topicsResp.status + ' — ' + (topicsResp.json?.error || topicsResp.text?.substring(0,100) || ''));
-      if (topicsResp.json) addJsonBlock('topics', topicsResp.json);
-    }
+    try {
+      const topicsResp = await testFetch('/api/cron/weekly-topics', { headers: cronHeaders });
+      if (topicsResp.ok && topicsResp.json) {
+        const j = topicsResp.json;
+        addResult('topics', 'Weekly Topics', 'pass', j.message || 'OK');
+        if (j.topicsGenerated !== undefined) addResult('topics', 'Topics Generated', 'pass', j.topicsGenerated + ' topics');
+        if (j.pendingCount !== undefined) addResult('topics', 'Pending Backlog', 'pass', j.pendingCount + ' topics in backlog');
+        if (j.skipped) addResult('topics', 'Status', 'pass', 'Skipped (not Sunday / backlog sufficient)');
+        addJsonBlock('topics', j);
+      } else if (topicsResp.status === 401) {
+        addResult('topics', 'Weekly Topics', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+      } else {
+        addResult('topics', 'Weekly Topics', 'warn', 'HTTP ' + topicsResp.status + ' — ' + (topicsResp.json?.error || topicsResp.text?.substring(0,100) || ''));
+        if (topicsResp.json) addJsonBlock('topics', topicsResp.json);
+      }
+    } catch (e) { log('  ERROR in section 9: ' + e.message); addResult('topics', 'Weekly Topics', 'fail', 'JS Error: ' + e.message); }
 
     // ── 10. Trends Monitor ──
     log('  Testing trends-monitor...');
     addSection('trends', '10. Trends Monitor');
-
-    const trendsResp = await testFetch('/api/cron/trends-monitor', { headers: cronHeaders });
-    if (trendsResp.ok && trendsResp.json) {
-      const j = trendsResp.json;
-      addResult('trends', 'Trends Monitor', 'pass', j.message || 'OK');
-      if (j.trendingTopics?.length) addResult('trends', 'Trending Topics', 'pass', j.trendingTopics.length + ' topics found');
-      if (j.keywordTrends?.length) addResult('trends', 'Keyword Trends', 'pass', j.keywordTrends.length + ' keywords analyzed');
-      if (j.contentOpportunities?.length) addResult('trends', 'Content Opportunities', 'pass', j.contentOpportunities.length + ' opportunities');
-      if (j.summary) {
-        addResult('trends', 'Rising Keywords', 'pass', (j.summary.risingKeywords || []).join(', ') || 'None');
-        addResult('trends', 'Top Opportunities', 'pass', (j.summary.topOpportunities || []).slice(0,3).join(', ') || 'None');
+    try {
+      const trendsResp = await testFetch('/api/cron/trends-monitor', { headers: cronHeaders });
+      if (trendsResp.ok && trendsResp.json) {
+        const j = trendsResp.json;
+        addResult('trends', 'Trends Monitor', 'pass', j.message || 'OK');
+        if (j.trendingTopics?.length) addResult('trends', 'Trending Topics', 'pass', j.trendingTopics.length + ' topics found');
+        if (j.keywordTrends?.length) addResult('trends', 'Keyword Trends', 'pass', j.keywordTrends.length + ' keywords analyzed');
+        if (j.contentOpportunities?.length) addResult('trends', 'Content Opportunities', 'pass', j.contentOpportunities.length + ' opportunities');
+        if (j.summary) {
+          addResult('trends', 'Rising Keywords', 'pass', (j.summary.risingKeywords || []).join(', ') || 'None');
+          addResult('trends', 'Top Opportunities', 'pass', (j.summary.topOpportunities || []).slice(0,3).join(', ') || 'None');
+        }
+        addJsonBlock('trends', j);
+      } else if (trendsResp.status === 401) {
+        addResult('trends', 'Trends Monitor', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+      } else {
+        addResult('trends', 'Trends Monitor', 'warn', 'HTTP ' + trendsResp.status + ' — ' + (trendsResp.json?.error || trendsResp.text?.substring(0,100) || ''));
+        if (trendsResp.json) addJsonBlock('trends', trendsResp.json);
       }
-      addJsonBlock('trends', j);
-    } else if (trendsResp.status === 401) {
-      addResult('trends', 'Trends Monitor', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
-    } else {
-      addResult('trends', 'Trends Monitor', 'warn', 'HTTP ' + trendsResp.status + ' — ' + (trendsResp.json?.error || trendsResp.text?.substring(0,100) || ''));
-      if (trendsResp.json) addJsonBlock('trends', trendsResp.json);
-    }
+    } catch (e) { log('  ERROR in section 10: ' + e.message); addResult('trends', 'Trends Monitor', 'fail', 'JS Error: ' + e.message); }
 
     // ── 11. Analytics Sync ──
     log('  Testing analytics sync...');
     addSection('analytics', '11. Analytics Sync');
-
-    const analyticsResp = await testFetch('/api/cron/analytics', { headers: cronHeaders });
-    if (analyticsResp.ok && analyticsResp.json) {
-      const j = analyticsResp.json;
-      addResult('analytics', 'Analytics Cron', 'pass', j.message || 'OK');
-      if (j.reach !== undefined) addResult('analytics', 'Reach Count', 'pass', j.reach.toLocaleString());
-      if (j.pageViews !== undefined) addResult('analytics', 'Page Views', 'pass', j.pageViews.toLocaleString());
-      if (j.visitors !== undefined) addResult('analytics', 'Visitors', 'pass', j.visitors.toLocaleString());
-      addJsonBlock('analytics', j);
-    } else if (analyticsResp.status === 401) {
-      addResult('analytics', 'Analytics Cron', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
-    } else {
-      addResult('analytics', 'Analytics Cron', 'warn', 'HTTP ' + analyticsResp.status + ' — ' + (analyticsResp.json?.error || analyticsResp.text?.substring(0,100) || ''));
-      if (analyticsResp.json) addJsonBlock('analytics', analyticsResp.json);
-    }
+    try {
+      const analyticsResp = await testFetch('/api/cron/analytics', { headers: cronHeaders });
+      if (analyticsResp.ok && analyticsResp.json) {
+        const j = analyticsResp.json;
+        addResult('analytics', 'Analytics Cron', 'pass', j.message || 'OK');
+        if (j.reach !== undefined) addResult('analytics', 'Reach Count', 'pass', String(j.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+        if (j.pageViews !== undefined) addResult('analytics', 'Page Views', 'pass', String(j.pageViews).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+        if (j.visitors !== undefined) addResult('analytics', 'Visitors', 'pass', String(j.visitors).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+        addJsonBlock('analytics', j);
+      } else if (analyticsResp.status === 401) {
+        addResult('analytics', 'Analytics Cron', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+      } else {
+        addResult('analytics', 'Analytics Cron', 'warn', 'HTTP ' + analyticsResp.status + ' — ' + (analyticsResp.json?.error || analyticsResp.text?.substring(0,100) || ''));
+        if (analyticsResp.json) addJsonBlock('analytics', analyticsResp.json);
+      }
+    } catch (e) { log('  ERROR in section 11: ' + e.message); addResult('analytics', 'Analytics Cron', 'fail', 'JS Error: ' + e.message); }
 
     // ── 12. SEO Agent ──
     log('  Testing SEO agent...');
     addSection('seoagent', '12. SEO Agent');
-
-    const seoResp = await testFetch('/api/cron/seo-agent', { headers: cronHeaders });
-    if (seoResp.ok && seoResp.json) {
-      const j = seoResp.json;
-      addResult('seoagent', 'SEO Agent', 'pass', j.message || 'OK');
-      addJsonBlock('seoagent', j);
-    } else if (seoResp.status === 401) {
-      addResult('seoagent', 'SEO Agent', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
-    } else {
-      addResult('seoagent', 'SEO Agent', 'warn', 'HTTP ' + seoResp.status + ' — ' + (seoResp.json?.error || seoResp.text?.substring(0,100) || ''));
-      if (seoResp.json) addJsonBlock('seoagent', seoResp.json);
-    }
+    try {
+      const seoResp = await testFetch('/api/cron/seo-agent', { headers: cronHeaders });
+      if (seoResp.ok && seoResp.json) {
+        const j = seoResp.json;
+        addResult('seoagent', 'SEO Agent', 'pass', j.message || 'OK');
+        addJsonBlock('seoagent', j);
+      } else if (seoResp.status === 401) {
+        addResult('seoagent', 'SEO Agent', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+      } else {
+        addResult('seoagent', 'SEO Agent', 'warn', 'HTTP ' + seoResp.status + ' — ' + (seoResp.json?.error || seoResp.text?.substring(0,100) || ''));
+        if (seoResp.json) addJsonBlock('seoagent', seoResp.json);
+      }
+    } catch (e) { log('  ERROR in section 12: ' + e.message); addResult('seoagent', 'SEO Agent', 'fail', 'JS Error: ' + e.message); }
 
     // ── 13. SEO Daily Cron ──
     log('  Testing SEO daily cron...');
-    const seoCronResp = await testFetch('/api/seo/cron?task=daily', { headers: cronHeaders });
-    if (seoCronResp.ok && seoCronResp.json) {
-      addResult('seoagent', 'SEO Daily Cron', 'pass', seoCronResp.json.message || 'OK');
-    } else if (seoCronResp.status === 401) {
-      addResult('seoagent', 'SEO Daily Cron', 'fail', 'HTTP 401');
-    } else {
-      addResult('seoagent', 'SEO Daily Cron', 'warn', 'HTTP ' + seoCronResp.status);
-    }
+    try {
+      const seoCronResp = await testFetch('/api/seo/cron?task=daily', { headers: cronHeaders });
+      if (seoCronResp.ok && seoCronResp.json) {
+        addResult('seoagent', 'SEO Daily Cron', 'pass', seoCronResp.json.message || 'OK');
+      } else if (seoCronResp.status === 401) {
+        addResult('seoagent', 'SEO Daily Cron', 'fail', 'HTTP 401');
+      } else {
+        addResult('seoagent', 'SEO Daily Cron', 'warn', 'HTTP ' + seoCronResp.status);
+      }
+    } catch (e) { log('  ERROR in section 13: ' + e.message); addResult('seoagent', 'SEO Daily Cron', 'fail', 'JS Error: ' + e.message); }
 
   } else if (testMode === 'full' && !cronSecret) {
     addSection('pipeline', '7. Content Generation Pipeline');

@@ -623,6 +623,7 @@ export async function submitUnindexedPages(
           body: JSON.stringify({
             host: new URL(siteUrl).hostname,
             key: indexNowKey,
+            keyLocation: `${siteUrl}/${indexNowKey}.txt`,
             urlList: allSubmitUrls.slice(0, 100),
           }),
         });

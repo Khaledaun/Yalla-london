@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { notFound } from "next/navigation";
 import {
   informationArticles as baseArticles,
   informationCategories,
@@ -258,37 +259,37 @@ export default async function ArticleDetailPage({ params }: Props) {
     (a) => a.slug === slug && a.published,
   );
 
-  // Generate structured data if article exists
-  const structuredData = article ? generateStructuredData(article) : null;
+  if (!article) {
+    notFound();
+  }
+
+  // Generate structured data
+  const structuredData = generateStructuredData(article);
 
   // Transform article for client (serialize Date objects to strings)
-  const clientArticle = article ? transformArticleForClient(article) : null;
+  const clientArticle = transformArticleForClient(article);
 
   return (
     <>
-      {structuredData && (
-        <>
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify(structuredData.articleSchema),
-            }}
-          />
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify(structuredData.breadcrumbSchema),
-            }}
-          />
-          {structuredData.faqSchema && (
-            <script
-              type="application/ld+json"
-              dangerouslySetInnerHTML={{
-                __html: JSON.stringify(structuredData.faqSchema),
-              }}
-            />
-          )}
-        </>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData.articleSchema),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData.breadcrumbSchema),
+        }}
+      />
+      {structuredData.faqSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData.faqSchema),
+          }}
+        />
       )}
       <ArticleClient article={clientArticle} />
     </>

@@ -132,14 +132,20 @@ const articles = {
 
 const events = {
   en: [
-    { id: '1', title: 'Arsenal vs Man United', venue: 'Emirates Stadium', day: '25', month: 'Jan', price: 'From £85', image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=400&q=80' },
-    { id: '2', title: 'The Lion King', venue: 'Lyceum Theatre', day: '02', month: 'Feb', price: 'From £45', image: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=400&q=80' },
-    { id: '3', title: 'Ed Sheeran Live', venue: 'Wembley Stadium', day: '15', month: 'Mar', price: 'From £95', image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&q=80' },
+    { id: '1', title: 'Chelsea vs Arsenal', venue: 'Stamford Bridge', day: '22', month: 'Feb', price: 'From £120', image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=400&q=80' },
+    { id: '2', title: 'Tottenham vs Man City', venue: 'Tottenham Stadium', day: '01', month: 'Mar', price: 'From £95', image: 'https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?w=400&q=80' },
+    { id: '3', title: 'Hamilton — West End', venue: 'Victoria Palace Theatre', day: '08', month: 'Mar', price: 'From £35', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
+    { id: '4', title: 'Crystal Palace vs Liverpool', venue: 'Selhurst Park', day: '15', month: 'Mar', price: 'From £75', image: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=80' },
+    { id: '5', title: 'West Ham vs Arsenal', venue: 'London Stadium', day: '05', month: 'Apr', price: 'From £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
+    { id: '6', title: 'London Marathon 2026', venue: 'Greenwich to The Mall', day: '26', month: 'Apr', price: 'Free to watch', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
   ],
   ar: [
-    { id: '1', title: 'آرسنال ضد مانشستر يونايتد', venue: 'ملعب الإمارات', day: '25', month: 'يناير', price: 'من £85', image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=400&q=80' },
-    { id: '2', title: 'الأسد الملك', venue: 'مسرح ليسيوم', day: '02', month: 'فبراير', price: 'من £45', image: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=400&q=80' },
-    { id: '3', title: 'إد شيران مباشر', venue: 'ملعب ويمبلي', day: '15', month: 'مارس', price: 'من £95', image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&q=80' },
+    { id: '1', title: 'تشيلسي ضد آرسنال', venue: 'ستامفورد بريدج', day: '22', month: 'فبراير', price: 'من £120', image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=400&q=80' },
+    { id: '2', title: 'توتنهام ضد مانشستر سيتي', venue: 'ملعب توتنهام', day: '01', month: 'مارس', price: 'من £95', image: 'https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?w=400&q=80' },
+    { id: '3', title: 'هاميلتون — ويست إند', venue: 'مسرح فيكتوريا بالاس', day: '08', month: 'مارس', price: 'من £35', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
+    { id: '4', title: 'كريستال بالاس ضد ليفربول', venue: 'سيلهرست بارك', day: '15', month: 'مارس', price: 'من £75', image: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=80' },
+    { id: '5', title: 'وست هام ضد آرسنال', venue: 'ملعب لندن', day: '05', month: 'أبريل', price: 'من £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
+    { id: '6', title: 'ماراثون لندن 2026', venue: 'غرينيتش إلى ذا مول', day: '26', month: 'أبريل', price: 'مجاني للمشاهدة', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
   ],
 }
 
@@ -253,14 +259,64 @@ const text = {
   },
 }
 
-// ─── Tricolor Divider ────────────────────────────────────────────────────────
+// ─── Animated Tube Train Section Divider ──────────────────────────────────────
 
-function TricolorBar() {
+function TubeTrainDivider() {
   return (
-    <div className="flex h-1 w-full max-w-6xl mx-auto">
-      <div className="flex-1 bg-london-600" />
-      <div className="flex-1 bg-yalla-gold-500" />
-      <div className="flex-1 bg-thames-500" />
+    <div className="relative w-full max-w-6xl mx-auto py-6 overflow-hidden">
+      {/* Track — tri-color rail */}
+      <div className="flex h-[3px] w-full rounded-full overflow-hidden">
+        <div className="flex-1 bg-london-600/30" />
+        <div className="flex-1 bg-yalla-gold-500/30" />
+        <div className="flex-1 bg-thames-500/30" />
+      </div>
+
+      {/* Animated Tube Train shuttling back and forth */}
+      <div
+        className="absolute top-1/2 -translate-y-1/2"
+        style={{
+          animation: 'tubeShuttle 6s ease-in-out infinite',
+        }}
+      >
+        <svg width="72" height="26" viewBox="0 0 72 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Train body */}
+          <rect x="2" y="3" width="68" height="16" rx="8" fill="#C8322B" />
+          {/* Roof stripe */}
+          <rect x="8" y="3" width="56" height="2.5" rx="1.25" fill="#A02820" />
+          {/* Windows */}
+          <rect x="9" y="7" width="9" height="7" rx="1.5" fill="#E8F4FD" />
+          <rect x="21" y="7" width="9" height="7" rx="1.5" fill="#E8F4FD" />
+          <rect x="33" y="7" width="9" height="7" rx="1.5" fill="#E8F4FD" />
+          <rect x="45" y="7" width="9" height="7" rx="1.5" fill="#E8F4FD" />
+          {/* Door */}
+          <rect x="58" y="6" width="8" height="9" rx="1.5" fill="#3B7EA1" />
+          <circle cx="64" cy="10.5" r="0.7" fill="#C49A2A" />
+          {/* Front light */}
+          <circle cx="4.5" cy="11" r="1.8" fill="#C49A2A" />
+          {/* Wheels */}
+          <circle cx="14" cy="22" r="2.8" fill="#1C1917" />
+          <circle cx="14" cy="22" r="1.3" fill="#78716C" />
+          <circle cx="36" cy="22" r="2.8" fill="#1C1917" />
+          <circle cx="36" cy="22" r="1.3" fill="#78716C" />
+          <circle cx="58" cy="22" r="2.8" fill="#1C1917" />
+          <circle cx="58" cy="22" r="1.3" fill="#78716C" />
+          {/* Tri-color stripe along bottom */}
+          <rect x="5" y="17" width="20" height="1.5" rx="0.75" fill="#C8322B" opacity="0.5" />
+          <rect x="27" y="17" width="20" height="1.5" rx="0.75" fill="#C49A2A" opacity="0.5" />
+          <rect x="49" y="17" width="20" height="1.5" rx="0.75" fill="#3B7EA1" opacity="0.5" />
+        </svg>
+      </div>
+
+      {/* Keyframes injected via style tag (scoped to this component) */}
+      <style jsx>{`
+        @keyframes tubeShuttle {
+          0% { left: -80px; }
+          45% { left: calc(100% + 8px); }
+          50% { left: calc(100% + 8px); transform: translateY(-50%) scaleX(-1); }
+          95% { left: -80px; transform: translateY(-50%) scaleX(-1); }
+          100% { left: -80px; transform: translateY(-50%) scaleX(1); }
+        }
+      `}</style>
     </div>
   )
 }
@@ -368,8 +424,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </div>
       </section>
 
-      {/* Tricolor Divider */}
-      <TricolorBar />
+      {/* Tube Train Divider */}
+      <TubeTrainDivider />
 
       {/* ═══ TRENDING BAR ═══ */}
       <div className="bg-cream-50 border-b border-sand py-3 px-6">
@@ -391,6 +447,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
       <section className="max-w-6xl mx-auto px-6 pt-10 pb-4">
         <NewsCarousel />
       </section>
+
+      <TubeTrainDivider />
 
       {/* ═══ FEATURED + ARTICLES ═══ */}
       <section className="max-w-6xl mx-auto px-6 py-16">
@@ -467,11 +525,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </div>
       </section>
 
+      <TubeTrainDivider />
+
       {/* ═══ EVENTS ═══ */}
       <section className="bg-white py-16">
         <div className="max-w-6xl mx-auto px-6">
           <SectionHeader title={t.upcomingEvents} href="/events" linkText={t.viewAll} icon={Ticket} />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {events[locale].map((event) => (
               <div key={event.id} className="group bg-cream rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-all border border-sand/50">
                 <div className="relative h-44">
@@ -499,6 +559,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           </div>
         </div>
       </section>
+
+      <TubeTrainDivider />
 
       {/* ═══ INFORMATION HUB ═══ */}
       <section className="bg-cream py-16">
@@ -539,6 +601,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </div>
       </section>
 
+      <TubeTrainDivider />
+
       {/* ═══ GUIDES ═══ */}
       <section className="bg-white py-16 bg-pattern-arabesque">
         <div className="max-w-6xl mx-auto px-6">
@@ -575,6 +639,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </div>
       </section>
 
+      <TubeTrainDivider />
+
       {/* ═══ EXPERIENCES ═══ */}
       <section className="bg-white py-16">
         <div className="max-w-6xl mx-auto px-6">
@@ -602,6 +668,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           </div>
         </div>
       </section>
+
+      <TubeTrainDivider />
 
       {/* ═══ HOTELS ═══ */}
       <section className="bg-cream py-16">
@@ -641,8 +709,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </div>
       </section>
 
-      {/* ═══ BOTTOM TRICOLOR ═══ */}
-      <TricolorBar />
+      {/* ═══ BOTTOM TUBE DIVIDER ═══ */}
+      <TubeTrainDivider />
     </div>
   )
 }

@@ -2,10 +2,16 @@
  * SEO Automation Service
  *
  * Provides automated indexing and monitoring capabilities:
- * - Google Search Console API (status checking)
- * - IndexNow for Bing/Yandex
- * - Sitemap pinging
- * - Automated scheduling
+ * - Google Search Console API (URL inspection + sitemap submission)
+ * - IndexNow batch submission for Bing/Yandex
+ * - GSC programmatic sitemap submission (critical for Google discovery)
+ *
+ * IMPORTANT: The Google Indexing API (urlNotifications:publish) only works
+ * for pages with JobPosting or BroadcastEvent structured data. For regular
+ * blog content, we rely on:
+ *   1. Sitemap submission via GSC API (Google)
+ *   2. IndexNow batch POST (Bing/Yandex)
+ *   3. URL Inspection API for status checking (Google)
  */
 
 import { blogPosts } from "@/data/blog-content";
@@ -90,10 +96,14 @@ interface IndexNowResult {
 
 export async function submitToIndexNow(
   urls: string[],
+  siteUrl?: string,
+  key?: string,
 ): Promise<IndexNowResult[]> {
   const results: IndexNowResult[] = [];
+  const indexNowKey = key || INDEXNOW_KEY;
+  const baseUrl = siteUrl || BASE_URL;
 
-  if (!INDEXNOW_KEY) {
+  if (!indexNowKey) {
     console.error(
       "[SEO] INDEXNOW_KEY not configured - skipping IndexNow submission",
     );
@@ -106,63 +116,54 @@ export async function submitToIndexNow(
     ];
   }
 
-  // Use GET method - more reliable, doesn't require key file verification
-  // Bing shares with other IndexNow engines (Yandex, etc.)
-  let bingSuccess = 0;
-  let bingFailed = 0;
-
-  for (const url of urls.slice(0, 100)) {
-    // Limit to 100 URLs per batch
-    const getUrl = `https://www.bing.com/indexnow?url=${encodeURIComponent(url)}&key=${INDEXNOW_KEY}`;
-    try {
-      const response = await fetchWithRetry(getUrl, { method: "GET" }, 2, 500);
-      if (response.ok || response.status === 200 || response.status === 202) {
-        bingSuccess++;
-      } else {
-        bingFailed++;
-        console.warn(`[SEO] IndexNow rejected ${url}: HTTP ${response.status}`);
-      }
-    } catch (error) {
-      bingFailed++;
-      console.warn(`[SEO] IndexNow failed for ${url}: ${error}`);
-    }
-    // Rate limiting between requests
-    await sleep(RATE_LIMIT_DELAY_MS);
+  if (urls.length === 0) {
+    return [{ engine: "indexnow", success: true, message: "No URLs to submit" }];
   }
 
-  results.push({
-    engine: "bing.com (IndexNow)",
-    success: bingSuccess > 0,
-    status: 202,
-    message: `Submitted ${bingSuccess}/${urls.length} URLs successfully`,
-  });
+  const hostname = new URL(baseUrl).hostname;
 
-  // Try Yandex GET method for first URL
-  if (urls.length > 0) {
-    const yandexUrl = `https://yandex.com/indexnow?url=${encodeURIComponent(urls[0])}&key=${INDEXNOW_KEY}`;
-    try {
-      const response = await fetchWithRetry(
-        yandexUrl,
-        { method: "GET" },
-        2,
-        500,
+  // Use batch POST method — submits up to 10,000 URLs in one request
+  // This is far more efficient than per-URL GET requests
+  const batchUrls = urls.slice(0, 10_000);
+  try {
+    const response = await fetchWithRetry(
+      "https://api.indexnow.org/indexnow",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          host: hostname,
+          key: indexNowKey,
+          keyLocation: `${baseUrl}/${indexNowKey}.txt`,
+          urlList: batchUrls,
+        }),
+      },
+      2,
+      1000,
+    );
+
+    const accepted = response.ok || response.status === 200 || response.status === 202;
+    results.push({
+      engine: "IndexNow (Bing/Yandex/Seznam)",
+      success: accepted,
+      status: response.status,
+      message: accepted
+        ? `Batch submitted ${batchUrls.length} URLs`
+        : `HTTP ${response.status} — check IndexNow key at ${baseUrl}/${indexNowKey}.txt`,
+    });
+
+    if (!accepted) {
+      console.warn(
+        `[SEO] IndexNow batch rejected: HTTP ${response.status}. ` +
+        `Verify key file serves correctly at ${baseUrl}/${indexNowKey}.txt`,
       );
-      results.push({
-        engine: "yandex.com",
-        success:
-          response.ok || response.status === 200 || response.status === 202,
-        status: response.status,
-        message: response.ok
-          ? "Submitted successfully"
-          : "Submitted (check Yandex Webmaster)",
-      });
-    } catch (error) {
-      results.push({
-        engine: "yandex.com",
-        success: false,
-        message: String(error),
-      });
     }
+  } catch (error) {
+    results.push({
+      engine: "IndexNow (Bing/Yandex/Seznam)",
+      success: false,
+      message: `Network error: ${error instanceof Error ? error.message : String(error)}`,
+    });
   }
 
   return results;
@@ -448,6 +449,99 @@ export class GoogleSearchConsoleAPI {
     return null;
   }
 
+  // ── GSC Sitemap Submission ──────────────────────────────────
+  // This is the #1 way to tell Google about your pages.
+  // Uses the webmasters API: PUT /sitemaps/{feedpath}
+
+  async submitSitemap(
+    sitemapUrl: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    const token = await this.getAccessToken();
+    if (!token) {
+      return { success: false, error: "No GSC access token (check service account credentials)" };
+    }
+
+    try {
+      // PUT https://www.googleapis.com/webmasters/v3/sites/{siteUrl}/sitemaps/{feedpath}
+      const endpoint =
+        `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(this.siteUrl)}/sitemaps/${encodeURIComponent(sitemapUrl)}`;
+
+      const response = await fetchWithRetry(
+        endpoint,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        },
+        2,
+        1000,
+      );
+
+      if (response.ok || response.status === 204) {
+        console.log(`[SEO] Sitemap submitted to GSC: ${sitemapUrl}`);
+        return { success: true };
+      } else {
+        const errorText = await response.text().catch(() => "");
+        console.error(`[SEO] GSC sitemap submission failed: HTTP ${response.status} ${errorText}`);
+        return { success: false, error: `HTTP ${response.status}: ${errorText.slice(0, 200)}` };
+      }
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  }
+
+  // List sitemaps currently registered in GSC
+  async listSitemaps(): Promise<{ sitemaps: any[]; error?: string }> {
+    const token = await this.getAccessToken();
+    if (!token) return { sitemaps: [], error: "No access token" };
+
+    try {
+      const endpoint =
+        `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(this.siteUrl)}/sitemaps`;
+
+      const response = await fetchWithRetry(endpoint, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      }, 2, 1000);
+
+      if (response.ok) {
+        const data = await response.json();
+        return { sitemaps: data.sitemap || [] };
+      } else {
+        return { sitemaps: [], error: `HTTP ${response.status}` };
+      }
+    } catch (error) {
+      return { sitemaps: [], error: String(error) };
+    }
+  }
+
+  // Request Google to re-crawl a URL via the webmasters API
+  // NOTE: The Indexing API (urlNotifications:publish) only works for
+  // JobPosting/BroadcastEvent pages. For regular content, sitemap
+  // submission + URL Inspection is the correct approach.
+  async requestRecrawl(url: string): Promise<{ success: boolean; note: string }> {
+    // URL Inspection only tells us status — Google doesn't provide a
+    // public "request crawl" API for regular content. The best we can
+    // do is: submit sitemap + ensure robots.txt allows crawling.
+    const status = await this.checkIndexingStatus(url);
+    if (!status) {
+      return { success: false, note: "Could not inspect URL via GSC. Ensure service account has owner access." };
+    }
+
+    if (status.coverageState?.toLowerCase().includes("indexed")) {
+      return { success: true, note: `Already indexed. Last crawled: ${status.lastCrawlTime || "unknown"}` };
+    }
+
+    return {
+      success: false,
+      note: `Status: ${status.coverageState || "unknown"}. ` +
+        `For regular content, ensure the page is in sitemap.xml and submit the sitemap via GSC. ` +
+        `The Google Indexing API only works for JobPosting/BroadcastEvent pages.`,
+    };
+  }
+
   // Get token with indexing scope for submitting URLs
   private async getIndexingToken(): Promise<string | null> {
     if (!this.credentials) return null;
@@ -546,7 +640,8 @@ export class GoogleSearchConsoleAPI {
 // URL DISCOVERY & GENERATION
 // ============================================
 
-export async function getAllIndexableUrls(): Promise<string[]> {
+export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Promise<string[]> {
+  const baseUrl = siteUrl || BASE_URL;
   const urls: string[] = [];
 
   // Static pages
@@ -558,27 +653,30 @@ export async function getAllIndexableUrls(): Promise<string[]> {
     "/about",
     "/contact",
   ];
-  staticPages.forEach((page) => urls.push(`${BASE_URL}${page}`));
+  staticPages.forEach((page) => urls.push(`${baseUrl}${page}`));
 
-  // Blog posts from static files
+  // Blog posts from static files (only for yalla-london or when no siteId)
   const staticSlugs = new Set<string>();
-  allPosts
-    .filter((post) => post.published)
-    .forEach((post) => {
-      urls.push(`${BASE_URL}/blog/${post.slug}`);
-      staticSlugs.add(post.slug);
-    });
+  if (!siteId || siteId === "yalla-london") {
+    allPosts
+      .filter((post) => post.published)
+      .forEach((post) => {
+        urls.push(`${baseUrl}/blog/${post.slug}`);
+        staticSlugs.add(post.slug);
+      });
+  }
 
   // Blog posts from database (catch new content created by daily-content-generate)
   try {
     const { prisma } = await import("@/lib/db");
+    const siteFilter = siteId ? { siteId } : {};
     const dbPosts = await prisma.blogPost.findMany({
-      where: { published: true,  },
+      where: { published: true, ...siteFilter },
       select: { slug: true },
     });
     for (const post of dbPosts) {
       if (!staticSlugs.has(post.slug)) {
-        urls.push(`${BASE_URL}/blog/${post.slug}`);
+        urls.push(`${baseUrl}/blog/${post.slug}`);
       }
     }
   } catch {
@@ -588,23 +686,27 @@ export async function getAllIndexableUrls(): Promise<string[]> {
   return urls;
 }
 
-export async function getNewUrls(withinDays: number = 7): Promise<string[]> {
+export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUrl?: string): Promise<string[]> {
+  const baseUrl = siteUrl || BASE_URL;
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - withinDays);
   const urls: string[] = [];
 
-  // Static file posts
-  allPosts
-    .filter((post) => post.published && post.created_at >= cutoffDate)
-    .forEach((post) => urls.push(`${BASE_URL}/blog/${post.slug}`));
+  // Static file posts (only for yalla-london)
+  if (!siteId || siteId === "yalla-london") {
+    allPosts
+      .filter((post) => post.published && post.created_at >= cutoffDate)
+      .forEach((post) => urls.push(`${baseUrl}/blog/${post.slug}`));
+  }
 
   // Database posts (new content from AI generation)
   try {
     const { prisma } = await import("@/lib/db");
+    const siteFilter = siteId ? { siteId } : {};
     const dbPosts = await prisma.blogPost.findMany({
       where: {
         published: true,
-        
+        ...siteFilter,
         created_at: { gte: cutoffDate },
       },
       select: { slug: true },
@@ -614,7 +716,7 @@ export async function getNewUrls(withinDays: number = 7): Promise<string[]> {
     );
     for (const post of dbPosts) {
       if (!existingSlugs.has(post.slug)) {
-        urls.push(`${BASE_URL}/blog/${post.slug}`);
+        urls.push(`${baseUrl}/blog/${post.slug}`);
       }
     }
   } catch {
@@ -626,23 +728,29 @@ export async function getNewUrls(withinDays: number = 7): Promise<string[]> {
 
 export async function getUpdatedUrls(
   withinDays: number = 7,
+  siteId?: string,
+  siteUrl?: string,
 ): Promise<string[]> {
+  const baseUrl = siteUrl || BASE_URL;
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - withinDays);
   const urls: string[] = [];
 
-  // Static file posts
-  allPosts
-    .filter((post) => post.published && post.updated_at >= cutoffDate)
-    .forEach((post) => urls.push(`${BASE_URL}/blog/${post.slug}`));
+  // Static file posts (only for yalla-london)
+  if (!siteId || siteId === "yalla-london") {
+    allPosts
+      .filter((post) => post.published && post.updated_at >= cutoffDate)
+      .forEach((post) => urls.push(`${baseUrl}/blog/${post.slug}`));
+  }
 
   // Database posts
   try {
     const { prisma } = await import("@/lib/db");
+    const siteFilter = siteId ? { siteId } : {};
     const dbPosts = await prisma.blogPost.findMany({
       where: {
         published: true,
-        
+        ...siteFilter,
         updated_at: { gte: cutoffDate },
       },
       select: { slug: true },
@@ -652,7 +760,7 @@ export async function getUpdatedUrls(
     );
     for (const post of dbPosts) {
       if (!existingSlugs.has(post.slug)) {
-        urls.push(`${BASE_URL}/blog/${post.slug}`);
+        urls.push(`${baseUrl}/blog/${post.slug}`);
       }
     }
   } catch {
@@ -676,7 +784,10 @@ export interface IndexingReport {
 
 export async function runAutomatedIndexing(
   mode: "all" | "new" | "updated" = "new",
+  siteId?: string,
+  siteUrl?: string,
 ): Promise<IndexingReport> {
+  const baseUrl = siteUrl || BASE_URL;
   const report: IndexingReport = {
     timestamp: new Date().toISOString(),
     urlsProcessed: 0,
@@ -690,14 +801,14 @@ export async function runAutomatedIndexing(
     let urls: string[];
     switch (mode) {
       case "all":
-        urls = await getAllIndexableUrls();
+        urls = await getAllIndexableUrls(siteId, baseUrl);
         break;
       case "updated":
-        urls = await getUpdatedUrls();
+        urls = await getUpdatedUrls(7, siteId, baseUrl);
         break;
       case "new":
       default:
-        urls = await getNewUrls();
+        urls = await getNewUrls(7, siteId, baseUrl);
         break;
     }
 
@@ -708,11 +819,18 @@ export async function runAutomatedIndexing(
       return report;
     }
 
-    // Submit to IndexNow (Bing, Yandex)
-    report.indexNow = await submitToIndexNow(urls);
+    // Submit to IndexNow (Bing, Yandex) via batch POST
+    report.indexNow = await submitToIndexNow(urls, baseUrl);
 
-    // Ping sitemaps
-    report.sitemapPings = await pingSitemaps();
+    // Submit sitemap to Google via GSC API (this is how Google discovers URLs)
+    const gsc = new GoogleSearchConsoleAPI();
+    const sitemapResult = await gsc.submitSitemap(`${baseUrl}/sitemap.xml`);
+    report.sitemapPings = {
+      google_gsc: sitemapResult.success,
+    };
+    if (!sitemapResult.success && sitemapResult.error) {
+      report.errors.push(`GSC sitemap submission: ${sitemapResult.error}`);
+    }
   } catch (error) {
     report.errors.push(String(error));
   }

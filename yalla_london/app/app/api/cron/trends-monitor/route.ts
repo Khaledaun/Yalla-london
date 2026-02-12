@@ -71,8 +71,8 @@ export async function GET(request: NextRequest) {
     try {
       const lastRun = await prisma.seoReport.findFirst({
         where: { reportType: "trends-monitor" },
-        orderBy: { createdAt: "desc" },
-        select: { status: true, createdAt: true },
+        orderBy: { generatedAt: "desc" },
+        select: { reportType: true, generatedAt: true },
       });
       return NextResponse.json({
         status: "healthy",

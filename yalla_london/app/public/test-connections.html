@@ -281,11 +281,9 @@ async function runAllTests() {
       const contentResp = await testFetch('/api/cron/daily-content-generate?healthcheck=true', { headers: cronHeaders });
       if (contentResp.ok && contentResp.json) {
         const j = contentResp.json;
-        addResult('pipeline', 'Daily Content Generate', 'pass', j.message || 'OK');
-        if (Array.isArray(j.sites)) addResult('pipeline', 'Active Sites', 'pass', j.sites.map(s => s.name || s.siteId || 'unknown').join(', '));
-        if (j.generated !== undefined) addResult('pipeline', 'Articles Generated', 'pass', j.generated + ' articles this run');
-        if (j.totalGenerated !== undefined) addResult('pipeline', 'Total Generated Today', 'pass', j.totalGenerated + ' articles today');
-        if (Array.isArray(j.skippedSites) && j.skippedSites.length) addResult('pipeline', 'Skipped Sites', 'warn', j.skippedSites.map(s => (s.name || '') + ': ' + (s.reason || '')).join('; '));
+        addResult('pipeline', 'Daily Content Generate', 'pass', j.status === 'healthy' ? 'Healthy' : (j.message || 'OK'));
+        if (j.lastRun) addResult('pipeline', 'Last Run', 'pass', j.lastRun.status + ' — ' + new Date(j.lastRun.started_at).toLocaleString());
+        if (j.sites !== undefined) addResult('pipeline', 'Active Sites', 'pass', j.sites + ' sites configured');
         addJsonBlock('pipeline', j);
       } else if (contentResp.status === 401) {
         addResult('pipeline', 'Daily Content Generate', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
@@ -343,14 +341,9 @@ async function runAllTests() {
       const trendsResp = await testFetch('/api/cron/trends-monitor?healthcheck=true', { headers: cronHeaders });
       if (trendsResp.ok && trendsResp.json) {
         const j = trendsResp.json;
-        addResult('trends', 'Trends Monitor', 'pass', j.message || 'OK');
-        if (j.trendingTopics?.length) addResult('trends', 'Trending Topics', 'pass', j.trendingTopics.length + ' topics found');
-        if (j.keywordTrends?.length) addResult('trends', 'Keyword Trends', 'pass', j.keywordTrends.length + ' keywords analyzed');
-        if (j.contentOpportunities?.length) addResult('trends', 'Content Opportunities', 'pass', j.contentOpportunities.length + ' opportunities');
-        if (j.summary) {
-          addResult('trends', 'Rising Keywords', 'pass', (j.summary.risingKeywords || []).join(', ') || 'None');
-          addResult('trends', 'Top Opportunities', 'pass', (j.summary.topOpportunities || []).slice(0,3).join(', ') || 'None');
-        }
+        addResult('trends', 'Trends Monitor', 'pass', j.status === 'healthy' ? 'Healthy' : (j.message || 'OK'));
+        if (j.lastRun) addResult('trends', 'Last Run', 'pass', new Date(j.lastRun.generatedAt).toLocaleString());
+        if (j.monitoredKeywords) addResult('trends', 'Monitored Keywords', 'pass', j.monitoredKeywords + ' keywords tracked');
         addJsonBlock('trends', j);
       } else if (trendsResp.status === 401) {
         addResult('trends', 'Trends Monitor', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
@@ -387,7 +380,8 @@ async function runAllTests() {
       const seoResp = await testFetch('/api/cron/seo-agent?healthcheck=true', { headers: cronHeaders });
       if (seoResp.ok && seoResp.json) {
         const j = seoResp.json;
-        addResult('seoagent', 'SEO Agent', 'pass', j.message || 'OK');
+        addResult('seoagent', 'SEO Agent', 'pass', j.status === 'healthy' ? 'Healthy' : (j.message || 'OK'));
+        if (j.lastRun) addResult('seoagent', 'Last Run', 'pass', j.lastRun.status + ' — ' + new Date(j.lastRun.started_at).toLocaleString());
         addJsonBlock('seoagent', j);
       } else if (seoResp.status === 401) {
         addResult('seoagent', 'SEO Agent', 'fail', 'HTTP 401 — CRON_SECRET mismatch');

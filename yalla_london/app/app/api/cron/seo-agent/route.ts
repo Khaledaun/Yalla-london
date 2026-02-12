@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     try {
       const { prisma } = await import("@/lib/db");
       const { getAllSiteIds } = await import("@/config/sites");
-      const lastRun = await prisma.cronLog.findFirst({
+      const lastRun = await prisma.cronJobLog.findFirst({
         where: { job_name: "seo-agent" },
         orderBy: { started_at: "desc" },
         select: { status: true, started_at: true, duration_ms: true },

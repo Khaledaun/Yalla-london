@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   if (request.nextUrl.searchParams.get("healthcheck") === "true") {
     try {
       const { prisma } = await import("@/lib/db");
-      const lastRun = await prisma.cronLog.findFirst({
+      const lastRun = await prisma.cronJobLog.findFirst({
         where: { job_name: "daily-content-generate" },
         orderBy: { started_at: "desc" },
         select: { status: true, started_at: true, duration_ms: true },

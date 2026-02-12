@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { SiteSelector } from '@/components/admin/site-selector'
 import {
@@ -249,7 +249,8 @@ interface MophyAdminLayoutProps {
 
 export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps) {
   const pathname = usePathname()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['dashboard'])
@@ -257,6 +258,15 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
   const [chatboxOpen, setChatboxOpen] = useState(false)
+
+  const isLoginPage = pathname === '/admin/login'
+
+  // Redirect unauthenticated users to login (except on the login page itself)
+  useEffect(() => {
+    if (status === 'unauthenticated' && !isLoginPage) {
+      router.replace('/admin/login')
+    }
+  }, [status, isLoginPage, router])
 
   // Auto-expand active menu
   useEffect(() => {
@@ -300,6 +310,30 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
     { id: 2, title: 'SEO score improved', time: '1 hour ago', type: 'info' },
     { id: 3, title: 'Automation completed', time: '2 hours ago', type: 'success' },
   ]
+
+  // If on the login page, render children without admin chrome
+  if (isLoginPage) {
+    return <>{children}</>
+  }
+
+  // While checking auth, show a loading state
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/30 mx-auto mb-4 animate-pulse">
+            <span className="text-white font-bold text-xl">Y</span>
+          </div>
+          <p className="text-sm text-gray-500">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If still unauthenticated (redirect pending), show nothing
+  if (status === 'unauthenticated') {
+    return null
+  }
 
   return (
     <div className={`min-h-screen font-inter ${darkMode ? 'dark' : ''}`}>

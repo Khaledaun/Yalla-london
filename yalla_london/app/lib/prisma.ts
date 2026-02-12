@@ -64,8 +64,17 @@ function addSoftDeleteMiddleware(client: PrismaClient): void {
 }
 
 /**
+ * Detect if we're in Next.js build phase (not runtime).
+ */
+const isBuildPhase =
+  process.env.NEXT_PHASE === "phase-production-build" ||
+  (process.env.NODE_ENV === "production" && !process.env.VERCEL_URL && !process.env.PORT);
+
+/**
  * Get or create the Prisma client singleton.
- * Uses lazy initialization to avoid build-time errors.
+ * Uses lazy initialization to avoid errors during build when Prisma client
+ * is not fully generated. Always caches on globalThis to prevent connection
+ * pool exhaustion on warm serverless instances.
  */
 function getPrismaClient(): PrismaClient {
   if (globalThis.__prisma) {
@@ -83,19 +92,23 @@ function getPrismaClient(): PrismaClient {
     // Add soft delete middleware
     addSoftDeleteMiddleware(client);
 
-    // Store on globalThis in development to prevent multiple instances
-    if (process.env.NODE_ENV !== "production") {
-      globalThis.__prisma = client;
-    }
+    // Always cache on globalThis — prevents connection pool exhaustion
+    // on warm serverless instances (Vercel reuses the process)
+    globalThis.__prisma = client;
 
     return client;
   } catch (error) {
-    // During build, Prisma client may not be available
-    // Return a mock that will throw helpful errors at runtime
-    console.warn(
-      "Prisma client not available, using mock client for build compatibility",
-    );
-    return createMockPrismaClient() as unknown as PrismaClient;
+    // Only use mock during build phase — at runtime, surface the real error
+    if (isBuildPhase) {
+      console.warn(
+        "Prisma client not available during build, using mock for compatibility",
+      );
+      return createMockPrismaClient() as unknown as PrismaClient;
+    }
+
+    // At runtime, log the real error and re-throw so callers see the actual problem
+    console.error("Failed to initialize Prisma client:", error);
+    throw error;
   }
 }
 

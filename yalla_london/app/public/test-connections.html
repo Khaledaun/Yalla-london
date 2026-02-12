@@ -278,7 +278,7 @@ async function runAllTests() {
     addSection('pipeline', '7. Content Generation Pipeline');
     try {
       log('  Testing daily-content-generate...');
-      const contentResp = await testFetch('/api/cron/daily-content-generate', { headers: cronHeaders });
+      const contentResp = await testFetch('/api/cron/daily-content-generate?healthcheck=true', { headers: cronHeaders });
       if (contentResp.ok && contentResp.json) {
         const j = contentResp.json;
         addResult('pipeline', 'Daily Content Generate', 'pass', j.message || 'OK');
@@ -384,7 +384,7 @@ async function runAllTests() {
     log('  Testing SEO agent...');
     addSection('seoagent', '12. SEO Agent');
     try {
-      const seoResp = await testFetch('/api/cron/seo-agent', { headers: cronHeaders });
+      const seoResp = await testFetch('/api/cron/seo-agent?healthcheck=true', { headers: cronHeaders });
       if (seoResp.ok && seoResp.json) {
         const j = seoResp.json;
         addResult('seoagent', 'SEO Agent', 'pass', j.message || 'OK');
@@ -400,7 +400,7 @@ async function runAllTests() {
     // ── 13. SEO Daily Cron ──
     log('  Testing SEO daily cron...');
     try {
-      const seoCronResp = await testFetch('/api/seo/cron?task=daily', { headers: cronHeaders });
+      const seoCronResp = await testFetch('/api/seo/cron?task=daily&healthcheck=true', { headers: cronHeaders });
       if (seoCronResp.ok && seoCronResp.json) {
         addResult('seoagent', 'SEO Daily Cron', 'pass', seoCronResp.json.message || 'OK');
       } else if (seoCronResp.status === 401) {

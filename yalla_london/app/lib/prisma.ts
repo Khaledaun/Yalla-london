@@ -29,37 +29,57 @@ declare global {
 }
 
 /**
- * Adds soft delete middleware to Prisma client.
- * Automatically filters out records where deletedAt is not null.
+ * Wraps a PrismaClient with soft-delete behaviour using Prisma Client Extensions.
+ * (Prisma 5+ removed $use middleware — $extends is the replacement.)
+ *
+ * - Read queries on SOFT_DELETE_MODELS automatically exclude deletedAt != null.
+ * - delete / deleteMany on SOFT_DELETE_MODELS are converted to update(s) that
+ *   set deletedAt = now().
  */
-function addSoftDeleteMiddleware(client: PrismaClient): void {
-  client.$use(async (params, next) => {
-    if (params.model && SOFT_DELETE_MODELS.includes(params.model)) {
-      // For read queries, automatically exclude soft-deleted records
-      if (params.action && SOFT_DELETE_ACTIONS.includes(params.action)) {
-        if (!params.args) params.args = {};
-        if (!params.args.where) params.args.where = {};
+function withSoftDelete(baseClient: PrismaClient) {
+  return baseClient.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ model, operation, args, query }: any) {
+          if (!model || !SOFT_DELETE_MODELS.includes(model)) {
+            return query(args);
+          }
 
-        // Only add the filter if not explicitly querying by deletedAt
-        if (params.args.where.deletedAt === undefined) {
-          params.args.where.deletedAt = null;
-        }
-      }
+          // For read queries, automatically exclude soft-deleted records
+          if (SOFT_DELETE_ACTIONS.includes(operation)) {
+            if (!args) args = {};
+            if (!args.where) args.where = {};
+            // Only add the filter if not explicitly querying by deletedAt
+            if (args.where.deletedAt === undefined) {
+              args.where.deletedAt = null;
+            }
+            return query(args);
+          }
 
-      // For delete operations, convert to soft delete
-      if (params.action === "delete") {
-        params.action = "update";
-        params.args.data = { deletedAt: new Date() };
-      }
-      if (params.action === "deleteMany") {
-        params.action = "updateMany";
-        if (!params.args) params.args = {};
-        if (!params.args.data) params.args.data = {};
-        params.args.data.deletedAt = new Date();
-      }
-    }
+          // Convert delete → soft-delete (update)
+          if (operation === "delete") {
+            const modelKey =
+              model.charAt(0).toLowerCase() + model.slice(1);
+            return (baseClient as any)[modelKey].update({
+              where: args.where,
+              data: { deletedAt: new Date() },
+            });
+          }
 
-    return next(params);
+          // Convert deleteMany → soft-delete (updateMany)
+          if (operation === "deleteMany") {
+            const modelKey =
+              model.charAt(0).toLowerCase() + model.slice(1);
+            return (baseClient as any)[modelKey].updateMany({
+              where: args?.where ?? {},
+              data: { deletedAt: new Date() },
+            });
+          }
+
+          return query(args);
+        },
+      },
+    },
   });
 }
 
@@ -82,15 +102,15 @@ function getPrismaClient(): PrismaClient {
   }
 
   try {
-    const client = new PrismaClient({
+    const baseClient = new PrismaClient({
       log:
         process.env.NODE_ENV === "development"
           ? ["query", "error", "warn"]
           : ["error"],
     });
 
-    // Add soft delete middleware
-    addSoftDeleteMiddleware(client);
+    // Wrap with soft-delete extension (Prisma 5+ replaces $use with $extends)
+    const client = withSoftDelete(baseClient) as unknown as PrismaClient;
 
     // Always cache on globalThis — prevents connection pool exhaustion
     // on warm serverless instances (Vercel reuses the process)

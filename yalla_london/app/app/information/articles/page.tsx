@@ -1,9 +1,13 @@
 import { Metadata } from "next";
 import {
-  informationArticles,
+  informationArticles as baseArticles,
   informationCategories,
 } from "@/data/information-hub-content";
+import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import ArticleListClient from "./ArticleListClient";
+
+// Combine all information articles
+const informationArticles = [...baseArticles, ...extendedInformationArticles];
 
 // ISR: Revalidate article listing every 10 minutes for Cloudflare edge caching
 export const revalidate = 600;

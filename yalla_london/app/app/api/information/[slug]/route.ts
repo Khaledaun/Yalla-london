@@ -7,10 +7,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-middleware';
 import { z } from 'zod';
 import {
-  informationArticles,
+  informationArticles as baseArticles,
   informationSections,
   informationCategories,
 } from '@/data/information-hub-content';
+import { extendedInformationArticles } from '@/data/information-hub-articles-extended';
+
+// Combine all information articles
+const informationArticles = [...baseArticles, ...extendedInformationArticles];
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';

@@ -2,10 +2,14 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   informationSections,
-  informationArticles,
+  informationArticles as baseArticles,
 } from "@/data/information-hub-content";
+import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import { markdownToHtml } from "@/lib/markdown";
 import SectionClient from "./SectionClient";
+
+// Combine all information articles
+const informationArticles = [...baseArticles, ...extendedInformationArticles];
 
 // ISR: Revalidate section pages every 10 minutes for Cloudflare edge caching
 export const revalidate = 600;

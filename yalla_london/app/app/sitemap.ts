@@ -259,7 +259,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
     newsPages = publishedNews.map((item) => ({
       url: `${baseUrl}/news/${item.slug}`,
-      lastModified: item.updated_at.toISOString(),
+      lastModified: item.updated_at?.toISOString() || currentDate,
       changeFrequency: "daily" as const,
       priority: 0.7,
       alternates: {

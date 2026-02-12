@@ -113,7 +113,7 @@ export function RelatedArticles({ articles, currentType }: RelatedArticlesProps)
                   {/* Image */}
                   <div className="relative overflow-hidden">
                     <Image
-                      src={article.featured_image}
+                      src={article.featured_image || '/images/placeholder.jpg'}
                       alt={title}
                       width={400}
                       height={250}

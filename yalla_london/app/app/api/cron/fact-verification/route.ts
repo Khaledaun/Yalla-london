@@ -53,7 +53,7 @@ interface ExtractedFact {
 interface VerificationLogEntry {
   date: string;
   source: string;
-  result: "verified" | "outdated" | "unverifiable";
+  result: "verified" | "outdated" | "unverifiable" | "flagged_for_review";
   notes: string;
 }
 
@@ -317,6 +317,7 @@ export async function GET(request: NextRequest) {
     // Process information hub sections (subsection content)
     for (const section of informationSections) {
       if (!section.published) continue;
+      if (!section.subsections || !Array.isArray(section.subsections)) continue;
       for (const sub of section.subsections) {
         const extracted = extractFacts(sub.content_en, section.slug, "information");
         for (const fact of extracted) {
@@ -372,7 +373,7 @@ export async function GET(request: NextRequest) {
       for (let i = 0; i < newFacts.length; i += BATCH_SIZE) {
         const batch = newFacts.slice(i, i + BATCH_SIZE);
         try {
-          await prisma.factEntry.createMany({
+          const result = await prisma.factEntry.createMany({
             data: batch.map((f) => ({
               article_type: f.articleType,
               article_slug: f.articleSlug,
@@ -387,7 +388,7 @@ export async function GET(request: NextRequest) {
             })),
             skipDuplicates: true,
           });
-          newFactsRegistered += batch.length;
+          newFactsRegistered += result.count;
         } catch (batchError) {
           const msg = batchError instanceof Error ? batchError.message : String(batchError);
           console.error(`[fact-verification] Batch insert error: ${msg}`);

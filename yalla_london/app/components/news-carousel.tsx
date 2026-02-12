@@ -48,6 +48,8 @@ export interface NewsItemData {
   source_name: string
   source_url: string
   featured_image?: string
+  image_alt_en?: string
+  image_alt_ar?: string
   image_credit?: string
   news_category: string
   is_major: boolean
@@ -360,7 +362,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
                         <div className="relative w-full md:w-2/5 h-52 md:h-auto min-h-[200px] overflow-hidden">
                           <Image
                             src={item.featured_image}
-                            alt={headline}
+                            alt={(language === 'en' ? item.image_alt_en : item.image_alt_ar) || headline}
                             fill
                             className="object-cover transition-transform duration-500 hover:scale-105"
                             sizes="(max-width: 768px) 100vw, 40vw"

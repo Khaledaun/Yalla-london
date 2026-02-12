@@ -77,10 +77,24 @@ export interface MetaOptimization {
 // ============================================
 
 export async function analyzeSearchPerformance(
-  days: number = 28
+  days: number = 28,
+  siteId?: string
 ): Promise<SearchPerformanceAnalysis | null> {
-  const siteUrl =
-    process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  // Per-site GSC config (multi-tenant) — falls back to global env vars
+  let siteUrl: string | undefined;
+  if (siteId) {
+    try {
+      const { getSiteSeoConfig } = await import("@/config/sites");
+      const seoConfig = getSiteSeoConfig(siteId);
+      siteUrl = seoConfig.gscSiteUrl;
+      if (siteUrl) {
+        searchConsole.setSiteUrl(siteUrl);
+      }
+    } catch {}
+  }
+  if (!siteUrl) {
+    siteUrl = process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  }
   if (!siteUrl) return null;
 
   const endDate = new Date().toISOString().split("T")[0];
@@ -274,11 +288,20 @@ export async function analyzeSearchPerformance(
 // ============================================
 
 export async function analyzeTrafficPatterns(
-  days: number = 28
+  days: number = 28,
+  siteId?: string
 ): Promise<TrafficAnalysis | null> {
   try {
     const startDate = `${days}daysAgo`;
-    const ga4Data = await fetchGA4Metrics(startDate, "today");
+    // Per-site GA4 config (multi-tenant) — falls back to global env vars
+    let ga4PropertyId: string | undefined;
+    if (siteId) {
+      try {
+        const { getSiteSeoConfig } = await import("@/config/sites");
+        ga4PropertyId = getSiteSeoConfig(siteId).ga4PropertyId;
+      } catch {}
+    }
+    const ga4Data = await fetchGA4Metrics(startDate, "today", ga4PropertyId);
 
     if (!ga4Data) return null;
 
@@ -554,18 +577,29 @@ export async function autoOptimizeLowCTRMeta(
 
 export async function submitUnindexedPages(
   prisma: any,
-  fixes: string[]
+  fixes: string[],
+  siteId?: string
 ): Promise<{ indexNow: number; gscApi: number; urls: string[] }> {
-  const siteUrl =
+  let siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
-  const indexNowKey = process.env.INDEXNOW_KEY;
+  let indexNowKey = process.env.INDEXNOW_KEY;
+  // Per-site URL and IndexNow key (multi-tenant)
+  if (siteId) {
+    try {
+      const { getSiteSeoConfig, getSiteDomain } = await import("@/config/sites");
+      siteUrl = getSiteDomain(siteId) || siteUrl;
+      const seoConfig = getSiteSeoConfig(siteId);
+      indexNowKey = seoConfig.indexNowKey || indexNowKey;
+    } catch {}
+  }
   let indexNowCount = 0;
   let gscApiCount = 0;
 
   try {
-    // Get all published posts
+    // Get all published posts (filtered by site for multi-tenant)
+    const blogSiteFilter = siteId ? { siteId } : {};
     const posts = await prisma.blogPost.findMany({
-      where: { published: true,  },
+      where: { published: true, ...blogSiteFilter },
       select: { slug: true, created_at: true },
       orderBy: { created_at: "desc" },
     });

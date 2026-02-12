@@ -75,6 +75,11 @@ export class GoogleSearchConsole {
     return !!(this.config.clientEmail && this.config.privateKey && this.config.siteUrl);
   }
 
+  // Override the siteUrl for per-site queries (multi-tenant support)
+  setSiteUrl(siteUrl: string) {
+    this.config.siteUrl = siteUrl;
+  }
+
   // Get configuration status for dashboard
   getStatus(): { configured: boolean; siteUrl: string } {
     return {

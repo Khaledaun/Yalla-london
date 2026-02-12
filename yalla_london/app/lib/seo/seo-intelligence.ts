@@ -80,12 +80,12 @@ export async function analyzeSearchPerformance(
   days: number = 28,
   siteId?: string
 ): Promise<SearchPerformanceAnalysis | null> {
-  // Per-site GSC config (multi-tenant) — falls back to global env vars
+  // Per-site GSC config — checks Variable Vault (DB), then env vars
   let siteUrl: string | undefined;
   if (siteId) {
     try {
-      const { getSiteSeoConfig } = await import("@/config/sites");
-      const seoConfig = getSiteSeoConfig(siteId);
+      const { getSiteSeoConfigFromVault } = await import("@/config/sites");
+      const seoConfig = await getSiteSeoConfigFromVault(siteId);
       siteUrl = seoConfig.gscSiteUrl;
       if (siteUrl) {
         searchConsole.setSiteUrl(siteUrl);
@@ -293,12 +293,13 @@ export async function analyzeTrafficPatterns(
 ): Promise<TrafficAnalysis | null> {
   try {
     const startDate = `${days}daysAgo`;
-    // Per-site GA4 config (multi-tenant) — falls back to global env vars
+    // Per-site GA4 config — checks Variable Vault (DB), then env vars
     let ga4PropertyId: string | undefined;
     if (siteId) {
       try {
-        const { getSiteSeoConfig } = await import("@/config/sites");
-        ga4PropertyId = getSiteSeoConfig(siteId).ga4PropertyId;
+        const { getSiteSeoConfigFromVault } = await import("@/config/sites");
+        const seoConfig = await getSiteSeoConfigFromVault(siteId);
+        ga4PropertyId = seoConfig.ga4PropertyId;
       } catch {}
     }
     const ga4Data = await fetchGA4Metrics(startDate, "today", ga4PropertyId);
@@ -586,9 +587,9 @@ export async function submitUnindexedPages(
   // Per-site URL and IndexNow key (multi-tenant)
   if (siteId) {
     try {
-      const { getSiteSeoConfig, getSiteDomain } = await import("@/config/sites");
+      const { getSiteSeoConfigFromVault, getSiteDomain } = await import("@/config/sites");
       siteUrl = getSiteDomain(siteId) || siteUrl;
-      const seoConfig = getSiteSeoConfig(siteId);
+      const seoConfig = await getSiteSeoConfigFromVault(siteId);
       indexNowKey = seoConfig.indexNowKey || indexNowKey;
     } catch {}
   }

@@ -38,6 +38,7 @@ import {
   Play,
   Pause,
   RefreshCw,
+  KeyRound,
 } from 'lucide-react';
 
 interface SiteStats {
@@ -108,6 +109,7 @@ const NAV_SECTIONS = [
     items: [
       { name: 'All Sites', nameAr: 'جميع المواقع', href: '/admin/command-center/sites', icon: Globe },
       { name: 'Create New Site', nameAr: 'إنشاء موقع', href: '/admin/command-center/sites/new', icon: Plus },
+      { name: 'Variable Vault', nameAr: 'خزنة المتغيرات', href: '/admin/variable-vault', icon: KeyRound },
       { name: 'Site Settings', nameAr: 'إعدادات الموقع', href: '/admin/site', icon: Settings },
     ],
   },

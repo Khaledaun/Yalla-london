@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -34,6 +34,30 @@ export async function GET(request: NextRequest) {
       { error: "Server misconfiguration" },
       { status: 503 },
     );
+  }
+
+  // Healthcheck mode — quick DB ping + status, no content generation
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const lastRun = await prisma.cronLog.findFirst({
+        where: { job_name: "daily-content-generate" },
+        orderBy: { started_at: "desc" },
+        select: { status: true, started_at: true, duration_ms: true },
+      });
+      return NextResponse.json({
+        status: "healthy",
+        endpoint: "daily-content-generate",
+        lastRun: lastRun || null,
+        sites: getAllSiteIds().length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      return NextResponse.json(
+        { status: "unhealthy", endpoint: "daily-content-generate" },
+        { status: 503 },
+      );
+    }
   }
 
   const _cronStart = Date.now();

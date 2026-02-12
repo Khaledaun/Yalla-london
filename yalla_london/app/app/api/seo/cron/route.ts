@@ -45,6 +45,30 @@ export async function GET(request: NextRequest) {
   }
 
   const searchParams = request.nextUrl.searchParams;
+
+  // Healthcheck mode — quick response confirming endpoint is alive
+  if (searchParams.get("healthcheck") === "true") {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const lastRun = await prisma.cronLog.findFirst({
+        where: { job_name: "seo-cron" },
+        orderBy: { started_at: "desc" },
+        select: { status: true, started_at: true, duration_ms: true },
+      });
+      return NextResponse.json({
+        status: "healthy",
+        endpoint: "seo-cron",
+        lastRun: lastRun || null,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      return NextResponse.json(
+        { status: "unhealthy", endpoint: "seo-cron" },
+        { status: 503 },
+      );
+    }
+  }
+
   const task = searchParams.get("task") || "daily";
 
   const startTime = Date.now();

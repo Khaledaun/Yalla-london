@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
@@ -29,6 +29,31 @@ export async function GET(request: NextRequest) {
       { error: "Server misconfiguration" },
       { status: 503 },
     );
+  }
+
+  // Healthcheck mode — quick DB ping + last run status
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const { getAllSiteIds } = await import("@/config/sites");
+      const lastRun = await prisma.cronLog.findFirst({
+        where: { job_name: "seo-agent" },
+        orderBy: { started_at: "desc" },
+        select: { status: true, started_at: true, duration_ms: true },
+      });
+      return NextResponse.json({
+        status: "healthy",
+        endpoint: "seo-agent",
+        lastRun: lastRun || null,
+        sites: getAllSiteIds().length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      return NextResponse.json(
+        { status: "unhealthy", endpoint: "seo-agent" },
+        { status: 503 },
+      );
+    }
   }
 
   const _cronStart = Date.now();

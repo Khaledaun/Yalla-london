@@ -346,16 +346,41 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
               <CarouselItem key={item.id} className="pl-4 basis-full">
                 <motion.div variants={cardVariants}>
                   {/* ------------------------------------------------------ */}
-                  {/* Card                                                     */}
+                  {/* Card with animated tri-color border                      */}
                   {/* ------------------------------------------------------ */}
                   <article
                     className={cn(
-                      'rounded-2xl border overflow-hidden transition-shadow duration-300',
+                      'relative rounded-2xl overflow-hidden transition-shadow duration-300 group/card',
                       'bg-cream shadow-card hover:shadow-hover',
-                      'border-sand/60',
                       item.is_major && 'ring-1 ring-yalla-gold-400/50'
                     )}
+                    style={{
+                      border: '2px solid transparent',
+                      backgroundClip: 'padding-box',
+                    }}
                   >
+                    {/* Animated tri-color border overlay */}
+                    <div
+                      className="absolute inset-0 -z-10 rounded-2xl opacity-60 group-hover/card:opacity-100 transition-opacity duration-300"
+                      style={{
+                        margin: '-2px',
+                        background: 'conic-gradient(from var(--border-angle, 0deg), #C8322B, #C49A2A, #3B7EA1, #C8322B)',
+                        borderRadius: 'inherit',
+                        animation: 'rotateBorder 4s linear infinite',
+                      }}
+                    />
+                    <div className="absolute inset-0 rounded-2xl bg-cream" style={{ margin: '2px', zIndex: -1 }} />
+
+                    <style jsx>{`
+                      @property --border-angle {
+                        syntax: "<angle>";
+                        initial-value: 0deg;
+                        inherits: false;
+                      }
+                      @keyframes rotateBorder {
+                        to { --border-angle: 360deg; }
+                      }
+                    `}</style>
                     <div className="flex flex-col md:flex-row">
                       {/* Image section */}
                       {item.featured_image && (

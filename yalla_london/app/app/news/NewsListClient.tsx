@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useLanguage } from '@/components/language-provider'
 import { Newspaper, Train, Calendar, Lightbulb, Search, AlertTriangle } from 'lucide-react'
+import { FollowUs } from '@/components/follow-us'
 
 type NewsItem = {
   id: string
@@ -301,7 +302,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
               ? 'استكشف أدلتنا المتعمقة ومقالاتنا وتوصياتنا المنسقة لتحقيق أقصى استفادة من زيارتك للندن.'
               : 'Explore our in-depth guides, articles, and curated recommendations to make the most of your London visit.'}
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
             <Link
               href="/information"
               className={`px-6 py-3 bg-london-600 text-cream rounded font-mono text-[10px] font-semibold uppercase transition-all duration-200 hover:bg-london-700 ${isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'}`}
@@ -315,6 +316,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
               {isAr ? 'حكايات لندن' : 'London Stories'}
             </Link>
           </div>
+          <FollowUs variant="dark" showLabel={true} />
         </div>
       </section>
     </div>

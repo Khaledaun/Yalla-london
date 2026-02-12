@@ -311,7 +311,7 @@ export async function analyzeContentDiversity(
 
   // Count published posts by content type (stored in authority_links_json.contentType)
   const allPosts = await prisma.blogPost.findMany({
-    where: { published: true, deletedAt: null },
+    where: { published: true,  },
     select: {
       authority_links_json: true,
       tags: true,

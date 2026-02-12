@@ -158,7 +158,7 @@ async function resolveSpecificContent(
 
   if (contentType === 'blog_post' || contentType === 'all') {
     const posts = await prisma.blogPost.findMany({
-      where: { id: { in: ids }, deletedAt: null },
+      where: { id: { in: ids },  },
       select: { id: true, title_en: true },
     });
     results.push(
@@ -197,7 +197,7 @@ async function resolveFilteredContent(
 
   // Blog posts
   if (contentType === 'blog_post' || contentType === 'all') {
-    const where: Record<string, unknown> = { deletedAt: null };
+    const where: Record<string, unknown> = {  };
 
     if (filters.published_only) {
       where.published = true;

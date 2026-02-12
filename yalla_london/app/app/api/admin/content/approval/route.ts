@@ -168,7 +168,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const offset = (page - 1) * limit;
 
     // Build where clause
-    const where: Record<string, unknown> = { deletedAt: null };
+    const where: Record<string, unknown> = {  };
 
     if (author_id) {
       where.author_id = author_id;

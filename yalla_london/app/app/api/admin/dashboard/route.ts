@@ -135,7 +135,7 @@ export const GET = withTenantAuth(
         }),
         // Recent unpublished posts (ready to publish)
         db.blogPost.findMany({
-          where: { published: false, deletedAt: null },
+          where: { published: false,  },
           select: {
             id: true,
             title_en: true,

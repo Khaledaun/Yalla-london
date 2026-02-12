@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const posts = await prisma.blogPost.findMany({
       where: {
         published: true,
-        deletedAt: null,
+        
       },
       orderBy: { created_at: "desc" },
       take: limit,

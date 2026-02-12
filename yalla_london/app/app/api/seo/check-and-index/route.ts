@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     try {
       const { prisma } = await import("@/lib/db");
       const posts = await prisma.blogPost.findMany({
-        where: { published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
+        where: { published: true, ...(siteId ? { siteId } : {}) },
         select: { id: true, slug: true, title_en: true, created_at: true },
         orderBy: { created_at: "desc" },
       });

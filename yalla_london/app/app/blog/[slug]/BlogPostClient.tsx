@@ -6,9 +6,11 @@ import Link from 'next/link'
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
-import { Calendar, User, ArrowLeft, Share2, Heart, BookOpen } from 'lucide-react'
+import { Calendar, User, ArrowLeft, Heart, BookOpen } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { RelatedArticles, type RelatedArticleData } from '@/components/related-articles'
+import { ShareButtons } from '@/components/share-buttons'
+import { FollowUs } from '@/components/follow-us'
 
 interface BlogPostData {
   id: string;
@@ -56,24 +58,6 @@ export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostC
         month: 'long',
         day: 'numeric'
       })
-    }
-  }
-
-  const handleShare = async () => {
-    if (!post) return
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: language === 'en' ? post.title_en : post.title_ar,
-          text: language === 'en' ? post.excerpt_en : post.excerpt_ar,
-          url: window.location.href,
-        })
-      } catch (error) {
-        console.log('Error sharing:', error)
-      }
-    } else {
-      navigator.clipboard.writeText(window.location.href)
     }
   }
 
@@ -169,7 +153,7 @@ export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostC
                 </Link>
               </Button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
                   size="sm"
@@ -178,10 +162,10 @@ export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostC
                 >
                   <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleShare}>
-                  <Share2 className="h-4 w-4" />
-                  <span className="ml-2">{t('share')}</span>
-                </Button>
+                <ShareButtons
+                  title={language === 'en' ? post.title_en : post.title_ar}
+                  excerpt={language === 'en' ? post.excerpt_en : post.excerpt_ar}
+                />
               </div>
             </div>
 
@@ -196,9 +180,16 @@ export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostC
         </div>
       </section>
 
+      {/* Follow Us CTA */}
+      <section className="py-10 bg-cream border-t border-sand">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <FollowUs variant="light" />
+        </div>
+      </section>
+
       {/* Related Articles (Internal Backlinks) */}
       {relatedArticles.length > 0 && (
-        <section className="py-12 bg-cream">
+        <section className="py-12 bg-white">
           <div className="max-w-6xl mx-auto px-6">
             <RelatedArticles articles={relatedArticles} currentType="blog" />
           </div>

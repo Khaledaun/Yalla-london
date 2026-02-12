@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Search, Calendar, User, ArrowRight, Filter } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { FollowUs } from '@/components/follow-us'
 
 interface BlogPostData {
   id: string
@@ -231,6 +232,13 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
               </p>
             </motion.div>
           )}
+        </div>
+      </section>
+
+      {/* Follow Us */}
+      <section className="py-10 bg-charcoal">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <FollowUs variant="dark" showLabel={true} />
         </div>
       </section>
     </div>

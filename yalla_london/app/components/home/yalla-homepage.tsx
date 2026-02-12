@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { NewsCarousel } from '@/components/news-carousel'
+import { FollowUs } from '@/components/follow-us'
 
 interface YallaHomepageProps {
   locale?: 'en' | 'ar'
@@ -711,6 +712,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
       {/* ═══ BOTTOM TUBE DIVIDER ═══ */}
       <TubeTrainDivider />
+
+      {/* ═══ FOLLOW US ═══ */}
+      <section className="bg-charcoal py-12">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <FollowUs variant="dark" showLabel={true} />
+        </div>
+      </section>
     </div>
   )
 }

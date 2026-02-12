@@ -5,20 +5,14 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useLanguage } from './language-provider'
 import { getTranslation } from '@/lib/i18n'
-import { Instagram, Facebook, Twitter, Youtube, Mail, MapPin } from 'lucide-react'
+import { Mail, MapPin } from 'lucide-react'
+import { FollowUs } from './follow-us'
 
 export function Footer() {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
 
   const currentYear = new Date().getFullYear()
-
-  const socialLinks = [
-    { icon: Instagram, href: 'https://instagram.com/yallalondon', label: 'Instagram', labelAr: 'انستغرام' },
-    { icon: Facebook, href: 'https://facebook.com/yallalondon', label: 'Facebook', labelAr: 'فيسبوك' },
-    { icon: Twitter, href: 'https://twitter.com/yallalondon', label: 'Twitter', labelAr: 'تويتر' },
-    { icon: Youtube, href: 'https://youtube.com/yallalondon', label: 'YouTube', labelAr: 'يوتيوب' },
-  ]
 
   return (
     <footer className={`bg-charcoal text-cream-100 ${isRTL ? 'rtl' : 'ltr'}`}>
@@ -53,20 +47,7 @@ export function Footer() {
               }
             </p>
             {/* Social Links */}
-            <div className="flex items-center gap-2.5">
-              {socialLinks.map((social) => (
-                <a
-                  key={social.label}
-                  href={social.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-9 h-9 rounded bg-graphite hover:bg-yalla-gold-500 text-stone hover:text-charcoal flex items-center justify-center transition-all duration-200 hover:-translate-y-0.5"
-                  aria-label={language === 'ar' ? social.labelAr : social.label}
-                >
-                  <social.icon size={16} />
-                </a>
-              ))}
-            </div>
+            <FollowUs variant="dark" showLabel={false} size="sm" />
           </div>
 
           {/* Explore Links — Column header: Anybody 12px/700, Cream; Links: Source Serif 4 11px/300, Stone */}

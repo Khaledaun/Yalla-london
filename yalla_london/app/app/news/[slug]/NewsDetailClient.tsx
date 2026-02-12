@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useLanguage } from '@/components/language-provider'
@@ -9,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import {
   Calendar,
   ArrowLeft,
-  Share2,
   ExternalLink,
   Newspaper,
   Clock,
@@ -26,6 +24,8 @@ import {
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { RelatedArticles, type RelatedArticleData } from '@/components/related-articles'
+import { ShareButtons } from '@/components/share-buttons'
+import { FollowUs } from '@/components/follow-us'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -242,8 +242,6 @@ const DEFAULT_NEWS_IMAGE = '/images/london-news-default.jpg'
 export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDetailClientProps) {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
-  const [shareConfirm, setShareConfirm] = useState(false)
-
   const headline = language === 'en' ? item.headline_en : item.headline_ar
   const summary = language === 'en' ? item.summary_en : item.summary_ar
   const announcement = language === 'en' ? item.announcement_en : item.announcement_ar
@@ -259,24 +257,6 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
   const showUrgency = item.urgency === 'breaking' || item.urgency === 'urgent'
 
   const eventDateRange = formatDateRange(item.event_start_date, item.event_end_date, language)
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: headline,
-          text: announcement,
-          url: window.location.href,
-        })
-      } catch {
-        // User cancelled or share API unavailable
-      }
-    } else {
-      await navigator.clipboard.writeText(window.location.href)
-      setShareConfirm(true)
-      setTimeout(() => setShareConfirm(false), 2000)
-    }
-  }
 
   return (
     <div className={`${isRTL ? 'rtl' : 'ltr'}`}>
@@ -382,15 +362,10 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
                 </Link>
               </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleShare}
-                className="relative"
-              >
-                <Share2 className="h-4 w-4" />
-                <span className="ml-2">{shareConfirm ? (language === 'en' ? 'Copied!' : 'تم النسخ!') : t('share')}</span>
-              </Button>
+              <ShareButtons
+                title={headline}
+                excerpt={announcement}
+              />
             </div>
 
             {/* Event date range */}
@@ -499,6 +474,15 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
           </div>
         </section>
       )}
+
+      {/* ----------------------------------------------------------------- */}
+      {/* Follow Us */}
+      {/* ----------------------------------------------------------------- */}
+      <section className="py-10 bg-cream border-t border-sand">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <FollowUs variant="light" />
+        </div>
+      </section>
 
       {/* ----------------------------------------------------------------- */}
       {/* Bottom CTA / Back to News */}

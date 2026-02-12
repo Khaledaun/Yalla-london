@@ -166,6 +166,7 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: '/admin/login',
+    error: '/admin/login',
   },
   secret: process.env.NEXTAUTH_SECRET,
   events: {

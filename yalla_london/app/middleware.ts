@@ -181,11 +181,12 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/api/")
   ) {
     const origin = request.headers.get("origin");
-    // Allow cron/webhook routes without Origin (server-to-server calls)
+    // Allow cron/webhook/auth routes without Origin (server-to-server or NextAuth's own CSRF)
     const isInternalRoute =
       pathname.startsWith("/api/cron/") ||
       pathname.startsWith("/api/webhooks/") ||
-      pathname.startsWith("/api/internal/");
+      pathname.startsWith("/api/internal/") ||
+      pathname.startsWith("/api/auth/");
     if (!isInternalRoute) {
       if (!origin || !ALLOWED_ORIGINS.has(origin)) {
         return NextResponse.json(

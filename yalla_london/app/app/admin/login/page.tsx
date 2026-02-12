@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { signIn, getSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Lock, Mail, User, Shield } from 'lucide-react'
 
 export default function AdminLogin() {
@@ -16,9 +16,22 @@ export default function AdminLogin() {
   const [needsSetup, setNeedsSetup] = useState(false)
   const [checkingSetup, setCheckingSetup] = useState(true)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
-  // Check if initial setup is needed
+  // Check if initial setup is needed + handle NextAuth error redirects
   useEffect(() => {
+    // NextAuth redirects here with ?error= on auth failures
+    const authError = searchParams.get('error')
+    if (authError) {
+      const errorMessages: Record<string, string> = {
+        CredentialsSignin: 'Invalid email or password.',
+        Configuration: 'Server configuration error. Please contact support.',
+        AccessDenied: 'Access denied.',
+        Default: 'An authentication error occurred.',
+      }
+      setError(errorMessages[authError] || errorMessages.Default)
+    }
+
     async function checkSetup() {
       try {
         const res = await fetch('/api/admin/setup')
@@ -32,7 +45,7 @@ export default function AdminLogin() {
       }
     }
     checkSetup()
-  }, [])
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,17 +60,24 @@ export default function AdminLogin() {
       })
 
       if (result?.error) {
-        setError('Invalid email or password')
-      } else {
+        // Show the actual error type for debugging
+        if (result.error === 'CredentialsSignin') {
+          setError('Invalid email or password.')
+        } else {
+          setError(`Login error: ${result.error}`)
+        }
+      } else if (result?.ok) {
         const session = await getSession()
         if (session) {
           router.push('/admin')
         } else {
-          setError('Login failed. Please try again.')
+          setError('Login succeeded but session not found. Please try again.')
         }
+      } else {
+        setError('Login failed. Please try again.')
       }
-    } catch {
-      setError('An error occurred. Please try again.')
+    } catch (err) {
+      setError(`Connection error: ${err instanceof Error ? err.message : 'Please try again.'}`)
     } finally {
       setIsLoading(false)
     }

@@ -35,19 +35,15 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] gap-10 mb-8">
           {/* Brand Column (2fr) */}
           <div>
-            {/* Logo — stacked SVG, scale 0.7 per v2 spec */}
+            {/* Logo — v2 stacked SVG (dark variant for dark bg), scale 0.7 */}
             <div className="mb-5">
               <Image
-                src="/images/yalla-london-logo-white.svg"
-                alt="Yalla London"
-                width={140}
-                height={25}
-                className="h-auto w-[140px] mb-2"
+                src="/branding/yalla-london/brand-kit/01-logos-svg/yalla-stacked-dark.svg"
+                alt="Yalla London — يلّا لندن"
+                width={220}
+                height={130}
+                className="h-auto w-[154px] mb-2"
               />
-              {/* Arabic tagline — IBM Plex Sans Arabic 12px/400, Stone */}
-              <p className={`text-stone text-xs font-normal ${isRTL ? 'font-arabic' : ''}`}>
-                {language === 'en' ? 'Your Luxury London Guide' : 'دليلك الفاخر إلى لندن'}
-              </p>
             </div>
             {/* Description — Source Serif 4, 12px, weight 300, Stone */}
             <p className="font-editorial text-xs font-light text-stone leading-relaxed mb-5 max-w-sm">

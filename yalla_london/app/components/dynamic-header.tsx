@@ -45,13 +45,13 @@ export function DynamicHeader() {
 
       <div className="max-w-7xl mx-auto px-5 sm:px-7">
         <div className="flex justify-between items-center py-3.5">
-          {/* Logo — 90px wide per v2 spec */}
+          {/* Logo — v2 brand kit wordmark, 90px wide */}
           <Link href="/" className="flex items-center group">
             <Image
-              src="/images/yalla-london-logo.svg"
+              src="/branding/yalla-london/brand-kit/01-logos-svg/yalla-wordmark-dark.svg"
               alt="Yalla London"
-              width={90}
-              height={16}
+              width={200}
+              height={36}
               className="h-auto w-[90px] transition-opacity group-hover:opacity-80"
               priority
             />
@@ -166,7 +166,14 @@ export function DynamicHeader() {
             </div>
 
             {/* Arabic wordmark + tri-bar below mobile nav per v2 spec */}
-            <div className="pt-4 px-4">
+            <div className="pt-4 px-4 flex flex-col items-center gap-3">
+              <Image
+                src="/branding/yalla-london/brand-kit/01-logos-svg/yalla-arabic-dark.svg"
+                alt="يلّا لندن"
+                width={120}
+                height={30}
+                className="h-auto w-[80px] opacity-40"
+              />
               <div className="flex h-[3px] w-full rounded-full overflow-hidden">
                 <div className="flex-1 bg-london-600" />
                 <div className="flex-1 bg-yalla-gold-500" />

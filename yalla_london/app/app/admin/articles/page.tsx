@@ -138,24 +138,32 @@ export default function ArticlesPage() {
       try {
         setLoading(true)
         setError(null)
-        
+
         const params = new URLSearchParams({
           limit: '100', // Get all articles for admin view
           status: selectedStatus === 'all' ? '' : selectedStatus,
           category: selectedCategory === 'all' ? '' : selectedCategory,
           search: searchQuery
         })
-        
+
         // Remove empty parameters
         const cleanParams = new URLSearchParams()
         for (const [key, value] of params.entries()) {
           if (value) cleanParams.set(key, value)
         }
-        
+
         const response = await fetch(`/api/admin/content?${cleanParams}`)
-        const data = await response.json()
-        
-        if (data.success) {
+
+        // Auth failures — show empty list, not an error
+        if (response.status === 401 || response.status === 403) {
+          setArticles([])
+          setLoading(false)
+          return
+        }
+
+        const data = await response.json().catch(() => null)
+
+        if (data?.success) {
           setArticles(data.data)
           // Extract unique categories
           const uniqueCategories = Array.from(new Set(
@@ -163,7 +171,9 @@ export default function ArticlesPage() {
           )) as string[]
           setCategories(uniqueCategories)
         } else {
-          throw new Error(data.error || 'Failed to fetch articles')
+          // Non-auth API error — show empty state instead of crashing
+          console.warn('Articles API error:', data?.error)
+          setArticles([])
         }
       } catch (err) {
         console.error('Error fetching articles:', err)

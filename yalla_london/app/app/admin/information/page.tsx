@@ -149,13 +149,22 @@ export default function InformationHubAdmin() {
       setSectionsLoading(true);
       setSectionsError(null);
       const response = await fetch('/api/information/sections');
-      const data = await response.json();
 
-      if (data.success) {
+      // Auth failures — show empty state, not error
+      if (response.status === 401 || response.status === 403) {
+        setSections([]);
+        setSectionsLoading(false);
+        return;
+      }
+
+      const data = await response.json().catch(() => null);
+
+      if (data?.success) {
         setSections(data.data);
         setSummary(data.summary);
       } else {
-        throw new Error(data.error || 'Failed to fetch sections');
+        console.warn('Sections API error:', data?.error);
+        setSections([]);
       }
     } catch (err) {
       console.error('Error fetching sections:', err);
@@ -177,12 +186,21 @@ export default function InformationHubAdmin() {
       if (searchQuery) params.set('search', searchQuery);
 
       const response = await fetch(`/api/information?${params}`);
-      const data = await response.json();
 
-      if (data.success) {
+      // Auth failures — show empty state, not error
+      if (response.status === 401 || response.status === 403) {
+        setArticles([]);
+        setArticlesLoading(false);
+        return;
+      }
+
+      const data = await response.json().catch(() => null);
+
+      if (data?.success) {
         setArticles(data.data);
       } else {
-        throw new Error(data.error || 'Failed to fetch articles');
+        console.warn('Articles API error:', data?.error);
+        setArticles([]);
       }
     } catch (err) {
       console.error('Error fetching articles:', err);

@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, CheckCircle, XCircle, AlertCircle, Clock } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, AlertCircle, Clock, MinusCircle } from 'lucide-react';
 
 interface SyncStatus {
-  status: 'connected' | 'disconnected' | 'error' | 'checking';
+  status: 'connected' | 'disconnected' | 'error' | 'checking' | 'standby';
   lastSync: string | null;
   latency: number | null;
   error?: string;
@@ -37,22 +37,39 @@ export function SyncStatusIndicator() {
   const checkSyncStatus = async () => {
     try {
       setSyncStatus(prev => ({ ...prev, status: 'checking' }));
-      
+
       const startTime = Date.now();
       const response = await fetch('/api/admin/sync-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'verify-sync', contentType: 'blog' })
       });
-      
+
       const latency = Date.now() - startTime;
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
+
+      // Auth failures — show neutral standby state, not an error
+      if (response.status === 401 || response.status === 403) {
+        setSyncStatus({
+          status: 'standby',
+          lastSync: null,
+          latency: null,
+        });
+        return;
+      }
+
+      const data = await response.json().catch(() => null);
+
+      if (response.ok && data?.success) {
         setSyncStatus({
           status: 'connected',
           lastSync: new Date().toISOString(),
           latency
+        });
+      } else if (!data) {
+        setSyncStatus({
+          status: 'standby',
+          lastSync: null,
+          latency: null,
         });
       } else {
         setSyncStatus({
@@ -75,17 +92,26 @@ export function SyncStatusIndicator() {
   const runFullSyncTest = async () => {
     setIsRunningTests(true);
     setTestResults([]);
-    
+
     try {
       const response = await fetch('/api/admin/sync-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'create-test-content', contentType: 'blog' })
       });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
+
+      // Auth failures — friendly message
+      if (response.status === 401 || response.status === 403) {
+        setTestResults([
+          { test: 'Authentication', success: false, message: 'Sign in required to run sync tests' }
+        ]);
+        setIsRunningTests(false);
+        return;
+      }
+
+      const data = await response.json().catch(() => null);
+
+      if (response.ok && data) {
         setTestResults([
           { test: 'Database Connection', success: true, message: 'Connected successfully' },
           { test: 'Admin API', success: true, message: 'Admin API responding' },
@@ -93,7 +119,7 @@ export function SyncStatusIndicator() {
           { test: 'Cache Invalidation', success: true, message: 'Cache invalidation working' },
           { test: 'Real-Time Sync', success: true, message: 'Changes appear on public site immediately' }
         ]);
-        
+
         setSyncStatus({
           status: 'connected',
           lastSync: new Date().toISOString(),
@@ -101,7 +127,7 @@ export function SyncStatusIndicator() {
         });
       } else {
         setTestResults([
-          { test: 'Sync Test', success: false, message: 'Test failed', error: data.error }
+          { test: 'Sync Test', success: false, message: 'Test failed', error: data?.error }
         ]);
       }
     } catch (error) {
@@ -121,6 +147,8 @@ export function SyncStatusIndicator() {
         return <XCircle className="h-5 w-5 text-red-500" />;
       case 'error':
         return <AlertCircle className="h-5 w-5 text-yellow-500" />;
+      case 'standby':
+        return <MinusCircle className="h-5 w-5 text-gray-400" />;
       case 'checking':
         return <Clock className="h-5 w-5 text-blue-500 animate-spin" />;
     }
@@ -134,6 +162,8 @@ export function SyncStatusIndicator() {
         return <Badge variant="destructive">Disconnected</Badge>;
       case 'error':
         return <Badge variant="secondary" className="bg-yellow-500">Error</Badge>;
+      case 'standby':
+        return <Badge variant="outline" className="text-gray-500">Standby</Badge>;
       case 'checking':
         return <Badge variant="outline">Checking...</Badge>;
     }
@@ -142,9 +172,9 @@ export function SyncStatusIndicator() {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
           {getStatusIcon()}
-          Admin Dashboard Sync Status
+          Sync Status
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -159,7 +189,7 @@ export function SyncStatusIndicator() {
                 Last sync: {new Date(syncStatus.lastSync).toLocaleString()}
               </p>
             )}
-            {syncStatus.latency && (
+            {syncStatus.latency != null && syncStatus.latency > 0 && (
               <p className="text-xs text-muted-foreground">
                 Latency: {syncStatus.latency}ms
               </p>
@@ -167,6 +197,11 @@ export function SyncStatusIndicator() {
             {syncStatus.error && (
               <p className="text-xs text-red-500">
                 Error: {syncStatus.error}
+              </p>
+            )}
+            {syncStatus.status === 'standby' && (
+              <p className="text-xs text-gray-500">
+                Sync checks available after sign-in
               </p>
             )}
           </div>
@@ -200,7 +235,7 @@ export function SyncStatusIndicator() {
               )}
             </Button>
           </div>
-          
+
           {testResults.length > 0 && (
             <div className="space-y-2">
               {testResults.map((result, index) => (
@@ -225,13 +260,12 @@ export function SyncStatusIndicator() {
         <div className="text-xs text-muted-foreground bg-muted p-3 rounded">
           <strong>What this means:</strong>
           <ul className="mt-1 space-y-1">
-            <li>• <strong>Connected:</strong> Changes in admin dashboard appear immediately on public website</li>
-            <li>• <strong>Disconnected:</strong> Changes are saved but may not appear on public website immediately</li>
-            <li>• <strong>Error:</strong> There's an issue with the sync system that needs attention</li>
+            <li>&#8226; <strong>Connected:</strong> Changes in admin appear immediately on public site</li>
+            <li>&#8226; <strong>Standby:</strong> Sign in to enable sync status checks</li>
+            <li>&#8226; <strong>Disconnected:</strong> Changes are saved but may not appear immediately</li>
           </ul>
         </div>
       </CardContent>
     </Card>
   );
 }
-

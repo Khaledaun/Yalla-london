@@ -64,6 +64,10 @@ export function SyncTestTool() {
         })
       });
 
+      if (createResponse.status === 401 || createResponse.status === 403) {
+        throw new Error('Sign in required to run sync tests');
+      }
+
       if (!createResponse.ok) {
         throw new Error(`Failed to create test content: ${createResponse.status}`);
       }
@@ -99,6 +103,10 @@ export function SyncTestTool() {
           }
         })
       });
+
+      if (verifyResponse.status === 401 || verifyResponse.status === 403) {
+        throw new Error('Sign in required to verify sync');
+      }
 
       if (!verifyResponse.ok) {
         throw new Error(`Sync verification failed: ${verifyResponse.status}`);

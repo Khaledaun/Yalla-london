@@ -459,7 +459,7 @@ export async function autoOptimizeLowCTRMeta(
       where: {
         slug: page.slug,
         published: true,
-        deletedAt: null,
+        
       },
       select: {
         id: true,
@@ -565,7 +565,7 @@ export async function submitUnindexedPages(
   try {
     // Get all published posts
     const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null },
+      where: { published: true,  },
       select: { slug: true, created_at: true },
       orderBy: { created_at: "desc" },
     });
@@ -656,7 +656,7 @@ export async function flagContentForStrengthening(
         where: {
           slug: page.slug,
           published: true,
-          deletedAt: null,
+          
         },
         select: {
           id: true,

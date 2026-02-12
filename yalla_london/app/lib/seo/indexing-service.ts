@@ -573,7 +573,7 @@ export async function getAllIndexableUrls(): Promise<string[]> {
   try {
     const { prisma } = await import("@/lib/db");
     const dbPosts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null },
+      where: { published: true,  },
       select: { slug: true },
     });
     for (const post of dbPosts) {
@@ -604,7 +604,7 @@ export async function getNewUrls(withinDays: number = 7): Promise<string[]> {
     const dbPosts = await prisma.blogPost.findMany({
       where: {
         published: true,
-        deletedAt: null,
+        
         created_at: { gte: cutoffDate },
       },
       select: { slug: true },
@@ -642,7 +642,7 @@ export async function getUpdatedUrls(
     const dbPosts = await prisma.blogPost.findMany({
       where: {
         published: true,
-        deletedAt: null,
+        
         updated_at: { gte: cutoffDate },
       },
       select: { slug: true },

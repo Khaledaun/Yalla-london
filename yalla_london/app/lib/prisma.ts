@@ -7,8 +7,11 @@
 
 import { PrismaClient } from "@prisma/client";
 
-// Models that support soft delete (have a deletedAt column)
-const SOFT_DELETE_MODELS = ["User", "BlogPost", "MediaAsset"];
+// Models that support soft delete (have a deletedAt column).
+// IMPORTANT: Keep empty until `prisma migrate deploy` adds the deletedAt
+// column to the production database. The column exists in schema.prisma but
+// hasn't been migrated yet. Re-enable: ["User", "BlogPost", "MediaAsset"]
+const SOFT_DELETE_MODELS: string[] = [];
 
 // Query actions that should respect soft delete filtering
 const SOFT_DELETE_ACTIONS = [

@@ -95,23 +95,41 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
   // 1. CHECK CONTENT GENERATION STATUS
   report.contentStatus = await checkContentGeneration(prisma, issues, siteId);
 
+  // ── DB Circuit Breaker ────────────────────────────────────────────
+  // If the database is unreachable, skip all DB-dependent operations
+  // to prevent cascading errors from every subsequent query.
+  const dbAvailable = report.contentStatus?.status !== "db_unavailable";
+  if (!dbAvailable) {
+    issues.push("DATABASE UNAVAILABLE — skipping DB-dependent checks for this site");
+  }
+
   // 2. AUDIT ALL PUBLISHED BLOG POSTS
-  report.blogAudit = await auditBlogPosts(prisma, issues, fixes, siteId);
+  report.blogAudit = dbAvailable
+    ? await auditBlogPosts(prisma, issues, fixes, siteId)
+    : { totalPosts: 0, averageSEOScore: 0, postsWithIssues: 0, topIssues: [] };
 
   // 3. CHECK INDEXING STATUS
-  report.indexingStatus = await checkIndexingStatus(prisma, issues, siteUrl, siteId);
+  report.indexingStatus = dbAvailable
+    ? await checkIndexingStatus(prisma, issues, siteUrl, siteId)
+    : { status: "db_unavailable", checkedUrls: 0 };
 
   // 4. SUBMIT NEW URLS TO SEARCH ENGINES
-  report.urlSubmissions = await submitNewUrls(prisma, fixes, siteUrl, siteId);
+  report.urlSubmissions = dbAvailable
+    ? await submitNewUrls(prisma, fixes, siteUrl, siteId)
+    : { submitted: 0, error: "Database unavailable" };
 
-  // 5. VERIFY SITEMAP HEALTH
+  // 5. VERIFY SITEMAP HEALTH (no DB needed)
   report.sitemapHealth = await verifySitemapHealth(issues, siteUrl);
 
   // 6. CHECK FOR CONTENT GAPS
-  report.contentGaps = await detectContentGaps(prisma, issues, siteId);
+  report.contentGaps = dbAvailable
+    ? await detectContentGaps(prisma, issues, siteId)
+    : { categoryGaps: [], enPosts: 0, arPosts: 0 };
 
   // 7. AUTO-FIX SEO ISSUES WHERE POSSIBLE
-  report.autoFixes = await autoFixSEOIssues(prisma, issues, fixes, siteId);
+  report.autoFixes = dbAvailable
+    ? await autoFixSEOIssues(prisma, issues, fixes, siteId)
+    : { metaTitles: 0, metaDescriptions: 0, slugs: 0 };
 
   // ====================================================
   // 8. ANALYZE REAL GSC SEARCH PERFORMANCE
@@ -193,7 +211,6 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       const postsWithoutSchema = await prisma.blogPost.findMany({
         where: {
           published: true,
-          deletedAt: null,
           ...siteFilter,
           OR: [
             { authority_links_json: { equals: null } },
@@ -268,7 +285,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       // Generate proposals from GSC data (if available) then apply diversity quotas
       if (searchData) {
         const existingPosts = await prisma.blogPost.findMany({
-          where: { published: true, deletedAt: null, ...siteFilter },
+          where: { published: true, ...siteFilter },
           select: { slug: true },
         });
         const existingSlugs = existingPosts.map((p: any) => p.slug);
@@ -440,7 +457,7 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
   const blogSiteFilter = siteId ? { siteId } : {};
   try {
     const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null, ...blogSiteFilter },
+      where: { published: true, ...blogSiteFilter },
       select: {
         id: true,
         title_en: true,
@@ -595,7 +612,7 @@ async function checkIndexingStatus(
 
   try {
     const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null, ...blogSiteFilter },
+      where: { published: true, ...blogSiteFilter },
       select: { slug: true, created_at: true },
       orderBy: { created_at: "desc" },
       take: 20,
@@ -638,7 +655,6 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
     const newPosts = await prisma.blogPost.findMany({
       where: {
         published: true,
-        deletedAt: null,
         created_at: { gte: oneDayAgo },
         ...blogSiteFilter,
       },
@@ -739,7 +755,7 @@ async function detectContentGaps(prisma: any, issues: string[], siteId?: string)
     const categories = await prisma.category.findMany({
       include: {
         posts: {
-          where: { published: true, deletedAt: null },
+          where: { published: true },
           orderBy: { created_at: "desc" },
           take: 1,
           select: { created_at: true },
@@ -766,10 +782,10 @@ async function detectContentGaps(prisma: any, issues: string[], siteId?: string)
     // Check language balance
     const siteFilterForPosts = siteId ? { siteId } : {};
     const enPosts = await prisma.blogPost.count({
-      where: { published: true, content_en: { not: "" }, deletedAt: null, ...siteFilterForPosts },
+      where: { published: true, content_en: { not: "" }, ...siteFilterForPosts },
     });
     const arPosts = await prisma.blogPost.count({
-      where: { published: true, content_ar: { not: "" }, deletedAt: null, ...siteFilterForPosts },
+      where: { published: true, content_ar: { not: "" }, ...siteFilterForPosts },
     });
 
     if (arPosts < enPosts * 0.5) {
@@ -801,8 +817,7 @@ async function autoFixSEOIssues(
     const postsWithoutMeta = await prisma.blogPost.findMany({
       where: {
         published: true,
-        deletedAt: null,
-        ...blogSiteFilter,
+               ...blogSiteFilter,
         OR: [{ meta_title_en: null }, { meta_title_en: "" }],
       },
       select: { id: true, title_en: true, title_ar: true, excerpt_en: true },
@@ -953,8 +968,7 @@ async function queueContentRewrites(
   const postsToRewrite = await prisma.blogPost.findMany({
     where: {
       published: true,
-      deletedAt: null,
-      ...blogSiteFilter,
+           ...blogSiteFilter,
       slug: { in: candidateSlugs },
       created_at: { lt: thirtyDaysAgo },
     },

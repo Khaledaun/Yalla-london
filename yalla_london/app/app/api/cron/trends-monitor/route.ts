@@ -66,6 +66,29 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Healthcheck mode — quick DB ping + last run status
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    try {
+      const lastRun = await prisma.seoReport.findFirst({
+        where: { reportType: "trends-monitor" },
+        orderBy: { createdAt: "desc" },
+        select: { status: true, createdAt: true },
+      });
+      return NextResponse.json({
+        status: "healthy",
+        endpoint: "trends-monitor",
+        lastRun: lastRun || null,
+        monitoredKeywords: MONITORED_KEYWORDS.length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      return NextResponse.json(
+        { status: "unhealthy", endpoint: "trends-monitor" },
+        { status: 503 },
+      );
+    }
+  }
+
   const _cronStart = Date.now();
 
   try {

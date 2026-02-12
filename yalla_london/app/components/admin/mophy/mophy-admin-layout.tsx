@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -50,6 +50,8 @@ import {
   BookOpen,
   Newspaper,
   ShieldCheck,
+  Edit3,
+  Home,
 } from 'lucide-react'
 
 // MOPHY-styled Navigation Structure
@@ -231,6 +233,15 @@ const mainNavigation = [
   },
 ]
 
+// Mobile bottom nav — the five most essential admin sections
+const mobileBottomNav = [
+  { label: 'Home', icon: Home, href: '/admin' },
+  { label: 'Content', icon: FileText, href: '/admin/articles' },
+  { label: 'New', icon: Plus, href: '/admin/articles/new', primary: true },
+  { label: 'SEO', icon: TrendingUp, href: '/admin/seo' },
+  { label: 'More', icon: Menu, href: '__menu__' },
+]
+
 interface MophyAdminLayoutProps {
   children: React.ReactNode
   pageTitle?: string
@@ -256,6 +267,13 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
     })
   }, [pathname])
 
+  // Auto-close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false)
+    setUserMenuOpen(false)
+    setChatboxOpen(false)
+  }, [pathname])
+
   const toggleMenu = (menuId: string) => {
     setExpandedMenus(prev =>
       prev.includes(menuId)
@@ -270,6 +288,8 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
     return item.children?.some(child => isActive(child.href))
   }
 
+  const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
+
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/admin/login' })
   }
@@ -283,15 +303,14 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
 
   return (
     <div className={`min-h-screen font-inter ${darkMode ? 'dark' : ''}`}>
-      {/* Preloader would go here in production */}
-
       <div id="main-wrapper" className="show">
-        {/* Nav Header (Logo Area) */}
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {/* Nav Header (Logo Area) — hidden on mobile, shown on lg+ */}
+        {/* ──────────────────────────────────────────────────────────────── */}
         <div className={`
           fixed top-0 left-0 z-50 h-16 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800
-          transition-all duration-300
+          transition-all duration-300 hidden lg:block
           ${sidebarOpen ? 'w-64' : 'w-20'}
-          ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}>
           <div className="h-full flex items-center justify-between px-4">
             <Link href="/admin" className="flex items-center gap-3">
@@ -304,46 +323,197 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
                 </span>
               )}
             </Link>
-
-            {/* Hamburger */}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
             >
               <Menu size={18} className="text-gray-500" />
             </button>
           </div>
         </div>
 
-        {/* Chatbox Panel */}
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {/* Chatbox / Notifications Panel */}
+        {/* ──────────────────────────────────────────────────────────────── */}
         {chatboxOpen && (
-          <div className="fixed right-0 top-0 h-full w-80 bg-white dark:bg-slate-900 shadow-2xl z-50 border-l border-gray-200 dark:border-slate-700">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
-              <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
-              <button onClick={() => setChatboxOpen(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded">
-                <X size={18} />
-              </button>
+          <>
+            <div className="fixed inset-0 z-40 bg-black/30 lg:bg-transparent" onClick={() => setChatboxOpen(false)} />
+            <div className="fixed right-0 top-0 h-full w-80 max-w-[90vw] bg-white dark:bg-slate-900 shadow-2xl z-50 border-l border-gray-200 dark:border-slate-700">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
+                <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                <button onClick={() => setChatboxOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="p-4 space-y-3 overflow-y-auto max-h-[calc(100vh-5rem)]">
+                {notifications.map(notif => (
+                  <div key={notif.id} className="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{notif.title}</p>
+                    <p className="text-xs text-gray-500 mt-1">{notif.time}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="p-4 space-y-3">
-              {notifications.map(notif => (
-                <div key={notif.id} className="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{notif.title}</p>
-                  <p className="text-xs text-gray-500 mt-1">{notif.time}</p>
+          </>
+        )}
+
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {/* Mobile Sidebar Overlay + Slide-in Panel */}
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/50" onClick={closeMobileMenu} />
+
+            {/* Sidebar panel */}
+            <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-white dark:bg-slate-900 shadow-2xl flex flex-col overflow-hidden animate-slide-in-left">
+              {/* Header with close + brand */}
+              <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 dark:border-slate-800">
+                <Link href="/admin" className="flex items-center gap-3" onClick={closeMobileMenu}>
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/30">
+                    <span className="text-white font-bold text-lg">Y</span>
+                  </div>
+                  <span className="text-lg font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                    Yalla Admin
+                  </span>
+                </Link>
+                <button
+                  onClick={closeMobileMenu}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                  aria-label="Close menu"
+                >
+                  <X size={20} className="text-gray-500" />
+                </button>
+              </div>
+
+              {/* User info (mobile) */}
+              <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/20">
+                    <span className="text-white text-sm font-semibold">
+                      {session?.user?.name?.charAt(0) || 'A'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {session?.user?.name || 'Admin'}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {session?.user?.email || 'admin@yallalondon.com'}
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
+              </div>
+
+              {/* Scrollable Navigation */}
+              <nav className="flex-1 overflow-y-auto py-3 px-3 overscroll-contain">
+                <ul className="space-y-0.5">
+                  {mainNavigation.map((item) => {
+                    const Icon = item.icon
+                    const isExpanded = expandedMenus.includes(item.id)
+                    const active = isMenuActive(item)
+
+                    return (
+                      <li key={item.id}>
+                        <button
+                          onClick={() => item.children ? toggleMenu(item.id) : null}
+                          className={`
+                            w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all
+                            ${active
+                              ? 'bg-gradient-to-r from-primary/10 to-purple-500/10 text-primary dark:text-primary'
+                              : 'text-gray-600 dark:text-gray-400 active:bg-gray-100 dark:active:bg-slate-800'
+                            }
+                          `}
+                        >
+                          <div className={`
+                            w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-all
+                            ${active
+                              ? 'bg-gradient-to-br from-primary to-purple-600 text-white shadow-lg shadow-primary/30'
+                              : 'bg-gray-100 dark:bg-slate-800 text-gray-500'
+                            }
+                          `}>
+                            <Icon size={18} />
+                          </div>
+                          <span className="flex-1 text-left">{item.label}</span>
+                          {item.badge && (
+                            <span className={`
+                              px-2 py-0.5 text-xs font-medium rounded-full
+                              ${item.badge === 'AI' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' : ''}
+                              ${item.badge === 'CMS' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : ''}
+                              ${item.badge === 'New' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : ''}
+                              ${item.badge === 'Pro' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' : ''}
+                              ${item.badge === 'Ops' ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400' : ''}
+                              ${item.badge === 'Live' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : ''}
+                              ${item.badge === 'Agent' ? 'bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400' : ''}
+                              ${item.badge === 'Guide' ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' : ''}
+                            `}>
+                              {item.badge}
+                            </span>
+                          )}
+                          {item.children && (
+                            <ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                          )}
+                        </button>
+
+                        {/* Submenu */}
+                        {item.children && isExpanded && (
+                          <ul className="mt-1 ml-12 space-y-0.5">
+                            {item.children.map((child) => (
+                              <li key={child.href + child.label}>
+                                <Link
+                                  href={child.href}
+                                  onClick={closeMobileMenu}
+                                  className={`
+                                    block px-3 py-2.5 text-sm rounded-lg transition-all
+                                    ${isActive(child.href)
+                                      ? 'text-primary font-medium bg-primary/5'
+                                      : 'text-gray-500 dark:text-gray-400 active:bg-gray-50 dark:active:bg-slate-800'
+                                    }
+                                  `}
+                                >
+                                  {child.label}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </nav>
+
+              {/* Bottom actions */}
+              <div className="p-4 border-t border-gray-100 dark:border-slate-800 space-y-2">
+                <Link
+                  href="/admin/articles/new"
+                  onClick={closeMobileMenu}
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-primary to-purple-600 text-white rounded-lg font-medium text-sm shadow-lg shadow-primary/30 active:shadow-sm transition-all"
+                >
+                  <Plus size={18} />
+                  New Article
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-medium transition-all"
+                >
+                  <LogOut size={16} />
+                  Sign out
+                </button>
+              </div>
+            </aside>
           </div>
         )}
 
-        {/* Sidebar */}
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {/* Desktop Sidebar (lg+) */}
+        {/* ──────────────────────────────────────────────────────────────── */}
         <aside className={`
           fixed top-16 left-0 z-40 h-[calc(100vh-4rem)] bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800
-          transition-all duration-300 overflow-hidden
+          transition-all duration-300 overflow-hidden hidden lg:block
           ${sidebarOpen ? 'w-64' : 'w-20'}
-          ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}>
           <div className="h-full flex flex-col">
-            {/* Scrollable Navigation */}
             <nav className="flex-1 overflow-y-auto py-4 px-3 scrollbar-thin">
               <ul className="space-y-1">
                 {mainNavigation.map((item) => {
@@ -397,7 +567,6 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
                         )}
                       </button>
 
-                      {/* Submenu */}
                       {item.children && isExpanded && sidebarOpen && (
                         <ul className="mt-1 ml-12 space-y-1">
                           {item.children.map((child) => (
@@ -424,7 +593,6 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
               </ul>
             </nav>
 
-            {/* Bottom Actions */}
             {sidebarOpen && (
               <div className="p-4 border-t border-gray-100 dark:border-slate-800">
                 <Link
@@ -439,33 +607,46 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
           </div>
         </aside>
 
+        {/* ──────────────────────────────────────────────────────────────── */}
         {/* Top Header */}
+        {/* ──────────────────────────────────────────────────────────────── */}
         <header className={`
-          fixed top-0 right-0 z-40 h-16 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800
-          transition-all duration-300
-          ${sidebarOpen ? 'left-64' : 'left-20'}
-          max-lg:left-0
+          fixed top-0 right-0 z-40 h-14 lg:h-16 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800
+          transition-all duration-300 left-0
+          ${sidebarOpen ? 'lg:left-64' : 'lg:left-20'}
         `}>
-          <div className="h-full px-4 lg:px-6 flex items-center justify-between">
+          <div className="h-full px-3 lg:px-6 flex items-center justify-between">
             {/* Left Side */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 lg:gap-4 min-w-0">
+              {/* Mobile hamburger */}
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg"
+                className="lg:hidden p-2.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg flex-shrink-0"
+                aria-label="Open menu"
               >
-                <Menu size={20} className="text-gray-500" />
+                <Menu size={22} className="text-gray-700 dark:text-gray-300" />
               </button>
 
-              {/* Site Selector - Multi-site support */}
-              <SiteSelector />
+              {/* Brand mark (mobile only) */}
+              <Link href="/admin" className="lg:hidden flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-sm flex-shrink-0">
+                  <span className="text-white font-bold text-sm">Y</span>
+                </div>
+                <span className="text-sm font-bold text-gray-900 dark:text-white truncate">Yalla</span>
+              </Link>
+
+              {/* Site Selector */}
+              <div className="hidden sm:block">
+                <SiteSelector />
+              </div>
 
               {pageTitle && (
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-white hidden sm:block">
+                <h1 className="text-lg font-semibold text-gray-900 dark:text-white hidden md:block truncate">
                   {pageTitle}
                 </h1>
               )}
 
-              {/* Search */}
+              {/* Desktop Search */}
               <div className="hidden lg:flex items-center">
                 <div className="relative">
                   <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -482,26 +663,26 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
             </div>
 
             {/* Right Side */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 lg:gap-2 flex-shrink-0">
               {/* Theme Toggle */}
               <button
                 onClick={() => setDarkMode(!darkMode)}
-                className="p-2.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+                className="p-2 lg:p-2.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-all"
               >
-                {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                {darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
 
               {/* Notifications */}
               <button
                 onClick={() => setChatboxOpen(!chatboxOpen)}
-                className="relative p-2.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+                className="relative p-2 lg:p-2.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-all"
               >
-                <Bell size={20} />
-                <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
+                <Bell size={18} />
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
               </button>
 
-              {/* User Menu */}
-              <div className="relative">
+              {/* User Menu (desktop) */}
+              <div className="relative hidden sm:block">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-all"
@@ -511,13 +692,13 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
                       {session?.user?.name?.charAt(0) || 'A'}
                     </span>
                   </div>
-                  <div className="hidden sm:block text-left">
+                  <div className="hidden md:block text-left">
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
                       {session?.user?.name || 'Admin'}
                     </p>
                     <p className="text-xs text-gray-500">Administrator</p>
                   </div>
-                  <ChevronDown size={16} className="text-gray-400 hidden sm:block" />
+                  <ChevronDown size={16} className="text-gray-400 hidden md:block" />
                 </button>
 
                 {userMenuOpen && (
@@ -559,25 +740,84 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
           </div>
         </header>
 
-        {/* Mobile Overlay */}
-        {mobileMenuOpen && (
-          <div
-            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-        )}
-
+        {/* ──────────────────────────────────────────────────────────────── */}
         {/* Main Content */}
+        {/* ──────────────────────────────────────────────────────────────── */}
         <main className={`
-          min-h-screen pt-16 transition-all duration-300
+          min-h-screen pt-14 lg:pt-16 pb-20 lg:pb-0 transition-all duration-300
           ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}
           bg-gray-50 dark:bg-slate-950
         `}>
-          <div className="p-4 lg:p-6">
+          <div className="p-3 sm:p-4 lg:p-6">
             {children}
           </div>
         </main>
+
+        {/* ──────────────────────────────────────────────────────────────── */}
+        {/* Mobile Bottom Navigation Bar (lg:hidden) */}
+        {/* ──────────────────────────────────────────────────────────────── */}
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 lg:hidden safe-area-bottom">
+          <div className="flex items-center justify-around h-16">
+            {mobileBottomNav.map((item) => {
+              const Icon = item.icon
+              const isTrigger = item.href === '__menu__'
+              const active = !isTrigger && isActive(item.href)
+
+              if (isTrigger) {
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => setMobileMenuOpen(true)}
+                    className="flex flex-col items-center justify-center gap-0.5 w-16 h-full text-gray-400"
+                  >
+                    <Icon size={20} />
+                    <span className="text-[10px] font-medium">{item.label}</span>
+                  </button>
+                )
+              }
+
+              if (item.primary) {
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="flex items-center justify-center w-12 h-12 -mt-4 rounded-full bg-gradient-to-br from-primary to-purple-600 text-white shadow-lg shadow-primary/30"
+                  >
+                    <Icon size={22} />
+                  </Link>
+                )
+              }
+
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={`flex flex-col items-center justify-center gap-0.5 w-16 h-full transition-colors ${
+                    active ? 'text-primary' : 'text-gray-400'
+                  }`}
+                >
+                  <Icon size={20} />
+                  <span className="text-[10px] font-medium">{item.label}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </nav>
       </div>
+
+      {/* Inline animation for mobile sidebar slide-in */}
+      <style jsx global>{`
+        @keyframes slideInLeft {
+          from { transform: translateX(-100%); }
+          to { transform: translateX(0); }
+        }
+        .animate-slide-in-left {
+          animation: slideInLeft 0.25s ease-out forwards;
+        }
+        .safe-area-bottom {
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+      `}</style>
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { signIn, getSession } from 'next-auth/react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Lock, Mail, User, Shield } from 'lucide-react'
 
 export default function AdminLogin() {
@@ -16,20 +16,22 @@ export default function AdminLogin() {
   const [needsSetup, setNeedsSetup] = useState(false)
   const [checkingSetup, setCheckingSetup] = useState(true)
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   // Check if initial setup is needed + handle NextAuth error redirects
   useEffect(() => {
     // NextAuth redirects here with ?error= on auth failures
-    const authError = searchParams.get('error')
-    if (authError) {
-      const errorMessages: Record<string, string> = {
-        CredentialsSignin: 'Invalid email or password.',
-        Configuration: 'Server configuration error. Please contact support.',
-        AccessDenied: 'Access denied.',
-        Default: 'An authentication error occurred.',
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const authError = params.get('error')
+      if (authError) {
+        const errorMessages: Record<string, string> = {
+          CredentialsSignin: 'Invalid email or password.',
+          Configuration: 'Server configuration error. Please contact support.',
+          AccessDenied: 'Access denied.',
+          Default: 'An authentication error occurred.',
+        }
+        setError(errorMessages[authError] || errorMessages.Default)
       }
-      setError(errorMessages[authError] || errorMessages.Default)
     }
 
     async function checkSetup() {
@@ -45,7 +47,7 @@ export default function AdminLogin() {
       }
     }
     checkSetup()
-  }, [searchParams])
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()

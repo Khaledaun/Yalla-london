@@ -13,7 +13,13 @@ import { logAuditEvent } from '@/lib/rbac'
  * - Passwords verified via bcrypt.compare() against User.passwordHash field.
  * - No hardcoded credentials. Initial admin seeded via CLI script with env vars.
  * - Google SSO enabled when GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set.
+ *
+ * NOTE: PrismaAdapter is only used when Google OAuth is enabled.
+ * The Credentials provider uses JWT sessions and manages users directly
+ * through the authorize() callback — no adapter needed.
  */
+
+const hasGoogleOAuth = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
 
 /** Admin email whitelist from environment only */
 export function getAdminEmails(): string[] {
@@ -21,7 +27,10 @@ export function getAdminEmails(): string[] {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // Only use PrismaAdapter when Google OAuth is enabled.
+  // Credentials-only mode uses pure JWT with no database session management.
+  // This prevents crashes when NextAuth adapter tables don't exist.
+  ...(hasGoogleOAuth ? { adapter: PrismaAdapter(prisma) } : {}),
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -81,7 +90,7 @@ export const authOptions: NextAuthOptions = {
           await prisma.user.update({
             where: { id: user.id },
             data: { lastLoginAt: new Date() }
-          })
+          }).catch(() => {}) // Don't fail login if update fails
 
           await logAuditEvent({
             userId: user.id,
@@ -103,10 +112,10 @@ export const authOptions: NextAuthOptions = {
       }
     }),
     // Google SSO — only when credentials are configured
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
+    ...(hasGoogleOAuth ? [
       GoogleProvider({
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        clientId: process.env.GOOGLE_CLIENT_ID!,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
         authorization: {
           params: {
             prompt: 'consent',
@@ -144,24 +153,29 @@ export const authOptions: NextAuthOptions = {
       }
     },
     async signIn({ user, account }: any) {
-      if (account?.provider === 'google') {
-        const email = user.email
-        if (!email) return false
-        const existing = await prisma.user.findUnique({ where: { email } })
-        if (existing && !existing.isActive) return false
-        if (!existing) {
-          await prisma.user.create({
-            data: {
-              email,
-              name: user.name || 'Unknown',
-              role: 'viewer',
-              isActive: true,
-              emailVerified: new Date()
-            }
-          })
+      try {
+        if (account?.provider === 'google') {
+          const email = user.email
+          if (!email) return false
+          const existing = await prisma.user.findUnique({ where: { email } })
+          if (existing && !existing.isActive) return false
+          if (!existing) {
+            await prisma.user.create({
+              data: {
+                email,
+                name: user.name || 'Unknown',
+                role: 'viewer',
+                isActive: true,
+                emailVerified: new Date()
+              }
+            })
+          }
         }
+        return true
+      } catch (error) {
+        console.error('signIn callback error:', error)
+        return true // Don't block login on callback errors
       }
-      return true
     }
   },
   pages: {
@@ -171,13 +185,17 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   events: {
     async signOut({ token }) {
-      if (token?.id) {
-        await logAuditEvent({
-          userId: token.id as string,
-          action: 'logout',
-          resource: 'authentication',
-          success: true
-        })
+      try {
+        if (token?.id) {
+          await logAuditEvent({
+            userId: token.id as string,
+            action: 'logout',
+            resource: 'authentication',
+            success: true
+          })
+        }
+      } catch {
+        // Don't block signout on audit log failure
       }
     }
   },

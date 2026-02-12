@@ -7,10 +7,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
 import { z } from 'zod';
 import {
-  informationArticles,
+  informationArticles as baseArticles,
   informationSections,
   type InformationSection,
 } from '@/data/information-hub-content';
+import { extendedInformationArticles } from '@/data/information-hub-articles-extended';
+
+// Combine all information articles
+const informationArticles = [...baseArticles, ...extendedInformationArticles];
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -21,6 +25,7 @@ const UpdateSectionSchema = z.object({
   description_en: z.string().optional(),
   description_ar: z.string().optional(),
   icon: z.string().optional(),
+  featured_image: z.string().optional(),
   sort_order: z.number().min(1).optional(),
   published: z.boolean().optional(),
   name_en: z.string().min(1).optional(),
@@ -136,6 +141,7 @@ export const PUT = withAdminAuth(async (request: NextRequest) => {
       ...(data.description_en !== undefined && { description_en: data.description_en }),
       ...(data.description_ar !== undefined && { description_ar: data.description_ar }),
       ...(data.icon !== undefined && { icon: data.icon }),
+      ...(data.featured_image !== undefined && { featured_image: data.featured_image }),
       ...(data.sort_order !== undefined && { sort_order: data.sort_order }),
       ...(data.published !== undefined && { published: data.published }),
       ...(data.name_en !== undefined && { name_en: data.name_en }),

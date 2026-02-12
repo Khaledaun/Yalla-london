@@ -1,10 +1,12 @@
 import { Metadata } from "next";
+import { notFound } from "next/navigation";
 import {
   informationArticles as baseArticles,
   informationCategories,
 } from "@/data/information-hub-content";
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import { markdownToHtml } from "@/lib/markdown";
+import { getRelatedArticles } from "@/lib/related-content";
 import ArticleClient from "./ArticleClient";
 
 // Combine all information articles
@@ -258,39 +260,42 @@ export default async function ArticleDetailPage({ params }: Props) {
     (a) => a.slug === slug && a.published,
   );
 
-  // Generate structured data if article exists
-  const structuredData = article ? generateStructuredData(article) : null;
+  if (!article) {
+    notFound();
+  }
+
+  // Generate structured data
+  const structuredData = generateStructuredData(article);
 
   // Transform article for client (serialize Date objects to strings)
-  const clientArticle = article ? transformArticleForClient(article) : null;
+  const clientArticle = transformArticleForClient(article);
+
+  // Compute related articles for internal backlinks
+  const relatedArticles = getRelatedArticles(article.slug, 'information', 3);
 
   return (
     <>
-      {structuredData && (
-        <>
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify(structuredData.articleSchema),
-            }}
-          />
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify(structuredData.breadcrumbSchema),
-            }}
-          />
-          {structuredData.faqSchema && (
-            <script
-              type="application/ld+json"
-              dangerouslySetInnerHTML={{
-                __html: JSON.stringify(structuredData.faqSchema),
-              }}
-            />
-          )}
-        </>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData.articleSchema),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData.breadcrumbSchema),
+        }}
+      />
+      {structuredData.faqSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData.faqSchema),
+          }}
+        />
       )}
-      <ArticleClient article={clientArticle} />
+      <ArticleClient article={clientArticle} relatedArticles={relatedArticles} />
     </>
   );
 }

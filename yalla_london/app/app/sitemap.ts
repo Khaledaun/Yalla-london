@@ -2,10 +2,19 @@ import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
+import {
+  informationSections,
+  informationArticles as baseInfoArticles,
+  informationCategories,
+} from "@/data/information-hub-content";
+import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import { prisma } from "@/lib/prisma";
 
 // Combine all static blog posts
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
+
+// Combine all information hub articles
+const allInfoArticles = [...baseInfoArticles, ...extendedInformationArticles];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Resolve base URL from tenant context (set by middleware)
@@ -177,11 +186,119 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   }));
 
+  // Information Hub pages
+  const infoHubPages: MetadataRoute.Sitemap = [
+    // Main information hub page
+    {
+      url: `${baseUrl}/information`,
+      lastModified: currentDate,
+      changeFrequency: "weekly" as const,
+      priority: 0.9,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/information`,
+          ar: `${baseUrl}/ar/information`,
+        },
+      },
+    },
+    // Information articles listing page
+    {
+      url: `${baseUrl}/information/articles`,
+      lastModified: currentDate,
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/information/articles`,
+          ar: `${baseUrl}/ar/information/articles`,
+        },
+      },
+    },
+  ];
+
+  // Information Hub section pages
+  const infoSectionPages: MetadataRoute.Sitemap = informationSections
+    .filter((section) => section.published)
+    .map((section) => ({
+      url: `${baseUrl}/information/${section.slug}`,
+      lastModified: currentDate,
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/information/${section.slug}`,
+          ar: `${baseUrl}/ar/information/${section.slug}`,
+        },
+      },
+    }));
+
+  // Information Hub article pages
+  const infoArticlePages: MetadataRoute.Sitemap = allInfoArticles
+    .filter((article) => article.published)
+    .map((article) => ({
+      url: `${baseUrl}/information/articles/${article.slug}`,
+      lastModified: article.updated_at.toISOString(),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/information/articles/${article.slug}`,
+          ar: `${baseUrl}/ar/information/articles/${article.slug}`,
+        },
+      },
+    }));
+
+  // News pages
+  let newsPages: MetadataRoute.Sitemap = [];
+  try {
+    const publishedNews = await prisma.newsItem.findMany({
+      where: { status: "published" },
+      select: { slug: true, updated_at: true },
+      orderBy: { published_at: "desc" },
+      take: 100,
+    });
+    newsPages = publishedNews.map((item) => ({
+      url: `${baseUrl}/news/${item.slug}`,
+      lastModified: item.updated_at?.toISOString() || currentDate,
+      changeFrequency: "daily" as const,
+      priority: 0.7,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/news/${item.slug}`,
+          ar: `${baseUrl}/ar/news/${item.slug}`,
+        },
+      },
+    }));
+  } catch {
+    // Database not available - skip news pages
+  }
+
+  // News landing page
+  const newsLandingPages: MetadataRoute.Sitemap = [
+    {
+      url: `${baseUrl}/news`,
+      lastModified: currentDate,
+      changeFrequency: "daily" as const,
+      priority: 0.8,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/news`,
+          ar: `${baseUrl}/ar/news`,
+        },
+      },
+    },
+  ];
+
   return [
     ...staticPages,
     ...staticBlogPages,
     ...dbBlogPages,
     ...eventPages,
     ...categoryPages,
+    ...infoHubPages,
+    ...infoSectionPages,
+    ...infoArticlePages,
+    ...newsLandingPages,
+    ...newsPages,
   ];
 }

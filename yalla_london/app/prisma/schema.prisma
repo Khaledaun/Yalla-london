@@ -159,6 +159,247 @@ model BlogPost {
   @@index([created_at])
 }
 
+// ─────────────────────────────────────────────────────────
+// Information Hub Models
+// ─────────────────────────────────────────────────────────
+
+model InformationSection {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name_en         String
+  name_ar         String
+  description_en  String?
+  description_ar  String?
+  icon            String?
+  featured_image  String?
+  sort_order      Int      @default(1)
+  published       Boolean  @default(true)
+  subsections     Json?    // Array of { id, title_en, title_ar, content_en, content_ar }
+
+  siteId          String?
+  deletedAt       DateTime?
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  articles        InformationArticle[]
+
+  @@index([siteId])
+  @@index([published])
+  @@index([sort_order])
+  @@map("information_sections")
+}
+
+model InformationCategory {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name_en         String
+  name_ar         String
+  description_en  String?
+  description_ar  String?
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  articles        InformationArticle[]
+
+  @@map("information_categories")
+}
+
+model InformationArticle {
+  id                   String   @id @default(cuid())
+  slug                 String   @unique
+  section_id           String
+  category_id          String
+  title_en             String
+  title_ar             String
+  excerpt_en           String?
+  excerpt_ar           String?
+  content_en           String   @db.Text
+  content_ar           String   @db.Text
+  featured_image       String?
+  reading_time         Int      @default(5)
+  published            Boolean  @default(false)
+
+  // SEO fields
+  meta_title_en        String?
+  meta_title_ar        String?
+  meta_description_en  String?
+  meta_description_ar  String?
+  tags                 String[]
+  keywords             String[]
+  page_type            String?  @default("article")
+  seo_score            Int?     @default(0)
+  faq_questions        Json?    // Array of { question_en, question_ar, answer_en, answer_ar }
+
+  // Multi-tenant and soft delete
+  siteId               String?
+  deletedAt            DateTime?
+
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  section              InformationSection  @relation(fields: [section_id], references: [id])
+  category             InformationCategory @relation(fields: [category_id], references: [id])
+
+  @@index([section_id])
+  @@index([category_id])
+  @@index([siteId])
+  @@index([siteId, published])
+  @@index([published])
+  @@index([page_type])
+  @@index([seo_score])
+  @@index([created_at])
+  @@map("information_articles")
+}
+
+// ─────────────────────────────────────────────────────────
+// Fact Verification System
+// ─────────────────────────────────────────────────────────
+
+model FactEntry {
+  id                 String   @id @default(cuid())
+  article_type       String   // 'blog' | 'information'
+  article_slug       String
+  fact_text_en       String   @db.Text
+  fact_text_ar       String?  @db.Text
+  fact_location      String?  // Section/paragraph identifier within article
+  category           String?  // price, schedule, regulation, statistic, contact, address, transport
+
+  // Verification state
+  status             String   @default("pending") // pending, verified, outdated, disputed, updated
+  confidence_score   Int?     @default(0) // 0-100
+  last_verified_at   DateTime?
+  next_check_at      DateTime?
+  verification_count Int      @default(0)
+
+  // Source tracking
+  source_url         String?  @db.Text
+  source_name        String?
+  source_type        String?  // official_gov, transport_authority, tourism_board, news, review_site
+  source_last_checked DateTime?
+
+  // Update tracking
+  original_value     String?  @db.Text
+  current_value      String?  @db.Text
+  updated_value      String?  @db.Text  // Proposed new value if fact changed
+  update_applied     Boolean  @default(false)
+  update_applied_at  DateTime?
+
+  // Agent metadata
+  agent_notes        String?  @db.Text
+  verification_log   Json?    // Array of { date, source, result, notes }
+
+  siteId             String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  @@index([article_type, article_slug])
+  @@index([status])
+  @@index([next_check_at])
+  @@index([category])
+  @@index([siteId])
+  @@map("fact_entries")
+}
+
+// ─────────────────────────────────────────────────────────
+// London News Carousel System
+// ─────────────────────────────────────────────────────────
+
+model NewsItem {
+  id                 String    @id @default(cuid())
+  slug               String    @unique
+  status             String    @default("draft") // draft, published, archived, expired
+
+  // Content
+  headline_en        String
+  headline_ar        String
+  summary_en         String    @db.Text  // 200 words max
+  summary_ar         String    @db.Text
+  announcement_en    String    // Short announcement (few words)
+  announcement_ar    String
+
+  // Source
+  source_name        String    // BBC, TfL, Visit London, etc.
+  source_url         String    @db.Text
+  source_logo        String?
+
+  // Media
+  featured_image     String?
+  image_alt_en       String?
+  image_alt_ar       String?
+  image_credit       String?
+
+  // Classification
+  news_category      String    // events, transport, weather, health, festivals, sales, holidays, strikes, popup, general
+  relevance_score    Int       @default(50)  // 0-100 how relevant for London travellers
+  is_major           Boolean   @default(false)  // Featured/lead story
+  urgency            String    @default("normal") // breaking, urgent, normal, low
+
+  // Date relevance
+  event_start_date   DateTime? // When the event/news starts
+  event_end_date     DateTime? // When it ends (for ongoing events)
+  expires_at         DateTime? // When to auto-archive
+
+  // SEO
+  meta_title_en      String?
+  meta_title_ar      String?
+  meta_description_en String?
+  meta_description_ar String?
+  tags               String[]
+  keywords           String[]
+
+  // Internal linking
+  related_article_slugs String[] // Slugs of related blog/info articles
+  related_shop_slugs    String[] // Slugs of related shop products
+  affiliate_link_ids    String[] // IDs of relevant affiliate links
+
+  // Agent metadata
+  agent_source       String?   // Which research source found this
+  agent_notes        String?   @db.Text
+  research_log       Json?     // Array of { source, query, found_at, relevance }
+
+  // Information hub cross-reference
+  updates_info_article Boolean  @default(false) // Does this news update an info article?
+  affected_info_slugs  String[] // Which info articles should be flagged
+
+  siteId             String?
+  published_at       DateTime?
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  @@index([status])
+  @@index([news_category])
+  @@index([is_major])
+  @@index([published_at])
+  @@index([expires_at])
+  @@index([siteId])
+  @@index([siteId, status])
+  @@map("news_items")
+}
+
+model NewsResearchLog {
+  id                 String   @id @default(cuid())
+  run_type           String   @default("daily") // daily, weekly_deep, manual
+  status             String   @default("running") // running, completed, failed
+  sources_checked    String[] // List of sources checked
+  items_found        Int      @default(0)
+  items_published    Int      @default(0)
+  items_skipped      Int      @default(0)
+  facts_flagged      Int      @default(0) // Facts in info articles that need updating
+  duration_ms        Int?
+  error_message      String?  @db.Text
+  result_summary     Json?    // Detailed results
+
+  siteId             String?
+  created_at         DateTime @default(now())
+
+  @@index([run_type])
+  @@index([created_at])
+  @@index([siteId])
+  @@map("news_research_logs")
+}
+
 model Recommendation {
   id           String   @id @default(cuid())
   name_en      String

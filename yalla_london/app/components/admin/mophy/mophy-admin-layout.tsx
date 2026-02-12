@@ -46,7 +46,10 @@ import {
   Store,
   Package,
   Brush,
-  Activity
+  Activity,
+  BookOpen,
+  Newspaper,
+  ShieldCheck,
 } from 'lucide-react'
 
 // MOPHY-styled Navigation Structure
@@ -90,6 +93,42 @@ const mainNavigation = [
       { label: 'Content Pipeline', href: '/admin/pipeline' },
       { label: 'Categories', href: '/admin/content-types' },
       { label: 'WordPress', href: '/admin/wordpress' },
+    ]
+  },
+  {
+    id: 'information',
+    label: 'Information Hub',
+    icon: BookOpen,
+    href: '/admin/information',
+    badge: 'Guide',
+    children: [
+      { label: 'Overview', href: '/admin/information' },
+      { label: 'Sections', href: '/admin/information' },
+      { label: 'Articles', href: '/admin/information' },
+    ]
+  },
+  {
+    id: 'news',
+    label: 'London News',
+    icon: Newspaper,
+    href: '/admin/news',
+    badge: 'Live',
+    children: [
+      { label: 'Dashboard', href: '/admin/news' },
+      { label: 'Published', href: '/admin/news' },
+      { label: 'Research Logs', href: '/admin/news' },
+    ]
+  },
+  {
+    id: 'facts',
+    label: 'Fact Checker',
+    icon: ShieldCheck,
+    href: '/admin/facts',
+    badge: 'Agent',
+    children: [
+      { label: 'All Facts', href: '/admin/facts' },
+      { label: 'Pending', href: '/admin/facts' },
+      { label: 'Outdated', href: '/admin/facts' },
     ]
   },
   {
@@ -344,6 +383,9 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
                                 ${item.badge === 'New' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : ''}
                                 ${item.badge === 'Pro' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' : ''}
                                 ${item.badge === 'Ops' ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400' : ''}
+                                ${item.badge === 'Live' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : ''}
+                                ${item.badge === 'Agent' ? 'bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400' : ''}
+                                ${item.badge === 'Guide' ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' : ''}
                               `}>
                                 {item.badge}
                               </span>

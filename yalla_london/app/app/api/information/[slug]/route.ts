@@ -25,11 +25,27 @@ const UpdateArticleSchema = z.object({
   title_ar: z.string().min(1).optional(),
   excerpt_en: z.string().optional(),
   excerpt_ar: z.string().optional(),
+  content_en: z.string().optional(),
+  content_ar: z.string().optional(),
   section_id: z.string().optional(),
   category_id: z.string().optional(),
   featured_image: z.string().optional(),
   reading_time: z.number().min(1).optional(),
   published: z.boolean().optional(),
+  meta_title_en: z.string().optional(),
+  meta_title_ar: z.string().optional(),
+  meta_description_en: z.string().optional(),
+  meta_description_ar: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  keywords: z.array(z.string()).optional(),
+  page_type: z.string().optional(),
+  seo_score: z.number().min(0).max(100).optional(),
+  faq_questions: z.array(z.object({
+    question_en: z.string(),
+    question_ar: z.string(),
+    answer_en: z.string(),
+    answer_ar: z.string(),
+  })).optional(),
   slug: z
     .string()
     .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens')
@@ -183,11 +199,16 @@ export async function PUT(
     }
 
     // Build the updated article (simulates database update)
+    // Destructure to exclude date fields from user data to prevent type errors
+    const { slug: _slug, ...updateFields } = data;
     const updatedArticle = {
       ...existingArticle,
-      ...data,
+      ...updateFields,
+      slug: data.slug || slug,
       updated_at: new Date().toISOString(),
-      created_at: existingArticle.created_at.toISOString(),
+      created_at: existingArticle.created_at instanceof Date
+        ? existingArticle.created_at.toISOString()
+        : String(existingArticle.created_at),
     };
 
     // Resolve enriched section and category

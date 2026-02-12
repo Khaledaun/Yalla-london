@@ -54,18 +54,18 @@ export function DynamicHeader() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-0.5">
             {navigation.map((item) => (
               <Link
                 key={item.key}
                 href={item.href}
-                className="relative px-4 py-2 text-charcoal font-medium transition-all duration-300 hover:text-london-800 group"
+                className="relative px-3 py-2 text-sm text-charcoal font-medium transition-all duration-300 hover:text-london-800 group whitespace-nowrap"
               >
                 <span className="relative z-10">
                   {language === 'en' ? item.labelEn : item.labelAr}
                 </span>
                 {/* Hover underline effect */}
-                <span className="absolute bottom-1 left-4 right-4 h-0.5 bg-gradient-to-r from-yalla-gold-400 to-yalla-gold-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+                <span className="absolute bottom-1 left-3 right-3 h-0.5 bg-gradient-to-r from-yalla-gold-400 to-yalla-gold-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
               </Link>
             ))}
           </nav>
@@ -86,7 +86,7 @@ export function DynamicHeader() {
             {/* CTA Button - Desktop */}
             <Link
               href="/contact"
-              className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-london-800 text-white rounded-lg font-medium shadow-luxury hover:bg-london-900 hover:shadow-elegant transition-all duration-300 hover:-translate-y-0.5"
+              className="hidden lg:flex items-center gap-2 px-4 py-2 bg-london-800 text-white text-sm rounded-lg font-medium shadow-luxury hover:bg-london-900 hover:shadow-elegant transition-all duration-300 hover:-translate-y-0.5"
             >
               <span>{language === 'en' ? 'Get in Touch' : 'تواصل معنا'}</span>
             </Link>
@@ -95,7 +95,7 @@ export function DynamicHeader() {
             <Button
               variant="ghost"
               size="sm"
-              className="md:hidden p-2 hover:bg-cream-100 rounded-lg"
+              className="lg:hidden p-2 hover:bg-cream-100 rounded-lg"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               {isMenuOpen ? (
@@ -109,7 +109,7 @@ export function DynamicHeader() {
 
         {/* Mobile Navigation */}
         <div
-          className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+          className={`lg:hidden overflow-hidden transition-all duration-300 ease-in-out ${
             isMenuOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
           }`}
         >

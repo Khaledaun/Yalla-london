@@ -94,9 +94,10 @@ export const luxuryGuideTemplate: BrandConfig = {
   
   navigation: [
     { key: 'home', labelEn: 'Home', labelAr: 'الرئيسية', href: '/' },
+    { key: 'information', labelEn: 'Info & Guides', labelAr: 'المعلومات والأدلة', href: '/information' },
     { key: 'stories', labelEn: 'London Stories', labelAr: 'حكايات لندن', href: '/blog' },
     { key: 'recommendations', labelEn: 'Recommendations', labelAr: 'التوصيات', href: '/recommendations' },
-    { key: 'events', labelEn: 'Events Tickets', labelAr: 'تذاكر الفعاليات', href: '/events' },
+    { key: 'events', labelEn: 'Events & Tickets', labelAr: 'الفعاليات والتذاكر', href: '/events' },
     { key: 'founder', labelEn: 'The Founder', labelAr: 'المؤسس', href: '/about' },
   ],
   

@@ -144,6 +144,7 @@ const NAV_SECTIONS = [
     items: [
       { name: 'Autopilot', nameAr: 'الطيار الآلي', href: '/admin/command-center/autopilot', icon: Bot },
       { name: 'Automation Hub', nameAr: 'مركز الأتمتة', href: '/admin/automation-hub', icon: Zap },
+      { name: 'Health Monitor', nameAr: 'مراقب الصحة', href: '/admin/health-monitoring', icon: Activity },
       { name: 'Pipeline', nameAr: 'خط الإنتاج', href: '/admin/pipeline', icon: Activity },
     ],
   },

@@ -6,7 +6,7 @@ import Image from 'next/image'
 import {
   ChevronRight, MapPin, Star, Clock,
   Download, ArrowRight, Sparkles, Calendar,
-  TrendingUp, BookOpen, Ticket
+  TrendingUp, BookOpen, Ticket, Compass, Map, Train, Utensils, Users, Gem
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { NewsCarousel } from '@/components/news-carousel'
@@ -204,6 +204,17 @@ const text = {
     newsletterDesc: 'Weekly London tips, exclusive deals, and insider guides delivered to your inbox every Friday.',
     emailPlaceholder: 'Enter your email',
     subscribeBtn: 'Subscribe Free',
+    informationHub: 'Information Hub',
+    informationHubSubtitle: 'Your complete guide to visiting London — from transport tips to hidden gems',
+    exploreHub: 'Explore the Hub',
+    infoSections: [
+      { icon: 'Compass', title: 'Plan Your Trip', desc: 'Visa, flights, budgets & packing lists' },
+      { icon: 'Map', title: 'Neighbourhood Guides', desc: 'Explore London area by area' },
+      { icon: 'Train', title: 'Getting Around', desc: 'Tube, bus, Oyster & travel hacks' },
+      { icon: 'Utensils', title: 'Food & Dining', desc: 'Halal restaurants & markets' },
+      { icon: 'Users', title: 'Family & Kids', desc: 'Kid-friendly activities & tips' },
+      { icon: 'Gem', title: 'Hidden Gems', desc: 'Secret spots locals love' },
+    ],
     quickLinks: ['Experiences', 'Hotels', 'Events', 'Shop'],
     quickLinksHref: ['/experiences', '/hotels', '/events', '/shop'],
   },
@@ -226,6 +237,17 @@ const text = {
     newsletterDesc: 'نصائح لندن الأسبوعية والعروض الحصرية وأدلة من الداخل تصلك كل جمعة.',
     emailPlaceholder: 'أدخل بريدك الإلكتروني',
     subscribeBtn: 'اشترك مجاناً',
+    informationHub: 'مركز المعلومات',
+    informationHubSubtitle: 'دليلك الشامل لزيارة لندن — من نصائح النقل إلى الجواهر المخفية',
+    exploreHub: 'استكشف المركز',
+    infoSections: [
+      { icon: 'Compass', title: 'خطط لرحلتك', desc: 'التأشيرات والرحلات والميزانيات وقوائم التعبئة' },
+      { icon: 'Map', title: 'أدلة الأحياء', desc: 'استكشف لندن منطقة بمنطقة' },
+      { icon: 'Train', title: 'التنقل', desc: 'المترو والحافلات وأويستر ونصائح السفر' },
+      { icon: 'Utensils', title: 'الطعام والمطاعم', desc: 'مطاعم حلال وأسواق' },
+      { icon: 'Users', title: 'العائلة والأطفال', desc: 'أنشطة مناسبة للأطفال ونصائح' },
+      { icon: 'Gem', title: 'جواهر مخفية', desc: 'أماكن سرية يحبها السكان المحليون' },
+    ],
     quickLinks: ['تجارب', 'فنادق', 'فعاليات', 'متجر'],
     quickLinksHref: ['/experiences', '/hotels', '/events', '/shop'],
   },
@@ -478,8 +500,47 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         </div>
       </section>
 
+      {/* ═══ INFORMATION HUB ═══ */}
+      <section className="bg-cream py-16">
+        <div className="max-w-6xl mx-auto px-6">
+          <SectionHeader title={t.informationHub} href="/information" linkText={t.viewAll} icon={BookOpen} />
+          <p className="text-stone text-sm -mt-4 mb-8">{t.informationHubSubtitle}</p>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {t.infoSections.map((section, i) => {
+              const iconMap: Record<string, React.ElementType> = {
+                Compass, Map, Train, Utensils, Users, Gem,
+              }
+              const IconComp = iconMap[section.icon] || BookOpen
+              return (
+                <Link key={i} href="/information" className="group">
+                  <div className="bg-white rounded-2xl p-5 text-center shadow-card hover:shadow-luxury transition-all border border-sand/50 h-full flex flex-col items-center justify-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-london-600/10 flex items-center justify-center group-hover:bg-london-600 transition-colors">
+                      <IconComp className="w-6 h-6 text-london-600 group-hover:text-white transition-colors" />
+                    </div>
+                    <h3 className="text-sm font-bold text-charcoal group-hover:text-london-600 transition-colors">{section.title}</h3>
+                    <p className="text-xs text-stone leading-relaxed">{section.desc}</p>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+
+          <div className="text-center mt-8">
+            <Link
+              href="/information"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-london-600 text-white font-semibold rounded-lg hover:bg-london-700 transition-colors"
+            >
+              <BookOpen className="w-4 h-4" />
+              {t.exploreHub}
+              <ArrowRight className={`w-4 h-4 ${isRTL ? 'rotate-180' : ''}`} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ═══ GUIDES ═══ */}
-      <section className="bg-cream py-16 bg-pattern-arabesque">
+      <section className="bg-white py-16 bg-pattern-arabesque">
         <div className="max-w-6xl mx-auto px-6">
           <SectionHeader title={t.pdfGuides} href="/shop" linkText={t.viewAll} icon={Download} />
           <p className="text-stone text-sm -mt-4 mb-8">{t.guidesSubtitle}</p>

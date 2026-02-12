@@ -123,17 +123,32 @@ const SEED_NEWS = [
 // Public GET handler
 // ---------------------------------------------------------------------------
 
+// Helper: filter seed data by query params
+function filterSeedData(
+  category: string | undefined,
+  majorOnly: boolean,
+  limit: number,
+) {
+  return SEED_NEWS
+    .filter((item) => {
+      if (category && item.news_category !== category) return false;
+      if (majorOnly && !item.is_major) return false;
+      return true;
+    })
+    .slice(0, limit);
+}
+
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+
+  // Parse query parameters
+  const rawLimit = parseInt(searchParams.get('limit') || '3', 10);
+  const limit = Math.min(Math.max(1, isNaN(rawLimit) ? 3 : rawLimit), 10);
+  const category = searchParams.get('category') || undefined;
+  const majorOnly = searchParams.get('major_only') === 'true';
+
+  // Try database first, gracefully fall back to seed data
   try {
-    const { searchParams } = new URL(request.url);
-
-    // Parse query parameters
-    const rawLimit = parseInt(searchParams.get('limit') || '3', 10);
-    const limit = Math.min(Math.max(1, isNaN(rawLimit) ? 3 : rawLimit), 10);
-    const category = searchParams.get('category') || undefined;
-    const majorOnly = searchParams.get('major_only') === 'true';
-
-    // Build the where clause
     const now = new Date();
     const where: Record<string, unknown> = {
       status: 'published',
@@ -151,7 +166,6 @@ export async function GET(request: NextRequest) {
       where.is_major = true;
     }
 
-    // Select only the display fields (exclude agent/internal columns)
     const select = {
       id: true,
       slug: true,
@@ -195,46 +209,30 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    // If the database is empty, return seed data so the carousel works on day 1
-    if (items.length === 0) {
-      const seedFiltered = SEED_NEWS
-        .filter((item) => {
-          if (category && item.news_category !== category) return false;
-          if (majorOnly && !item.is_major) return false;
-          return true;
-        })
-        .slice(0, limit);
+    if (items.length > 0) {
+      const total = await prisma.newsItem.count({ where }).catch(() => items.length);
 
       return NextResponse.json({
         success: true,
-        data: seedFiltered,
-        meta: {
-          total: seedFiltered.length,
-          limit,
-          category: category ?? null,
-          major_only: majorOnly,
-        },
+        data: items,
+        meta: { total, limit, category: category ?? null, major_only: majorOnly, source: 'database' },
       });
     }
-
-    // Count total matching records (useful for consumers that may paginate later)
-    const total = await prisma.newsItem.count({ where });
-
-    return NextResponse.json({
-      success: true,
-      data: items,
-      meta: {
-        total,
-        limit,
-        category: category ?? null,
-        major_only: majorOnly,
-      },
-    });
-  } catch (error) {
-    console.error('[News API] Error fetching news items:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch news items' },
-      { status: 500 },
-    );
+  } catch {
+    // Database unavailable — fall through to seed data
   }
+
+  // Seed data fallback (database empty or unavailable)
+  const seedFiltered = filterSeedData(category, majorOnly, limit);
+  return NextResponse.json({
+    success: true,
+    data: seedFiltered,
+    meta: {
+      total: seedFiltered.length,
+      limit,
+      category: category ?? null,
+      major_only: majorOnly,
+      source: 'seed',
+    },
+  });
 }

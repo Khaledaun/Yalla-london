@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
 import { markdownToHtml } from "@/lib/markdown";
+import { getRelatedArticles } from "@/lib/related-content";
 import BlogPostClient from "./BlogPostClient";
 
 // Combine all static blog posts
@@ -215,6 +216,9 @@ export default async function BlogPostPage({ params }: Props) {
   // Transform post for client (serialize Date objects to strings)
   const clientPost = post ? transformPostForClient(post) : null;
 
+  // Compute related articles for internal backlinks
+  const relatedArticles = post ? getRelatedArticles(post.slug, 'blog', 3) : [];
+
   return (
     <>
       {structuredData && (
@@ -233,7 +237,7 @@ export default async function BlogPostPage({ params }: Props) {
           />
         </>
       )}
-      <BlogPostClient post={clientPost} />
+      <BlogPostClient post={clientPost} relatedArticles={relatedArticles} />
     </>
   );
 }

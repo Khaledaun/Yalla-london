@@ -9,6 +9,7 @@ import {
   TrendingUp, BookOpen, Ticket
 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { NewsCarousel } from '@/components/news-carousel'
 
 interface YallaHomepageProps {
   locale?: 'en' | 'ar'
@@ -363,6 +364,11 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           ))}
         </div>
       </div>
+
+      {/* ═══ LONDON TODAY NEWS CAROUSEL ═══ */}
+      <section className="max-w-6xl mx-auto px-6 pt-10 pb-4">
+        <NewsCarousel />
+      </section>
 
       {/* ═══ FEATURED + ARTICLES ═══ */}
       <section className="max-w-6xl mx-auto px-6 py-16">

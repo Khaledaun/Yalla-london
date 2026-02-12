@@ -6,6 +6,7 @@ import {
 } from "@/data/information-hub-content";
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import { markdownToHtml } from "@/lib/markdown";
+import { getRelatedArticles } from "@/lib/related-content";
 import ArticleClient from "./ArticleClient";
 
 // Combine all information articles
@@ -269,6 +270,9 @@ export default async function ArticleDetailPage({ params }: Props) {
   // Transform article for client (serialize Date objects to strings)
   const clientArticle = transformArticleForClient(article);
 
+  // Compute related articles for internal backlinks
+  const relatedArticles = getRelatedArticles(article.slug, 'information', 3);
+
   return (
     <>
       <script
@@ -291,7 +295,7 @@ export default async function ArticleDetailPage({ params }: Props) {
           }}
         />
       )}
-      <ArticleClient article={clientArticle} />
+      <ArticleClient article={clientArticle} relatedArticles={relatedArticles} />
     </>
   );
 }

@@ -8,6 +8,7 @@ import { getTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Calendar, User, ArrowLeft, Share2, Heart, BookOpen } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { RelatedArticles, type RelatedArticleData } from '@/components/related-articles'
 
 interface BlogPostData {
   id: string;
@@ -33,9 +34,10 @@ interface BlogPostData {
 
 interface BlogPostClientProps {
   post: BlogPostData | null;
+  relatedArticles?: RelatedArticleData[];
 }
 
-export default function BlogPostClient({ post }: BlogPostClientProps) {
+export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostClientProps) {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
   const [isLiked, setIsLiked] = useState(false)
@@ -194,37 +196,14 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
         </div>
       </section>
 
-      {/* Related Posts */}
-      <section className="py-12 bg-cream">
-        <div className="max-w-6xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="text-center"
-          >
-            <h3 className="text-3xl font-display font-bold mb-8 gradient-text">
-              {language === 'en' ? 'More London Stories' : 'المزيد من حكايات لندن'}
-            </h3>
-
-            <div className="bg-white rounded-lg p-8 luxury-shadow">
-              <p className="text-stone mb-6">
-                {language === 'en'
-                  ? 'Discover more curated London experiences and insider stories on our blog.'
-                  : 'اكتشف المزيد من التجارب المنسقة والقصص الداخلية في لندن على مدونتنا.'
-                }
-              </p>
-              <Button asChild className="bg-london-600 hover:bg-london-700">
-                <Link href="/blog">
-                  <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
-                  {language === 'en' ? 'View All Stories' : 'عرض جميع القصص'}
-                </Link>
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      {/* Related Articles (Internal Backlinks) */}
+      {relatedArticles.length > 0 && (
+        <section className="py-12 bg-cream">
+          <div className="max-w-6xl mx-auto px-6">
+            <RelatedArticles articles={relatedArticles} currentType="blog" />
+          </div>
+        </section>
+      )}
     </div>
   )
 }

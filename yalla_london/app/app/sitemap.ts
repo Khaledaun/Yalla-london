@@ -248,6 +248,47 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
     }));
 
+  // News pages
+  let newsPages: MetadataRoute.Sitemap = [];
+  try {
+    const publishedNews = await prisma.newsItem.findMany({
+      where: { status: "published" },
+      select: { slug: true, updated_at: true },
+      orderBy: { published_at: "desc" },
+      take: 100,
+    });
+    newsPages = publishedNews.map((item) => ({
+      url: `${baseUrl}/news/${item.slug}`,
+      lastModified: item.updated_at.toISOString(),
+      changeFrequency: "daily" as const,
+      priority: 0.7,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/news/${item.slug}`,
+          ar: `${baseUrl}/ar/news/${item.slug}`,
+        },
+      },
+    }));
+  } catch {
+    // Database not available - skip news pages
+  }
+
+  // News landing page
+  const newsLandingPages: MetadataRoute.Sitemap = [
+    {
+      url: `${baseUrl}/news`,
+      lastModified: currentDate,
+      changeFrequency: "daily" as const,
+      priority: 0.8,
+      alternates: {
+        languages: {
+          en: `${baseUrl}/news`,
+          ar: `${baseUrl}/ar/news`,
+        },
+      },
+    },
+  ];
+
   return [
     ...staticPages,
     ...staticBlogPages,
@@ -257,5 +298,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...infoHubPages,
     ...infoSectionPages,
     ...infoArticlePages,
+    ...newsLandingPages,
+    ...newsPages,
   ];
 }

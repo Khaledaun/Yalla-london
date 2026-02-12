@@ -8,6 +8,7 @@ import { getTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Calendar, User, ArrowLeft, Share2, Heart, BookOpen, ChevronDown, ChevronUp, ShoppingBag } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { RelatedArticles, type RelatedArticleData } from '@/components/related-articles'
 
 interface FAQQuestion {
   question_en: string
@@ -41,9 +42,10 @@ interface ArticleData {
 
 interface ArticleClientProps {
   article: ArticleData | null
+  relatedArticles?: RelatedArticleData[]
 }
 
-export default function ArticleClient({ article }: ArticleClientProps) {
+export default function ArticleClient({ article, relatedArticles = [] }: ArticleClientProps) {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
   const [isLiked, setIsLiked] = useState(false)
@@ -301,44 +303,14 @@ export default function ArticleClient({ article }: ArticleClientProps) {
         </div>
       </section>
 
-      {/* Related Articles / Back to Hub */}
-      <section className="py-12 bg-cream">
-        <div className="max-w-6xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="text-center"
-          >
-            <h3 className="text-3xl font-display font-bold mb-8 gradient-text">
-              {language === 'en' ? 'More Travel Articles' : 'المزيد من مقالات السفر'}
-            </h3>
-
-            <div className="bg-white rounded-lg p-8 luxury-shadow">
-              <p className="text-stone mb-6">
-                {language === 'en'
-                  ? 'Discover more comprehensive guides and practical tips for your London visit in our Information Hub.'
-                  : 'اكتشف المزيد من الأدلة الشاملة والنصائح العملية لزيارتك للندن في مركز المعلومات.'
-                }
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button asChild className="bg-london-600 hover:bg-london-700">
-                  <Link href="/information/articles">
-                    <ArrowLeft className={`mr-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
-                    {language === 'en' ? 'View All Articles' : 'عرض جميع المقالات'}
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="border-london-600 text-london-600 hover:bg-london-50">
-                  <Link href="/information">
-                    {language === 'en' ? 'Back to Information Hub' : 'العودة لمركز المعلومات'}
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      {/* Related Articles (Internal Backlinks) */}
+      {relatedArticles.length > 0 && (
+        <section className="py-12 bg-cream">
+          <div className="max-w-6xl mx-auto px-6">
+            <RelatedArticles articles={relatedArticles} currentType="information" />
+          </div>
+        </section>
+      )}
     </div>
   )
 }

@@ -340,7 +340,7 @@ async function runAllTests() {
     log('  Testing trends-monitor...');
     addSection('trends', '10. Trends Monitor');
     try {
-      const trendsResp = await testFetch('/api/cron/trends-monitor', { headers: cronHeaders });
+      const trendsResp = await testFetch('/api/cron/trends-monitor?healthcheck=true', { headers: cronHeaders });
       if (trendsResp.ok && trendsResp.json) {
         const j = trendsResp.json;
         addResult('trends', 'Trends Monitor', 'pass', j.message || 'OK');

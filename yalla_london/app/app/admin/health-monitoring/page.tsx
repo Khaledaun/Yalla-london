@@ -149,7 +149,7 @@ export default function HealthMonitoringPage() {
 
   // Auto-refresh every 30s
   useEffect(() => {
-    if (!autoRefresh) return;
+    if (!autoRefresh) return undefined;
     const interval = setInterval(() => fetchData(true), 30_000);
     return () => clearInterval(interval);
   }, [autoRefresh, fetchData]);

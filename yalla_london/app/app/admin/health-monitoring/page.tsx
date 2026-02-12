@@ -71,12 +71,24 @@ interface RecentError {
   durationMs: number | null;
 }
 
+interface IndexingData {
+  totalUrls: number;
+  indexed: number;
+  submitted: number;
+  discovered: number;
+  errors: number;
+  lastSubmitted: string | null;
+  lastInspected: string | null;
+  indexRate: number;
+}
+
 interface HealthData {
   timestamp: string;
   database: DbStatus;
   sites: SiteHealth[];
   cronJobs: CronJobStatus[];
   recentErrors: RecentError[];
+  indexing: IndexingData;
   summary: {
     totalSites: number;
     healthySites: number;
@@ -830,6 +842,9 @@ export default function HealthMonitoringPage() {
           </div>
         </div>
 
+        {/* ── GOOGLE INDEXING STATUS ── */}
+        <IndexingPanel indexing={health?.indexing ?? null} />
+
         {/* Quick Actions Bar */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
           <div className="flex items-center gap-3 mb-3">
@@ -959,6 +974,186 @@ export default function HealthMonitoringPage() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+// ─── Indexing Panel ──────────────────────────────────────────────────
+
+function IndexingPanel({ indexing }: { indexing: IndexingData | null }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [submitResult, setSubmitResult] = useState<string | null>(null);
+
+  const triggerIndexing = async () => {
+    setSubmitting(true);
+    setSubmitResult(null);
+    try {
+      const res = await fetch('/api/seo/check-and-index?submit_all=true', {
+        method: 'GET',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSubmitResult(
+          `Submitted ${data.summary?.totalPages ?? 0} pages. ` +
+          `IndexNow: ${data.submission?.indexNow?.status ?? 'n/a'}, ` +
+          `Google: ${data.submission?.googleApi?.status ?? 'n/a'}`
+        );
+      } else {
+        setSubmitResult(`Failed: HTTP ${res.status}`);
+      }
+    } catch (err) {
+      setSubmitResult(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const idx = indexing;
+  const hasData = idx && idx.totalUrls > 0;
+  const indexRate = idx?.indexRate ?? 0;
+
+  const rateColor =
+    indexRate >= 70
+      ? 'text-emerald-400'
+      : indexRate >= 40
+        ? 'text-amber-400'
+        : 'text-red-400';
+
+  const barColor =
+    indexRate >= 70
+      ? 'bg-emerald-500'
+      : indexRate >= 40
+        ? 'bg-amber-500'
+        : 'bg-red-500';
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+            <Globe className="h-4 w-4 text-white" />
+          </div>
+          <div>
+            <h3 className="font-semibold">Google Indexing Status</h3>
+            <p className="text-xs text-gray-500">
+              {idx?.lastSubmitted ? `Last submitted: ${timeAgo(idx.lastSubmitted)}` : 'No submissions yet'}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={triggerIndexing}
+          disabled={submitting}
+          className="flex items-center gap-2 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+        >
+          {submitting ? (
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Send className="h-3.5 w-3.5" />
+          )}
+          Submit All Pages
+        </button>
+      </div>
+
+      {submitResult && (
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 mb-4 text-xs text-blue-300">
+          {submitResult}
+        </div>
+      )}
+
+      {hasData ? (
+        <div className="space-y-4">
+          {/* Index rate bar */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-sm text-gray-400">Index Rate</span>
+              <span className={`text-lg font-bold font-mono ${rateColor}`}>
+                {indexRate}%
+              </span>
+            </div>
+            <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${barColor}`}
+                style={{ width: `${indexRate}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold font-mono text-emerald-400">{idx.indexed}</div>
+              <div className="text-xs text-gray-500">Indexed</div>
+            </div>
+            <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold font-mono text-blue-400">{idx.submitted}</div>
+              <div className="text-xs text-gray-500">Submitted</div>
+            </div>
+            <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+              <div className="text-lg font-bold font-mono text-gray-400">{idx.discovered}</div>
+              <div className="text-xs text-gray-500">Discovered</div>
+            </div>
+            <div className="bg-gray-800/50 rounded-lg p-3 text-center">
+              <div className={`text-lg font-bold font-mono ${idx.errors > 0 ? 'text-red-400' : 'text-gray-600'}`}>
+                {idx.errors}
+              </div>
+              <div className="text-xs text-gray-500">Errors</div>
+            </div>
+          </div>
+
+          {/* Fix instructions when index rate is low */}
+          {indexRate < 50 && (
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Lightbulb className="h-4 w-4 text-amber-400" />
+                <span className="text-xs font-medium text-amber-300">Low Index Rate — Action Items</span>
+              </div>
+              <ol className="text-xs text-gray-400 space-y-1 pl-5 list-decimal">
+                <li>Click "Submit All Pages" above to re-submit sitemap to Google + IndexNow</li>
+                <li>Verify your sitemap is accessible at <code className="text-cyan-400">/sitemap.xml</code></li>
+                <li>Check GSC manually: service account must be <strong>owner</strong> on the property</li>
+                <li>Run <code className="text-cyan-400">/api/seo/check-and-index?submit=true</code> to inspect + submit unindexed pages</li>
+                <li>Google can take 2-14 days to index new content — be patient after submission</li>
+              </ol>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Link
+                  href="/admin/seo"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-cyan-600 hover:bg-cyan-700 text-white transition-colors"
+                >
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  SEO Dashboard
+                </Link>
+                <a
+                  href="https://search.google.com/search-console"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Google Search Console
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Timestamps */}
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span>
+              Last inspected: {idx.lastInspected ? timeAgo(idx.lastInspected) : 'never'}
+            </span>
+            <span>
+              Total tracked: {idx.totalUrls} URLs
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-4">
+          <Globe className="h-8 w-8 text-gray-700 mx-auto mb-2" />
+          <p className="text-sm text-gray-500 mb-2">No indexing data yet</p>
+          <p className="text-xs text-gray-600">
+            Click "Submit All Pages" to start tracking, or run the SEO agent cron job.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

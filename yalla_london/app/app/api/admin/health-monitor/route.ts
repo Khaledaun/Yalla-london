@@ -50,12 +50,24 @@ interface RecentError {
   durationMs: number | null;
 }
 
+interface IndexingStatus {
+  totalUrls: number;
+  indexed: number;
+  submitted: number;
+  discovered: number;
+  errors: number;
+  lastSubmitted: string | null;
+  lastInspected: string | null;
+  indexRate: number;
+}
+
 interface HealthMonitorResponse {
   timestamp: string;
   database: DbStatus;
   sites: SiteHealth[];
   cronJobs: CronJobStatus[];
   recentErrors: RecentError[];
+  indexing: IndexingStatus;
   summary: {
     totalSites: number;
     healthySites: number;
@@ -108,6 +120,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       }),
       cronJobs: [],
       recentErrors: [],
+      indexing: fallbackIndexingStatus(),
       summary: {
         totalSites: siteIds.length,
         healthySites: 0,
@@ -121,10 +134,11 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   }
 
   // 2. Fetch data in parallel (resilient to missing tables)
-  const [sites, cronJobs, recentErrors] = await Promise.all([
+  const [sites, cronJobs, recentErrors, indexing] = await Promise.all([
     fetchSiteHealth().catch(() => fallbackSiteHealth()),
     fetchCronJobStatus().catch(() => fallbackCronJobStatus()),
     fetchRecentErrors().catch(() => [] as RecentError[]),
+    fetchIndexingStatus().catch(() => fallbackIndexingStatus()),
   ]);
 
   // 3. Build summary
@@ -139,6 +153,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     sites,
     cronJobs,
     recentErrors,
+    indexing,
     summary: {
       totalSites: sites.length,
       healthySites,
@@ -318,6 +333,49 @@ async function fetchRecentErrors(): Promise<RecentError[]> {
   }));
 }
 
+async function fetchIndexingStatus(): Promise<IndexingStatus> {
+  const { prisma } = await import("@/lib/db");
+
+  const counts = await (prisma as any).uRLIndexingStatus.groupBy({
+    by: ["status"],
+    _count: true,
+  });
+
+  const countMap = new Map(
+    counts.map((c: any) => [c.status, c._count])
+  );
+
+  const totalUrls = counts.reduce((sum: number, c: any) => sum + c._count, 0);
+  const indexed = (countMap.get("indexed") as number) ?? 0;
+  const submitted = (countMap.get("submitted") as number) ?? 0;
+  const discovered = (countMap.get("discovered") as number) ?? 0;
+  const errors = (countMap.get("error") as number) ?? 0;
+
+  // Get most recent submission and inspection timestamps
+  const lastSubmission = await (prisma as any).uRLIndexingStatus.findFirst({
+    where: { last_submitted_at: { not: null } },
+    orderBy: { last_submitted_at: "desc" },
+    select: { last_submitted_at: true },
+  });
+
+  const lastInspection = await (prisma as any).uRLIndexingStatus.findFirst({
+    where: { last_inspected_at: { not: null } },
+    orderBy: { last_inspected_at: "desc" },
+    select: { last_inspected_at: true },
+  });
+
+  return {
+    totalUrls,
+    indexed,
+    submitted,
+    discovered,
+    errors,
+    lastSubmitted: lastSubmission?.last_submitted_at?.toISOString() ?? null,
+    lastInspected: lastInspection?.last_inspected_at?.toISOString() ?? null,
+    indexRate: totalUrls > 0 ? Math.round((indexed / totalUrls) * 100) : 0,
+  };
+}
+
 // ─── Fallbacks when tables don't exist yet ──────────────────────────
 
 function fallbackSiteHealth(): SiteHealth[] {
@@ -345,4 +403,17 @@ function fallbackCronJobStatus(): CronJobStatus[] {
     itemsProcessed: 0,
     itemsFailed: 0,
   }));
+}
+
+function fallbackIndexingStatus(): IndexingStatus {
+  return {
+    totalUrls: 0,
+    indexed: 0,
+    submitted: 0,
+    discovered: 0,
+    errors: 0,
+    lastSubmitted: null,
+    lastInspected: null,
+    indexRate: 0,
+  };
 }

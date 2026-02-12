@@ -636,31 +636,28 @@ export async function submitUnindexedPages(
       }
     }
 
-    // 2. Google Indexing API (for recent posts — last 7 days, max 10 per run)
+    // 2. Submit sitemap to Google via GSC API
+    // NOTE: The Google Indexing API (urlNotifications:publish) only works for
+    // JobPosting/BroadcastEvent pages. For regular blog content, programmatic
+    // sitemap submission is the correct approach for Google discovery.
     try {
       const { GoogleSearchConsoleAPI } = await import("./indexing-service");
-      const gscIndexer = new GoogleSearchConsoleAPI();
+      const gsc = new GoogleSearchConsoleAPI();
 
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const recentUrls = posts
-        .filter((p: any) => new Date(p.created_at) >= sevenDaysAgo)
-        .map((p: any) => `${siteUrl}/blog/${p.slug}`)
-        .slice(0, 10); // Google Indexing API has daily quota (~200/day)
-
-      if (recentUrls.length > 0) {
-        const result = await gscIndexer.submitUrlsForIndexing(recentUrls);
-        gscApiCount = result.submitted;
-        if (result.errors.length > 0) {
-          console.warn("GSC Indexing API errors:", result.errors.slice(0, 3));
-        }
+      const sitemapResult = await gsc.submitSitemap(`${siteUrl}/sitemap.xml`);
+      if (sitemapResult.success) {
+        gscApiCount = 1; // Sitemap submitted = all URLs discovered
+        fixes.push(`Submitted sitemap to Google Search Console (${allSubmitUrls.length} URLs in sitemap)`);
+      } else {
+        console.warn("GSC sitemap submission failed:", sitemapResult.error);
       }
     } catch (gscError) {
-      console.warn("GSC Indexing API not available:", gscError);
+      console.warn("GSC API not available:", gscError);
     }
 
     if (indexNowCount > 0 || gscApiCount > 0) {
       fixes.push(
-        `Indexing: ${indexNowCount} URLs via IndexNow + ${gscApiCount} via Google Indexing API`
+        `Indexing: ${indexNowCount} URLs via IndexNow + sitemap submitted to GSC`
       );
     }
 

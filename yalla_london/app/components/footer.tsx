@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useLanguage } from './language-provider'
 import { getTranslation } from '@/lib/i18n'
-import { Instagram, Facebook, Twitter, Youtube, Mail, MapPin, Phone } from 'lucide-react'
+import { Instagram, Facebook, Twitter, Youtube, Mail, MapPin } from 'lucide-react'
 
 export function Footer() {
   const { language, isRTL } = useLanguage()
@@ -21,57 +21,64 @@ export function Footer() {
   ]
 
   return (
-    <footer className={`bg-london-900 text-cream-100 ${isRTL ? 'rtl' : 'ltr'}`}>
-      {/* Decorative top border */}
-      <div className="h-1 w-full bg-gradient-to-r from-transparent via-yalla-gold-400 to-transparent" />
+    <footer className={`bg-charcoal text-cream-100 ${isRTL ? 'rtl' : 'ltr'}`}>
+      {/* V2 Tri-color divider — 3px, full-width */}
+      <div className="flex h-[3px] w-full">
+        <div className="flex-1 bg-london-600" />
+        <div className="flex-1 bg-yalla-gold-500" />
+        <div className="flex-1 bg-thames-500" />
+      </div>
 
-      {/* Main Footer Content */}
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
-          {/* Brand Column */}
-          <div className="lg:col-span-1">
-            <div className="mb-6">
+      {/* Main Footer Content — 32px × 28px padding per v2 spec */}
+      <div className="max-w-7xl mx-auto px-7 py-8">
+        {/* V2 Column grid: 2fr 1fr 1fr 1fr */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr] gap-10 mb-8">
+          {/* Brand Column (2fr) */}
+          <div>
+            {/* Logo — stacked SVG, scale 0.7 per v2 spec */}
+            <div className="mb-5">
               <Image
                 src="/images/yalla-london-logo-white.svg"
                 alt="Yalla London"
-                width={200}
-                height={36}
-                className="h-9 w-auto mb-2"
+                width={140}
+                height={25}
+                className="h-auto w-[140px] mb-2"
               />
-              <p className="text-yalla-gold-400 text-sm font-medium">
-                {language === 'en' ? 'Luxury London Guide' : 'دليل لندن الفاخر'}
+              {/* Arabic tagline — IBM Plex Sans Arabic 12px/400, Stone */}
+              <p className={`text-stone text-xs font-normal ${isRTL ? 'font-arabic' : ''}`}>
+                {language === 'en' ? 'Your Luxury London Guide' : 'دليلك الفاخر إلى لندن'}
               </p>
             </div>
-            <p className="text-cream-300 mb-6 leading-relaxed">
+            {/* Description — Source Serif 4, 12px, weight 300, Stone */}
+            <p className="font-editorial text-xs font-light text-stone leading-relaxed mb-5 max-w-sm">
               {language === 'en'
                 ? 'Your curated guide to the finest luxury experiences in London. Discover hidden gems, exclusive events, and unforgettable moments.'
                 : 'دليلك المنسق لأفضل التجارب الفاخرة في لندن. اكتشف الكنوز المخفية والفعاليات الحصرية واللحظات التي لا تُنسى.'
               }
             </p>
             {/* Social Links */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               {socialLinks.map((social) => (
                 <a
                   key={social.label}
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-10 h-10 rounded-lg bg-london-800 hover:bg-yalla-gold-400 text-cream-200 hover:text-london-900 flex items-center justify-center transition-all duration-300 hover:-translate-y-1"
+                  className="w-9 h-9 rounded bg-graphite hover:bg-yalla-gold-500 text-stone hover:text-charcoal flex items-center justify-center transition-all duration-200 hover:-translate-y-0.5"
                   aria-label={language === 'ar' ? social.labelAr : social.label}
                 >
-                  <social.icon size={18} />
+                  <social.icon size={16} />
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Explore Links — Column header: Anybody 12px/700, Cream; Links: Source Serif 4 11px/300, Stone */}
           <div>
-            <h4 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <span className="w-8 h-0.5 bg-yalla-gold-400" />
+            <h4 className="font-display text-xs font-bold text-cream-100 uppercase tracking-wider mb-4">
               {language === 'en' ? 'Explore' : 'استكشف'}
             </h4>
-            <ul className="space-y-3">
+            <ul className="space-y-2.5">
               {[
                 { href: '/information', en: 'Information Hub', ar: 'مركز المعلومات' },
                 { href: '/blog', en: 'London Stories', ar: 'حكايات لندن' },
@@ -83,9 +90,8 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-cream-300 hover:text-yalla-gold-400 transition-colors duration-300 flex items-center gap-2 group"
+                    className="font-editorial text-[11px] font-light text-stone hover:text-yalla-gold-500 transition-colors duration-200"
                   >
-                    <span className="w-0 group-hover:w-2 h-0.5 bg-yalla-gold-400 transition-all duration-300" />
                     {language === 'en' ? link.en : link.ar}
                   </Link>
                 </li>
@@ -95,11 +101,10 @@ export function Footer() {
 
           {/* Categories */}
           <div>
-            <h4 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <span className="w-8 h-0.5 bg-yalla-gold-400" />
+            <h4 className="font-display text-xs font-bold text-cream-100 uppercase tracking-wider mb-4">
               {language === 'en' ? 'Categories' : 'التصنيفات'}
             </h4>
-            <ul className="space-y-3">
+            <ul className="space-y-2.5">
               {[
                 { href: '/blog?category=food', en: 'Food & Dining', ar: 'الطعام والمطاعم' },
                 { href: '/blog?category=travel', en: 'Travel & Explore', ar: 'السفر والاستكشاف' },
@@ -110,9 +115,8 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-cream-300 hover:text-yalla-gold-400 transition-colors duration-300 flex items-center gap-2 group"
+                    className="font-editorial text-[11px] font-light text-stone hover:text-yalla-gold-500 transition-colors duration-200"
                   >
-                    <span className="w-0 group-hover:w-2 h-0.5 bg-yalla-gold-400 transition-all duration-300" />
                     {language === 'en' ? link.en : link.ar}
                   </Link>
                 </li>
@@ -120,75 +124,74 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Contact & Newsletter */}
+          {/* Connect */}
           <div>
-            <h4 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-              <span className="w-8 h-0.5 bg-yalla-gold-400" />
-              {language === 'en' ? 'Stay Connected' : 'ابق على تواصل'}
+            <h4 className="font-display text-xs font-bold text-cream-100 uppercase tracking-wider mb-4">
+              {language === 'en' ? 'Connect' : 'تواصل'}
             </h4>
 
             {/* Contact Info */}
-            <div className="space-y-4 mb-6">
+            <div className="space-y-3 mb-5">
               <a
                 href="mailto:hello@yallalondon.com"
-                className="flex items-center gap-3 text-cream-300 hover:text-yalla-gold-400 transition-colors"
+                className="flex items-center gap-2.5 font-editorial text-[11px] font-light text-stone hover:text-yalla-gold-500 transition-colors"
               >
-                <Mail size={18} className="text-yalla-gold-400" />
+                <Mail size={14} className="text-yalla-gold-500 shrink-0" />
                 <span>hello@yallalondon.com</span>
               </a>
-              <div className="flex items-center gap-3 text-cream-300">
-                <MapPin size={18} className="text-yalla-gold-400" />
+              <div className="flex items-center gap-2.5 font-editorial text-[11px] font-light text-stone">
+                <MapPin size={14} className="text-yalla-gold-500 shrink-0" />
                 <span>{language === 'en' ? 'London, United Kingdom' : 'لندن، المملكة المتحدة'}</span>
               </div>
             </div>
 
             {/* Newsletter */}
-            <div className="bg-london-800/50 rounded-xl p-4 border border-yalla-gold-400/10">
-              <p className="text-sm text-cream-300 mb-3">
+            <div className="bg-graphite/50 rounded p-3 border border-stone/10">
+              <p className="font-editorial text-[11px] font-light text-stone mb-2.5">
                 {language === 'en'
-                  ? 'Subscribe to our newsletter for exclusive updates'
-                  : 'اشترك في نشرتنا الإخبارية للحصول على تحديثات حصرية'
+                  ? 'Subscribe for exclusive updates'
+                  : 'اشترك للحصول على تحديثات حصرية'
                 }
               </p>
-              <form className="flex gap-2">
+              <form className="flex gap-1.5">
                 <input
                   type="email"
                   placeholder={language === 'en' ? 'Your email' : 'بريدك الإلكتروني'}
-                  className="flex-1 px-4 py-2 bg-london-900 border border-yalla-gold-400/20 rounded-lg text-cream-100 placeholder:text-cream-500 focus:outline-none focus:border-yalla-gold-400 transition-colors text-sm"
+                  className="flex-1 px-3 py-1.5 bg-charcoal border border-stone/20 rounded text-cream-100 placeholder:text-stone/50 focus:outline-none focus:border-yalla-gold-500 transition-colors font-editorial text-[11px]"
                 />
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-yalla-gold-400 text-london-900 rounded-lg font-medium hover:bg-yalla-gold-300 transition-colors"
+                  className="px-3 py-1.5 bg-yalla-gold-500 text-charcoal rounded font-mono text-[8px] font-semibold uppercase tracking-[1.5px] hover:bg-yalla-gold-400 transition-colors"
                 >
-                  <Mail size={18} />
+                  <Mail size={14} />
                 </button>
               </form>
             </div>
           </div>
         </div>
 
-        {/* Decorative Divider */}
-        <div className="flex items-center gap-4 my-8">
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yalla-gold-400/30 to-transparent" />
-          <div className="w-2 h-2 bg-yalla-gold-400 rotate-45" />
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-yalla-gold-400/30 to-transparent" />
+        {/* V2 Tri-color divider — 3px, full-width (replaces gold diamond) */}
+        <div className="flex h-[3px] w-full mb-6">
+          <div className="flex-1 bg-london-600" />
+          <div className="flex-1 bg-yalla-gold-500" />
+          <div className="flex-1 bg-thames-500" />
         </div>
 
-        {/* Bottom Bar */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-cream-400 text-sm">
+        {/* Bottom Bar — Copyright: IBM Plex Mono 8px/400, Stone */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-3">
+          <p className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase">
             © {currentYear} Yalla London. {language === 'en' ? 'All rights reserved.' : 'جميع الحقوق محفوظة.'}
           </p>
-          <div className="flex items-center gap-6 text-sm">
-            <Link href="/privacy" className="text-cream-400 hover:text-yalla-gold-400 transition-colors">
+          <div className="flex items-center gap-5">
+            <Link href="/privacy" className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors">
               {language === 'en' ? 'Privacy Policy' : 'سياسة الخصوصية'}
             </Link>
-            <Link href="/terms" className="text-cream-400 hover:text-yalla-gold-400 transition-colors">
+            <Link href="/terms" className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors">
               {language === 'en' ? 'Terms of Use' : 'شروط الاستخدام'}
             </Link>
             <a
               href="mailto:legal@yalla-london.com"
-              className="text-cream-400 hover:text-yalla-gold-400 transition-colors"
+              className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors"
             >
               {language === 'en' ? 'Legal' : 'القانونية'}
             </a>

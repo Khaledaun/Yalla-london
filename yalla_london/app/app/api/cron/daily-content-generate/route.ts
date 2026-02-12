@@ -81,7 +81,7 @@ async function generateDailyContentAllSites() {
     if (!siteConfig) continue;
 
     try {
-      const result = await generateDailyContentForSite(siteConfig, prisma);
+      const result = await generateDailyContentForSite(siteConfig, prisma, deadline);
       allResults[siteId] = result;
       console.log(
         `[${siteConfig.name}] Content gen: ${JSON.stringify(result)}`,
@@ -103,7 +103,7 @@ async function generateDailyContentAllSites() {
   };
 }
 
-async function generateDailyContentForSite(site: SiteConfig, prisma: any) {
+async function generateDailyContentForSite(site: SiteConfig, prisma: any, deadline?: { isExpired: () => boolean; remainingMs: () => number }) {
   const today = new Date();
   const startOfDay = new Date(
     today.getFullYear(),
@@ -145,29 +145,37 @@ async function generateDailyContentForSite(site: SiteConfig, prisma: any) {
 
   // Generate EN article if needed
   if (todayEN === 0) {
-    try {
-      const article = await generateArticle("en", site, prisma);
-      results.push({ language: "en", status: "success", slug: article.slug });
-    } catch (error) {
-      results.push({
-        language: "en",
-        status: "failed",
-        error: (error as Error).message,
-      });
+    if (deadline?.isExpired()) {
+      results.push({ language: "en", status: "skipped", error: "timeout_approaching" });
+    } else {
+      try {
+        const article = await generateArticle("en", site, prisma);
+        results.push({ language: "en", status: "success", slug: article.slug });
+      } catch (error) {
+        results.push({
+          language: "en",
+          status: "failed",
+          error: (error as Error).message,
+        });
+      }
     }
   }
 
   // Generate AR article if needed
   if (todayAR === 0) {
-    try {
-      const article = await generateArticle("ar", site, prisma);
-      results.push({ language: "ar", status: "success", slug: article.slug });
-    } catch (error) {
-      results.push({
-        language: "ar",
-        status: "failed",
-        error: (error as Error).message,
-      });
+    if (deadline?.isExpired()) {
+      results.push({ language: "ar", status: "skipped", error: "timeout_approaching" });
+    } else {
+      try {
+        const article = await generateArticle("ar", site, prisma);
+        results.push({ language: "ar", status: "success", slug: article.slug });
+      } catch (error) {
+        results.push({
+          language: "ar",
+          status: "failed",
+          error: (error as Error).message,
+        });
+      }
     }
   }
 
@@ -454,11 +462,18 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
   "seoScore": 90
 }`;
 
-    return await generateJSON<any>(prompt, {
-      systemPrompt,
-      maxTokens: 4096,
-      temperature: 0.7,
-    });
+    // 25s timeout per AI call to prevent hanging
+    const aiResult = await Promise.race([
+      generateJSON<any>(prompt, {
+        systemPrompt,
+        maxTokens: 4096,
+        temperature: 0.7,
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("AI generation timed out after 25s")), 25_000)
+      ),
+    ]);
+    return aiResult;
   } catch (aiError) {
     console.warn(
       `[${site.name}] AI provider failed, trying AbacusAI:`,
@@ -478,6 +493,7 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
             "Content-Type": "application/json",
             Authorization: `Bearer ${apiKey}`,
           },
+          signal: AbortSignal.timeout(20_000), // 20s timeout for fallback
           body: JSON.stringify({
             model: "gpt-4o-mini",
             messages: [
@@ -791,6 +807,7 @@ async function submitForIndexing(slugs: string[], site: SiteConfig) {
       await fetch("https://api.indexnow.org/indexnow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(5_000), // 5s timeout for indexing
         body: JSON.stringify({
           host: new URL(siteUrl).hostname,
           key: indexNowKey,

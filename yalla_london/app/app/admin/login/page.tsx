@@ -14,9 +14,10 @@ export default function AdminLogin() {
   const [success, setSuccess] = useState('')
   const [needsSetup, setNeedsSetup] = useState(false)
   const [checkingSetup, setCheckingSetup] = useState(true)
+  const [systemHealth, setSystemHealth] = useState<Record<string, string> | null>(null)
   const router = useRouter()
 
-  // Check if initial setup is needed
+  // Check if initial setup is needed + system health
   useEffect(() => {
     async function checkSetup() {
       try {
@@ -29,7 +30,15 @@ export default function AdminLogin() {
         setCheckingSetup(false)
       }
     }
+    async function checkHealth() {
+      try {
+        const res = await fetch('/api/admin/login')
+        const data = await res.json()
+        if (data.checks) setSystemHealth(data.checks)
+      } catch { /* ignore */ }
+    }
     checkSetup()
+    checkHealth()
   }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -78,7 +87,9 @@ export default function AdminLogin() {
       const setupData = await setupRes.json()
 
       if (!setupRes.ok || !setupData.success) {
-        setError(setupData.error || 'Setup failed. Please try again.')
+        const msg = setupData.error || 'Setup failed. Please try again.'
+        const detail = setupData.detail ? `\n${setupData.detail}` : ''
+        setError(msg + detail)
         return
       }
 
@@ -97,7 +108,8 @@ export default function AdminLogin() {
         window.location.href = '/admin'
       } else {
         setSuccess('')
-        setError('Account created but login failed: ' + (loginData.error || 'Unknown error'))
+        const loginDetail = loginData.detail ? ` (${loginData.detail})` : ''
+        setError('Account created but login failed: ' + (loginData.error || 'Unknown error') + loginDetail)
         setNeedsSetup(false)
       }
     } catch {
@@ -264,6 +276,32 @@ export default function AdminLogin() {
             </div>
           </form>
         </div>
+
+        {/* System health indicator */}
+        {systemHealth && (
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <p className="text-xs font-medium text-gray-500 mb-2">System Status</p>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(systemHealth).map(([key, value]) => {
+                const isOk = value === 'SET' || value === 'working' || value === 'available' || value.startsWith('connected')
+                const isMissing = value === 'MISSING' || value.startsWith('error') || value.startsWith('import error')
+                return (
+                  <span
+                    key={key}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs ${
+                      isOk ? 'bg-green-100 text-green-700' :
+                      isMissing ? 'bg-red-100 text-red-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${isOk ? 'bg-green-500' : isMissing ? 'bg-red-500' : 'bg-gray-400'}`} />
+                    {key}: {value}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

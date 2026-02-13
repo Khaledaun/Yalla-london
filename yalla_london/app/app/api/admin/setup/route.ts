@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { hashPassword } from '@/lib/auth'
+import bcrypt from 'bcryptjs'
 
 /**
  * Admin Setup Endpoint
@@ -10,10 +9,15 @@ import { hashPassword } from '@/lib/auth'
  *
  * This endpoint is intentionally NOT behind withAdminAuth because it's
  * used to bootstrap the very first admin account.
+ *
+ * Uses dynamic imports for prisma to avoid module-level crashes.
+ * Uses bcrypt directly instead of importing from @/lib/auth to avoid
+ * pulling in the full auth module (PrismaAdapter, providers, etc).
  */
 
 export async function GET() {
   try {
+    const { prisma } = await import('@/lib/db')
     const adminCount = await prisma.user.count({
       where: {
         role: 'admin',
@@ -24,33 +28,21 @@ export async function GET() {
     return NextResponse.json({
       needsSetup: adminCount === 0,
     })
-  } catch (error) {
+  } catch (error: any) {
     // If the database is not connected or tables don't exist,
     // we still need setup
     return NextResponse.json({
       needsSetup: true,
       dbError: true,
+      detail: error?.message?.substring(0, 200),
     })
   }
 }
 
 export async function POST(request: NextRequest) {
+  let step = 'parse-body'
+
   try {
-    // Only allow setup when no admin users exist
-    const adminCount = await prisma.user.count({
-      where: {
-        role: 'admin',
-        isActive: true,
-      },
-    })
-
-    if (adminCount > 0) {
-      return NextResponse.json(
-        { error: 'Setup already complete. Admin users already exist.' },
-        { status: 403 }
-      )
-    }
-
     const body = await request.json()
     const { email, password, name } = body
 
@@ -68,18 +60,44 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user with this email already exists
-    const existing = await prisma.user.findUnique({
-      where: { email },
+    // Load Prisma dynamically
+    step = 'load-prisma'
+    const { prisma } = await import('@/lib/db')
+
+    // Only allow setup when no admin users exist
+    step = 'check-existing-admins'
+    const adminCount = await prisma.user.count({
+      where: {
+        role: 'admin',
+        isActive: true,
+      },
     })
 
+    if (adminCount > 0) {
+      return NextResponse.json(
+        { error: 'Setup already complete. Admin users already exist.' },
+        { status: 403 }
+      )
+    }
+
+    // Hash password directly with bcrypt (cost factor 12)
+    step = 'hash-password'
+    const passwordHash = await bcrypt.hash(password, 12)
+
+    // Check if user with this email already exists
+    step = 'find-user'
+    const existing = await prisma.user.findUnique({
+      where: { email: email.trim() },
+    })
+
+    step = 'create-or-update-user'
     if (existing) {
       // Upgrade existing user to admin
       await prisma.user.update({
-        where: { email },
+        where: { email: email.trim() },
         data: {
           role: 'admin',
-          passwordHash: await hashPassword(password),
+          passwordHash,
           isActive: true,
           name: name || existing.name,
         },
@@ -88,10 +106,10 @@ export async function POST(request: NextRequest) {
       // Create new admin user
       await prisma.user.create({
         data: {
-          email,
+          email: email.trim(),
           name: name || 'Admin',
           role: 'admin',
-          passwordHash: await hashPassword(password),
+          passwordHash,
           isActive: true,
         },
       })
@@ -101,10 +119,13 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Admin account created. You can now sign in.',
     })
-  } catch (error) {
-    console.error('Setup error:', error)
+  } catch (error: any) {
+    console.error(`Setup error at step [${step}]:`, error)
     return NextResponse.json(
-      { error: 'Failed to create admin account. Check database connection.' },
+      {
+        error: `Setup failed at step: ${step}`,
+        detail: error?.message || String(error),
+      },
       { status: 500 }
     )
   }

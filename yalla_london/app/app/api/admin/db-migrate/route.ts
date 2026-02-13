@@ -218,6 +218,73 @@ const CREATE_TABLE_STATEMENTS: { table: string; model: string; sql: string }[] =
   "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
 )`,
   },
+  {
+    table: "information_sections",
+    model: "InformationSection",
+    sql: `CREATE TABLE IF NOT EXISTS "information_sections" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "slug" TEXT NOT NULL UNIQUE,
+  "name_en" TEXT NOT NULL,
+  "name_ar" TEXT NOT NULL,
+  "description_en" TEXT,
+  "description_ar" TEXT,
+  "icon" TEXT,
+  "featured_image" TEXT,
+  "sort_order" INTEGER NOT NULL DEFAULT 1,
+  "published" BOOLEAN NOT NULL DEFAULT true,
+  "subsections" JSONB,
+  "siteId" TEXT,
+  "deletedAt" TIMESTAMPTZ,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+)`,
+  },
+  {
+    table: "information_categories",
+    model: "InformationCategory",
+    sql: `CREATE TABLE IF NOT EXISTS "information_categories" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "slug" TEXT NOT NULL UNIQUE,
+  "name_en" TEXT NOT NULL,
+  "name_ar" TEXT NOT NULL,
+  "description_en" TEXT,
+  "description_ar" TEXT,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+)`,
+  },
+  {
+    table: "information_articles",
+    model: "InformationArticle",
+    sql: `CREATE TABLE IF NOT EXISTS "information_articles" (
+  "id" TEXT NOT NULL PRIMARY KEY,
+  "slug" TEXT NOT NULL UNIQUE,
+  "section_id" TEXT NOT NULL,
+  "category_id" TEXT NOT NULL,
+  "title_en" TEXT NOT NULL,
+  "title_ar" TEXT NOT NULL,
+  "excerpt_en" TEXT,
+  "excerpt_ar" TEXT,
+  "content_en" TEXT NOT NULL,
+  "content_ar" TEXT NOT NULL,
+  "featured_image" TEXT,
+  "reading_time" INTEGER NOT NULL DEFAULT 5,
+  "published" BOOLEAN NOT NULL DEFAULT false,
+  "meta_title_en" TEXT,
+  "meta_title_ar" TEXT,
+  "meta_description_en" TEXT,
+  "meta_description_ar" TEXT,
+  "tags" TEXT[] NOT NULL DEFAULT '{}',
+  "keywords" TEXT[] NOT NULL DEFAULT '{}',
+  "page_type" TEXT DEFAULT 'article',
+  "seo_score" INTEGER DEFAULT 0,
+  "faq_questions" JSONB,
+  "siteId" TEXT,
+  "deletedAt" TIMESTAMPTZ,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+)`,
+  },
 ];
 
 // Indexes for newly created tables
@@ -242,6 +309,22 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "fact_entries_next_check_at_idx" ON "fact_entries"("next_check_at")',
     'CREATE INDEX IF NOT EXISTS "fact_entries_category_idx" ON "fact_entries"("category")',
     'CREATE INDEX IF NOT EXISTS "fact_entries_siteId_idx" ON "fact_entries"("siteId")',
+  ],
+  information_sections: [
+    'CREATE INDEX IF NOT EXISTS "information_sections_siteId_idx" ON "information_sections"("siteId")',
+    'CREATE INDEX IF NOT EXISTS "information_sections_published_idx" ON "information_sections"("published")',
+    'CREATE INDEX IF NOT EXISTS "information_sections_sort_order_idx" ON "information_sections"("sort_order")',
+  ],
+  information_categories: [],
+  information_articles: [
+    'CREATE INDEX IF NOT EXISTS "information_articles_section_id_idx" ON "information_articles"("section_id")',
+    'CREATE INDEX IF NOT EXISTS "information_articles_category_id_idx" ON "information_articles"("category_id")',
+    'CREATE INDEX IF NOT EXISTS "information_articles_siteId_idx" ON "information_articles"("siteId")',
+    'CREATE INDEX IF NOT EXISTS "information_articles_siteId_published_idx" ON "information_articles"("siteId", "published")',
+    'CREATE INDEX IF NOT EXISTS "information_articles_published_idx" ON "information_articles"("published")',
+    'CREATE INDEX IF NOT EXISTS "information_articles_page_type_idx" ON "information_articles"("page_type")',
+    'CREATE INDEX IF NOT EXISTS "information_articles_seo_score_idx" ON "information_articles"("seo_score")',
+    'CREATE INDEX IF NOT EXISTS "information_articles_created_at_idx" ON "information_articles"("created_at")',
   ],
 };
 
@@ -281,22 +364,27 @@ async function scanDatabase(prisma: any): Promise<ScanResult> {
   const existingTables = await getExistingTables(prisma);
 
   const missingTables: ScanResult["missingTables"] = [];
+  const missingTableNames = new Set<string>();
   const missingColumns: ScanResult["missingColumns"] = [];
   let missingIndexCount = 0;
 
-  // Check for entirely missing tables
+  // Check for entirely missing tables (from CREATE_TABLE_STATEMENTS)
   for (const def of CREATE_TABLE_STATEMENTS) {
     if (!existingTables.has(def.table)) {
       missingTables.push({ table: def.table, model: def.model });
+      missingTableNames.add(def.table);
     }
   }
 
-  // Check for missing columns on existing tables
+  // Check for missing columns on existing tables (from EXPECTED_TABLES)
   for (const def of EXPECTED_TABLES) {
     const tableName = def.table.replace(/"/g, "");
     if (!existingTables.has(tableName)) {
-      // Entire table is missing — skip column checks
-      missingTables.push({ table: tableName, model: def.model });
+      // Entire table is missing — skip column checks, add if not already tracked
+      if (!missingTableNames.has(tableName)) {
+        missingTables.push({ table: tableName, model: def.model });
+        missingTableNames.add(tableName);
+      }
       continue;
     }
 

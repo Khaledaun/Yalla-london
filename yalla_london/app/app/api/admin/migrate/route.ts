@@ -25,12 +25,9 @@ export async function GET() {
     const { prisma } = await import('@/lib/db')
 
     // Check which columns exist on the users table
-    const result = await prisma.$queryRaw<Array<{ column_name: string }>>`
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_name = 'users'
-      ORDER BY ordinal_position
-    `
+    const result: any[] = await prisma.$queryRawUnsafe(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'users' ORDER BY ordinal_position`
+    )
 
     const existingColumns = result.map((r: any) => r.column_name)
     const missing = REQUIRED_COLUMNS.filter(c => !existingColumns.includes(c.name))
@@ -56,11 +53,9 @@ export async function POST() {
     const { prisma } = await import('@/lib/db')
 
     // Check existing columns first
-    const existing = await prisma.$queryRaw<Array<{ column_name: string }>>`
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_name = 'users'
-    `
+    const existing: any[] = await prisma.$queryRawUnsafe(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'users'`
+    )
     const existingColumns = new Set(existing.map((r: any) => r.column_name))
 
     for (const col of REQUIRED_COLUMNS) {

@@ -135,7 +135,7 @@ async function searchWeb(query: string, limit = 8): Promise<SearchResult[]> {
     const results: SearchResult[] = [];
 
     $(".result").each((_, el) => {
-      if (results.length >= limit) return false;
+      if (results.length >= limit) return;
 
       const titleEl = $(el).find(".result__title a, .result__a");
       const snippetEl = $(el).find(".result__snippet");

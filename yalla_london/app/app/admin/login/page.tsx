@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
-import { Eye, EyeOff, Lock, Mail, User, Shield } from 'lucide-react'
+import { Eye, EyeOff, Lock, Mail, User, Shield, RefreshCw } from 'lucide-react'
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('')
@@ -18,7 +17,7 @@ export default function AdminLogin() {
   const [isMigrating, setIsMigrating] = useState(false)
   const [checkingSetup, setCheckingSetup] = useState(true)
   const [systemHealth, setSystemHealth] = useState<Record<string, string> | null>(null)
-  const router = useRouter()
+  const [showResetOption, setShowResetOption] = useState(false)
 
   // Check migration → setup → health sequentially to avoid race conditions
   useEffect(() => {
@@ -29,9 +28,9 @@ export default function AdminLogin() {
         const migData = await migRes.json()
         if (migData.needsMigration) {
           setNeedsMigration(true)
-          setNeedsSetup(true) // If migration needed, setup is definitely needed too
+          setNeedsSetup(true)
           setCheckingSetup(false)
-          return // Don't bother checking setup — DB schema isn't ready
+          return
         }
       } catch { /* ignore — will fall through to setup check */ }
 
@@ -41,7 +40,6 @@ export default function AdminLogin() {
         const setupData = await setupRes.json()
         setNeedsSetup(setupData.needsSetup === true)
         if (setupData.dbError) {
-          // Schema issue the migration check missed — flag it
           setNeedsMigration(true)
         }
       } catch {
@@ -74,7 +72,6 @@ export default function AdminLogin() {
       if (data.status === 'ok' || data.status === 'partial') {
         setSuccess(data.message || 'Database updated successfully!')
         setNeedsMigration(false)
-        // Re-check setup status after migration
         const setupRes = await fetch('/api/admin/setup')
         const setupData = await setupRes.json()
         setNeedsSetup(setupData.needsSetup === true)
@@ -92,23 +89,71 @@ export default function AdminLogin() {
     e.preventDefault()
     setIsLoading(true)
     setError('')
+    setSuccess('')
 
     try {
-      // Use NextAuth's signIn so it sets the session cookie correctly
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
+      // Use the custom login endpoint — it has step-by-step diagnostics
+      // so if anything fails, the user sees EXACTLY what's wrong
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
       })
 
-      if (result?.ok) {
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        const msg = data.error || 'Login failed'
+        const detail = data.detail ? `\n${data.detail}` : ''
+
+        // Show reset option if credentials are wrong (might be from old setup)
+        if (res.status === 401) {
+          setShowResetOption(true)
+        }
+
+        // Surface config issues clearly
+        if (msg.includes('NEXTAUTH_SECRET')) {
+          setError('NEXTAUTH_SECRET is not set in your Vercel environment variables. Add it and redeploy.')
+        } else if (msg.includes('column') || msg.includes('does not exist')) {
+          setNeedsMigration(true)
+          setError('Database schema is outdated. Run the migration above.')
+        } else {
+          setError(msg + detail)
+        }
+        return
+      }
+
+      setSuccess('Login successful! Verifying session...')
+
+      // The custom endpoint set the cookie — now verify the session works
+      // by asking NextAuth to read it back
+      const sessionRes = await fetch('/api/auth/session')
+      const session = await sessionRes.json()
+
+      if (session?.user?.email) {
+        setSuccess('Session verified! Redirecting to dashboard...')
         window.location.href = '/admin'
       } else {
-        const msg = result?.error || 'Invalid email or password.'
-        if (msg.includes('does not exist') || msg.includes('column')) {
-          setNeedsMigration(true)
+        // Cookie was set but NextAuth can't read it — likely NEXTAUTH_SECRET mismatch
+        // between the custom endpoint and NextAuth config
+        // Fall back to NextAuth's own signIn to set a cookie it CAN read
+        setSuccess('Verifying with NextAuth...')
+        const result = await signIn('credentials', {
+          email: email.trim(),
+          password,
+          redirect: false,
+        })
+
+        if (result?.ok) {
+          window.location.href = '/admin'
+        } else {
+          setSuccess('')
+          setError(
+            'Your credentials are correct, but session creation failed.\n' +
+            'This usually means NEXTAUTH_SECRET is not set or DATABASE_URL is wrong.\n' +
+            'Check your Vercel environment variables.'
+          )
         }
-        setError(msg)
       }
     } catch (err) {
       setError(`Connection error: ${err instanceof Error ? err.message : 'Please try again.'}`)
@@ -124,11 +169,10 @@ export default function AdminLogin() {
     setSuccess('')
 
     try {
-      // Step 1: Create the admin account via setup API
       const setupRes = await fetch('/api/admin/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name }),
+        body: JSON.stringify({ email: email.trim(), password, name: name.trim() }),
       })
 
       const setupData = await setupRes.json()
@@ -142,18 +186,42 @@ export default function AdminLogin() {
 
       setSuccess('Admin account created! Signing you in...')
 
-      // Step 2: Sign in through NextAuth so the session cookie is set correctly
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
+      // Now sign in using the custom endpoint (better diagnostics)
+      const loginRes = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
       })
 
-      if (result?.ok) {
-        window.location.href = '/admin'
+      const loginData = await loginRes.json()
+
+      if (loginRes.ok && loginData.success) {
+        // Verify session
+        const sessionRes = await fetch('/api/auth/session')
+        const session = await sessionRes.json()
+
+        if (session?.user?.email) {
+          window.location.href = '/admin'
+          return
+        }
+
+        // Fallback to NextAuth signIn
+        const result = await signIn('credentials', {
+          email: email.trim(),
+          password,
+          redirect: false,
+        })
+
+        if (result?.ok) {
+          window.location.href = '/admin'
+        } else {
+          setSuccess('')
+          setError('Account created but session failed. Try signing in manually.')
+          setNeedsSetup(false)
+        }
       } else {
         setSuccess('')
-        setError('Account created but login failed: ' + (result?.error || 'Unknown error. Try signing in manually.'))
+        setError('Account created but login failed: ' + (loginData.error || 'Unknown error'))
         setNeedsSetup(false)
       }
     } catch {
@@ -161,6 +229,13 @@ export default function AdminLogin() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleResetAdmin = async () => {
+    setShowResetOption(false)
+    setNeedsSetup(true)
+    setError('')
+    setSuccess('Enter your email and a NEW password below to reset your admin account.')
   }
 
   if (checkingSetup) {
@@ -202,7 +277,9 @@ export default function AdminLogin() {
               <div>
                 <p className="text-sm font-medium text-purple-900">First-time setup</p>
                 <p className="text-xs text-purple-700 mt-0.5">
-                  No admin account exists yet.{needsMigration ? ' Run the database migration below, then create your account.' : ' Create one to access the dashboard.'}
+                  {needsMigration
+                    ? 'Run the database migration below, then create your account.'
+                    : 'Create your admin account to access the dashboard.'}
                 </p>
               </div>
             </div>
@@ -338,6 +415,20 @@ export default function AdminLogin() {
               </button>
             </div>
           </form>
+
+          {/* Reset admin option — shown when login fails with wrong credentials */}
+          {showResetOption && !needsSetup && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={handleResetAdmin}
+                className="w-full flex items-center justify-center gap-2 py-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Forgot password? Reset admin account
+              </button>
+            </div>
+          )}
         </div>
 
         {/* System health indicator */}

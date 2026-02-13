@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { signIn } from 'next-auth/react'
 import { Eye, EyeOff, Lock, Mail, User, Shield, RefreshCw } from 'lucide-react'
 
 export default function AdminLogin() {
@@ -82,33 +83,17 @@ export default function AdminLogin() {
   }
 
   /**
-   * Sign in through NextAuth's own callback endpoint.
-   * This lets NextAuth create and set its own session cookie in the exact
-   * format it expects — avoiding any encode/decode mismatch.
+   * Create session via NextAuth's official signIn() client function.
+   * This handles CSRF tokens, cookies, and URL encoding correctly
+   * across all browsers and deployment environments.
    */
   const nextAuthSignIn = async (userEmail: string, userPassword: string): Promise<boolean> => {
-    // Step 1: Get CSRF token from NextAuth
-    const csrfRes = await fetch('/api/auth/csrf')
-    const { csrfToken } = await csrfRes.json()
-
-    // Step 2: POST to NextAuth callback directly (bypass signIn() client lib)
-    const res = await fetch('/api/auth/callback/credentials', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        csrfToken,
-        email: userEmail,
-        password: userPassword,
-        callbackUrl: window.location.origin + '/admin',
-        json: 'true',
-      }),
+    const result = await signIn('credentials', {
+      redirect: false,
+      email: userEmail,
+      password: userPassword,
     })
-
-    const data = await res.json()
-
-    // NextAuth returns { url: "/admin" } on success,
-    // { url: "/admin/login?error=CredentialsSignin" } on failure
-    return res.ok && data.url && !data.url.includes('error=')
+    return result?.ok === true && !result?.error
   }
 
   const handleLogin = async (e: React.FormEvent) => {

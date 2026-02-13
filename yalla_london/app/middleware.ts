@@ -189,7 +189,8 @@ export function middleware(request: NextRequest) {
       pathname.startsWith("/api/auth/") ||
       pathname === "/api/admin/login" ||
       pathname === "/api/admin/setup" ||
-      pathname === "/api/admin/migrate";
+      pathname === "/api/admin/migrate" ||
+      pathname === "/api/admin/session";
     if (!isInternalRoute) {
       if (!origin || !ALLOWED_ORIGINS.has(origin)) {
         return NextResponse.json(

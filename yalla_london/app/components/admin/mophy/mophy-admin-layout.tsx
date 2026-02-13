@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { useSession, signOut } from 'next-auth/react'
+import { useAdminSession } from '@/hooks/use-admin-session'
 import { SiteSelector } from '@/components/admin/site-selector'
 import {
   LayoutDashboard,
@@ -249,7 +249,7 @@ interface MophyAdminLayoutProps {
 
 export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps) {
   const pathname = usePathname()
-  const { data: session, status } = useSession()
+  const { data: session, status, signOut } = useAdminSession()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -301,7 +301,7 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
   const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [])
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/admin/login' })
+    await signOut()
   }
 
   // Sample notifications

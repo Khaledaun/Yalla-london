@@ -695,18 +695,29 @@ function SystemConnections() {
     });
 
     // Run all checks in parallel
-    const [dbRes, homeRes, aiRes] = await Promise.all([
-      fetch("/api/blog?limit=1").catch(() => null),
+    const [healthRes, homeRes, aiRes, sitemapRes] = await Promise.all([
+      fetch("/api/health").catch(() => null),
       fetch("/").catch(() => null),
       fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => null),
+      fetch("/sitemap.xml").catch(() => null),
     ]);
 
     const results: Record<string, "pass" | "fail"> = {};
 
-    // Database
-    results.database = dbRes?.ok ? "pass" : "fail";
+    // Database - use /api/health endpoint
+    if (healthRes) {
+      try {
+        const health = await healthRes.json();
+        const dbCheck = health.checks?.find((c: any) => c.name === "database");
+        results.database = dbCheck?.status === "pass" ? "pass" : "fail";
+      } catch {
+        results.database = "fail";
+      }
+    } else {
+      results.database = "fail";
+    }
 
-    // GA4
+    // GA4 + Pages + Assets from homepage
     if (homeRes?.ok) {
       const html = await homeRes.text().catch(() => "");
       results.ga4 = html.match(/G-[A-Z0-9]{8,12}/) ? "pass" : "fail";
@@ -718,11 +729,10 @@ function SystemConnections() {
       results.assets = "fail";
     }
 
-    // AI
+    // AI - any response (401/403/400/200) means endpoint exists
     results.ai = aiRes && (aiRes.status === 401 || aiRes.status === 403 || aiRes.status === 400 || aiRes.ok) ? "pass" : "fail";
 
     // SEO - check if sitemap exists
-    const sitemapRes = await fetch("/sitemap.xml").catch(() => null);
     results.seo = sitemapRes?.ok ? "pass" : "fail";
 
     setChecks(results);

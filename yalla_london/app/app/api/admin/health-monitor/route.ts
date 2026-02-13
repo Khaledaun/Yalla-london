@@ -333,7 +333,7 @@ async function fetchRecentErrors(): Promise<RecentError[]> {
 
   // Exclude errors from jobs that have since recovered (latest run succeeded).
   // This prevents stale alerts from lingering after a fix is deployed.
-  const failedJobNames = [...new Set(errors.map((e: any) => e.job_name))];
+  const failedJobNames = [...new Set<string>(errors.map((e: any) => e.job_name))];
   const latestRuns = await Promise.all(
     failedJobNames.map(async (jobName: string) => {
       const latest = await (prisma as any).cronJobLog.findFirst({

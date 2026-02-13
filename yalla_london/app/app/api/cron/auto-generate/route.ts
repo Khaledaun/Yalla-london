@@ -65,11 +65,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Health check endpoint
+// GET handler — supports both healthcheck and real execution for Vercel cron compatibility
 export async function GET(request: NextRequest) {
-  return NextResponse.json({
-    status: 'healthy',
-    endpoint: 'auto-generate cron',
-    timestamp: new Date().toISOString()
-  });
+  // Healthcheck mode — quick status without generating content
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    return NextResponse.json({
+      status: 'healthy',
+      endpoint: 'auto-generate cron',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Real execution — delegate to POST handler
+  return POST(request);
 }

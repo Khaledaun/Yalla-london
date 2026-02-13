@@ -165,20 +165,26 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Health check endpoint
+// GET handler — supports both healthcheck and real execution for Vercel cron compatibility
 export async function GET(request: NextRequest) {
-  const pendingCount = await prisma.topicProposal.count({
-    where: { status: 'proposed' }
-  });
+  // Healthcheck mode — quick status without generating topics
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    const pendingCount = await prisma.topicProposal.count({
+      where: { status: 'proposed' }
+    });
 
-  return NextResponse.json({
-    status: 'healthy',
-    endpoint: 'weekly-topics cron',
-    pendingTopics: pendingCount,
-    lowBacklog: pendingCount < 10,
-    nextWeeklyRun: getNextSunday(),
-    timestamp: new Date().toISOString()
-  });
+    return NextResponse.json({
+      status: 'healthy',
+      endpoint: 'weekly-topics cron',
+      pendingTopics: pendingCount,
+      lowBacklog: pendingCount < 10,
+      nextWeeklyRun: getNextSunday(),
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Real execution — delegate to POST handler
+  return POST(request);
 }
 
 function getNextSunday(): string {

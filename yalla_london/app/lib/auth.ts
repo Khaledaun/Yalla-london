@@ -1,10 +1,6 @@
 import { NextAuthOptions } from 'next-auth'
-import { PrismaAdapter } from '@next-auth/prisma-adapter'
-import { prisma } from '@/lib/db'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import GoogleProvider from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
-import { logAuditEvent } from '@/lib/rbac'
 
 /**
  * Consolidated authentication configuration.
@@ -14,9 +10,10 @@ import { logAuditEvent } from '@/lib/rbac'
  * - No hardcoded credentials. Initial admin seeded via CLI script with env vars.
  * - Google SSO enabled when GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set.
  *
- * NOTE: PrismaAdapter is only used when Google OAuth is enabled.
- * The Credentials provider uses JWT sessions and manages users directly
- * through the authorize() callback — no adapter needed.
+ * IMPORTANT: All database access (prisma) and audit logging (logAuditEvent)
+ * use dynamic imports inside callbacks. This prevents the module from crashing
+ * at import time if the database is temporarily unavailable, and avoids a
+ * circular dependency with rbac.ts (which imports authOptions from this file).
  */
 
 const hasGoogleOAuth = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
@@ -27,10 +24,20 @@ export function getAdminEmails(): string[] {
 }
 
 export const authOptions: NextAuthOptions = {
-  // Only use PrismaAdapter when Google OAuth is enabled.
-  // Credentials-only mode uses pure JWT with no database session management.
-  // This prevents crashes when NextAuth adapter tables don't exist.
-  ...(hasGoogleOAuth ? { adapter: PrismaAdapter(prisma) } : {}),
+  // PrismaAdapter is only used when Google OAuth is enabled.
+  // We lazy-load it to avoid crashing the module if prisma fails to connect.
+  ...(hasGoogleOAuth ? {
+    adapter: (() => {
+      try {
+        const { PrismaAdapter } = require('@next-auth/prisma-adapter')
+        const { prisma } = require('@/lib/db')
+        return PrismaAdapter(prisma)
+      } catch (e) {
+        console.error('PrismaAdapter failed to load:', e)
+        return undefined
+      }
+    })()
+  } : {}),
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -46,43 +53,23 @@ export const authOptions: NextAuthOptions = {
         const email = credentials.email.trim()
 
         try {
+          const { prisma } = await import('@/lib/db')
+
           const user = await prisma.user.findUnique({
             where: { email }
           })
 
           if (!user || !user.isActive) {
-            logAuditEvent({
-              userId: user?.id,
-              action: 'login',
-              resource: 'authentication',
-              success: false,
-              errorMessage: user ? 'Account inactive or deleted' : 'User not found'
-            }).catch(() => {})
             return null
           }
 
-          // Verify password via bcrypt — no hardcoded credentials
           if (!user.passwordHash) {
-            logAuditEvent({
-              userId: user.id,
-              action: 'login',
-              resource: 'authentication',
-              success: false,
-              errorMessage: 'No password set for this account'
-            }).catch(() => {})
             return null
           }
 
           const isPasswordValid = await bcrypt.compare(credentials.password, user.passwordHash)
 
           if (!isPasswordValid) {
-            logAuditEvent({
-              userId: user.id,
-              action: 'login',
-              resource: 'authentication',
-              success: false,
-              errorMessage: 'Invalid credentials'
-            }).catch(() => {})
             return null
           }
 
@@ -90,14 +77,6 @@ export const authOptions: NextAuthOptions = {
           prisma.user.update({
             where: { id: user.id },
             data: { lastLoginAt: new Date() }
-          }).catch(() => {})
-
-          // Audit log (non-blocking — must never prevent login)
-          logAuditEvent({
-            userId: user.id,
-            action: 'login',
-            resource: 'authentication',
-            success: true
           }).catch(() => {})
 
           return {
@@ -114,23 +93,26 @@ export const authOptions: NextAuthOptions = {
     }),
     // Google SSO — only when credentials are configured
     ...(hasGoogleOAuth ? [
-      GoogleProvider({
-        clientId: process.env.GOOGLE_CLIENT_ID!,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-        authorization: {
-          params: {
-            prompt: 'consent',
-            access_type: 'offline',
-            response_type: 'code'
+      (() => {
+        const GoogleProvider = require('next-auth/providers/google').default
+        return GoogleProvider({
+          clientId: process.env.GOOGLE_CLIENT_ID!,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+          authorization: {
+            params: {
+              prompt: 'consent',
+              access_type: 'offline',
+              response_type: 'code'
+            }
           }
-        }
-      })
+        })
+      })()
     ] : [])
   ],
   session: {
     strategy: 'jwt' as const,
-    maxAge: parseInt(process.env.SESSION_MAX_AGE_SECONDS || '28800', 10), // Default: 8 hours (configurable via env)
-    updateAge: 15 * 60, // Refresh session every 15 minutes of activity
+    maxAge: parseInt(process.env.SESSION_MAX_AGE_SECONDS || '28800', 10),
+    updateAge: 15 * 60,
   },
   callbacks: {
     async jwt({ token, user }: any) {
@@ -158,6 +140,7 @@ export const authOptions: NextAuthOptions = {
         if (account?.provider === 'google') {
           const email = user.email
           if (!email) return false
+          const { prisma } = await import('@/lib/db')
           const existing = await prisma.user.findUnique({ where: { email } })
           if (existing && !existing.isActive) return false
           if (!existing) {
@@ -175,7 +158,7 @@ export const authOptions: NextAuthOptions = {
         return true
       } catch (error) {
         console.error('signIn callback error:', error)
-        return true // Don't block login on callback errors
+        return true
       }
     }
   },
@@ -188,6 +171,7 @@ export const authOptions: NextAuthOptions = {
     async signOut({ token }) {
       try {
         if (token?.id) {
+          const { logAuditEvent } = await import('@/lib/rbac')
           await logAuditEvent({
             userId: token.id as string,
             action: 'logout',

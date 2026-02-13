@@ -198,7 +198,7 @@ const mainNavigation = [
     id: 'command',
     label: 'Multi-Site',
     icon: Globe,
-    href: '/admin/command-center',
+    href: '/admin',
     badge: 'Pro',
     children: [
       { label: 'All Sites', href: '/admin/command-center/sites' },

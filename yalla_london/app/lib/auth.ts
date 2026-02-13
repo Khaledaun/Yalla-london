@@ -43,61 +43,62 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        const email = credentials.email.trim()
+
         try {
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email }
+            where: { email }
           })
 
           if (!user || !user.isActive) {
-            if (user) {
-              await logAuditEvent({
-                userId: user.id,
-                action: 'login',
-                resource: 'authentication',
-                success: false,
-                errorMessage: 'Account inactive or deleted'
-              })
-            }
+            logAuditEvent({
+              userId: user?.id,
+              action: 'login',
+              resource: 'authentication',
+              success: false,
+              errorMessage: user ? 'Account inactive or deleted' : 'User not found'
+            }).catch(() => {})
             return null
           }
 
           // Verify password via bcrypt — no hardcoded credentials
           if (!user.passwordHash) {
-            await logAuditEvent({
+            logAuditEvent({
               userId: user.id,
               action: 'login',
               resource: 'authentication',
               success: false,
               errorMessage: 'No password set for this account'
-            })
+            }).catch(() => {})
             return null
           }
 
           const isPasswordValid = await bcrypt.compare(credentials.password, user.passwordHash)
 
           if (!isPasswordValid) {
-            await logAuditEvent({
+            logAuditEvent({
               userId: user.id,
               action: 'login',
               resource: 'authentication',
               success: false,
               errorMessage: 'Invalid credentials'
-            })
+            }).catch(() => {})
             return null
           }
 
-          // Update last login time
-          await prisma.user.update({
+          // Update last login time (non-blocking)
+          prisma.user.update({
             where: { id: user.id },
             data: { lastLoginAt: new Date() }
-          }).catch(() => {}) // Don't fail login if update fails
+          }).catch(() => {})
 
-          await logAuditEvent({
+          // Audit log (non-blocking — must never prevent login)
+          logAuditEvent({
             userId: user.id,
             action: 'login',
             resource: 'authentication',
             success: true
-          })
+          }).catch(() => {})
 
           return {
             id: user.id,

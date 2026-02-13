@@ -82,8 +82,29 @@ export async function POST(request: NextRequest) {
     })
 
     if (loginableAdminCount > 0) {
+      // An admin already exists. Allow password reset only if the email
+      // matches the existing admin (prevents creating new admins).
+      const existingAdmin = await prisma.user.findUnique({
+        where: { email: email.trim() },
+      })
+      if (existingAdmin && existingAdmin.role === 'admin') {
+        // Reset password for existing admin
+        const newHash = await bcrypt.hash(password, 12)
+        await prisma.user.update({
+          where: { email: email.trim() },
+          data: {
+            passwordHash: newHash,
+            name: name || existingAdmin.name,
+            isActive: true,
+          },
+        })
+        return NextResponse.json({
+          success: true,
+          message: 'Admin password has been reset. You can now sign in.',
+        })
+      }
       return NextResponse.json(
-        { error: 'Setup already complete. An admin with login credentials already exists.' },
+        { error: 'An admin account already exists with a different email. Use the existing admin email to reset.' },
         { status: 403 }
       )
     }

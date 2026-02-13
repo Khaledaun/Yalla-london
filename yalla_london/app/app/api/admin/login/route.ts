@@ -156,11 +156,6 @@ async function processLogin(
   // Step 8: Set cookie and return
   const maxAge = parseInt(process.env.SESSION_MAX_AGE_SECONDS || '28800', 10)
 
-  // NextAuth uses different cookie names for secure (HTTPS) vs insecure (HTTP)
-  const cookieName = isProduction
-    ? '__Secure-next-auth.session-token'
-    : 'next-auth.session-token'
-
   const response = NextResponse.json({
     success: true,
     user: {
@@ -171,7 +166,17 @@ async function processLogin(
     },
   })
 
-  response.cookies.set(cookieName, token, {
+  // NextAuth picks __Secure- or plain cookie name based on the URL protocol,
+  // which can differ from NODE_ENV on preview deployments.
+  // Set BOTH names so NextAuth finds whichever one it expects.
+  response.cookies.set('__Secure-next-auth.session-token', token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge,
+  })
+  response.cookies.set('next-auth.session-token', token, {
     httpOnly: true,
     secure: isProduction,
     sameSite: 'lax',

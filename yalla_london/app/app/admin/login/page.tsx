@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { signIn } from 'next-auth/react'
 import { Eye, EyeOff, Lock, Mail, User, Shield, RefreshCw } from 'lucide-react'
 
 export default function AdminLogin() {
@@ -123,38 +122,11 @@ export default function AdminLogin() {
         return
       }
 
-      setSuccess('Login successful! Verifying session...')
-
-      // The custom endpoint set the cookie — now verify the session works
-      // by asking NextAuth to read it back
-      const sessionRes = await fetch('/api/auth/session')
-      const session = await sessionRes.json()
-
-      if (session?.user?.email) {
-        setSuccess('Session verified! Redirecting to dashboard...')
-        window.location.href = '/admin'
-      } else {
-        // Cookie was set but NextAuth can't read it — likely NEXTAUTH_SECRET mismatch
-        // between the custom endpoint and NextAuth config
-        // Fall back to NextAuth's own signIn to set a cookie it CAN read
-        setSuccess('Verifying with NextAuth...')
-        const result = await signIn('credentials', {
-          email: email.trim(),
-          password,
-          redirect: false,
-        })
-
-        if (result?.ok) {
-          window.location.href = '/admin'
-        } else {
-          setSuccess('')
-          setError(
-            'Your credentials are correct, but session creation failed.\n' +
-            'This usually means NEXTAUTH_SECRET is not set or DATABASE_URL is wrong.\n' +
-            'Check your Vercel environment variables.'
-          )
-        }
-      }
+      // Credentials verified and cookie set — redirect to dashboard.
+      // The custom endpoint sets both __Secure- and plain cookie names
+      // so NextAuth will find whichever one it expects.
+      setSuccess('Login successful! Redirecting...')
+      window.location.href = '/admin'
     } catch (err) {
       setError(`Connection error: ${err instanceof Error ? err.message : 'Please try again.'}`)
     } finally {
@@ -196,29 +168,7 @@ export default function AdminLogin() {
       const loginData = await loginRes.json()
 
       if (loginRes.ok && loginData.success) {
-        // Verify session
-        const sessionRes = await fetch('/api/auth/session')
-        const session = await sessionRes.json()
-
-        if (session?.user?.email) {
-          window.location.href = '/admin'
-          return
-        }
-
-        // Fallback to NextAuth signIn
-        const result = await signIn('credentials', {
-          email: email.trim(),
-          password,
-          redirect: false,
-        })
-
-        if (result?.ok) {
-          window.location.href = '/admin'
-        } else {
-          setSuccess('')
-          setError('Account created but session failed. Try signing in manually.')
-          setNeedsSetup(false)
-        }
+        window.location.href = '/admin'
       } else {
         setSuccess('')
         setError('Account created but login failed: ' + (loginData.error || 'Unknown error'))

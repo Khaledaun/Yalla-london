@@ -51,8 +51,29 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       },
     });
 
+    // Exclude errors from jobs that have since recovered (latest run succeeded)
+    const failedJobNames = [...new Set(failures.map((f: any) => f.job_name))];
+    const latestRuns = await Promise.all(
+      failedJobNames.map(async (jobName: string) => {
+        const latest = await (prisma as any).cronJobLog.findFirst({
+          where: { job_name: jobName },
+          orderBy: { started_at: "desc" },
+          select: { job_name: true, status: true },
+        });
+        return latest;
+      }),
+    );
+    const recoveredJobs = new Set(
+      latestRuns
+        .filter((r: any) => r && r.status === "completed")
+        .map((r: any) => r.job_name),
+    );
+    const unresolvedFailures = failures.filter(
+      (f: any) => !recoveredJobs.has(f.job_name),
+    );
+
     // Classify severity
-    const alerts = failures.map((f: any) => {
+    const alerts = unresolvedFailures.map((f: any) => {
       let alertSeverity: "critical" | "warning" | "info" = "warning";
 
       // Critical: DB connection errors or all items failed

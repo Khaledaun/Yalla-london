@@ -147,6 +147,35 @@ export function withTenantAuth(
 }
 
 /**
+ * Dual auth: accepts admin session cookie OR Bearer CRON_SECRET.
+ * Use for admin endpoints that also need to be testable from the
+ * connection validator page (/test-connections.html).
+ */
+export function requireAdminOrCron(request: NextRequest): Promise<NextResponse | null> {
+  const authHeader = request.headers.get("authorization") || "";
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+    return Promise.resolve(null); // CRON_SECRET matched → allow
+  }
+
+  return requireAdmin(request); // Fall back to session-based admin auth
+}
+
+/**
+ * Wrapper: admin session OR CRON_SECRET
+ */
+export function withAdminOrCronAuth(
+  handler: (request: NextRequest) => Promise<NextResponse>,
+) {
+  return async (request: NextRequest): Promise<NextResponse> => {
+    const authResult = await requireAdminOrCron(request);
+    if (authResult) return authResult;
+    return handler(request);
+  };
+}
+
+/**
  * Get current admin user from session
  */
 export async function getCurrentAdminUser(request: NextRequest): Promise<{

@@ -439,45 +439,111 @@ async function seedStaticContent() {
     return;
   }
 
-  // Execute the seed
-  log('Seeding static articles into database...');
-  try {
-    const seedResp = await testFetch('/api/admin/seed-content', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + cronSecret },
-    });
+  // Execute the seed in batches of 8 to avoid timeout
+  const BATCH_SIZE = 8;
+  let currentOffset = 0;
+  let batchNum = 0;
+  let totalCreated = 0, totalUpdated = 0, totalErrors = 0, totalSeoMeta = 0, totalUrlIdx = 0;
+  let allCreatedSlugs = [], allUpdatedSlugs = [], allSkipped = [], allErrors = [];
+  let lastAuthor = null, lastCategories = 0;
+  let totalDurationMs = 0;
+
+  log('Seeding static articles into database (batches of ' + BATCH_SIZE + ')...');
+
+  while (true) {
+    batchNum++;
+    log('  Batch ' + batchNum + ': offset=' + currentOffset + ' limit=' + BATCH_SIZE);
+
+    let seedResp;
+    try {
+      // Use 55s timeout for each batch (server has 50s budget)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 55000);
+      const resp = await fetch('/api/admin/seed-content?offset=' + currentOffset + '&limit=' + BATCH_SIZE, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + cronSecret },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      const text = await resp.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch {}
+      seedResp = { ok: resp.ok, status: resp.status, json, text };
+    } catch (e) {
+      addResult('seed', 'Batch ' + batchNum, 'fail', 'Network error: ' + e.message + '. Try clicking Seed again — it will resume from where it stopped.');
+      break;
+    }
 
     if (seedResp.ok && seedResp.json) {
       const j = seedResp.json;
       const r = j.results || {};
-      const s = j.summary || {};
+      const b = j.batch || {};
 
-      addResult('seed', 'Seed Complete', 'pass', s.created + ' created, ' + s.updated + ' updated, ' + s.errors + ' errors (' + j.durationMs + 'ms)');
-      addResult('seed', 'System Author', 'pass', j.author.email + ' (ID: ' + j.author.id + ')');
-      addResult('seed', 'Categories Created', 'pass', j.categories + ' categories in database');
+      totalCreated += (r.created || []).length;
+      totalUpdated += (r.updated || []).length;
+      totalErrors += (r.errors || []).length;
+      totalSeoMeta += r.seoMetaCreated || 0;
+      totalUrlIdx += r.urlIndexingCreated || 0;
+      totalDurationMs += j.durationMs || 0;
+      allCreatedSlugs = allCreatedSlugs.concat(r.created || []);
+      allUpdatedSlugs = allUpdatedSlugs.concat(r.updated || []);
+      allSkipped = allSkipped.concat(r.skipped || []);
+      allErrors = allErrors.concat(r.errors || []);
+      if (j.author) lastAuthor = j.author;
+      if (j.categories) lastCategories = j.categories;
 
-      if (r.created && r.created.length > 0) {
-        addResult('seed', 'New Articles', 'pass', r.created.length + ': ' + r.created.slice(0, 5).join(', ') + (r.created.length > 5 ? '...' : ''));
-      }
-      if (r.updated && r.updated.length > 0) {
-        addResult('seed', 'Updated Articles', 'pass', r.updated.length + ': ' + r.updated.slice(0, 5).join(', ') + (r.updated.length > 5 ? '...' : ''));
-      }
-      if (r.skipped && r.skipped.length > 0) {
-        addResult('seed', 'Skipped', 'warn', r.skipped.join(', '));
-      }
-      if (r.errors && r.errors.length > 0) {
-        for (const err of r.errors) {
-          addResult('seed', 'Error: ' + err.slug, 'fail', err.error);
-        }
-      }
+      addResult('seed', 'Batch ' + batchNum, 'pass',
+        (r.created||[]).length + ' created, ' + (r.updated||[]).length + ' updated' +
+        (b.stoppedEarly ? ' (time-limited)' : '') + ' (' + j.durationMs + 'ms)');
 
-      addJsonBlock('seed', j);
+      // Check if there are more articles to process
+      if (!b.hasMore) {
+        log('  All articles processed.');
+        break;
+      }
+      currentOffset = b.nextOffset;
     } else {
-      addResult('seed', 'Seed', 'fail', 'HTTP ' + seedResp.status + ' — ' + (seedResp.json?.error || seedResp.text?.substring(0, 200) || ''));
+      addResult('seed', 'Batch ' + batchNum, 'fail', 'HTTP ' + seedResp.status + ' — ' + (seedResp.json?.error || seedResp.text?.substring(0, 200) || ''));
       if (seedResp.json) addJsonBlock('seed', seedResp.json);
+      break;
     }
-  } catch (e) {
-    addResult('seed', 'Seed', 'fail', 'JS Error: ' + e.message);
+  }
+
+  // Show combined results
+  if (totalCreated + totalUpdated > 0) {
+    addResult('seed', 'Seed Complete', 'pass',
+      totalCreated + ' created, ' + totalUpdated + ' updated, ' + totalSeoMeta + ' SeoMeta, ' +
+      totalUrlIdx + ' URLIndexing, ' + totalErrors + ' errors (' + totalDurationMs + 'ms total)');
+    if (lastAuthor) addResult('seed', 'System Author', 'pass', lastAuthor.email + ' (ID: ' + lastAuthor.id + ')');
+    addResult('seed', 'Categories', 'pass', lastCategories + ' categories in database');
+
+    if (allCreatedSlugs.length > 0) {
+      addResult('seed', 'New Articles', 'pass', allCreatedSlugs.length + ': ' + allCreatedSlugs.slice(0, 5).join(', ') + (allCreatedSlugs.length > 5 ? ' +' + (allCreatedSlugs.length-5) + ' more' : ''));
+    }
+    if (allUpdatedSlugs.length > 0) {
+      addResult('seed', 'Updated Articles', 'pass', allUpdatedSlugs.length + ': ' + allUpdatedSlugs.slice(0, 5).join(', ') + (allUpdatedSlugs.length > 5 ? ' +' + (allUpdatedSlugs.length-5) + ' more' : ''));
+    }
+    if (allSkipped.length > 0) {
+      addResult('seed', 'Skipped', 'warn', allSkipped.join(', '));
+    }
+    if (allErrors.length > 0) {
+      for (const err of allErrors) {
+        addResult('seed', 'Error: ' + err.slug, 'fail', err.error);
+      }
+    }
+    addResult('seed', 'SEO Records', 'pass', totalSeoMeta + ' SeoMeta + ' + totalUrlIdx + ' URLIndexingStatus records created');
+
+    addJsonBlock('seed', {
+      action: 'seed-complete',
+      batches: batchNum,
+      totalDurationMs,
+      created: allCreatedSlugs,
+      updated: allUpdatedSlugs,
+      skipped: allSkipped,
+      errors: allErrors,
+      seoMetaRecords: totalSeoMeta,
+      urlIndexingRecords: totalUrlIdx,
+    });
   }
 
   updateSummary();

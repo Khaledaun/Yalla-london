@@ -321,6 +321,12 @@ export async function POST(request: NextRequest) {
   if (authError) return authError;
 
   const startTime = Date.now();
+  const TIME_BUDGET_MS = 50_000; // 50s budget, 10s buffer before Vercel 60s kill
+
+  // Batch params: ?offset=0&limit=8 (default: all)
+  const url = new URL(request.url);
+  const offset = parseInt(url.searchParams.get("offset") || "0", 10);
+  const limit = parseInt(url.searchParams.get("limit") || "0", 10); // 0 = all
 
   try {
     const { blogPosts, categories: staticCats } = await import(
@@ -332,6 +338,11 @@ export async function POST(request: NextRequest) {
     const allStatic = [...blogPosts, ...extendedBlogPosts].filter(
       (p) => p.published,
     );
+
+    // Apply batch window
+    const batch =
+      limit > 0 ? allStatic.slice(offset, offset + limit) : allStatic;
+    const totalStatic = allStatic.length;
 
     const { prisma } = await import("@/lib/db");
 
@@ -349,9 +360,16 @@ export async function POST(request: NextRequest) {
       seoMetaCreated: 0,
       urlIndexingCreated: 0,
       errors: [] as { slug: string; error: string }[],
+      stoppedEarly: false,
+      processedCount: 0,
     };
 
-    for (const post of allStatic) {
+    for (const post of batch) {
+      // Time budget guard — return partial results before Vercel kills us
+      if (Date.now() - startTime > TIME_BUDGET_MS) {
+        results.stoppedEarly = true;
+        break;
+      }
       try {
         const mapped = mapStaticPost(post, author.id, categoryIdMap);
         if (!mapped) {
@@ -494,9 +512,13 @@ export async function POST(request: NextRequest) {
           error: e.message?.substring(0, 200) || "Unknown error",
         });
       }
+
+      results.processedCount++;
     }
 
     const durationMs = Date.now() - startTime;
+    const nextOffset = offset + results.processedCount;
+    const hasMore = nextOffset < totalStatic;
 
     return NextResponse.json({
       success: true,
@@ -505,8 +527,16 @@ export async function POST(request: NextRequest) {
       author: { id: author.id, email: author.email },
       categories: categoryIdMap.size,
       results,
+      batch: {
+        offset,
+        limit: limit || totalStatic,
+        processed: results.processedCount,
+        nextOffset: hasMore ? nextOffset : null,
+        hasMore,
+        stoppedEarly: results.stoppedEarly,
+      },
       summary: {
-        total: allStatic.length,
+        total: totalStatic,
         created: results.created.length,
         updated: results.updated.length,
         skipped: results.skipped.length,

@@ -4,8 +4,14 @@
  * Weekly cron job that:
  * 1. Extracts verifiable facts from information hub articles and blog posts
  * 2. Registers new facts in the FactEntry table
- * 3. Verifies pending/due facts against trusted sources
- * 4. Flags outdated facts and proposes updates
+ * 3. Cross-checks pending/due facts against trusted websites:
+ *    - tfl.gov.uk (transport), gov.uk (regulations), ons.gov.uk (statistics)
+ *    - timeout.com, visitlondon.com, visitbritain.com (authority sources)
+ *    - tripadvisor.com, booking.com, wikipedia.org (reference sources)
+ * 4. Flags outdated or uncorroborated facts for manual review
+ *
+ * Verification method: DuckDuckGo search → fetch trusted pages → keyword matching
+ * No external API keys required.
  *
  * Schedule: 0 3 * * 0 (3 AM every Sunday via Vercel Cron)
  */
@@ -19,6 +25,7 @@ import { extendedInformationArticles } from "@/data/information-hub-articles-ext
 import { blogPosts } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
 import { logCronExecution } from "@/lib/cron-logger";
+import { verifyFactViaWeb } from "@/lib/fact-verification/web-verifier";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // 5 minutes max
@@ -437,7 +444,7 @@ export async function GET(request: NextRequest) {
           },
         ],
       },
-      take: 200, // Cap per run to stay within time limits
+      take: 30, // Cap per run — each fact involves web searches + page fetches
       orderBy: [
         { verification_count: "asc" }, // Prioritise never-verified facts
         { next_check_at: "asc" },
@@ -449,19 +456,24 @@ export async function GET(request: NextRequest) {
     );
 
     for (const fact of dueFacts) {
+      // Rate limit: small delay between web verification requests to avoid throttling
+      if (factsVerified > 0 && factsVerified % 5 === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+
       // Time guard: stop if approaching maxDuration
-      if (Date.now() - startTime > 270_000) {
-        // 4.5 min safety margin
+      if (Date.now() - startTime > 240_000) {
+        // 4 min safety margin (web fetches are slower than placeholder)
         console.warn("[fact-verification] Approaching time limit, stopping verification loop");
         break;
       }
 
       try {
-        // ── Placeholder verification logic ──────────────────────────
-        // In production this would call external APIs (TfL, gov.uk,
-        // Google Places, etc.) to cross-check the fact. For now we
-        // assign a baseline confidence and schedule the next check.
-        const verificationResult = performPlaceholderVerification(fact);
+        // ── Web-based cross-verification ────────────────────────────
+        // Searches trusted websites (tfl.gov.uk, gov.uk, timeout.com,
+        // visitlondon.com, etc.) and checks if the fact is corroborated
+        // by multiple independent sources.
+        const verificationResult = await verifyFactViaWeb(fact);
 
         // Build the updated verification log
         const existingLog: VerificationLogEntry[] = Array.isArray(fact.verification_log)
@@ -486,8 +498,16 @@ export async function GET(request: NextRequest) {
           factsFlaggedOutdated++;
         } else if (verificationResult.result === "verified") {
           newStatus = "verified";
+        } else if (verificationResult.result === "flagged_for_review") {
+          newStatus = "flagged_for_review";
+          factsFlaggedOutdated++; // Count flagged facts too for reporting
         }
-        // "unverifiable" keeps the current status
+        // "unverifiable" keeps the current status — will be retried next run
+
+        // Schedule next check based on confidence
+        // High confidence → check again in 14 days; low → recheck in 3 days
+        const nextCheckDays = newConfidence >= 70 ? 14 : newConfidence >= 50 ? 7 : 3;
+        const nextCheckAt = new Date(now.getTime() + nextCheckDays * 24 * 60 * 60 * 1000);
 
         await prisma.factEntry.update({
           where: { id: fact.id },
@@ -495,7 +515,7 @@ export async function GET(request: NextRequest) {
             status: newStatus,
             confidence_score: newConfidence,
             last_verified_at: now,
-            next_check_at: sevenDaysFromNow,
+            next_check_at: nextCheckAt,
             verification_count: { increment: 1 },
             verification_log: updatedLog as unknown as any,
             agent_notes: verificationResult.notes,
@@ -600,108 +620,10 @@ export async function GET(request: NextRequest) {
 }
 
 // ---------------------------------------------------------------------------
-// Placeholder verification engine
+// Web verification engine is in lib/fact-verification/web-verifier.ts
+// Cross-checks facts against tfl.gov.uk, gov.uk, timeout.com,
+// visitlondon.com, tripadvisor.com, ons.gov.uk, etc.
 // ---------------------------------------------------------------------------
-
-/**
- * Performs a PLACEHOLDER verification of a fact entry.
- *
- * WARNING: This does NOT call any external APIs. It assigns baseline
- * confidence scores based on fact category and age only.
- *
- * TODO: Integrate real verification sources:
- * - TfL API for transport facts (fares, schedules, disruptions)
- * - gov.uk for visa/regulation facts
- * - Google Places API for addresses, opening hours, and schedules
- * - Scrape official venue websites for prices
- * - ONS / VisitBritain for statistics
- *
- * Until external APIs are connected, facts are scored heuristically
- * and facts older than 90 days in volatile categories (price, schedule)
- * are automatically flagged as "outdated" for manual review.
- */
-function performPlaceholderVerification(fact: {
-  id: string;
-  category: string | null;
-  status: string;
-  verification_count: number;
-  created_at: Date;
-  fact_text_en: string;
-}): {
-  confidence: number;
-  result: "verified" | "outdated" | "unverifiable";
-  source: string;
-  notes: string;
-} {
-  const ageMs = Date.now() - new Date(fact.created_at).getTime();
-  const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
-
-  // Category-specific confidence baselines
-  const categoryConfidence: Record<string, number> = {
-    price: 55, // Prices change frequently
-    schedule: 60, // Schedules change seasonally
-    address: 85, // Addresses rarely change
-    contact: 70, // Phone numbers change occasionally
-    transport: 65, // Transport info changes with TfL updates
-    regulation: 60, // Regulations change with policy
-    statistic: 50, // Statistics need regular updates
-  };
-
-  const baseConfidence = categoryConfidence[fact.category ?? ""] ?? 50;
-
-  // Decay confidence with age
-  let confidence = baseConfidence;
-  if (ageDays > 180) {
-    confidence = Math.max(20, baseConfidence - 30);
-  } else if (ageDays > 90) {
-    confidence = Math.max(30, baseConfidence - 15);
-  } else if (ageDays > 30) {
-    confidence = Math.max(40, baseConfidence - 5);
-  }
-
-  // Boost slightly for facts that have been verified before
-  if (fact.verification_count > 0) {
-    confidence = Math.min(95, confidence + Math.min(fact.verification_count * 3, 15));
-  }
-
-  // Determine result
-  let result: "verified" | "outdated" | "unverifiable" = "verified";
-  let notes = "";
-
-  // Flag facts with very low confidence or very old prices/schedules as outdated
-  if (confidence < 40) {
-    result = "outdated";
-    notes = `Low confidence (${confidence}). Fact is ${ageDays} days old and likely needs manual review.`;
-  } else if (
-    (fact.category === "price" || fact.category === "schedule") &&
-    ageDays > 90
-  ) {
-    result = "outdated";
-    notes = `${fact.category} fact is ${ageDays} days old. Prices and schedules should be re-verified against primary sources.`;
-  } else if (confidence >= 70) {
-    notes = `Baseline verification passed (confidence: ${confidence}). Next external API verification recommended.`;
-  } else {
-    notes = `Moderate confidence (${confidence}). Consider cross-referencing with authoritative source.`;
-  }
-
-  // Source attribution based on category
-  const sourceMap: Record<string, string> = {
-    price: "internal-baseline (external: venue website / booking platform)",
-    schedule: "internal-baseline (external: Google Places / venue website)",
-    address: "internal-baseline (external: Royal Mail / Google Maps)",
-    contact: "internal-baseline (external: venue website)",
-    transport: "internal-baseline (external: TfL API)",
-    regulation: "internal-baseline (external: gov.uk)",
-    statistic: "internal-baseline (external: ONS / VisitBritain)",
-  };
-
-  return {
-    confidence,
-    result,
-    source: sourceMap[fact.category ?? ""] ?? "internal-baseline",
-    notes,
-  };
-}
 
 // POST handler — supports both GET and POST for Vercel cron compatibility
 export async function POST(request: NextRequest) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Eye, EyeOff, Lock, Mail, User, Shield, RefreshCw } from 'lucide-react'
 
 export default function AdminLogin() {
@@ -17,7 +17,6 @@ export default function AdminLogin() {
   const [checkingSetup, setCheckingSetup] = useState(true)
   const [systemHealth, setSystemHealth] = useState<Record<string, string> | null>(null)
   const [showResetOption, setShowResetOption] = useState(false)
-  const formRef = useRef<HTMLFormElement>(null)
 
   // Handle ?error= from NextAuth redirects (e.g. after failed signIn)
   useEffect(() => {
@@ -97,29 +96,6 @@ export default function AdminLogin() {
     }
   }
 
-  /**
-   * Submit credentials via a native HTML form POST to NextAuth's callback.
-   * This bypasses the signIn() JS library entirely — the browser handles
-   * cookies, redirects, and CSRF natively. No new URL() parsing, no fetch
-   * quirks, no library bugs.
-   */
-  const submitNativeForm = async (userEmail: string, userPassword: string) => {
-    // Get CSRF token from NextAuth
-    const csrfRes = await fetch('/api/auth/csrf')
-    if (!csrfRes.ok) throw new Error('Could not get CSRF token')
-    const { csrfToken } = await csrfRes.json()
-
-    // Fill hidden form and submit natively
-    const form = formRef.current
-    if (!form) throw new Error('Form not found')
-
-    ;(form.querySelector('[name="csrfToken"]') as HTMLInputElement).value = csrfToken
-    ;(form.querySelector('[name="email"]') as HTMLInputElement).value = userEmail
-    ;(form.querySelector('[name="password"]') as HTMLInputElement).value = userPassword
-
-    form.submit() // Native POST — browser handles redirect + cookies
-  }
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -127,23 +103,24 @@ export default function AdminLogin() {
     setSuccess('')
 
     try {
-      // Step 1: Verify credentials with our diagnostic endpoint.
-      // This gives clear, specific error messages (missing env var,
-      // wrong password, DB down, etc.) instead of NextAuth's generic
-      // "CredentialsSignin".
-      const verifyRes = await fetch('/api/admin/login', {
+      // Single step: POST to /api/admin/login which:
+      // 1. Verifies credentials (with specific error messages)
+      // 2. Creates a NextAuth-compatible JWT
+      // 3. Sets the session cookie in the response
+      // No NextAuth route handler involved at all.
+      const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
       })
 
-      const verifyData = await verifyRes.json()
+      const data = await res.json()
 
-      if (!verifyRes.ok || !verifyData.success) {
-        const msg = verifyData.error || 'Login failed'
-        const detail = verifyData.detail ? `\n${verifyData.detail}` : ''
+      if (!res.ok || !data.success) {
+        const msg = data.error || 'Login failed'
+        const detail = data.detail ? `\n${data.detail}` : ''
 
-        if (verifyRes.status === 401) {
+        if (res.status === 401) {
           setShowResetOption(true)
         }
 
@@ -158,12 +135,9 @@ export default function AdminLogin() {
         return
       }
 
-      // Step 2: Credentials verified — submit via native form POST.
-      // The browser POSTs to /api/auth/callback/credentials, NextAuth
-      // sets the session cookie, and responds with a 302 redirect to
-      // /admin. The browser follows the redirect natively.
-      setSuccess('Credentials verified. Signing in...')
-      await submitNativeForm(email.trim(), password)
+      // Session cookie is set. Redirect to dashboard.
+      setSuccess('Signed in! Redirecting...')
+      window.location.href = '/admin'
     } catch (err) {
       setIsLoading(false)
       setSuccess('')
@@ -194,7 +168,18 @@ export default function AdminLogin() {
       }
 
       setSuccess('Admin account created! Signing you in...')
-      await submitNativeForm(email.trim(), password)
+
+      // Now login to set the session cookie
+      const loginRes = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      })
+
+      if (loginRes.ok) {
+        window.location.href = '/admin'
+        return
+      }
     } catch {
       setIsLoading(false)
       setSuccess('')
@@ -429,19 +414,6 @@ export default function AdminLogin() {
         )}
       </div>
 
-      {/* Hidden native form — submitted directly to NextAuth's callback.
-          The browser handles cookies + redirect natively. No JS library needed. */}
-      <form
-        ref={formRef}
-        method="POST"
-        action="/api/auth/callback/credentials"
-        style={{ display: 'none' }}
-      >
-        <input type="hidden" name="csrfToken" />
-        <input type="hidden" name="email" />
-        <input type="hidden" name="password" />
-        <input type="hidden" name="callbackUrl" value="/admin" />
-      </form>
     </div>
   )
 }

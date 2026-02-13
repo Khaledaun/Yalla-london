@@ -52,7 +52,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     });
 
     // Exclude errors from jobs that have since recovered (latest run succeeded)
-    const failedJobNames = [...new Set(failures.map((f: any) => f.job_name))];
+    const failedJobNames = [...new Set<string>(failures.map((f: any) => f.job_name))];
     const latestRuns = await Promise.all(
       failedJobNames.map(async (jobName: string) => {
         const latest = await (prisma as any).cronJobLog.findFirst({

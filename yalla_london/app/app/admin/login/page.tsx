@@ -21,7 +21,6 @@ export default function AdminLogin() {
   // Check migration → setup → health sequentially to avoid race conditions
   useEffect(() => {
     async function initChecks() {
-      // 1. Check migration status first (columns must exist before setup can work)
       try {
         const migRes = await fetch('/api/admin/migrate')
         const migData = await migRes.json()
@@ -31,9 +30,8 @@ export default function AdminLogin() {
           setCheckingSetup(false)
           return
         }
-      } catch { /* ignore — will fall through to setup check */ }
+      } catch { /* ignore */ }
 
-      // 2. Check if setup is needed (only meaningful after columns exist)
       try {
         const setupRes = await fetch('/api/admin/setup')
         const setupData = await setupRes.json()
@@ -47,7 +45,6 @@ export default function AdminLogin() {
         setCheckingSetup(false)
       }
 
-      // 3. System health check (non-blocking, runs after setup check)
       try {
         const healthRes = await fetch('/api/admin/login')
         const healthData = await healthRes.json()
@@ -84,6 +81,36 @@ export default function AdminLogin() {
     }
   }
 
+  /**
+   * Sign in through NextAuth's own callback endpoint.
+   * This lets NextAuth create and set its own session cookie in the exact
+   * format it expects — avoiding any encode/decode mismatch.
+   */
+  const nextAuthSignIn = async (userEmail: string, userPassword: string): Promise<boolean> => {
+    // Step 1: Get CSRF token from NextAuth
+    const csrfRes = await fetch('/api/auth/csrf')
+    const { csrfToken } = await csrfRes.json()
+
+    // Step 2: POST to NextAuth callback directly (bypass signIn() client lib)
+    const res = await fetch('/api/auth/callback/credentials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        csrfToken,
+        email: userEmail,
+        password: userPassword,
+        callbackUrl: window.location.origin + '/admin',
+        json: 'true',
+      }),
+    })
+
+    const data = await res.json()
+
+    // NextAuth returns { url: "/admin" } on success,
+    // { url: "/admin/login?error=CredentialsSignin" } on failure
+    return res.ok && data.url && !data.url.includes('error=')
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -91,26 +118,26 @@ export default function AdminLogin() {
     setSuccess('')
 
     try {
-      // Use the custom login endpoint — it has step-by-step diagnostics
-      // so if anything fails, the user sees EXACTLY what's wrong
-      const res = await fetch('/api/admin/login', {
+      // Step 1: Verify credentials with our diagnostic endpoint.
+      // This gives clear, specific error messages (missing env var,
+      // wrong password, DB down, etc.) instead of NextAuth's generic
+      // "CredentialsSignin".
+      const verifyRes = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
       })
 
-      const data = await res.json()
+      const verifyData = await verifyRes.json()
 
-      if (!res.ok || !data.success) {
-        const msg = data.error || 'Login failed'
-        const detail = data.detail ? `\n${data.detail}` : ''
+      if (!verifyRes.ok || !verifyData.success) {
+        const msg = verifyData.error || 'Login failed'
+        const detail = verifyData.detail ? `\n${verifyData.detail}` : ''
 
-        // Show reset option if credentials are wrong (might be from old setup)
-        if (res.status === 401) {
+        if (verifyRes.status === 401) {
           setShowResetOption(true)
         }
 
-        // Surface config issues clearly
         if (msg.includes('NEXTAUTH_SECRET')) {
           setError('NEXTAUTH_SECRET is not set in your Vercel environment variables. Add it and redeploy.')
         } else if (msg.includes('column') || msg.includes('does not exist')) {
@@ -122,11 +149,23 @@ export default function AdminLogin() {
         return
       }
 
-      // Credentials verified and cookie set — redirect to dashboard.
-      // The custom endpoint sets both __Secure- and plain cookie names
-      // so NextAuth will find whichever one it expects.
-      setSuccess('Login successful! Redirecting...')
-      window.location.href = '/admin'
+      // Step 2: Credentials are valid. Now let NextAuth create the session
+      // cookie itself — this guarantees the cookie format, name, and
+      // encryption are exactly what NextAuth expects.
+      setSuccess('Credentials verified. Creating session...')
+
+      const signedIn = await nextAuthSignIn(email.trim(), password)
+
+      if (signedIn) {
+        setSuccess('Signed in! Redirecting...')
+        window.location.href = '/admin'
+      } else {
+        setSuccess('')
+        setError(
+          'Credentials are correct but NextAuth session creation failed.\n' +
+          'Check that NEXTAUTH_SECRET is set in your Vercel environment variables.'
+        )
+      }
     } catch (err) {
       setError(`Connection error: ${err instanceof Error ? err.message : 'Please try again.'}`)
     } finally {
@@ -158,20 +197,13 @@ export default function AdminLogin() {
 
       setSuccess('Admin account created! Signing you in...')
 
-      // Now sign in using the custom endpoint (better diagnostics)
-      const loginRes = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
-      })
+      const signedIn = await nextAuthSignIn(email.trim(), password)
 
-      const loginData = await loginRes.json()
-
-      if (loginRes.ok && loginData.success) {
+      if (signedIn) {
         window.location.href = '/admin'
       } else {
         setSuccess('')
-        setError('Account created but login failed: ' + (loginData.error || 'Unknown error'))
+        setError('Account created but session failed. Try signing in manually.')
         setNeedsSetup(false)
       }
     } catch {

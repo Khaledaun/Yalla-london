@@ -4,10 +4,6 @@ const path = require('path');
 const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR || '.next',
   output: process.env.NEXT_OUTPUT_MODE,
-  eslint: {
-    // SECURITY: Run ESLint during builds to catch security issues
-    ignoreDuringBuilds: false,
-  },
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -18,16 +14,6 @@ const nextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 60 * 60 * 24 * 30,
-    domains: [
-      'localhost',
-      'yalla-london.com',
-      'yallalondon.com',
-      'www.yalla-london.com',
-      'vercel.app',
-      'supabase.co',
-      'images.unsplash.com',
-      'cdn.yalla-london.com'
-    ],
     remotePatterns: [
       {
         protocol: 'https',
@@ -46,14 +32,32 @@ const nextConfig = {
         hostname: '**.cloudflare.com',
         port: '',
         pathname: '/**',
-      }
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.yalla-london.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.yallalondon.com',
+      },
     ]
   },
+  // Turbopack workspace root — resolves the "couldn't find next/package.json" error
+  // when multiple lockfiles exist in the repo
+  turbopack: {
+    root: __dirname,
+  },
+  // Moved from experimental.serverComponentsExternalPackages (deprecated in Next 16)
+  serverExternalPackages: ['@prisma/client', 'prisma'],
   compress: true,
   poweredByHeader: false,
   reactStrictMode: true,
   experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'prisma'],
     optimizeCss: true,
   },
   env: {

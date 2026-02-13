@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { signIn } from 'next-auth/react'
+import { useState, useEffect, useRef } from 'react'
 import { Eye, EyeOff, Lock, Mail, User, Shield, RefreshCw } from 'lucide-react'
 
 export default function AdminLogin() {
@@ -18,6 +17,7 @@ export default function AdminLogin() {
   const [checkingSetup, setCheckingSetup] = useState(true)
   const [systemHealth, setSystemHealth] = useState<Record<string, string> | null>(null)
   const [showResetOption, setShowResetOption] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
 
   // Handle ?error= from NextAuth redirects (e.g. after failed signIn)
   useEffect(() => {
@@ -97,6 +97,29 @@ export default function AdminLogin() {
     }
   }
 
+  /**
+   * Submit credentials via a native HTML form POST to NextAuth's callback.
+   * This bypasses the signIn() JS library entirely — the browser handles
+   * cookies, redirects, and CSRF natively. No new URL() parsing, no fetch
+   * quirks, no library bugs.
+   */
+  const submitNativeForm = async (userEmail: string, userPassword: string) => {
+    // Get CSRF token from NextAuth
+    const csrfRes = await fetch('/api/auth/csrf')
+    if (!csrfRes.ok) throw new Error('Could not get CSRF token')
+    const { csrfToken } = await csrfRes.json()
+
+    // Fill hidden form and submit natively
+    const form = formRef.current
+    if (!form) throw new Error('Form not found')
+
+    ;(form.querySelector('[name="csrfToken"]') as HTMLInputElement).value = csrfToken
+    ;(form.querySelector('[name="email"]') as HTMLInputElement).value = userEmail
+    ;(form.querySelector('[name="password"]') as HTMLInputElement).value = userPassword
+
+    form.submit() // Native POST — browser handles redirect + cookies
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -135,19 +158,12 @@ export default function AdminLogin() {
         return
       }
 
-      // Step 2: Credentials verified. Let NextAuth create the session
-      // and redirect to /admin. Using redirect: true (default) avoids
-      // a known NextAuth v4 bug where redirect: false crashes on
-      // relative callback URLs.
+      // Step 2: Credentials verified — submit via native form POST.
+      // The browser POSTs to /api/auth/callback/credentials, NextAuth
+      // sets the session cookie, and responds with a 302 redirect to
+      // /admin. The browser follows the redirect natively.
       setSuccess('Credentials verified. Signing in...')
-
-      // signIn() with redirect: true navigates the browser directly.
-      // The page will leave; no further code runs after this.
-      await signIn('credentials', {
-        callbackUrl: '/admin',
-        email: email.trim(),
-        password,
-      })
+      await submitNativeForm(email.trim(), password)
     } catch (err) {
       setIsLoading(false)
       setSuccess('')
@@ -178,12 +194,7 @@ export default function AdminLogin() {
       }
 
       setSuccess('Admin account created! Signing you in...')
-
-      await signIn('credentials', {
-        callbackUrl: '/admin',
-        email: email.trim(),
-        password,
-      })
+      await submitNativeForm(email.trim(), password)
     } catch {
       setIsLoading(false)
       setSuccess('')
@@ -417,6 +428,20 @@ export default function AdminLogin() {
           </div>
         )}
       </div>
+
+      {/* Hidden native form — submitted directly to NextAuth's callback.
+          The browser handles cookies + redirect natively. No JS library needed. */}
+      <form
+        ref={formRef}
+        method="POST"
+        action="/api/auth/callback/credentials"
+        style={{ display: 'none' }}
+      >
+        <input type="hidden" name="csrfToken" />
+        <input type="hidden" name="email" />
+        <input type="hidden" name="password" />
+        <input type="hidden" name="callbackUrl" value="/admin" />
+      </form>
     </div>
   )
 }

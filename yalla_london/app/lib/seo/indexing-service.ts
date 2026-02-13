@@ -16,6 +16,8 @@
 
 import { blogPosts } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
+import { informationSections, informationArticles } from "@/data/information-hub-content";
+import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
@@ -652,8 +654,21 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
     "/events",
     "/about",
     "/contact",
+    "/information",
+    "/information/articles",
   ];
   staticPages.forEach((page) => urls.push(`${baseUrl}${page}`));
+
+  // Information hub: sections + articles (static data files)
+  if (!siteId || siteId === "yalla-london") {
+    informationSections
+      .filter((s) => s.published)
+      .forEach((s) => urls.push(`${baseUrl}/information/${s.slug}`));
+    const allInfoArticles = [...informationArticles, ...extendedInformationArticles];
+    allInfoArticles
+      .filter((a) => a.published)
+      .forEach((a) => urls.push(`${baseUrl}/information/articles/${a.slug}`));
+  }
 
   // Blog posts from static files (only for yalla-london or when no siteId)
   const staticSlugs = new Set<string>();

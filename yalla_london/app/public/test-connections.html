@@ -65,6 +65,7 @@
   <button id="runBtn" onclick="runAllTests()">Run All Tests</button>
   <button id="scanBtn" onclick="scanDatabase()" style="background:#7c3aed;">Scan Missing Tables/Columns</button>
   <button id="migrateBtn" onclick="migrateDatabase()" style="background:#dc2626;">Fix Missing Tables &amp; Columns</button>
+  <button id="seedBtn" onclick="seedStaticContent()" style="background:#059669;">Seed Static Articles → DB</button>
 </div>
 
 <div class="summary-bar">
@@ -376,6 +377,119 @@ async function migrateDatabase() {
 
   document.getElementById('migrateBtn').disabled = false;
   document.getElementById('migrateBtn').textContent = 'Fix Missing Tables & Columns';
+}
+
+// ─── Seed Static Content ──────────────────────────────────────────────────
+async function seedStaticContent() {
+  const cronSecret = getCronSecret();
+  if (!cronSecret) {
+    alert('Enter your CRON_SECRET first (switch to "Full Pipeline Test" mode).');
+    return;
+  }
+
+  document.getElementById('seedBtn').disabled = true;
+  document.getElementById('seedBtn').textContent = 'Seeding...';
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('statusBanner').innerHTML = '';
+  document.getElementById('log').textContent = '';
+  pass = 0; fail = 0; warn = 0;
+
+  addSection('seed', 'Seed Static Articles into Database');
+
+  // First do a dry run
+  log('Running dry-run scan of static content...');
+  try {
+    const dryResp = await testFetch('/api/admin/seed-content', {
+      headers: { 'Authorization': 'Bearer ' + cronSecret },
+    });
+
+    if (dryResp.ok && dryResp.json) {
+      const j = dryResp.json;
+      addResult('seed', 'Static Articles Found', 'pass', j.totalStatic + ' published articles in data files');
+      addResult('seed', 'Categories', 'pass', j.categories + ' categories');
+      addResult('seed', 'Already in DB', j.alreadyInDb > 0 ? 'pass' : 'warn', j.alreadyInDb + ' articles already exist');
+      addResult('seed', 'To Create', j.toCreate > 0 ? 'warn' : 'pass', j.toCreate + ' new articles to insert');
+      addResult('seed', 'To Update', 'pass', j.toUpdate + ' existing articles to refresh');
+      addJsonBlock('seed', j);
+    } else if (dryResp.status === 401) {
+      addResult('seed', 'Auth', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+      updateSummary();
+      document.getElementById('seedBtn').disabled = false;
+      document.getElementById('seedBtn').textContent = 'Seed Static Articles → DB';
+      return;
+    } else {
+      addResult('seed', 'Dry Run', 'fail', 'HTTP ' + dryResp.status + ' — ' + (dryResp.json?.error || ''));
+      if (dryResp.json) addJsonBlock('seed', dryResp.json);
+      updateSummary();
+      document.getElementById('seedBtn').disabled = false;
+      document.getElementById('seedBtn').textContent = 'Seed Static Articles → DB';
+      return;
+    }
+  } catch (e) {
+    addResult('seed', 'Dry Run', 'fail', 'JS Error: ' + e.message);
+    updateSummary();
+    document.getElementById('seedBtn').disabled = false;
+    document.getElementById('seedBtn').textContent = 'Seed Static Articles → DB';
+    return;
+  }
+
+  if (!confirm('This will INSERT/UPDATE static articles into the BlogPost database table.\n\nArticles will be:\n• Published immediately\n• Assigned to site: yalla-london\n• Tagged with "imported-static"\n• Available to SEO agent, indexing, and CMS\n\nProceed?')) {
+    document.getElementById('seedBtn').disabled = false;
+    document.getElementById('seedBtn').textContent = 'Seed Static Articles → DB';
+    return;
+  }
+
+  // Execute the seed
+  log('Seeding static articles into database...');
+  try {
+    const seedResp = await testFetch('/api/admin/seed-content', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + cronSecret },
+    });
+
+    if (seedResp.ok && seedResp.json) {
+      const j = seedResp.json;
+      const r = j.results || {};
+      const s = j.summary || {};
+
+      addResult('seed', 'Seed Complete', 'pass', s.created + ' created, ' + s.updated + ' updated, ' + s.errors + ' errors (' + j.durationMs + 'ms)');
+      addResult('seed', 'System Author', 'pass', j.author.email + ' (ID: ' + j.author.id + ')');
+      addResult('seed', 'Categories Created', 'pass', j.categories + ' categories in database');
+
+      if (r.created && r.created.length > 0) {
+        addResult('seed', 'New Articles', 'pass', r.created.length + ': ' + r.created.slice(0, 5).join(', ') + (r.created.length > 5 ? '...' : ''));
+      }
+      if (r.updated && r.updated.length > 0) {
+        addResult('seed', 'Updated Articles', 'pass', r.updated.length + ': ' + r.updated.slice(0, 5).join(', ') + (r.updated.length > 5 ? '...' : ''));
+      }
+      if (r.skipped && r.skipped.length > 0) {
+        addResult('seed', 'Skipped', 'warn', r.skipped.join(', '));
+      }
+      if (r.errors && r.errors.length > 0) {
+        for (const err of r.errors) {
+          addResult('seed', 'Error: ' + err.slug, 'fail', err.error);
+        }
+      }
+
+      addJsonBlock('seed', j);
+    } else {
+      addResult('seed', 'Seed', 'fail', 'HTTP ' + seedResp.status + ' — ' + (seedResp.json?.error || seedResp.text?.substring(0, 200) || ''));
+      if (seedResp.json) addJsonBlock('seed', seedResp.json);
+    }
+  } catch (e) {
+    addResult('seed', 'Seed', 'fail', 'JS Error: ' + e.message);
+  }
+
+  updateSummary();
+  const banner = document.getElementById('statusBanner');
+  if (fail === 0) {
+    banner.innerHTML = '<div class="status-banner status-ok">SEED COMPLETE — Static articles are now in the database</div>';
+  } else {
+    banner.innerHTML = '<div class="status-banner status-fail">' + fail + ' SEED ERROR(S) — See details above</div>';
+  }
+
+  document.getElementById('seedBtn').disabled = false;
+  document.getElementById('seedBtn').textContent = 'Seed Static Articles → DB';
 }
 
 // ─── Test Runner ──────────────────────────────────────────────────────────
@@ -860,11 +974,8 @@ async function runAllTests() {
       if (blogResp.ok && blogResp.json) {
         const posts = blogResp.json.posts || blogResp.json.data || (Array.isArray(blogResp.json) ? blogResp.json : []);
         const total = blogResp.json.total || blogResp.json.count || posts.length;
-        const totalStatic = blogResp.json.totalStatic || 0;
-        const totalDb = blogResp.json.totalDatabase || 0;
-        const sourceInfo = totalStatic > 0 || totalDb > 0 ? ' (' + totalStatic + ' static, ' + totalDb + ' database)' : '';
-        addResult('blogaudit', 'Total Posts', total > 0 ? 'pass' : 'warn', total + ' blog posts' + sourceInfo,
-          total === 0 ? 'Zero published blog posts. Either: (1) The static content files are missing, (2) The content generator cron has never run, or (3) All posts are still in draft status.' : undefined);
+        addResult('blogaudit', 'Total Posts', total > 0 ? 'pass' : 'warn', total + ' published blog posts in database',
+          total === 0 ? 'Zero published blog posts in the database. Click <strong>"Seed Static Articles → DB"</strong> to import the 23 static articles into the database. Once seeded, the SEO agent, indexing pipeline, and CMS will manage them automatically.' : undefined);
 
         let autoGen = 0, withMeta = 0, withAr = 0, withSchema = 0, recentCount = 0;
         const now = Date.now();

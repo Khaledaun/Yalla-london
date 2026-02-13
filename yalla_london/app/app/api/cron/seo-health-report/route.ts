@@ -80,54 +80,39 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Get latest SEO health dashboard data
+ * GET handler — supports healthcheck (read-only) and real execution for Vercel cron compatibility.
+ *
+ * - ?healthcheck=true  → returns latest report data (read-only)
+ * - With CRON_SECRET    → generates a new weekly report (same as POST)
  */
 export async function GET(request: NextRequest) {
-  try {
-    const { prisma } = await import("@/lib/db");
+  // Healthcheck mode — read-only, returns latest report
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    try {
+      const { prisma } = await import("@/lib/db");
 
-    // Get latest weekly health report from SeoReport
-    const latestReport = await prisma.seoReport.findFirst({
-      where: { reportType: "weekly_health" },
-      orderBy: { generatedAt: "desc" },
-    });
-
-    if (!latestReport) {
-      return NextResponse.json({
-        success: true,
-        dashboard: {
-          latest_report: null,
-          message: "No SEO health reports yet. The weekly POST job will generate the first one.",
-        },
+      const latestReport = await prisma.seoReport.findFirst({
+        where: { reportType: "weekly_health" },
+        orderBy: { generatedAt: "desc" },
+        select: { generatedAt: true },
       });
+
+      return NextResponse.json({
+        status: "healthy",
+        endpoint: "seo-health-report",
+        lastReport: latestReport?.generatedAt || null,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      return NextResponse.json(
+        { status: "unhealthy", endpoint: "seo-health-report" },
+        { status: 503 },
+      );
     }
-
-    // Get real-time stats
-    const realtimeStats = await generateRealtimeStats(prisma);
-
-    return NextResponse.json({
-      success: true,
-      dashboard: {
-        latest_report: {
-          date: latestReport.generatedAt,
-          data: latestReport.data,
-        },
-        realtime_stats: realtimeStats,
-      },
-    });
-  } catch (error) {
-    console.error("Get SEO dashboard error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to get dashboard data",
-      },
-      { status: 500 },
-    );
   }
+
+  // Real execution — delegate to POST handler to generate a new report
+  return POST(request);
 }
 
 /**

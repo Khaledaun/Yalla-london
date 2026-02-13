@@ -604,16 +604,21 @@ export async function GET(request: NextRequest) {
 // ---------------------------------------------------------------------------
 
 /**
- * Performs a placeholder verification of a fact entry.
+ * Performs a PLACEHOLDER verification of a fact entry.
  *
- * In a production system this would:
- * - Call TfL API for transport facts
- * - Call gov.uk for visa/regulation facts
- * - Call Google Places API for addresses and schedules
+ * WARNING: This does NOT call any external APIs. It assigns baseline
+ * confidence scores based on fact category and age only.
+ *
+ * TODO: Integrate real verification sources:
+ * - TfL API for transport facts (fares, schedules, disruptions)
+ * - gov.uk for visa/regulation facts
+ * - Google Places API for addresses, opening hours, and schedules
  * - Scrape official venue websites for prices
+ * - ONS / VisitBritain for statistics
  *
- * For now it assigns a baseline confidence score based on the fact
- * category and age, and marks facts older than 90 days for review.
+ * Until external APIs are connected, facts are scored heuristically
+ * and facts older than 90 days in volatile categories (price, schedule)
+ * are automatically flagged as "outdated" for manual review.
  */
 function performPlaceholderVerification(fact: {
   id: string;
@@ -696,4 +701,9 @@ function performPlaceholderVerification(fact: {
     source: sourceMap[fact.category ?? ""] ?? "internal-baseline",
     notes,
   };
+}
+
+// POST handler — supports both GET and POST for Vercel cron compatibility
+export async function POST(request: NextRequest) {
+  return GET(request);
 }

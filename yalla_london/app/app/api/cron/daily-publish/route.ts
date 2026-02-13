@@ -244,30 +244,36 @@ ${topic.authority_links_json?.map((link: any) => `- [${link.title}](${link.url})
   `.trim();
 }
 
-// Health check endpoint
+// GET handler — supports both healthcheck and real execution for Vercel cron compatibility
 export async function GET(request: NextRequest) {
-  const approvedCount = await prisma.topicProposal.count({
-    where: { 
-      status: 'approved',
-      scheduled_content: { none: {} }
-    }
-  });
+  // Healthcheck mode — quick status without publishing
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    const approvedCount = await prisma.topicProposal.count({
+      where: {
+        status: 'approved',
+        scheduled_content: { none: {} }
+      }
+    });
 
-  const publishedToday = await prisma.scheduledContent.count({
-    where: {
-      published_time: {
-        gte: new Date(new Date().setHours(0, 0, 0, 0)),
+    const publishedToday = await prisma.scheduledContent.count({
+      where: {
+        published_time: {
+          gte: new Date(new Date().setHours(0, 0, 0, 0)),
+        },
+        generation_source: 'topic_proposal',
       },
-      generation_source: 'topic_proposal',
-    },
-  });
+    });
 
-  return NextResponse.json({
-    status: 'healthy',
-    endpoint: 'daily-publish cron',
-    approvedTopicsAvailable: approvedCount,
-    publishedToday,
-    dailyQuotaRemaining: Math.max(0, 2 - publishedToday),
-    timestamp: new Date().toISOString()
-  });
+    return NextResponse.json({
+      status: 'healthy',
+      endpoint: 'daily-publish cron',
+      approvedTopicsAvailable: approvedCount,
+      publishedToday,
+      dailyQuotaRemaining: Math.max(0, 2 - publishedToday),
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Real execution — delegate to POST handler
+  return POST(request);
 }

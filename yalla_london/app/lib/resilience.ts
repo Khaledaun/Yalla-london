@@ -10,14 +10,15 @@ const SAFETY_MARGIN_MS = 5_000;
 
 /**
  * Creates a deadline checker for Vercel serverless functions.
- * Call `isExpired()` inside loops to exit before the 60s timeout.
+ * Call `isExpired()` inside loops to exit before the timeout.
  *
  * @param marginMs - Safety margin before the hard limit (default 5s)
+ * @param totalTimeoutMs - Total function timeout (default 60s; use route's maxDuration for longer routes)
  * @returns Object with `isExpired()`, `remainingMs()`, and `startTime`
  */
-export function createDeadline(marginMs = SAFETY_MARGIN_MS) {
+export function createDeadline(marginMs = SAFETY_MARGIN_MS, totalTimeoutMs = VERCEL_FUNCTION_TIMEOUT_MS) {
   const startTime = Date.now();
-  const deadline = startTime + VERCEL_FUNCTION_TIMEOUT_MS - marginMs;
+  const deadline = startTime + totalTimeoutMs - marginMs;
   return {
     startTime,
     isExpired: () => Date.now() >= deadline,

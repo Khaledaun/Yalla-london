@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import {
@@ -98,7 +98,7 @@ async function generateDailyContentAllSites() {
   const { createDeadline } = await import("@/lib/resilience");
   const siteIds = getAllSiteIds();
   const allResults: Record<string, any> = {};
-  const deadline = createDeadline(7_000); // 7s margin for response
+  const deadline = createDeadline(10_000, 300_000); // 300s maxDuration, 10s margin → 290s budget
 
   for (const siteId of siteIds) {
     if (deadline.isExpired()) {
@@ -179,7 +179,7 @@ async function generateDailyContentForSite(site: SiteConfig, prisma: any, deadli
       results.push({ language: "en", status: "skipped", error: "timeout_approaching" });
     } else {
       try {
-        const article = await generateArticle("en", site, prisma);
+        const article = await generateArticle("en", site, prisma, deadline);
         results.push({ language: "en", status: "success", slug: article.slug });
       } catch (error) {
         results.push({
@@ -197,7 +197,7 @@ async function generateDailyContentForSite(site: SiteConfig, prisma: any, deadli
       results.push({ language: "ar", status: "skipped", error: "timeout_approaching" });
     } else {
       try {
-        const article = await generateArticle("ar", site, prisma);
+        const article = await generateArticle("ar", site, prisma, deadline);
         results.push({ language: "ar", status: "success", slug: article.slug });
       } catch (error) {
         results.push({
@@ -230,9 +230,10 @@ async function generateArticle(
   primaryLanguage: "en" | "ar",
   site: SiteConfig,
   prisma: any,
+  deadline?: { remainingMs: () => number },
 ) {
   const topic = await pickTopic(primaryLanguage, site, prisma);
-  const content = await generateWithAI(topic, primaryLanguage, site);
+  const content = await generateWithAI(topic, primaryLanguage, site, deadline);
   const category = await getOrCreateCategory(site, prisma);
   const systemUser = await getOrCreateSystemUser(site, prisma);
   const slug = generateSlug(content.title, primaryLanguage);
@@ -449,6 +450,7 @@ async function generateWithAI(
   topic: any,
   language: "en" | "ar",
   site: SiteConfig,
+  deadline?: { remainingMs: () => number },
 ) {
   try {
     const { generateJSON } = await import("@/lib/ai/provider");
@@ -544,7 +546,10 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
   "seoScore": 90
 }`;
 
-    // 25s timeout per AI call to prevent hanging
+    // Dynamic timeout: use remaining deadline time (capped at 45s per call, min 15s)
+    const aiTimeoutMs = deadline
+      ? Math.max(15_000, Math.min(45_000, deadline.remainingMs() - 5_000))
+      : 45_000;
     const aiResult = await Promise.race([
       generateJSON<any>(prompt, {
         systemPrompt,
@@ -552,7 +557,7 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
         temperature: 0.7,
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("AI generation timed out after 25s")), 25_000)
+        setTimeout(() => reject(new Error(`AI generation timed out after ${Math.round(aiTimeoutMs / 1000)}s`)), aiTimeoutMs)
       ),
     ]);
     return aiResult;
@@ -575,7 +580,7 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
             "Content-Type": "application/json",
             Authorization: `Bearer ${apiKey}`,
           },
-          signal: AbortSignal.timeout(20_000), // 20s timeout for fallback
+          signal: AbortSignal.timeout(deadline ? Math.max(10_000, Math.min(30_000, deadline.remainingMs() - 5_000)) : 30_000),
           body: JSON.stringify({
             model: "gpt-4o-mini",
             messages: [

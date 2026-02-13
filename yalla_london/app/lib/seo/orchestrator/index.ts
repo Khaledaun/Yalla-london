@@ -102,7 +102,7 @@ export async function runOrchestrator(
       return createDefaultAgentReport();
     }),
 
-    collectCurrentMetrics(prisma, siteId).catch(() => ({})),
+    collectCurrentMetrics(prisma, siteId).catch(() => ({} as Record<string, number>)),
   ]);
 
   // ── Phase 2: Business goal evaluation ───────────────────────────────

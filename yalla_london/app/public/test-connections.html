@@ -860,8 +860,11 @@ async function runAllTests() {
       if (blogResp.ok && blogResp.json) {
         const posts = blogResp.json.posts || blogResp.json.data || (Array.isArray(blogResp.json) ? blogResp.json : []);
         const total = blogResp.json.total || blogResp.json.count || posts.length;
-        addResult('blogaudit', 'Total Posts', total > 0 ? 'pass' : 'warn', total + ' blog posts in database',
-          total === 0 ? 'Zero published blog posts. Either: (1) The content generator cron has never run, (2) All posts are still in draft status, or (3) Posts haven\'t been published yet. Check the daily-content-generate healthcheck (section 7) and Vercel cron logs.' : undefined);
+        const totalStatic = blogResp.json.totalStatic || 0;
+        const totalDb = blogResp.json.totalDatabase || 0;
+        const sourceInfo = totalStatic > 0 || totalDb > 0 ? ' (' + totalStatic + ' static, ' + totalDb + ' database)' : '';
+        addResult('blogaudit', 'Total Posts', total > 0 ? 'pass' : 'warn', total + ' blog posts' + sourceInfo,
+          total === 0 ? 'Zero published blog posts. Either: (1) The static content files are missing, (2) The content generator cron has never run, or (3) All posts are still in draft status.' : undefined);
 
         let autoGen = 0, withMeta = 0, withAr = 0, withSchema = 0, recentCount = 0;
         const now = Date.now();

@@ -49,7 +49,7 @@
 <body>
 
 <h1>Yalla London — System Validator</h1>
-<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content Generation, Orchestrator, Indexing, Multi-Site Health (20 test sections)</p>
+<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content, Orchestrator, Indexing, Multi-Site, Content &amp; Indexing Audit (21 test sections)</p>
 
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchMode('quick')">Quick Test</button>
@@ -555,14 +555,22 @@ async function runAllTests() {
     log('  Testing SEO indexing status...');
     addSection('indexing', '16. SEO Indexing & Search Console');
     try {
-      const idxResp = await testFetch('/api/admin/seo/indexing', { headers: cronHeaders });
+      const idxResp = await testFetch('/api/admin/seo/indexing?type=stats', { headers: cronHeaders });
       if (idxResp.ok && idxResp.json) {
         const j = idxResp.json;
-        if (j.totalUrls !== undefined) addResult('indexing', 'Total URLs Tracked', 'pass', j.totalUrls + ' URLs');
-        if (j.indexed !== undefined) addResult('indexing', 'Indexed in Google', j.indexed > 0 ? 'pass' : 'warn', j.indexed + ' pages');
-        if (j.submitted !== undefined) addResult('indexing', 'Submitted to IndexNow', 'pass', j.submitted + ' pages');
-        if (j.lastSubmitted) addResult('indexing', 'Last Submission', 'pass', new Date(j.lastSubmitted).toLocaleString());
-        if (j.gscConfigured !== undefined) addResult('indexing', 'GSC Connected', j.gscConfigured ? 'pass' : 'warn', j.gscConfigured ? 'Service account connected' : 'Not configured');
+        const s = j.stats || {};
+        addResult('indexing', 'Indexing Reports', j.success ? 'pass' : 'warn',
+          s.totalReports + ' reports (' + s.totalSubmissions + ' submissions, ' + s.totalAudits + ' audits)');
+        if (s.totalGoogleSubmitted !== undefined) addResult('indexing', 'Google API Submissions', s.totalGoogleSubmitted > 0 ? 'pass' : 'warn', s.totalGoogleSubmitted + ' URLs submitted');
+        if (s.totalIndexNowSubmitted !== undefined) addResult('indexing', 'IndexNow Submissions', s.totalIndexNowSubmitted > 0 ? 'pass' : 'warn', s.totalIndexNowSubmitted + ' URLs submitted');
+        if (s.lastSubmission) addResult('indexing', 'Last Submission', 'pass', new Date(s.lastSubmission).toLocaleString());
+        if (s.latestSnapshot) {
+          addResult('indexing', 'Indexed Pages', s.latestSnapshot.indexed > 0 ? 'pass' : 'warn',
+            s.latestSnapshot.indexed + '/' + s.latestSnapshot.totalPages + ' indexed (' + s.latestSnapshot.notIndexed + ' not indexed)');
+        }
+        if (s.timeline && s.timeline.length > 0) {
+          addResult('indexing', 'Recent Activity', 'pass', s.timeline.length + ' submissions in timeline');
+        }
         addJsonBlock('indexing', j);
       } else if (idxResp.status === 401 || idxResp.status === 403) {
         addResult('indexing', 'Indexing API', 'warn', 'Needs admin auth');
@@ -628,7 +636,7 @@ async function runAllTests() {
         for (const p of posts) {
           if (p.tags && Array.isArray(p.tags) && p.tags.includes('auto-generated')) autoGen++;
           if (p.meta_title_en || p.meta_description_en) withMeta++;
-          if (p.content_ar && p.content_ar.length > 100) withAr++;
+          if (p.content_ar && p.content_ar !== null && !p.content_ar.startsWith('[0 ')) withAr++;
           if (p.authority_links_json || p.keywords_json) withSchema++;
           if (p.created_at && (now - new Date(p.created_at).getTime()) < sevenDays) recentCount++;
         }
@@ -690,22 +698,126 @@ async function runAllTests() {
     log('  Testing multi-site health...');
     addSection('multisite', '20. Multi-Site Health Checks');
     try {
-      const sites = ['yalla-london', 'arabaldives', 'yalladubai', 'yallaistanbul', 'yallathailand'];
+      const sites = ['yalla-london', 'arabaldives', 'dubai', 'istanbul', 'thailand'];
       for (const siteId of sites) {
         const siteResp = await testFetch('/api/admin/sites/' + siteId + '/health', { headers: cronHeaders });
         if (siteResp.ok && siteResp.json) {
           const j = siteResp.json;
-          const score = j.healthScore || j.health_score || '?';
-          addResult('multisite', siteId, score !== '?' && score >= 50 ? 'pass' : 'warn',
-            'Score: ' + score + '/100' + (j.indexed_pages !== undefined ? ' | indexed: ' + j.indexed_pages : ''));
+          const score = j.healthScore ?? '?';
+          const statusCls = j.status === 'healthy' ? 'pass' : j.status === 'degraded' ? 'warn' : j.status === 'down' ? 'fail' : 'warn';
+          addResult('multisite', j.siteName || siteId, statusCls,
+            j.status + ' — score: ' + score + '/100' +
+            (j.indexing ? ' | indexed: ' + j.indexing.indexed + '/' + j.indexing.totalUrls : '') +
+            (j.content ? ' | posts: ' + j.content.publishedPosts + '/' + j.content.totalPosts : '') +
+            ' (' + (j.domain || siteId) + ')');
         } else if (siteResp.status === 404) {
-          addResult('multisite', siteId, 'warn', 'No site health endpoint');
-          break; // Don't spam 404s for all 5
+          addResult('multisite', siteId, 'warn', 'Site not found — check site ID matches config/sites.ts');
+          break;
         } else {
           addResult('multisite', siteId, 'warn', 'HTTP ' + siteResp.status);
         }
       }
     } catch (e) { log('  ERROR in section 20: ' + e.message); addResult('multisite', 'Multi-site', 'fail', 'JS Error: ' + e.message); }
+
+    // ── 21. Content & Indexing Deep Audit ──
+    log('  Running content & indexing deep audit...');
+    addSection('contentaudit', '21. Content & Indexing Deep Audit');
+    try {
+      const auditResp = await testFetch('/api/admin/content-audit', { headers: cronHeaders });
+      if (auditResp.ok && auditResp.json) {
+        const j = auditResp.json;
+        const s = j.summary;
+
+        // Global totals
+        addResult('contentaudit', 'Total Articles/Posts', s.totalPosts > 0 ? 'pass' : 'fail',
+          s.totalPosts + ' total (' + s.totalPublished + ' published, ' + s.totalDrafts + ' drafts)',
+          s.totalPosts === 0 ? 'No blog posts in the database. The content generation cron needs to run successfully to create posts.' : undefined);
+
+        addResult('contentaudit', 'URLs Tracked for Indexing', s.totalTrackedUrls > 0 ? 'pass' : 'warn',
+          s.totalTrackedUrls + ' URLs in URLIndexingStatus table',
+          s.totalTrackedUrls === 0 ? 'No URLs being tracked for indexing. The SEO agent should create URL tracking entries when it runs. Check section 12 (SEO Agent) for status.' : undefined);
+
+        addResult('contentaudit', 'Indexing Requested (Submitted)', s.totalSubmittedPending > 0 || s.totalIndexed > 0 ? 'pass' : 'warn',
+          (s.totalSubmittedPending + s.totalIndexed) + ' URLs submitted to Google/IndexNow (' + s.totalSubmittedPending + ' pending, ' + s.totalIndexed + ' confirmed indexed)',
+          s.totalSubmittedPending === 0 && s.totalIndexed === 0 ? 'No URLs have been submitted for indexing. Check that <code>INDEXNOW_KEY</code> is set and the SEO agent is running. The agent submits URLs via IndexNow and Google Indexing API.' : undefined);
+
+        addResult('contentaudit', 'Confirmed Indexed in Google', s.totalIndexed > 0 ? 'pass' : 'warn',
+          s.totalIndexed + ' pages confirmed indexed (' + s.indexRate + '% index rate)',
+          s.totalIndexed === 0 ? 'Zero pages confirmed indexed. This is normal for new sites — Google can take days to weeks to index pages. The SEO agent checks via GSC URL Inspection API. Ensure GSC service account credentials are configured.' : undefined);
+
+        addResult('contentaudit', 'Indexing Errors', s.totalErrors === 0 ? 'pass' : 'warn',
+          s.totalErrors + ' URLs with indexing errors',
+          s.totalErrors > 0 ? 'Some URLs failed indexing submission. See the error details below for specific causes.' : undefined);
+
+        addResult('contentaudit', 'Untracked Published Posts', s.totalUntracked === 0 ? 'pass' : 'warn',
+          s.totalUntracked + ' published posts not yet tracked in URLIndexingStatus',
+          s.totalUntracked > 0 ? 'These published posts have no entry in the URL tracking table. The SEO agent should pick them up on its next run and create tracking entries + submit them for indexing.' : undefined);
+
+        // Per-site breakdown
+        if (j.perSite && j.perSite.length > 0) {
+          for (const site of j.perSite) {
+            const ix = site.indexing || {};
+            addResult('contentaudit', site.siteName + ' (' + site.domain + ')',
+              ix.indexed > 0 ? 'pass' : site.published > 0 ? 'warn' : 'warn',
+              site.published + ' published, ' + site.drafts + ' drafts | indexed: ' + ix.indexed + '/' + ix.total + ' (' + ix.indexRate + '%) | submitted: ' + ix.submitted + ' | errors: ' + ix.error);
+
+            // Show not-indexed reasons for this site
+            if (site.notIndexedReasons && site.notIndexedReasons.length > 0) {
+              for (const r of site.notIndexedReasons) {
+                addResult('contentaudit', '  ↳ Not indexed: ' + r.reason, 'warn', r.count + ' URLs',
+                  r.reason.includes('not indexed') ? 'Google crawled the page but decided not to index it. Common reasons: thin content (<300 words), duplicate content, low-quality content, or noindex tag. Check Google Search Console → Pages for details.' :
+                  r.reason.includes('discovered') ? 'Google knows the page exists but hasn\'t crawled it yet. This is normal for new pages — give it time or request indexing via GSC.' :
+                  r.reason.includes('redirect') ? 'Page redirects to another URL. Check for broken redirect chains.' :
+                  r.reason.includes('blocked') ? 'Page is blocked by robots.txt or a noindex meta tag. Check the page\'s robots directives.' :
+                  'GSC coverage state: ' + r.reason + '. Check Google Search Console → Pages → this specific status for detailed information.');
+              }
+            }
+          }
+        }
+
+        // Stuck pages (submitted >7 days ago, still not indexed)
+        if (j.stuckPages && j.stuckPages.length > 0) {
+          addResult('contentaudit', 'Stuck Pages (submitted >7d ago, not indexed)', 'warn', j.stuckPages.length + ' pages');
+          for (const p of j.stuckPages.slice(0, 10)) {
+            const daysAgo = Math.round((Date.now() - new Date(p.submittedAt).getTime()) / 86400000);
+            addResult('contentaudit', '  ↳ ' + (p.slug || p.url).substring(0, 50), 'warn',
+              daysAgo + 'd since submission | attempts: ' + p.attempts + ' | GSC: ' + (p.coverageState || 'unknown'),
+              'This page was submitted ' + daysAgo + ' days ago but still isn\'t indexed. Try: (1) Resubmit via GSC "Request Indexing", (2) Check if page returns 200 status, (3) Ensure content is high-quality (>1200 words), (4) Add internal links to this page from indexed pages.');
+          }
+        } else if (j.stuckPages) {
+          addResult('contentaudit', 'Stuck Pages', 'pass', 'None — all submitted pages are progressing');
+        }
+
+        // URL errors
+        if (j.urlErrors && j.urlErrors.length > 0) {
+          addResult('contentaudit', 'URLs with Errors', 'warn', j.urlErrors.length + ' errors');
+          for (const e of j.urlErrors.slice(0, 10)) {
+            addResult('contentaudit', '  ↳ ' + (e.slug || e.url).substring(0, 50), 'fail',
+              'Error: ' + (e.error || 'unknown').substring(0, 100) + ' | attempts: ' + e.attempts,
+              'This URL failed indexing. Error: <code>' + escapeHtml((e.error || '').substring(0, 150)) + '</code>. Check if the URL returns HTTP 200 and has proper content.');
+          }
+        } else if (j.urlErrors) {
+          addResult('contentaudit', 'URL Errors', 'pass', 'None');
+        }
+
+        // Untracked posts
+        if (j.untrackedPosts && j.untrackedPosts.length > 0) {
+          addResult('contentaudit', 'Untracked Published Posts', 'warn', j.untrackedPosts.length + ' posts not in URL tracker');
+          for (const p of j.untrackedPosts.slice(0, 5)) {
+            addResult('contentaudit', '  ↳ ' + (p.title || p.slug).substring(0, 50), 'warn',
+              p.siteId + ' — created: ' + new Date(p.createdAt).toLocaleDateString(),
+              'This published post has no URL tracking entry. The SEO agent will pick it up on its next run. To force immediate tracking, trigger the SEO agent manually.');
+          }
+        }
+
+        addJsonBlock('contentaudit', { summary: j.summary, perSite: j.perSite });
+      } else if (auditResp.status === 401 || auditResp.status === 403) {
+        addResult('contentaudit', 'Content Audit', 'fail', 'HTTP ' + auditResp.status + ' — auth failed');
+      } else {
+        addResult('contentaudit', 'Content Audit', 'warn', 'HTTP ' + auditResp.status + ' — ' + (auditResp.json?.error || auditResp.text?.substring(0,150) || ''));
+        if (auditResp.json) addJsonBlock('contentaudit', auditResp.json);
+      }
+    } catch (e) { log('  ERROR in section 21: ' + e.message); addResult('contentaudit', 'Content Audit', 'fail', 'JS Error: ' + e.message); }
 
   } else if (testMode === 'full' && !cronSecret) {
     addSection('pipeline', '7. Content Generation Pipeline');

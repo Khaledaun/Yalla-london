@@ -11,7 +11,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { withAdminAuth } from "@/lib/admin-middleware";
+import { withAdminOrCronAuth } from "@/lib/admin-middleware";
 import { getAllSiteIds, getSiteConfig } from "@/config/sites";
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -95,7 +95,7 @@ const MONITORED_CRONS = [
 
 // ─── Handler ────────────────────────────────────────────────────────
 
-export const GET = withAdminAuth(async (request: NextRequest) => {
+export const GET = withAdminOrCronAuth(async (request: NextRequest) => {
   const start = Date.now();
 
   // 1. Test database connection

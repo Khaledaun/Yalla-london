@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin-middleware";
+import { requireAdminOrCron } from "@/lib/admin-middleware";
 
 /**
  * GET /api/admin/seo/indexing
@@ -15,7 +15,7 @@ import { requireAdmin } from "@/lib/admin-middleware";
  *   ?limit=N       — max reports to return (default: 20)
  */
 export async function GET(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   const type = request.nextUrl.searchParams.get("type") || "history";

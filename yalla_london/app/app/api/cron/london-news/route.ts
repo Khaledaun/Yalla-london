@@ -567,7 +567,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { prisma } = await import("@/lib/db");
+  const { prisma, disconnectDatabase } = await import("@/lib/db");
 
   // Healthcheck mode
   if (request.nextUrl.searchParams.get("healthcheck") === "true") {
@@ -947,6 +947,9 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 },
     );
+  } finally {
+    // Release PgBouncer session connection — critical for Supabase session mode
+    await disconnectDatabase().catch(() => {});
   }
 }
 

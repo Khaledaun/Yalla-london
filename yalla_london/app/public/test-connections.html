@@ -654,9 +654,9 @@ async function runAllJobs() {
       jobResults.push({ name: job.name, status: isTimeout ? 'warn' : 'fail', error: e.message });
     }
 
-    // 3s pause between jobs to avoid connection pool exhaustion
+    // 5s pause between jobs to let Supabase PgBouncer session-mode connections drain
     if (i < jobs.length - 1) {
-      await new Promise(r => setTimeout(r, 3000));
+      await new Promise(r => setTimeout(r, 5000));
     }
   }
 

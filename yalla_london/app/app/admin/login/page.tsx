@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { signIn } from 'next-auth/react'
 import { Eye, EyeOff, Lock, Mail, User, Shield } from 'lucide-react'
 
 export default function AdminLogin() {
@@ -93,25 +94,21 @@ export default function AdminLogin() {
     setError('')
 
     try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      // Use NextAuth's signIn so it sets the session cookie correctly
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
       })
 
-      const data = await res.json()
-
-      if (res.ok && data.success) {
-        // Session cookie is set by the API. Navigate to dashboard.
+      if (result?.ok) {
         window.location.href = '/admin'
       } else {
-        const msg = data.error || 'Login failed. Please try again.'
-        const detail = data.detail ? `\n${data.detail}` : ''
-        // Auto-detect missing columns and offer migration
-        if (detail.includes('does not exist') || detail.includes('column')) {
+        const msg = result?.error || 'Invalid email or password.'
+        if (msg.includes('does not exist') || msg.includes('column')) {
           setNeedsMigration(true)
         }
-        setError(msg + detail)
+        setError(msg)
       }
     } catch (err) {
       setError(`Connection error: ${err instanceof Error ? err.message : 'Please try again.'}`)
@@ -127,7 +124,7 @@ export default function AdminLogin() {
     setSuccess('')
 
     try {
-      // Step 1: Create the admin account
+      // Step 1: Create the admin account via setup API
       const setupRes = await fetch('/api/admin/setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,21 +142,18 @@ export default function AdminLogin() {
 
       setSuccess('Admin account created! Signing you in...')
 
-      // Step 2: Log in with the new credentials
-      const loginRes = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      // Step 2: Sign in through NextAuth so the session cookie is set correctly
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
       })
 
-      const loginData = await loginRes.json()
-
-      if (loginRes.ok && loginData.success) {
+      if (result?.ok) {
         window.location.href = '/admin'
       } else {
         setSuccess('')
-        const loginDetail = loginData.detail ? ` (${loginData.detail})` : ''
-        setError('Account created but login failed: ' + (loginData.error || 'Unknown error') + loginDetail)
+        setError('Account created but login failed: ' + (result?.error || 'Unknown error. Try signing in manually.'))
         setNeedsSetup(false)
       }
     } catch {

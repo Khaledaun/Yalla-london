@@ -66,6 +66,7 @@
   <button id="scanBtn" onclick="scanDatabase()" style="background:#7c3aed;">Scan Missing Tables/Columns</button>
   <button id="migrateBtn" onclick="migrateDatabase()" style="background:#dc2626;">Fix Missing Tables &amp; Columns</button>
   <button id="seedBtn" onclick="seedStaticContent()" style="background:#059669;">Seed Static Articles → DB</button>
+  <button id="jobsBtn" onclick="runAllJobs()" style="background:#d97706;">Run All Cron Jobs</button>
 </div>
 
 <div class="summary-bar">
@@ -556,6 +557,131 @@ async function seedStaticContent() {
 
   document.getElementById('seedBtn').disabled = false;
   document.getElementById('seedBtn').textContent = 'Seed Static Articles → DB';
+}
+
+// ─── Run All Cron Jobs ────────────────────────────────────────────────────
+async function runAllJobs() {
+  const cronSecret = getCronSecret();
+  if (!cronSecret) {
+    alert('Enter your CRON_SECRET first (switch to "Full Pipeline Test" mode).');
+    return;
+  }
+
+  document.getElementById('jobsBtn').disabled = true;
+  document.getElementById('jobsBtn').textContent = 'Running Jobs...';
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('statusBanner').innerHTML = '';
+  document.getElementById('log').textContent = '';
+  pass = 0; fail = 0; warn = 0;
+
+  addSection('jobs', 'Run All Cron Jobs');
+
+  // Jobs ordered by dependency chain: foundational first, then consumers
+  const jobs = [
+    { name: 'Analytics Sync',          path: '/api/cron/analytics',               method: 'GET',  timeout: 55000 },
+    { name: 'Site Health Check',        path: '/api/cron/site-health-check',       method: 'GET',  timeout: 55000 },
+    { name: 'Trends Monitor',          path: '/api/cron/trends-monitor',          method: 'GET',  timeout: 55000 },
+    { name: 'Weekly Topics',           path: '/api/cron/weekly-topics',           method: 'GET',  timeout: 55000 },
+    { name: 'SEO Orchestrator',        path: '/api/cron/seo-orchestrator',        method: 'GET',  timeout: 55000 },
+    { name: 'SEO Agent',               path: '/api/cron/seo-agent',              method: 'GET',  timeout: 55000 },
+    { name: 'SEO Health Report',       path: '/api/cron/seo-health-report',      method: 'GET',  timeout: 55000 },
+    { name: 'Daily Content Generate',  path: '/api/cron/daily-content-generate',  method: 'GET',  timeout: 55000 },
+    { name: 'Daily Publish',           path: '/api/cron/daily-publish',           method: 'GET',  timeout: 55000 },
+    { name: 'Scheduled Publish',       path: '/api/cron/scheduled-publish',       method: 'GET',  timeout: 55000 },
+    { name: 'Auto Generate',           path: '/api/cron/auto-generate',           method: 'GET',  timeout: 55000 },
+    { name: 'Fact Verification',       path: '/api/cron/fact-verification',       method: 'GET',  timeout: 55000 },
+    { name: 'London News',             path: '/api/cron/london-news',             method: 'GET',  timeout: 55000 },
+    { name: 'Real-Time Optimization',  path: '/api/cron/real-time-optimization',  method: 'POST', timeout: 55000 },
+    { name: 'Autopilot',              path: '/api/cron/autopilot',               method: 'GET',  timeout: 55000 },
+    { name: 'Social',                 path: '/api/cron/social',                  method: 'GET',  timeout: 55000 },
+  ];
+
+  let jobPass = 0, jobFail = 0, jobWarn = 0;
+  const jobResults = [];
+
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i];
+    log('  [' + (i + 1) + '/' + jobs.length + '] ' + job.name + ' (' + job.path + ')...');
+    updateSummary();
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), job.timeout);
+      const resp = await fetch(job.path, {
+        method: job.method,
+        headers: { 'Authorization': 'Bearer ' + cronSecret },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      const text = await resp.text();
+      let json = null;
+      try { json = JSON.parse(text); } catch {}
+
+      const durationHint = json?.durationMs ? ' (' + json.durationMs + 'ms)' : '';
+      const detail = json?.error || json?.message || json?.status || '';
+
+      if (resp.ok) {
+        addResult('jobs', job.name, 'pass', 'HTTP ' + resp.status + durationHint + (detail ? ' — ' + String(detail).substring(0, 120) : ''));
+        jobPass++;
+        jobResults.push({ name: job.name, status: 'pass', httpStatus: resp.status, detail });
+      } else if (resp.status === 504 || resp.status === 503) {
+        addResult('jobs', job.name, 'warn', 'HTTP ' + resp.status + ' — Timeout/Unavailable' + (detail ? ': ' + String(detail).substring(0, 120) : ''),
+          resp.status === 504 ? 'Function exceeded Vercel timeout (60s). This job may need optimization or a higher <code>maxDuration</code>.' :
+          'Service temporarily unavailable. The function may have a build error or cold start issue.');
+        jobWarn++;
+        jobResults.push({ name: job.name, status: 'warn', httpStatus: resp.status, detail });
+      } else if (resp.status === 401) {
+        addResult('jobs', job.name, 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+        jobFail++;
+        jobResults.push({ name: job.name, status: 'fail', httpStatus: 401, detail: 'Auth failed' });
+      } else {
+        addResult('jobs', job.name, 'fail', 'HTTP ' + resp.status + (detail ? ' — ' + String(detail).substring(0, 150) : ''));
+        jobFail++;
+        jobResults.push({ name: job.name, status: 'fail', httpStatus: resp.status, detail });
+      }
+      if (json) addJsonBlock('jobs', json);
+    } catch (e) {
+      const isTimeout = e.name === 'AbortError' || e.message?.includes('aborted');
+      if (isTimeout) {
+        addResult('jobs', job.name, 'warn', 'Client timeout (55s) — function may still be running on server',
+          'The function exceeded the 55s client timeout. It may have completed on the server. Check Vercel Function Logs.');
+        jobWarn++;
+      } else {
+        addResult('jobs', job.name, 'fail', 'Network error: ' + e.message);
+        jobFail++;
+      }
+      jobResults.push({ name: job.name, status: isTimeout ? 'warn' : 'fail', error: e.message });
+    }
+
+    // 2s pause between jobs to avoid connection pool exhaustion
+    if (i < jobs.length - 1) {
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+
+  // Summary
+  addResult('jobs', 'Summary', jobFail === 0 ? 'pass' : 'fail',
+    jobPass + ' passed, ' + jobWarn + ' warnings, ' + jobFail + ' failed out of ' + jobs.length + ' jobs');
+
+  addJsonBlock('jobs', {
+    action: 'run-all-jobs',
+    timestamp: new Date().toISOString(),
+    summary: { passed: jobPass, warnings: jobWarn, failed: jobFail, total: jobs.length },
+    results: jobResults,
+  });
+
+  updateSummary();
+  const banner = document.getElementById('statusBanner');
+  if (jobFail === 0 && jobWarn === 0) {
+    banner.innerHTML = '<div class="status-banner status-ok">ALL ' + jobs.length + ' CRON JOBS PASSED</div>';
+  } else if (jobFail === 0) {
+    banner.innerHTML = '<div class="status-banner status-ok">' + jobPass + ' JOBS PASSED, ' + jobWarn + ' WARNINGS — No critical failures</div>';
+  } else {
+    banner.innerHTML = '<div class="status-banner status-fail">' + jobFail + ' JOB(S) FAILED — See details above</div>';
+  }
+
+  document.getElementById('jobsBtn').disabled = false;
+  document.getElementById('jobsBtn').textContent = 'Run All Cron Jobs';
 }
 
 // ─── Test Runner ──────────────────────────────────────────────────────────

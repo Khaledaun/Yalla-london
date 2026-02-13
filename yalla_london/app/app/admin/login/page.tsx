@@ -50,7 +50,9 @@ export default function AdminLogin() {
         // Session cookie is set by the API. Navigate to dashboard.
         window.location.href = '/admin'
       } else {
-        setError(data.error || 'Login failed. Please try again.')
+        const msg = data.error || 'Login failed. Please try again.'
+        const detail = data.detail ? `\n${data.detail}` : ''
+        setError(msg + detail)
       }
     } catch (err) {
       setError(`Connection error: ${err instanceof Error ? err.message : 'Please try again.'}`)
@@ -152,7 +154,7 @@ export default function AdminLogin() {
 
           <form className="space-y-5 sm:space-y-6" onSubmit={needsSetup ? handleSetup : handleLogin}>
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm whitespace-pre-wrap">
                 {error}
               </div>
             )}

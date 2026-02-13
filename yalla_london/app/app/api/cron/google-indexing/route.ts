@@ -135,7 +135,7 @@ async function handleIndexing(request: NextRequest) {
         }
 
         // 2. Submit sitemap to Google via GSC API
-        let gscResult = { success: false, error: "skipped" };
+        let gscResult: { success: boolean; error?: string } = { success: false, error: "skipped" };
         try {
           const gsc = new GoogleSearchConsoleAPI();
           gscResult = await gsc.submitSitemap(`${siteUrl}/sitemap.xml`);

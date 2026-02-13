@@ -4,8 +4,9 @@ import bcrypt from 'bcryptjs'
 /**
  * Admin Setup Endpoint
  *
- * GET  — Check if initial setup is needed (any admin users exist?)
- * POST — Create the first admin user (only works when no admin users exist)
+ * GET  — Check if initial setup is needed (any admin with a password?)
+ * POST — Create/bootstrap the first admin user, or set a password for
+ *         an existing passwordless admin.
  *
  * This endpoint is intentionally NOT behind withAdminAuth because it's
  * used to bootstrap the very first admin account.
@@ -18,15 +19,20 @@ import bcrypt from 'bcryptjs'
 export async function GET() {
   try {
     const { prisma } = await import('@/lib/db')
-    const adminCount = await prisma.user.count({
+
+    // An admin is only "set up" when they have a password they can log in with.
+    // Admin users created via OAuth without a passwordHash leave the system
+    // in a state where nobody can access the admin panel via credentials.
+    const loginableAdminCount = await prisma.user.count({
       where: {
         role: 'admin',
         isActive: true,
+        passwordHash: { not: null },
       },
     })
 
     return NextResponse.json({
-      needsSetup: adminCount === 0,
+      needsSetup: loginableAdminCount === 0,
     })
   } catch (error: any) {
     // If the database is not connected or tables don't exist,
@@ -64,18 +70,20 @@ export async function POST(request: NextRequest) {
     step = 'load-prisma'
     const { prisma } = await import('@/lib/db')
 
-    // Only allow setup when no admin users exist
+    // Only allow setup when no admin user with a password exists.
+    // This covers: fresh DB, OAuth-only admins without passwordHash, etc.
     step = 'check-existing-admins'
-    const adminCount = await prisma.user.count({
+    const loginableAdminCount = await prisma.user.count({
       where: {
         role: 'admin',
         isActive: true,
+        passwordHash: { not: null },
       },
     })
 
-    if (adminCount > 0) {
+    if (loginableAdminCount > 0) {
       return NextResponse.json(
-        { error: 'Setup already complete. Admin users already exist.' },
+        { error: 'Setup already complete. An admin with login credentials already exists.' },
         { status: 403 }
       )
     }
@@ -92,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     step = 'create-or-update-user'
     if (existing) {
-      // Upgrade existing user to admin
+      // Upgrade existing user to admin / set their password
       await prisma.user.update({
         where: { email: email.trim() },
         data: {

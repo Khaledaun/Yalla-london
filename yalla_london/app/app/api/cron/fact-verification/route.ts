@@ -284,6 +284,27 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Healthcheck mode — quick DB ping + last run status
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const totalFacts = await prisma.factEntry.count();
+      const pendingFacts = await prisma.factEntry.count({ where: { status: "pending" } });
+      return NextResponse.json({
+        status: "healthy",
+        endpoint: "fact-verification",
+        totalFacts,
+        pendingFacts,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      return NextResponse.json(
+        { status: "unhealthy", endpoint: "fact-verification" },
+        { status: 503 },
+      );
+    }
+  }
+
   const { prisma, disconnectDatabase } = await import("@/lib/db");
   const startTime = Date.now();
 

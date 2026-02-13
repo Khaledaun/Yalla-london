@@ -237,6 +237,56 @@ async function generateArticle(
   const systemUser = await getOrCreateSystemUser(site, prisma);
   const slug = generateSlug(content.title, primaryLanguage);
 
+  // Pre-publication gate — verify route exists, content quality, and SEO minimums
+  const targetUrl = `/blog/${slug}`;
+  const siteUrl = getSiteDomain(site.id);
+  let gateBlocked = false;
+  try {
+    const { runPrePublicationGate } = await import(
+      "@/lib/seo/orchestrator/pre-publication-gate"
+    );
+    const gateResult = await runPrePublicationGate(targetUrl, {
+      title_en:
+        primaryLanguage === "en"
+          ? content.title
+          : content.titleTranslation || content.title,
+      title_ar:
+        primaryLanguage === "ar"
+          ? content.title
+          : content.titleTranslation || "",
+      meta_title_en:
+        primaryLanguage === "en"
+          ? content.metaTitle
+          : content.metaTitleTranslation || "",
+      meta_description_en:
+        primaryLanguage === "en"
+          ? content.metaDescription
+          : content.metaDescriptionTranslation || "",
+      content_en:
+        primaryLanguage === "en" ? content.body : content.bodyTranslation || "",
+      content_ar:
+        primaryLanguage === "ar" ? content.body : content.bodyTranslation || "",
+      locale: primaryLanguage,
+      tags: content.tags,
+      seo_score: content.seoScore,
+    }, siteUrl);
+
+    if (!gateResult.allowed) {
+      console.warn(
+        `[${site.name}] Pre-publication gate BLOCKED: ${gateResult.blockers.join("; ")}`,
+      );
+      gateBlocked = true;
+    }
+    if (gateResult.warnings.length > 0) {
+      console.warn(
+        `[${site.name}] Pre-publication warnings: ${gateResult.warnings.join("; ")}`,
+      );
+    }
+  } catch (gateError) {
+    // Gate check failure is non-fatal — still publish but log
+    console.warn(`[${site.name}] Pre-publication gate error (non-fatal):`, gateError);
+  }
+
   const blogPost = await prisma.blogPost.create({
     data: {
       title_en:
@@ -282,8 +332,10 @@ async function generateArticle(
         `primary-${primaryLanguage}`,
         `site-${site.id}`,
         site.destination.toLowerCase(),
+        ...(gateBlocked ? ["gate-blocked"] : []),
       ],
-      published: true,
+      // If gate blocked, save as draft instead of publishing
+      published: !gateBlocked,
       siteId: site.id,
       category_id: category.id,
       author_id: systemUser.id,

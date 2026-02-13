@@ -1,24 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
 import bcrypt from 'bcryptjs'
-import { encode } from 'next-auth/jwt'
-import { logAuditEvent } from '@/lib/rbac'
 
 /**
  * Custom Login Endpoint
  *
  * Bypasses the NextAuth [...nextauth] route handler entirely.
  * Verifies credentials directly, creates a NextAuth-compatible JWT,
- * and sets the session cookie. This avoids PrismaAdapter conflicts
- * and CSRF middleware issues with the standard NextAuth flow.
+ * and sets the session cookie.
+ *
+ * Each step has its own error handling so failures are diagnosable.
  */
 
-const isProduction = process.env.NODE_ENV === 'production'
-const COOKIE_NAME = isProduction
-  ? '__Secure-next-auth.session-token'
-  : 'next-auth.session-token'
-
 export async function POST(request: NextRequest) {
+  let step = 'parse-body'
+
   try {
     const body = await request.json()
     const { email, password } = body
@@ -30,63 +25,104 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
-    })
-
-    if (!user || !user.isActive) {
-      if (user) {
-        await logAuditEvent({
-          userId: user.id,
-          action: 'login',
-          resource: 'authentication',
-          success: false,
-          errorMessage: 'Account inactive',
-        }).catch(() => {})
-      }
-      return NextResponse.json(
-        { error: 'Invalid email or password' },
-        { status: 401 }
-      )
-    }
-
-    if (!user.passwordHash) {
-      return NextResponse.json(
-        { error: 'No password set for this account. Use Google SSO or contact admin.' },
-        { status: 401 }
-      )
-    }
-
-    // Verify password
-    const isValid = await bcrypt.compare(password, user.passwordHash)
-    if (!isValid) {
-      await logAuditEvent({
-        userId: user.id,
-        action: 'login',
-        resource: 'authentication',
-        success: false,
-        errorMessage: 'Invalid credentials',
-      }).catch(() => {})
-      return NextResponse.json(
-        { error: 'Invalid email or password' },
-        { status: 401 }
-      )
-    }
-
-    // Create JWT token (same format NextAuth expects)
+    // Step 1: Check NEXTAUTH_SECRET exists
+    step = 'check-secret'
     const secret = process.env.NEXTAUTH_SECRET
     if (!secret) {
-      console.error('NEXTAUTH_SECRET is not set')
       return NextResponse.json(
-        { error: 'Server configuration error' },
+        { error: 'Server config error: NEXTAUTH_SECRET not set' },
         { status: 500 }
       )
     }
 
+    // Step 2: Load Prisma (dynamic import to get a clear error if it fails)
+    step = 'load-prisma'
+    const { prisma } = await import('@/lib/db')
+
+    // Step 3: Find user
+    step = 'find-user'
+    const user = await prisma.user.findUnique({
+      where: { email: email.trim() },
+    })
+
+    if (!user) {
+      // Try case-insensitive fallback
+      const users = await prisma.user.findMany({
+        where: { email: { equals: email.trim(), mode: 'insensitive' as any } },
+        take: 1,
+      })
+      if (users.length === 0) {
+        return NextResponse.json(
+          { error: 'Invalid email or password' },
+          { status: 401 }
+        )
+      }
+      // Use the found user
+      return await processLogin(users[0], password, secret, request)
+    }
+
+    if (!user.isActive) {
+      return NextResponse.json(
+        { error: 'Account is inactive' },
+        { status: 401 }
+      )
+    }
+
+    return await processLogin(user, password, secret, request)
+
+  } catch (error: any) {
+    console.error(`Login error at step [${step}]:`, error)
+    return NextResponse.json(
+      {
+        error: `Login failed at step: ${step}`,
+        detail: error?.message || String(error),
+      },
+      { status: 500 }
+    )
+  }
+}
+
+async function processLogin(
+  user: any,
+  password: string,
+  secret: string,
+  request: NextRequest
+) {
+  const isProduction = process.env.NODE_ENV === 'production'
+
+  // Step 4: Check password hash exists
+  if (!user.passwordHash) {
+    return NextResponse.json(
+      { error: 'No password set for this account' },
+      { status: 401 }
+    )
+  }
+
+  // Step 5: Verify password
+  let isValid: boolean
+  try {
+    isValid = await bcrypt.compare(password, user.passwordHash)
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: 'Password verification error', detail: err?.message },
+      { status: 500 }
+    )
+  }
+
+  if (!isValid) {
+    return NextResponse.json(
+      { error: 'Invalid email or password' },
+      { status: 401 }
+    )
+  }
+
+  // Step 6: Create JWT token
+  let token: string
+  try {
+    const { encode } = await import('next-auth/jwt')
     const maxAge = parseInt(process.env.SESSION_MAX_AGE_SECONDS || '28800', 10)
 
-    const token = await encode({
+    token = await encode({
       secret,
       token: {
         sub: user.id,
@@ -99,45 +135,87 @@ export async function POST(request: NextRequest) {
       },
       maxAge,
     })
-
-    // Update last login time (don't fail on error)
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    }).catch(() => {})
-
-    await logAuditEvent({
-      userId: user.id,
-      action: 'login',
-      resource: 'authentication',
-      success: true,
-    }).catch(() => {})
-
-    // Set the NextAuth session cookie
-    const response = NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-    })
-
-    response.cookies.set(COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
-      path: '/',
-      maxAge,
-    })
-
-    return response
-  } catch (error) {
-    console.error('Login error:', error)
+  } catch (err: any) {
     return NextResponse.json(
-      { error: 'Login failed. Please try again.' },
+      { error: 'JWT creation failed', detail: err?.message },
       { status: 500 }
     )
   }
+
+  // Step 7: Update last login (non-blocking)
+  try {
+    const { prisma } = await import('@/lib/db')
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    })
+  } catch {
+    // Non-critical — don't fail login
+  }
+
+  // Step 8: Set cookie and return
+  const maxAge = parseInt(process.env.SESSION_MAX_AGE_SECONDS || '28800', 10)
+
+  // NextAuth uses different cookie names for secure (HTTPS) vs insecure (HTTP)
+  const cookieName = isProduction
+    ? '__Secure-next-auth.session-token'
+    : 'next-auth.session-token'
+
+  const response = NextResponse.json({
+    success: true,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    },
+  })
+
+  response.cookies.set(cookieName, token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: '/',
+    maxAge,
+  })
+
+  return response
+}
+
+// GET handler for diagnostics — shows what's configured (no secrets)
+export async function GET() {
+  const checks: Record<string, string> = {}
+
+  // Check env vars
+  checks.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET ? 'SET' : 'MISSING'
+  checks.DATABASE_URL = process.env.DATABASE_URL ? 'SET' : 'MISSING'
+  checks.NODE_ENV = process.env.NODE_ENV || 'unknown'
+
+  // Check Prisma connection
+  try {
+    const { prisma } = await import('@/lib/db')
+    const count = await prisma.user.count()
+    checks.database = `connected (${count} users)`
+  } catch (err: any) {
+    checks.database = `error: ${err?.message?.substring(0, 100)}`
+  }
+
+  // Check bcrypt
+  try {
+    const hash = await bcrypt.hash('test', 4)
+    const valid = await bcrypt.compare('test', hash)
+    checks.bcrypt = valid ? 'working' : 'broken'
+  } catch (err: any) {
+    checks.bcrypt = `error: ${err?.message}`
+  }
+
+  // Check next-auth/jwt
+  try {
+    const { encode } = await import('next-auth/jwt')
+    checks.nextAuthJwt = typeof encode === 'function' ? 'available' : 'not a function'
+  } catch (err: any) {
+    checks.nextAuthJwt = `import error: ${err?.message}`
+  }
+
+  return NextResponse.json({ status: 'diagnostic', checks })
 }

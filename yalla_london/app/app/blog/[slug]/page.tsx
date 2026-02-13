@@ -126,7 +126,7 @@ function generateStructuredData(post: (typeof allStaticPosts)[0]) {
       "@type": "Organization",
       name: "Yalla London",
       url: baseUrl,
-      logo: `${baseUrl}/logo.png`,
+      logo: `${baseUrl}/images/yalla-london-logo.svg`,
     },
     publisher: {
       "@type": "Organization",
@@ -134,7 +134,7 @@ function generateStructuredData(post: (typeof allStaticPosts)[0]) {
       url: baseUrl,
       logo: {
         "@type": "ImageObject",
-        url: `${baseUrl}/logo.png`,
+        url: `${baseUrl}/images/yalla-london-logo.svg`,
       },
     },
     mainEntityOfPage: {

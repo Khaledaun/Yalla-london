@@ -156,12 +156,8 @@ const isProduction = process.env.NODE_ENV === "production";
 export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
 
-  // Skip excluded paths
-  if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
-    return NextResponse.next();
-  }
-
   // ── Arabic locale detection from URL prefix ────────────────────────
+  // Detect FIRST so all subsequent checks use effectivePathname.
   // /ar and /ar/* routes serve Arabic content by rewriting to the
   // English route with an x-locale: ar header. Pages read this header
   // (via LanguageProvider initialLocale) to render Arabic content.
@@ -170,6 +166,12 @@ export function middleware(request: NextRequest) {
   const effectivePathname = isArabicRoute
     ? pathname.replace(/^\/ar\/?/, "/") || "/"
     : pathname;
+
+  // Skip excluded paths — use effectivePathname so /ar/_next, /ar/api etc.
+  // are correctly excluded (the /ar/ prefix is stripped before matching).
+  if (EXCLUDED_PATHS.some((path) => effectivePathname.startsWith(path))) {
+    return NextResponse.next();
+  }
 
   // Get hostname from request (used for redirect + tenant resolution)
   const hostname = request.headers.get("host") || "localhost:3000";
@@ -185,22 +187,23 @@ export function middleware(request: NextRequest) {
   }
 
   // SECURITY: CSRF protection for mutating requests
+  // Use effectivePathname so /ar/api/* requests are also protected.
   const method = request.method.toUpperCase();
   if (
     ["POST", "PUT", "DELETE", "PATCH"].includes(method) &&
-    pathname.startsWith("/api/")
+    effectivePathname.startsWith("/api/")
   ) {
     const origin = request.headers.get("origin");
     // Allow cron/webhook/auth/admin-auth routes without strict Origin check
     const isInternalRoute =
-      pathname.startsWith("/api/cron/") ||
-      pathname.startsWith("/api/webhooks/") ||
-      pathname.startsWith("/api/internal/") ||
-      pathname.startsWith("/api/auth/") ||
-      pathname === "/api/admin/login" ||
-      pathname === "/api/admin/setup" ||
-      pathname === "/api/admin/migrate" ||
-      pathname === "/api/admin/session";
+      effectivePathname.startsWith("/api/cron/") ||
+      effectivePathname.startsWith("/api/webhooks/") ||
+      effectivePathname.startsWith("/api/internal/") ||
+      effectivePathname.startsWith("/api/auth/") ||
+      effectivePathname === "/api/admin/login" ||
+      effectivePathname === "/api/admin/setup" ||
+      effectivePathname === "/api/admin/migrate" ||
+      effectivePathname === "/api/admin/session";
     if (!isInternalRoute) {
       if (!origin || !ALLOWED_ORIGINS.has(origin)) {
         return NextResponse.json(
@@ -234,12 +237,14 @@ export function middleware(request: NextRequest) {
 
   // Cloudflare CDN: Vary by site for correct multi-tenant caching
   // Without this, Cloudflare may serve Site A's cached page to Site B
-  if (!pathname.startsWith("/api/") && !pathname.startsWith("/admin")) {
+  // Use effectivePathname so /ar/api and /ar/admin are correctly excluded.
+  if (!effectivePathname.startsWith("/api/") && !effectivePathname.startsWith("/admin")) {
     response.headers.set("Vary", "Accept-Encoding, x-site-id");
   }
 
   // Home page: short edge cache for dynamic content
-  if (pathname === "/") {
+  // Use effectivePathname so /ar (Arabic homepage) also gets cache headers.
+  if (effectivePathname === "/") {
     response.headers.set(
       "Cache-Control",
       "public, max-age=0, s-maxage=300, stale-while-revalidate=600",

@@ -128,6 +128,10 @@
     {
       "path": "/api/cron/seo-orchestrator?mode=weekly",
       "schedule": "0 5 * * 0"
+    },
+    {
+      "path": "/api/cron/google-indexing",
+      "schedule": "0 10 * * *"
     }
   ]
 }

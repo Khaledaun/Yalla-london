@@ -105,11 +105,25 @@ function getPrismaClient(): PrismaClient {
   }
 
   try {
+    // Enforce a small connection pool to avoid exhausting Supabase PgBouncer
+    // session mode limits. Prisma defaults to num_cpus*2+1 which easily
+    // exceeds the pool_size when multiple serverless invocations run.
+    let dbUrl = process.env.DATABASE_URL || "";
+    if (dbUrl && !dbUrl.includes("connection_limit=")) {
+      const sep = dbUrl.includes("?") ? "&" : "?";
+      dbUrl = `${dbUrl}${sep}connection_limit=5`;
+    }
+
     const baseClient = new PrismaClient({
       log:
         process.env.NODE_ENV === "development"
           ? ["query", "error", "warn"]
           : ["error"],
+      datasources: {
+        db: {
+          url: dbUrl,
+        },
+      },
     });
 
     // Wrap with soft-delete extension (Prisma 5+ replaces $use with $extends)

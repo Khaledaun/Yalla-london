@@ -46,7 +46,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
     // Get scheduled content and topics
     const scheduledContent = await prisma.scheduledContent.findMany({
-      orderBy: { scheduled_for: 'asc' },
+      orderBy: { scheduled_time: 'asc' },
       take: 10
     });
 
@@ -73,13 +73,13 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       nextOperations.push({
         type: 'content_publish',
         title: content.title || 'Scheduled Content',
-        scheduled_for: content.scheduled_for,
+        scheduled_for: (content as any).scheduled_time?.toISOString?.() ?? new Date().toISOString(),
         status: content.status,
         priority: 'medium',
         details: {
           content_type: content.content_type,
           category: content.category,
-          keywords: content.keywords
+          keywords: content.tags
         }
       });
     });

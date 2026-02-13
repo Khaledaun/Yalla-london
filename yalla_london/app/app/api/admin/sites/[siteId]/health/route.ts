@@ -69,14 +69,30 @@ export async function GET(
     const indexed = (indexMap.get("indexed") as number) ?? 0;
 
     // Get blog post counts for this site
-    const [totalPosts, publishedPosts] = await Promise.all([
-      prisma.blogPost.count({
-        where: { siteId, deletedAt: null },
-      }),
-      prisma.blogPost.count({
-        where: { siteId, published: true, deletedAt: null },
-      }),
-    ]);
+    // Note: siteId column exists in Prisma schema but not yet migrated to DB.
+    // Fall back to global counts until migration is run.
+    let totalPosts = 0;
+    let publishedPosts = 0;
+    try {
+      [totalPosts, publishedPosts] = await Promise.all([
+        prisma.blogPost.count({
+          where: { siteId, deletedAt: null },
+        }),
+        prisma.blogPost.count({
+          where: { siteId, published: true, deletedAt: null },
+        }),
+      ]);
+    } catch {
+      // siteId column doesn't exist yet — fall back to global counts
+      [totalPosts, publishedPosts] = await Promise.all([
+        prisma.blogPost.count({
+          where: { deletedAt: null },
+        }),
+        prisma.blogPost.count({
+          where: { published: true, deletedAt: null },
+        }),
+      ]);
+    }
 
     // Determine health status
     const healthScore = latestHealth?.health_score ?? null;

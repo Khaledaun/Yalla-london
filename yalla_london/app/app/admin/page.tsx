@@ -678,31 +678,42 @@ export default function AdminDashboard() {
 }
 
 function SystemConnections() {
-  const [checks, setChecks] = useState<Record<string, "pass" | "fail" | "checking">>({});
+  const [checks, setChecks] = useState<Record<string, "pass" | "fail" | "warn" | "checking">>({});
+  const [details, setDetails] = useState<Record<string, string>>({});
+  const [passCount, setPassCount] = useState(0);
+  const [warnCount, setWarnCount] = useState(0);
+  const [failCount, setFailCount] = useState(0);
 
   useEffect(() => {
     runChecks();
   }, []);
 
   const runChecks = async () => {
-    setChecks({
-      database: "checking",
-      ga4: "checking",
-      ai: "checking",
-      seo: "checking",
-      pages: "checking",
-      assets: "checking",
-    });
+    const allKeys = [
+      "database", "ga4", "ai", "seo", "pages", "assets",
+      "contentPipeline", "scheduledPublish", "weeklyTopics",
+      "trendsMonitor", "analyticsCron", "seoAgent",
+    ];
+    const initial: Record<string, "checking"> = {};
+    allKeys.forEach((k) => (initial[k] = "checking"));
+    setChecks(initial);
 
     // Run all checks in parallel
-    const [healthRes, homeRes, aiRes, sitemapRes] = await Promise.all([
+    const [healthRes, homeRes, aiRes, sitemapRes, contentRes, publishRes, topicsRes, trendsRes, analyticsRes, seoAgentRes] = await Promise.all([
       fetch("/api/health").catch(() => null),
       fetch("/").catch(() => null),
       fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => null),
       fetch("/sitemap.xml").catch(() => null),
+      fetch("/api/cron/daily-content-generate?healthcheck=true").catch(() => null),
+      fetch("/api/cron/scheduled-publish").catch(() => null),
+      fetch("/api/cron/weekly-topics").catch(() => null),
+      fetch("/api/cron/trends-monitor?healthcheck=true").catch(() => null),
+      fetch("/api/cron/analytics").catch(() => null),
+      fetch("/api/cron/seo-agent?healthcheck=true").catch(() => null),
     ]);
 
-    const results: Record<string, "pass" | "fail"> = {};
+    const results: Record<string, "pass" | "fail" | "warn"> = {};
+    const info: Record<string, string> = {};
 
     // Database - use /api/health endpoint
     if (healthRes) {
@@ -720,7 +731,9 @@ function SystemConnections() {
     // GA4 + Pages + Assets from homepage
     if (homeRes?.ok) {
       const html = await homeRes.text().catch(() => "");
-      results.ga4 = html.match(/G-[A-Z0-9]{8,12}/) ? "pass" : "fail";
+      const gaMatch = html.match(/G-[A-Z0-9]{8,12}/);
+      results.ga4 = gaMatch ? "pass" : "fail";
+      if (gaMatch) info.ga4 = gaMatch[0];
       results.pages = "pass";
       results.assets = html.includes("<link") ? "pass" : "fail";
     } else {
@@ -731,14 +744,109 @@ function SystemConnections() {
 
     // AI - any response (401/403/400/200) means endpoint exists
     results.ai = aiRes && (aiRes.status === 401 || aiRes.status === 403 || aiRes.status === 400 || aiRes.ok) ? "pass" : "fail";
+    if (results.ai === "pass") info.ai = "Auth-protected";
 
     // SEO - check if sitemap exists
     results.seo = sitemapRes?.ok ? "pass" : "fail";
 
+    // Content Pipeline
+    if (contentRes) {
+      try {
+        const data = await contentRes.json();
+        if (data.status === "healthy") {
+          results.contentPipeline = "pass";
+          info.contentPipeline = `${data.sites || 0} sites · Last: ${data.lastRun?.status || "n/a"}`;
+        } else {
+          results.contentPipeline = contentRes.ok ? "pass" : "warn";
+        }
+      } catch {
+        results.contentPipeline = contentRes.ok || contentRes.status === 401 ? "warn" : "fail";
+        if (contentRes.status === 401) info.contentPipeline = "Auth required";
+      }
+    } else {
+      results.contentPipeline = "fail";
+    }
+
+    // Scheduled Publish
+    if (publishRes) {
+      try {
+        const data = await publishRes.json();
+        results.scheduledPublish = data.success || publishRes.ok ? "pass" : "warn";
+        if (data.published_count !== undefined) info.scheduledPublish = `${data.published_count} published`;
+      } catch {
+        results.scheduledPublish = publishRes.ok || publishRes.status === 401 ? "warn" : "fail";
+        if (publishRes.status === 401) info.scheduledPublish = "Auth required";
+      }
+    } else {
+      results.scheduledPublish = "fail";
+    }
+
+    // Weekly Topics
+    if (topicsRes) {
+      try {
+        const data = await topicsRes.json();
+        results.weeklyTopics = data.status === "healthy" || topicsRes.ok ? "pass" : "warn";
+        if (data.pendingTopics !== undefined) info.weeklyTopics = `${data.pendingTopics} pending`;
+      } catch {
+        results.weeklyTopics = topicsRes.ok || topicsRes.status === 401 ? "warn" : "fail";
+        if (topicsRes.status === 401) info.weeklyTopics = "Auth required";
+      }
+    } else {
+      results.weeklyTopics = "fail";
+    }
+
+    // Trends Monitor
+    if (trendsRes) {
+      try {
+        const data = await trendsRes.json();
+        results.trendsMonitor = data.status === "healthy" || trendsRes.ok ? "pass" : "warn";
+        if (data.monitoredKeywords) info.trendsMonitor = `${data.monitoredKeywords} keywords`;
+      } catch {
+        results.trendsMonitor = trendsRes.ok || trendsRes.status === 401 ? "warn" : "fail";
+        if (trendsRes.status === 401) info.trendsMonitor = "Auth required";
+      }
+    } else {
+      results.trendsMonitor = "fail";
+    }
+
+    // Analytics Cron
+    if (analyticsRes) {
+      try {
+        const data = await analyticsRes.json();
+        results.analyticsCron = data.success || analyticsRes.ok ? "pass" : "warn";
+        if (data.results?.ga4?.pageViews) info.analyticsCron = `${data.results.ga4.pageViews.toLocaleString()} views`;
+      } catch {
+        results.analyticsCron = analyticsRes.ok || analyticsRes.status === 401 ? "warn" : "fail";
+        if (analyticsRes.status === 401) info.analyticsCron = "Auth required";
+      }
+    } else {
+      results.analyticsCron = "fail";
+    }
+
+    // SEO Agent
+    if (seoAgentRes) {
+      try {
+        const data = await seoAgentRes.json();
+        results.seoAgent = data.status === "healthy" || seoAgentRes.ok ? "pass" : "warn";
+        if (data.lastRun?.status) info.seoAgent = `Last: ${data.lastRun.status}`;
+      } catch {
+        results.seoAgent = seoAgentRes.ok || seoAgentRes.status === 401 ? "warn" : "fail";
+        if (seoAgentRes.status === 401) info.seoAgent = "Auth required";
+      }
+    } else {
+      results.seoAgent = "fail";
+    }
+
+    // Count totals
+    const vals = Object.values(results);
+    setPassCount(vals.filter((v) => v === "pass").length);
+    setWarnCount(vals.filter((v) => v === "warn").length);
+    setFailCount(vals.filter((v) => v === "fail").length);
+    setDetails(info);
     setChecks(results);
   };
 
-  const connections = [
+  const coreConnections = [
     { key: "database", label: "Database", icon: Database },
     { key: "ga4", label: "GA4 Analytics", icon: BarChart3 },
     { key: "ai", label: "AI Provider", icon: Brain },
@@ -747,26 +855,91 @@ function SystemConnections() {
     { key: "assets", label: "Static Assets", icon: Image },
   ];
 
+  const pipelineConnections = [
+    { key: "contentPipeline", label: "Content Pipeline", icon: Edit3 },
+    { key: "scheduledPublish", label: "Scheduled Publish", icon: Clock },
+    { key: "weeklyTopics", label: "Weekly Topics", icon: Lightbulb },
+    { key: "trendsMonitor", label: "Trends Monitor", icon: TrendingUp },
+    { key: "analyticsCron", label: "Analytics Sync", icon: Activity },
+    { key: "seoAgent", label: "SEO Agent", icon: Target },
+  ];
+
+  const isRunning = Object.values(checks).some((v) => v === "checking");
+  const totalChecks = passCount + warnCount + failCount;
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-      {connections.map(({ key, label, icon: Icon }) => {
-        const status = checks[key] || "checking";
-        return (
-          <div key={key} className="bg-white p-3 rounded-xl border border-gray-200 text-center">
-            <Icon className={`h-5 w-5 mx-auto mb-1.5 ${
-              status === "pass" ? "text-green-500" :
-              status === "fail" ? "text-red-400" : "text-gray-300"
-            }`} />
-            <div className="text-xs font-medium text-gray-700">{label}</div>
-            <div className={`text-[10px] font-semibold mt-1 ${
-              status === "pass" ? "text-green-600" :
-              status === "fail" ? "text-red-500" : "text-gray-400"
-            }`}>
-              {status === "checking" ? "Checking..." : status === "pass" ? "Connected" : "Offline"}
-            </div>
-          </div>
-        );
-      })}
+    <div className="space-y-4">
+      {/* Summary bar */}
+      {totalChecks > 0 && (
+        <div className="flex items-center gap-4 text-sm">
+          <span className="text-green-600 font-semibold">{passCount} passed</span>
+          {warnCount > 0 && <span className="text-yellow-600 font-semibold">{warnCount} warnings</span>}
+          {failCount > 0 && <span className="text-red-500 font-semibold">{failCount} failed</span>}
+          <span className="text-gray-400">of {totalChecks} checks</span>
+          <button
+            onClick={() => runChecks()}
+            className="ml-auto text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+          >
+            <RefreshCw className={`h-3 w-3 ${isRunning ? "animate-spin" : ""}`} /> Re-run
+          </button>
+        </div>
+      )}
+
+      {/* Core Infrastructure */}
+      <div>
+        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Core Infrastructure</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {coreConnections.map(({ key, label, icon: Icon }) => {
+            const status = checks[key] || "checking";
+            return (
+              <div key={key} className="bg-white p-3 rounded-xl border border-gray-200 text-center">
+                <Icon className={`h-5 w-5 mx-auto mb-1.5 ${
+                  status === "pass" ? "text-green-500" :
+                  status === "fail" ? "text-red-400" :
+                  status === "warn" ? "text-yellow-500" : "text-gray-300"
+                }`} />
+                <div className="text-xs font-medium text-gray-700">{label}</div>
+                {details[key] && <div className="text-[9px] text-gray-400 mt-0.5 truncate">{details[key]}</div>}
+                <div className={`text-[10px] font-semibold mt-1 ${
+                  status === "pass" ? "text-green-600" :
+                  status === "fail" ? "text-red-500" :
+                  status === "warn" ? "text-yellow-600" : "text-gray-400"
+                }`}>
+                  {status === "checking" ? "Checking..." : status === "pass" ? "Connected" : status === "warn" ? "Warning" : "Offline"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Content Pipeline & Crons */}
+      <div>
+        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Content Pipeline &amp; Crons</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {pipelineConnections.map(({ key, label, icon: Icon }) => {
+            const status = checks[key] || "checking";
+            return (
+              <div key={key} className="bg-white p-3 rounded-xl border border-gray-200 text-center">
+                <Icon className={`h-5 w-5 mx-auto mb-1.5 ${
+                  status === "pass" ? "text-green-500" :
+                  status === "fail" ? "text-red-400" :
+                  status === "warn" ? "text-yellow-500" : "text-gray-300"
+                }`} />
+                <div className="text-xs font-medium text-gray-700">{label}</div>
+                {details[key] && <div className="text-[9px] text-gray-400 mt-0.5 truncate">{details[key]}</div>}
+                <div className={`text-[10px] font-semibold mt-1 ${
+                  status === "pass" ? "text-green-600" :
+                  status === "fail" ? "text-red-500" :
+                  status === "warn" ? "text-yellow-600" : "text-gray-400"
+                }`}>
+                  {status === "checking" ? "Checking..." : status === "pass" ? "Healthy" : status === "warn" ? "Warning" : "Offline"}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

@@ -121,6 +121,8 @@ export async function runOrchestrator(
     robots_conflicts: liveAudit.robotsConflicts.conflicts.length,
     cache_hit_rate: liveAudit.cdnPerformance.hitRate,
     ai_crawlers_allowed: liveAudit.robotsConflicts.aiCrawlersAllowed.length,
+    pending_proposals: currentMetrics.pending_proposals || 0,
+    indexed_pages: currentMetrics.indexed_pages || 0,
   };
 
   const businessGoals = evaluateGoals(enrichedMetrics);

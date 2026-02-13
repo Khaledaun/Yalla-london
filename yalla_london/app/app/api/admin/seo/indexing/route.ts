@@ -27,12 +27,22 @@ export async function GET(request: NextRequest) {
   try {
     const { prisma } = await import("@/lib/db");
 
+    // Use explicit select to avoid P2022 if site_id/periodStart/periodEnd
+    // columns haven't been migrated yet.
+    const safeSelect = {
+      id: true,
+      reportType: true,
+      generatedAt: true,
+      data: true,
+    };
+
     if (type === "latest") {
       const latest = await prisma.seoReport.findFirst({
         where: {
           reportType: { in: ["indexing_audit", "indexing_submission"] },
         },
         orderBy: { generatedAt: "desc" },
+        select: safeSelect,
       });
 
       return NextResponse.json({
@@ -56,6 +66,7 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { generatedAt: "desc" },
         take: 100,
+        select: safeSelect,
       });
 
       // Aggregate stats
@@ -142,6 +153,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { generatedAt: "desc" },
       take: limit,
+      select: safeSelect,
     });
 
     return NextResponse.json({

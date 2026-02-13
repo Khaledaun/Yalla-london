@@ -26,18 +26,49 @@ export const GET = withAdminOrCronAuth(async (request: NextRequest) => {
     const reportType = searchParams.get("type");
     const siteId = searchParams.get("site");
 
+    // Use explicit select to avoid P2022 errors when optional columns
+    // (site_id, periodStart, periodEnd) haven't been migrated yet.
+    const baseSelect = {
+      id: true,
+      reportType: true,
+      generatedAt: true,
+      data: true,
+    };
+
+    // Try with full columns first; fall back to base columns if site_id etc. don't exist
+    let reports: any[];
+    let total: number;
+    let hasSiteIdColumn = true;
+
     const where: Record<string, unknown> = {};
     if (reportType) where.reportType = reportType;
-    if (siteId) where.site_id = siteId;
 
-    const [reports, total] = await Promise.all([
-      prisma.seoReport.findMany({
-        where,
-        orderBy: { generatedAt: "desc" },
-        take: limit,
-      }),
-      prisma.seoReport.count({ where }),
-    ]);
+    try {
+      if (siteId) where.site_id = siteId;
+
+      [reports, total] = await Promise.all([
+        prisma.seoReport.findMany({
+          where,
+          orderBy: { generatedAt: "desc" },
+          take: limit,
+          select: { ...baseSelect, site_id: true, periodStart: true, periodEnd: true },
+        }),
+        prisma.seoReport.count({ where }),
+      ]);
+    } catch {
+      // site_id / periodStart / periodEnd columns don't exist yet — use base select
+      hasSiteIdColumn = false;
+      delete where.site_id;
+      [reports, total] = await Promise.all([
+        prisma.seoReport.findMany({
+          where,
+          orderBy: { generatedAt: "desc" },
+          take: limit,
+          select: baseSelect,
+        }),
+        prisma.seoReport.count({ where }),
+      ]);
+    }
 
     // Get distinct report types for reference
     const reportTypes = await prisma.seoReport.groupBy({
@@ -47,13 +78,13 @@ export const GET = withAdminOrCronAuth(async (request: NextRequest) => {
     });
 
     return NextResponse.json({
-      reports: reports.map((r) => ({
+      reports: reports.map((r: any) => ({
         id: r.id,
         reportType: r.reportType,
-        site_id: r.site_id,
+        site_id: hasSiteIdColumn ? r.site_id : null,
         generatedAt: r.generatedAt,
-        periodStart: r.periodStart,
-        periodEnd: r.periodEnd,
+        periodStart: hasSiteIdColumn ? r.periodStart : null,
+        periodEnd: hasSiteIdColumn ? r.periodEnd : null,
         data: r.data,
       })),
       total,

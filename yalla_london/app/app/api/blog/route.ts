@@ -31,42 +31,60 @@ export async function GET(request: NextRequest) {
     const orderField = validSortFields.includes(sortField) ? sortField : "created_at";
     const orderDir = sortDir === "asc" ? "asc" : "desc";
 
-    // Note: siteId column exists in schema but not yet migrated to DB.
-    // Don't filter/select on siteId until migration is run.
-    const where = {
+    // Try full query first with deletedAt + SEO columns;
+    // fall back gracefully if those columns haven't been migrated yet.
+    let posts: any[];
+    let total: number;
+
+    const baseSelect = {
+      id: true,
+      title_en: true,
+      title_ar: true,
+      slug: true,
+      excerpt_en: true,
+      excerpt_ar: true,
+      content_ar: true,
+      featured_image: true,
       published: true,
-      deletedAt: null,
+      tags: true,
+      meta_title_en: true,
+      meta_description_en: true,
+      created_at: true,
+      updated_at: true,
     };
 
-    const [posts, total] = await Promise.all([
-      prisma.blogPost.findMany({
-        where,
-        orderBy: { [orderField]: orderDir },
-        skip: offset,
-        take: limit,
-        select: {
-          id: true,
-          title_en: true,
-          title_ar: true,
-          slug: true,
-          excerpt_en: true,
-          excerpt_ar: true,
-          content_ar: true,
-          featured_image: true,
-          published: true,
-          tags: true,
-          meta_title_en: true,
-          meta_description_en: true,
-          seo_score: true,
-          page_type: true,
-          keywords_json: true,
-          authority_links_json: true,
-          created_at: true,
-          updated_at: true,
-        },
-      }),
-      prisma.blogPost.count({ where }),
-    ]);
+    try {
+      const where = { published: true, deletedAt: null };
+      [posts, total] = await Promise.all([
+        prisma.blogPost.findMany({
+          where,
+          orderBy: { [orderField]: orderDir },
+          skip: offset,
+          take: limit,
+          select: {
+            ...baseSelect,
+            seo_score: true,
+            page_type: true,
+            keywords_json: true,
+            authority_links_json: true,
+          },
+        }),
+        prisma.blogPost.count({ where }),
+      ]);
+    } catch {
+      // deletedAt or SEO columns don't exist yet — fall back to simpler query
+      const where = { published: true };
+      [posts, total] = await Promise.all([
+        prisma.blogPost.findMany({
+          where,
+          orderBy: { [orderField]: orderDir },
+          skip: offset,
+          take: limit,
+          select: baseSelect,
+        }),
+        prisma.blogPost.count({ where }),
+      ]);
+    }
 
     // Truncate content_ar to a flag (length only, not full text)
     const safePosts = posts.map((p) => ({

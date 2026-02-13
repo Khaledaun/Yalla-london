@@ -11,7 +11,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import {
   informationArticles as baseInfoArticles,
   informationSections,
@@ -285,6 +284,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { prisma } = await import("@/lib/db");
   const startTime = Date.now();
 
   // ── Metrics ─────────────────────────────────────────────────────────

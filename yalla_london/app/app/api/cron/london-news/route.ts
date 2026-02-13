@@ -3,7 +3,6 @@ export const revalidate = 0;
 export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { logCronExecution } from "@/lib/cron-logger";
 import { blogPosts } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
@@ -567,6 +566,8 @@ export async function GET(request: NextRequest) {
   if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const { prisma } = await import("@/lib/db");
 
   // Healthcheck mode
   if (request.nextUrl.searchParams.get("healthcheck") === "true") {

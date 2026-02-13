@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     // Get latest weekly health report from SeoReport
     const latestReport = await prisma.seoReport.findFirst({
       where: { reportType: "weekly_health" },
-      orderBy: { created_at: "desc" },
+      orderBy: { generatedAt: "desc" },
     });
 
     if (!latestReport) {
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
       success: true,
       dashboard: {
         latest_report: {
-          date: latestReport.created_at,
+          date: latestReport.generatedAt,
           data: latestReport.data,
         },
         realtime_stats: realtimeStats,

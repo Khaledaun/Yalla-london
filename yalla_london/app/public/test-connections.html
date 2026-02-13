@@ -560,6 +560,168 @@ async function seedStaticContent() {
 }
 
 // ─── Run All Cron Jobs ────────────────────────────────────────────────────
+// ── Smart Response Body Analyzer ──────────────────────────────────────────
+// Detects hidden failures inside HTTP 200 responses from cron jobs.
+// Returns null if the response looks genuinely healthy.
+function analyzeJobResponse(jobName, json) {
+  const issues = [];
+
+  // 1. Explicit error fields buried in the response
+  if (json.errors && typeof json.errors === 'object' && !Array.isArray(json.errors)) {
+    const errorKeys = Object.keys(json.errors);
+    if (errorKeys.length > 0) {
+      const allErrored = errorKeys.every(k => json.errors[k] && String(json.errors[k]).length > 10);
+      if (allErrored) {
+        issues.push({
+          severity: 'fail',
+          msg: errorKeys.length + '/' + errorKeys.length + ' sites have errors',
+          diag: 'All sites returned errors in the response body. First error: <code>' +
+            escapeHtml(String(json.errors[errorKeys[0]]).substring(0, 200)) + '</code>'
+        });
+      } else if (errorKeys.some(k => json.errors[k] && String(json.errors[k]).length > 10)) {
+        const failedSites = errorKeys.filter(k => json.errors[k] && String(json.errors[k]).length > 10);
+        issues.push({
+          severity: 'warn',
+          msg: failedSites.length + '/' + errorKeys.length + ' sites have errors',
+          diag: 'Some sites have errors: ' + failedSites.join(', ') + '. Check the JSON output for details.'
+        });
+      }
+    }
+  }
+
+  // 2. Last run was timed_out (healthcheck endpoints report previous run status)
+  if (json.lastRun?.status === 'timed_out' || json.lastRun?.duration_ms > 60000) {
+    issues.push({
+      severity: 'warn',
+      msg: 'Last actual run timed out (' + (json.lastRun?.duration_ms || '?') + 'ms)',
+      diag: 'The healthcheck passed but the last real execution timed out. The job likely needs optimization or a higher <code>maxDuration</code>.'
+    });
+  }
+
+  // 3. All items failed (completed: 0, failed: N where N > 0)
+  if (typeof json.completed === 'number' && typeof json.failed === 'number' &&
+      json.failed > 0 && json.completed === 0) {
+    issues.push({
+      severity: 'fail',
+      msg: 'All ' + json.failed + ' items failed, 0 completed',
+      diag: 'Every item the job processed ended in failure. Check the error details in the JSON response.'
+    });
+  }
+
+  // 4. items.failed > 0 or items_failed > 0 (withCronLog format)
+  const itemsFailed = json.items?.failed ?? json.items_failed ?? json.metrics?.errors ?? 0;
+  const itemsProcessed = json.items?.processed ?? json.items_processed ?? 0;
+  if (itemsFailed > 0 && itemsProcessed > 0 && itemsFailed === itemsProcessed) {
+    issues.push({
+      severity: 'fail',
+      msg: 'All ' + itemsFailed + ' processed items failed',
+      diag: 'Every item the job attempted to process failed. None succeeded.'
+    });
+  } else if (itemsFailed > 0 && itemsFailed > itemsProcessed * 0.5) {
+    issues.push({
+      severity: 'warn',
+      msg: itemsFailed + '/' + itemsProcessed + ' items failed (>' + Math.round(itemsFailed / itemsProcessed * 100) + '%)',
+      diag: 'More than half of processed items failed. The job is degraded.'
+    });
+  }
+
+  // 5. Absurd numeric values (e.g. interest scores in the trillions)
+  if (json.keywordTrends && Array.isArray(json.keywordTrends)) {
+    const absurdScores = json.keywordTrends.filter(t => t.interestScore > 1e9);
+    if (absurdScores.length > 0) {
+      issues.push({
+        severity: 'warn',
+        msg: absurdScores.length + ' keywords have nonsensical interest scores (>' + absurdScores[0].interestScore.toExponential(1) + ')',
+        diag: 'Interest scores should typically range 0-100. Values in the billions/trillions indicate the trends data source is returning corrupt or unscaled data. The SERP API response may have changed format.'
+      });
+    }
+  }
+  if (json.contentOpportunities && Array.isArray(json.contentOpportunities)) {
+    const absurdTraffic = json.contentOpportunities.filter(o => o.estimatedTraffic > 1e9);
+    if (absurdTraffic.length > 0) {
+      issues.push({
+        severity: 'warn',
+        msg: 'Estimated traffic values are nonsensical (' + absurdTraffic[0].estimatedTraffic.toExponential(1) + ')',
+        diag: 'Traffic estimates are in the billions+. These numbers are not usable for content prioritization.'
+      });
+    }
+  }
+
+  // 6. Prisma/DB errors nested inside response objects
+  const jsonStr = JSON.stringify(json);
+  if (jsonStr.includes('Unknown argument') || jsonStr.includes('P2022') || jsonStr.includes('P2021') ||
+      jsonStr.includes('does not exist') || jsonStr.includes('Invalid `prisma')) {
+    issues.push({
+      severity: 'fail',
+      msg: 'Prisma/database schema errors in response',
+      diag: 'The response contains Prisma errors indicating schema mismatches. The database may be missing columns or tables referenced by the code. Run <strong>"Fix Missing Tables & Columns"</strong> or <code>npx prisma db push</code>.'
+    });
+  }
+
+  // 7. Permission errors (403) inside nested results
+  if (jsonStr.includes('Insufficient Permission') || jsonStr.includes('insufficient authentication scopes') ||
+      jsonStr.includes('"code": 403') || jsonStr.includes('"code":403')) {
+    issues.push({
+      severity: 'warn',
+      msg: 'Permission errors (403) in sub-requests',
+      diag: 'Some external API calls within the job returned 403 Forbidden. Check API credentials and OAuth scopes (e.g. Google Search Console service account permissions).'
+    });
+  }
+
+  // 8. Zero work done when work was expected (not healthcheck responses)
+  const isHealthcheck = json.status === 'healthy' || json.endpoint;
+  if (!isHealthcheck) {
+    const ran = json.ran ?? json.postsProcessed ?? null;
+    const published = json.published ?? json.succeeded ?? null;
+    if (typeof ran === 'number' && ran === 0 && typeof published === 'number' && published === 0) {
+      // Only warn if this isn't a "nothing to do" situation
+      const hasNothingToDo = json.message?.includes('No ') || json.availableTopics === 0;
+      if (!hasNothingToDo) {
+        issues.push({
+          severity: 'warn',
+          msg: 'Job ran 0 tasks, published 0 items',
+          diag: 'The job completed but did nothing. This may indicate missing configuration, empty queues, or a silent failure mode.'
+        });
+      }
+    }
+  }
+
+  // 9. totalErrors > 0 in response
+  if (typeof json.totalErrors === 'number' && json.totalErrors > 0) {
+    issues.push({
+      severity: 'warn',
+      msg: json.totalErrors + ' error(s) reported in response',
+      diag: 'The job reported errors in its response. Check the detailed JSON output for specifics.'
+    });
+  }
+
+  // 10. Most sites have zero URLs (indexing)
+  if (json.results && Array.isArray(json.results)) {
+    const siteResults = json.results.filter(r => r.siteId);
+    const zeroUrlSites = siteResults.filter(r => r.urlsFound === 0);
+    if (siteResults.length > 2 && zeroUrlSites.length >= siteResults.length - 1) {
+      issues.push({
+        severity: 'warn',
+        msg: zeroUrlSites.length + '/' + siteResults.length + ' sites have 0 URLs to index',
+        diag: 'Most sites have no URLs for indexing. This usually means no content has been published for those sites yet, or the URL discovery query is too restrictive.'
+      });
+    }
+  }
+
+  if (issues.length === 0) return null;
+
+  // Pick the worst severity
+  const hasFail = issues.some(i => i.severity === 'fail');
+  const summary = issues.map(i => i.msg).join('; ');
+  const diagnosis = issues.map(i => i.diag).join('<br><br>');
+
+  return {
+    severity: hasFail ? 'fail' : 'warn',
+    summary: summary.substring(0, 250),
+    diagnosis: diagnosis,
+  };
+}
+
 async function runAllJobs() {
   const cronSecret = getCronSecret();
   if (!cronSecret) {
@@ -621,7 +783,20 @@ async function runAllJobs() {
       const durationHint = json?.durationMs ? ' (' + json.durationMs + 'ms)' : '';
       const detail = json?.error || json?.message || json?.status || '';
 
-      if (resp.ok) {
+      // ── Smart response-body analysis ───────────────────────────
+      // HTTP 200 does NOT mean the job succeeded. Inspect the actual
+      // response for hidden failures, errors, and degraded states.
+      const bodyIssues = resp.ok && json ? analyzeJobResponse(job.name, json) : null;
+
+      if (resp.ok && bodyIssues) {
+        // HTTP 200 but response body reveals real problems
+        const severity = bodyIssues.severity; // 'fail' or 'warn'
+        addResult('jobs', job.name, severity,
+          'HTTP ' + resp.status + durationHint + ' — ' + bodyIssues.summary,
+          bodyIssues.diagnosis);
+        if (severity === 'fail') jobFail++; else jobWarn++;
+        jobResults.push({ name: job.name, status: severity, httpStatus: resp.status, detail: bodyIssues.summary });
+      } else if (resp.ok) {
         addResult('jobs', job.name, 'pass', 'HTTP ' + resp.status + durationHint + (detail ? ' — ' + String(detail).substring(0, 120) : ''));
         jobPass++;
         jobResults.push({ name: job.name, status: 'pass', httpStatus: resp.status, detail });

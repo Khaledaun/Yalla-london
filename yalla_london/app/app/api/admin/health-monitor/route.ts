@@ -148,10 +148,15 @@ export const GET = withAdminOrCronAuth(async (request: NextRequest) => {
   ]);
 
   // 3. Build summary
+  // Count jobs that are explicitly failed, timed out, or "completed" but with all items failed
   const healthySites = sites.filter((s) => s.status === "healthy").length;
   const degradedSites = sites.filter((s) => s.status === "degraded").length;
   const downSites = sites.filter((s) => s.status === "down").length;
-  const failedCronJobs = cronJobs.filter((c) => c.status === "failed").length;
+  const failedCronJobs = cronJobs.filter((c) =>
+    c.status === "failed" ||
+    c.status === "timed_out" ||
+    (c.itemsFailed > 0 && c.itemsFailed === c.itemsProcessed),
+  ).length;
 
   const response: HealthMonitorResponse = {
     timestamp: new Date().toISOString(),

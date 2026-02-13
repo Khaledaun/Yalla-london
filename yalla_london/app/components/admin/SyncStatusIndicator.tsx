@@ -111,11 +111,11 @@ export function SyncStatusIndicator() {
 
       const data = await response.json().catch(() => null);
 
-      if (response.ok && data) {
+      if (response.ok && data?.success) {
         setTestResults([
           { test: 'Database Connection', success: true, message: 'Connected successfully' },
           { test: 'Admin API', success: true, message: 'Admin API responding' },
-          { test: 'Public API', success: true, message: 'Public API responding' },
+          { test: 'Content Creation', success: true, message: `Test post created: ${data.testContent?.slug || 'ok'}` },
           { test: 'Cache Invalidation', success: true, message: 'Cache invalidation working' },
           { test: 'Real-Time Sync', success: true, message: 'Changes appear on public site immediately' }
         ]);
@@ -125,9 +125,19 @@ export function SyncStatusIndicator() {
           lastSync: new Date().toISOString(),
           latency: data.latency || null
         });
+
+        // Auto-cleanup the test post
+        if (data.testContent?.id) {
+          fetch('/api/admin/sync-test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'cleanup-test', contentType: 'blog', contentId: data.testContent.id })
+          }).catch(() => {});
+        }
       } else {
+        const errorMsg = data?.details || data?.error || 'Unknown error';
         setTestResults([
-          { test: 'Sync Test', success: false, message: 'Test failed', error: data?.error }
+          { test: 'Sync Test', success: false, message: `Test failed`, error: errorMsg }
         ]);
       }
     } catch (error) {

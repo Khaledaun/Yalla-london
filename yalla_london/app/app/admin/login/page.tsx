@@ -19,6 +19,21 @@ export default function AdminLogin() {
   const [systemHealth, setSystemHealth] = useState<Record<string, string> | null>(null)
   const [showResetOption, setShowResetOption] = useState(false)
 
+  // Handle ?error= from NextAuth redirects (e.g. after failed signIn)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const err = params.get('error')
+    if (err) {
+      if (err === 'CredentialsSignin') {
+        setError('Invalid email or password.')
+      } else {
+        setError(`Sign-in error: ${err}`)
+      }
+      // Clean the URL so it doesn't persist on refresh
+      window.history.replaceState({}, '', '/admin/login')
+    }
+  }, [])
+
   // Check migration → setup → health sequentially to avoid race conditions
   useEffect(() => {
     async function initChecks() {
@@ -82,20 +97,6 @@ export default function AdminLogin() {
     }
   }
 
-  /**
-   * Create session via NextAuth's official signIn() client function.
-   * This handles CSRF tokens, cookies, and URL encoding correctly
-   * across all browsers and deployment environments.
-   */
-  const nextAuthSignIn = async (userEmail: string, userPassword: string): Promise<boolean> => {
-    const result = await signIn('credentials', {
-      redirect: false,
-      email: userEmail,
-      password: userPassword,
-    })
-    return result?.ok === true && !result?.error
-  }
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -134,27 +135,23 @@ export default function AdminLogin() {
         return
       }
 
-      // Step 2: Credentials are valid. Now let NextAuth create the session
-      // cookie itself — this guarantees the cookie format, name, and
-      // encryption are exactly what NextAuth expects.
-      setSuccess('Credentials verified. Creating session...')
+      // Step 2: Credentials verified. Let NextAuth create the session
+      // and redirect to /admin. Using redirect: true (default) avoids
+      // a known NextAuth v4 bug where redirect: false crashes on
+      // relative callback URLs.
+      setSuccess('Credentials verified. Signing in...')
 
-      const signedIn = await nextAuthSignIn(email.trim(), password)
-
-      if (signedIn) {
-        setSuccess('Signed in! Redirecting...')
-        window.location.href = '/admin'
-      } else {
-        setSuccess('')
-        setError(
-          'Credentials are correct but NextAuth session creation failed.\n' +
-          'Check that NEXTAUTH_SECRET is set in your Vercel environment variables.'
-        )
-      }
+      // signIn() with redirect: true navigates the browser directly.
+      // The page will leave; no further code runs after this.
+      await signIn('credentials', {
+        callbackUrl: '/admin',
+        email: email.trim(),
+        password,
+      })
     } catch (err) {
-      setError(`Connection error: ${err instanceof Error ? err.message : 'Please try again.'}`)
-    } finally {
       setIsLoading(false)
+      setSuccess('')
+      setError(`Connection error: ${err instanceof Error ? err.message : 'Please try again.'}`)
     }
   }
 
@@ -182,19 +179,15 @@ export default function AdminLogin() {
 
       setSuccess('Admin account created! Signing you in...')
 
-      const signedIn = await nextAuthSignIn(email.trim(), password)
-
-      if (signedIn) {
-        window.location.href = '/admin'
-      } else {
-        setSuccess('')
-        setError('Account created but session failed. Try signing in manually.')
-        setNeedsSetup(false)
-      }
+      await signIn('credentials', {
+        callbackUrl: '/admin',
+        email: email.trim(),
+        password,
+      })
     } catch {
-      setError('Connection error. Please check your network and try again.')
-    } finally {
       setIsLoading(false)
+      setSuccess('')
+      setError('Connection error. Please check your network and try again.')
     }
   }
 

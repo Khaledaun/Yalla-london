@@ -87,6 +87,21 @@ const EXPECTED_TABLES: TableDef[] = [
       'CREATE INDEX IF NOT EXISTS "ScheduledContent_status_idx" ON "ScheduledContent"("status")',
     ],
   },
+  // ── SeoReport ──────────────────────────────────
+  {
+    table: '"seo_reports"',
+    model: "SeoReport",
+    columns: [
+      { name: "site_id", type: "TEXT", nullable: true },
+      { name: "periodStart", type: "TIMESTAMPTZ", nullable: true },
+      { name: "periodEnd", type: "TIMESTAMPTZ", nullable: true },
+    ],
+    indexes: [
+      'CREATE INDEX IF NOT EXISTS "seo_reports_site_id_idx" ON "seo_reports"("site_id")',
+      'CREATE INDEX IF NOT EXISTS "seo_reports_site_id_reportType_idx" ON "seo_reports"("site_id", "reportType")',
+      'CREATE INDEX IF NOT EXISTS "seo_reports_reportType_generatedAt_idx" ON "seo_reports"("reportType", "generatedAt")',
+    ],
+  },
   // ── InformationSection ──────────────────────────
   {
     table: '"information_sections"',

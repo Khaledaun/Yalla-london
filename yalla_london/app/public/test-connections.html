@@ -49,7 +49,7 @@
 <body>
 
 <h1>Yalla London — System Validator</h1>
-<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content, Orchestrator, Indexing, Multi-Site, Schema Audit (22 sections) + One-Click DB Migration</p>
+<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content, Orchestrator, Indexing, Site Health, Schema Audit (22 sections) + One-Click DB Migration + Copiable JSON Export</p>
 
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchMode('quick')">Quick Test</button>
@@ -84,6 +84,7 @@
 <script>
 let pass = 0, fail = 0, warn = 0;
 let testMode = 'quick';
+let allResults = []; // Collect all results for JSON export
 
 function switchMode(mode) {
   testMode = mode;
@@ -107,6 +108,9 @@ function addResult(sectionId, name, status, detail, diagnostic) {
   if (status === 'pass') pass++;
   else if (status === 'fail') fail++;
   else warn++;
+
+  // Track for JSON export
+  allResults.push({ section: sectionId, name, status, detail: detail || null });
 
   const cls = status === 'pass' ? 'pass' : status === 'fail' ? 'fail' : 'warn';
   const icon = status === 'pass' ? '\u2713' : status === 'fail' ? '\u2717' : '\u26A0';
@@ -375,6 +379,7 @@ async function migrateDatabase() {
 // ─── Test Runner ──────────────────────────────────────────────────────────
 async function runAllTests() {
   pass = 0; fail = 0; warn = 0;
+  allResults = [];
   document.getElementById('results').innerHTML = '';
   document.getElementById('statusBanner').innerHTML = '';
   document.getElementById('log').textContent = '';
@@ -919,30 +924,36 @@ async function runAllTests() {
       }
     } catch (e) { log('  ERROR in section 19: ' + e.message); addResult('seoreports', 'SEO Reports', 'fail', 'JS Error: ' + e.message); }
 
-    // ── 20. Multi-Site Health Check ──
-    log('  Testing multi-site health...');
-    addSection('multisite', '20. Multi-Site Health Checks');
+    // ── 20. Yalla London Site Health Check ──
+    log('  Testing Yalla London site health...');
+    addSection('multisite', '20. Yalla London Site Health');
     try {
-      const sites = ['yalla-london', 'arabaldives', 'dubai', 'istanbul', 'thailand'];
-      for (const siteId of sites) {
-        const siteResp = await testFetch('/api/admin/sites/' + siteId + '/health', { headers: cronHeaders });
-        if (siteResp.ok && siteResp.json) {
-          const j = siteResp.json;
-          const score = j.healthScore ?? '?';
-          const statusCls = j.status === 'healthy' ? 'pass' : j.status === 'degraded' ? 'warn' : j.status === 'down' ? 'fail' : 'warn';
-          addResult('multisite', j.siteName || siteId, statusCls,
-            j.status + ' — score: ' + score + '/100' +
-            (j.indexing ? ' | indexed: ' + j.indexing.indexed + '/' + j.indexing.totalUrls : '') +
-            (j.content ? ' | posts: ' + j.content.publishedPosts + '/' + j.content.totalPosts : '') +
-            ' (' + (j.domain || siteId) + ')');
-        } else if (siteResp.status === 404) {
-          addResult('multisite', siteId, 'warn', 'Site not found — check site ID matches config/sites.ts');
-          break;
-        } else {
-          addResult('multisite', siteId, 'warn', 'HTTP ' + siteResp.status);
+      const siteResp = await testFetch('/api/admin/sites/yalla-london/health', { headers: cronHeaders });
+      if (siteResp.ok && siteResp.json) {
+        const j = siteResp.json;
+        const score = j.healthScore ?? '?';
+        const statusCls = j.status === 'healthy' ? 'pass' : j.status === 'degraded' ? 'warn' : j.status === 'down' ? 'fail' : 'warn';
+        addResult('multisite', j.siteName || 'Yalla London', statusCls,
+          j.status + ' — score: ' + score + '/100' +
+          (j.indexing ? ' | indexed: ' + j.indexing.indexed + '/' + j.indexing.totalUrls : '') +
+          (j.content ? ' | posts: ' + j.content.publishedPosts + '/' + j.content.totalPosts : '') +
+          ' (' + (j.domain || 'yalla-london.com') + ')');
+        if (j.crons7d) {
+          addResult('multisite', 'Crons (7d)', j.crons7d.failed === 0 ? 'pass' : 'warn',
+            j.crons7d.completed + ' completed, ' + j.crons7d.failed + ' failed, ' + j.crons7d.timedOut + ' timed out');
         }
+        if (j.seo) {
+          addResult('multisite', 'SEO Indexing', j.seo.indexed_pages > 0 ? 'pass' : 'warn',
+            j.seo.indexed_pages + '/' + j.seo.total_pages + ' pages indexed (' + (j.seo.indexing_rate || 0) + '%)');
+        }
+        addJsonBlock('multisite', j);
+      } else if (siteResp.status === 404) {
+        addResult('multisite', 'Yalla London', 'warn', 'HTTP 404 — site health endpoint not found',
+          'The <code>/api/admin/sites/yalla-london/health</code> route returned 404. This endpoint may not be deployed yet. Ensure the route exists at <code>app/api/admin/sites/[siteId]/health/route.ts</code> and redeploy.');
+      } else {
+        addResult('multisite', 'Yalla London', 'warn', 'HTTP ' + siteResp.status + ' — ' + (siteResp.errorDetail || ''));
       }
-    } catch (e) { log('  ERROR in section 20: ' + e.message); addResult('multisite', 'Multi-site', 'fail', 'JS Error: ' + e.message); }
+    } catch (e) { log('  ERROR in section 20: ' + e.message); addResult('multisite', 'Site Health', 'fail', 'JS Error: ' + e.message); }
 
     // ── 21. Content & Indexing Deep Audit ──
     log('  Running content & indexing deep audit...');
@@ -1104,8 +1115,49 @@ async function runAllTests() {
     banner.innerHTML = '<div class="status-banner status-fail">' + fail + ' ISSUE(S) NEED ATTENTION</div>';
   }
 
+  // ── Generate Copiable JSON Test Result ──
+  renderJsonResult();
+
   document.getElementById('runBtn').disabled = false;
   document.getElementById('runBtn').textContent = 'Run All Tests Again';
+}
+
+function renderJsonResult() {
+  const jsonResult = {
+    timestamp: new Date().toISOString(),
+    mode: testMode,
+    summary: { passed: pass, warnings: warn, failed: fail, total: pass + warn + fail },
+    results: allResults,
+  };
+  const jsonStr = JSON.stringify(jsonResult, null, 2);
+
+  // Remove any existing JSON export section
+  const existing = document.getElementById('section-jsonexport');
+  if (existing) existing.remove();
+
+  const html = `<div class="section" id="section-jsonexport">
+    <h2>Test Results — Copiable JSON</h2>
+    <p style="color:#888;font-size:0.8rem;margin-bottom:8px;">Click the text area below and press Ctrl+A then Ctrl+C to copy, or use the Copy button.</p>
+    <button onclick="copyJsonResult()" style="margin:0 0 12px;padding:8px 20px;font-size:0.85rem;background:#7c3aed;">Copy JSON to Clipboard</button>
+    <textarea id="jsonResultArea" readonly style="width:100%;height:300px;background:#0d1117;color:#7ee787;border:1px solid #30363d;border-radius:8px;padding:12px;font-family:monospace;font-size:0.75rem;resize:vertical;">${escapeHtml(jsonStr)}</textarea>
+  </div>`;
+  document.getElementById('results').insertAdjacentHTML('beforeend', html);
+}
+
+function copyJsonResult() {
+  const area = document.getElementById('jsonResultArea');
+  if (!area) return;
+  area.select();
+  area.setSelectionRange(0, 99999999);
+  navigator.clipboard.writeText(area.value).then(() => {
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    btn.style.background = '#16a34a';
+    setTimeout(() => { btn.textContent = 'Copy JSON to Clipboard'; btn.style.background = '#7c3aed'; }, 2000);
+  }).catch(() => {
+    // Fallback for older browsers
+    document.execCommand('copy');
+  });
 }
 </script>
 </body>

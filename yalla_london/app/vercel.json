@@ -120,6 +120,14 @@
     {
       "path": "/api/seo/cron?task=weekly",
       "schedule": "0 8 * * 0"
+    },
+    {
+      "path": "/api/cron/seo-orchestrator?mode=daily",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/seo-orchestrator?mode=weekly",
+      "schedule": "0 5 * * 0"
     }
   ]
 }

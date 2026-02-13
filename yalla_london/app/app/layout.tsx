@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { headers } from "next/headers";
 import Script from "next/script";
 import "./globals.css";
 import { LanguageProvider } from "@/components/language-provider";
@@ -12,6 +13,8 @@ import { AnalyticsTracker } from "@/components/analytics-tracker";
 import { NextAuthSessionProvider } from "@/components/session-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { brandConfig } from "@/config/brand-config";
+import { HreflangTags } from "@/components/hreflang-tags";
+import type { Language } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: `${brandConfig.siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
@@ -67,15 +70,21 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Read locale from middleware headers (set by /ar/ prefix detection)
+  const headersList = await headers();
+  const locale = (headersList.get("x-locale") || "en") as Language;
+  const dir = locale === "ar" ? "rtl" : "ltr";
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} dir={dir} suppressHydrationWarning>
       <head>
         <StructuredData />
+        <HreflangTags path="/" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
@@ -113,7 +122,7 @@ export default function RootLayout({
               enableSystem
               disableTransitionOnChange
             >
-              <LanguageProvider>
+              <LanguageProvider initialLocale={locale}>
                 <Suspense fallback={null}>
                   <AnalyticsTracker />
                 </Suspense>

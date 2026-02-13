@@ -161,6 +161,16 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Arabic locale detection from URL prefix ────────────────────────
+  // /ar and /ar/* routes serve Arabic content by rewriting to the
+  // English route with an x-locale: ar header. Pages read this header
+  // (via LanguageProvider initialLocale) to render Arabic content.
+  const isArabicRoute = pathname.startsWith("/ar/") || pathname === "/ar";
+  const locale = isArabicRoute ? "ar" : "en";
+  const effectivePathname = isArabicRoute
+    ? pathname.replace(/^\/ar\/?/, "/") || "/"
+    : pathname;
+
   // Get hostname from request (used for redirect + tenant resolution)
   const hostname = request.headers.get("host") || "localhost:3000";
 
@@ -204,14 +214,23 @@ export function middleware(request: NextRequest) {
   // Resolve tenant from hostname
   const tenant = DOMAIN_TO_SITE[hostname] || DEFAULT_SITE;
 
-  // Create response with tenant headers
-  const response = NextResponse.next();
+  // Create response — rewrite for Arabic routes, next for English
+  const response = isArabicRoute
+    ? (() => {
+        const url = request.nextUrl.clone();
+        url.pathname = effectivePathname;
+        return NextResponse.rewrite(url);
+      })()
+    : NextResponse.next();
 
   // Add tenant context headers
   response.headers.set("x-site-id", tenant.siteId);
   response.headers.set("x-site-name", tenant.siteName);
   response.headers.set("x-site-locale", tenant.locale);
   response.headers.set("x-hostname", hostname);
+  // Locale headers for i18n — read by LanguageProvider via layout
+  response.headers.set("x-locale", locale);
+  response.headers.set("x-direction", locale === "ar" ? "rtl" : "ltr");
 
   // Cloudflare CDN: Vary by site for correct multi-tenant caching
   // Without this, Cloudflare may serve Site A's cached page to Site B

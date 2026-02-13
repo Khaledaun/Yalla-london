@@ -78,7 +78,8 @@ export async function GET(request: NextRequest) {
         const siteUrl = getSiteDomain(siteId);
         return runSEOAgent(prisma, siteId, siteUrl);
       },
-      7_000 // 7s safety margin for response serialization
+      7_000, // 7s safety margin for response serialization
+      120_000 // match maxDuration = 120s
     );
 
     await logCronExecution("seo-agent", loopResult.timedOut ? "timed_out" : "completed", {

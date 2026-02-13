@@ -160,10 +160,13 @@ async function collectSiteHealth(
     db.topicProposal.count({
       where: {
         site_id: siteId,
-        source: "seo-agent-rewrite",
         status: "planned",
+        source_weights_json: {
+          path: ["source"],
+          equals: "seo-agent-rewrite",
+        },
       },
-    }),
+    }).catch(() => 0),
   ]);
 
   // ── Latest cron runs ───────────────────────────────────────────────

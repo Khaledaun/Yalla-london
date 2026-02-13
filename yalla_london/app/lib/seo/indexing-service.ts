@@ -242,7 +242,7 @@ export class GoogleSearchConsoleAPI {
       const now = Math.floor(Date.now() / 1000);
       const jwt = await this.createJWT({
         iss: this.credentials.clientEmail,
-        scope: "https://www.googleapis.com/auth/webmasters.readonly",
+        scope: "https://www.googleapis.com/auth/webmasters",
         aud: "https://oauth2.googleapis.com/token",
         iat: now,
         exp: now + 3600,
@@ -319,7 +319,7 @@ export class GoogleSearchConsoleAPI {
       const now = Math.floor(Date.now() / 1000);
       jwt = await this.createJWT({
         iss: this.credentials.clientEmail,
-        scope: "https://www.googleapis.com/auth/webmasters.readonly",
+        scope: "https://www.googleapis.com/auth/webmasters",
         aud: "https://oauth2.googleapis.com/token",
         iat: now,
         exp: now + 3600,

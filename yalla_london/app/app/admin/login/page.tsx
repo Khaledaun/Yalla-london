@@ -19,47 +19,46 @@ export default function AdminLogin() {
   const [systemHealth, setSystemHealth] = useState<Record<string, string> | null>(null)
   const router = useRouter()
 
-  // Check if initial setup is needed + system health + migration
+  // Check migration → setup → health sequentially to avoid race conditions
   useEffect(() => {
-    async function checkSetup() {
+    async function initChecks() {
+      // 1. Check migration status first (columns must exist before setup can work)
       try {
-        const res = await fetch('/api/admin/setup')
-        const data = await res.json()
-        setNeedsSetup(data.needsSetup === true)
-        // If setup endpoint itself failed with db error, check migration
-        if (data.dbError) {
-          await checkMigration()
+        const migRes = await fetch('/api/admin/migrate')
+        const migData = await migRes.json()
+        if (migData.needsMigration) {
+          setNeedsMigration(true)
+          setNeedsSetup(true) // If migration needed, setup is definitely needed too
+          setCheckingSetup(false)
+          return // Don't bother checking setup — DB schema isn't ready
+        }
+      } catch { /* ignore — will fall through to setup check */ }
+
+      // 2. Check if setup is needed (only meaningful after columns exist)
+      try {
+        const setupRes = await fetch('/api/admin/setup')
+        const setupData = await setupRes.json()
+        setNeedsSetup(setupData.needsSetup === true)
+        if (setupData.dbError) {
+          // Schema issue the migration check missed — flag it
+          setNeedsMigration(true)
         }
       } catch {
         setNeedsSetup(false)
       } finally {
         setCheckingSetup(false)
       }
-    }
-    async function checkMigration() {
+
+      // 3. System health check (non-blocking, runs after setup check)
       try {
-        const res = await fetch('/api/admin/migrate')
-        const data = await res.json()
-        if (data.needsMigration) setNeedsMigration(true)
-      } catch { /* ignore */ }
-    }
-    async function checkHealth() {
-      try {
-        const res = await fetch('/api/admin/login')
-        const data = await res.json()
-        if (data.checks) {
-          setSystemHealth(data.checks)
-          // Auto-detect missing columns from database status
-          if (data.checks.database?.includes('error') && data.checks.database?.includes('column')) {
-            await checkMigration()
-          }
+        const healthRes = await fetch('/api/admin/login')
+        const healthData = await healthRes.json()
+        if (healthData.checks) {
+          setSystemHealth(healthData.checks)
         }
       } catch { /* ignore */ }
     }
-    checkSetup()
-    checkHealth()
-    // Always check migration status on load
-    checkMigration()
+    initChecks()
   }, [])
 
   const handleMigration = async () => {
@@ -203,6 +202,18 @@ export default function AdminLogin() {
 
       <div className="mt-6 sm:mt-8 mx-auto w-full max-w-md">
         <div className="bg-white py-6 sm:py-8 px-5 sm:px-10 shadow-sm sm:shadow rounded-xl sm:rounded-lg">
+          {needsSetup && (
+            <div className="mb-5 p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-start gap-3">
+              <Shield className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-purple-900">First-time setup</p>
+                <p className="text-xs text-purple-700 mt-0.5">
+                  No admin account exists yet.{needsMigration ? ' Run the database migration below, then create your account.' : ' Create one to access the dashboard.'}
+                </p>
+              </div>
+            </div>
+          )}
+
           {needsMigration && (
             <div className="mb-5 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <p className="text-sm font-medium text-amber-900">Database Update Required</p>
@@ -217,18 +228,6 @@ export default function AdminLogin() {
               >
                 {isMigrating ? 'Updating database...' : 'Run Database Migration'}
               </button>
-            </div>
-          )}
-
-          {needsSetup && !needsMigration && (
-            <div className="mb-5 p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-start gap-3">
-              <Shield className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-purple-900">First-time setup</p>
-                <p className="text-xs text-purple-700 mt-0.5">
-                  No admin account exists yet. Create one to access the dashboard.
-                </p>
-              </div>
             </div>
           )}
 
@@ -334,12 +333,14 @@ export default function AdminLogin() {
             <div>
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || needsMigration}
                 className="w-full flex justify-center py-3 sm:py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-base sm:text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
               >
-                {isLoading
-                  ? (needsSetup ? 'Creating account...' : 'Signing in...')
-                  : (needsSetup ? 'Create Admin Account' : 'Sign in')}
+                {needsMigration
+                  ? 'Run migration first'
+                  : isLoading
+                    ? (needsSetup ? 'Creating account...' : 'Signing in...')
+                    : (needsSetup ? 'Create Admin Account' : 'Sign in')}
               </button>
             </div>
           </form>

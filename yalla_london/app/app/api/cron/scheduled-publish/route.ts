@@ -25,7 +25,7 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
       where: {
         content_type: "blog_post",
         status: { in: ["pending", "scheduled"] },
-        scheduled_for: { lte: now },
+        scheduled_time: { lte: now },
       },
       select: {
         id: true,
@@ -100,20 +100,20 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
         const post = await prisma.blogPost.update({
           where: { id: item.content_id },
           data: { published: true },
-          select: { id: true, title_en: true, slug: true, siteId: true },
+          select: { id: true, title_en: true, slug: true },
         });
 
         // Mark scheduled content as published
         await prisma.scheduledContent.update({
           where: { id: item.id },
-          data: { status: "published", published_at: now },
+          data: { status: "published", published_time: now },
         });
 
         results.push({
           id: post.id,
           title: post.title_en || "Untitled",
           slug: post.slug,
-          site_id: post.siteId || siteId,
+          site_id: siteId,
         });
         log.trackItem(true);
       } catch (err) {
@@ -135,7 +135,7 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
         content_en: { not: "" },
         created_at: { lte: new Date(Date.now() - 2 * 60 * 60 * 1000) }, // 2h+ old
       },
-      select: { id: true, slug: true, title_en: true, siteId: true },
+      select: { id: true, slug: true, title_en: true },
       take: 5,
     });
 
@@ -182,7 +182,7 @@ export const POST = withCronLog("scheduled-publish-manual", async (log) => {
       where: {
         content_type: "blog_post",
         status: { in: ["pending", "scheduled"] },
-        scheduled_for: { lte: now },
+        scheduled_time: { lte: now },
       },
       select: { id: true, content_id: true, site_id: true },
       take: 20,
@@ -199,7 +199,7 @@ export const POST = withCronLog("scheduled-publish-manual", async (log) => {
         });
         await prisma.scheduledContent.update({
           where: { id: item.id },
-          data: { status: "published", published_at: now },
+          data: { status: "published", published_time: now },
         });
         published++;
         log.trackItem(true);

@@ -451,7 +451,11 @@ model ScheduledContent {
   published      Boolean  @default(false)
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
-  
+
+  // Publishing workflow
+  content_id     String?  // ID of the BlogPost to publish
+  site_id        String?  // Which site this content belongs to
+
   // Phase 4+ Extensions
   page_type              String?  // guide, place, event, list, faq, news, itinerary
   topic_proposal_id      String?  // Reference to TopicProposal
@@ -466,6 +470,10 @@ model ScheduledContent {
   @@index([topic_proposal_id])
   @@index([seo_score])
   @@index([generation_source])
+  @@index([content_id])
+  @@index([site_id])
+  @@index([scheduled_time])
+  @@index([status])
 }
 
 // Phase 3.2 - Social Media Embeds

@@ -24,12 +24,30 @@ export async function GET(request: NextRequest) {
     const { prisma } = await import("@/lib/db");
     const siteIds = getAllSiteIds();
 
-    // ── 1. Blog post counts per site ─────────────────────────────────
-    const postCountsBySite = await prisma.blogPost.groupBy({
-      by: ["siteId", "published"],
-      where: { deletedAt: null },
-      _count: true,
-    });
+    // ── 1. Blog post counts (global — siteId column not yet in DB) ───
+    // Note: siteId column exists in Prisma schema but not yet migrated.
+    // Fall back to global counts until migration is run.
+    let postCountsBySite: Array<{ siteId: string | null; published: boolean; _count: number }> = [];
+
+    try {
+      postCountsBySite = await (prisma as any).blogPost.groupBy({
+        by: ["siteId", "published"],
+        where: { deletedAt: null },
+        _count: true,
+      });
+    } catch {
+      // siteId column doesn't exist — fall back to global count
+      const globalCounts = await prisma.blogPost.groupBy({
+        by: ["published"],
+        where: { deletedAt: null },
+        _count: true,
+      });
+      postCountsBySite = globalCounts.map((row) => ({
+        siteId: "yalla-london", // Default site
+        published: row.published,
+        _count: row._count,
+      }));
+    }
 
     // Build site-level stats
     const siteStats: Record<
@@ -55,7 +73,7 @@ export async function GET(request: NextRequest) {
     }
 
     for (const row of postCountsBySite) {
-      const sid = row.siteId ?? "unknown";
+      const sid = row.siteId ?? "yalla-london";
       if (!siteStats[sid]) {
         siteStats[sid] = {
           siteName: sid,
@@ -101,7 +119,7 @@ export async function GET(request: NextRequest) {
         };
       }
       indexBySite[sid].total += row._count;
-      const key = row.status as keyof typeof indexBySite[string];
+      const key = row.status as keyof (typeof indexBySite)[string];
       if (key in indexBySite[sid]) {
         (indexBySite[sid] as any)[key] += row._count;
       }
@@ -174,10 +192,9 @@ export async function GET(request: NextRequest) {
     });
 
     // ── 6. Published posts WITHOUT URL tracking ──────────────────────
-    // Find posts that are published but have no URLIndexingStatus entry
     const publishedPosts = await prisma.blogPost.findMany({
       where: { published: true, deletedAt: null },
-      select: { id: true, slug: true, siteId: true, title_en: true, created_at: true },
+      select: { id: true, slug: true, title_en: true, created_at: true },
     });
 
     const trackedSlugs = await (prisma as any).uRLIndexingStatus.findMany({
@@ -185,12 +202,12 @@ export async function GET(request: NextRequest) {
       where: { slug: { not: null } },
     });
 
-    const trackedSet = new Set(
-      trackedSlugs.map((t: any) => `${t.site_id}:${t.slug}`),
+    const trackedSlugSet = new Set(
+      trackedSlugs.map((t: any) => t.slug),
     );
 
     const untrackedPosts = publishedPosts.filter(
-      (p) => p.slug && !trackedSet.has(`${p.siteId}:${p.slug}`),
+      (p) => p.slug && !trackedSlugSet.has(p.slug),
     );
 
     // ── 7. Global totals ─────────────────────────────────────────────
@@ -265,7 +282,6 @@ export async function GET(request: NextRequest) {
         attempts: e.submission_attempts,
       })),
       untrackedPosts: untrackedPosts.slice(0, 20).map((p) => ({
-        siteId: p.siteId,
         slug: p.slug,
         title: p.title_en?.substring(0, 60),
         createdAt: p.created_at,

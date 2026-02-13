@@ -49,7 +49,7 @@
 <body>
 
 <h1>Yalla London — System Validator</h1>
-<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content, Orchestrator, Indexing, Multi-Site, Content &amp; Indexing Audit (21 test sections)</p>
+<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content, Orchestrator, Indexing, Multi-Site, Schema Audit (22 sections) + One-Click DB Migration</p>
 
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchMode('quick')">Quick Test</button>
@@ -61,7 +61,11 @@
   <input type="password" id="cronSecret" class="cron-input" placeholder="Enter your CRON_SECRET to test cron endpoints and content pipeline...">
 </div>
 
-<button id="runBtn" onclick="runAllTests()">Run All Tests</button>
+<div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:20px;">
+  <button id="runBtn" onclick="runAllTests()">Run All Tests</button>
+  <button id="scanBtn" onclick="scanDatabase()" style="background:#7c3aed;">Scan Missing Tables/Columns</button>
+  <button id="migrateBtn" onclick="migrateDatabase()" style="background:#dc2626;">Fix Missing Tables &amp; Columns</button>
+</div>
 
 <div class="summary-bar">
   <div class="summary-item"><div class="summary-num pass" id="passCount">-</div><div class="summary-label">Passed</div></div>
@@ -107,10 +111,34 @@ function addResult(sectionId, name, status, detail, diagnostic) {
   const cls = status === 'pass' ? 'pass' : status === 'fail' ? 'fail' : 'warn';
   const icon = status === 'pass' ? '\u2713' : status === 'fail' ? '\u2717' : '\u26A0';
   const safeDetail = detail ? escapeHtml(String(detail)) : '';
+
+  // Auto-diagnose common error patterns if no diagnostic provided
+  let autoDiag = diagnostic || '';
+  if (!diagnostic && status !== 'pass' && safeDetail) {
+    const d = safeDetail.toLowerCase();
+    if (d.includes('p2022') || d.includes('column') && d.includes('does not exist')) {
+      autoDiag = '<strong>Prisma P2022:</strong> A column referenced in the query does not exist in the database. The Prisma schema defines it but the migration was never run. Click <strong>"Fix Missing Tables & Columns"</strong> at the top of this page, or run <code>npx prisma db push</code>.';
+    } else if (d.includes('p2021') || d.includes('table') && d.includes('does not exist')) {
+      autoDiag = '<strong>Prisma P2021:</strong> The table does not exist in the database. The model is defined in <code>prisma/schema.prisma</code> but the migration was never run. Click <strong>"Fix Missing Tables & Columns"</strong> at the top of this page.';
+    } else if (d.includes('p2002') || d.includes('unique constraint')) {
+      autoDiag = '<strong>Prisma P2002:</strong> Unique constraint violation — a record with this value already exists. This usually means duplicate data or a re-run of a cron that already created this record.';
+    } else if (d.includes('p1001') || d.includes('can\'t reach database') || d.includes('connection refused')) {
+      autoDiag = '<strong>Database unreachable:</strong> The database server is not responding. Check that <code>DATABASE_URL</code> in Vercel env vars points to a running Supabase/PostgreSQL instance. If using Supabase, check that the project is not paused (free tier pauses after 7 days of inactivity).';
+    } else if (d.includes('p1008') || d.includes('timed out')) {
+      autoDiag = '<strong>Database timeout:</strong> The query took too long. This may be a cold start issue, a slow query, or the connection pool is exhausted. Check Supabase dashboard for connection count.';
+    } else if (d.includes('type error') || d.includes('typeerror')) {
+      autoDiag = '<strong>JavaScript TypeError:</strong> A code error is preventing this route from executing. Common causes: (1) A missing or misnamed import, (2) A function being called on <code>undefined</code>, (3) A build-time error that broke the serverless function chunk. Check Vercel Function Logs for the full stack trace.';
+    } else if (d.includes('http 0') || d.includes('failed to fetch') || d.includes('networkerror')) {
+      autoDiag = '<strong>Network Error (HTTP 0):</strong> The request never reached the server. Causes: (1) The serverless function failed to load (build error), (2) Vercel is redeploying, (3) CORS or firewall blocking. Check Vercel deployment status and Function Logs.';
+    } else if (d.includes('500')) {
+      autoDiag = '<strong>HTTP 500 — Server Error:</strong> The route handler crashed. Check Vercel Function Logs for this specific path to see the full error and stack trace.';
+    }
+  }
+
   let diagHtml = '';
-  if (diagnostic && status !== 'pass') {
+  if (autoDiag && status !== 'pass') {
     const diagCls = status === 'fail' ? 'diag' : 'diag diag-warn';
-    diagHtml = `<div class="${diagCls}"><strong>Diagnosis:</strong> ${diagnostic}</div>`;
+    diagHtml = `<div class="${diagCls}"><strong>Diagnosis:</strong> ${autoDiag}</div>`;
   }
   const html = `<div class="test-row">
     <div><div class="test-name">${escapeHtml(name)}</div>${safeDetail ? `<div class="detail">${safeDetail}</div>` : ''}${diagHtml}</div>
@@ -142,12 +170,209 @@ async function testFetch(url, options = {}) {
     const text = await resp.text();
     let json = null;
     try { json = JSON.parse(text); } catch {}
-    return { ok: resp.ok, status: resp.status, text, json, headers: resp.headers };
+    // For non-OK responses, extract the most useful error detail
+    let errorDetail = '';
+    if (!resp.ok) {
+      if (json?.error) errorDetail = json.error;
+      else if (json?.message) errorDetail = json.message;
+      else if (text.length < 500) errorDetail = text;
+      else errorDetail = text.substring(0, 500);
+    }
+    return { ok: resp.ok, status: resp.status, text, json, headers: resp.headers, errorDetail };
   } catch (e) {
-    return { ok: false, status: 0, text: e.message, json: null, error: e };
+    return { ok: false, status: 0, text: e.message, json: null, error: e, errorDetail: e.message };
   }
 }
 
+// ─── Database Scan / Migrate ──────────────────────────────────────────
+function getCronSecret() {
+  return document.getElementById('cronSecret')?.value || '';
+}
+
+async function scanDatabase() {
+  const cronSecret = getCronSecret();
+  if (!cronSecret) {
+    alert('Enter your CRON_SECRET first (switch to "Full Pipeline Test" mode).');
+    return;
+  }
+  document.getElementById('scanBtn').disabled = true;
+  document.getElementById('scanBtn').textContent = 'Scanning...';
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('statusBanner').innerHTML = '';
+  document.getElementById('log').textContent = '';
+  pass = 0; fail = 0; warn = 0;
+
+  addSection('dbscan', 'Database Schema Scan — Missing Tables & Columns');
+  log('Scanning database for missing tables and columns...');
+
+  try {
+    const resp = await testFetch('/api/admin/db-migrate', {
+      headers: { 'Authorization': 'Bearer ' + cronSecret },
+    });
+
+    if (resp.ok && resp.json) {
+      const j = resp.json;
+      const s = j.summary || {};
+
+      // Overall status
+      if (s.needsMigration) {
+        addResult('dbscan', 'Schema Status', 'fail',
+          s.missingTables + ' missing table(s), ' + s.missingColumns + ' missing column(s)',
+          'Your database is out of sync with the Prisma schema. Click <strong>"Fix Missing Tables & Columns"</strong> to create the missing items automatically. This is safe — it only adds new tables/columns and never deletes existing data.');
+      } else {
+        addResult('dbscan', 'Schema Status', 'pass', 'All expected tables and columns exist');
+      }
+
+      // Missing tables
+      if (j.missingTables && j.missingTables.length > 0) {
+        for (const t of j.missingTables) {
+          addResult('dbscan', 'Missing Table: ' + t.table, 'fail',
+            'Prisma model ' + t.model + ' has no corresponding table in the database',
+            'The <code>' + escapeHtml(t.table) + '</code> table needs to be created. This table is defined in <code>prisma/schema.prisma</code> as model <code>' + escapeHtml(t.model) + '</code> but the migration was never run. Click <strong>"Fix Missing Tables & Columns"</strong> to create it.');
+        }
+      }
+
+      // Missing columns
+      if (j.missingColumns && j.missingColumns.length > 0) {
+        for (const c of j.missingColumns) {
+          addResult('dbscan', 'Missing Column: ' + c.table + '.' + c.column, 'fail',
+            'Type: ' + c.type + ' — model ' + c.model,
+            'Column <code>' + escapeHtml(c.column) + '</code> (' + escapeHtml(c.type) + ') is defined in the Prisma schema for model <code>' + escapeHtml(c.model) + '</code> but doesn\'t exist in the actual database table <code>' + escapeHtml(c.table) + '</code>. This will cause runtime errors (Prisma error P2022) when any API route tries to read or write this column. Click <strong>"Fix Missing Tables & Columns"</strong> to add it.');
+        }
+      }
+
+      // Existing tables (info)
+      if (j.existingTables) {
+        addResult('dbscan', 'Existing Tables', 'pass',
+          j.existingTables.length + ' tables found: ' + j.existingTables.slice(0, 15).join(', ') + (j.existingTables.length > 15 ? '...' : ''));
+      }
+
+      addJsonBlock('dbscan', j);
+    } else if (resp.status === 401) {
+      addResult('dbscan', 'Auth', 'fail', 'HTTP 401 — CRON_SECRET mismatch',
+        'The CRON_SECRET you entered does not match. Go to Vercel → Settings → Environment Variables and copy the exact value.');
+    } else {
+      addResult('dbscan', 'Scan', 'fail', 'HTTP ' + resp.status + ' — ' + (resp.json?.error || resp.text?.substring(0, 200) || 'Unknown error'),
+        resp.json?.hint || 'Check Vercel Function Logs for <code>/api/admin/db-migrate</code>.');
+      if (resp.json) addJsonBlock('dbscan', resp.json);
+    }
+  } catch (e) {
+    addResult('dbscan', 'Scan', 'fail', 'JS Error: ' + e.message,
+      'Network error — the endpoint may not be deployed yet. Push the latest code and redeploy, then try again.');
+  }
+
+  updateSummary();
+  const banner = document.getElementById('statusBanner');
+  if (fail === 0) {
+    banner.innerHTML = '<div class="status-banner status-ok">DATABASE SCHEMA IS IN SYNC</div>';
+  } else {
+    banner.innerHTML = '<div class="status-banner status-fail">' + fail + ' SCHEMA ISSUE(S) — Click "Fix Missing Tables & Columns" to resolve</div>';
+  }
+
+  document.getElementById('scanBtn').disabled = false;
+  document.getElementById('scanBtn').textContent = 'Scan Missing Tables/Columns';
+}
+
+async function migrateDatabase() {
+  const cronSecret = getCronSecret();
+  if (!cronSecret) {
+    alert('Enter your CRON_SECRET first (switch to "Full Pipeline Test" mode).');
+    return;
+  }
+  if (!confirm('This will CREATE missing tables and ADD missing columns to your production database.\n\nIt will NOT delete any existing data.\n\nProceed?')) {
+    return;
+  }
+
+  document.getElementById('migrateBtn').disabled = true;
+  document.getElementById('migrateBtn').textContent = 'Migrating...';
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('statusBanner').innerHTML = '';
+  document.getElementById('log').textContent = '';
+  pass = 0; fail = 0; warn = 0;
+
+  addSection('dbmigrate', 'Database Migration — Creating Missing Tables & Columns');
+  log('Running database migration...');
+
+  try {
+    const resp = await testFetch('/api/admin/db-migrate', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + cronSecret },
+    });
+
+    if (resp.ok && resp.json) {
+      const j = resp.json;
+      const r = j.result || {};
+
+      // Before/After summary
+      addResult('dbmigrate', 'Before Migration',
+        j.before.missingTables > 0 || j.before.missingColumns > 0 ? 'warn' : 'pass',
+        j.before.missingTables + ' missing tables, ' + j.before.missingColumns + ' missing columns');
+
+      addResult('dbmigrate', 'After Migration',
+        j.after.missingTables === 0 && j.after.missingColumns === 0 ? 'pass' : 'warn',
+        j.after.missingTables + ' missing tables, ' + j.after.missingColumns + ' missing columns',
+        j.after.missingTables > 0 || j.after.missingColumns > 0 ? 'Some items could not be created. Check the errors below for details.' : undefined);
+
+      // Tables created
+      if (r.tablesCreated && r.tablesCreated.length > 0) {
+        for (const t of r.tablesCreated) {
+          addResult('dbmigrate', 'Created Table: ' + t, 'pass', 'Table created successfully');
+        }
+      }
+
+      // Columns added
+      if (r.columnsAdded && r.columnsAdded.length > 0) {
+        for (const c of r.columnsAdded) {
+          addResult('dbmigrate', 'Added Column: ' + c, 'pass', 'Column added successfully');
+        }
+      }
+
+      // Indexes created
+      if (r.indexesCreated && r.indexesCreated.length > 0) {
+        addResult('dbmigrate', 'Indexes Created', 'pass', r.indexesCreated.length + ' indexes: ' + r.indexesCreated.slice(0, 8).join(', ') + (r.indexesCreated.length > 8 ? '...' : ''));
+      }
+
+      // Nothing to do
+      if ((!r.tablesCreated || r.tablesCreated.length === 0) &&
+          (!r.columnsAdded || r.columnsAdded.length === 0)) {
+        addResult('dbmigrate', 'Result', 'pass', 'Nothing to migrate — database is already in sync');
+      }
+
+      // Errors
+      if (r.errors && r.errors.length > 0) {
+        for (const err of r.errors) {
+          addResult('dbmigrate', 'Migration Error', 'fail', err,
+            'This operation failed. It may require manual intervention or higher database permissions. Check that your database user has <code>CREATE TABLE</code> and <code>ALTER TABLE</code> privileges.');
+        }
+      }
+
+      addJsonBlock('dbmigrate', j);
+    } else if (resp.status === 401) {
+      addResult('dbmigrate', 'Auth', 'fail', 'HTTP 401 — CRON_SECRET mismatch',
+        'The CRON_SECRET you entered does not match.');
+    } else {
+      addResult('dbmigrate', 'Migration', 'fail', 'HTTP ' + resp.status + ' — ' + (resp.json?.error || resp.text?.substring(0, 200) || 'Unknown error'),
+        (resp.json?.hint || '') + ' Check Vercel Function Logs for <code>/api/admin/db-migrate</code>.');
+      if (resp.json) addJsonBlock('dbmigrate', resp.json);
+    }
+  } catch (e) {
+    addResult('dbmigrate', 'Migration', 'fail', 'JS Error: ' + e.message,
+      'Network error — the endpoint may not be deployed yet. Push the latest code and redeploy, then try again.');
+  }
+
+  updateSummary();
+  const banner = document.getElementById('statusBanner');
+  if (fail === 0) {
+    banner.innerHTML = '<div class="status-banner status-ok">MIGRATION COMPLETE — All tables and columns synced</div>';
+  } else {
+    banner.innerHTML = '<div class="status-banner status-fail">' + fail + ' MIGRATION ERROR(S) — See details above</div>';
+  }
+
+  document.getElementById('migrateBtn').disabled = false;
+  document.getElementById('migrateBtn').textContent = 'Fix Missing Tables & Columns';
+}
+
+// ─── Test Runner ──────────────────────────────────────────────────────────
 async function runAllTests() {
   pass = 0; fail = 0; warn = 0;
   document.getElementById('results').innerHTML = '';
@@ -822,6 +1047,49 @@ async function runAllTests() {
   } else if (testMode === 'full' && !cronSecret) {
     addSection('pipeline', '7. Content Generation Pipeline');
     addResult('pipeline', 'Pipeline Tests', 'fail', 'Enter CRON_SECRET above and re-run');
+  }
+
+  // ── Auto-scan for missing tables (after all tests) ──
+  if (testMode === 'full' && cronSecret) {
+    log('  Auto-scanning database schema for missing tables/columns...');
+    addSection('dbcheck', '22. Database Schema Health');
+    try {
+      const dbScanResp = await testFetch('/api/admin/db-migrate', {
+        headers: { 'Authorization': 'Bearer ' + cronSecret },
+      });
+      if (dbScanResp.ok && dbScanResp.json) {
+        const j = dbScanResp.json;
+        const s = j.summary || {};
+        if (s.needsMigration) {
+          addResult('dbcheck', 'Schema Sync', 'fail',
+            s.missingTables + ' missing table(s), ' + s.missingColumns + ' missing column(s)',
+            'Database schema is out of sync with the Prisma models. This causes runtime errors like <strong>P2022 (column does not exist)</strong> or <strong>P2021 (table does not exist)</strong>. Click <strong>"Fix Missing Tables & Columns"</strong> at the top of this page to resolve, or run <code>npx prisma db push</code> on the server.');
+          if (j.missingTables) {
+            for (const t of j.missingTables) {
+              addResult('dbcheck', 'Missing: ' + t.table, 'fail', 'Model: ' + t.model + ' — table needs to be created',
+                'Table <code>' + escapeHtml(t.table) + '</code> does not exist. Any API route that queries <code>prisma.' + escapeHtml(t.model.charAt(0).toLowerCase() + t.model.slice(1)) + '</code> will throw <strong>P2021: The table does not exist in the current database</strong>. Routes affected include any cron job, page, or API route that imports this model.');
+            }
+          }
+          if (j.missingColumns) {
+            for (const c of j.missingColumns) {
+              addResult('dbcheck', 'Missing: ' + c.table + '.' + c.column, 'fail', c.type + ' — column needs to be added',
+                'Column <code>' + escapeHtml(c.column) + '</code> is missing from table <code>' + escapeHtml(c.table) + '</code>. Any query that filters by, selects, or sorts on this column will throw <strong>P2022: The column does not exist</strong>. This is the root cause of many HTTP 500 errors in cron jobs and API routes.');
+            }
+          }
+        } else {
+          addResult('dbcheck', 'Schema Sync', 'pass', 'All ' + j.existingTables.length + ' tables and checked columns are in sync');
+        }
+        addJsonBlock('dbcheck', { summary: s, existingTables: j.existingTables?.length, missingTables: j.missingTables, missingColumns: j.missingColumns });
+      } else if (dbScanResp.status === 401) {
+        addResult('dbcheck', 'Schema Scan', 'warn', 'Auth failed — CRON_SECRET may be wrong');
+      } else if (dbScanResp.status === 404) {
+        addResult('dbcheck', 'Schema Scan', 'warn', 'Endpoint /api/admin/db-migrate not deployed yet — redeploy to enable',
+          'The database schema scan endpoint has not been deployed yet. Push the latest code and redeploy on Vercel to enable this feature.');
+      } else {
+        addResult('dbcheck', 'Schema Scan', 'warn', 'HTTP ' + dbScanResp.status + ' — ' + (dbScanResp.json?.error || dbScanResp.text?.substring(0, 150) || ''));
+        if (dbScanResp.json) addJsonBlock('dbcheck', dbScanResp.json);
+      }
+    } catch (e) { log('  ERROR in section 22: ' + e.message); addResult('dbcheck', 'Schema Scan', 'warn', 'JS Error: ' + e.message); }
   }
 
   // ── Final Status ──

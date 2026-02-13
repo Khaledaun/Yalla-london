@@ -188,7 +188,8 @@ export function middleware(request: NextRequest) {
       pathname.startsWith("/api/internal/") ||
       pathname.startsWith("/api/auth/") ||
       pathname === "/api/admin/login" ||
-      pathname === "/api/admin/setup";
+      pathname === "/api/admin/setup" ||
+      pathname === "/api/admin/migrate";
     if (!isInternalRoute) {
       if (!origin || !ALLOWED_ORIGINS.has(origin)) {
         return NextResponse.json(

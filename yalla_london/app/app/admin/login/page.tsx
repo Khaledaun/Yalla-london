@@ -13,33 +13,80 @@ export default function AdminLogin() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [needsSetup, setNeedsSetup] = useState(false)
+  const [needsMigration, setNeedsMigration] = useState(false)
+  const [isMigrating, setIsMigrating] = useState(false)
   const [checkingSetup, setCheckingSetup] = useState(true)
   const [systemHealth, setSystemHealth] = useState<Record<string, string> | null>(null)
   const router = useRouter()
 
-  // Check if initial setup is needed + system health
+  // Check if initial setup is needed + system health + migration
   useEffect(() => {
     async function checkSetup() {
       try {
         const res = await fetch('/api/admin/setup')
         const data = await res.json()
         setNeedsSetup(data.needsSetup === true)
+        // If setup endpoint itself failed with db error, check migration
+        if (data.dbError) {
+          await checkMigration()
+        }
       } catch {
         setNeedsSetup(false)
       } finally {
         setCheckingSetup(false)
       }
     }
+    async function checkMigration() {
+      try {
+        const res = await fetch('/api/admin/migrate')
+        const data = await res.json()
+        if (data.needsMigration) setNeedsMigration(true)
+      } catch { /* ignore */ }
+    }
     async function checkHealth() {
       try {
         const res = await fetch('/api/admin/login')
         const data = await res.json()
-        if (data.checks) setSystemHealth(data.checks)
+        if (data.checks) {
+          setSystemHealth(data.checks)
+          // Auto-detect missing columns from database status
+          if (data.checks.database?.includes('error') && data.checks.database?.includes('column')) {
+            await checkMigration()
+          }
+        }
       } catch { /* ignore */ }
     }
     checkSetup()
     checkHealth()
+    // Always check migration status on load
+    checkMigration()
   }, [])
+
+  const handleMigration = async () => {
+    setIsMigrating(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const res = await fetch('/api/admin/migrate', { method: 'POST' })
+      const data = await res.json()
+
+      if (data.status === 'ok' || data.status === 'partial') {
+        setSuccess(data.message || 'Database updated successfully!')
+        setNeedsMigration(false)
+        // Re-check setup status after migration
+        const setupRes = await fetch('/api/admin/setup')
+        const setupData = await setupRes.json()
+        setNeedsSetup(setupData.needsSetup === true)
+      } else {
+        setError(`Migration failed: ${data.error || 'Unknown error'}`)
+      }
+    } catch {
+      setError('Migration request failed. Check network connection.')
+    } finally {
+      setIsMigrating(false)
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,6 +108,10 @@ export default function AdminLogin() {
       } else {
         const msg = data.error || 'Login failed. Please try again.'
         const detail = data.detail ? `\n${data.detail}` : ''
+        // Auto-detect missing columns and offer migration
+        if (detail.includes('does not exist') || detail.includes('column')) {
+          setNeedsMigration(true)
+        }
         setError(msg + detail)
       }
     } catch (err) {
@@ -152,7 +203,24 @@ export default function AdminLogin() {
 
       <div className="mt-6 sm:mt-8 mx-auto w-full max-w-md">
         <div className="bg-white py-6 sm:py-8 px-5 sm:px-10 shadow-sm sm:shadow rounded-xl sm:rounded-lg">
-          {needsSetup && (
+          {needsMigration && (
+            <div className="mb-5 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm font-medium text-amber-900">Database Update Required</p>
+              <p className="text-xs text-amber-700 mt-1">
+                The database is missing columns needed for authentication. Run the migration to add them.
+              </p>
+              <button
+                type="button"
+                onClick={handleMigration}
+                disabled={isMigrating}
+                className="mt-2 px-3 py-1.5 text-xs font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-md disabled:opacity-50"
+              >
+                {isMigrating ? 'Updating database...' : 'Run Database Migration'}
+              </button>
+            </div>
+          )}
+
+          {needsSetup && !needsMigration && (
             <div className="mb-5 p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-start gap-3">
               <Shield className="h-5 w-5 text-purple-600 flex-shrink-0 mt-0.5" />
               <div>

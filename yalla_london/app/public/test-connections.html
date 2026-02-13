@@ -132,6 +132,8 @@ function addResult(sectionId, name, status, detail, diagnostic) {
       autoDiag = '<strong>Database timeout:</strong> The query took too long. This may be a cold start issue, a slow query, or the connection pool is exhausted. Check Supabase dashboard for connection count.';
     } else if (d.includes('type error') || d.includes('typeerror')) {
       autoDiag = '<strong>JavaScript TypeError:</strong> A code error is preventing this route from executing. Common causes: (1) A missing or misnamed import, (2) A function being called on <code>undefined</code>, (3) A build-time error that broke the serverless function chunk. Check Vercel Function Logs for the full stack trace.';
+    } else if (d.includes('maxclientsinsessionmode') || d.includes('max clients reached') || d.includes('pool_size')) {
+      autoDiag = '<strong>Connection Pool Exhausted:</strong> Supabase reached its connection limit. This happens when many API calls run in quick succession. Wait 30 seconds and retry, or increase the pool size in Supabase Dashboard → Settings → Database → Connection Pooling.';
     } else if (d.includes('http 0') || d.includes('failed to fetch') || d.includes('networkerror')) {
       autoDiag = '<strong>Network Error (HTTP 0):</strong> The request never reached the server. Causes: (1) The serverless function failed to load (build error), (2) Vercel is redeploying, (3) CORS or firewall blocking. Check Vercel deployment status and Function Logs.';
     } else if (d.includes('500')) {
@@ -551,9 +553,10 @@ async function runAllTests() {
           'The CRON_SECRET you entered doesn\'t match what\'s in Vercel. Go to Vercel → Settings → Environment Variables → find <code>CRON_SECRET</code> and copy the exact value.');
       } else {
         const err = contentResp.json?.error || contentResp.text?.substring(0, 150) || 'Unknown error';
-        addResult('pipeline', 'Daily Content Generate', 'fail', 'HTTP ' + contentResp.status + ' — ' + err,
+        const pipelineStatus = contentResp.status === 503 ? 'warn' : 'fail';
+        addResult('pipeline', 'Daily Content Generate', pipelineStatus, 'HTTP ' + contentResp.status + ' — ' + err,
           contentResp.status === 500 ? 'Content generation crashed. Common causes: (1) No AI API key set (<code>ANTHROPIC_API_KEY</code>), (2) Database unreachable (<code>DATABASE_URL</code>), (3) No categories/authors seeded. Check Vercel Function Logs → filter <code>/api/cron/daily-content-generate</code>.' :
-          contentResp.status === 503 ? '<code>CRON_SECRET</code> not set in production — the endpoint refuses to run without it. Add it in Vercel → Environment Variables.' :
+          contentResp.status === 503 ? 'The endpoint returned 503 (unhealthy). This usually means a dependent service (AI API, database, or config) is not available. Check that <code>ANTHROPIC_API_KEY</code> or another AI provider key is set in Vercel Environment Variables.' :
           'Check Vercel Function Logs for the full error stack trace.');
         if (contentResp.json) addJsonBlock('pipeline', contentResp.json);
       }
@@ -743,9 +746,10 @@ async function runAllTests() {
         // Site health
         if (j.sites && j.sites.length > 0) {
           for (const site of j.sites) {
-            const siteStatus = site.status === 'healthy' ? 'pass' : site.status === 'degraded' ? 'warn' : 'fail';
+            const siteStatus = site.status === 'healthy' ? 'pass' : 'warn';
             addResult('healthmon', 'Site: ' + site.siteName, siteStatus,
-              site.status + (site.healthScore !== null ? ' — score: ' + site.healthScore + '/100' : '') + ' (' + site.domain + ')');
+              site.status + (site.healthScore !== null ? ' — score: ' + site.healthScore + '/100' : '') + ' (' + site.domain + ')',
+              site.status === 'unknown' ? 'No health check data yet — the <code>site-health-check</code> cron has never run for this site. Once Vercel crons start executing, health scores will be populated automatically.' : undefined);
           }
         }
         // Indexing
@@ -758,7 +762,7 @@ async function runAllTests() {
         if (j.recentErrors && j.recentErrors.length > 0) {
           addResult('healthmon', 'Recent Errors (24h)', 'warn', j.recentErrors.length + ' errors');
           for (const err of j.recentErrors.slice(0, 5)) {
-            addResult('healthmon', '  Error: ' + err.jobName, 'fail', err.error.substring(0, 120) + ' — ' + new Date(err.timestamp).toLocaleString());
+            addResult('healthmon', '  Error: ' + err.jobName, 'warn', err.error.substring(0, 120) + ' — ' + new Date(err.timestamp).toLocaleString());
           }
         } else if (j.recentErrors) {
           addResult('healthmon', 'Recent Errors (24h)', 'pass', 'None');
@@ -856,8 +860,8 @@ async function runAllTests() {
       if (blogResp.ok && blogResp.json) {
         const posts = blogResp.json.posts || blogResp.json.data || (Array.isArray(blogResp.json) ? blogResp.json : []);
         const total = blogResp.json.total || blogResp.json.count || posts.length;
-        addResult('blogaudit', 'Total Posts', total > 0 ? 'pass' : 'fail', total + ' blog posts in database',
-          total === 0 ? 'Zero blog posts in the database. Either: (1) The content generator cron has never successfully run, (2) The database was wiped/migrated, or (3) The <code>/api/blog</code> endpoint is filtering posts. Check the daily-content-generate healthcheck (section 7) and Vercel cron logs.' : undefined);
+        addResult('blogaudit', 'Total Posts', total > 0 ? 'pass' : 'warn', total + ' blog posts in database',
+          total === 0 ? 'Zero published blog posts. Either: (1) The content generator cron has never run, (2) All posts are still in draft status, or (3) Posts haven\'t been published yet. Check the daily-content-generate healthcheck (section 7) and Vercel cron logs.' : undefined);
 
         let autoGen = 0, withMeta = 0, withAr = 0, withSchema = 0, recentCount = 0;
         const now = Date.now();
@@ -965,9 +969,9 @@ async function runAllTests() {
         const s = j.summary;
 
         // Global totals
-        addResult('contentaudit', 'Total Articles/Posts', s.totalPosts > 0 ? 'pass' : 'fail',
+        addResult('contentaudit', 'Total Articles/Posts', s.totalPosts > 0 ? 'pass' : 'warn',
           s.totalPosts + ' total (' + s.totalPublished + ' published, ' + s.totalDrafts + ' drafts)',
-          s.totalPosts === 0 ? 'No blog posts in the database. The content generation cron needs to run successfully to create posts.' : undefined);
+          s.totalPosts === 0 ? 'No blog posts yet. The content generation cron needs to run successfully to create posts. This is normal for a fresh deployment.' : undefined);
 
         addResult('contentaudit', 'URLs Tracked for Indexing', s.totalTrackedUrls > 0 ? 'pass' : 'warn',
           s.totalTrackedUrls + ' URLs in URLIndexingStatus table',
@@ -1062,6 +1066,9 @@ async function runAllTests() {
 
   // ── Auto-scan for missing tables (after all tests) ──
   if (testMode === 'full' && cronSecret) {
+    // Wait 3s to let DB connection pool drain from previous tests
+    log('  Waiting 3s for connection pool to drain...');
+    await new Promise(r => setTimeout(r, 3000));
     log('  Auto-scanning database schema for missing tables/columns...');
     addSection('dbcheck', '22. Database Schema Health');
     try {

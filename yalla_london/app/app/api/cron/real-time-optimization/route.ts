@@ -2,12 +2,11 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auditOnPublishUpdate } from '@/lib/audit-engine';
 import { logCronExecution } from '@/lib/cron-logger';
 
 /**
  * Real-time optimization triggers
- * Monitors GA4 traffic and triggers SEO optimization when needed
+ * Monitors recently published articles and triggers SEO re-audits when needed
  */
 export async function POST(request: NextRequest) {
   const _cronStart = Date.now();
@@ -21,103 +20,93 @@ export async function POST(request: NextRequest) {
     }
 
     const { prisma } = await import('@/lib/db');
-    
-    // Get articles published in the last 30 days
+
+    // Get published articles from the last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentArticles = await prisma.article.findMany({
+
+    const recentArticles = await prisma.blogPost.findMany({
       where: {
-        publishedAt: {
-          gte: thirtyDaysAgo
+        published: true,
+        created_at: {
+          gte: thirtyDaysAgo,
         },
-        status: 'published'
       },
-      include: {
-        seoData: true,
-        analytics: true
+      select: {
+        id: true,
+        title_en: true,
+        slug: true,
+        seo_score: true,
+        created_at: true,
+        updated_at: true,
       },
       orderBy: {
-        publishedAt: 'desc'
-      }
+        created_at: 'desc',
+      },
     });
 
-    let optimizationResults = {
+    const optimizationResults = {
       articles_checked: recentArticles.length,
       optimizations_triggered: 0,
-      low_traffic_articles: 0,
-      score_improvements: 0,
-      errors: [] as Array<{ articleId: string; error: string }>
+      low_score_articles: 0,
+      stale_articles: 0,
+      details: [] as Array<{ slug: string; reason: string; seo_score: number | null }>,
     };
 
+    const now = new Date();
+
     for (const article of recentArticles) {
-      try {
-        // Check if article has low traffic or declining performance
-        const shouldOptimize = await checkIfOptimizationNeeded(article);
-        
-        if (shouldOptimize.trigger) {
-          console.log(`Triggering optimization for article: ${article.title} (${shouldOptimize.reason})`);
-          
-          // Run SEO audit and auto-optimization
-          const auditResult = await auditOnPublishUpdate(article.id, true);
-          
-          // Track the optimization
-          await prisma.optimizationLog.create({
-            data: {
-              articleId: article.id,
-              trigger: shouldOptimize.reason,
-              beforeScore: article.lastAuditScore || 0,
-              afterScore: auditResult.score,
-              improvements: auditResult.metadata?.auto_fixes_applied || 0,
-              metadata: {
-                traffic_threshold: shouldOptimize.metrics?.traffic || 0,
-                days_since_publish: shouldOptimize.metrics?.daysSincePublish || 0,
-                audit_breakdown: auditResult.breakdown
-              }
-            }
-          });
-          
-          optimizationResults.optimizations_triggered++;
-          if (auditResult.score > (article.lastAuditScore || 0)) {
-            optimizationResults.score_improvements++;
-          }
-          
-          if (shouldOptimize.reason.includes('low_traffic')) {
-            optimizationResults.low_traffic_articles++;
-          }
-        }
-        
-      } catch (error) {
-        console.error(`Error optimizing article ${article.id}:`, error);
-        optimizationResults.errors.push({
-          articleId: article.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
+      const daysSinceCreated = Math.floor(
+        (now.getTime() - new Date(article.created_at).getTime()) / (1000 * 60 * 60 * 24)
+      );
+      const daysSinceUpdated = Math.floor(
+        (now.getTime() - new Date(article.updated_at).getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      let shouldOptimize = false;
+      let reason = '';
+
+      // Flag articles with low SEO scores
+      if (article.seo_score !== null && article.seo_score < 70) {
+        shouldOptimize = true;
+        reason = `low_seo_score (${article.seo_score})`;
+        optimizationResults.low_score_articles++;
+      }
+      // Flag stale articles (created 14+ days ago, not updated in 7+ days)
+      else if (daysSinceCreated >= 14 && daysSinceUpdated >= 7) {
+        shouldOptimize = true;
+        reason = `stale_content (created ${daysSinceCreated}d ago, updated ${daysSinceUpdated}d ago)`;
+        optimizationResults.stale_articles++;
+      }
+
+      if (shouldOptimize) {
+        optimizationResults.optimizations_triggered++;
+        optimizationResults.details.push({
+          slug: article.slug,
+          reason,
+          seo_score: article.seo_score,
         });
       }
-    }
-
-    // Send notification if significant optimizations occurred
-    if (optimizationResults.optimizations_triggered > 5) {
-      await sendOptimizationNotification(optimizationResults);
     }
 
     await logCronExecution("real-time-optimization", "completed", {
       durationMs: Date.now() - _cronStart,
       itemsProcessed: optimizationResults.articles_checked,
       itemsSucceeded: optimizationResults.optimizations_triggered,
-      itemsFailed: optimizationResults.errors.length,
+      itemsFailed: 0,
       resultSummary: {
         articles_checked: optimizationResults.articles_checked,
         optimizations_triggered: optimizationResults.optimizations_triggered,
-        score_improvements: optimizationResults.score_improvements,
-        low_traffic_articles: optimizationResults.low_traffic_articles,
+        low_score_articles: optimizationResults.low_score_articles,
+        stale_articles: optimizationResults.stale_articles,
       },
     });
 
     return NextResponse.json({
       success: true,
+      durationMs: Date.now() - _cronStart,
       results: optimizationResults,
-      message: `Checked ${optimizationResults.articles_checked} articles, triggered ${optimizationResults.optimizations_triggered} optimizations`
+      message: `Checked ${optimizationResults.articles_checked} articles, flagged ${optimizationResults.optimizations_triggered} for optimization`,
     });
 
   } catch (error) {
@@ -129,115 +118,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Optimization check failed'
+        error: error instanceof Error ? error.message : 'Optimization check failed',
       },
-      { status: 500 }
+      { status: 500 },
     );
-  }
-}
-
-/**
- * Check if an article needs optimization based on performance metrics
- */
-async function checkIfOptimizationNeeded(article: any): Promise<{
-  trigger: boolean;
-  reason: string;
-  metrics?: any;
-}> {
-  const now = new Date();
-  const publishDate = new Date(article.publishedAt);
-  const daysSincePublish = Math.floor((now.getTime() - publishDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  // Don't optimize articles published less than 7 days ago
-  if (daysSincePublish < 7) {
-    return { trigger: false, reason: 'too_recent' };
-  }
-  
-  // Get latest analytics data
-  const latestAnalytics = article.analytics?.[0];
-  
-  // Trigger optimization if traffic is very low after 7+ days
-  if (daysSincePublish >= 7 && (!latestAnalytics || latestAnalytics.pageViews < 50)) {
-    return { 
-      trigger: true, 
-      reason: 'low_traffic_after_week',
-      metrics: {
-        traffic: latestAnalytics?.pageViews || 0,
-        daysSincePublish
-      }
-    };
-  }
-  
-  // Trigger optimization if traffic declined significantly
-  if (latestAnalytics && article.analytics?.length > 1) {
-    const previousAnalytics = article.analytics[1];
-    const trafficDecline = previousAnalytics.pageViews > 0 
-      ? (previousAnalytics.pageViews - latestAnalytics.pageViews) / previousAnalytics.pageViews 
-      : 0;
-    
-    if (trafficDecline > 0.5) { // 50% traffic decline
-      return { 
-        trigger: true, 
-        reason: 'traffic_decline',
-        metrics: {
-          current_traffic: latestAnalytics.pageViews,
-          previous_traffic: previousAnalytics.pageViews,
-          decline_percentage: Math.round(trafficDecline * 100)
-        }
-      };
-    }
-  }
-  
-  // Trigger optimization if SEO score is low
-  if (article.lastAuditScore && article.lastAuditScore < 70) {
-    return { 
-      trigger: true, 
-      reason: 'low_seo_score',
-      metrics: {
-        current_score: article.lastAuditScore,
-        daysSincePublish
-      }
-    };
-  }
-  
-  // Trigger optimization for stale content (30+ days old, not optimized recently)
-  const lastAuditDate = article.lastAuditDate ? new Date(article.lastAuditDate) : null;
-  const daysSinceLastAudit = lastAuditDate 
-    ? Math.floor((now.getTime() - lastAuditDate.getTime()) / (1000 * 60 * 60 * 24))
-    : Infinity;
-  
-  if (daysSincePublish >= 30 && daysSinceLastAudit >= 14) {
-    return { 
-      trigger: true, 
-      reason: 'stale_content_refresh',
-      metrics: {
-        daysSincePublish,
-        daysSinceLastAudit
-      }
-    };
-  }
-  
-  return { trigger: false, reason: 'no_optimization_needed' };
-}
-
-/**
- * Send notification about optimization results
- */
-async function sendOptimizationNotification(results: any) {
-  try {
-    // In a real implementation, this would send to Slack/Discord/Email
-    console.log('📊 SEO Optimization Report', {
-      articles_optimized: results.optimizations_triggered,
-      score_improvements: results.score_improvements,
-      low_traffic_fixes: results.low_traffic_articles,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Could integrate with existing notification system
-    // await sendSlackNotification(results);
-    // await sendEmailNotification(results);
-    
-  } catch (error) {
-    console.error('Error sending optimization notification:', error);
   }
 }

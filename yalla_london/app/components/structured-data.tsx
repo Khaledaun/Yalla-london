@@ -17,7 +17,7 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
       "@type": "Organization",
       "name": language === 'en' ? brandConfig.siteName : brandConfig.siteNameAr,
       "url": baseUrl,
-      "logo": `${baseUrl}/logo.png`,
+      "logo": `${baseUrl}/images/yalla-london-logo.svg`,
       "description": language === 'en' ? brandConfig.description : brandConfig.descriptionAr,
       "address": brandConfig.contact.address ? {
         "@type": "PostalAddress",
@@ -48,7 +48,7 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
       "publisher": {
         "@type": "Organization",
         "name": brandConfig.seo.author,
-        "logo": `${baseUrl}/logo.png`
+        "logo": `${baseUrl}/images/yalla-london-logo.svg`
       }
     }
 
@@ -271,7 +271,7 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
       "name": brandConfig.seo.author,
       "logo": {
         "@type": "ImageObject",
-        "url": `${process.env.NEXT_PUBLIC_SITE_URL}/logo.png`
+        "url": `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com'}/images/yalla-london-logo.svg`
       }
     },
     "datePublished": articleData.publishDate || articleData.datePublished,

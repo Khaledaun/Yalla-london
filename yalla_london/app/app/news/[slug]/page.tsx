@@ -346,7 +346,7 @@ function generateStructuredData(item: SeedItem) {
       url: baseUrl,
       logo: {
         "@type": "ImageObject",
-        url: `${baseUrl}/logo.png`,
+        url: `${baseUrl}/images/yalla-london-logo.svg`,
       },
     },
     mainEntityOfPage: {

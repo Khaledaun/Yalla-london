@@ -261,7 +261,7 @@ export class SchemaGenerator {
       description: brandConfig.description,
       logo: {
         '@type': 'ImageObject',
-        url: `${baseUrl}/logo.png`,
+        url: `${baseUrl}/images/yalla-london-logo.svg`,
         width: 300,
         height: 100
       },

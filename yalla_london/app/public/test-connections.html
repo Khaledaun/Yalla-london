@@ -35,6 +35,12 @@
   .cron-input::placeholder { color: #555; }
   .log { background: #0a0a0a; border: 1px solid #222; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 0.8rem; max-height: 300px; overflow-y: auto; margin-top: 12px; white-space: pre-wrap; color: #888; }
   .json-block { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.75rem; max-height: 200px; overflow-y: auto; margin-top: 8px; white-space: pre-wrap; color: #7ee787; }
+  .diag { background: #1a0000; border: 1px solid #4a1a1a; border-radius: 6px; padding: 8px 12px; margin-top: 6px; font-size: 0.78rem; color: #fca5a5; }
+  .diag strong { color: #f87171; }
+  .diag code { background: #2a1010; padding: 2px 5px; border-radius: 3px; font-family: monospace; font-size: 0.75rem; }
+  .diag-warn { background: #1a1400; border-color: #4a3a1a; color: #fde68a; }
+  .diag-warn strong { color: #fbbf24; }
+  .diag-warn code { background: #2a2010; }
   .tab-bar { display: flex; gap: 8px; margin-bottom: 16px; justify-content: center; flex-wrap: wrap; }
   .tab-btn { background: #1a1a1a; border: 1px solid #333; color: #888; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
   .tab-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
@@ -43,7 +49,7 @@
 <body>
 
 <h1>Yalla London — System Validator</h1>
-<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content Generation</p>
+<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content Generation, Orchestrator, Indexing, Multi-Site Health (20 test sections)</p>
 
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchMode('quick')">Quick Test</button>
@@ -93,7 +99,7 @@ function addSection(id, title) {
   document.getElementById('results').insertAdjacentHTML('beforeend', html);
 }
 
-function addResult(sectionId, name, status, detail) {
+function addResult(sectionId, name, status, detail, diagnostic) {
   if (status === 'pass') pass++;
   else if (status === 'fail') fail++;
   else warn++;
@@ -101,8 +107,13 @@ function addResult(sectionId, name, status, detail) {
   const cls = status === 'pass' ? 'pass' : status === 'fail' ? 'fail' : 'warn';
   const icon = status === 'pass' ? '\u2713' : status === 'fail' ? '\u2717' : '\u26A0';
   const safeDetail = detail ? escapeHtml(String(detail)) : '';
+  let diagHtml = '';
+  if (diagnostic && status !== 'pass') {
+    const diagCls = status === 'fail' ? 'diag' : 'diag diag-warn';
+    diagHtml = `<div class="${diagCls}"><strong>Diagnosis:</strong> ${diagnostic}</div>`;
+  }
   const html = `<div class="test-row">
-    <div><div class="test-name">${escapeHtml(name)}</div>${safeDetail ? `<div class="detail">${safeDetail}</div>` : ''}</div>
+    <div><div class="test-name">${escapeHtml(name)}</div>${safeDetail ? `<div class="detail">${safeDetail}</div>` : ''}${diagHtml}</div>
     <div class="test-status ${cls}">${icon} ${status.toUpperCase()}</div>
   </div>`;
   document.getElementById('tests-' + sectionId).insertAdjacentHTML('beforeend', html);
@@ -162,10 +173,15 @@ async function runAllTests() {
         addResult('ga4', 'gtag.js Script', 'warn', 'ID found but script tag not detected (may load async)');
       }
     } else {
-      addResult('ga4', 'GA4 Measurement ID', 'fail', 'Not found in homepage source');
+      addResult('ga4', 'GA4 Measurement ID', 'fail', 'Not found in homepage source',
+        'The <code>NEXT_PUBLIC_GA_MEASUREMENT_ID</code> env var may be missing in Vercel, or the GA4 script is not injected in <code>app/layout.tsx</code>. Check Vercel → Settings → Environment Variables for a value like <code>G-XXXXXXXXXX</code>.');
     }
   } else {
-    addResult('ga4', 'Homepage Load', 'fail', 'Could not load homepage: HTTP ' + homeResp.status);
+    addResult('ga4', 'Homepage Load', 'fail', 'Could not load homepage: HTTP ' + homeResp.status,
+      homeResp.status === 0 ? 'Network error — site may be down or Cloudflare is blocking. Check Vercel deployment status.' :
+      homeResp.status === 500 ? 'Server error — check Vercel Function Logs for the root cause (likely a missing env var or DB connection issue).' :
+      homeResp.status === 503 ? 'Service unavailable — Vercel may be redeploying or the function timed out.' :
+      'Unexpected HTTP ' + homeResp.status + ' — check Vercel logs.');
   }
 
   // ── 2. Static Assets (cache-bust to bypass stale CDN 404s) ──
@@ -188,7 +204,9 @@ async function runAllTests() {
     if (resp.ok) {
       addResult('assets', label, 'pass', url.split('?')[0] + ' — HTTP ' + resp.status);
     } else {
-      addResult('assets', label, 'fail', url.split('?')[0] + ' — HTTP ' + resp.status + ' (may need Cloudflare cache purge)');
+      addResult('assets', label, 'fail', url.split('?')[0] + ' — HTTP ' + resp.status,
+        resp.status === 404 ? 'File missing from <code>public/</code> folder. Ensure the file exists at <code>yalla_london/app/public' + url.split('?')[0] + '</code> and redeploy.' :
+        'HTTP ' + resp.status + ' — may need Cloudflare cache purge. Try: Cloudflare Dashboard → Caching → Purge Everything.');
     }
   }
 
@@ -210,9 +228,13 @@ async function runAllTests() {
     if (resp.ok) {
       addResult('pages', label, 'pass', 'HTTP ' + resp.status);
     } else if (resp.status === 404) {
-      addResult('pages', label, 'warn', 'HTTP 404');
+      addResult('pages', label, 'warn', 'HTTP 404',
+        'Page not found. Check that <code>app/' + url.replace(/^\//, '') + '/page.tsx</code> exists in the App Router. If using dynamic routes, the page may need published content in the database to render.');
     } else {
-      addResult('pages', label, 'fail', 'HTTP ' + resp.status);
+      addResult('pages', label, 'fail', 'HTTP ' + resp.status,
+        resp.status === 500 ? 'Server error rendering this page. Check Vercel Function Logs → filter by path <code>' + url + '</code> for the stack trace.' :
+        resp.status === 0 ? 'Network timeout — page may be too slow to render. Check for expensive DB queries or missing data.' :
+        'HTTP ' + resp.status + ' — check Vercel logs for this route.');
     }
   }
 
@@ -230,11 +252,13 @@ async function runAllTests() {
     for (const [regex, label] of checks) {
       const match = homeResp.text.match(regex);
       if (match) addResult('meta', label, 'pass', match[1].substring(0, 80));
-      else addResult('meta', label, 'warn', 'Not found on homepage');
+      else addResult('meta', label, 'warn', 'Not found on homepage',
+        'Meta tag <code>' + label + '</code> is missing. Check the homepage <code>metadata</code> export in <code>app/page.tsx</code> or <code>app/layout.tsx</code>. For og:image, ensure <code>public/og-image.jpg</code> exists and is referenced in the metadata.');
     }
     const jsonLd = homeResp.text.match(/type="application\/ld\+json"/);
     if (jsonLd) addResult('meta', 'JSON-LD Schema', 'pass', 'Present');
-    else addResult('meta', 'JSON-LD Schema', 'warn', 'Not found');
+    else addResult('meta', 'JSON-LD Schema', 'warn', 'Not found',
+      'No JSON-LD structured data on homepage. Add a <code>&lt;script type="application/ld+json"&gt;</code> block in the layout or use the schema generator at <code>lib/seo/schema-generator.ts</code>.');
   }
 
   // ── 5. Database ──
@@ -247,9 +271,13 @@ async function runAllTests() {
     const count = j.total || j.posts?.length || j.length || '?';
     addResult('db', 'Blog API', 'pass', 'Connected — ' + count + ' posts returned');
   } else if (blogApiResp.status === 404) {
-    addResult('db', 'Blog API', 'warn', 'No public blog API (DB may work via internal routes)');
+    addResult('db', 'Blog API', 'warn', 'No public blog API (DB may work via internal routes)',
+      'No <code>/api/blog</code> route found. The blog API may be under <code>/api/admin/blog</code> (auth-required). The database itself is likely fine — this just means there is no public unauthenticated blog API.');
   } else {
-    addResult('db', 'Blog API', 'warn', 'HTTP ' + blogApiResp.status);
+    addResult('db', 'Blog API', blogApiResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + blogApiResp.status,
+      blogApiResp.status === 500 ? 'Database connection failed. Check <code>DATABASE_URL</code> in Vercel env vars. The Prisma client may need <code>prisma generate</code> or the DB may be unreachable.' :
+      blogApiResp.status === 503 ? 'Database temporarily unavailable — Supabase may be paused or connection pool exhausted.' :
+      'HTTP ' + blogApiResp.status + ' — check <code>/api/blog/route.ts</code> for issues.');
   }
 
   // ── 6. AI Provider ──
@@ -262,11 +290,14 @@ async function runAllTests() {
   } else if (aiResp.status === 400) {
     addResult('ai', 'AI Generate Endpoint', 'pass', 'Exists (needs valid payload)');
   } else if (aiResp.status === 404) {
-    addResult('ai', 'AI Generate Endpoint', 'warn', 'Not found at /api/ai/generate');
+    addResult('ai', 'AI Generate Endpoint', 'warn', 'Not found at /api/ai/generate',
+      'The AI generate endpoint doesn\'t exist at this path. Content generation uses the internal <code>lib/ai/provider.ts</code> layer directly from cron jobs — this is expected if there\'s no public AI endpoint.');
   } else if (aiResp.ok) {
     addResult('ai', 'AI Generate Endpoint', 'pass', 'Responded OK');
   } else {
-    addResult('ai', 'AI Generate Endpoint', 'warn', 'HTTP ' + aiResp.status);
+    addResult('ai', 'AI Generate Endpoint', 'warn', 'HTTP ' + aiResp.status,
+      aiResp.status === 500 ? 'AI provider error. Check that <code>ANTHROPIC_API_KEY</code> (or <code>OPENAI_API_KEY</code> / <code>ABACUSAI_API_KEY</code>) is set in Vercel env vars. Also check <code>ModelProvider</code> table in the DB.' :
+      'Unexpected response — check Vercel function logs for <code>/api/ai/generate</code>.');
   }
 
   // ── Full pipeline tests (need CRON_SECRET) ──
@@ -286,10 +317,14 @@ async function runAllTests() {
         if (j.sites !== undefined) addResult('pipeline', 'Active Sites', 'pass', j.sites + ' sites configured');
         addJsonBlock('pipeline', j);
       } else if (contentResp.status === 401) {
-        addResult('pipeline', 'Daily Content Generate', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+        addResult('pipeline', 'Daily Content Generate', 'fail', 'HTTP 401 — CRON_SECRET mismatch',
+          'The CRON_SECRET you entered doesn\'t match what\'s in Vercel. Go to Vercel → Settings → Environment Variables → find <code>CRON_SECRET</code> and copy the exact value.');
       } else {
         const err = contentResp.json?.error || contentResp.text?.substring(0, 150) || 'Unknown error';
-        addResult('pipeline', 'Daily Content Generate', 'fail', 'HTTP ' + contentResp.status + ' — ' + err);
+        addResult('pipeline', 'Daily Content Generate', 'fail', 'HTTP ' + contentResp.status + ' — ' + err,
+          contentResp.status === 500 ? 'Content generation crashed. Common causes: (1) No AI API key set (<code>ANTHROPIC_API_KEY</code>), (2) Database unreachable (<code>DATABASE_URL</code>), (3) No categories/authors seeded. Check Vercel Function Logs → filter <code>/api/cron/daily-content-generate</code>.' :
+          contentResp.status === 503 ? '<code>CRON_SECRET</code> not set in production — the endpoint refuses to run without it. Add it in Vercel → Environment Variables.' :
+          'Check Vercel Function Logs for the full error stack trace.');
         if (contentResp.json) addJsonBlock('pipeline', contentResp.json);
       }
     } catch (e) { log('  ERROR in section 7: ' + e.message); addResult('pipeline', 'Daily Content Generate', 'fail', 'JS Error: ' + e.message); }
@@ -307,9 +342,12 @@ async function runAllTests() {
         if (Array.isArray(j.nextScheduled) && j.nextScheduled.length) addResult('publish', 'Next Scheduled', 'pass', j.nextScheduled.map(p => (p.title || '').substring(0,40) + ' @ ' + (p.scheduled_at || '')).join('; '));
         addJsonBlock('publish', j);
       } else if (publishResp.status === 401) {
-        addResult('publish', 'Scheduled Publish', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+        addResult('publish', 'Scheduled Publish', 'fail', 'HTTP 401 — CRON_SECRET mismatch',
+          'CRON_SECRET doesn\'t match. Copy the exact value from Vercel → Settings → Environment Variables.');
       } else {
-        addResult('publish', 'Scheduled Publish', 'warn', 'HTTP ' + publishResp.status + ' — ' + (publishResp.json?.error || publishResp.text?.substring(0,100) || ''));
+        addResult('publish', 'Scheduled Publish', 'warn', 'HTTP ' + publishResp.status + ' — ' + (publishResp.json?.error || publishResp.text?.substring(0,100) || ''),
+          publishResp.status === 500 ? 'Publisher crashed. Likely a DB issue or no <code>ScheduledContent</code> records. Check Vercel logs for <code>/api/cron/scheduled-publish</code>.' :
+          'Check Vercel Function Logs for details.');
         if (publishResp.json) addJsonBlock('publish', publishResp.json);
       }
     } catch (e) { log('  ERROR in section 8: ' + e.message); addResult('publish', 'Scheduled Publish', 'fail', 'JS Error: ' + e.message); }
@@ -327,9 +365,12 @@ async function runAllTests() {
         if (j.skipped) addResult('topics', 'Status', 'pass', 'Skipped (not Sunday / backlog sufficient)');
         addJsonBlock('topics', j);
       } else if (topicsResp.status === 401) {
-        addResult('topics', 'Weekly Topics', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+        addResult('topics', 'Weekly Topics', 'fail', 'HTTP 401 — CRON_SECRET mismatch',
+          'CRON_SECRET doesn\'t match. Copy the exact value from Vercel → Settings → Environment Variables.');
       } else {
-        addResult('topics', 'Weekly Topics', 'warn', 'HTTP ' + topicsResp.status + ' — ' + (topicsResp.json?.error || topicsResp.text?.substring(0,100) || ''));
+        addResult('topics', 'Weekly Topics', 'warn', 'HTTP ' + topicsResp.status + ' — ' + (topicsResp.json?.error || topicsResp.text?.substring(0,100) || ''),
+          topicsResp.status === 500 ? 'Topic research crashed. This cron uses AI to generate topics — check that AI API keys are configured and the <code>TopicProposal</code> table exists in Prisma.' :
+          'Check Vercel Function Logs for <code>/api/cron/weekly-topics</code>.');
         if (topicsResp.json) addJsonBlock('topics', topicsResp.json);
       }
     } catch (e) { log('  ERROR in section 9: ' + e.message); addResult('topics', 'Weekly Topics', 'fail', 'JS Error: ' + e.message); }
@@ -346,9 +387,12 @@ async function runAllTests() {
         if (j.monitoredKeywords) addResult('trends', 'Monitored Keywords', 'pass', j.monitoredKeywords + ' keywords tracked');
         addJsonBlock('trends', j);
       } else if (trendsResp.status === 401) {
-        addResult('trends', 'Trends Monitor', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+        addResult('trends', 'Trends Monitor', 'fail', 'HTTP 401 — CRON_SECRET mismatch',
+          'CRON_SECRET doesn\'t match. Copy the exact value from Vercel.');
       } else {
-        addResult('trends', 'Trends Monitor', 'warn', 'HTTP ' + trendsResp.status + ' — ' + (trendsResp.json?.error || trendsResp.text?.substring(0,100) || ''));
+        addResult('trends', 'Trends Monitor', 'warn', 'HTTP ' + trendsResp.status + ' — ' + (trendsResp.json?.error || trendsResp.text?.substring(0,100) || ''),
+          trendsResp.status === 500 ? 'Trends monitor crashed. It fetches RSS feeds and Google Trends data. Check <code>SERPAPI_API_KEY</code> env var and Vercel logs for <code>/api/cron/trends-monitor</code>.' :
+          'Check Vercel Function Logs for details.');
         if (trendsResp.json) addJsonBlock('trends', trendsResp.json);
       }
     } catch (e) { log('  ERROR in section 10: ' + e.message); addResult('trends', 'Trends Monitor', 'fail', 'JS Error: ' + e.message); }
@@ -366,9 +410,12 @@ async function runAllTests() {
         if (j.visitors !== undefined) addResult('analytics', 'Visitors', 'pass', String(j.visitors).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
         addJsonBlock('analytics', j);
       } else if (analyticsResp.status === 401) {
-        addResult('analytics', 'Analytics Cron', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+        addResult('analytics', 'Analytics Cron', 'fail', 'HTTP 401 — CRON_SECRET mismatch',
+          'CRON_SECRET doesn\'t match. Copy the exact value from Vercel.');
       } else {
-        addResult('analytics', 'Analytics Cron', 'warn', 'HTTP ' + analyticsResp.status + ' — ' + (analyticsResp.json?.error || analyticsResp.text?.substring(0,100) || ''));
+        addResult('analytics', 'Analytics Cron', 'warn', 'HTTP ' + analyticsResp.status + ' — ' + (analyticsResp.json?.error || analyticsResp.text?.substring(0,100) || ''),
+          analyticsResp.status === 500 ? 'Analytics sync crashed. Check: (1) <code>GA4_PROPERTY_ID</code> is set, (2) <code>GOOGLE_ANALYTICS_CLIENT_EMAIL</code> + <code>GOOGLE_ANALYTICS_PRIVATE_KEY</code> are configured, (3) Service account has "Viewer" role on the GA4 property.' :
+          'Check Vercel Function Logs for <code>/api/cron/analytics</code>.');
         if (analyticsResp.json) addJsonBlock('analytics', analyticsResp.json);
       }
     } catch (e) { log('  ERROR in section 11: ' + e.message); addResult('analytics', 'Analytics Cron', 'fail', 'JS Error: ' + e.message); }
@@ -384,9 +431,12 @@ async function runAllTests() {
         if (j.lastRun) addResult('seoagent', 'Last Run', 'pass', j.lastRun.status + ' — ' + new Date(j.lastRun.started_at).toLocaleString());
         addJsonBlock('seoagent', j);
       } else if (seoResp.status === 401) {
-        addResult('seoagent', 'SEO Agent', 'fail', 'HTTP 401 — CRON_SECRET mismatch');
+        addResult('seoagent', 'SEO Agent', 'fail', 'HTTP 401 — CRON_SECRET mismatch',
+          'CRON_SECRET doesn\'t match. Copy the exact value from Vercel.');
       } else {
-        addResult('seoagent', 'SEO Agent', 'warn', 'HTTP ' + seoResp.status + ' — ' + (seoResp.json?.error || seoResp.text?.substring(0,100) || ''));
+        addResult('seoagent', 'SEO Agent', 'warn', 'HTTP ' + seoResp.status + ' — ' + (seoResp.json?.error || seoResp.text?.substring(0,100) || ''),
+          seoResp.status === 500 ? 'SEO Agent crashed. This is the core 13-step agent. Check Vercel logs for <code>/api/cron/seo-agent</code>. Common causes: DB unreachable, missing GSC credentials, or the <code>SeoReport</code> / <code>BlogPost</code> tables have schema mismatches after a migration.' :
+          'Check Vercel Function Logs for details.');
         if (seoResp.json) addJsonBlock('seoagent', seoResp.json);
       }
     } catch (e) { log('  ERROR in section 12: ' + e.message); addResult('seoagent', 'SEO Agent', 'fail', 'JS Error: ' + e.message); }
@@ -403,6 +453,259 @@ async function runAllTests() {
         addResult('seoagent', 'SEO Daily Cron', 'warn', 'HTTP ' + seoCronResp.status);
       }
     } catch (e) { log('  ERROR in section 13: ' + e.message); addResult('seoagent', 'SEO Daily Cron', 'fail', 'JS Error: ' + e.message); }
+
+    // ── 14. SEO Orchestrator ──
+    log('  Testing SEO orchestrator...');
+    addSection('orchestrator', '14. SEO Orchestrator');
+    try {
+      const orchResp = await testFetch('/api/cron/seo-orchestrator?healthcheck=true', { headers: cronHeaders });
+      if (orchResp.ok && orchResp.json) {
+        const j = orchResp.json;
+        addResult('orchestrator', 'Orchestrator Status', 'pass', j.status === 'healthy' ? 'Healthy' : (j.status || 'OK'));
+        if (j.lastRun) {
+          addResult('orchestrator', 'Last Run', j.lastRun.status === 'error' ? 'fail' : 'pass',
+            (j.lastRun.status || 'unknown') + (j.lastRun.at ? ' — ' + new Date(j.lastRun.at).toLocaleString() : ''));
+          if (j.lastRun.healthScore !== undefined) addResult('orchestrator', 'Health Score', j.lastRun.healthScore >= 60 ? 'pass' : 'warn', j.lastRun.healthScore + '/100');
+          if (j.lastRun.issuesFound !== undefined) addResult('orchestrator', 'Issues Found', j.lastRun.issuesFound > 10 ? 'warn' : 'pass', j.lastRun.issuesFound + ' issues');
+          if (j.lastRun.fixesApplied !== undefined) addResult('orchestrator', 'Fixes Applied', 'pass', j.lastRun.fixesApplied + ' auto-fixes');
+        }
+        if (j.sites !== undefined) addResult('orchestrator', 'Sites Monitored', 'pass', j.sites + ' sites');
+        addJsonBlock('orchestrator', j);
+      } else if (orchResp.status === 401) {
+        addResult('orchestrator', 'Orchestrator', 'fail', 'HTTP 401 — CRON_SECRET mismatch',
+          'CRON_SECRET doesn\'t match. Copy the exact value from Vercel.');
+      } else {
+        addResult('orchestrator', 'Orchestrator', 'warn', 'HTTP ' + orchResp.status + ' — ' + (orchResp.json?.error || orchResp.text?.substring(0,150) || ''),
+          orchResp.status === 500 ? 'Orchestrator crashed. This runs the 5-module system (live auditor, business goals, agent monitor, metrics collection, report storage). Check Vercel logs for <code>/api/cron/seo-orchestrator</code>. Most common cause: DB connection failure or missing <code>SiteHealthCheck</code> table.' :
+          orchResp.status === 504 ? 'Timeout — the orchestrator audits all 5 sites sequentially and may exceed the function timeout. Check <code>maxDuration</code> in vercel.json (should be 120 for cron routes).' :
+          'Check Vercel Function Logs for the full error.');
+        if (orchResp.json) addJsonBlock('orchestrator', orchResp.json);
+      }
+    } catch (e) { log('  ERROR in section 14: ' + e.message); addResult('orchestrator', 'Orchestrator', 'fail', 'JS Error: ' + e.message); }
+
+    // ── 15. Health Monitor (Cron Execution Proof) ──
+    log('  Testing health monitor (cron log proof)...');
+    addSection('healthmon', '15. Health Monitor — Cron Execution Proof');
+    try {
+      const hmResp = await testFetch('/api/admin/health-monitor', { headers: cronHeaders });
+      if (hmResp.ok && hmResp.json) {
+        const j = hmResp.json;
+        // Database
+        if (j.database) {
+          addResult('healthmon', 'Database Connection', j.database.connected ? 'pass' : 'fail',
+            j.database.connected ? 'Connected — ' + (j.database.latencyMs || '?') + 'ms latency' : (j.database.error || 'Disconnected'));
+        }
+        // Cron job status
+        if (j.cronJobs && j.cronJobs.length > 0) {
+          addResult('healthmon', 'Cron Jobs Tracked', 'pass', j.cronJobs.length + ' jobs in CronJobLog');
+          const now = Date.now();
+          for (const cron of j.cronJobs) {
+            const ago = cron.lastRun ? Math.round((now - new Date(cron.lastRun).getTime()) / 3600000) : null;
+            const agoStr = ago !== null ? ago + 'h ago' : 'never';
+            const cronStatus = cron.status === 'completed' ? 'pass' : cron.status === 'failed' ? 'fail' : 'warn';
+            addResult('healthmon', 'Cron: ' + cron.jobName, cronStatus,
+              cron.status + ' — last: ' + agoStr + (cron.durationMs ? ' (' + cron.durationMs + 'ms)' : ''));
+          }
+        } else {
+          addResult('healthmon', 'Cron Jobs', 'fail', 'No CronJobLog entries found — crons may not be executing',
+            'The <code>cron_job_logs</code> table has zero entries. This means either: (1) No Vercel cron has fired yet — check Vercel Dashboard → project → Settings → Crons to see if they\'re scheduled, (2) The <code>CronJobLog</code> table doesn\'t exist — run <code>npx prisma db push</code> to sync the schema, or (3) The cron jobs are running but not using <code>logCronExecution()</code>.');
+        }
+        // Site health
+        if (j.sites && j.sites.length > 0) {
+          for (const site of j.sites) {
+            const siteStatus = site.status === 'healthy' ? 'pass' : site.status === 'degraded' ? 'warn' : 'fail';
+            addResult('healthmon', 'Site: ' + site.siteName, siteStatus,
+              site.status + (site.healthScore !== null ? ' — score: ' + site.healthScore + '/100' : '') + ' (' + site.domain + ')');
+          }
+        }
+        // Indexing
+        if (j.indexing) {
+          const ix = j.indexing;
+          addResult('healthmon', 'Indexing Status', ix.indexed > 0 ? 'pass' : 'warn',
+            ix.indexed + '/' + ix.totalUrls + ' indexed (' + (ix.indexRate || 0) + '%) — ' + ix.submitted + ' submitted, ' + ix.errors + ' errors');
+        }
+        // Recent errors
+        if (j.recentErrors && j.recentErrors.length > 0) {
+          addResult('healthmon', 'Recent Errors (24h)', 'warn', j.recentErrors.length + ' errors');
+          for (const err of j.recentErrors.slice(0, 5)) {
+            addResult('healthmon', '  Error: ' + err.jobName, 'fail', err.error.substring(0, 120) + ' — ' + new Date(err.timestamp).toLocaleString());
+          }
+        } else if (j.recentErrors) {
+          addResult('healthmon', 'Recent Errors (24h)', 'pass', 'None');
+        }
+        // Summary
+        if (j.summary) {
+          addResult('healthmon', 'Overall Summary', j.summary.failedCronJobs === 0 ? 'pass' : 'warn',
+            j.summary.healthySites + '/' + j.summary.totalSites + ' healthy, ' +
+            j.summary.failedCronJobs + ' failed crons, ' + j.summary.errorsLast24h + ' errors 24h');
+        }
+        addJsonBlock('healthmon', j);
+      } else if (hmResp.status === 401 || hmResp.status === 403) {
+        addResult('healthmon', 'Health Monitor', 'warn', 'Auth required — endpoint needs admin session cookie, not CRON_SECRET',
+          'The <code>/api/admin/health-monitor</code> endpoint uses <code>withAdminAuth</code> which checks your NextAuth session cookie, not CRON_SECRET. Log into the admin dashboard first, then re-run this test in the same browser. Alternatively, access it directly while logged in: <code>/api/admin/health-monitor</code>.');
+      } else {
+        addResult('healthmon', 'Health Monitor', 'warn', 'HTTP ' + hmResp.status + ' — ' + (hmResp.json?.error || hmResp.text?.substring(0,100) || ''),
+          hmResp.status === 500 ? 'Health monitor crashed. Check if the DB is reachable and the <code>CronJobLog</code>, <code>SiteHealthCheck</code>, and <code>URLIndexingStatus</code> tables exist.' :
+          'Check Vercel Function Logs for <code>/api/admin/health-monitor</code>.');
+        if (hmResp.json) addJsonBlock('healthmon', hmResp.json);
+      }
+    } catch (e) { log('  ERROR in section 15: ' + e.message); addResult('healthmon', 'Health Monitor', 'fail', 'JS Error: ' + e.message); }
+
+    // ── 16. SEO Indexing Status ──
+    log('  Testing SEO indexing status...');
+    addSection('indexing', '16. SEO Indexing & Search Console');
+    try {
+      const idxResp = await testFetch('/api/admin/seo/indexing', { headers: cronHeaders });
+      if (idxResp.ok && idxResp.json) {
+        const j = idxResp.json;
+        if (j.totalUrls !== undefined) addResult('indexing', 'Total URLs Tracked', 'pass', j.totalUrls + ' URLs');
+        if (j.indexed !== undefined) addResult('indexing', 'Indexed in Google', j.indexed > 0 ? 'pass' : 'warn', j.indexed + ' pages');
+        if (j.submitted !== undefined) addResult('indexing', 'Submitted to IndexNow', 'pass', j.submitted + ' pages');
+        if (j.lastSubmitted) addResult('indexing', 'Last Submission', 'pass', new Date(j.lastSubmitted).toLocaleString());
+        if (j.gscConfigured !== undefined) addResult('indexing', 'GSC Connected', j.gscConfigured ? 'pass' : 'warn', j.gscConfigured ? 'Service account connected' : 'Not configured');
+        addJsonBlock('indexing', j);
+      } else if (idxResp.status === 401 || idxResp.status === 403) {
+        addResult('indexing', 'Indexing API', 'warn', 'Needs admin auth');
+      } else {
+        addResult('indexing', 'Indexing API', 'warn', 'HTTP ' + idxResp.status);
+        if (idxResp.json) addJsonBlock('indexing', idxResp.json);
+      }
+    } catch (e) { log('  ERROR in section 16: ' + e.message); addResult('indexing', 'Indexing', 'fail', 'JS Error: ' + e.message); }
+
+    // ── 17. GA4 Server-Side Data (real proof of analytics) ──
+    log('  Testing GA4 server-side data...');
+    addSection('ga4server', '17. GA4 Server-Side Data API');
+    try {
+      const gaResp = await testFetch('/api/admin/analytics/ga4', { headers: cronHeaders });
+      if (gaResp.ok && gaResp.json) {
+        const j = gaResp.json;
+        if (j.configured !== undefined) addResult('ga4server', 'GA4 Configured', j.configured ? 'pass' : 'fail', j.configured ? 'Credentials present' : 'Missing GA4_PROPERTY_ID or service account',
+          !j.configured ? 'GA4 server-side data requires 3 env vars in Vercel: (1) <code>GA4_PROPERTY_ID</code> — your numeric GA4 property ID, (2) <code>GOOGLE_ANALYTICS_CLIENT_EMAIL</code> — service account email, (3) <code>GOOGLE_ANALYTICS_PRIVATE_KEY</code> — the full private key (with <code>\\n</code> newlines). The service account must have "Viewer" role on the GA4 property in Google Analytics Admin → Property Access Management.' : undefined);
+        if (j.metrics) {
+          const m = j.metrics;
+          addResult('ga4server', 'Sessions (30d)', m.sessions > 0 ? 'pass' : 'warn', m.sessions.toLocaleString());
+          addResult('ga4server', 'Page Views (30d)', m.pageViews > 0 ? 'pass' : 'warn', m.pageViews.toLocaleString());
+          addResult('ga4server', 'Users (30d)', m.totalUsers > 0 ? 'pass' : 'warn', m.totalUsers.toLocaleString());
+          addResult('ga4server', 'Bounce Rate', m.bounceRate < 70 ? 'pass' : 'warn', m.bounceRate.toFixed(1) + '%');
+          addResult('ga4server', 'Engagement Rate', m.engagementRate > 30 ? 'pass' : 'warn', m.engagementRate.toFixed(1) + '%');
+        }
+        if (j.topPages && j.topPages.length > 0) {
+          addResult('ga4server', 'Top Pages', 'pass', j.topPages.slice(0,5).map(p => p.path + ' (' + p.pageViews + ' views)').join(', '));
+        }
+        if (j.topSources && j.topSources.length > 0) {
+          addResult('ga4server', 'Top Traffic Sources', 'pass', j.topSources.slice(0,5).map(s => s.source + ' (' + s.sessions + ')').join(', '));
+        }
+        addJsonBlock('ga4server', j);
+      } else if (gaResp.status === 401 || gaResp.status === 403) {
+        addResult('ga4server', 'GA4 Data API', 'warn', 'Needs admin auth',
+          'This endpoint uses admin auth. Log into the admin dashboard first, then revisit. The GA4 data is still fetched by crons even if this admin endpoint needs auth.');
+      } else if (gaResp.status === 404) {
+        addResult('ga4server', 'GA4 Data API', 'warn', 'Endpoint not found — /api/admin/analytics/ga4 may not exist',
+          'No dedicated GA4 admin endpoint exists. GA4 data is fetched internally by the SEO agent and analytics cron via <code>lib/seo/ga4-data-api.ts</code>. You can verify it works by checking the SEO Agent report (section 12) which includes <code>trafficAnalysis</code> data from GA4.');
+      } else {
+        addResult('ga4server', 'GA4 Data API', 'warn', 'HTTP ' + gaResp.status,
+          gaResp.status === 500 ? 'GA4 API call failed. Check: (1) <code>GA4_PROPERTY_ID</code> is correct, (2) service account private key doesn\'t have encoding issues (\\n vs actual newlines), (3) service account email has GA4 property access.' :
+          'Check Vercel Function Logs.');
+        if (gaResp.json) addJsonBlock('ga4server', gaResp.json);
+      }
+    } catch (e) { log('  ERROR in section 17: ' + e.message); addResult('ga4server', 'GA4 Data API', 'fail', 'JS Error: ' + e.message); }
+
+    // ── 18. Blog Content Audit (proof content generator works) ──
+    log('  Testing blog content audit...');
+    addSection('blogaudit', '18. Blog Content Audit — Auto-Generated Proof');
+    try {
+      const blogResp = await testFetch('/api/blog?limit=20&sort=created_at:desc');
+      if (blogResp.ok && blogResp.json) {
+        const posts = blogResp.json.posts || blogResp.json.data || (Array.isArray(blogResp.json) ? blogResp.json : []);
+        const total = blogResp.json.total || blogResp.json.count || posts.length;
+        addResult('blogaudit', 'Total Posts', total > 0 ? 'pass' : 'fail', total + ' blog posts in database',
+          total === 0 ? 'Zero blog posts in the database. Either: (1) The content generator cron has never successfully run, (2) The database was wiped/migrated, or (3) The <code>/api/blog</code> endpoint is filtering posts. Check the daily-content-generate healthcheck (section 7) and Vercel cron logs.' : undefined);
+
+        let autoGen = 0, withMeta = 0, withAr = 0, withSchema = 0, recentCount = 0;
+        const now = Date.now();
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+
+        for (const p of posts) {
+          if (p.tags && Array.isArray(p.tags) && p.tags.includes('auto-generated')) autoGen++;
+          if (p.meta_title_en || p.meta_description_en) withMeta++;
+          if (p.content_ar && p.content_ar.length > 100) withAr++;
+          if (p.authority_links_json || p.keywords_json) withSchema++;
+          if (p.created_at && (now - new Date(p.created_at).getTime()) < sevenDays) recentCount++;
+        }
+
+        addResult('blogaudit', 'Auto-Generated Posts', autoGen > 0 ? 'pass' : 'warn',
+          autoGen + '/' + posts.length + ' posts have "auto-generated" tag (content pipeline proof)',
+          autoGen === 0 ? 'No posts have the <code>auto-generated</code> tag. This means the daily content generation cron (<code>/api/cron/daily-content-generate</code>) hasn\'t successfully created any posts. Check: (1) Vercel cron schedule is active, (2) AI API key is set, (3) The cron healthcheck (section 7) shows a recent successful run.' : undefined);
+        addResult('blogaudit', 'Posts with Meta Tags', withMeta > 0 ? 'pass' : 'warn',
+          withMeta + '/' + posts.length + ' have SEO meta titles/descriptions');
+        addResult('blogaudit', 'Arabic Content', withAr > 0 ? 'pass' : 'warn',
+          withAr + '/' + posts.length + ' have Arabic content (>100 chars)');
+        addResult('blogaudit', 'SEO Data (keywords/schema)', withSchema > 0 ? 'pass' : 'warn',
+          withSchema + '/' + posts.length + ' have keywords or schema data');
+        addResult('blogaudit', 'Recent Posts (7d)', recentCount > 0 ? 'pass' : 'warn',
+          recentCount + ' posts created in last 7 days',
+          recentCount === 0 ? 'No posts in the last 7 days. The daily content cron should create 2 posts per site per day (10 total). Check Vercel → Settings → Crons to confirm <code>/api/cron/daily-content-generate</code> is scheduled at 5:00 UTC daily and has recent executions.' : undefined);
+
+        // Show latest 3 posts
+        for (const p of posts.slice(0, 3)) {
+          const age = p.created_at ? Math.round((now - new Date(p.created_at).getTime()) / 3600000) + 'h ago' : '?';
+          const tags = (p.tags || []).join(', ');
+          addResult('blogaudit', 'Post: ' + (p.title_en || p.slug || '').substring(0, 50), 'pass',
+            age + ' | seo:' + (p.seo_score || '?') + ' | tags: ' + tags.substring(0, 80));
+        }
+        addJsonBlock('blogaudit', { total, sample: posts.slice(0, 3) });
+      } else if (blogResp.status === 404) {
+        addResult('blogaudit', 'Blog API', 'warn', 'No public /api/blog endpoint — test via admin');
+      } else {
+        addResult('blogaudit', 'Blog API', 'warn', 'HTTP ' + blogResp.status);
+      }
+    } catch (e) { log('  ERROR in section 18: ' + e.message); addResult('blogaudit', 'Blog Audit', 'fail', 'JS Error: ' + e.message); }
+
+    // ── 19. SEO Reports (proof orchestrator writes to DB) ──
+    log('  Testing SEO reports...');
+    addSection('seoreports', '19. SEO Reports — Orchestrator Output Proof');
+    try {
+      const reportResp = await testFetch('/api/admin/seo/reports?limit=5', { headers: cronHeaders });
+      if (reportResp.ok && reportResp.json) {
+        const reports = reportResp.json.reports || reportResp.json.data || (Array.isArray(reportResp.json) ? reportResp.json : []);
+        addResult('seoreports', 'SEO Reports in DB', reports.length > 0 ? 'pass' : 'warn', reports.length + ' reports found');
+        for (const r of reports.slice(0, 5)) {
+          const age = r.generatedAt ? Math.round((Date.now() - new Date(r.generatedAt).getTime()) / 3600000) + 'h ago' : '?';
+          const score = r.data?.health_score || r.data?.healthScore || '?';
+          addResult('seoreports', r.reportType + ' report', 'pass',
+            age + ' | score: ' + score + ' | site: ' + (r.site_id || 'all'));
+        }
+        if (reports.length > 0) addJsonBlock('seoreports', reports[0]);
+      } else if (reportResp.status === 401 || reportResp.status === 403) {
+        addResult('seoreports', 'SEO Reports', 'warn', 'Needs admin auth — try admin session');
+      } else if (reportResp.status === 404) {
+        addResult('seoreports', 'SEO Reports', 'warn', 'No /api/admin/seo/reports endpoint');
+      } else {
+        addResult('seoreports', 'SEO Reports', 'warn', 'HTTP ' + reportResp.status);
+        if (reportResp.json) addJsonBlock('seoreports', reportResp.json);
+      }
+    } catch (e) { log('  ERROR in section 19: ' + e.message); addResult('seoreports', 'SEO Reports', 'fail', 'JS Error: ' + e.message); }
+
+    // ── 20. Multi-Site Health Check ──
+    log('  Testing multi-site health...');
+    addSection('multisite', '20. Multi-Site Health Checks');
+    try {
+      const sites = ['yalla-london', 'arabaldives', 'yalladubai', 'yallaistanbul', 'yallathailand'];
+      for (const siteId of sites) {
+        const siteResp = await testFetch('/api/admin/sites/' + siteId + '/health', { headers: cronHeaders });
+        if (siteResp.ok && siteResp.json) {
+          const j = siteResp.json;
+          const score = j.healthScore || j.health_score || '?';
+          addResult('multisite', siteId, score !== '?' && score >= 50 ? 'pass' : 'warn',
+            'Score: ' + score + '/100' + (j.indexed_pages !== undefined ? ' | indexed: ' + j.indexed_pages : ''));
+        } else if (siteResp.status === 404) {
+          addResult('multisite', siteId, 'warn', 'No site health endpoint');
+          break; // Don't spam 404s for all 5
+        } else {
+          addResult('multisite', siteId, 'warn', 'HTTP ' + siteResp.status);
+        }
+      }
+    } catch (e) { log('  ERROR in section 20: ' + e.message); addResult('multisite', 'Multi-site', 'fail', 'JS Error: ' + e.message); }
 
   } else if (testMode === 'full' && !cronSecret) {
     addSection('pipeline', '7. Content Generation Pipeline');

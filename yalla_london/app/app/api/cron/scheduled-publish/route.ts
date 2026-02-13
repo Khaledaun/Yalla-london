@@ -47,6 +47,55 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
       log.addSite(siteId);
 
       try {
+        // Pre-publication gate: verify the target URL will work before publishing
+        const postData = await prisma.blogPost.findUnique({
+          where: { id: item.content_id },
+          select: {
+            id: true, slug: true, title_en: true, title_ar: true,
+            meta_title_en: true, meta_description_en: true,
+            content_en: true, content_ar: true, seo_score: true, tags: true,
+          },
+        });
+
+        if (postData) {
+          try {
+            const { runPrePublicationGate } = await import(
+              "@/lib/seo/orchestrator/pre-publication-gate"
+            );
+            const siteUrl = getSiteDomain(siteId);
+            const gateResult = await runPrePublicationGate(
+              `/blog/${postData.slug}`,
+              {
+                title_en: postData.title_en || undefined,
+                title_ar: postData.title_ar || undefined,
+                meta_title_en: postData.meta_title_en || undefined,
+                meta_description_en: postData.meta_description_en || undefined,
+                content_en: postData.content_en || undefined,
+                content_ar: postData.content_ar || undefined,
+                tags: postData.tags || [],
+                seo_score: postData.seo_score || undefined,
+              },
+              siteUrl
+            );
+
+            if (!gateResult.allowed) {
+              console.warn(
+                `[Scheduled Publish] Pre-pub gate BLOCKED ${postData.slug}: ${gateResult.blockers.join("; ")}`
+              );
+              // Don't publish — mark as failed with reason
+              await prisma.scheduledContent.update({
+                where: { id: item.id },
+                data: { status: "failed" },
+              });
+              log.trackItem(false);
+              continue;
+            }
+          } catch (gateErr) {
+            // Gate check failed — publish anyway (fail open, not closed)
+            console.warn("[Scheduled Publish] Pre-pub gate error (non-fatal):", gateErr);
+          }
+        }
+
         // Publish the blog post
         const post = await prisma.blogPost.update({
           where: { id: item.content_id },

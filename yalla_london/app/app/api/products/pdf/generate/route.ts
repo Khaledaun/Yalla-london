@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       branding: {
         primaryColor: "#7c3aed",
         secondaryColor: "#d4af37",
-        logoUrl: `${siteUrl}/logo.png`,
+        logoUrl: `${siteUrl}/images/yalla-london-logo.svg`,
         siteName,
         contactEmail: "hello@yalla-london.com",
         website: siteUrl,

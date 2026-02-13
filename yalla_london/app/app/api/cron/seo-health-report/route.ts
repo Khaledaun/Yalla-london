@@ -93,13 +93,13 @@ export async function GET(request: NextRequest) {
     });
 
     if (!latestReport) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "No SEO health reports found. Run the weekly report first.",
+      return NextResponse.json({
+        success: true,
+        dashboard: {
+          latest_report: null,
+          message: "No SEO health reports yet. The weekly POST job will generate the first one.",
         },
-        { status: 404 },
-      );
+      });
     }
 
     // Get real-time stats

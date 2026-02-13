@@ -91,6 +91,12 @@ const MONITORED_CRONS = [
   "weekly-topics",
   "daily-publish",
   "seo-health-report",
+  "fact-verification",
+  "london-news",
+  "real-time-optimization",
+  "google-indexing",
+  "autopilot",
+  "social",
 ];
 
 // ─── Handler ────────────────────────────────────────────────────────
@@ -323,14 +329,39 @@ async function fetchRecentErrors(): Promise<RecentError[]> {
     },
   });
 
-  return errors.map((e: any) => ({
-    id: e.id,
-    jobName: e.job_name,
-    siteId: e.site_id,
-    error: e.error_message ?? "Unknown error",
-    timestamp: e.started_at?.toISOString() ?? new Date().toISOString(),
-    durationMs: e.duration_ms,
-  }));
+  if (errors.length === 0) return [];
+
+  // Exclude errors from jobs that have since recovered (latest run succeeded).
+  // This prevents stale alerts from lingering after a fix is deployed.
+  const failedJobNames = [...new Set<string>(errors.map((e: any) => e.job_name))];
+  const latestRuns = await Promise.all(
+    failedJobNames.map(async (jobName: string) => {
+      const latest = await (prisma as any).cronJobLog.findFirst({
+        where: { job_name: jobName },
+        orderBy: { started_at: "desc" },
+        select: { job_name: true, status: true },
+      });
+      return latest;
+    }),
+  );
+
+  // Set of job names whose latest run succeeded — their old errors are resolved
+  const recoveredJobs = new Set(
+    latestRuns
+      .filter((r: any) => r && r.status === "completed")
+      .map((r: any) => r.job_name),
+  );
+
+  return errors
+    .filter((e: any) => !recoveredJobs.has(e.job_name))
+    .map((e: any) => ({
+      id: e.id,
+      jobName: e.job_name,
+      siteId: e.site_id,
+      error: e.error_message ?? "Unknown error",
+      timestamp: e.started_at?.toISOString() ?? new Date().toISOString(),
+      durationMs: e.duration_ms,
+    }));
 }
 
 async function fetchIndexingStatus(): Promise<IndexingStatus> {

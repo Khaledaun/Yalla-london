@@ -585,7 +585,7 @@ async function runAllJobs() {
     { name: 'SEO Orchestrator',        path: '/api/cron/seo-orchestrator?healthcheck=true', method: 'GET',  timeout: 55000 },
     { name: 'SEO Agent',               path: '/api/cron/seo-agent?healthcheck=true',       method: 'GET',  timeout: 55000 },
     { name: 'SEO Health Report',       path: '/api/cron/seo-health-report',      method: 'GET',  timeout: 55000 },
-    { name: 'Daily Content Generate',  path: '/api/cron/daily-content-generate',  method: 'GET',  timeout: 55000 },
+    { name: 'Daily Content Generate',  path: '/api/cron/daily-content-generate?healthcheck=true', method: 'GET',  timeout: 55000 },
     { name: 'Daily Publish',           path: '/api/cron/daily-publish',           method: 'GET',  timeout: 55000 },
     { name: 'Scheduled Publish',       path: '/api/cron/scheduled-publish',       method: 'GET',  timeout: 55000 },
     { name: 'Auto Generate',           path: '/api/cron/auto-generate',           method: 'GET',  timeout: 55000 },

@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 /**
  * Content Selector — Reservoir-to-BlogPost Publisher

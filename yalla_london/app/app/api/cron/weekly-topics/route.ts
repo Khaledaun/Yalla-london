@@ -85,53 +85,73 @@ export async function POST(request: NextRequest) {
 
     console.log(`🎯 Generating topics - reason: ${reason}`);
 
-    // Priority: Grok Live Search (real-time web + X data) → Perplexity → AI provider fallback
+    // Priority cascade: Grok Live Search → Perplexity → AI provider fallback
+    // Each provider is wrapped in try/catch so failures cascade to the next one.
     const grokAvailable = !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY);
     const pplxKey = process.env.PPLX_API_KEY || process.env.PERPLEXITY_API_KEY;
 
-    let topicData: { topics: any[] };
+    let topicData: { topics: any[] } = { topics: [] };
     let arabicData: { topics: any[] } | null = null;
     let arabicSkipped = false;
+    let providerUsed = 'none';
 
+    // ─── English topics: try each provider until one works ────────────
     if (grokAvailable) {
-      console.log('[weekly-topics] Using Grok Live Search (web + X) for real-time topic research');
-      topicData = await generateTopicsViaGrok('London', 'en');
-      // Only attempt Arabic if we have enough budget remaining (need 20s for Grok + 5s for DB saves)
-      if (budgetLeft() > 25_000) {
+      try {
+        console.log('[weekly-topics] Trying Grok Live Search for EN topics...');
+        topicData = await generateTopicsViaGrok('London', 'en');
+        providerUsed = 'grok';
+      } catch (e) {
+        console.warn('[weekly-topics] Grok EN failed, falling through:', e instanceof Error ? e.message : e);
+      }
+    }
+
+    if (topicData.topics.length === 0 && pplxKey) {
+      try {
+        console.log('[weekly-topics] Trying Perplexity for EN topics...');
+        topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en');
+        providerUsed = 'perplexity';
+      } catch (e) {
+        console.warn('[weekly-topics] Perplexity EN failed, falling through:', e instanceof Error ? e.message : e);
+      }
+    }
+
+    if (topicData.topics.length === 0) {
+      try {
+        console.log('[weekly-topics] Using AI provider fallback for EN topics...');
+        topicData = await generateTopicsViaAIProvider('weekly_mixed', 'en');
+        providerUsed = 'ai-provider';
+      } catch (e) {
+        console.warn('[weekly-topics] AI provider EN also failed:', e instanceof Error ? e.message : e);
+      }
+    }
+
+    // ─── Arabic topics: same cascade, budget-gated ────────────────────
+    if (budgetLeft() > 25_000) {
+      if (providerUsed === 'grok' && grokAvailable) {
         try {
           arabicData = await generateTopicsViaGrok('London', 'ar');
         } catch (e) {
-          console.warn('Arabic topic generation (Grok) failed:', e instanceof Error ? e.message : e);
+          console.warn('[weekly-topics] Grok AR failed:', e instanceof Error ? e.message : e);
         }
-      } else {
-        arabicSkipped = true;
-        console.log(`[weekly-topics] Budget low (${budgetLeft()}ms left), skipping Arabic generation`);
       }
-    } else if (pplxKey) {
-      topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en');
-      if (budgetLeft() > 25_000) {
+      if (!arabicData && pplxKey) {
         try {
           arabicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'ar');
         } catch (e) {
-          console.warn('Arabic topic generation failed:', e instanceof Error ? e.message : e);
+          console.warn('[weekly-topics] Perplexity AR failed:', e instanceof Error ? e.message : e);
         }
-      } else {
-        arabicSkipped = true;
-        console.log(`[weekly-topics] Budget low (${budgetLeft()}ms left), skipping Arabic generation`);
       }
-    } else {
-      console.log('[weekly-topics] No Grok/Perplexity key, using AI provider fallback');
-      topicData = await generateTopicsViaAIProvider('weekly_mixed', 'en');
-      if (budgetLeft() > 25_000) {
+      if (!arabicData && budgetLeft() > 15_000) {
         try {
           arabicData = await generateTopicsViaAIProvider('weekly_mixed', 'ar');
         } catch (e) {
-          console.warn('Arabic topic generation (AI fallback) failed:', e instanceof Error ? e.message : e);
+          console.warn('[weekly-topics] AI provider AR failed:', e instanceof Error ? e.message : e);
         }
-      } else {
-        arabicSkipped = true;
-        console.log(`[weekly-topics] Budget low (${budgetLeft()}ms left), skipping Arabic generation`);
       }
+    } else {
+      arabicSkipped = true;
+      console.log(`[weekly-topics] Budget low (${budgetLeft()}ms left), skipping Arabic generation`);
     }
 
     // Persist generated topics as TopicProposal rows

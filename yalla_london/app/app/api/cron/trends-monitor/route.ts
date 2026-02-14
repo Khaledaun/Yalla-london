@@ -20,18 +20,14 @@ import { logCronExecution } from "@/lib/cron-logger";
  * - Seasonal trend patterns
  */
 
-// Target keywords to monitor
+// Target keywords to monitor (reduced from 10 to 6 to prevent timeout)
 const MONITORED_KEYWORDS = [
-  "london restaurants",
-  "london hotels",
-  "london events",
   "halal food london",
   "luxury london",
-  "london tourism",
-  "things to do london",
+  "london restaurants",
+  "london hotels",
   "arab restaurants london",
-  "shisha london",
-  "afternoon tea london",
+  "things to do london",
 ];
 
 // Arabic keywords for GCC audience

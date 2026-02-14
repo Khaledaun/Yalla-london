@@ -751,7 +751,7 @@ function extractJobDetails(jobName, json) {
       }
       if (gsc.status === 'success') {
         d('GSC Queries (30d)', (gsc.queriesCount || 0) + ' search queries');
-        if (gsc.topQueries?.length) d('Top GSC Query', gsc.topQueries[0].query + ' (' + gsc.topQueries[0].clicks + ' clicks, CTR ' + (gsc.topQueries[0].ctr * 100).toFixed(1) + '%)');
+        if (gsc.topQueries?.length) d('Top GSC Query', gsc.topQueries[0].query + ' (' + gsc.topQueries[0].clicks + ' clicks, CTR ' + (gsc.topQueries[0].ctr || 0).toFixed(1) + '%, pos ' + (gsc.topQueries[0].position || 0).toFixed(1) + ')');
       } else if (gsc.status === 'error') {
         w('GSC Error', gsc.error || 'Unknown GSC error');
       } else {
@@ -783,11 +783,17 @@ function extractJobDetails(jobName, json) {
       break;
     }
     case 'Weekly Topics': {
-      d('Topics Generated', json.topicsGenerated || json.generated || 0);
-      d('Pending Backlog', json.pendingCount || json.backlog || '?');
-      if (json.skipped) d('Skipped', json.reason || 'Not Sunday / backlog sufficient');
+      const gen = json.generated;
+      if (gen && typeof gen === 'object') {
+        d('Topics Generated', (gen.total || 0) + ' total (' + (gen.english || 0) + ' EN + ' + (gen.arabic || 0) + ' AR)');
+      } else {
+        d('Topics Generated', json.topicsGenerated || gen || 0);
+      }
+      d('Pending Backlog', json.pendingCountBefore || json.pendingCount || json.backlog || '?');
+      if (json.reason === 'sufficient_backlog') d('Skipped', 'Backlog is sufficient — no new topics needed');
+      else if (json.skipped) d('Skipped', json.reason || 'Not Sunday / backlog sufficient');
       if (json.source) d('AI Source Used', json.source);
-      if (json.topicsGenerated > 0) d('Saved To', 'TopicProposal table (status: pending, for content generation pipeline)');
+      if (gen && (gen.total > 0 || json.topicsGenerated > 0)) d('Saved To', 'TopicProposal table (status: ready, auto-queued for content generation)');
       if (json.sites) {
         for (const [siteId, siteData] of Object.entries(json.sites || {})) {
           d('Site: ' + siteId, (siteData.en || 0) + ' EN + ' + (siteData.ar || 0) + ' AR topics');
@@ -797,9 +803,14 @@ function extractJobDetails(jobName, json) {
     }
     case 'SEO Orchestrator': {
       if (json.lastRun) {
-        d('Last Run', json.lastRun.status + (json.lastRun.at ? ' at ' + new Date(json.lastRun.at).toLocaleString() : ''));
-        if (json.lastRun.healthScore !== undefined) d('Health Score', json.lastRun.healthScore + '/100');
-        if (json.lastRun.issuesFound !== undefined) d('Issues Found', json.lastRun.issuesFound);
+        const status = json.lastRun.status;
+        const statusCls = status === 'healthy' ? 'pass' : status === 'needs_attention' ? 'warn' : 'fail';
+        details.push({ label: 'Last Run', value: status + (json.lastRun.at ? ' at ' + new Date(json.lastRun.at).toLocaleString() : ''), cls: statusCls });
+        if (json.lastRun.healthScore !== undefined) {
+          const hs = json.lastRun.healthScore;
+          details.push({ label: 'Health Score', value: hs + '/100' + (hs < 60 ? ' — needs improvement' : hs < 80 ? ' — acceptable' : ' — good'), cls: hs >= 70 ? 'pass' : hs >= 50 ? 'warn' : 'fail' });
+        }
+        if (json.lastRun.issuesFound !== undefined) details.push({ label: 'Issues Found', value: String(json.lastRun.issuesFound), cls: json.lastRun.issuesFound > 0 ? 'warn' : 'pass' });
         if (json.lastRun.fixesApplied !== undefined) d('Auto-Fixes Applied', json.lastRun.fixesApplied);
       }
       d('Sites Monitored', json.sites || '?');
@@ -808,8 +819,14 @@ function extractJobDetails(jobName, json) {
     }
     case 'SEO Agent': {
       if (json.lastRun) {
-        d('Last Run', json.lastRun.status + ' — ' + new Date(json.lastRun.started_at || json.lastRun.at).toLocaleString());
-        if (json.lastRun.duration_ms) d('Duration', json.lastRun.duration_ms + 'ms');
+        const status = json.lastRun.status;
+        const statusCls = status === 'completed' ? 'pass' : status === 'timed_out' ? 'warn' : 'fail';
+        details.push({ label: 'Last Run', value: status + ' — ' + new Date(json.lastRun.started_at || json.lastRun.at).toLocaleString(), cls: statusCls });
+        if (json.lastRun.duration_ms) {
+          const dur = json.lastRun.duration_ms;
+          details.push({ label: 'Duration', value: dur + 'ms' + (dur > 60000 ? ' (over 60s — risk of timeout)' : ''), cls: dur > 60000 ? 'warn' : 'pass' });
+        }
+        if (status === 'timed_out') w('Timeout Fix', 'AI batch sizes reduced: meta optimization 5→2, content expansion 3→1, token limit 4096→2048. Re-run to verify.');
       }
       if (json.sites) d('Active Sites', json.sites);
       if (json.activeSites) d('Live Sites', json.activeSites.join(', '));
@@ -850,7 +867,7 @@ function extractJobDetails(jobName, json) {
       d('Status', json.message || 'Completed');
       if (json.published) d('Published', json.published + ' posts');
       if (json.availableTopics !== undefined) d('Available Topics', json.availableTopics);
-      if (json.message?.includes('No approved')) w('Note', 'No approved topics in queue — weekly-topics cron needs to generate topics first');
+      if (json.message?.includes('No approved')) w('Note', 'No approved topics in queue — daily-publish requires manual approval via admin UI. Content is auto-generated by daily-content-generate cron instead.');
       break;
     }
     case 'Scheduled Publish': {
@@ -878,10 +895,23 @@ function extractJobDetails(jobName, json) {
     }
     case 'London News': {
       d('Status', json.message || json.status || 'Completed');
-      if (json.published !== undefined) d('News Items Published', json.published);
-      if (json.archived !== undefined) d('Expired Items Archived', json.archived);
-      if (json.grokNewsCount !== undefined) d('Live News via Grok/X', json.grokNewsCount + ' items');
-      else w('Grok Live News', 'Not active — set XAI_API_KEY for live London news from X/Twitter');
+      const m = json.metrics || {};
+      if (m.itemsPublished !== undefined) d('News Items Published', m.itemsPublished);
+      if (m.itemsArchived !== undefined) d('Expired Items Archived', m.itemsArchived);
+      if (m.templatesActive !== undefined) d('Templates Active', m.templatesActive);
+      if (m.sourcesChecked?.length) d('Sources Checked', m.sourcesChecked.join(', '));
+      // Check if Grok was used by looking at sourcesChecked or createdItems with grok source
+      const grokUsed = m.sourcesChecked?.includes('Grok Live Search');
+      const grokItems = (json.createdItems || []).filter(i => i.category && JSON.stringify(i).includes('grok'));
+      if (grokUsed) d('Grok Live News', 'Active — real-time news from X/Twitter integrated');
+      else if (json.grokNewsCount !== undefined) d('Live News via Grok/X', json.grokNewsCount + ' items');
+      else w('Grok Live News', 'Not active — XAI_API_KEY may not be loaded at cron runtime');
+      if (json.createdItems?.length) {
+        for (const item of json.createdItems.slice(0, 5)) {
+          d('  ↳ ' + (item.category || 'news'), (item.headline || item.slug || '').substring(0, 60));
+        }
+      }
+      if (json.durationMs) d('Duration', json.durationMs + 'ms');
       d('Saved To', 'NewsItem table + NewsResearchLog');
       break;
     }

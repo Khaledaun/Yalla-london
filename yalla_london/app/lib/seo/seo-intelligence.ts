@@ -458,7 +458,7 @@ export async function autoOptimizeLowCTRMeta(
     ...searchData.lowCTRPages,
   ]
     .filter((p) => p.fix === "auto_optimize_meta")
-    .slice(0, 5); // Limit to 5 per run to control AI costs
+    .slice(0, 2); // Limit to 2 per run to prevent timeout (was 5)
 
   if (pagesToOptimize.length === 0) return optimizations;
 
@@ -680,8 +680,8 @@ export async function flagContentForStrengthening(
   const expandedPosts: string[] = [];
   const flaggedPosts: string[] = [];
 
-  // Only process top 3 per run to manage AI costs
-  for (const page of searchData.almostPage1.slice(0, 3)) {
+  // Only process top 1 per run to prevent timeout (was 3)
+  for (const page of searchData.almostPage1.slice(0, 1)) {
     if (!page.slug || page.slug === "") continue;
 
     try {
@@ -733,7 +733,7 @@ Keep the existing content but enhance and expand it. Return ONLY the expanded HT
             {
               systemPrompt:
                 "You are a luxury travel content specialist writing for Arab travelers. Write detailed, helpful, SEO-optimized content. Return HTML only.",
-              maxTokens: 4096,
+              maxTokens: 2048,
               temperature: 0.6,
             }
           );

@@ -5,7 +5,7 @@ import { markdownToHtml } from "@/lib/markdown";
 import { getRelatedArticles } from "@/lib/related-content";
 import BlogPostClient from "./BlogPostClient";
 
-// Combine all static blog posts
+// Combine all static blog posts (legacy content)
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 
 // ISR: Revalidate blog posts every 10 minutes for Cloudflare edge caching
@@ -15,39 +15,121 @@ type Props = {
   params: Promise<{ slug: string }>;
 };
 
-// Generate static params for all blog posts
-export async function generateStaticParams() {
-  return allStaticPosts
-    .filter((post) => post.published)
-    .map((post) => ({
-      slug: post.slug,
-    }));
+// ─── Database helpers ──────────────────────────────────────────────────────
+
+async function getDbPost(slug: string) {
+  try {
+    const { prisma } = await import("@/lib/db");
+    return await prisma.blogPost.findFirst({
+      where: { slug, published: true, deletedAt: null },
+      include: { category: true },
+    });
+  } catch {
+    return null;
+  }
 }
 
-// Generate metadata for SEO - this runs on the server
+async function getDbSlugs(): Promise<string[]> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const posts = await prisma.blogPost.findMany({
+      where: { published: true, deletedAt: null },
+      select: { slug: true },
+    });
+    return posts.map((p) => p.slug);
+  } catch {
+    return [];
+  }
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function computeReadingTime(html: string): number {
+  const text = html.replace(/<[^>]*>/g, "");
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 200));
+}
+
+type PostResult =
+  | { source: "db"; post: NonNullable<Awaited<ReturnType<typeof getDbPost>>> }
+  | { source: "static"; post: (typeof allStaticPosts)[0] };
+
+async function findPost(slug: string): Promise<PostResult | null> {
+  // Database first — this is where pipeline-generated articles live
+  const dbPost = await getDbPost(slug);
+  if (dbPost) return { source: "db", post: dbPost };
+
+  // Fall back to static content (legacy hardcoded articles)
+  const staticPost = allStaticPosts.find((p) => p.slug === slug && p.published);
+  if (staticPost) return { source: "static", post: staticPost };
+
+  return null;
+}
+
+// ─── Static params (build + ISR) ───────────────────────────────────────────
+
+export async function generateStaticParams() {
+  const staticSlugs = allStaticPosts
+    .filter((post) => post.published)
+    .map((post) => ({ slug: post.slug }));
+
+  const dbSlugs = await getDbSlugs();
+  const staticSet = new Set(staticSlugs.map((s) => s.slug));
+  const dbOnly = dbSlugs
+    .filter((slug) => !staticSet.has(slug))
+    .map((slug) => ({ slug }));
+
+  return [...staticSlugs, ...dbOnly];
+}
+
+// ─── Metadata (SEO) ────────────────────────────────────────────────────────
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const slug = resolvedParams.slug;
   const baseUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  const canonicalUrl = `${baseUrl}/blog/${slug}`;
 
-  // Find the post
-  const post = allStaticPosts.find((p) => p.slug === slug && p.published);
-
-  if (!post) {
+  const result = await findPost(slug);
+  if (!result) {
     return {
       title: "Post Not Found | Yalla London",
       description: "The blog post you are looking for could not be found.",
     };
   }
 
-  const category = categories.find((c) => c.id === post.category_id);
-  const canonicalUrl = `${baseUrl}/blog/${slug}`;
+  const { source, post } = result;
+  const title = post.meta_title_en || post.title_en;
+  const description = post.meta_description_en || post.excerpt_en || "";
+  const image = post.featured_image || "";
+  const createdAt =
+    post.created_at instanceof Date
+      ? post.created_at.toISOString()
+      : String(post.created_at);
+  const updatedAt =
+    post.updated_at instanceof Date
+      ? post.updated_at.toISOString()
+      : String(post.updated_at);
+
+  let categoryName = "Travel";
+  let tags: string[] = post.tags || [];
+  let keywordStr = "";
+
+  if (source === "static") {
+    const cat = categories.find((c) => c.id === post.category_id);
+    categoryName = cat?.name_en || "Travel";
+    keywordStr = (post as any).keywords?.join(", ") || tags.join(", ");
+  } else {
+    categoryName = (post as any).category?.name_en || "Travel";
+    const kw = (post as any).keywords_json;
+    keywordStr = Array.isArray(kw) ? kw.join(", ") : tags.join(", ");
+  }
 
   return {
-    title: post.meta_title_en || post.title_en,
-    description: post.meta_description_en || post.excerpt_en,
-    keywords: post.keywords.join(", "),
+    title,
+    description,
+    keywords: keywordStr,
     authors: [{ name: "Yalla London Editorial" }],
     creator: "Yalla London",
     publisher: "Yalla London",
@@ -59,33 +141,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
     },
     openGraph: {
-      title: post.meta_title_en || post.title_en,
-      description: post.meta_description_en || post.excerpt_en,
+      title,
+      description,
       url: canonicalUrl,
       siteName: "Yalla London",
       locale: "en_GB",
       alternateLocale: "ar_SA",
       type: "article",
-      publishedTime: post.created_at.toISOString(),
-      modifiedTime: post.updated_at.toISOString(),
+      publishedTime: createdAt,
+      modifiedTime: updatedAt,
       authors: ["Yalla London Editorial"],
-      section: category?.name_en || "Travel",
-      tags: post.tags,
-      images: [
-        {
-          url: post.featured_image,
-          width: 1200,
-          height: 630,
-          alt: post.title_en,
-        },
-      ],
+      section: categoryName,
+      tags,
+      images: image
+        ? [{ url: image, width: 1200, height: 630, alt: post.title_en }]
+        : [],
     },
     twitter: {
       card: "summary_large_image",
       site: "@yallalondon",
-      title: post.meta_title_en || post.title_en,
-      description: post.meta_description_en || post.excerpt_en,
-      images: [post.featured_image],
+      title,
+      description,
+      images: image ? [image] : [],
     },
     robots: {
       index: true,
@@ -99,29 +176,57 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
     },
     other: {
-      "article:published_time": post.created_at.toISOString(),
-      "article:modified_time": post.updated_at.toISOString(),
+      "article:published_time": createdAt,
+      "article:modified_time": updatedAt,
       "article:author": "Yalla London Editorial",
-      "article:section": category?.name_en || "Travel",
-      "article:tag": post.tags.join(","),
+      "article:section": categoryName,
+      "article:tag": tags.join(","),
     },
   };
 }
 
-// Generate JSON-LD structured data
-function generateStructuredData(post: (typeof allStaticPosts)[0]) {
+// ─── Structured Data (JSON-LD) ─────────────────────────────────────────────
+
+function generateStructuredData(
+  post: any,
+  source: "db" | "static",
+) {
   const baseUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
-  const category = categories.find((c) => c.id === post.category_id);
+
+  let categoryName = "Travel";
+  let keywords: string[] = [];
+
+  if (source === "static") {
+    const cat = categories.find((c: any) => c.id === post.category_id);
+    categoryName = cat?.name_en || "Travel";
+    keywords = post.keywords || [];
+  } else {
+    categoryName = post.category?.name_en || "Travel";
+    keywords = Array.isArray(post.keywords_json) ? post.keywords_json : [];
+  }
+
+  const contentText =
+    source === "static"
+      ? post.content_en
+      : post.content_en.replace(/<[^>]*>/g, "");
+  const createdAt =
+    post.created_at instanceof Date
+      ? post.created_at.toISOString()
+      : String(post.created_at);
+  const updatedAt =
+    post.updated_at instanceof Date
+      ? post.updated_at.toISOString()
+      : String(post.updated_at);
 
   const articleSchema = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: post.title_en,
-    description: post.excerpt_en,
-    image: post.featured_image,
-    datePublished: post.created_at.toISOString(),
-    dateModified: post.updated_at.toISOString(),
+    description: post.excerpt_en || "",
+    image: post.featured_image || "",
+    datePublished: createdAt,
+    dateModified: updatedAt,
     author: {
       "@type": "Organization",
       name: "Yalla London",
@@ -141,9 +246,9 @@ function generateStructuredData(post: (typeof allStaticPosts)[0]) {
       "@type": "WebPage",
       "@id": `${baseUrl}/blog/${post.slug}`,
     },
-    articleSection: category?.name_en || "Travel",
-    keywords: post.keywords.join(", "),
-    wordCount: post.content_en.split(" ").length,
+    articleSection: categoryName,
+    keywords: keywords.join(", "),
+    wordCount: contentText.split(" ").length,
     inLanguage: "en-GB",
   };
 
@@ -151,12 +256,7 @@ function generateStructuredData(post: (typeof allStaticPosts)[0]) {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Home",
-        item: baseUrl,
-      },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
@@ -175,49 +275,82 @@ function generateStructuredData(post: (typeof allStaticPosts)[0]) {
   return { articleSchema, breadcrumbSchema };
 }
 
-// Transform post for client component (serialize dates and convert markdown to HTML)
-function transformPostForClient(post: (typeof allStaticPosts)[0]) {
-  const category = categories.find((c) => c.id === post.category_id);
+// ─── Transform for client component ────────────────────────────────────────
+
+function transformForClient(post: any, source: "db" | "static") {
+  let category = null;
+
+  if (source === "static") {
+    const cat = categories.find((c: any) => c.id === post.category_id);
+    category = cat
+      ? {
+          id: cat.id,
+          name_en: cat.name_en,
+          name_ar: cat.name_ar,
+          slug: cat.slug,
+        }
+      : null;
+  } else if (post.category) {
+    category = {
+      id: post.category.id,
+      name_en: post.category.name_en,
+      name_ar: post.category.name_ar,
+      slug: post.category.slug,
+    };
+  }
+
+  // Static content is markdown → convert to HTML
+  // Database content is already HTML from the content pipeline
+  const contentEn =
+    source === "static" ? markdownToHtml(post.content_en) : post.content_en;
+  const contentAr =
+    source === "static" ? markdownToHtml(post.content_ar) : post.content_ar;
+  const readingTime =
+    source === "static"
+      ? post.reading_time
+      : computeReadingTime(post.content_en);
 
   return {
     id: post.id,
     title_en: post.title_en,
     title_ar: post.title_ar,
-    // Convert markdown content to HTML
-    content_en: markdownToHtml(post.content_en),
-    content_ar: markdownToHtml(post.content_ar),
-    excerpt_en: post.excerpt_en,
-    excerpt_ar: post.excerpt_ar,
+    content_en: contentEn,
+    content_ar: contentAr,
+    excerpt_en: post.excerpt_en || "",
+    excerpt_ar: post.excerpt_ar || "",
     slug: post.slug,
-    featured_image: post.featured_image,
-    created_at: post.created_at.toISOString(),
-    updated_at: post.updated_at.toISOString(),
-    reading_time: post.reading_time,
-    tags: post.tags,
-    category: category
-      ? {
-          id: category.id,
-          name_en: category.name_en,
-          name_ar: category.name_ar,
-          slug: category.slug,
-        }
-      : null,
+    featured_image: post.featured_image || "",
+    created_at:
+      post.created_at instanceof Date
+        ? post.created_at.toISOString()
+        : String(post.created_at),
+    updated_at:
+      post.updated_at instanceof Date
+        ? post.updated_at.toISOString()
+        : String(post.updated_at),
+    reading_time: readingTime,
+    tags: post.tags || [],
+    category,
   };
 }
+
+// ─── Page component ────────────────────────────────────────────────────────
 
 export default async function BlogPostPage({ params }: Props) {
   const resolvedParams = await params;
   const slug = resolvedParams.slug;
-  const post = allStaticPosts.find((p) => p.slug === slug && p.published);
 
-  // Generate structured data if post exists
-  const structuredData = post ? generateStructuredData(post) : null;
+  const result = await findPost(slug);
 
-  // Transform post for client (serialize Date objects to strings)
-  const clientPost = post ? transformPostForClient(post) : null;
-
-  // Compute related articles for internal backlinks
-  const relatedArticles = post ? getRelatedArticles(post.slug, 'blog', 3) : [];
+  const structuredData = result
+    ? generateStructuredData(result.post, result.source)
+    : null;
+  const clientPost = result
+    ? transformForClient(result.post, result.source)
+    : null;
+  const relatedArticles = result
+    ? getRelatedArticles(slug, "blog", 3)
+    : [];
 
   return (
     <>

@@ -309,20 +309,34 @@ async function runContentGeneration(config: any): Promise<any> {
 
   // Store generated content as a blog post (draft for review)
   if (siteId && content) {
-    await prisma.blogPost.create({
-      data: {
-        title_en: locale === 'en' ? (content.title || `${destination} Guide`) : '',
-        title_ar: locale === 'ar' ? (content.title || `${destination} Guide`) : '',
-        slug: generateSlug(content.title || destination),
-        content_en: locale === 'en' ? JSON.stringify(content) : '',
-        content_ar: locale === 'ar' ? JSON.stringify(content) : '',
-        excerpt_en: locale === 'en' ? (content.excerpt || '') : '',
-        excerpt_ar: locale === 'ar' ? (content.excerpt || '') : '',
-        published: false, // Requires review before publishing
-        tags: ['auto-generated', 'ai_autopilot', `site-${siteId}`],
-        siteId,
-      },
+    const defaultCategory = await prisma.category.findFirst({ select: { id: true } });
+    const systemUser = await prisma.user.findFirst({
+      where: { role: "admin", isActive: true },
+      select: { id: true },
     });
+
+    if (defaultCategory && systemUser) {
+      const isEn = locale === 'en';
+      const title = content.title || `${destination} Guide`;
+      await prisma.blogPost.create({
+        data: {
+          title_en: isEn ? title : `[Pending English] ${title}`,
+          title_ar: !isEn ? title : `[Pending Arabic] ${title}`,
+          slug: generateSlug(title),
+          content_en: isEn ? JSON.stringify(content) : '[Pending English translation]',
+          content_ar: !isEn ? JSON.stringify(content) : '[Pending Arabic translation]',
+          excerpt_en: isEn ? (content.excerpt || '') : '',
+          excerpt_ar: !isEn ? (content.excerpt || '') : '',
+          published: false,
+          tags: ['auto-generated', 'ai_autopilot', `site-${siteId}`],
+          siteId,
+          category_id: defaultCategory.id,
+          author_id: systemUser.id,
+        },
+      });
+    } else {
+      console.warn('[autopilot] Cannot create BlogPost — no category or admin user in database');
+    }
   }
 
   return {

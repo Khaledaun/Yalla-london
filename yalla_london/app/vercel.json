@@ -26,7 +26,7 @@
       "maxDuration": 10
     },
     "app/api/cron/**/*.ts": {
-      "maxDuration": 120
+      "maxDuration": 60
     }
   },
   "env": {
@@ -78,40 +78,32 @@
   ],
   "crons": [
     {
-      "path": "/api/cron/daily-content-generate",
-      "schedule": "0 5 * * *"
-    },
-    {
-      "path": "/api/cron/scheduled-publish",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/scheduled-publish",
-      "schedule": "0 16 * * *"
-    },
-    {
-      "path": "/api/cron/seo-agent",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/seo-agent",
-      "schedule": "0 13 * * *"
-    },
-    {
-      "path": "/api/cron/seo-agent",
-      "schedule": "0 20 * * *"
+      "path": "/api/cron/analytics",
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/weekly-topics",
       "schedule": "0 4 * * 1"
     },
     {
+      "path": "/api/cron/daily-content-generate",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/seo-orchestrator?mode=weekly",
+      "schedule": "0 5 * * 0"
+    },
+    {
       "path": "/api/cron/trends-monitor",
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/analytics",
-      "schedule": "0 3 * * *"
+      "path": "/api/cron/seo-orchestrator?mode=daily",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/seo-agent",
+      "schedule": "0 7 * * *"
     },
     {
       "path": "/api/seo/cron?task=daily",
@@ -122,24 +114,36 @@
       "schedule": "0 8 * * 0"
     },
     {
-      "path": "/api/cron/seo-orchestrator?mode=daily",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/seo-orchestrator?mode=weekly",
-      "schedule": "0 5 * * 0"
-    },
-    {
-      "path": "/api/cron/google-indexing",
-      "schedule": "0 10 * * *"
-    },
-    {
       "path": "/api/cron/content-builder",
       "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/content-selector",
       "schedule": "30 8 * * *"
+    },
+    {
+      "path": "/api/cron/affiliate-injection",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-publish",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/seo-agent",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-publish",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/seo-agent",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/site-health-check",
+      "schedule": "0 22 * * *"
     }
   ]
 }

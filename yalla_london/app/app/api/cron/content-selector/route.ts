@@ -13,6 +13,12 @@ export const maxDuration = 120;
  * 3. Daily quota (max 2 articles per run to maintain quality over quantity)
  * 4. Oldest reservoir articles get priority when scores are equal
  *
+ * Bilingual merging:
+ * Each topic produces two separate drafts (EN + AR) linked by paired_draft_id.
+ * When promoting, we look up the paired draft and merge both languages into
+ * a single bilingual BlogPost. If the paired draft hasn't reached reservoir yet,
+ * we publish with the available language and tag for review.
+ *
  * Flow: ArticleDraft (reservoir) → BlogPost (published) + SeoMeta + URLIndexingStatus
  */
 
@@ -114,11 +120,19 @@ async function handleContentSelector(request: NextRequest) {
     }
 
     // Apply keyword diversity filter — avoid publishing two articles on the same topic
+    // Also skip paired drafts (EN+AR pair should merge into one BlogPost, not two)
     const selectedKeywords = new Set<string>();
+    const selectedDraftIds = new Set<string>();
     const selected: Array<Record<string, unknown>> = [];
 
     for (const candidate of candidates) {
       if (selected.length >= MAX_ARTICLES_PER_RUN) break;
+
+      // Skip if this draft's pair was already selected (avoid selecting both EN+AR)
+      const candidateId = candidate.id as string;
+      const pairedId = candidate.paired_draft_id as string | null;
+      if (selectedDraftIds.has(candidateId)) continue;
+      if (pairedId && selectedDraftIds.has(pairedId)) continue;
 
       const keyword = ((candidate.keyword as string) || "").toLowerCase().trim();
       if (!keyword) continue; // Skip drafts without keywords
@@ -130,6 +144,8 @@ async function handleContentSelector(request: NextRequest) {
       if (!isDuplicate) {
         selected.push(candidate);
         selectedKeywords.add(keyword);
+        selectedDraftIds.add(candidateId);
+        if (pairedId) selectedDraftIds.add(pairedId); // Block paired draft from selection
       }
     }
 
@@ -217,7 +233,12 @@ async function handleContentSelector(request: NextRequest) {
 
 /**
  * Promote an ArticleDraft from the reservoir to a published BlogPost.
- * Creates BlogPost + SeoMeta + URLIndexingStatus, then updates the draft.
+ *
+ * Bilingual merging: Looks up the paired draft (EN↔AR) and merges both
+ * languages into a single BlogPost. If the paired draft hasn't reached
+ * reservoir yet, publishes with one language and tags for review.
+ *
+ * Creates BlogPost + SeoMeta + URLIndexingStatus, then updates both drafts.
  */
 async function promoteToBlogPost(
   draft: Record<string, unknown>,
@@ -233,21 +254,52 @@ async function promoteToBlogPost(
   }
 
   const locale = (draft.locale as string) || "en";
-  const seoMeta = (draft.seo_meta || {}) as Record<string, unknown>;
-  const outline = (draft.outline_data || {}) as Record<string, unknown>;
-  const html = (draft.assembled_html as string) || "";
-  const htmlAlt = (draft.assembled_html_alt as string) || "";
   const keyword = draft.keyword as string;
-  const topicTitle = (draft.topic_title as string) || keyword;
 
-  // Validate that we have actual content to publish
-  if (!html && !htmlAlt) {
-    console.warn(`[content-selector] Draft ${draft.id} has no assembled HTML — skipping`);
+  // ─── Look up paired draft for bilingual merging ───────────────────────
+  let pairedDraft: Record<string, unknown> | null = null;
+  const pairedDraftId = draft.paired_draft_id as string | null;
+  if (pairedDraftId) {
+    try {
+      pairedDraft = await prisma.articleDraft.findUnique({
+        where: { id: pairedDraftId },
+      });
+      // Only use if the paired draft has actual content (assembly+ phase)
+      if (pairedDraft && !(pairedDraft.assembled_html as string)) {
+        console.log(`[content-selector] Paired draft ${pairedDraftId} has no assembled HTML yet — publishing single-language`);
+        pairedDraft = null;
+      }
+    } catch {
+      // Paired draft lookup failed — proceed with single language
+    }
+  }
+
+  // ─── Determine EN and AR content sources ──────────────────────────────
+  const enDraft = locale === "en" ? draft : pairedDraft;
+  const arDraft = locale === "ar" ? draft : pairedDraft;
+
+  const enHtml = (enDraft?.assembled_html as string) || "";
+  const arHtml = (arDraft?.assembled_html as string) || "";
+  const enTitle = (enDraft?.topic_title as string) || keyword;
+  const arTitle = (arDraft?.topic_title as string) || "";
+  const enSeoMeta = ((enDraft?.seo_meta || {}) as Record<string, unknown>);
+  const arSeoMeta = ((arDraft?.seo_meta || {}) as Record<string, unknown>);
+  const outline = (draft.outline_data || {}) as Record<string, unknown>;
+
+  // Validate that we have at least one language's content
+  if (!enHtml && !arHtml) {
+    console.warn(`[content-selector] Draft ${draft.id} and its pair have no assembled HTML — skipping`);
     return null;
   }
 
-  // Generate slug from SEO meta or keyword
-  let slug = (seoMeta.slug as string) || "";
+  // Track which languages are available
+  const hasEn = !!enHtml;
+  const hasAr = !!arHtml;
+  const isBilingual = hasEn && hasAr;
+
+  // ─── Generate slug ────────────────────────────────────────────────────
+  const primarySeoMeta = enSeoMeta.slug ? enSeoMeta : arSeoMeta;
+  let slug = (primarySeoMeta.slug as string) || "";
   if (!slug) {
     slug = keyword
       .toLowerCase()
@@ -256,17 +308,15 @@ async function promoteToBlogPost(
       .replace(/-+/g, "-")
       .substring(0, 80);
   }
-  // Add date suffix for uniqueness
   const dateStr = new Date().toISOString().slice(0, 10);
   slug = `${slug}-${dateStr}`;
 
-  // Check for existing slug
   const existingSlug = await prisma.blogPost.findFirst({ where: { slug } });
   if (existingSlug) {
     slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
   }
 
-  // Get or create category and system user (same pattern as daily-content-generate)
+  // ─── Get or create category and system user ───────────────────────────
   const categorySlug = `auto-generated-${siteId}`;
   let category = await prisma.category.findFirst({ where: { slug: categorySlug } });
   if (!category) {
@@ -296,43 +346,55 @@ async function promoteToBlogPost(
     });
   }
 
-  // Extract meta fields
-  const metaTitle = (seoMeta.metaTitle as string) || topicTitle;
-  const metaTitleAlt = (seoMeta.metaTitleAlt as string) || "";
-  const metaDesc = (seoMeta.metaDescription as string) || "";
-  const metaDescAlt = (seoMeta.metaDescriptionAlt as string) || "";
-  const keywords = (seoMeta.keywords as string[]) || [keyword];
+  // ─── Extract meta fields from both languages ─────────────────────────
+  const enMetaTitle = (enSeoMeta.metaTitle as string) || enTitle;
+  const arMetaTitle = (arSeoMeta.metaTitle as string) || arTitle;
+  const enMetaDesc = (enSeoMeta.metaDescription as string) || "";
+  const arMetaDesc = (arSeoMeta.metaDescription as string) || "";
+  const keywords = (enSeoMeta.keywords as string[]) || (arSeoMeta.keywords as string[]) || [keyword];
   const pageType = (outline.schemaType as string) === "HowTo"
     ? "guide"
     : (outline.schemaType as string) === "FAQPage"
       ? "faq"
       : "guide";
 
-  // Create the BlogPost
+  // Use the best featured image from either draft
+  const enImages = (enDraft?.images_data || {}) as Record<string, unknown>;
+  const arImages = (arDraft?.images_data || {}) as Record<string, unknown>;
+  const featuredImage = ((enImages.featured as Record<string, unknown>)?.url as string)
+    || ((arImages.featured as Record<string, unknown>)?.url as string)
+    || null;
+
+  // ─── Create the bilingual BlogPost ────────────────────────────────────
+  const missingLanguageTags = [];
+  if (!hasEn) missingLanguageTags.push("missing-english");
+  if (!hasAr) missingLanguageTags.push("missing-arabic");
+
   const blogPost = await prisma.blogPost.create({
     data: {
-      title_en: locale === "en" ? topicTitle : metaTitleAlt || topicTitle,
-      title_ar: locale === "ar" ? topicTitle : metaTitleAlt || "",
+      title_en: enTitle || keyword,
+      title_ar: arTitle || "",
       slug,
-      excerpt_en: locale === "en" ? metaDesc : metaDescAlt || "",
-      excerpt_ar: locale === "ar" ? metaDesc : metaDescAlt || "",
-      content_en: locale === "en" ? html : htmlAlt || "",
-      content_ar: locale === "ar" ? html : htmlAlt || "",
-      meta_title_en: locale === "en" ? metaTitle : metaTitleAlt || "",
-      meta_title_ar: locale === "ar" ? metaTitle : metaTitleAlt || "",
-      meta_description_en: locale === "en" ? metaDesc : metaDescAlt || "",
-      meta_description_ar: locale === "ar" ? metaDesc : metaDescAlt || "",
+      excerpt_en: enMetaDesc,
+      excerpt_ar: arMetaDesc,
+      content_en: enHtml,
+      content_ar: arHtml,
+      meta_title_en: enMetaTitle,
+      meta_title_ar: arMetaTitle,
+      meta_description_en: enMetaDesc,
+      meta_description_ar: arMetaDesc,
       tags: [
         ...keywords.slice(0, 5),
         "auto-generated",
         "reservoir-pipeline",
         "needs-review",
-        `primary-${locale}`,
+        isBilingual ? "bilingual" : `primary-${locale}`,
+        ...missingLanguageTags,
         `site-${siteId}`,
         site.destination.toLowerCase(),
       ],
       published: true,
-      featured_image: ((draft.images_data as Record<string, unknown>)?.featured as Record<string, unknown>)?.url as string || null,
+      featured_image: featuredImage,
       siteId,
       category_id: category.id,
       author_id: systemUser.id,
@@ -343,20 +405,20 @@ async function promoteToBlogPost(
     },
   });
 
-  // Create SeoMeta entry if the table exists
+  // ─── Create SeoMeta entry ─────────────────────────────────────────────
   try {
-    const schemaData = seoMeta.schema || null;
+    const schemaData = enSeoMeta.schema || arSeoMeta.schema || null;
     const canonicalUrl = `${getSiteDomain(siteId)}/blog/${slug}`;
     await prisma.seoMeta.create({
       data: {
         pageId: blogPost.id,
         url: canonicalUrl,
-        title: metaTitle || topicTitle,
-        description: metaDesc || `${topicTitle} - ${site.name}`,
+        title: enMetaTitle || arMetaTitle || keyword,
+        description: enMetaDesc || arMetaDesc || `${enTitle || arTitle} - ${site.name}`,
         canonical: canonicalUrl,
         metaKeywords: keywords.join(", "),
-        ogTitle: metaTitle || topicTitle,
-        ogDescription: metaDesc,
+        ogTitle: enMetaTitle || arMetaTitle || keyword,
+        ogDescription: enMetaDesc || arMetaDesc,
         structuredData: schemaData || undefined,
         seoScore: Math.round(draft.seo_score as number || draft.quality_score as number || 70),
       },
@@ -365,7 +427,7 @@ async function promoteToBlogPost(
     console.warn("[content-selector] SeoMeta creation failed (non-fatal):", seoErr instanceof Error ? seoErr.message : seoErr);
   }
 
-  // Create URLIndexingStatus entry for Google Indexing cron to pick up
+  // ─── Create URLIndexingStatus entry ───────────────────────────────────
   try {
     const fullUrl = `${getSiteDomain(siteId)}/blog/${slug}`;
     await prisma.uRLIndexingStatus.create({
@@ -380,13 +442,13 @@ async function promoteToBlogPost(
     console.warn("[content-selector] URLIndexingStatus creation failed (non-fatal):", indexErr instanceof Error ? indexErr.message : indexErr);
   }
 
-  // Auto-inject structured data
+  // ─── Auto-inject structured data ──────────────────────────────────────
   try {
     const { enhancedSchemaInjector } = await import("@/lib/seo/enhanced-schema-injector");
     const postUrl = `${getSiteDomain(siteId)}/blog/${slug}`;
     await enhancedSchemaInjector.injectSchemas(
-      locale === "en" ? html : htmlAlt || html,
-      topicTitle,
+      enHtml || arHtml,
+      enTitle || arTitle,
       postUrl,
       blogPost.id,
       {
@@ -399,18 +461,30 @@ async function promoteToBlogPost(
     // Non-fatal
   }
 
-  // Update ArticleDraft to published state
+  // ─── Update BOTH drafts to published state ────────────────────────────
+  const publishData = {
+    current_phase: "published",
+    blog_post_id: blogPost.id,
+    published_at: new Date(),
+    completed_at: new Date(),
+    updated_at: new Date(),
+    needs_review: true,
+  };
+
   await prisma.articleDraft.update({
     where: { id: draft.id as string },
-    data: {
-      current_phase: "published",
-      blog_post_id: blogPost.id,
-      published_at: new Date(),
-      completed_at: new Date(),
-      updated_at: new Date(),
-      needs_review: true,
-    },
+    data: publishData,
   });
+
+  // Also mark the paired draft as published (so it doesn't get re-selected)
+  if (pairedDraft) {
+    await prisma.articleDraft.update({
+      where: { id: pairedDraft.id as string },
+      data: publishData,
+    }).catch((err: Error) => {
+      console.warn(`[content-selector] Failed to update paired draft ${pairedDraft!.id}:`, err.message);
+    });
+  }
 
   // Mark topic proposal as published if linked
   if (draft.topic_proposal_id) {
@@ -425,7 +499,7 @@ async function promoteToBlogPost(
   }
 
   console.log(
-    `[content-selector] Promoted draft ${draft.id} → BlogPost ${blogPost.id} (keyword: "${keyword}", score: ${draft.quality_score})`,
+    `[content-selector] Promoted draft ${draft.id}${pairedDraft ? ` + paired ${pairedDraft.id}` : ""} → BlogPost ${blogPost.id} (keyword: "${keyword}", score: ${draft.quality_score}, bilingual: ${isBilingual})`,
   );
 
   return {

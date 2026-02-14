@@ -238,8 +238,16 @@ async function getKeywordTrends(
   geo: string,
 ): Promise<TrendData[]> {
   const trends: TrendData[] = [];
+  // Budget: leave 10s for trending-search + opportunities + DB save + response
+  const deadlineMs = Date.now() + 45_000; // 45s keyword budget within 60s maxDuration
 
   for (const keyword of keywords) {
+    // Stop processing if we're running out of time
+    if (Date.now() >= deadlineMs) {
+      console.warn(`[trends-monitor] Deadline approaching, processed ${trends.length}/${keywords.length} keywords`);
+      break;
+    }
+
     try {
       const result = await googleTrends.getInterestOverTime(
         [keyword],
@@ -277,6 +285,12 @@ async function getKeywordTrends(
         });
       }
     } catch (error) {
+      // If a single keyword fetch was aborted/timed out, skip it and continue
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("abort") || msg.includes("timeout")) {
+        console.warn(`[trends-monitor] Timeout for "${keyword}", skipping`);
+        continue;
+      }
       console.error(`Failed to get trends for "${keyword}":`, error);
     }
 

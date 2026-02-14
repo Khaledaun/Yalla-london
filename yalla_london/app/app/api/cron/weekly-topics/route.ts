@@ -81,54 +81,25 @@ export async function POST(request: NextRequest) {
 
     console.log(`🎯 Generating topics - reason: ${reason}`);
 
-    // Call the topic research API to generate weekly mixed topics
-    const topicResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/phase4b/topics/research`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${cronSecret}`, // Pass through auth
-      },
-      body: JSON.stringify({
-        category: 'weekly_mixed',
-        locale: 'en',
-        cron: true, // Flag to indicate this is a cron job
-      }),
-    });
-
-    if (!topicResponse.ok) {
-      const errBody = await topicResponse.text().catch(() => "");
-      let hint = "";
-      if (topicResponse.status === 403) {
-        hint = " — Feature flags FEATURE_PHASE4B_ENABLED and FEATURE_TOPIC_RESEARCH must both be 'true' in env vars";
-      } else if (topicResponse.status === 503) {
-        hint = " — PPLX_API_KEY or PERPLEXITY_API_KEY is missing from env vars";
-      }
-      throw new Error(`Topic generation failed: HTTP ${topicResponse.status}${hint}. ${errBody.slice(0, 200)}`);
+    // Call Perplexity directly instead of self-fetching through the HTTP endpoint
+    // (avoids rate-limiter, cold-start loops, and auth indirection on Vercel)
+    const pplxKey = process.env.PPLX_API_KEY || process.env.PERPLEXITY_API_KEY;
+    if (!pplxKey) {
+      throw new Error('Topic generation failed: PPLX_API_KEY or PERPLEXITY_API_KEY is missing from env vars');
     }
 
-    const topicData = await topicResponse.json();
+    const topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en');
 
-    // Generate Arabic topics as well if Arabic is enabled
-    const arabicResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/phase4b/topics/research`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${cronSecret}`,
-      },
-      body: JSON.stringify({
-        category: 'weekly_mixed',
-        locale: 'ar',
-        cron: true,
-      }),
-    });
-
+    // Generate Arabic topics as well
     let arabicData = null;
-    if (arabicResponse.ok) {
-      arabicData = await arabicResponse.json();
+    try {
+      arabicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'ar');
+    } catch (e) {
+      console.warn('Arabic topic generation failed:', e instanceof Error ? e.message : e);
     }
 
     // Log generation results
-    const totalGenerated = (topicData?.count || 0) + (arabicData?.count || 0);
+    const totalGenerated = (topicData?.topics?.length || 0) + (arabicData?.topics?.length || 0);
     console.log(`✅ Topic generation completed: ${totalGenerated} topics created`);
 
     await logCronExecution("weekly-topics", "completed", {
@@ -136,8 +107,8 @@ export async function POST(request: NextRequest) {
       itemsProcessed: totalGenerated,
       resultSummary: {
         reason,
-        english: topicData?.count || 0,
-        arabic: arabicData?.count || 0,
+        english: topicData?.topics?.length || 0,
+        arabic: arabicData?.topics?.length || 0,
         total: totalGenerated,
         pendingCountBefore: pendingCount,
       },
@@ -148,8 +119,8 @@ export async function POST(request: NextRequest) {
       message: 'Weekly topic generation completed',
       reason,
       generated: {
-        english: topicData?.count || 0,
-        arabic: arabicData?.count || 0,
+        english: topicData?.topics?.length || 0,
+        arabic: arabicData?.topics?.length || 0,
         total: totalGenerated,
       },
       pendingCountBefore: pendingCount,
@@ -200,4 +171,52 @@ function getNextSunday(): string {
   const nextSunday = new Date(today);
   nextSunday.setDate(today.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday));
   return nextSunday.toISOString();
+}
+
+/**
+ * Call Perplexity API directly — same logic as /api/phase4b/topics/research
+ * but without the HTTP round-trip, rate limiter, and feature-flag re-check.
+ */
+async function generateTopicsDirect(
+  apiKey: string,
+  category: string,
+  locale: string,
+): Promise<{ topics: any[] }> {
+  const prompt = `You are a London-local editor. Suggest 5 timely article topics for "${category}"
+in locale "${locale}" with short slugs and 1-2 authority sources each (domain only).
+Return strict JSON array with objects: {title, slug, rationale, sources: string[]}`;
+
+  const res = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'sonar',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 800,
+      temperature: 0.3,
+    }),
+    signal: AbortSignal.timeout(30_000), // 30s max
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Perplexity API HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const content: string =
+    data?.choices?.[0]?.message?.content ??
+    data?.choices?.[0]?.delta?.content ??
+    '';
+
+  let parsed: any[] = [];
+  try {
+    const maybe = JSON.parse(content);
+    if (Array.isArray(maybe)) parsed = maybe;
+  } catch { /* ignore parse failures */ }
+
+  return { topics: parsed.slice(0, 5) };
 }

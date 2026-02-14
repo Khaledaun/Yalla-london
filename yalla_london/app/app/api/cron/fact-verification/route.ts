@@ -28,7 +28,7 @@ import { logCronExecution } from "@/lib/cron-logger";
 import { verifyFactViaWeb } from "@/lib/fact-verification/web-verifier";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5 minutes max
+export const maxDuration = 60; // 5 minutes max
 
 // ---------------------------------------------------------------------------
 // Merged article sources

@@ -3,7 +3,7 @@ import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
 import BlogListClient from "./BlogListClient";
 
-// Combine all static blog posts
+// Combine all static blog posts (legacy content)
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 
 // ISR: Revalidate blog listing every 10 minutes for Cloudflare edge caching
@@ -60,8 +60,38 @@ export const metadata: Metadata = {
   },
 };
 
-// Generate structured data for the blog listing
-function generateStructuredData() {
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function computeReadingTime(html: string): number {
+  const text = html.replace(/<[^>]*>/g, "");
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 200));
+}
+
+async function getDbPosts() {
+  try {
+    const { prisma } = await import("@/lib/db");
+    return await prisma.blogPost.findMany({
+      where: { published: true, deletedAt: null },
+      include: { category: true },
+      orderBy: { created_at: "desc" },
+    });
+  } catch {
+    return [];
+  }
+}
+
+// ─── Structured Data ────────────────────────────────────────────────────────
+
+function generateStructuredData(
+  allPosts: Array<{
+    title_en: string;
+    excerpt_en: string;
+    slug: string;
+    featured_image: string;
+    created_at: string;
+  }>,
+) {
   const baseUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
 
@@ -81,34 +111,22 @@ function generateStructuredData() {
         url: `${baseUrl}/images/yalla-london-logo.svg`,
       },
     },
-    blogPost: allStaticPosts
-      .filter((post) => post.published)
-      .slice(0, 10) // Include first 10 posts in structured data
-      .map((post) => ({
-        "@type": "BlogPosting",
-        headline: post.title_en,
-        description: post.excerpt_en,
-        url: `${baseUrl}/blog/${post.slug}`,
-        image: post.featured_image,
-        datePublished: post.created_at.toISOString(),
-        dateModified: post.updated_at.toISOString(),
-        author: {
-          "@type": "Organization",
-          name: "Yalla London",
-        },
-      })),
+    blogPost: allPosts.slice(0, 10).map((post) => ({
+      "@type": "BlogPosting",
+      headline: post.title_en,
+      description: post.excerpt_en || "",
+      url: `${baseUrl}/blog/${post.slug}`,
+      image: post.featured_image || "",
+      datePublished: post.created_at,
+      author: { "@type": "Organization", name: "Yalla London" },
+    })),
   };
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Home",
-        item: baseUrl,
-      },
+      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
       {
         "@type": "ListItem",
         position: 2,
@@ -121,14 +139,12 @@ function generateStructuredData() {
   return { blogSchema, breadcrumbSchema };
 }
 
-// Transform posts for client component (serialize dates)
-function transformPostsForClient() {
-  return allStaticPosts
+// ─── Page component ────────────────────────────────────────────────────────
+
+export default async function BlogPage() {
+  // 1. Transform static posts
+  const staticPosts = allStaticPosts
     .filter((post) => post.published)
-    .sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    )
     .map((post) => {
       const category = categories.find((c) => c.id === post.category_id);
       return {
@@ -151,11 +167,43 @@ function transformPostsForClient() {
           : null,
       };
     });
-}
 
-export default function BlogPage() {
-  const structuredData = generateStructuredData();
-  const posts = transformPostsForClient();
+  // 2. Fetch database posts (pipeline-generated articles)
+  const dbPosts = await getDbPosts();
+  const staticSlugs = new Set(staticPosts.map((p) => p.slug));
+
+  const dbPostsTransformed = dbPosts
+    .filter((post) => !staticSlugs.has(post.slug))
+    .map((post) => ({
+      id: post.id,
+      slug: post.slug,
+      title_en: post.title_en,
+      title_ar: post.title_ar,
+      excerpt_en: post.excerpt_en || "",
+      excerpt_ar: post.excerpt_ar || "",
+      featured_image: post.featured_image || "",
+      created_at:
+        post.created_at instanceof Date
+          ? post.created_at.toISOString()
+          : String(post.created_at),
+      reading_time: computeReadingTime(post.content_en),
+      category: post.category
+        ? {
+            id: post.category.id,
+            name_en: post.category.name_en,
+            name_ar: post.category.name_ar,
+            slug: post.category.slug,
+          }
+        : null,
+    }));
+
+  // 3. Merge and sort by date (newest first)
+  const allPosts = [...staticPosts, ...dbPostsTransformed].sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+
+  const structuredData = generateStructuredData(allPosts);
 
   return (
     <>
@@ -174,7 +222,7 @@ export default function BlogPage() {
       />
 
       {/* Server-rendered blog list passed to client component for interactivity */}
-      <BlogListClient posts={posts} />
+      <BlogListClient posts={allPosts} />
     </>
   );
 }

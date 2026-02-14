@@ -231,17 +231,19 @@ export async function saveContentProposals(
           questions: proposal.questions,
           suggested_page_type: proposal.pageType,
           locale: proposal.locale,
-          status: "ready", // Immediately available for content generation
+          status: "ready",
           confidence_score: proposal.confidenceScore,
-          source: "seo-agent-strategy",
           intent: proposal.contentType === "answer" ? "info" : "info",
           evergreen: proposal.contentType !== "seasonal",
-          description: proposal.rationale,
-          // Store content type in authority_links_json for the generator to read
           authority_links_json: {
             contentType: proposal.contentType,
             expandsSlug: proposal.expandsSlug || null,
             priority: proposal.priority,
+            rationale: proposal.rationale,
+          },
+          source_weights_json: {
+            source: "seo-agent-strategy",
+            weight: proposal.confidenceScore || 0.5,
           },
         },
       });

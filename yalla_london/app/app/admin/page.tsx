@@ -24,6 +24,8 @@ import {
   RefreshCw,
   ChevronRight,
   AlertCircle,
+  AlertTriangle,
+  ArrowRight,
   Database,
   Shield,
   Key,
@@ -38,6 +40,9 @@ import {
   ShoppingBag,
   Target,
   Flag,
+  Play,
+  Send,
+  Loader2,
 } from "lucide-react";
 
 interface SiteStats {
@@ -85,6 +90,21 @@ export default function AdminDashboard() {
   const [sites, setSites] = useState<SiteStats[]>([]);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
 
+  // Cron failure banner
+  const [cronFailures, setCronFailures] = useState<number>(0);
+
+  // Pipeline counts
+  const [pipelineCounts, setPipelineCounts] = useState({
+    topics: 0,
+    drafts: 0,
+    published: 0,
+  });
+
+  // Action button loading states
+  const [publishingAll, setPublishingAll] = useState(false);
+  const [runningCrons, setRunningCrons] = useState(false);
+  const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   const loadData = async () => {
     setIsLoading(true);
     try {
@@ -112,6 +132,12 @@ export default function AdminDashboard() {
           if (data.informationHub) {
             setInfoHubStats(data.informationHub);
           }
+          // Pipeline counts from same data
+          setPipelineCounts({
+            topics: data.totalTopics ?? 0,
+            drafts: data.readyToPublish ?? 0,
+            published: data.totalArticles ?? 0,
+          });
         }
       }
 
@@ -134,6 +160,20 @@ export default function AdminDashboard() {
           lastSync: "Unknown",
         });
       }
+
+      // Fetch cron failure count from health monitor
+      try {
+        const cronRes = await fetch("/api/admin/health-monitor").catch(() => null);
+        if (cronRes?.ok) {
+          const data = await cronRes.json().catch(() => null);
+          if (data?.summary?.errorsLast24h !== undefined) {
+            setCronFailures(data.summary.errorsLast24h);
+          }
+        }
+      } catch {
+        // Fail silently - banner just won't show
+      }
+
     } catch (err) {
       console.error("Dashboard fetch error:", err);
     } finally {
@@ -144,6 +184,44 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handlePublishAllReady = async () => {
+    setPublishingAll(true);
+    setActionMessage(null);
+    try {
+      const res = await fetch("/api/admin/publish-all-ready", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setActionMessage({ type: "success", text: data.message });
+        loadData(); // Refresh dashboard
+      } else {
+        setActionMessage({ type: "error", text: data.error || "Failed to publish" });
+      }
+    } catch {
+      setActionMessage({ type: "error", text: "Network error - could not publish" });
+    } finally {
+      setPublishingAll(false);
+    }
+  };
+
+  const handleRunAllCrons = async () => {
+    setRunningCrons(true);
+    setActionMessage(null);
+    try {
+      const res = await fetch("/api/admin/run-all-crons", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setActionMessage({ type: "success", text: data.message });
+        loadData(); // Refresh dashboard
+      } else {
+        setActionMessage({ type: "error", text: data.message || data.error || "Some crons failed" });
+      }
+    } catch {
+      setActionMessage({ type: "error", text: "Network error - could not run crons" });
+    } finally {
+      setRunningCrons(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -168,6 +246,52 @@ export default function AdminDashboard() {
 
   return (
     <div>
+      {/* Cron Failure Banner */}
+      {cronFailures > 0 && (
+        <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3 sm:p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
+            <span className="text-sm sm:text-base font-medium text-red-800">
+              {cronFailures} cron job{cronFailures === 1 ? "" : "s"} failed in the last 24 hours
+            </span>
+          </div>
+          <Link
+            href="/admin/health-monitoring"
+            className="text-sm font-medium text-red-600 hover:text-red-700 whitespace-nowrap flex items-center gap-1"
+          >
+            View details <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      )}
+
+      {/* Action Message Toast */}
+      {actionMessage && (
+        <div className={`mb-4 rounded-xl p-3 sm:p-4 flex items-center justify-between ${
+          actionMessage.type === "success"
+            ? "bg-green-50 border border-green-200"
+            : "bg-red-50 border border-red-200"
+        }`}>
+          <div className="flex items-center gap-3">
+            {actionMessage.type === "success" ? (
+              <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+            )}
+            <span className={`text-sm font-medium ${
+              actionMessage.type === "success" ? "text-green-800" : "text-red-800"
+            }`}>
+              {actionMessage.text}
+            </span>
+          </div>
+          <button
+            onClick={() => setActionMessage(null)}
+            className="text-gray-400 hover:text-gray-600 text-lg leading-none px-2"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6 sm:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -237,6 +361,64 @@ export default function AdminDashboard() {
               <div className="text-xs opacity-80 hidden sm:block mt-0.5">{action.desc}</div>
             </Link>
           ))}
+          {/* Publish All Ready button */}
+          <button
+            onClick={handlePublishAllReady}
+            disabled={publishingAll}
+            className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white p-3 sm:p-4 rounded-xl transition-colors active:opacity-90 text-left"
+          >
+            {publishingAll ? (
+              <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2 animate-spin" />
+            ) : (
+              <Send className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
+            )}
+            <div className="text-sm sm:text-base font-medium leading-tight">
+              {publishingAll ? "Publishing..." : "Publish All Ready"}
+            </div>
+            <div className="text-xs opacity-80 hidden sm:block mt-0.5">Publish eligible drafts</div>
+          </button>
+          {/* Run All Crons button */}
+          <button
+            onClick={handleRunAllCrons}
+            disabled={runningCrons}
+            className="bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white p-3 sm:p-4 rounded-xl transition-colors active:opacity-90 text-left"
+          >
+            {runningCrons ? (
+              <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2 animate-spin" />
+            ) : (
+              <Play className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
+            )}
+            <div className="text-sm sm:text-base font-medium leading-tight">
+              {runningCrons ? "Running..." : "Run All Crons"}
+            </div>
+            <div className="text-xs opacity-80 hidden sm:block mt-0.5">Trigger content pipeline</div>
+          </button>
+        </div>
+      </div>
+
+      {/* Pipeline Status Flow */}
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+          <Activity className="h-5 w-5 text-purple-500" />
+          Content Pipeline
+        </h2>
+        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+          <div className="flex items-center justify-center gap-2 sm:gap-4">
+            <div className="text-center flex-1">
+              <div className="text-2xl sm:text-3xl font-bold text-yellow-600">{pipelineCounts.topics}</div>
+              <div className="text-xs sm:text-sm font-medium text-gray-600 mt-1">Topics</div>
+            </div>
+            <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6 text-gray-300 flex-shrink-0" />
+            <div className="text-center flex-1">
+              <div className="text-2xl sm:text-3xl font-bold text-blue-600">{pipelineCounts.drafts}</div>
+              <div className="text-xs sm:text-sm font-medium text-gray-600 mt-1">Drafts</div>
+            </div>
+            <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6 text-gray-300 flex-shrink-0" />
+            <div className="text-center flex-1">
+              <div className="text-2xl sm:text-3xl font-bold text-green-600">{pipelineCounts.published}</div>
+              <div className="text-xs sm:text-sm font-medium text-gray-600 mt-1">Published</div>
+            </div>
+          </div>
         </div>
       </div>
 

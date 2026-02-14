@@ -96,14 +96,40 @@ export async function POST(request: NextRequest) {
 async function generateDailyContentAllSites() {
   const { prisma } = await import("@/lib/db");
   const { createDeadline } = await import("@/lib/resilience");
+  const { isAIAvailable } = await import("@/lib/ai/provider");
   const siteIds = getAllSiteIds();
   const allResults: Record<string, any> = {};
   const deadline = createDeadline(10_000, 300_000); // 300s maxDuration, 10s margin → 290s budget
+
+  // Fail fast if no AI provider is configured — don't waste 45s per site timing out
+  const aiReady = await isAIAvailable();
+  const hasAbacus = !!process.env.ABACUSAI_API_KEY;
+  if (!aiReady && !hasAbacus) {
+    console.error("[daily-content-generate] No AI provider configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or ABACUSAI_API_KEY");
+    return {
+      message: "No AI provider configured — content generation skipped",
+      error: "Set at least one AI API key: ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or ABACUSAI_API_KEY",
+      sites: {},
+      timedOut: false,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  // Track consecutive AI failures to short-circuit when providers are broken
+  let consecutiveAIFailures = 0;
+  const MAX_AI_FAILURES_BEFORE_ABORT = 2;
 
   for (const siteId of siteIds) {
     if (deadline.isExpired()) {
       allResults[siteId] = { status: "skipped", reason: "timeout_approaching" };
       console.warn(`[${siteId}] Skipped — timeout approaching (${deadline.elapsedMs()}ms elapsed)`);
+      continue;
+    }
+
+    // If AI providers failed repeatedly, stop wasting time on remaining sites
+    if (consecutiveAIFailures >= MAX_AI_FAILURES_BEFORE_ABORT) {
+      allResults[siteId] = { status: "skipped", reason: "ai_providers_failing" };
+      console.warn(`[${siteId}] Skipped — AI providers failed ${consecutiveAIFailures} times consecutively`);
       continue;
     }
 
@@ -113,14 +139,21 @@ async function generateDailyContentAllSites() {
     try {
       const result = await generateDailyContentForSite(siteConfig, prisma, deadline);
       allResults[siteId] = result;
+      // Reset counter if any article succeeded for this site
+      const hasSuccess = result.results?.some((r: any) => r.status === "success");
+      if (hasSuccess) consecutiveAIFailures = 0;
+      else if (result.results?.some((r: any) => r.error?.includes("AI providers failed") || r.error?.includes("timed out"))) {
+        consecutiveAIFailures++;
+      }
       console.log(
         `[${siteConfig.name}] Content gen: ${JSON.stringify(result)}`,
       );
     } catch (error) {
-      allResults[siteId] = {
-        status: "failed",
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
+      const errMsg = error instanceof Error ? error.message : "Unknown error";
+      allResults[siteId] = { status: "failed", error: errMsg };
+      if (errMsg.includes("AI providers failed") || errMsg.includes("timed out")) {
+        consecutiveAIFailures++;
+      }
       console.error(`[${siteConfig.name}] Content gen failed:`, error);
     }
   }
@@ -546,10 +579,11 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
   "seoScore": 90
 }`;
 
-    // Dynamic timeout: use remaining deadline time (capped at 45s per call, min 15s)
+    // Dynamic timeout: use remaining deadline time (capped at 35s per call, min 15s)
+    // The AI provider fetch calls already have a 30s AbortSignal — this is a safety net
     const aiTimeoutMs = deadline
-      ? Math.max(15_000, Math.min(45_000, deadline.remainingMs() - 5_000))
-      : 45_000;
+      ? Math.max(15_000, Math.min(35_000, deadline.remainingMs() - 5_000))
+      : 35_000;
     const aiResult = await Promise.race([
       generateJSON<any>(prompt, {
         systemPrompt,

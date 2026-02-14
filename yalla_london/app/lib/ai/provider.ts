@@ -123,6 +123,7 @@ async function callClaude(
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
     },
+    signal: AbortSignal.timeout(30_000), // 30s max per AI call
     body: JSON.stringify({
       model,
       max_tokens: options.maxTokens || 4096,
@@ -179,6 +180,7 @@ async function callOpenAI(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
+    signal: AbortSignal.timeout(30_000), // 30s max per AI call
     body: JSON.stringify({
       model,
       max_tokens: options.maxTokens || 4096,
@@ -234,6 +236,7 @@ async function callGemini(
       headers: {
         'Content-Type': 'application/json',
       },
+      signal: AbortSignal.timeout(30_000), // 30s max per AI call
       body: JSON.stringify({
         contents,
         systemInstruction: systemInstruction

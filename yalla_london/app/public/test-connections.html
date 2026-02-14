@@ -810,7 +810,7 @@ function extractJobDetails(jobName, json) {
       // Execution response: { draftId, keyword, previousPhase, nextPhase, phaseSuccess, ... }
       if (json.phaseCounts) {
         const pc = json.phaseCounts;
-        const phases = ['research', 'outline', 'drafting', 'assembly', 'seo', 'scoring', 'reservoir', 'published', 'rejected'];
+        const phases = ['research', 'outline', 'drafting', 'assembly', 'images', 'seo', 'scoring', 'reservoir', 'published', 'rejected'];
         for (const p of phases) {
           if (pc[p] !== undefined && pc[p] > 0) d('Phase: ' + p, pc[p] + ' drafts');
         }
@@ -826,7 +826,8 @@ function extractJobDetails(jobName, json) {
       }
       if (json.reservoirCount !== undefined) d('Reservoir Count', json.reservoirCount + ' articles ready');
       if (json.durationMs) d('Duration', json.durationMs + 'ms');
-      d('Pipeline', 'research → outline → drafting → assembly → seo → scoring → reservoir');
+      d('Pipeline', 'research → outline → drafting → assembly → images → seo → scoring → reservoir');
+      d('Bilingual', 'Each topic creates EN + AR drafts (paired, independent pipelines)');
       break;
     }
     case 'Content Selector': {
@@ -845,7 +846,7 @@ function extractJobDetails(jobName, json) {
         }
       }
       if (json.durationMs) d('Duration', json.durationMs + 'ms');
-      d('Pipeline', 'ArticleDraft (reservoir) → BlogPost (published)');
+      d('Pipeline', 'ArticleDraft (reservoir) → BlogPost (auto-published, tagged needs-review)');
       break;
     }
     case 'SEO Orchestrator': {

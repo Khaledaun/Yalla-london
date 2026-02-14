@@ -326,11 +326,13 @@ async function promoteToBlogPost(
         ...keywords.slice(0, 5),
         "auto-generated",
         "reservoir-pipeline",
+        "needs-review",
         `primary-${locale}`,
         `site-${siteId}`,
         site.destination.toLowerCase(),
       ],
       published: true,
+      featured_image: ((draft.images_data as Record<string, unknown>)?.featured as Record<string, unknown>)?.url as string || null,
       siteId,
       category_id: category.id,
       author_id: systemUser.id,
@@ -406,6 +408,7 @@ async function promoteToBlogPost(
       published_at: new Date(),
       completed_at: new Date(),
       updated_at: new Date(),
+      needs_review: true,
     },
   });
 

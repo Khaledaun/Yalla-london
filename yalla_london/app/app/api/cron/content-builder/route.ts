@@ -4,13 +4,17 @@ export const maxDuration = 120;
 /**
  * Content Builder — Incremental Phase Processor
  *
- * Runs every 30 minutes. Each invocation:
+ * Runs every 15 minutes. Each invocation:
  * 1. Finds the oldest in-progress ArticleDraft and advances it one phase
- * 2. If no in-progress drafts, creates a new one from TopicProposal queue
+ * 2. If no in-progress drafts, creates TWO new ones (EN + AR) from TopicProposal queue
  * 3. Each phase completes within 53s budget (7s safety buffer)
+ * 4. Drafting phase batches up to 3 sections per invocation
  *
- * Pipeline: research → outline → drafting (×N sections) → assembly → seo → scoring → reservoir
+ * Pipeline: research → outline → drafting (×N sections, batched) → assembly → images → seo → scoring → reservoir
  * Articles in "reservoir" status are picked by the content-selector cron for publishing.
+ *
+ * Bilingual: Each topic generates two separate drafts (EN + AR), paired via paired_draft_id.
+ * Arabic drafts use culturally adapted prompts (Gulf dialect, halal-first framing).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -82,7 +86,7 @@ async function handleContentBuilder(request: NextRequest) {
         where: {
           site_id: { in: activeSites },
           current_phase: {
-            in: ["research", "outline", "drafting", "assembly", "seo", "scoring"],
+            in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
           phase_attempts: { lt: 3 }, // Max 3 retries per phase
         },
@@ -92,7 +96,7 @@ async function handleContentBuilder(request: NextRequest) {
 
       // Sort by pipeline order: later phases first (finish what's closest to done)
       const phaseOrder: Record<string, number> = {
-        scoring: 6, seo: 5, assembly: 4, drafting: 3, outline: 2, research: 1,
+        scoring: 7, seo: 6, images: 5, assembly: 4, drafting: 3, outline: 2, research: 1,
       };
       allDrafts.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
         const orderA = phaseOrder[a.current_phase as string] || 0;
@@ -196,12 +200,12 @@ async function handleContentBuilder(request: NextRequest) {
         strategy = "template_cycle";
       }
 
-      // Create the new draft in research phase
-      draft = await prisma.articleDraft.create({
+      // Create paired bilingual drafts (EN + AR) — each goes through the full pipeline independently
+      const enDraft = await prisma.articleDraft.create({
         data: {
           site_id: siteId,
           keyword,
-          locale,
+          locale: "en",
           current_phase: "research",
           topic_proposal_id: topicProposalId,
           generation_strategy: strategy,
@@ -209,8 +213,30 @@ async function handleContentBuilder(request: NextRequest) {
         },
       });
 
+      const arDraft = await prisma.articleDraft.create({
+        data: {
+          site_id: siteId,
+          keyword,
+          locale: "ar",
+          current_phase: "research",
+          topic_proposal_id: topicProposalId,
+          generation_strategy: strategy + "_ar",
+          phase_started_at: new Date(),
+          paired_draft_id: enDraft.id,
+        },
+      });
+
+      // Link the EN draft back to the AR draft
+      await prisma.articleDraft.update({
+        where: { id: enDraft.id },
+        data: { paired_draft_id: arDraft.id },
+      });
+
+      // Process the EN draft first this run (AR will be picked up next)
+      draft = enDraft;
+
       console.log(
-        `[content-builder] Created new draft: ${(draft as Record<string, unknown>).id} for keyword "${keyword}" (${strategy})`,
+        `[content-builder] Created bilingual pair: EN=${enDraft.id}, AR=${arDraft.id} for keyword "${keyword}" (${strategy})`,
       );
     }
 
@@ -242,7 +268,7 @@ async function handleContentBuilder(request: NextRequest) {
       `[content-builder] Running phase "${currentPhase}" for draft ${draftRecord.id} (keyword: "${draftRecord.keyword}")`,
     );
 
-    const result = await runPhase(draftRecord as any, site);
+    const result = await runPhase(draftRecord as any, site, deadline.remainingMs());
 
     // Step 4: Save phase result to DB
     const updateData: Record<string, unknown> = {
@@ -262,6 +288,7 @@ async function handleContentBuilder(request: NextRequest) {
       if (result.data.assembled_html) updateData.assembled_html = result.data.assembled_html;
       if (result.data.assembled_html_alt) updateData.assembled_html_alt = result.data.assembled_html_alt;
       if (result.data.seo_meta) updateData.seo_meta = result.data.seo_meta;
+      if (result.data.images_data) updateData.images_data = result.data.images_data;
       if (result.data.topic_title) updateData.topic_title = result.data.topic_title;
       if (result.data.sections_total !== undefined) updateData.sections_total = result.data.sections_total;
       if (result.data.sections_completed !== undefined) updateData.sections_completed = result.data.sections_completed;

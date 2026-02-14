@@ -60,18 +60,18 @@ export function XPostEmbed({ post, variant = 'card', className }: XPostEmbedProp
 
   // Load Twitter widgets.js once and render the embedded tweet
   useEffect(() => {
-    if (!post.postUrl || widgetLoaded.current) return
+    if (!post.postUrl || widgetLoaded.current) return undefined
 
     // Extract tweet ID from URL
     const tweetIdMatch = post.postUrl.match(/status\/(\d+)/)
-    if (!tweetIdMatch) return
+    if (!tweetIdMatch) return undefined
     const tweetId = tweetIdMatch[1]
 
     // Check if widgets.js is already loaded
     const twttr = (window as any).twttr
     if (twttr?.widgets) {
       renderTweet(twttr, tweetId)
-      return
+      return undefined
     }
 
     // Load widgets.js
@@ -87,9 +87,7 @@ export function XPostEmbed({ post, variant = 'card', className }: XPostEmbedProp
     }
     document.head.appendChild(script)
 
-    return () => {
-      // Cleanup: don't remove the global script as other embeds may need it
-    }
+    return undefined
   }, [post.postUrl])
 
   function renderTweet(twttr: any, tweetId: string) {

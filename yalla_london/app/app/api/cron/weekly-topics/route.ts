@@ -28,6 +28,8 @@ export async function POST(request: NextRequest) {
   }
 
   const _cronStart = Date.now();
+  const BUDGET_MS = 53_000; // 53s usable out of 120s maxDuration
+  const budgetLeft = () => BUDGET_MS - (Date.now() - _cronStart);
 
   try {
     console.log('🕐 Weekly topic generation cron triggered');
@@ -89,29 +91,46 @@ export async function POST(request: NextRequest) {
 
     let topicData: { topics: any[] };
     let arabicData: { topics: any[] } | null = null;
+    let arabicSkipped = false;
 
     if (grokAvailable) {
       console.log('[weekly-topics] Using Grok Live Search (web + X) for real-time topic research');
       topicData = await generateTopicsViaGrok('London', 'en');
-      try {
-        arabicData = await generateTopicsViaGrok('London', 'ar');
-      } catch (e) {
-        console.warn('Arabic topic generation (Grok) failed:', e instanceof Error ? e.message : e);
+      // Only attempt Arabic if we have enough budget remaining (need 20s for Grok + 5s for DB saves)
+      if (budgetLeft() > 25_000) {
+        try {
+          arabicData = await generateTopicsViaGrok('London', 'ar');
+        } catch (e) {
+          console.warn('Arabic topic generation (Grok) failed:', e instanceof Error ? e.message : e);
+        }
+      } else {
+        arabicSkipped = true;
+        console.log(`[weekly-topics] Budget low (${budgetLeft()}ms left), skipping Arabic generation`);
       }
     } else if (pplxKey) {
       topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en');
-      try {
-        arabicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'ar');
-      } catch (e) {
-        console.warn('Arabic topic generation failed:', e instanceof Error ? e.message : e);
+      if (budgetLeft() > 25_000) {
+        try {
+          arabicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'ar');
+        } catch (e) {
+          console.warn('Arabic topic generation failed:', e instanceof Error ? e.message : e);
+        }
+      } else {
+        arabicSkipped = true;
+        console.log(`[weekly-topics] Budget low (${budgetLeft()}ms left), skipping Arabic generation`);
       }
     } else {
       console.log('[weekly-topics] No Grok/Perplexity key, using AI provider fallback');
       topicData = await generateTopicsViaAIProvider('weekly_mixed', 'en');
-      try {
-        arabicData = await generateTopicsViaAIProvider('weekly_mixed', 'ar');
-      } catch (e) {
-        console.warn('Arabic topic generation (AI fallback) failed:', e instanceof Error ? e.message : e);
+      if (budgetLeft() > 25_000) {
+        try {
+          arabicData = await generateTopicsViaAIProvider('weekly_mixed', 'ar');
+        } catch (e) {
+          console.warn('Arabic topic generation (AI fallback) failed:', e instanceof Error ? e.message : e);
+        }
+      } else {
+        arabicSkipped = true;
+        console.log(`[weekly-topics] Budget low (${budgetLeft()}ms left), skipping Arabic generation`);
       }
     }
 
@@ -123,6 +142,11 @@ export async function POST(request: NextRequest) {
 
     let savedCount = 0;
     for (const t of allTopics) {
+      // Budget check — stop DB saves if we're running out of time
+      if (budgetLeft() < 3_000) {
+        console.log(`[weekly-topics] Budget exhausted during DB saves (${budgetLeft()}ms left), stopping`);
+        break;
+      }
       try {
         const keyword = t.slug || t.title || '';
         if (!keyword) continue;
@@ -331,7 +355,7 @@ async function generateTopicsViaGrok(
   const result = await Promise.race([
     searchTrendingTopics(destination, locale),
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Grok topic research timed out after 45s')), 45_000)
+      setTimeout(() => reject(new Error('Grok topic research timed out after 20s')), 20_000)
     ),
   ]);
 

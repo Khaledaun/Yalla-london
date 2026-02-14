@@ -126,6 +126,12 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
   // Site filter for all DB queries — ensures tenant isolation
   const siteFilter = siteId ? { siteId } : {};
 
+  // Budget guard — exit early if we're running out of time
+  const agentStart = Date.now();
+  const AGENT_BUDGET_MS = 40_000; // 40s budget per site (within forEachSite's 45s limit)
+  const budgetLeft = () => AGENT_BUDGET_MS - (Date.now() - agentStart);
+  const hasBudget = (minMs = 3_000) => budgetLeft() > minMs;
+
   // 1. CHECK CONTENT GENERATION STATUS
   report.contentStatus = await checkContentGeneration(prisma, issues, siteId);
 
@@ -138,37 +144,45 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
   }
 
   // 2. AUDIT ALL PUBLISHED BLOG POSTS
-  report.blogAudit = dbAvailable
+  report.blogAudit = (dbAvailable && hasBudget())
     ? await auditBlogPosts(prisma, issues, fixes, siteId)
     : { totalPosts: 0, averageSEOScore: 0, postsWithIssues: 0, topIssues: [] };
 
   // 3. CHECK INDEXING STATUS
-  report.indexingStatus = dbAvailable
+  report.indexingStatus = (dbAvailable && hasBudget())
     ? await checkIndexingStatus(prisma, issues, siteUrl, siteId)
-    : { status: "db_unavailable", checkedUrls: 0 };
+    : { status: dbAvailable ? "budget_exhausted" : "db_unavailable", checkedUrls: 0 };
 
   // 4. SUBMIT NEW URLS TO SEARCH ENGINES
-  report.urlSubmissions = dbAvailable
+  report.urlSubmissions = (dbAvailable && hasBudget())
     ? await submitNewUrls(prisma, fixes, siteUrl, siteId)
-    : { submitted: 0, error: "Database unavailable" };
+    : { submitted: 0, error: dbAvailable ? "Budget exhausted" : "Database unavailable" };
 
   // 5. VERIFY SITEMAP HEALTH (no DB needed)
-  report.sitemapHealth = await verifySitemapHealth(issues, siteUrl);
+  report.sitemapHealth = hasBudget()
+    ? await verifySitemapHealth(issues, siteUrl)
+    : { status: "budget_exhausted" };
 
   // 6. CHECK FOR CONTENT GAPS
-  report.contentGaps = dbAvailable
+  report.contentGaps = (dbAvailable && hasBudget())
     ? await detectContentGaps(prisma, issues, siteId)
     : { categoryGaps: [], enPosts: 0, arPosts: 0 };
 
   // 7. AUTO-FIX SEO ISSUES WHERE POSSIBLE
-  report.autoFixes = dbAvailable
+  report.autoFixes = (dbAvailable && hasBudget())
     ? await autoFixSEOIssues(prisma, issues, fixes, siteId)
     : { metaTitles: 0, metaDescriptions: 0, slugs: 0 };
 
   // ====================================================
-  // 8. ANALYZE REAL GSC SEARCH PERFORMANCE
+  // 8-13. ANALYTICS & INTELLIGENCE (budget-gated)
+  // These are the most expensive steps — skip if budget is low
   // ====================================================
-  try {
+  if (!hasBudget(10_000)) {
+    console.log(`[seo-agent:${siteId}] Budget low (${budgetLeft()}ms left), skipping steps 8-13 (analytics/intelligence)`);
+    report.searchPerformance = { status: "budget_exhausted" };
+    report.trafficAnalysis = { status: "budget_exhausted" };
+    report.contentStrategy = { status: "budget_exhausted" };
+  } else try {
     const { withTimeout } = await import("@/lib/resilience");
     const {
       analyzeSearchPerformance,
@@ -210,10 +224,10 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       report.searchPerformance = { status: "no_data" };
     }
 
-    // 11. ANALYZE GA4 TRAFFIC PATTERNS
-    const trafficData = await withTimeout(
+    // 11. ANALYZE GA4 TRAFFIC PATTERNS (budget-gated)
+    const trafficData = hasBudget(8_000) ? await withTimeout(
       analyzeTrafficPatterns(28, siteId), 10_000, "GA4 analyzeTrafficPatterns"
-    ).catch((e) => { console.warn(`[${siteId}] GA4 analysis timed out:`, e.message); return null; });
+    ).catch((e) => { console.warn(`[${siteId}] GA4 analysis timed out:`, e.message); return null; }) : null;
     if (trafficData) {
       report.trafficAnalysis = {
         sessions: trafficData.sessions,
@@ -228,17 +242,21 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     }
 
     // 11b. FEEDBACK LOOP: Auto-queue rewrites for underperforming content
-    try {
-      report.contentRewrites = await queueContentRewrites(
-        prisma, searchData, trafficData, siteId, fixes
-      );
-    } catch (rewriteError) {
-      console.warn("Content rewrite queue error (non-fatal):", rewriteError);
-      report.contentRewrites = { status: "error" };
+    if (hasBudget(5_000)) {
+      try {
+        report.contentRewrites = await queueContentRewrites(
+          prisma, searchData, trafficData, siteId, fixes
+        );
+      } catch (rewriteError) {
+        console.warn("Content rewrite queue error (non-fatal):", rewriteError);
+        report.contentRewrites = { status: "error" };
+      }
     }
 
     // 12. SUBMIT ALL PAGES FOR INDEXING (idempotent)
-    report.indexingSubmission = await submitUnindexedPages(prisma, fixes, siteId);
+    report.indexingSubmission = hasBudget(5_000)
+      ? await submitUnindexedPages(prisma, fixes, siteId)
+      : { status: "budget_exhausted" };
 
     // 12b. AUTO-INJECT STRUCTURED DATA FOR POSTS MISSING SCHEMAS
     try {
@@ -294,8 +312,11 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       console.warn("Schema auto-injection failed (non-fatal):", schemaError);
     }
 
-    // 13. ANALYZE CONTENT DIVERSITY + GENERATE STRATEGIC PROPOSALS
-    try {
+    // 13. ANALYZE CONTENT DIVERSITY + GENERATE STRATEGIC PROPOSALS (budget-gated)
+    if (!hasBudget(5_000)) {
+      console.log(`[seo-agent:${siteId}] Budget low (${budgetLeft()}ms left), skipping content strategy`);
+      report.contentStrategy = { status: "budget_exhausted" };
+    } else try {
       const {
         generateContentProposals,
         saveContentProposals,

@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
+
 /**
  * Analytics Sync Cron Endpoint
  *

@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
 /**
  * Social Media Posting Cron Endpoint
  * Publishes scheduled social media posts every 15 minutes.

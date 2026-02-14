@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const maxDuration = 120;
+
 /**
  * Autopilot Cron Endpoint
  *
@@ -47,7 +50,9 @@ export async function GET(request: NextRequest) {
   const _cronStart = Date.now();
 
   try {
-    const result = await runDueTasks();
+    const { withTimeout } = await import('@/lib/resilience');
+    // 110s budget (120s maxDuration - 10s buffer for response + logging)
+    const result = await withTimeout(runDueTasks(), 110_000, 'Autopilot runDueTasks');
 
     await logCronExecution("autopilot", "completed", {
       durationMs: Date.now() - _cronStart,
@@ -60,18 +65,20 @@ export async function GET(request: NextRequest) {
       ...result,
     });
   } catch (error) {
+    const timedOut = error instanceof Error && error.message.includes('timed out');
     console.error('Cron autopilot failed:', error);
-    await logCronExecution("autopilot", "failed", {
+    await logCronExecution("autopilot", timedOut ? "timed_out" : "failed", {
       durationMs: Date.now() - _cronStart,
       errorMessage: error instanceof Error ? error.message : 'Unknown error',
     });
     return NextResponse.json(
       {
         success: false,
-        error: 'Cron job failed',
+        error: error instanceof Error ? error.message : 'Cron job failed',
+        timedOut,
         timestamp: new Date().toISOString(),
       },
-      { status: 500 }
+      { status: timedOut ? 200 : 500 }
     );
   }
 }

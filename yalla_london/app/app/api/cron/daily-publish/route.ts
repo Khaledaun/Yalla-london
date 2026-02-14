@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
@@ -31,16 +32,17 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🕐 Daily publishing cron triggered');
 
-    // Check feature flags directly
-    const phase4bEnabled = process.env.FEATURE_PHASE4B_ENABLED === 'true';
-    const autoPublishingEnabled = process.env.FEATURE_AUTO_PUBLISHING === 'true';
-    
-    if (!phase4bEnabled || !autoPublishingEnabled) {
-      console.log('⚠️ Phase 4B or auto publishing disabled');
-      return NextResponse.json(
-        { error: 'Auto publishing feature is disabled' },
-        { status: 403 }
-      );
+    // Feature flags — default to enabled so the pipeline works out of the box.
+    // Set FEATURE_AUTO_PUBLISHING=false to explicitly disable.
+    const autoPublishingDisabled = process.env.FEATURE_AUTO_PUBLISHING === 'false';
+
+    if (autoPublishingDisabled) {
+      console.log('[daily-publish] Auto publishing explicitly disabled via FEATURE_AUTO_PUBLISHING=false');
+      return NextResponse.json({
+        success: true,
+        message: 'Auto publishing disabled by feature flag',
+        timestamp: new Date().toISOString(),
+      });
     }
 
     // Check if we've already published today

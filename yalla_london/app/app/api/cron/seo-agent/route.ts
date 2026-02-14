@@ -167,6 +167,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
   // 8. ANALYZE REAL GSC SEARCH PERFORMANCE
   // ====================================================
   try {
+    const { withTimeout } = await import("@/lib/resilience");
     const {
       analyzeSearchPerformance,
       analyzeTrafficPatterns,
@@ -175,7 +176,9 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       flagContentForStrengthening,
     } = await import("@/lib/seo/seo-intelligence");
 
-    const searchData = await analyzeSearchPerformance(28, siteId);
+    const searchData = await withTimeout(
+      analyzeSearchPerformance(28, siteId), 10_000, "GSC analyzeSearchPerformance"
+    ).catch((e) => { console.warn(`[${siteId}] GSC analysis timed out:`, e.message); return null; });
     if (searchData) {
       report.searchPerformance = {
         totals: searchData.totals,
@@ -206,7 +209,9 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     }
 
     // 11. ANALYZE GA4 TRAFFIC PATTERNS
-    const trafficData = await analyzeTrafficPatterns(28, siteId);
+    const trafficData = await withTimeout(
+      analyzeTrafficPatterns(28, siteId), 10_000, "GA4 analyzeTrafficPatterns"
+    ).catch((e) => { console.warn(`[${siteId}] GA4 analysis timed out:`, e.message); return null; });
     if (trafficData) {
       report.trafficAnalysis = {
         sessions: trafficData.sessions,
@@ -706,6 +711,7 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
         await fetch("https://api.indexnow.org/indexnow", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(5_000),
           body: JSON.stringify({
             host: new URL(siteUrl).hostname,
             key: indexNowKey,
@@ -724,6 +730,7 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
         await fetch("https://api.indexnow.org/indexnow", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(5_000),
           body: JSON.stringify({
             host: new URL(siteUrl).hostname,
             key: indexNowKey,
@@ -754,6 +761,7 @@ async function verifySitemapHealth(issues: string[], siteUrl?: string) {
   try {
     const response = await fetch(`${siteUrl}/sitemap.xml`, {
       headers: { "User-Agent": "YallaLondon-SEO-Agent/1.0" },
+      signal: AbortSignal.timeout(8_000),
     });
 
     if (!response.ok) {

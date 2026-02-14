@@ -159,6 +159,15 @@ async function runTrendsMonitoring(
   // 3. Get interest over time for monitored keywords
   const keywordTrends = await getKeywordTrends(keywords, geo);
 
+  // 3b. Supplement with Grok X/Twitter social buzz (if XAI_API_KEY is configured)
+  const socialTrends = await getGrokSocialTrends();
+  if (socialTrends.length > 0) {
+    // Merge Grok social trends into trending topics
+    trendingTopics.push(...socialTrends);
+    trendingTopics.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    console.log(`[trends-monitor] Added ${socialTrends.length} social trends from Grok X search`);
+  }
+
   // 4. Identify content opportunities
   const contentOpportunities = identifyContentOpportunities(
     trendingTopics,
@@ -396,6 +405,49 @@ function generateTrendsSummary(
         .map((o) => o.suggestedAction),
     ].slice(0, 5),
   };
+}
+
+/**
+ * Get supplementary social trends from Grok's X/Twitter search.
+ * Captures social buzz about London travel that Google Trends may miss.
+ * Returns empty array if XAI_API_KEY is not configured (graceful degradation).
+ */
+async function getGrokSocialTrends(): Promise<TrendingTopic[]> {
+  try {
+    const { isGrokSearchAvailable, searchSocialBuzz } = await import(
+      "@/lib/ai/grok-live-search"
+    );
+    if (!isGrokSearchAvailable()) {
+      return [];
+    }
+
+    const result = await searchSocialBuzz("London travel");
+
+    // Parse the JSON response
+    let jsonStr = result.content.trim();
+    if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
+    if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
+    if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
+    jsonStr = jsonStr.trim();
+
+    const parsed = JSON.parse(jsonStr);
+    if (!Array.isArray(parsed)) return [];
+
+    // Map Grok social trends to TrendingTopic format
+    return parsed.slice(0, 5).map((item: any) => ({
+      title: `[X] ${item.trend || item.title || "Unknown trend"}`,
+      traffic: item.engagement || "N/A",
+      isRelevant: (item.relevance_to_tourism ?? 0.5) >= 0.3,
+      relevanceScore: item.relevance_to_tourism ?? 0.5,
+      category: "social",
+    }));
+  } catch (error) {
+    console.warn(
+      "[trends-monitor] Grok social trends failed (non-fatal):",
+      error instanceof Error ? error.message : error,
+    );
+    return [];
+  }
 }
 
 async function saveTrendsData(data: any): Promise<void> {

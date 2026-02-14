@@ -137,7 +137,8 @@ interface SiteLoopResult<T> {
 /**
  * Iterates over all site IDs with deadline awareness.
  * Skips remaining sites if the timeout approaches.
- * Catches per-site errors without failing the whole loop.
+ * Each per-site callback is wrapped in a timeout so a single slow site
+ * cannot consume the entire budget.
  */
 export async function forEachSite<T>(
   siteIds: string[],
@@ -146,6 +147,11 @@ export async function forEachSite<T>(
   totalTimeoutMs = VERCEL_FUNCTION_TIMEOUT_MS
 ): Promise<SiteLoopResult<T>> {
   const deadline = createDeadline(marginMs, totalTimeoutMs);
+  // Per-site budget: divide remaining time equally, capped at 45s
+  const perSiteMaxMs = Math.min(
+    45_000,
+    Math.floor((totalTimeoutMs - marginMs) / Math.max(siteIds.length, 1))
+  );
   const result: SiteLoopResult<T> = {
     results: {},
     errors: {},
@@ -163,8 +169,21 @@ export async function forEachSite<T>(
       continue;
     }
 
+    // Use the smaller of per-site budget or remaining deadline time (with 2s buffer)
+    const siteTimeout = Math.min(perSiteMaxMs, deadline.remainingMs() - 2_000);
+    if (siteTimeout < 3_000) {
+      result.skipped.push(siteId);
+      result.timedOut = true;
+      console.warn(`[forEachSite] Insufficient time for ${siteId} (${siteTimeout}ms left), skipping`);
+      continue;
+    }
+
     try {
-      result.results[siteId] = await fn(siteId);
+      result.results[siteId] = await withTimeout(
+        fn(siteId),
+        siteTimeout,
+        `Site ${siteId}`
+      );
       result.completed++;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

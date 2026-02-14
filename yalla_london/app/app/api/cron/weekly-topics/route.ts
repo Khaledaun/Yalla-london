@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const maxDuration = 120;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
@@ -31,16 +32,17 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🕐 Weekly topic generation cron triggered');
 
-    // Check feature flags directly
-    const phase4bEnabled = process.env.FEATURE_PHASE4B_ENABLED === 'true';
-    const topicResearchEnabled = process.env.FEATURE_TOPIC_RESEARCH === 'true';
-    
-    if (!phase4bEnabled || !topicResearchEnabled) {
-      console.log('⚠️ Phase 4B or topic research disabled');
-      return NextResponse.json(
-        { error: 'Topic research feature is disabled' },
-        { status: 403 }
-      );
+    // Feature flags — default to enabled so the pipeline works out of the box.
+    // Set FEATURE_TOPIC_RESEARCH=false to explicitly disable.
+    const topicResearchDisabled = process.env.FEATURE_TOPIC_RESEARCH === 'false';
+
+    if (topicResearchDisabled) {
+      console.log('[weekly-topics] Topic research explicitly disabled via FEATURE_TOPIC_RESEARCH=false');
+      return NextResponse.json({
+        success: true,
+        message: 'Topic research disabled by feature flag',
+        timestamp: new Date().toISOString(),
+      });
     }
 
     // Check current topic backlog
@@ -81,26 +83,80 @@ export async function POST(request: NextRequest) {
 
     console.log(`🎯 Generating topics - reason: ${reason}`);
 
-    // Call Perplexity directly instead of self-fetching through the HTTP endpoint
-    // (avoids rate-limiter, cold-start loops, and auth indirection on Vercel)
+    // Priority: Grok Live Search (real-time web + X data) → Perplexity → AI provider fallback
+    const grokAvailable = !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY);
     const pplxKey = process.env.PPLX_API_KEY || process.env.PERPLEXITY_API_KEY;
-    if (!pplxKey) {
-      throw new Error('Topic generation failed: PPLX_API_KEY or PERPLEXITY_API_KEY is missing from env vars');
+
+    let topicData: { topics: any[] };
+    let arabicData: { topics: any[] } | null = null;
+
+    if (grokAvailable) {
+      console.log('[weekly-topics] Using Grok Live Search (web + X) for real-time topic research');
+      topicData = await generateTopicsViaGrok('London', 'en');
+      try {
+        arabicData = await generateTopicsViaGrok('London', 'ar');
+      } catch (e) {
+        console.warn('Arabic topic generation (Grok) failed:', e instanceof Error ? e.message : e);
+      }
+    } else if (pplxKey) {
+      topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en');
+      try {
+        arabicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'ar');
+      } catch (e) {
+        console.warn('Arabic topic generation failed:', e instanceof Error ? e.message : e);
+      }
+    } else {
+      console.log('[weekly-topics] No Grok/Perplexity key, using AI provider fallback');
+      topicData = await generateTopicsViaAIProvider('weekly_mixed', 'en');
+      try {
+        arabicData = await generateTopicsViaAIProvider('weekly_mixed', 'ar');
+      } catch (e) {
+        console.warn('Arabic topic generation (AI fallback) failed:', e instanceof Error ? e.message : e);
+      }
     }
 
-    const topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en');
+    // Persist generated topics as TopicProposal rows
+    const allTopics = [
+      ...(topicData?.topics || []).map((t: any) => ({ ...t, locale: 'en' })),
+      ...(arabicData?.topics || []).map((t: any) => ({ ...t, locale: 'ar' })),
+    ];
 
-    // Generate Arabic topics as well
-    let arabicData = null;
-    try {
-      arabicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'ar');
-    } catch (e) {
-      console.warn('Arabic topic generation failed:', e instanceof Error ? e.message : e);
+    let savedCount = 0;
+    for (const t of allTopics) {
+      try {
+        const keyword = t.slug || t.title || '';
+        if (!keyword) continue;
+        // Skip duplicates
+        const exists = await prisma.topicProposal.findFirst({
+          where: { primary_keyword: keyword, locale: t.locale },
+        });
+        if (exists) continue;
+
+        await prisma.topicProposal.create({
+          data: {
+            title: t.title || keyword,
+            description: t.rationale || '',
+            primary_keyword: keyword,
+            longtails: [],
+            questions: [],
+            suggested_page_type: 'guide',
+            locale: t.locale,
+            status: 'proposed',
+            confidence_score: 0.7,
+            source: 'weekly-topics-cron',
+            evergreen: false,
+            authority_links_json: { sources: t.sources || [] },
+          },
+        });
+        savedCount++;
+      } catch (saveErr) {
+        console.warn(`[weekly-topics] Failed to save topic "${t.title}":`, saveErr instanceof Error ? saveErr.message : saveErr);
+      }
     }
 
     // Log generation results
-    const totalGenerated = (topicData?.topics?.length || 0) + (arabicData?.topics?.length || 0);
-    console.log(`✅ Topic generation completed: ${totalGenerated} topics created`);
+    const totalGenerated = savedCount;
+    console.log(`Topic generation completed: ${totalGenerated} topics saved to DB`);
 
     await logCronExecution("weekly-topics", "completed", {
       durationMs: Date.now() - _cronStart,
@@ -219,4 +275,77 @@ Return strict JSON array with objects: {title, slug, rationale, sources: string[
   } catch { /* ignore parse failures */ }
 
   return { topics: parsed.slice(0, 5) };
+}
+
+/**
+ * Fallback: generate topics via the unified AI provider layer (Claude/OpenAI/Gemini)
+ * when Perplexity API key is not configured.
+ */
+async function generateTopicsViaAIProvider(
+  category: string,
+  locale: string,
+): Promise<{ topics: any[] }> {
+  const { generateJSON } = await import('@/lib/ai/provider');
+
+  const prompt = locale === 'en'
+    ? `You are a London-local editor for a luxury travel platform targeting Arab travelers.
+Suggest 5 timely, SEO-worthy article topics for the category "${category}".
+Each topic should have a short URL slug and 1-2 authority source domains.
+Return a strict JSON array: [{title, slug, rationale, sources: ["domain.com"]}]`
+    : `أنت محرر محلي في لندن لمنصة سفر فاخرة تستهدف المسافرين العرب.
+اقترح 5 مواضيع مقالات مناسبة لفئة "${category}".
+لكل موضوع عنوان قصير وسلاغ URL ومصدرين موثوقين.
+أرجع مصفوفة JSON: [{title, slug, rationale, sources: ["domain.com"]}]`;
+
+  const result = await Promise.race([
+    generateJSON<any[]>(prompt, {
+      maxTokens: 1024,
+      temperature: 0.5,
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('AI topic generation timed out after 30s')), 30_000)
+    ),
+  ]);
+
+  const topics = Array.isArray(result) ? result.slice(0, 5) : [];
+  return { topics };
+}
+
+/**
+ * Generate topics via Grok Live Search (Responses API with web_search + x_search).
+ * Uses real-time web and X/Twitter data for the most up-to-date trending topics.
+ * This is the preferred method when XAI_API_KEY is configured.
+ */
+async function generateTopicsViaGrok(
+  destination: string,
+  locale: string,
+): Promise<{ topics: any[] }> {
+  const { searchTrendingTopics } = await import('@/lib/ai/grok-live-search');
+
+  const result = await Promise.race([
+    searchTrendingTopics(destination, locale),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Grok topic research timed out after 45s')), 45_000)
+    ),
+  ]);
+
+  // Parse the JSON response from Grok
+  let topics: any[] = [];
+  try {
+    let jsonStr = result.content.trim();
+    // Strip markdown code fences if present
+    if (jsonStr.startsWith('```json')) jsonStr = jsonStr.slice(7);
+    if (jsonStr.startsWith('```')) jsonStr = jsonStr.slice(3);
+    if (jsonStr.endsWith('```')) jsonStr = jsonStr.slice(0, -3);
+    jsonStr = jsonStr.trim();
+
+    const parsed = JSON.parse(jsonStr);
+    topics = Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+  } catch (parseErr) {
+    console.warn('[weekly-topics] Failed to parse Grok response as JSON:', parseErr instanceof Error ? parseErr.message : parseErr);
+    console.warn('[weekly-topics] Raw Grok response:', result.content.slice(0, 500));
+  }
+
+  console.log(`[weekly-topics] Grok returned ${topics.length} topics (${locale}) using ${result.usage.totalTokens} tokens`);
+  return { topics };
 }

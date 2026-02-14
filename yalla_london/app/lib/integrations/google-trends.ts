@@ -138,11 +138,22 @@ export class GoogleTrends {
 
         results.push({
           keyword,
-          interestOverTime: (data.interest_over_time?.timeline_data || []).map((point: any) => ({
-            date: point.date,
-            value: point.values?.[0]?.value || 0,
-            formattedValue: point.values?.[0]?.extracted_value?.toString() || '0',
-          })),
+          interestOverTime: (data.interest_over_time?.timeline_data || []).map((point: any) => {
+            // SerpAPI: extracted_value is the normalized 0-100 interest score
+            // value is the raw display string (can be huge numbers). Use extracted_value.
+            const extracted = point.values?.[0]?.extracted_value;
+            const raw = point.values?.[0]?.value;
+            // extracted_value is the 0-100 normalized score; fall back to parsing raw
+            const normalizedValue = typeof extracted === 'number' ? extracted
+              : typeof extracted === 'string' ? parseInt(extracted, 10) || 0
+              : typeof raw === 'number' && raw <= 100 ? raw
+              : 0;
+            return {
+              date: point.date,
+              value: normalizedValue,
+              formattedValue: String(raw ?? normalizedValue),
+            };
+          }),
           relatedQueries: [
             ...(data.related_queries?.top || []).map((q: any) => ({
               query: q.query,

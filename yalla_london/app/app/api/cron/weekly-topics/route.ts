@@ -96,7 +96,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (!topicResponse.ok) {
-      throw new Error(`Topic generation failed: ${topicResponse.status}`);
+      const errBody = await topicResponse.text().catch(() => "");
+      let hint = "";
+      if (topicResponse.status === 403) {
+        hint = " — Feature flags FEATURE_PHASE4B_ENABLED and FEATURE_TOPIC_RESEARCH must both be 'true' in env vars";
+      } else if (topicResponse.status === 503) {
+        hint = " — PPLX_API_KEY or PERPLEXITY_API_KEY is missing from env vars";
+      }
+      throw new Error(`Topic generation failed: HTTP ${topicResponse.status}${hint}. ${errBody.slice(0, 200)}`);
     }
 
     const topicData = await topicResponse.json();

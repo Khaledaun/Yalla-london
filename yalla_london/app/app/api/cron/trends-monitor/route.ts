@@ -264,9 +264,13 @@ async function getKeywordTrends(
         else if (recentAvg < olderAvg * 0.9) trend = "declining";
         else trend = "stable";
 
+        // Clamp to 0-100 range — SerpAPI should return normalized values
+        // but guard against raw extracted values leaking through
+        const clampedScore = Math.min(100, Math.max(0, recentAvg));
+
         trends.push({
           keyword,
-          interestScore: recentAvg,
+          interestScore: clampedScore,
           trend,
           relatedQueries: data.relatedQueries.slice(0, 5).map((q) => q.query),
           timestamp: new Date(),

@@ -429,11 +429,32 @@ export default function HealthMonitoringPage() {
     setRetriggerResult(null);
     try {
       const res = await fetch(`/api/cron/${jobName}?healthcheck=true`);
-      if (res.ok) {
-        setRetriggerResult({ job: jobName, ok: true, msg: `Health check for "${jobName}" passed.` });
-      } else {
-        const text = await res.text().catch(() => '');
+      const text = await res.text().catch(() => '');
+      let json: Record<string, unknown> | null = null;
+      try { json = JSON.parse(text); } catch {}
+
+      if (!res.ok) {
         setRetriggerResult({ job: jobName, ok: false, msg: `"${jobName}" returned ${res.status}. ${text.slice(0, 120)}` });
+      } else if (json) {
+        // Inspect response body for hidden failures even on HTTP 200
+        const bodyStr = JSON.stringify(json);
+        const hasErrors = bodyStr.includes('Invalid `prisma') || bodyStr.includes('Unknown argument') ||
+          bodyStr.includes('does not exist');
+        const lastRunTimedOut = (json as any).lastRun?.status === 'timed_out';
+        const allFailed = typeof (json as any).failed === 'number' && (json as any).failed > 0 &&
+          (json as any).completed === 0;
+
+        if (hasErrors) {
+          setRetriggerResult({ job: jobName, ok: false, msg: `"${jobName}" returned 200 but contains Prisma/DB errors. Check response.` });
+        } else if (lastRunTimedOut) {
+          setRetriggerResult({ job: jobName, ok: false, msg: `"${jobName}" healthcheck OK but last real run timed out.` });
+        } else if (allFailed) {
+          setRetriggerResult({ job: jobName, ok: false, msg: `"${jobName}" completed but all items failed.` });
+        } else {
+          setRetriggerResult({ job: jobName, ok: true, msg: `Health check for "${jobName}" passed.` });
+        }
+      } else {
+        setRetriggerResult({ job: jobName, ok: true, msg: `Health check for "${jobName}" passed.` });
       }
       fetchData(true);
     } catch (err) {
@@ -459,7 +480,12 @@ export default function HealthMonitoringPage() {
 
   const failedCrons = useMemo(() => {
     if (!health) return [];
-    return health.cronJobs.filter((c) => c.status === 'failed' || c.status === 'timed_out');
+    return health.cronJobs.filter((c) =>
+      c.status === 'failed' ||
+      c.status === 'timed_out' ||
+      // "completed" but every item failed = effectively failed
+      (c.itemsFailed > 0 && c.itemsFailed === c.itemsProcessed)
+    );
   }, [health]);
 
   // ─── Render ─────────────────────────────────────────────────────
@@ -1307,7 +1333,12 @@ function CronJobRow({
   retriggeringJob: string | null;
 }) {
   const guide = CRON_FIX_GUIDE[cron.jobName];
-  const isFailed = cron.status === 'failed' || cron.status === 'timed_out';
+  // Derive effective status: "completed" with all items failed is really "failed"
+  const effectiveStatus =
+    cron.status === 'completed' && cron.itemsFailed > 0 && cron.itemsFailed === cron.itemsProcessed
+      ? 'degraded'
+      : cron.status;
+  const isFailed = effectiveStatus === 'failed' || effectiveStatus === 'timed_out' || effectiveStatus === 'degraded';
 
   return (
     <div>
@@ -1316,7 +1347,7 @@ function CronJobRow({
         className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-gray-800/50 transition-colors text-left"
       >
         <div className="flex items-center gap-3">
-          <StatusDot status={cron.status} />
+          <StatusDot status={effectiveStatus} />
           <div>
             <span className="font-medium text-sm">{cron.jobName}</span>
             <span className="ml-3 text-xs text-gray-500">
@@ -1332,7 +1363,7 @@ function CronJobRow({
                 : `${(cron.durationMs / 1000).toFixed(1)}s`}
             </span>
           )}
-          <StatusBadge status={cron.status} />
+          <StatusBadge status={effectiveStatus} />
           {expanded ? (
             <ChevronDown className="h-4 w-4 text-gray-500" />
           ) : (
@@ -1569,9 +1600,11 @@ function StatusDot({ status }: { status: string }) {
       ? 'bg-emerald-500'
       : status === 'running'
         ? 'bg-blue-500 animate-pulse'
-        : status === 'failed' || status === 'timed_out'
-          ? 'bg-red-500'
-          : 'bg-gray-600';
+        : status === 'degraded'
+          ? 'bg-orange-500'
+          : status === 'failed' || status === 'timed_out'
+            ? 'bg-red-500'
+            : 'bg-gray-600';
   return <div className={`w-2.5 h-2.5 rounded-full ${color}`} />;
 }
 
@@ -1580,6 +1613,7 @@ function StatusBadge({ status }: { status: string }) {
     completed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
     running: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
     failed: 'bg-red-500/10 text-red-400 border-red-500/20',
+    degraded: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
     timed_out: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
     never_run: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
   };

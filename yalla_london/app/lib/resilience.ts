@@ -142,9 +142,10 @@ interface SiteLoopResult<T> {
 export async function forEachSite<T>(
   siteIds: string[],
   fn: (siteId: string) => Promise<T>,
-  marginMs = SAFETY_MARGIN_MS
+  marginMs = SAFETY_MARGIN_MS,
+  totalTimeoutMs = VERCEL_FUNCTION_TIMEOUT_MS
 ): Promise<SiteLoopResult<T>> {
-  const deadline = createDeadline(marginMs);
+  const deadline = createDeadline(marginMs, totalTimeoutMs);
   const result: SiteLoopResult<T> = {
     results: {},
     errors: {},

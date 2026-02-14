@@ -1,6 +1,6 @@
 # Yalla London - Cron Operations & System Status Summary
 
-**Last Updated**: February 14, 2026 (Round 2 — all issues fixed)
+**Last Updated**: February 14, 2026 (Round 3 — Reservoir + Incremental Builder pipeline added)
 **Branch**: `claude/seo-agent-orchestration-7JOkl`
 
 ---
@@ -50,6 +50,9 @@ Controlled by `getActiveSiteIds()` in `config/sites.ts`.
 | 13:00 | SEO Agent Run 2 | `/api/cron/seo-agent` | Same as 07:00 |
 | 16:00 | Scheduled Publish (PM) | `/api/cron/scheduled-publish` | PASS |
 | 20:00 | SEO Agent Run 3 | `/api/cron/seo-agent` | Same as 07:00 |
+
+| */30 min | Content Builder | `/api/cron/content-builder` | NEW — incremental phase processor |
+| 08:30 | Content Selector | `/api/cron/content-selector` | NEW — reservoir-to-BlogPost publisher |
 
 **Not in cron schedule (manual only):**
 - `/api/cron/social` — Social posting (intentionally MOCK — not yet integrated)
@@ -162,6 +165,26 @@ Controlled by `getActiveSiteIds()` in `config/sites.ts`.
 **Problem**: TypeScript error in useEffect return type.
 **Fix**: Replaced bare `return` with `return undefined`.
 
+### 14. Weekly Topics "0 total (9 EN + 9 AR)" — FIXED (Round 3)
+**Problem**: `totalGenerated = savedCount` only counted new DB inserts, not total topics generated. When all topics already existed (duplicates), the total showed 0 even though 9+9=18 were generated.
+**Fix**: Changed `totalGenerated = englishCount + arabicCount` (API response count). Added `newSaved` and `duplicatesSkipped` fields to response.
+- **File**: `weekly-topics/route.ts` (lines 157-184)
+
+### 15. London News Grok "Not active" — FIXED (Round 3)
+**Problem**: "Grok Live Search" was only added to `sourcesChecked` inside the DB save loop. If all items were duplicates, it was never added.
+**Fix**: Added `sourcesChecked.push("Grok Live Search")` immediately after Grok returns items, before the save loop.
+- **File**: `london-news/route.ts` (line 681)
+- **File**: `test-connections.html` (dashboard detection made more robust)
+
+### 16. Content Quality Concern — RESOLVED (Round 3)
+**Problem**: Monolithic AI content generation (single API call for full article) risks timeout, low quality, and crash data loss.
+**Solution**: Implemented Reservoir + Incremental Builder pattern:
+- **Content Builder**: 7-phase pipeline (research → outline → drafting → assembly → seo → scoring → reservoir). Each phase completes within 53s budget. Articles are built incrementally over multiple cron invocations. Crash-resilient — partial articles resume automatically.
+- **Content Selector**: Daily selector picks the highest-quality reservoir articles (min score 60/100) and promotes them to BlogPost.
+- **New files**: `lib/content-pipeline/phases.ts`, `app/api/cron/content-builder/route.ts`, `app/api/cron/content-selector/route.ts`
+- **New DB model**: `ArticleDraft` with phase tracking, quality scoring, and incremental output storage
+- **Cron schedule**: Builder runs every 30 min, Selector runs at 08:30 UTC
+
 ---
 
 ## Test Dashboard Enhancements
@@ -200,7 +223,9 @@ Runs all 14+ cron endpoints sequentially with per-job expanded details, environm
 
 ## Architecture Notes
 
-### Content Pipeline Flow
+### Content Pipeline Flow (Two Pipelines)
+
+**Pipeline A: Legacy (Daily Content Generate)**
 ```
 Weekly Topics (Sun/low backlog)
   └→ TopicProposal (status: 'ready')  ← was 'proposed', now auto-queued
@@ -208,14 +233,40 @@ Weekly Topics (Sun/low backlog)
 Daily Content Generate (5am daily)
   ├→ Picks 'ready/queued/planned/proposed' topics from DB
   ├→ Falls back to site template topics if none found
-  └→ Creates BlogPost + SeoMeta + URLIndexingStatus
+  └→ Creates BlogPost + SeoMeta + URLIndexingStatus (single-shot, fast)
+```
+
+**Pipeline B: Reservoir + Incremental Builder (NEW)**
+```
+Content Builder (every 30 min) — Phase-by-phase article construction
+  ├→ research:  SERP analysis, keyword data, content strategy (~15s)
+  ├→ outline:   Structured outline with sections, link plan (~15s)
+  ├→ drafting:  ONE section per invocation, incremental (~20s each)
+  ├→ assembly:  Coherence pass, transitions, internal links (~30s)
+  ├→ seo:       Meta tags, schema markup, keyword optimization (~15s)
+  ├→ scoring:   Deterministic quality scoring (no AI) (~1s)
+  └→ reservoir: High-quality articles wait for selection
+
+Content Selector (8:30am daily) — Best-of-reservoir publishing
+  ├→ Selects top 2 articles by quality_score (min 60/100)
+  ├→ Keyword diversity filter (no duplicate topics)
+  └→ Promotes to BlogPost + SeoMeta + URLIndexingStatus
+
+Key Benefits:
+  • Each phase fits within 53s Vercel cron budget
+  • Crash-resilient: partial articles resume automatically
+  • Quality gating: only the best articles get published
+  • No timeout risk: article generation spans multiple invocations
+```
+
+**Shared Pipeline:**
+```
+Google Indexing (10am daily)
+  └→ Submits all new/updated URLs via IndexNow + GSC sitemap ping
 
 Daily Publish (9am daily) — SEPARATE PIPELINE
   └→ Only picks 'approved' topics (requires manual admin approval)
   └→ Currently returns 0 — this is expected behavior
-
-Google Indexing (10am daily)
-  └→ Submits all new/updated URLs via IndexNow + GSC sitemap ping
 ```
 
 ### SEO Agent 13 Steps (optimized batch sizes)
@@ -241,7 +292,8 @@ Google Indexing (10am daily)
 Grok (XAI_API_KEY) → Claude → OpenAI → Gemini → AbacusAI
 
 ### Key Paths
-- Cron routes: `app/api/cron/` (17 endpoints)
+- Cron routes: `app/api/cron/` (19 endpoints, including content-builder & content-selector)
+- Content pipeline: `lib/content-pipeline/phases.ts` (6-phase incremental builder)
 - SEO intelligence: `lib/seo/seo-intelligence.ts` (AI optimization steps)
 - SEO services: `lib/seo/` (orchestrator, indexing, audit, analytics)
 - Site config: `config/sites.ts` (5 sites, active site filtering)
@@ -250,18 +302,20 @@ Grok (XAI_API_KEY) → Claude → OpenAI → Gemini → AbacusAI
 - Grok integration: `lib/ai/grok-live-search.ts`
 
 ### Database
-- 94 Prisma models, Supabase PostgreSQL
-- Key tables: `BlogPost`, `SeoReport`, `URLIndexingStatus`, `AnalyticsSnapshot`, `CronJobLog`, `ScheduledContent`, `ModelProvider`, `TopicProposal`, `NewsItem`
+- 95 Prisma models, Supabase PostgreSQL (added ArticleDraft)
+- Key tables: `BlogPost`, `ArticleDraft`, `SeoReport`, `URLIndexingStatus`, `AnalyticsSnapshot`, `CronJobLog`, `ScheduledContent`, `ModelProvider`, `TopicProposal`, `NewsItem`
 - Soft-delete infrastructure exists but is disabled
 
 ---
 
 ## Next Steps
 
-1. **Re-run SEO Agent**: Verify the timeout fix works (should complete in ~40-50s now)
-2. **Monitor Health Score**: SEO orchestrator score should improve as agent fixes more issues
-3. **GSC URL Inspection**: Add per-URL indexing verification via GSC API
-4. **Background Job Processing**: Leverage existing `BackgroundJobService` for long-running tasks
-5. **Multi-site Activation**: When other sites go live, add their IDs to `LIVE_SITES` in `config/sites.ts`
-6. **Social Media Integration**: When ready, implement Twitter API v2 in `app/api/cron/social/route.ts` (infrastructure already exists)
-7. **Monitoring Alerts**: Set up Vercel alerts for cron job failures
+1. **Run DB Migration**: Deploy Prisma schema to create `article_drafts` table (`prisma db push` or Vercel auto-migration)
+2. **Monitor Content Builder**: First 48h — check that articles progress through all 7 phases without getting stuck
+3. **Monitor Content Selector**: Verify reservoir → BlogPost promotion produces published articles
+4. **Re-run SEO Agent**: Verify the timeout fix works (should complete in ~40-50s now)
+5. **Monitor Health Score**: SEO orchestrator score should improve as agent fixes more issues
+6. **GSC URL Inspection**: Add per-URL indexing verification via GSC API
+7. **Multi-site Activation**: When other sites go live, add their IDs to `LIVE_SITES` in `config/sites.ts`
+8. **Social Media Integration**: When ready, implement Twitter API v2 in `app/api/cron/social/route.ts` (infrastructure already exists)
+9. **Monitoring Alerts**: Set up Vercel alerts for cron job failures

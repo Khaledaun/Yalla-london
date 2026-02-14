@@ -27,14 +27,95 @@ export interface ScheduledTask {
 }
 
 /**
+ * Recurring task definitions — autopilot will self-seed these if none exist.
+ * Schedules are in hours (how often to re-run after completion).
+ */
+const RECURRING_TASKS: {
+  job_name: string;
+  job_type: string;
+  intervalHours: number;
+  parameters_json: Record<string, unknown>;
+}[] = [
+  { job_name: 'analytics_sync', job_type: 'scheduled', intervalHours: 6, parameters_json: {} },
+  { job_name: 'seo_optimization', job_type: 'scheduled', intervalHours: 24 * 7, parameters_json: { action: 'audit' } },
+];
+
+/**
+ * Ensure recurring tasks have at least one 'pending' row.
+ * Runs before every autopilot cycle so the queue is never empty.
+ */
+async function seedRecurringTasks(): Promise<number> {
+  let seeded = 0;
+  const now = new Date();
+
+  for (const def of RECURRING_TASKS) {
+    // Check if there's already a pending or running instance
+    const existing = await prisma.backgroundJob.findFirst({
+      where: {
+        job_name: def.job_name,
+        status: { in: ['pending', 'running'] },
+      },
+    });
+
+    if (!existing) {
+      await prisma.backgroundJob.create({
+        data: {
+          job_name: def.job_name,
+          job_type: def.job_type,
+          parameters_json: def.parameters_json,
+          status: 'pending',
+          next_run_at: now, // due immediately on first seed
+        },
+      });
+      seeded++;
+      console.log(`[autopilot] Seeded recurring task: ${def.job_name}`);
+    }
+  }
+
+  return seeded;
+}
+
+/**
+ * After a recurring task completes, schedule its next run.
+ */
+async function rescheduleIfRecurring(jobName: string): Promise<void> {
+  const def = RECURRING_TASKS.find((d) => d.job_name === jobName);
+  if (!def) return;
+
+  const nextRun = new Date(Date.now() + def.intervalHours * 60 * 60 * 1000);
+
+  // Only create if no pending instance already exists
+  const existing = await prisma.backgroundJob.findFirst({
+    where: { job_name: jobName, status: 'pending' },
+  });
+
+  if (!existing) {
+    await prisma.backgroundJob.create({
+      data: {
+        job_name: def.job_name,
+        job_type: def.job_type,
+        parameters_json: def.parameters_json,
+        status: 'pending',
+        next_run_at: nextRun,
+      },
+    });
+    console.log(`[autopilot] Rescheduled ${jobName} for ${nextRun.toISOString()}`);
+  }
+}
+
+/**
  * Run all due tasks
  */
 export async function runDueTasks(): Promise<{
   ran: number;
   succeeded: number;
   failed: number;
+  seeded: number;
   results: TaskResult[];
 }> {
+  // Seed recurring tasks so the queue is never permanently empty
+  const seeded = await seedRecurringTasks();
+
   const now = new Date();
 
   // Get all pending tasks that are due
@@ -57,6 +138,8 @@ export async function runDueTasks(): Promise<{
 
     if (result.success) {
       succeeded++;
+      // Re-schedule recurring tasks for their next run
+      await rescheduleIfRecurring(task.job_name);
     } else {
       failed++;
     }
@@ -66,6 +149,7 @@ export async function runDueTasks(): Promise<{
     ran: dueTasks.length,
     succeeded,
     failed,
+    seeded,
     results,
   };
 }

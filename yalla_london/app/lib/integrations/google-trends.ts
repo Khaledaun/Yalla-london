@@ -79,7 +79,9 @@ export class GoogleTrends {
         api_key: this.config.apiKey,
       });
 
-      const response = await fetch(`${this.baseUrl}?${params}`);
+      const response = await fetch(`${this.baseUrl}?${params}`, {
+        signal: AbortSignal.timeout(15_000), // 15s max per SerpAPI call
+      });
 
       if (!response.ok) {
         throw new Error(`Trends API error: ${response.status}`);
@@ -127,7 +129,9 @@ export class GoogleTrends {
           api_key: this.config.apiKey,
         });
 
-        const response = await fetch(`${this.baseUrl}?${params}`);
+        const response = await fetch(`${this.baseUrl}?${params}`, {
+          signal: AbortSignal.timeout(15_000), // 15s max per SerpAPI call
+        });
 
         if (!response.ok) {
           console.error(`Failed to get trends for "${keyword}": ${response.status}`);

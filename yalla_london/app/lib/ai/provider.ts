@@ -1,14 +1,19 @@
 /**
  * AI Provider Integration Layer
  *
- * Unified interface for Claude, GPT, and Gemini.
- * Automatically uses the configured API keys from the database.
+ * Unified interface for Grok (xAI), Claude, GPT, and Gemini.
+ * Automatically uses the configured API keys from the database or env vars.
+ *
+ * Grok is preferred for English content generation due to:
+ *   - Cost efficiency ($0.20/$0.50 per 1M tokens on grok-4-1-fast)
+ *   - 2M token context window (largest in the industry)
+ *   - Real-time web & X search via Responses API (see grok-live-search.ts)
  */
 
 import { prisma } from '@/lib/prisma';
 import { decrypt } from '@/lib/encryption';
 
-export type AIProvider = 'claude' | 'openai' | 'gemini';
+export type AIProvider = 'grok' | 'claude' | 'openai' | 'gemini';
 
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -36,13 +41,14 @@ export interface AICompletionResult {
 
 // Default models per provider
 const DEFAULT_MODELS: Record<AIProvider, string> = {
+  grok: 'grok-4-1-fast',
   claude: 'claude-3-5-sonnet-20241022',
   openai: 'gpt-4-turbo-preview',
   gemini: 'gemini-pro',
 };
 
-// Provider priority for fallback
-const PROVIDER_PRIORITY: AIProvider[] = ['claude', 'openai', 'gemini'];
+// Provider priority — Grok first (cheapest, fastest, 2M context), then Claude, OpenAI, Gemini
+const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'claude', 'openai', 'gemini'];
 
 /**
  * Get API key for a provider from the database
@@ -61,29 +67,35 @@ async function getApiKey(provider: AIProvider): Promise<string | null> {
       return decrypt(modelProvider.api_key_encrypted);
     }
 
+    // Grok uses env var only (no DB storage yet) — check early for speed
+    if (provider === 'grok') {
+      return process.env.XAI_API_KEY || process.env.GROK_API_KEY || null;
+    }
+
     // Fallback to ApiSettings table
-    const keyNames: Record<AIProvider, string> = {
+    const keyNames: Record<string, string> = {
       claude: 'anthropic_api_key',
       openai: 'openai_api_key',
       gemini: 'google_api_key',
     };
 
-    const apiSetting = await prisma.apiSettings.findUnique({
-      where: { key_name: keyNames[provider] },
-    });
-
-    if (apiSetting?.key_value) {
-      return apiSetting.key_value;
+    if (keyNames[provider]) {
+      const apiSetting = await prisma.apiSettings.findUnique({
+        where: { key_name: keyNames[provider] },
+      });
+      if (apiSetting?.key_value) {
+        return apiSetting.key_value;
+      }
     }
 
     // Last resort: environment variables
-    const envKeys: Record<AIProvider, string> = {
+    const envKeys: Record<string, string> = {
       claude: 'ANTHROPIC_API_KEY',
       openai: 'OPENAI_API_KEY',
       gemini: 'GOOGLE_API_KEY',
     };
 
-    return process.env[envKeys[provider]] || null;
+    return process.env[envKeys[provider] || ''] || null;
   } catch (error) {
     console.error(`Failed to get API key for ${provider}:`, error);
     return null;
@@ -101,6 +113,62 @@ async function getAvailableProvider(): Promise<{ provider: AIProvider; apiKey: s
     }
   }
   return null;
+}
+
+/**
+ * Call Grok (xAI) API — OpenAI-compatible chat completions
+ * Endpoint: https://api.x.ai/v1/chat/completions
+ * Models: grok-4-1-fast ($0.20/$0.50/1M), grok-4-latest ($3/$15/1M)
+ */
+async function callGrok(
+  messages: AIMessage[],
+  apiKey: string,
+  options: AICompletionOptions
+): Promise<AICompletionResult> {
+  const model = options.model || DEFAULT_MODELS.grok;
+
+  const formattedMessages = messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  if (options.systemPrompt && !messages.some((m) => m.role === 'system')) {
+    formattedMessages.unshift({ role: 'system', content: options.systemPrompt });
+  }
+
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    signal: AbortSignal.timeout(30_000), // 30s max per AI call
+    body: JSON.stringify({
+      model,
+      max_tokens: options.maxTokens || 4096,
+      temperature: options.temperature ?? 0.7,
+      stream: false,
+      messages: formattedMessages,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Grok API error (${response.status}): ${error.slice(0, 300)}`);
+  }
+
+  const data = await response.json();
+
+  return {
+    content: data.choices[0].message.content,
+    provider: 'grok',
+    model,
+    usage: {
+      promptTokens: data.usage?.prompt_tokens || 0,
+      completionTokens: data.usage?.completion_tokens || 0,
+      totalTokens: data.usage?.total_tokens || 0,
+    },
+  };
 }
 
 /**
@@ -270,6 +338,27 @@ async function callGemini(
 }
 
 /**
+ * Route a call to the appropriate provider
+ */
+async function callProvider(
+  provider: AIProvider,
+  messages: AIMessage[],
+  apiKey: string,
+  options: AICompletionOptions,
+): Promise<AICompletionResult> {
+  switch (provider) {
+    case 'grok':
+      return callGrok(messages, apiKey, options);
+    case 'claude':
+      return callClaude(messages, apiKey, options);
+    case 'openai':
+      return callOpenAI(messages, apiKey, options);
+    case 'gemini':
+      return callGemini(messages, apiKey, options);
+  }
+}
+
+/**
  * Generate completion using the AI provider
  * Automatically falls back to other providers if the primary fails
  */
@@ -283,18 +372,10 @@ export async function generateCompletion(
     if (!apiKey) {
       throw new Error(`No API key configured for ${options.provider}`);
     }
-
-    switch (options.provider) {
-      case 'claude':
-        return callClaude(messages, apiKey, options);
-      case 'openai':
-        return callOpenAI(messages, apiKey, options);
-      case 'gemini':
-        return callGemini(messages, apiKey, options);
-    }
+    return callProvider(options.provider, messages, apiKey, options);
   }
 
-  // Try providers in priority order
+  // Try providers in priority order: grok → claude → openai → gemini
   const errors: string[] = [];
 
   for (const provider of PROVIDER_PRIORITY) {
@@ -302,14 +383,7 @@ export async function generateCompletion(
     if (!apiKey) continue;
 
     try {
-      switch (provider) {
-        case 'claude':
-          return await callClaude(messages, apiKey, options);
-        case 'openai':
-          return await callOpenAI(messages, apiKey, options);
-        case 'gemini':
-          return await callGemini(messages, apiKey, options);
-      }
+      return await callProvider(provider, messages, apiKey, options);
     } catch (error) {
       errors.push(`${provider}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       continue;
@@ -377,6 +451,7 @@ export async function getProvidersStatus(): Promise<
   Record<AIProvider, { configured: boolean; active: boolean }>
 > {
   const status: Record<AIProvider, { configured: boolean; active: boolean }> = {
+    grok: { configured: false, active: false },
     claude: { configured: false, active: false },
     openai: { configured: false, active: false },
     gemini: { configured: false, active: false },
@@ -385,7 +460,7 @@ export async function getProvidersStatus(): Promise<
   for (const provider of PROVIDER_PRIORITY) {
     const apiKey = await getApiKey(provider);
     status[provider].configured = !!apiKey;
-    status[provider].active = !!apiKey; // We could add health checks here
+    status[provider].active = !!apiKey;
   }
 
   return status;
@@ -397,19 +472,7 @@ export async function getProvidersStatus(): Promise<
 export async function testApiKey(provider: AIProvider, apiKey: string): Promise<boolean> {
   try {
     const testMessage: AIMessage[] = [{ role: 'user', content: 'Say "OK"' }];
-
-    switch (provider) {
-      case 'claude':
-        await callClaude(testMessage, apiKey, { maxTokens: 10 });
-        break;
-      case 'openai':
-        await callOpenAI(testMessage, apiKey, { maxTokens: 10 });
-        break;
-      case 'gemini':
-        await callGemini(testMessage, apiKey, { maxTokens: 10 });
-        break;
-    }
-
+    await callProvider(provider, testMessage, apiKey, { maxTokens: 10 });
     return true;
   } catch (error) {
     console.error(`API key test failed for ${provider}:`, error);

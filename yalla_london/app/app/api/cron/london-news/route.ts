@@ -674,7 +674,13 @@ export async function GET(request: NextRequest) {
     const selectedTemplates = sortedTemplates.slice(0, targetCount);
     itemsFound = selectedTemplates.length;
 
-    // 6. Create news items from selected templates
+    // 5b. Supplement templates with LIVE news from Grok (if XAI_API_KEY is configured)
+    const liveNewsItems = await fetchLiveNewsViaGrok(runType);
+    if (liveNewsItems.length > 0) {
+      console.log(`[london-news] Grok returned ${liveNewsItems.length} live news items`);
+    }
+
+    // 6. Create news items from selected templates + live news
     const createdItems: { id: string; slug: string; headline: string; category: string }[] = [];
 
     for (const template of selectedTemplates) {
@@ -831,6 +837,100 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 7b. Create news items from Grok live news (supplement templates with real-time data)
+    for (const liveItem of liveNewsItems) {
+      try {
+        const baseSlug = slugify(liveItem.headline_en || "london-news");
+        const datePrefix = today.toISOString().slice(0, 10);
+        const slug = `${baseSlug}-${datePrefix}`;
+
+        // Deduplicate
+        const existingSlug = await prisma.newsItem.findUnique({
+          where: { slug },
+          select: { id: true },
+        });
+        if (existingSlug) {
+          itemsSkipped++;
+          continue;
+        }
+
+        // Skip categories we already covered with templates
+        const liveCategory = (liveItem.category || "general") as NewsCategory;
+        if (recentCategories.has(liveCategory)) {
+          itemsSkipped++;
+          continue;
+        }
+
+        const ttlDays = liveItem.ttl_days || 3;
+        const expiresAt = new Date(today.getTime() + ttlDays * 24 * 60 * 60 * 1000);
+        const relatedArticleSlugs = computeRelatedArticleSlugs(
+          liveCategory,
+          [],
+          [],
+        );
+
+        const newsItem = await prisma.newsItem.create({
+          data: {
+            slug,
+            status: "published",
+            headline_en: (liveItem.headline_en || "").slice(0, 200),
+            headline_ar: (liveItem.headline_ar || "").slice(0, 200),
+            summary_en: (liveItem.summary_en || "").slice(0, 1000),
+            summary_ar: (liveItem.summary_ar || "").slice(0, 1000),
+            announcement_en: (liveItem.headline_en || "").slice(0, 100),
+            announcement_ar: (liveItem.headline_ar || "").slice(0, 100),
+            source_name: liveItem.source || "Grok Live Search",
+            source_url: "",
+            news_category: liveCategory,
+            relevance_score: 75,
+            is_major: liveItem.urgency === "high" || liveItem.urgency === "urgent",
+            urgency: liveItem.urgency === "urgent" ? "urgent" : liveItem.urgency === "high" ? "urgent" : "normal",
+            expires_at: expiresAt,
+            meta_title_en: (liveItem.headline_en || "").slice(0, 60),
+            meta_title_ar: (liveItem.headline_ar || "").slice(0, 60),
+            meta_description_en: (liveItem.summary_en || "").slice(0, 155),
+            meta_description_ar: (liveItem.summary_ar || "").slice(0, 155),
+            tags: [liveCategory, "grok-live", "auto-generated"],
+            keywords: [],
+            related_article_slugs: relatedArticleSlugs,
+            related_shop_slugs: [],
+            affiliate_link_ids: [],
+            agent_source: "grok-live-search",
+            agent_notes: `Real-time news from Grok web_search. Run type: ${runType}.`,
+            research_log: [{
+              source: "grok-live-search",
+              domain: liveItem.source || "api.x.ai",
+              query: "London news",
+              found_at: today.toISOString(),
+              relevance: 75,
+              template_used: false,
+            }],
+            updates_info_article: false,
+            affected_info_slugs: [],
+            published_at: today,
+          },
+        });
+
+        createdItems.push({
+          id: newsItem.id,
+          slug: newsItem.slug,
+          headline: newsItem.headline_en,
+          category: newsItem.news_category,
+        });
+        itemsPublished++;
+        if (!sourcesChecked.includes("Grok Live Search")) {
+          sourcesChecked.push("Grok Live Search");
+        }
+
+        console.log(`[london-news] Published (Grok live): "${liveItem.headline_en}" (${liveCategory}) [${slug}]`);
+      } catch (liveErr) {
+        const errMsg = liveErr instanceof Error ? liveErr.message : String(liveErr);
+        console.warn(`[london-news] Failed to create Grok live news item: ${errMsg}`);
+        errors.push(errMsg);
+        itemsSkipped++;
+      }
+    }
+
     // 8. Update research log with results
     const durationMs = Date.now() - startTime;
 
@@ -967,4 +1067,67 @@ function getSourceType(
   if (source.domain.includes("timeout") || source.domain.includes("londontheatre"))
     return "review_site";
   return "news";
+}
+
+// ---------------------------------------------------------------------------
+// Grok Live News — real-time news from trusted sources via web_search
+// ---------------------------------------------------------------------------
+
+interface GrokLiveNewsItem {
+  headline_en: string;
+  headline_ar: string;
+  summary_en: string;
+  summary_ar: string;
+  category: string;
+  urgency: string;
+  source: string;
+  ttl_days: number;
+}
+
+/**
+ * Fetch real-time London news via Grok's web_search tool.
+ * Uses domain filtering to restrict results to TRUSTED_SOURCES.
+ * Returns empty array if XAI_API_KEY is not configured (graceful degradation).
+ */
+async function fetchLiveNewsViaGrok(
+  runType: string,
+): Promise<GrokLiveNewsItem[]> {
+  try {
+    const { isGrokSearchAvailable, searchCityNews } = await import(
+      "@/lib/ai/grok-live-search"
+    );
+    if (!isGrokSearchAvailable()) {
+      return [];
+    }
+
+    // Use the first 5 trusted domains for Grok web_search filtering
+    const trustedDomains = TRUSTED_SOURCES.map((s) => s.domain).slice(0, 5);
+
+    const result = await searchCityNews("London", trustedDomains);
+
+    // Parse JSON response
+    let jsonStr = result.content.trim();
+    if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
+    if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
+    if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
+    jsonStr = jsonStr.trim();
+
+    const parsed = JSON.parse(jsonStr);
+    if (!Array.isArray(parsed)) return [];
+
+    // Limit to 3 items max for daily, 5 for weekly_deep
+    const maxItems = runType === "weekly_deep" ? 5 : 3;
+
+    console.log(
+      `[london-news] Grok live search returned ${parsed.length} news items (using ${result.usage.totalTokens} tokens)`,
+    );
+
+    return parsed.slice(0, maxItems) as GrokLiveNewsItem[];
+  } catch (error) {
+    console.warn(
+      "[london-news] Grok live news fetch failed (non-fatal):",
+      error instanceof Error ? error.message : error,
+    );
+    return [];
+  }
 }

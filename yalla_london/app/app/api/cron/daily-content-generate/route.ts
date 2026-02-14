@@ -19,7 +19,8 @@ import { logCronExecution } from "@/lib/cron-logger";
  * - 1 Arabic article (SEO + AIO optimized)
  *
  * Loops through all active sites using config/sites.ts.
- * Uses the AI provider layer (Claude/OpenAI/Gemini) for real content generation.
+ * Uses the AI provider layer (Grok/Claude/OpenAI/Gemini) for real content generation.
+ * Grok (xAI) is preferred for EN content — cheapest ($0.20/$0.50/1M tokens), fastest, 2M context.
  */
 export async function GET(request: NextRequest) {
   // Verify cron secret for security
@@ -105,10 +106,10 @@ async function generateDailyContentAllSites() {
   const aiReady = await isAIAvailable();
   const hasAbacus = !!process.env.ABACUSAI_API_KEY;
   if (!aiReady && !hasAbacus) {
-    console.error("[daily-content-generate] No AI provider configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or ABACUSAI_API_KEY");
+    console.error("[daily-content-generate] No AI provider configured. Set XAI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or ABACUSAI_API_KEY");
     return {
       message: "No AI provider configured — content generation skipped",
-      error: "Set at least one AI API key: ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or ABACUSAI_API_KEY",
+      error: "Set at least one AI API key: XAI_API_KEY (Grok), ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or ABACUSAI_API_KEY",
       sites: {},
       timedOut: false,
       timestamp: new Date().toISOString(),

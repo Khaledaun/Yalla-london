@@ -83,13 +83,22 @@ export async function POST(request: NextRequest) {
 
     console.log(`🎯 Generating topics - reason: ${reason}`);
 
-    // Try Perplexity first, fall back to the AI provider layer (Claude/OpenAI/Gemini)
+    // Priority: Grok Live Search (real-time web + X data) → Perplexity → AI provider fallback
+    const grokAvailable = !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY);
     const pplxKey = process.env.PPLX_API_KEY || process.env.PERPLEXITY_API_KEY;
 
     let topicData: { topics: any[] };
     let arabicData: { topics: any[] } | null = null;
 
-    if (pplxKey) {
+    if (grokAvailable) {
+      console.log('[weekly-topics] Using Grok Live Search (web + X) for real-time topic research');
+      topicData = await generateTopicsViaGrok('London', 'en');
+      try {
+        arabicData = await generateTopicsViaGrok('London', 'ar');
+      } catch (e) {
+        console.warn('Arabic topic generation (Grok) failed:', e instanceof Error ? e.message : e);
+      }
+    } else if (pplxKey) {
       topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en');
       try {
         arabicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'ar');
@@ -97,7 +106,7 @@ export async function POST(request: NextRequest) {
         console.warn('Arabic topic generation failed:', e instanceof Error ? e.message : e);
       }
     } else {
-      console.log('[weekly-topics] Perplexity key not configured, using AI provider fallback');
+      console.log('[weekly-topics] No Grok/Perplexity key, using AI provider fallback');
       topicData = await generateTopicsViaAIProvider('weekly_mixed', 'en');
       try {
         arabicData = await generateTopicsViaAIProvider('weekly_mixed', 'ar');
@@ -299,5 +308,44 @@ Return a strict JSON array: [{title, slug, rationale, sources: ["domain.com"]}]`
   ]);
 
   const topics = Array.isArray(result) ? result.slice(0, 5) : [];
+  return { topics };
+}
+
+/**
+ * Generate topics via Grok Live Search (Responses API with web_search + x_search).
+ * Uses real-time web and X/Twitter data for the most up-to-date trending topics.
+ * This is the preferred method when XAI_API_KEY is configured.
+ */
+async function generateTopicsViaGrok(
+  destination: string,
+  locale: string,
+): Promise<{ topics: any[] }> {
+  const { searchTrendingTopics } = await import('@/lib/ai/grok-live-search');
+
+  const result = await Promise.race([
+    searchTrendingTopics(destination, locale),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Grok topic research timed out after 45s')), 45_000)
+    ),
+  ]);
+
+  // Parse the JSON response from Grok
+  let topics: any[] = [];
+  try {
+    let jsonStr = result.content.trim();
+    // Strip markdown code fences if present
+    if (jsonStr.startsWith('```json')) jsonStr = jsonStr.slice(7);
+    if (jsonStr.startsWith('```')) jsonStr = jsonStr.slice(3);
+    if (jsonStr.endsWith('```')) jsonStr = jsonStr.slice(0, -3);
+    jsonStr = jsonStr.trim();
+
+    const parsed = JSON.parse(jsonStr);
+    topics = Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+  } catch (parseErr) {
+    console.warn('[weekly-topics] Failed to parse Grok response as JSON:', parseErr instanceof Error ? parseErr.message : parseErr);
+    console.warn('[weekly-topics] Raw Grok response:', result.content.slice(0, 500));
+  }
+
+  console.log(`[weekly-topics] Grok returned ${topics.length} topics (${locale}) using ${result.usage.totalTokens} tokens`);
   return { topics };
 }

@@ -208,12 +208,11 @@ async function handleAffiliateInjection(request: NextRequest) {
 
     const duration = Date.now() - startTime;
 
-    await logCronExecution({
-      jobName: "affiliate-injection",
-      status: "success",
-      duration,
+    await logCronExecution("affiliate-injection", "completed", {
+      durationMs: duration,
       itemsProcessed: injected,
-      details: `Injected affiliates into ${injected}/${needsInjection.length} posts`,
+      itemsSucceeded: injected,
+      resultSummary: { postsChecked: posts.length, postsNeedingInjection: needsInjection.length },
     }).catch(() => {});
 
     return NextResponse.json({
@@ -227,11 +226,9 @@ async function handleAffiliateInjection(request: NextRequest) {
   } catch (error) {
     const duration = Date.now() - startTime;
 
-    await logCronExecution({
-      jobName: "affiliate-injection",
-      status: "error",
-      duration,
-      error: error instanceof Error ? error.message : "Unknown error",
+    await logCronExecution("affiliate-injection", "failed", {
+      durationMs: duration,
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
     }).catch(() => {});
 
     return NextResponse.json(

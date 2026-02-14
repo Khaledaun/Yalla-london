@@ -48,9 +48,10 @@ async function handleIndexing(request: NextRequest) {
       GoogleSearchConsoleAPI,
       getNewUrls,
     } = await import("@/lib/seo/indexing-service");
-    const { getAllSiteIds, getSiteConfig } = await import("@/config/sites");
+    const { getActiveSiteIds, getSiteConfig } = await import("@/config/sites");
 
-    const siteIds = getAllSiteIds();
+    // Only index sites with live websites
+    const siteIds = getActiveSiteIds();
     const results: Array<{
       siteId: string;
       urlsFound: number;

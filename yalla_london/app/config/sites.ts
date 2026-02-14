@@ -1150,9 +1150,30 @@ export const SITES: Record<string, SiteConfig> = {
   },
 };
 
-/** Get all active site IDs */
+/**
+ * Sites that have a live, deployed website.
+ * Other sites are defined in SITES but shouldn't consume AI tokens or cron time.
+ * Add site IDs here as their websites go live.
+ */
+const LIVE_SITES: string[] = ["yalla-london"];
+
+/** Get all configured site IDs (all 5, including non-live) */
 export function getAllSiteIds(): string[] {
   return Object.keys(SITES);
+}
+
+/**
+ * Get only site IDs with live, deployed websites.
+ * Use this in cron jobs, content generation, and indexing to avoid
+ * burning AI tokens and cron time on sites that don't exist yet.
+ */
+export function getActiveSiteIds(): string[] {
+  return LIVE_SITES.filter((id) => id in SITES);
+}
+
+/** Check if a site has a live website */
+export function isSiteLive(siteId: string): boolean {
+  return LIVE_SITES.includes(siteId);
 }
 
 /** Get site config by ID */

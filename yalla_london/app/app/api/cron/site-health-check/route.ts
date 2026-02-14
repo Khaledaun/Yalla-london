@@ -19,7 +19,7 @@ export const maxDuration = 60;
 
 import { withCronLog } from "@/lib/cron-logger";
 import { forEachSite } from "@/lib/resilience";
-import { getAllSiteIds, getSiteSeoConfig, getSiteSeoConfigFromVault } from "@/config/sites";
+import { getActiveSiteIds, getSiteSeoConfig, getSiteSeoConfigFromVault } from "@/config/sites";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -70,7 +70,8 @@ interface ScoreInputs {
 
 const handler = withCronLog("site-health-check", async (log) => {
   const { prisma } = await import("@/lib/db");
-  const siteIds = getAllSiteIds();
+  // Only check live sites
+  const siteIds = getActiveSiteIds();
 
   const loopResult = await forEachSite(siteIds, async (siteId) => {
     if (log.isExpired()) {

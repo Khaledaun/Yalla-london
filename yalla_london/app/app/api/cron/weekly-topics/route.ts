@@ -155,6 +155,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Persist generated topics as TopicProposal rows
+    // Assign to all active sites so content-builder can find them
+    const { getActiveSiteIds } = await import('@/config/sites');
+    const activeSiteIds = getActiveSiteIds();
+    const primarySiteId = activeSiteIds[0] || 'yalla-london';
+
     const allTopics = [
       ...(topicData?.topics || []).map((t: any) => ({ ...t, locale: 'en' })),
       ...(arabicData?.topics || []).map((t: any) => ({ ...t, locale: 'ar' })),
@@ -179,17 +184,18 @@ export async function POST(request: NextRequest) {
         await prisma.topicProposal.create({
           data: {
             title: t.title || keyword,
-            description: t.rationale || '',
             primary_keyword: keyword,
             longtails: [],
             questions: [],
+            intent: 'info',
             suggested_page_type: 'guide',
             locale: t.locale,
+            site_id: primarySiteId,
             status: 'ready',
             confidence_score: 0.7,
-            source: 'weekly-topics-cron',
             evergreen: false,
-            authority_links_json: { sources: t.sources || [] },
+            source_weights_json: { source: 'weekly-topics-cron' },
+            authority_links_json: { rationale: t.rationale || '', sources: t.sources || [] },
           },
         });
         savedCount++;

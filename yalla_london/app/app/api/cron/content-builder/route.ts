@@ -154,10 +154,14 @@ async function handleContentBuilder(request: NextRequest) {
       let locale = "en";
 
       try {
+        // Accept topics assigned to this site OR orphaned topics (site_id is null)
         const topic = await prisma.topicProposal.findFirst({
           where: {
             status: { in: ["ready", "queued", "planned", "proposed"] },
-            site_id: siteId,
+            OR: [
+              { site_id: siteId },
+              { site_id: null },
+            ],
           },
           orderBy: [
             { confidence_score: "desc" },

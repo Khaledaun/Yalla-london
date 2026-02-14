@@ -4,7 +4,7 @@ export const maxDuration = 300;
 import { NextRequest, NextResponse } from "next/server";
 import {
   SITES,
-  getAllSiteIds,
+  getActiveSiteIds,
   getSiteConfig,
   getSiteDomain,
 } from "@/config/sites";
@@ -56,7 +56,8 @@ export async function GET(request: NextRequest) {
         status: "healthy",
         endpoint: "daily-content-generate",
         lastRun,
-        sites: getAllSiteIds().length,
+        sites: getActiveSiteIds().length,
+        activeSites: getActiveSiteIds(),
         timestamp: new Date().toISOString(),
       });
     } catch {
@@ -98,7 +99,8 @@ async function generateDailyContentAllSites() {
   const { prisma } = await import("@/lib/db");
   const { createDeadline } = await import("@/lib/resilience");
   const { isAIAvailable } = await import("@/lib/ai/provider");
-  const siteIds = getAllSiteIds();
+  // Only process sites with live websites to save AI tokens and time
+  const siteIds = getActiveSiteIds();
   const allResults: Record<string, any> = {};
   const deadline = createDeadline(10_000, 300_000); // 300s maxDuration, 10s margin → 290s budget
 

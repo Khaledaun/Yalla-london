@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   if (request.nextUrl.searchParams.get("healthcheck") === "true") {
     try {
       const { prisma } = await import("@/lib/db");
-      const { getAllSiteIds } = await import("@/config/sites");
+      const { getActiveSiteIds } = await import("@/config/sites");
       let lastRun = null;
       try {
         lastRun = await prisma.cronJobLog.findFirst({
@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
         status: "healthy",
         endpoint: "seo-agent",
         lastRun,
-        sites: getAllSiteIds().length,
+        sites: getActiveSiteIds().length,
+        activeSites: getActiveSiteIds(),
         timestamp: new Date().toISOString(),
       });
     } catch {
@@ -66,10 +67,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const { prisma } = await import("@/lib/db");
-    const { getAllSiteIds, getSiteDomain } = await import("@/config/sites");
+    const { getActiveSiteIds, getSiteDomain } = await import("@/config/sites");
     const { forEachSite } = await import("@/lib/resilience");
 
-    const siteIds = getAllSiteIds();
+    // Only process live sites
+    const siteIds = getActiveSiteIds();
 
     // Use forEachSite for timeout-aware per-site iteration
     const loopResult = await forEachSite(

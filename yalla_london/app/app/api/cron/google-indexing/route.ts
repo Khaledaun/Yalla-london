@@ -48,9 +48,10 @@ async function handleIndexing(request: NextRequest) {
       GoogleSearchConsoleAPI,
       getNewUrls,
     } = await import("@/lib/seo/indexing-service");
-    const { getAllSiteIds, getSiteConfig } = await import("@/config/sites");
+    const { getActiveSiteIds, getSiteConfig } = await import("@/config/sites");
 
-    const siteIds = getAllSiteIds();
+    // Only index sites with live websites
+    const siteIds = getActiveSiteIds();
     const results: Array<{
       siteId: string;
       urlsFound: number;
@@ -207,12 +208,64 @@ async function handleIndexing(request: NextRequest) {
       },
     });
 
+    // 4. Query current indexing status summary from URLIndexingStatus table
+    let indexingStatusSummary: Record<string, unknown> | null = null;
+    try {
+      const allStatuses = await prisma.uRLIndexingStatus.findMany({
+        select: {
+          url: true,
+          slug: true,
+          status: true,
+          site_id: true,
+          submitted_indexnow: true,
+          last_submitted_at: true,
+          last_checked_at: true,
+          coverage_state: true,
+          indexing_state: true,
+          error_message: true,
+        },
+        orderBy: { last_submitted_at: "desc" },
+        take: 50,
+      });
+
+      const statusCounts: Record<string, number> = {};
+      for (const s of allStatuses) {
+        const state = s.status || "unknown";
+        statusCounts[state] = (statusCounts[state] || 0) + 1;
+      }
+
+      indexingStatusSummary = {
+        totalTracked: allStatuses.length,
+        byStatus: statusCounts,
+        recentUrls: allStatuses.slice(0, 15).map((s) => ({
+          url: s.url,
+          slug: s.slug,
+          status: s.status,
+          siteId: s.site_id,
+          submittedViaIndexNow: s.submitted_indexnow,
+          lastSubmitted: s.last_submitted_at,
+          lastChecked: s.last_checked_at,
+          coverageState: s.coverage_state,
+          indexingState: s.indexing_state,
+          error: s.error_message,
+        })),
+      };
+    } catch {
+      // Table may not exist yet
+    }
+
     return NextResponse.json({
       success: true,
       durationMs: Date.now() - _cronStart,
       totalUrlsSubmitted,
       totalErrors,
+      hasIndexNowKey: !!process.env.INDEXNOW_KEY,
+      hasGscCredentials: !!(
+        process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
+        process.env.GSC_CLIENT_EMAIL
+      ),
       results,
+      indexingStatus: indexingStatusSummary,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

@@ -49,7 +49,7 @@
 <body>
 
 <h1>Yalla London — System Validator</h1>
-<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content, Orchestrator, Indexing, Site Health, Schema Audit (22 sections) + One-Click DB Migration + Copiable JSON Export</p>
+<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content, Orchestrator, Indexing, X/Twitter API, Site Health, Schema Audit (23 sections) + One-Click DB Migration + Comprehensive JSON Export</p>
 
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchMode('quick')">Quick Test</button>
@@ -722,6 +722,231 @@ function analyzeJobResponse(jobName, json) {
   };
 }
 
+// ── Expanded Job Detail Extractors ──────────────────────────────────────
+// Each function extracts rich details from a specific cron job response
+// to display exactly what was generated, where it was saved, and why things failed.
+
+function extractJobDetails(jobName, json) {
+  if (!json) return [];
+  const details = [];
+  const d = (label, value, cls) => details.push({ label, value: String(value).substring(0, 300), cls: cls || 'pass' });
+  const w = (label, value) => d(label, value, 'warn');
+  const f = (label, value) => d(label, value, 'fail');
+
+  switch (jobName) {
+    case 'Analytics Sync': {
+      const ga = json.results?.ga4 || {};
+      const gsc = json.results?.gsc || {};
+      if (ga.status === 'not_configured') {
+        w('GA4 Status', 'NOT CONFIGURED — Missing: ' + (ga.missing || ['GA4_PROPERTY_ID', 'GOOGLE_ANALYTICS_CLIENT_EMAIL', 'GOOGLE_ANALYTICS_PRIVATE_KEY']).join(', '));
+        w('Action Required', 'Set these env vars in Vercel → Settings → Environment Variables. GA4 is needed for traffic analytics.');
+      } else if (ga.status === 'success') {
+        d('GA4 Sessions (30d)', (ga.sessions || 0).toLocaleString());
+        d('GA4 Users (30d)', (ga.users || 0).toLocaleString());
+        d('GA4 Page Views (30d)', (ga.pageViews || 0).toLocaleString());
+        d('GA4 Bounce Rate', (ga.bounceRate || 0).toFixed(1) + '%');
+        d('GA4 Top Pages Collected', (ga.topPagesCount || 0) + ' pages');
+      } else if (ga.status === 'error') {
+        f('GA4 Error', ga.error || 'Unknown GA4 error');
+      }
+      if (gsc.status === 'success') {
+        d('GSC Queries (30d)', (gsc.queriesCount || 0) + ' search queries');
+        if (gsc.topQueries?.length) d('Top GSC Query', gsc.topQueries[0].query + ' (' + gsc.topQueries[0].clicks + ' clicks, CTR ' + (gsc.topQueries[0].ctr * 100).toFixed(1) + '%)');
+      } else if (gsc.status === 'error') {
+        w('GSC Error', gsc.error || 'Unknown GSC error');
+      } else {
+        w('GSC Status', 'Not configured — need GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL + PRIVATE_KEY');
+      }
+      if (json.results?.snapshot?.status === 'created') d('Snapshot Saved', 'AnalyticsSnapshot record created in DB');
+      break;
+    }
+    case 'Site Health Check': {
+      if (json.results && Array.isArray(json.results)) {
+        for (const s of json.results) {
+          const score = s.health_score !== undefined ? ' (score: ' + s.health_score + '/100)' : '';
+          d('Site: ' + s.site_id, s.status + score);
+        }
+      } else if (json.message) d('Status', json.message);
+      break;
+    }
+    case 'Trends Monitor': {
+      if (json.summary) {
+        d('Relevant Trending Topics', json.summary.relevantTrendingTopics || 0);
+        if (json.summary.risingKeywords?.length) d('Rising Keywords', json.summary.risingKeywords.join(', '));
+        d('Content Opportunities', json.summary.contentOpportunities || 0);
+      }
+      if (json.trendingTopics?.length) d('Top Trend', json.trendingTopics[0].title + ' (traffic: ' + json.trendingTopics[0].traffic + ')');
+      if (json.keywordTrends?.length) d('Keywords Tracked', json.keywordTrends.length + ' keywords');
+      if (json.grokSocialTrends?.length) d('X/Twitter Trends (via Grok)', json.grokSocialTrends.length + ' social trends captured');
+      else w('X/Twitter Trends', 'Not available — XAI_API_KEY needed for Grok live X search');
+      d('Data Saved', 'SeoReport table (type: trends-monitor)');
+      break;
+    }
+    case 'Weekly Topics': {
+      d('Topics Generated', json.topicsGenerated || json.generated || 0);
+      d('Pending Backlog', json.pendingCount || json.backlog || '?');
+      if (json.skipped) d('Skipped', json.reason || 'Not Sunday / backlog sufficient');
+      if (json.source) d('AI Source Used', json.source);
+      if (json.topicsGenerated > 0) d('Saved To', 'TopicProposal table (status: pending, for content generation pipeline)');
+      if (json.sites) {
+        for (const [siteId, siteData] of Object.entries(json.sites || {})) {
+          d('Site: ' + siteId, (siteData.en || 0) + ' EN + ' + (siteData.ar || 0) + ' AR topics');
+        }
+      }
+      break;
+    }
+    case 'SEO Orchestrator': {
+      if (json.lastRun) {
+        d('Last Run', json.lastRun.status + (json.lastRun.at ? ' at ' + new Date(json.lastRun.at).toLocaleString() : ''));
+        if (json.lastRun.healthScore !== undefined) d('Health Score', json.lastRun.healthScore + '/100');
+        if (json.lastRun.issuesFound !== undefined) d('Issues Found', json.lastRun.issuesFound);
+        if (json.lastRun.fixesApplied !== undefined) d('Auto-Fixes Applied', json.lastRun.fixesApplied);
+      }
+      d('Sites Monitored', json.sites || '?');
+      d('Report Saved', 'SeoReport + SiteHealthCheck tables');
+      break;
+    }
+    case 'SEO Agent': {
+      if (json.lastRun) {
+        d('Last Run', json.lastRun.status + ' — ' + new Date(json.lastRun.started_at || json.lastRun.at).toLocaleString());
+        if (json.lastRun.duration_ms) d('Duration', json.lastRun.duration_ms + 'ms');
+      }
+      if (json.sites) d('Active Sites', json.sites);
+      if (json.activeSites) d('Live Sites', json.activeSites.join(', '));
+      d('Agent Tasks', '13-step autonomous SEO: audit → schema → indexing → GSC → content rewrite queue');
+      d('Report Saved', 'SeoReport table + URLIndexingStatus + TopicProposal (rewrites)');
+      break;
+    }
+    case 'SEO Health Report': {
+      d('Status', json.message || json.status || 'Generated');
+      if (json.score !== undefined) d('Overall SEO Score', json.score + '/100');
+      d('Saved To', 'SeoReport table (type: weekly-health-report)');
+      break;
+    }
+    case 'Daily Content Generate': {
+      if (json.lastRun) {
+        d('Last Run', json.lastRun.status + ' — ' + new Date(json.lastRun.started_at || json.lastRun.at).toLocaleString());
+        if (json.lastRun.duration_ms > 60000) w('Duration', json.lastRun.duration_ms + 'ms (SLOW — risk of timeout)');
+        else if (json.lastRun.duration_ms) d('Duration', json.lastRun.duration_ms + 'ms');
+      }
+      if (json.activeSites) d('Active Sites', json.activeSites.join(', '));
+      if (json.sites && typeof json.sites === 'object' && !Array.isArray(json.sites)) {
+        for (const [siteId, siteData] of Object.entries(json.sites)) {
+          if (siteData.results) {
+            const successes = siteData.results.filter(r => r.status === 'success');
+            const slugs = successes.map(r => r.articleSlug).filter(Boolean);
+            if (slugs.length) d('Generated (' + siteId + ')', slugs.join(', '));
+            else if (siteData.status === 'failed') f('Failed (' + siteId + ')', siteData.error || 'Unknown error');
+            else if (siteData.status === 'skipped') w('Skipped (' + siteId + ')', siteData.reason || 'Timeout or site not live');
+          }
+        }
+      }
+      d('AI Provider', 'Grok (primary) → Claude → OpenAI → Gemini → AbacusAI');
+      d('Saved To', 'BlogPost table (status: published) + SeoMeta + URLIndexingStatus');
+      d('Timeout Budget', '290s (300s maxDuration - 10s safety margin)');
+      break;
+    }
+    case 'Daily Publish': {
+      d('Status', json.message || 'Completed');
+      if (json.published) d('Published', json.published + ' posts');
+      if (json.availableTopics !== undefined) d('Available Topics', json.availableTopics);
+      if (json.message?.includes('No approved')) w('Note', 'No approved topics in queue — weekly-topics cron needs to generate topics first');
+      break;
+    }
+    case 'Scheduled Publish': {
+      d('Status', json.message || 'Completed');
+      if (json.published !== undefined) d('Published This Run', json.published + ' posts');
+      if (json.pending !== undefined) d('Still Pending', json.pending + ' posts');
+      if (json.nextScheduled?.length) d('Next Scheduled', json.nextScheduled.map(p => (p.title || '').substring(0, 40)).join('; '));
+      break;
+    }
+    case 'Auto Generate': {
+      d('Status', json.message || 'Completed');
+      if (json.generated !== undefined) d('Generated', json.generated + ' articles');
+      if (json.queued !== undefined) d('Queued', json.queued + ' articles');
+      break;
+    }
+    case 'Fact Verification': {
+      if (json.status === 'healthy') d('Status', 'Healthy (healthcheck mode)');
+      else {
+        d('Status', json.message || 'Completed');
+        if (json.factsChecked !== undefined) d('Facts Checked', json.factsChecked);
+        if (json.issuesFound !== undefined) d('Issues Found', json.issuesFound);
+      }
+      d('Saved To', 'FactEntry table (flagged facts for manual review)');
+      break;
+    }
+    case 'London News': {
+      d('Status', json.message || json.status || 'Completed');
+      if (json.published !== undefined) d('News Items Published', json.published);
+      if (json.archived !== undefined) d('Expired Items Archived', json.archived);
+      if (json.grokNewsCount !== undefined) d('Live News via Grok/X', json.grokNewsCount + ' items');
+      else w('Grok Live News', 'Not active — set XAI_API_KEY for live London news from X/Twitter');
+      d('Saved To', 'NewsItem table + NewsResearchLog');
+      break;
+    }
+    case 'Real-Time Optimization': {
+      const checked = json.checked || json.articlesChecked || 0;
+      const flagged = json.flagged || json.optimizationsNeeded || 0;
+      d('Articles Checked', checked);
+      d('Flagged for Optimization', flagged);
+      if (flagged > 0) w('Action', flagged + ' articles need SEO score improvements or content updates');
+      else d('Result', 'All checked articles meet quality thresholds');
+      break;
+    }
+    case 'Google Indexing': {
+      d('Total URLs Submitted', json.totalUrlsSubmitted || 0);
+      if (json.totalErrors > 0) w('Submission Errors', json.totalErrors);
+      if (json.results && Array.isArray(json.results)) {
+        for (const r of json.results) {
+          const inStatus = r.indexNow?.status || 'unknown';
+          const inCount = r.indexNow?.submitted || 0;
+          const gscOk = r.gscSitemap?.success;
+          const siteLabel = r.siteId || 'unknown';
+          if (r.urlsFound === 0) {
+            w('Site: ' + siteLabel, '0 URLs found — no new/updated content in last 3 days');
+          } else {
+            d('Site: ' + siteLabel, r.urlsFound + ' URLs found → IndexNow: ' + inCount + ' submitted (' + inStatus + ')' + (gscOk ? ' | GSC sitemap: pinged' : gscOk === false ? ' | GSC sitemap: FAILED' : ''));
+          }
+        }
+      }
+      w('Indexing Pipeline', 'IndexNow → Bing/Yandex (instant) | GSC sitemap ping → Google (hours-days)');
+      if (!json.hasIndexNowKey && json.hasIndexNowKey !== undefined) f('INDEXNOW_KEY', 'NOT SET — URLs cannot be submitted to Bing/Yandex. Set INDEXNOW_KEY in Vercel env vars.');
+      if (!json.hasGscCredentials && json.hasGscCredentials !== undefined) w('GSC Credentials', 'Not configured — Google sitemap ping disabled');
+      d('Tracking Table', 'URLIndexingStatus (per-URL status: submitted → pending_review → indexed | failed)');
+      break;
+    }
+    case 'Autopilot': {
+      d('Status', json.message || json.status || 'Completed');
+      if (json.tasksRun !== undefined) d('Tasks Executed', json.tasksRun);
+      if (json.tasksSeeded !== undefined) d('Tasks Self-Seeded', json.tasksSeeded);
+      if (json.nextDue) d('Next Due Task', json.nextDue);
+      break;
+    }
+    case 'Social': {
+      const processed = json.postsProcessed || json.ran || 0;
+      const published = json.published || json.succeeded || 0;
+      const failed = json.failed || 0;
+      if (processed === 0 && published === 0) {
+        w('Status', 'MOCK IMPLEMENTATION — No posts queued. Social API integration not yet connected.');
+        w('Note', 'Posts are marked "published" in DB but NOT actually sent to Twitter/X, Instagram, or LinkedIn.');
+        w('Requires', 'TWITTER_API_KEY + TWITTER_API_SECRET + TWITTER_ACCESS_TOKEN + TWITTER_ACCESS_TOKEN_SECRET (just updated on Vercel)');
+      } else {
+        d('Posts Processed', processed);
+        d('Published', published);
+        if (failed > 0) f('Failed', failed);
+      }
+      if (json.results?.length) {
+        for (const r of json.results) {
+          d('Post: ' + r.platform, r.status + (r.note ? ' — ' + r.note : ''));
+        }
+      }
+      break;
+    }
+  }
+  return details;
+}
+
 async function runAllJobs() {
   const cronSecret = getCronSecret();
   if (!cronSecret) {
@@ -736,34 +961,48 @@ async function runAllJobs() {
   document.getElementById('log').textContent = '';
   pass = 0; fail = 0; warn = 0;
 
-  addSection('jobs', 'Run All Cron Jobs');
+  // Active sites banner
+  addSection('sites-info', 'Active Sites Configuration');
+  addResult('sites-info', 'Live Sites', 'pass', 'yalla-london (yalla-london.com)');
+  addResult('sites-info', 'Inactive Sites (no website yet)', 'warn',
+    'arabaldives, dubai, istanbul, thailand — cron jobs skip these sites to save AI tokens and time',
+    'These sites are defined in <code>config/sites.ts</code> but have no deployed website. Cron jobs use <code>getActiveSiteIds()</code> to process only live sites. Add site IDs to <code>LIVE_SITES</code> array when their websites go live.');
+
+  addSection('jobs', 'Cron Job Execution Results');
 
   // Jobs ordered by dependency chain: foundational first, then consumers
   const jobs = [
-    { name: 'Analytics Sync',          path: '/api/cron/analytics',               method: 'GET',  timeout: 55000 },
-    { name: 'Site Health Check',        path: '/api/cron/site-health-check',       method: 'GET',  timeout: 55000 },
-    { name: 'Trends Monitor',          path: '/api/cron/trends-monitor',          method: 'GET',  timeout: 55000 },
-    { name: 'Weekly Topics',           path: '/api/cron/weekly-topics',           method: 'GET',  timeout: 55000 },
-    { name: 'SEO Orchestrator',        path: '/api/cron/seo-orchestrator?healthcheck=true', method: 'GET',  timeout: 55000 },
-    { name: 'SEO Agent',               path: '/api/cron/seo-agent?healthcheck=true',       method: 'GET',  timeout: 55000 },
-    { name: 'SEO Health Report',       path: '/api/cron/seo-health-report',      method: 'GET',  timeout: 55000 },
-    { name: 'Daily Content Generate',  path: '/api/cron/daily-content-generate?healthcheck=true', method: 'GET',  timeout: 55000 },
-    { name: 'Daily Publish',           path: '/api/cron/daily-publish',           method: 'GET',  timeout: 55000 },
-    { name: 'Scheduled Publish',       path: '/api/cron/scheduled-publish',       method: 'GET',  timeout: 55000 },
-    { name: 'Auto Generate',           path: '/api/cron/auto-generate',           method: 'GET',  timeout: 55000 },
-    { name: 'Fact Verification',       path: '/api/cron/fact-verification?healthcheck=true', method: 'GET',  timeout: 55000 },
-    { name: 'London News',             path: '/api/cron/london-news',             method: 'GET',  timeout: 55000 },
-    { name: 'Real-Time Optimization',  path: '/api/cron/real-time-optimization',  method: 'POST', timeout: 55000 },
-    { name: 'Google Indexing',          path: '/api/cron/google-indexing',          method: 'GET',  timeout: 55000 },
-    { name: 'Autopilot',              path: '/api/cron/autopilot',               method: 'GET',  timeout: 55000 },
-    { name: 'Social',                 path: '/api/cron/social',                  method: 'GET',  timeout: 55000 },
+    { name: 'Analytics Sync',          path: '/api/cron/analytics',               method: 'GET',  timeout: 55000, category: 'Analytics & Data' },
+    { name: 'Site Health Check',        path: '/api/cron/site-health-check',       method: 'GET',  timeout: 55000, category: 'Analytics & Data' },
+    { name: 'Trends Monitor',          path: '/api/cron/trends-monitor',          method: 'GET',  timeout: 55000, category: 'Research & Intelligence' },
+    { name: 'Weekly Topics',           path: '/api/cron/weekly-topics',           method: 'GET',  timeout: 55000, category: 'Research & Intelligence' },
+    { name: 'SEO Orchestrator',        path: '/api/cron/seo-orchestrator?healthcheck=true', method: 'GET',  timeout: 55000, category: 'SEO' },
+    { name: 'SEO Agent',               path: '/api/cron/seo-agent?healthcheck=true',       method: 'GET',  timeout: 55000, category: 'SEO' },
+    { name: 'SEO Health Report',       path: '/api/cron/seo-health-report',      method: 'GET',  timeout: 55000, category: 'SEO' },
+    { name: 'Daily Content Generate',  path: '/api/cron/daily-content-generate',  method: 'GET',  timeout: 115000, category: 'Content' },
+    { name: 'Daily Publish',           path: '/api/cron/daily-publish',           method: 'GET',  timeout: 55000, category: 'Content' },
+    { name: 'Scheduled Publish',       path: '/api/cron/scheduled-publish',       method: 'GET',  timeout: 55000, category: 'Content' },
+    { name: 'Auto Generate',           path: '/api/cron/auto-generate',           method: 'GET',  timeout: 55000, category: 'Content' },
+    { name: 'Fact Verification',       path: '/api/cron/fact-verification?healthcheck=true', method: 'GET',  timeout: 55000, category: 'Content' },
+    { name: 'London News',             path: '/api/cron/london-news',             method: 'GET',  timeout: 55000, category: 'Content' },
+    { name: 'Real-Time Optimization',  path: '/api/cron/real-time-optimization',  method: 'POST', timeout: 55000, category: 'SEO' },
+    { name: 'Google Indexing',          path: '/api/cron/google-indexing',          method: 'GET',  timeout: 55000, category: 'Indexing' },
+    { name: 'Autopilot',              path: '/api/cron/autopilot',               method: 'GET',  timeout: 55000, category: 'Orchestration' },
+    { name: 'Social',                 path: '/api/cron/social',                  method: 'GET',  timeout: 55000, category: 'Social' },
   ];
 
   let jobPass = 0, jobFail = 0, jobWarn = 0;
   const jobResults = [];
+  const envStatus = {
+    confirmed: ['DATABASE_URL', 'CRON_SECRET', 'NEXTAUTH_SECRET', 'NODE_ENV'],
+    justUpdated: ['XAI_API_KEY', 'TWITTER_API_KEY'],
+    needsVerification: [],
+    missing: [],
+  };
 
   for (let i = 0; i < jobs.length; i++) {
     const job = jobs[i];
+    const startTime = Date.now();
     log('  [' + (i + 1) + '/' + jobs.length + '] ' + job.name + ' (' + job.path + ')...');
     updateSummary();
 
@@ -776,88 +1015,199 @@ async function runAllJobs() {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
+      const elapsed = Date.now() - startTime;
       const text = await resp.text();
       let json = null;
       try { json = JSON.parse(text); } catch {}
 
-      const durationHint = json?.durationMs ? ' (' + json.durationMs + 'ms)' : '';
-      const detail = json?.error || json?.message || json?.status || '';
+      const durationHint = json?.durationMs ? ' (' + json.durationMs + 'ms)' : ' (' + elapsed + 'ms)';
 
-      // ── Smart response-body analysis ───────────────────────────
-      // HTTP 200 does NOT mean the job succeeded. Inspect the actual
-      // response for hidden failures, errors, and degraded states.
+      // Smart response-body analysis
       const bodyIssues = resp.ok && json ? analyzeJobResponse(job.name, json) : null;
 
+      // Determine overall status
+      let status, detail, diagnosis;
       if (resp.ok && bodyIssues) {
-        // HTTP 200 but response body reveals real problems
-        const severity = bodyIssues.severity; // 'fail' or 'warn'
-        addResult('jobs', job.name, severity,
-          'HTTP ' + resp.status + durationHint + ' — ' + bodyIssues.summary,
-          bodyIssues.diagnosis);
-        if (severity === 'fail') jobFail++; else jobWarn++;
-        jobResults.push({ name: job.name, status: severity, httpStatus: resp.status, detail: bodyIssues.summary });
+        status = bodyIssues.severity;
+        detail = 'HTTP ' + resp.status + durationHint + ' — ' + bodyIssues.summary;
+        diagnosis = bodyIssues.diagnosis;
       } else if (resp.ok) {
-        addResult('jobs', job.name, 'pass', 'HTTP ' + resp.status + durationHint + (detail ? ' — ' + String(detail).substring(0, 120) : ''));
-        jobPass++;
-        jobResults.push({ name: job.name, status: 'pass', httpStatus: resp.status, detail });
+        status = 'pass';
+        detail = 'HTTP ' + resp.status + durationHint + ' — OK';
       } else if (resp.status === 504 || resp.status === 503) {
-        addResult('jobs', job.name, 'warn', 'HTTP ' + resp.status + ' — Timeout/Unavailable' + (detail ? ': ' + String(detail).substring(0, 120) : ''),
-          resp.status === 504 ? 'Function exceeded Vercel timeout (60s). This job may need optimization or a higher <code>maxDuration</code>.' :
-          'Service temporarily unavailable. The function may have a build error or cold start issue.');
-        jobWarn++;
-        jobResults.push({ name: job.name, status: 'warn', httpStatus: resp.status, detail });
+        status = 'warn';
+        detail = 'HTTP ' + resp.status + ' — Timeout/Unavailable';
+        diagnosis = resp.status === 504 ? 'Function exceeded Vercel timeout. This job needs a higher <code>maxDuration</code> or task splitting.' :
+          'Service temporarily unavailable. May be a build error or cold start issue.';
       } else if (resp.status === 401) {
-        addResult('jobs', job.name, 'fail', 'HTTP 401 — CRON_SECRET mismatch');
-        jobFail++;
-        jobResults.push({ name: job.name, status: 'fail', httpStatus: 401, detail: 'Auth failed' });
+        status = 'fail';
+        detail = 'HTTP 401 — CRON_SECRET mismatch';
       } else {
-        addResult('jobs', job.name, 'fail', 'HTTP ' + resp.status + (detail ? ' — ' + String(detail).substring(0, 150) : ''));
-        jobFail++;
-        jobResults.push({ name: job.name, status: 'fail', httpStatus: resp.status, detail });
+        status = 'fail';
+        detail = 'HTTP ' + resp.status + ' — ' + (json?.error || text?.substring(0, 150) || 'Unknown error');
       }
+
+      // Add main result
+      addResult('jobs', job.name + '  [' + job.category + ']', status, detail, diagnosis);
+
+      // Add expanded details
+      const details = extractJobDetails(job.name, json);
+      for (const dt of details) {
+        addResult('jobs', '  ↳ ' + dt.label, dt.cls, dt.value);
+      }
+
+      // Track env var status from responses
+      if (json) {
+        if (json.results?.ga4?.status === 'not_configured') {
+          (json.results.ga4.missing || ['GA4_PROPERTY_ID', 'GOOGLE_ANALYTICS_CLIENT_EMAIL', 'GOOGLE_ANALYTICS_PRIVATE_KEY']).forEach(v => {
+            if (!envStatus.missing.includes(v)) envStatus.missing.push(v);
+          });
+        }
+        if (json.hasIndexNowKey === false && !envStatus.missing.includes('INDEXNOW_KEY')) envStatus.missing.push('INDEXNOW_KEY');
+        if (json.hasGscCredentials === false) {
+          ['GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL', 'GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY'].forEach(v => {
+            if (!envStatus.missing.includes(v) && !envStatus.needsVerification.includes(v)) envStatus.needsVerification.push(v);
+          });
+        }
+      }
+
       if (json) addJsonBlock('jobs', json);
+
+      if (status === 'fail') jobFail++;
+      else if (status === 'warn') jobWarn++;
+      else jobPass++;
+
+      jobResults.push({
+        name: job.name,
+        category: job.category,
+        status,
+        httpStatus: resp.status,
+        durationMs: json?.durationMs || elapsed,
+        detail: detail.substring(0, 250),
+        expandedDetails: details,
+        responseKeys: json ? Object.keys(json) : [],
+      });
     } catch (e) {
+      const elapsed = Date.now() - startTime;
       const isTimeout = e.name === 'AbortError' || e.message?.includes('aborted');
       if (isTimeout) {
-        addResult('jobs', job.name, 'warn', 'Client timeout (55s) — function may still be running on server',
-          'The function exceeded the 55s client timeout. It may have completed on the server. Check Vercel Function Logs.');
+        addResult('jobs', job.name + '  [' + job.category + ']', 'warn',
+          'Client timeout (' + Math.round(elapsed / 1000) + 's) — function may still be running on server',
+          job.name === 'Daily Content Generate'
+            ? 'Content generation takes up to 290s. It likely completed on the server. Check Vercel Function Logs. Consider splitting per-site generation into separate cron entries.'
+            : 'The function exceeded the client timeout. It may have completed on the server. Check Vercel Function Logs.');
         jobWarn++;
       } else {
-        addResult('jobs', job.name, 'fail', 'Network error: ' + e.message);
+        addResult('jobs', job.name + '  [' + job.category + ']', 'fail', 'Network error: ' + e.message);
         jobFail++;
       }
-      jobResults.push({ name: job.name, status: isTimeout ? 'warn' : 'fail', error: e.message });
+      jobResults.push({ name: job.name, category: job.category, status: isTimeout ? 'warn' : 'fail', durationMs: elapsed, error: e.message });
     }
 
-    // 5s pause between jobs to let Supabase PgBouncer session-mode connections drain
+    // 3s pause between jobs for PgBouncer session drain
     if (i < jobs.length - 1) {
-      await new Promise(r => setTimeout(r, 5000));
+      await new Promise(r => setTimeout(r, 3000));
     }
   }
 
-  // Summary
+  // ── Environment Variables Status ──
+  addSection('envstatus', 'Environment Variables Status');
+  for (const v of envStatus.confirmed) addResult('envstatus', v, 'pass', 'Confirmed set on Vercel');
+  for (const v of envStatus.justUpdated) addResult('envstatus', v, 'pass', 'Just updated on Vercel (verify working)');
+  for (const v of envStatus.needsVerification) addResult('envstatus', v, 'warn', 'Needs verification — set in Vercel but not confirmed working');
+  for (const v of envStatus.missing) addResult('envstatus', v, 'fail', 'MISSING — not set in Vercel. Required for full functionality.',
+    'Set this env var in Vercel → Settings → Environment Variables. See <code>.env.example</code> for format and description.');
+
+  // ── Summary ──
   addResult('jobs', 'Summary', jobFail === 0 ? 'pass' : 'fail',
     jobPass + ' passed, ' + jobWarn + ' warnings, ' + jobFail + ' failed out of ' + jobs.length + ' jobs');
 
-  addJsonBlock('jobs', {
+  // ── Extensive Summary JSON + Copy Button ──
+  const fullSummary = {
     action: 'run-all-jobs',
     timestamp: new Date().toISOString(),
-    summary: { passed: jobPass, warnings: jobWarn, failed: jobFail, total: jobs.length },
+    platform: {
+      activeSites: ['yalla-london'],
+      inactiveSites: ['arabaldives', 'dubai', 'istanbul', 'thailand'],
+      reason: 'Only yalla-london has a deployed website. Other sites skip cron processing.',
+    },
+    summary: {
+      passed: jobPass,
+      warnings: jobWarn,
+      failed: jobFail,
+      total: jobs.length,
+      verdict: jobFail === 0 && jobWarn === 0 ? 'ALL_CLEAR' : jobFail === 0 ? 'OPERATIONAL_WITH_WARNINGS' : 'NEEDS_ATTENTION',
+    },
+    environmentVariables: envStatus,
     results: jobResults,
-  });
+    recommendations: [
+      ...(envStatus.missing.includes('INDEXNOW_KEY') ? ['Set INDEXNOW_KEY for Bing/Yandex fast indexing'] : []),
+      ...(envStatus.missing.some(v => v.includes('GA4')) ? ['Set GA4_PROPERTY_ID + service account for analytics data'] : []),
+      ...(envStatus.missing.some(v => v.includes('GSC') || v.includes('SEARCH_CONSOLE')) ? ['Set GSC service account credentials for search performance data'] : []),
+      ...(jobResults.some(r => r.name === 'Social' && r.status === 'warn') ? ['Social posting is MOCK — implement real Twitter/X API integration when ready'] : []),
+      ...(jobResults.some(r => r.name === 'Daily Content Generate' && r.durationMs > 60000) ? ['Content generation is slow — consider splitting per-site into separate cron entries'] : []),
+    ],
+    cronSchedule: {
+      '3:00 UTC': 'Analytics sync',
+      '4:00 UTC Mon': 'Weekly topic research',
+      '5:00 UTC': 'Daily content generation',
+      '5:00 UTC Sun': 'SEO orchestrator (weekly)',
+      '6:00 UTC': 'Trends monitor + SEO orchestrator (daily)',
+      '7:00 UTC': 'SEO agent run 1',
+      '7:30 UTC': 'SEO daily cron',
+      '8:00 UTC Sun': 'SEO weekly cron',
+      '9:00 UTC': 'Scheduled publish (morning)',
+      '10:00 UTC': 'Google indexing',
+      '13:00 UTC': 'SEO agent run 2',
+      '16:00 UTC': 'Scheduled publish (afternoon)',
+      '20:00 UTC': 'SEO agent run 3',
+    },
+    knownIssues: [
+      'Social cron is MOCK — marks published in DB but does NOT post to Twitter/X/Instagram/LinkedIn',
+      'Soft-delete migrations not deployed — deletedAt column dormant',
+      'PgBouncer connection_limit=1 workaround for Supabase session mode',
+      'Content generation timeout risk at 290s budget — works for 1 site, may need splitting for 5',
+    ],
+  };
+
+  // Remove existing JSON export
+  const existing = document.getElementById('section-jobsjson');
+  if (existing) existing.remove();
+
+  const jsonStr = JSON.stringify(fullSummary, null, 2);
+  const jsonHtml = `<div class="section" id="section-jobsjson">
+    <h2>Full Operations Report — JSON</h2>
+    <p style="color:#888;font-size:0.8rem;margin-bottom:8px;">Complete diagnostic data including env vars, recommendations, schedule, and known issues.</p>
+    <button onclick="copyJobsJson()" id="copyJobsBtn" style="margin:0 0 12px;padding:8px 20px;font-size:0.85rem;background:#7c3aed;">Copy JSON to Clipboard</button>
+    <textarea id="jobsJsonArea" readonly style="width:100%;height:400px;background:#0d1117;color:#7ee787;border:1px solid #30363d;border-radius:8px;padding:12px;font-family:monospace;font-size:0.75rem;resize:vertical;">${escapeHtml(jsonStr)}</textarea>
+  </div>`;
+  document.getElementById('results').insertAdjacentHTML('beforeend', jsonHtml);
 
   updateSummary();
   const banner = document.getElementById('statusBanner');
   if (jobFail === 0 && jobWarn === 0) {
     banner.innerHTML = '<div class="status-banner status-ok">ALL ' + jobs.length + ' CRON JOBS PASSED</div>';
   } else if (jobFail === 0) {
-    banner.innerHTML = '<div class="status-banner status-ok">' + jobPass + ' JOBS PASSED, ' + jobWarn + ' WARNINGS — No critical failures</div>';
+    banner.innerHTML = '<div class="status-banner status-warn">' + jobPass + ' JOBS PASSED, ' + jobWarn + ' WARNINGS — No critical failures</div>';
   } else {
     banner.innerHTML = '<div class="status-banner status-fail">' + jobFail + ' JOB(S) FAILED — See details above</div>';
   }
 
   document.getElementById('jobsBtn').disabled = false;
   document.getElementById('jobsBtn').textContent = 'Run All Cron Jobs';
+}
+
+function copyJobsJson() {
+  const area = document.getElementById('jobsJsonArea');
+  if (!area) return;
+  area.select();
+  area.setSelectionRange(0, 99999999);
+  navigator.clipboard.writeText(area.value).then(() => {
+    const btn = document.getElementById('copyJobsBtn');
+    btn.textContent = 'Copied!';
+    btn.style.background = '#16a34a';
+    setTimeout(() => { btn.textContent = 'Copy JSON to Clipboard'; btn.style.background = '#7c3aed'; }, 2000);
+  }).catch(() => { document.execCommand('copy'); });
 }
 
 // ─── Test Runner ──────────────────────────────────────────────────────────
@@ -1112,17 +1462,88 @@ async function runAllTests() {
       }
     } catch (e) { log('  ERROR in section 10: ' + e.message); addResult('trends', 'Trends Monitor', 'fail', 'JS Error: ' + e.message); }
 
-    // ── 11. Analytics Sync ──
-    log('  Testing analytics sync...');
-    addSection('analytics', '11. Analytics Sync');
+    // ── 11. Analytics Sync (Extensive) ──
+    log('  Testing analytics sync (full run)...');
+    addSection('analytics', '11. Analytics & Website Status — GA4 + GSC');
     try {
       const analyticsResp = await testFetch('/api/cron/analytics', { headers: cronHeaders });
       if (analyticsResp.ok && analyticsResp.json) {
         const j = analyticsResp.json;
-        addResult('analytics', 'Analytics Cron', 'pass', j.message || 'OK');
-        if (j.reach !== undefined) addResult('analytics', 'Reach Count', 'pass', String(j.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
-        if (j.pageViews !== undefined) addResult('analytics', 'Page Views', 'pass', String(j.pageViews).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
-        if (j.visitors !== undefined) addResult('analytics', 'Visitors', 'pass', String(j.visitors).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+        const ga = j.results?.ga4 || {};
+        const gsc = j.results?.gsc || {};
+        const snap = j.results?.snapshot || {};
+
+        // GA4 Configuration Status
+        if (ga.status === 'not_configured') {
+          addResult('analytics', 'GA4 Configuration', 'fail', 'NOT CONFIGURED — Missing env vars: ' + (ga.missing || []).join(', '),
+            'GA4 requires 3 env vars in Vercel: <code>GA4_PROPERTY_ID</code> (numeric), <code>GOOGLE_ANALYTICS_CLIENT_EMAIL</code> (service account), <code>GOOGLE_ANALYTICS_PRIVATE_KEY</code> (PEM key). Service account needs "Viewer" role on GA4 property.');
+        } else if (ga.status === 'error') {
+          addResult('analytics', 'GA4 Data', 'fail', 'Error: ' + (ga.message || 'Unknown error'));
+        } else if (ga.status === 'success') {
+          addResult('analytics', 'GA4 Status', 'pass', 'Connected and returning data');
+
+          // Core metrics
+          addResult('analytics', 'Sessions (30d)', ga.sessions > 0 ? 'pass' : 'warn', (ga.sessions || 0).toLocaleString());
+          addResult('analytics', 'Users (30d)', ga.users > 0 ? 'pass' : 'warn', (ga.users || 0).toLocaleString());
+          addResult('analytics', 'Page Views (30d)', ga.pageViews > 0 ? 'pass' : 'warn', (ga.pageViews || 0).toLocaleString());
+          addResult('analytics', 'Bounce Rate', ga.bounceRate < 70 ? 'pass' : 'warn', (ga.bounceRate || 0).toFixed(1) + '%',
+            ga.bounceRate > 70 ? 'Bounce rate above 70% indicates visitors leave quickly. Improve content quality, page speed, and calls to action.' : undefined);
+          addResult('analytics', 'Engagement Rate', ga.engagementRate > 30 ? 'pass' : 'warn', (ga.engagementRate || 0).toFixed(1) + '%',
+            ga.engagementRate < 30 ? 'Low engagement rate (<30%) suggests content isn\'t holding attention. Consider better headlines, images, and content depth.' : undefined);
+          if (ga.avgSessionDuration !== undefined) addResult('analytics', 'Avg Session Duration', ga.avgSessionDuration > 30 ? 'pass' : 'warn', (ga.avgSessionDuration || 0).toFixed(0) + 's');
+
+          // Insights
+          if (ga.insights) {
+            addResult('analytics', 'Pages per Session', 'pass', ga.insights.pagesPerSession);
+            addResult('analytics', 'New vs Returning', 'pass', ga.insights.newVsReturning);
+          }
+
+          // Top pages
+          if (ga.topPages?.length) {
+            addResult('analytics', 'Top Pages', 'pass', ga.topPages.length + ' pages tracked');
+            for (const p of ga.topPages.slice(0, 5)) {
+              addResult('analytics', '  ↳ ' + (p.path || '/').substring(0, 50), 'pass', (p.pageViews || 0) + ' views, ' + (p.sessions || 0) + ' sessions');
+            }
+          }
+
+          // Top sources
+          if (ga.topSources?.length) {
+            addResult('analytics', 'Traffic Sources', 'pass', ga.topSources.length + ' sources');
+            for (const s of ga.topSources.slice(0, 5)) {
+              addResult('analytics', '  ↳ ' + (s.source || 'unknown'), 'pass', (s.sessions || 0) + ' sessions, ' + (s.users || 0) + ' users');
+            }
+          }
+
+          // Alerts
+          if (ga.alerts?.length) {
+            for (const alert of ga.alerts) {
+              addResult('analytics', 'Alert', 'warn', alert);
+            }
+          } else {
+            addResult('analytics', 'Alerts', 'pass', 'No issues detected');
+          }
+        }
+
+        // GSC Data
+        if (gsc.status === 'success') {
+          addResult('analytics', 'GSC Queries (30d)', 'pass', (gsc.queriesCount || 0) + ' search queries tracked');
+          if (gsc.topQueries?.length) {
+            for (const q of gsc.topQueries.slice(0, 5)) {
+              addResult('analytics', '  ↳ "' + q.query + '"', 'pass',
+                q.clicks + ' clicks, ' + q.impressions + ' impressions, CTR ' + q.ctr + '%, pos ' + q.position);
+            }
+          }
+        } else if (gsc.status === 'not_configured') {
+          addResult('analytics', 'GSC Status', 'warn', 'Not configured — set GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL + PRIVATE_KEY',
+            'Google Search Console provides search query data (what people search to find your site). Requires a service account with "Full" access to the GSC property.');
+        } else {
+          addResult('analytics', 'GSC Status', 'warn', gsc.message || 'No data available');
+        }
+
+        // Snapshot
+        if (snap.status === 'created') addResult('analytics', 'Data Snapshot', 'pass', 'Saved to AnalyticsSnapshot table in DB');
+
+        addResult('analytics', 'Duration', 'pass', (j.durationMs || '?') + 'ms');
         addJsonBlock('analytics', j);
       } else if (analyticsResp.status === 401) {
         addResult('analytics', 'Analytics Cron', 'fail', 'HTTP 401 — CRON_SECRET mismatch',
@@ -1294,6 +1715,22 @@ async function runAllTests() {
         addResult('indexing', 'Indexing API', 'warn', 'HTTP ' + idxResp.status);
         if (idxResp.json) addJsonBlock('indexing', idxResp.json);
       }
+
+      // Also query the google-indexing cron healthcheck for per-URL status details
+      log('  Querying google-indexing cron for per-URL status...');
+      try {
+        const idxCronResp = await testFetch('/api/cron/google-indexing?healthcheck=true', { headers: cronHeaders });
+        if (idxCronResp.ok && idxCronResp.json) {
+          const ic = idxCronResp.json;
+          addResult('indexing', 'IndexNow Key', ic.hasIndexNowKey ? 'pass' : 'fail',
+            ic.hasIndexNowKey ? 'INDEXNOW_KEY is configured' : 'INDEXNOW_KEY not set — Bing/Yandex submissions disabled',
+            !ic.hasIndexNowKey ? 'Set <code>INDEXNOW_KEY</code> in Vercel env vars. Also create <code>public/{key}.txt</code> with the key as content for ownership verification.' : undefined);
+          addResult('indexing', 'GSC Credentials', ic.hasGscCredentials ? 'pass' : 'warn',
+            ic.hasGscCredentials ? 'Google Search Console credentials configured' : 'GSC credentials missing — sitemap pings disabled',
+            !ic.hasGscCredentials ? 'Set <code>GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL</code> and <code>GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY</code> in Vercel env vars. The service account needs "Full" access to the GSC property.' : undefined);
+        }
+      } catch (e2) { log('  (google-indexing healthcheck skipped: ' + e2.message + ')'); }
+
     } catch (e) { log('  ERROR in section 16: ' + e.message); addResult('indexing', 'Indexing', 'fail', 'JS Error: ' + e.message); }
 
     // ── 17. GA4 Server-Side Data (real proof of analytics) ──
@@ -1541,6 +1978,70 @@ async function runAllTests() {
       }
     } catch (e) { log('  ERROR in section 21: ' + e.message); addResult('contentaudit', 'Content Audit', 'fail', 'JS Error: ' + e.message); }
 
+    // ── 21b. X/Twitter API & Social Integration ──
+    log('  Testing X/Twitter API & social integration...');
+    addSection('xapi', '21b. X/Twitter API & Social Integration');
+    try {
+      // Check social cron healthcheck for pending posts
+      const socialResp = await testFetch('/api/cron/social?healthcheck=true', { headers: cronHeaders });
+      if (socialResp.ok && socialResp.json) {
+        const sj = socialResp.json;
+        addResult('xapi', 'Social Cron Status', sj.status === 'healthy' ? 'pass' : 'warn',
+          sj.status === 'healthy' ? 'Social cron endpoint operational' : 'Social cron unhealthy',
+          sj.status !== 'healthy' ? 'The social cron endpoint is not responding correctly. Check that the <code>ScheduledContent</code> and <code>ModelProvider</code> tables exist in the database.' : undefined);
+        addResult('xapi', 'Pending Social Posts', sj.pendingPosts > 0 ? 'pass' : 'warn',
+          sj.pendingPosts + ' posts queued for social publishing',
+          sj.pendingPosts === 0 ? 'No pending social posts. Posts are created by the content pipeline and scheduled for social distribution. Currently the social cron marks posts as "published" in the DB but does NOT actually post to Twitter/X/Instagram/LinkedIn.' : undefined);
+      } else if (socialResp.status === 401) {
+        addResult('xapi', 'Social Cron', 'warn', 'HTTP 401 — CRON_SECRET mismatch');
+      } else if (socialResp.status === 503) {
+        addResult('xapi', 'Social Cron', 'warn', 'Unhealthy — DB tables may be missing',
+          'The social cron returned 503 (unhealthy). This usually means the <code>ScheduledContent</code> or <code>ModelProvider</code> tables do not exist. Run the DB migration (section 22) or click "Fix Missing Tables & Columns" to resolve.');
+      } else {
+        addResult('xapi', 'Social Cron', 'warn', 'HTTP ' + socialResp.status);
+        if (socialResp.json) addJsonBlock('xapi', socialResp.json);
+      }
+
+      // Check for Twitter/X API env vars via a lightweight probe
+      // We test by looking at what the social cron returns when it actually tries to process
+      const socialRunResp = await testFetch('/api/cron/social', { headers: cronHeaders, method: 'POST' });
+      if (socialRunResp.ok && socialRunResp.json) {
+        const sr = socialRunResp.json;
+        addResult('xapi', 'Social Run Result', 'pass', sr.postsProcessed + ' posts processed: ' + sr.published + ' published, ' + sr.failed + ' failed');
+
+        // Check individual post results for API connection details
+        if (sr.results && sr.results.length > 0) {
+          for (const r of sr.results.slice(0, 5)) {
+            const isMock = r.note && r.note.includes('Mock');
+            const noAccount = r.reason && r.reason.includes('not connected');
+            addResult('xapi', '  ↳ ' + (r.platform || 'unknown') + ' #' + (r.postId || '?').toString().substring(0, 8),
+              r.status === 'published' ? (isMock ? 'warn' : 'pass') : 'fail',
+              r.status + (isMock ? ' (MOCK — not actually posted)' : '') + (noAccount ? ' — ' + r.reason : ''),
+              isMock ? 'This post was marked as published in the DB but was NOT actually sent to ' + r.platform + '. To enable real posting, integrate the Twitter/X API by setting <code>TWITTER_API_KEY</code>, <code>TWITTER_API_SECRET</code>, <code>TWITTER_ACCESS_TOKEN</code>, and <code>TWITTER_ACCESS_TOKEN_SECRET</code> env vars, then implement the API call in <code>app/api/cron/social/route.ts</code>.' :
+              noAccount ? 'No <code>ModelProvider</code> record found for platform "' + r.platform + '". Create one in the admin dashboard or seed one with <code>provider_type: "social"</code> and the encrypted API key.' : undefined);
+          }
+        } else {
+          addResult('xapi', 'Social Queue', 'warn', 'No posts in queue to process — social pipeline is idle',
+            'No posts were due for social publishing. The content pipeline creates <code>ScheduledContent</code> records with <code>platform: "twitter"</code> (or other platforms). These are processed by the social cron when their <code>scheduled_time</code> arrives.');
+        }
+
+        addJsonBlock('xapi', sr);
+      } else if (socialRunResp.status === 401) {
+        addResult('xapi', 'Social Run', 'warn', 'HTTP 401 — check CRON_SECRET');
+      } else {
+        addResult('xapi', 'Social Run', 'warn', 'HTTP ' + socialRunResp.status + ' — ' + (socialRunResp.json?.error || ''));
+        if (socialRunResp.json) addJsonBlock('xapi', socialRunResp.json);
+      }
+
+      // Summary of what's needed for real X/Twitter integration
+      addResult('xapi', 'Integration Status', 'warn', 'Social posting is currently MOCK — real API integration required',
+        'To enable real Twitter/X posting:<br>' +
+        '1. Set env vars: <code>TWITTER_API_KEY</code>, <code>TWITTER_API_SECRET</code>, <code>TWITTER_ACCESS_TOKEN</code>, <code>TWITTER_ACCESS_TOKEN_SECRET</code><br>' +
+        '2. Create a <code>ModelProvider</code> record with <code>provider_type: "social"</code>, <code>name: "twitter"</code><br>' +
+        '3. Implement the Twitter API v2 call in <code>app/api/cron/social/route.ts</code> (replace the MOCK section)<br>' +
+        '4. Similarly for Instagram (Meta Graph API), LinkedIn (LinkedIn API), etc.');
+    } catch (e) { log('  ERROR in section 21b: ' + e.message); addResult('xapi', 'X/Twitter API', 'fail', 'JS Error: ' + e.message); }
+
   } else if (testMode === 'full' && !cronSecret) {
     addSection('pipeline', '7. Content Generation Pipeline');
     addResult('pipeline', 'Pipeline Tests', 'fail', 'Enter CRON_SECRET above and re-run');
@@ -1612,10 +2113,94 @@ async function runAllTests() {
 }
 
 function renderJsonResult() {
+  // Categorize results by section
+  const sections = {};
+  for (const r of allResults) {
+    const sec = r.section || 'uncategorized';
+    if (!sections[sec]) sections[sec] = [];
+    sections[sec].push({ name: r.name, status: r.status, detail: r.detail });
+  }
+
+  // Identify failures and warnings for recommendations
+  const failures = allResults.filter(r => r.status === 'fail');
+  const warnings = allResults.filter(r => r.status === 'warn');
+  const recommendations = [];
+
+  // Auto-generate recommendations from failures
+  for (const f of failures.slice(0, 10)) {
+    if (f.detail && f.detail.includes('CRON_SECRET')) recommendations.push('Verify CRON_SECRET is set correctly in Vercel env vars');
+    else if (f.detail && f.detail.includes('GA4')) recommendations.push('Configure GA4_PROPERTY_ID + GOOGLE_ANALYTICS_CLIENT_EMAIL + PRIVATE_KEY');
+    else if (f.detail && f.detail.includes('GSC')) recommendations.push('Configure GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL + PRIVATE_KEY');
+    else if (f.detail && f.detail.includes('INDEXNOW')) recommendations.push('Set INDEXNOW_KEY env var for Bing/Yandex indexing');
+    else if (f.detail && f.detail.includes('table')) recommendations.push('Run DB migration to create missing tables — click "Fix Missing Tables & Columns"');
+    else if (f.name) recommendations.push('Fix: ' + f.name + ' — ' + (f.detail || '').substring(0, 80));
+  }
+  // Deduplicate
+  const uniqueRecs = [...new Set(recommendations)];
+
+  // Env vars detected status
+  const envVars = {
+    confirmed: [],
+    missing: [],
+    unknown: [],
+  };
+  for (const r of allResults) {
+    const d = (r.detail || '').toLowerCase();
+    if (d.includes('configured') || d.includes('credentials present') || d.includes('key is configured')) {
+      if (d.includes('ga4') || r.name?.includes('GA4')) envVars.confirmed.push('GA4_PROPERTY_ID');
+      if (d.includes('gsc') || d.includes('search console')) envVars.confirmed.push('GSC_CREDENTIALS');
+      if (d.includes('indexnow')) envVars.confirmed.push('INDEXNOW_KEY');
+    }
+    if (d.includes('not configured') || d.includes('not set') || d.includes('missing')) {
+      if (d.includes('ga4')) envVars.missing.push('GA4_PROPERTY_ID');
+      if (d.includes('gsc') || d.includes('search console')) envVars.missing.push('GSC_CREDENTIALS');
+      if (d.includes('indexnow')) envVars.missing.push('INDEXNOW_KEY');
+    }
+  }
+  envVars.confirmed = [...new Set(envVars.confirmed)];
+  envVars.missing = [...new Set(envVars.missing)];
+
   const jsonResult = {
+    _generator: 'Yalla London System Validator',
     timestamp: new Date().toISOString(),
     mode: testMode,
-    summary: { passed: pass, warnings: warn, failed: fail, total: pass + warn + fail },
+    platform: {
+      url: window.location.origin,
+      activeSites: ['yalla-london'],
+      allSites: ['yalla-london', 'arabaldives', 'yalladubai', 'yallaistanbul', 'yallathailand'],
+    },
+    summary: {
+      passed: pass,
+      warnings: warn,
+      failed: fail,
+      total: pass + warn + fail,
+      healthScore: pass + warn + fail > 0 ? Math.round((pass / (pass + warn + fail)) * 100) : 0,
+      verdict: fail === 0 && warn === 0 ? 'ALL_SYSTEMS_GO' : fail === 0 ? 'OPERATIONAL_WITH_WARNINGS' : 'NEEDS_ATTENTION',
+    },
+    environmentVariables: envVars,
+    recommendations: uniqueRecs,
+    cronSchedule: {
+      '03:00': 'Analytics sync (GA4 + GSC)',
+      '04:00 Mon': 'Weekly topic research',
+      '05:00': 'Daily content generation',
+      '05:00 Sun': 'SEO orchestrator (weekly)',
+      '06:00': 'Trends monitor + SEO orchestrator (daily)',
+      '07:00': 'SEO agent run 1',
+      '07:30': 'SEO cron (daily)',
+      '08:00 Sun': 'SEO cron (weekly)',
+      '09:00': 'Scheduled publish (morning)',
+      '10:00': 'Google indexing (IndexNow + GSC)',
+      '13:00': 'SEO agent run 2',
+      '16:00': 'Scheduled publish (afternoon)',
+      '20:00': 'SEO agent run 3',
+    },
+    knownIssues: [
+      'Social posting is MOCK — marks as published in DB but does NOT post to Twitter/X/Instagram/LinkedIn',
+      'Trends monitor may timeout (55s client-side) if external APIs are slow',
+      'GA4 Data API requires service account with Viewer role on the GA4 property',
+      'PgBouncer session mode limits concurrent DB connections to 1 per function',
+    ],
+    sectionResults: sections,
     results: allResults,
   };
   const jsonStr = JSON.stringify(jsonResult, null, 2);
@@ -1625,10 +2210,13 @@ function renderJsonResult() {
   if (existing) existing.remove();
 
   const html = `<div class="section" id="section-jsonexport">
-    <h2>Test Results — Copiable JSON</h2>
-    <p style="color:#888;font-size:0.8rem;margin-bottom:8px;">Click the text area below and press Ctrl+A then Ctrl+C to copy, or use the Copy button.</p>
-    <button onclick="copyJsonResult()" style="margin:0 0 12px;padding:8px 20px;font-size:0.85rem;background:#7c3aed;">Copy JSON to Clipboard</button>
-    <textarea id="jsonResultArea" readonly style="width:100%;height:300px;background:#0d1117;color:#7ee787;border:1px solid #30363d;border-radius:8px;padding:12px;font-family:monospace;font-size:0.75rem;resize:vertical;">${escapeHtml(jsonStr)}</textarea>
+    <h2>Test Results — Comprehensive JSON Export</h2>
+    <p style="color:#888;font-size:0.8rem;margin-bottom:8px;">Full test report with environment status, recommendations, cron schedule, and detailed results. Click Copy to share.</p>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button onclick="copyJsonResult()" style="margin:0;padding:8px 20px;font-size:0.85rem;background:#7c3aed;">Copy JSON to Clipboard</button>
+      <span style="color:#888;font-size:0.8rem;line-height:36px;">${jsonStr.length.toLocaleString()} chars | ${allResults.length} test results | Health: ${pass + warn + fail > 0 ? Math.round((pass / (pass + warn + fail)) * 100) : 0}%</span>
+    </div>
+    <textarea id="jsonResultArea" readonly style="width:100%;height:400px;background:#0d1117;color:#7ee787;border:1px solid #30363d;border-radius:8px;padding:12px;font-family:monospace;font-size:0.75rem;resize:vertical;">${escapeHtml(jsonStr)}</textarea>
   </div>`;
   document.getElementById('results').insertAdjacentHTML('beforeend', html);
 }

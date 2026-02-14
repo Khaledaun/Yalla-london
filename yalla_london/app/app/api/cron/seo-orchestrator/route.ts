@@ -68,10 +68,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const { prisma } = await import("@/lib/db");
-    const { getAllSiteIds, getSiteDomain } = await import("@/config/sites");
+    const { getActiveSiteIds, getSiteDomain } = await import("@/config/sites");
     const { runOrchestrator } = await import("@/lib/seo/orchestrator");
 
-    const siteIds = getAllSiteIds();
+    // Only orchestrate live sites
+    const siteIds = getActiveSiteIds();
     const results: Record<string, any> = {};
     const errors: Record<string, string> = {};
 

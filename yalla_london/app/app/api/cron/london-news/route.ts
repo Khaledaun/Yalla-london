@@ -678,6 +678,10 @@ export async function GET(request: NextRequest) {
     const liveNewsItems = await fetchLiveNewsViaGrok(runType);
     if (liveNewsItems.length > 0) {
       console.log(`[london-news] Grok returned ${liveNewsItems.length} live news items`);
+      // Mark Grok as a checked source immediately (don't wait for save loop)
+      if (!sourcesChecked.includes("Grok Live Search")) {
+        sourcesChecked.push("Grok Live Search");
+      }
     }
 
     // 6. Create news items from selected templates + live news

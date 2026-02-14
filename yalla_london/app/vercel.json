@@ -132,6 +132,14 @@
     {
       "path": "/api/cron/google-indexing",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/content-builder",
+      "schedule": "0,30 * * * *"
+    },
+    {
+      "path": "/api/cron/content-selector",
+      "schedule": "30 8 * * *"
     }
   ]
 }

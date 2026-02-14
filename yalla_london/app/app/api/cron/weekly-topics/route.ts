@@ -155,17 +155,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Log generation results
-    const totalGenerated = savedCount;
-    console.log(`Topic generation completed: ${totalGenerated} topics saved to DB`);
+    const englishCount = topicData?.topics?.length || 0;
+    const arabicCount = arabicData?.topics?.length || 0;
+    const totalGenerated = englishCount + arabicCount;
+    console.log(`Topic generation completed: ${totalGenerated} topics generated (${savedCount} new, ${totalGenerated - savedCount} duplicates skipped)`);
 
     await logCronExecution("weekly-topics", "completed", {
       durationMs: Date.now() - _cronStart,
-      itemsProcessed: totalGenerated,
+      itemsProcessed: savedCount,
       resultSummary: {
         reason,
-        english: topicData?.topics?.length || 0,
-        arabic: arabicData?.topics?.length || 0,
+        english: englishCount,
+        arabic: arabicCount,
         total: totalGenerated,
+        newSaved: savedCount,
+        duplicatesSkipped: totalGenerated - savedCount,
         pendingCountBefore: pendingCount,
       },
     });
@@ -175,9 +179,11 @@ export async function POST(request: NextRequest) {
       message: 'Weekly topic generation completed',
       reason,
       generated: {
-        english: topicData?.topics?.length || 0,
-        arabic: arabicData?.topics?.length || 0,
+        english: englishCount,
+        arabic: arabicCount,
         total: totalGenerated,
+        newSaved: savedCount,
+        duplicatesSkipped: totalGenerated - savedCount,
       },
       pendingCountBefore: pendingCount,
       timestamp: new Date().toISOString()

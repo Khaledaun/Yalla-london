@@ -2665,3 +2665,59 @@ model Invoice {
   @@index([status])
   @@map("invoices")
 }
+
+/// ArticleDraft — Incremental content generation pipeline (Reservoir + Builder)
+/// Articles are built phase-by-phase, each phase completing within a single cron invocation.
+/// Only articles passing quality threshold are promoted to BlogPost for publishing.
+model ArticleDraft {
+  id                  String   @id @default(cuid())
+  site_id             String
+  keyword             String
+  locale              String   @default("en")
+  topic_title         String?
+
+  // Pipeline phase tracking
+  current_phase       String   @default("research")  // research, outline, drafting, assembly, seo, scoring, reservoir, published, rejected
+  phase_attempts      Int      @default(0)
+  last_error          String?
+  sections_completed  Int      @default(0)           // Track how many sections drafted so far
+  sections_total      Int      @default(0)           // Total sections planned by outline
+
+  // Phase outputs (populated incrementally as phases complete)
+  research_data       Json?    @db.JsonB             // SERP analysis, competitor structure, PAA questions, keyword data
+  outline_data        Json?    @db.JsonB             // Structured outline: sections[], heading hierarchy, word targets, link plan
+  sections_data       Json?    @db.JsonB             // Array of {heading, content, wordCount, status} per section
+  assembled_html      String?  @db.Text              // Full assembled article HTML (EN or AR)
+  assembled_html_alt  String?  @db.Text              // Translation (AR if locale=en, EN if locale=ar)
+  seo_meta            Json?    @db.JsonB             // {metaTitle, metaDescription, schema, ogImage, keywords, internalLinks}
+
+  // Quality scoring (populated in scoring phase)
+  quality_score       Float?                         // Overall 0-100
+  seo_score           Float?                         // SEO-specific 0-100
+  word_count          Int?
+  readability_score   Float?                         // Flesch-Kincaid or similar
+  content_depth_score Float?                         // Topic coverage completeness
+
+  // Source tracking
+  topic_proposal_id   String?                        // FK to TopicProposal if sourced from there
+  ai_model_used       String?                        // Which AI model generated each phase
+  generation_strategy String?                        // "topic_db", "template_cycle", "trending", "gap_fill"
+
+  // Publishing
+  blog_post_id        String?                        // Set when promoted to BlogPost
+  published_at        DateTime?
+  rejection_reason    String?
+
+  // Timestamps
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  phase_started_at    DateTime?                      // When current phase began processing
+  completed_at        DateTime?                      // When final phase completed
+
+  @@index([current_phase, site_id])
+  @@index([current_phase, created_at])
+  @@index([quality_score])
+  @@index([site_id, current_phase])
+  @@index([created_at])
+  @@map("article_drafts")
+}

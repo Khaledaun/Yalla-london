@@ -786,11 +786,15 @@ function extractJobDetails(jobName, json) {
       const gen = json.generated;
       if (gen && typeof gen === 'object') {
         d('Topics Generated', (gen.total || 0) + ' total (' + (gen.english || 0) + ' EN + ' + (gen.arabic || 0) + ' AR)');
+        if (gen.newSaved !== undefined) d('New Topics Saved', gen.newSaved + ' new to DB');
+        if (gen.duplicatesSkipped > 0) d('Duplicates Skipped', gen.duplicatesSkipped + ' already existed');
       } else {
         d('Topics Generated', json.topicsGenerated || gen || 0);
       }
-      d('Pending Backlog', json.pendingCountBefore || json.pendingCount || json.backlog || '?');
+      if (json.pendingCountBefore !== undefined) d('Pending Backlog (before)', json.pendingCountBefore);
+      else d('Pending Backlog', json.pendingCount || json.backlog || '?');
       if (json.reason === 'sufficient_backlog') d('Skipped', 'Backlog is sufficient — no new topics needed');
+      else if (json.reason) d('Trigger Reason', json.reason === 'weekly_scheduled' ? 'Weekly schedule (Sunday)' : json.reason === 'low_backlog_trigger' ? 'Low backlog (< 10 pending)' : json.reason);
       else if (json.skipped) d('Skipped', json.reason || 'Not Sunday / backlog sufficient');
       if (json.source) d('AI Source Used', json.source);
       if (gen && (gen.total > 0 || json.topicsGenerated > 0)) d('Saved To', 'TopicProposal table (status: ready, auto-queued for content generation)');
@@ -799,6 +803,49 @@ function extractJobDetails(jobName, json) {
           d('Site: ' + siteId, (siteData.en || 0) + ' EN + ' + (siteData.ar || 0) + ' AR topics');
         }
       }
+      break;
+    }
+    case 'Content Builder': {
+      // Healthcheck response: { status, phaseCounts, reservoirCount, ... }
+      // Execution response: { draftId, keyword, previousPhase, nextPhase, phaseSuccess, ... }
+      if (json.phaseCounts) {
+        const pc = json.phaseCounts;
+        const phases = ['research', 'outline', 'drafting', 'assembly', 'seo', 'scoring', 'reservoir', 'published', 'rejected'];
+        for (const p of phases) {
+          if (pc[p] !== undefined && pc[p] > 0) d('Phase: ' + p, pc[p] + ' drafts');
+        }
+        const total = Object.values(pc).reduce((a, b) => Number(a) + Number(b), 0);
+        d('Total Drafts', total);
+      }
+      if (json.draftId) {
+        d('Draft ID', json.draftId);
+        d('Keyword', json.keyword || '?');
+        d('Phase', (json.previousPhase || '?') + ' → ' + (json.nextPhase || '?'));
+        d('Phase Success', json.phaseSuccess ? 'Yes' : 'No' + (json.phaseError ? ' — ' + json.phaseError : ''));
+        if (json.strategy) d('Strategy', json.strategy);
+      }
+      if (json.reservoirCount !== undefined) d('Reservoir Count', json.reservoirCount + ' articles ready');
+      if (json.durationMs) d('Duration', json.durationMs + 'ms');
+      d('Pipeline', 'research → outline → drafting → assembly → seo → scoring → reservoir');
+      break;
+    }
+    case 'Content Selector': {
+      // Healthcheck response: { reservoirCount, publishedCount, minQualityScore, maxPerRun }
+      // Execution response: { reservoirCandidates, selected, published, articles: [...] }
+      if (json.reservoirCount !== undefined) d('Reservoir Articles', json.reservoirCount);
+      if (json.publishedCount !== undefined) d('Published (total)', json.publishedCount);
+      if (json.minQualityScore !== undefined) d('Min Quality Score', json.minQualityScore + '/100');
+      if (json.maxPerRun !== undefined) d('Max Per Run', json.maxPerRun + ' articles');
+      if (json.reservoirCandidates !== undefined) d('Candidates Found', json.reservoirCandidates);
+      if (json.selected !== undefined) d('Selected', json.selected);
+      if (json.published !== undefined) d('Published This Run', json.published + ' articles');
+      if (json.articles && json.articles.length > 0) {
+        for (const a of json.articles) {
+          d('  ↳ Published', '"' + a.keyword + '" (score: ' + a.score + ')');
+        }
+      }
+      if (json.durationMs) d('Duration', json.durationMs + 'ms');
+      d('Pipeline', 'ArticleDraft (reservoir) → BlogPost (published)');
       break;
     }
     case 'SEO Orchestrator': {
@@ -872,7 +919,8 @@ function extractJobDetails(jobName, json) {
     }
     case 'Scheduled Publish': {
       d('Status', json.message || 'Completed');
-      if (json.published !== undefined) d('Published This Run', json.published + ' posts');
+      const pubCount = json.published ?? json.publishedCount ?? json.count ?? 0;
+      d('Published This Run', pubCount + ' posts');
       if (json.pending !== undefined) d('Still Pending', json.pending + ' posts');
       if (json.nextScheduled?.length) d('Next Scheduled', json.nextScheduled.map(p => (p.title || '').substring(0, 40)).join('; '));
       break;
@@ -900,12 +948,12 @@ function extractJobDetails(jobName, json) {
       if (m.itemsArchived !== undefined) d('Expired Items Archived', m.itemsArchived);
       if (m.templatesActive !== undefined) d('Templates Active', m.templatesActive);
       if (m.sourcesChecked?.length) d('Sources Checked', m.sourcesChecked.join(', '));
-      // Check if Grok was used by looking at sourcesChecked or createdItems with grok source
-      const grokUsed = m.sourcesChecked?.includes('Grok Live Search');
-      const grokItems = (json.createdItems || []).filter(i => i.category && JSON.stringify(i).includes('grok'));
-      if (grokUsed) d('Grok Live News', 'Active — real-time news from X/Twitter integrated');
-      else if (json.grokNewsCount !== undefined) d('Live News via Grok/X', json.grokNewsCount + ' items');
-      else w('Grok Live News', 'Not active — XAI_API_KEY may not be loaded at cron runtime');
+      // Check if Grok was used by looking at sourcesChecked array or grok-tagged items
+      const grokUsed = (m.sourcesChecked || []).some(s => s.toLowerCase().includes('grok'));
+      const grokItems = (json.createdItems || []).filter(i => JSON.stringify(i).toLowerCase().includes('grok'));
+      if (grokUsed) d('Grok Live News', 'Active — real-time news from X/Twitter integrated' + (grokItems.length ? ' (' + grokItems.length + ' items)' : ''));
+      else if (grokItems.length > 0) d('Grok Live News', 'Active — ' + grokItems.length + ' items from Grok');
+      else d('Grok Live News', 'Not used this run — Grok supplements template news when XAI_API_KEY is set');
       if (json.createdItems?.length) {
         for (const item of json.createdItems.slice(0, 5)) {
           d('  ↳ ' + (item.category || 'news'), (item.headline || item.slug || '').substring(0, 60));
@@ -1015,6 +1063,8 @@ async function runAllJobs() {
     { name: 'Auto Generate',           path: '/api/cron/auto-generate',           method: 'GET',  timeout: 55000, category: 'Content' },
     { name: 'Fact Verification',       path: '/api/cron/fact-verification?healthcheck=true', method: 'GET',  timeout: 55000, category: 'Content' },
     { name: 'London News',             path: '/api/cron/london-news',             method: 'GET',  timeout: 55000, category: 'Content' },
+    { name: 'Content Builder',         path: '/api/cron/content-builder?healthcheck=true', method: 'GET',  timeout: 55000, category: 'Content Pipeline' },
+    { name: 'Content Selector',        path: '/api/cron/content-selector?healthcheck=true', method: 'GET',  timeout: 55000, category: 'Content Pipeline' },
     { name: 'Real-Time Optimization',  path: '/api/cron/real-time-optimization',  method: 'POST', timeout: 55000, category: 'SEO' },
     { name: 'Google Indexing',          path: '/api/cron/google-indexing',          method: 'GET',  timeout: 55000, category: 'Indexing' },
     { name: 'Autopilot',              path: '/api/cron/autopilot',               method: 'GET',  timeout: 55000, category: 'Orchestration' },

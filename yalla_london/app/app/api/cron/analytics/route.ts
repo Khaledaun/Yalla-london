@@ -67,13 +67,37 @@ export async function GET(request: NextRequest) {
       ga4Report = await fetchGA4Metrics("30daysAgo", "today");
 
       if (ga4Report) {
+        const m = ga4Report.metrics;
+        const alerts: string[] = [];
+        if (m.bounceRate > 70) alerts.push('High bounce rate (' + m.bounceRate.toFixed(1) + '%) — visitors leave without interacting');
+        if (m.engagementRate < 30) alerts.push('Low engagement rate (' + m.engagementRate.toFixed(1) + '%) — content may not be compelling');
+        if (m.sessions < 10) alerts.push('Very low sessions (' + m.sessions + ') — site may have indexing or visibility issues');
+        if (m.avgSessionDuration < 30) alerts.push('Short avg session (' + m.avgSessionDuration.toFixed(0) + 's) — visitors not reading content');
+
         results.ga4 = {
           status: "success",
-          sessions: ga4Report.metrics.sessions,
-          users: ga4Report.metrics.totalUsers,
-          pageViews: ga4Report.metrics.pageViews,
-          bounceRate: ga4Report.metrics.bounceRate,
+          sessions: m.sessions,
+          users: m.totalUsers,
+          pageViews: m.pageViews,
+          bounceRate: m.bounceRate,
+          engagementRate: m.engagementRate,
+          avgSessionDuration: m.avgSessionDuration,
+          topPages: ga4Report.topPages.slice(0, 10).map((p: any) => ({
+            path: p.path || p.pagePath,
+            pageViews: p.pageViews || p.screenPageViews,
+            sessions: p.sessions,
+          })),
+          topSources: (ga4Report.topSources || []).slice(0, 10).map((s: any) => ({
+            source: s.source || s.sessionSource,
+            sessions: s.sessions,
+            users: s.users || s.totalUsers,
+          })),
           topPagesCount: ga4Report.topPages.length,
+          alerts,
+          insights: {
+            pagesPerSession: m.sessions > 0 ? (m.pageViews / m.sessions).toFixed(1) : '0',
+            newVsReturning: m.totalUsers > 0 ? Math.round((m.newUsers / m.totalUsers) * 100) + '% new' : 'unknown',
+          },
         };
         console.log(
           `[ANALYTICS-CRON] GA4: ${ga4Report.metrics.sessions} sessions, ${ga4Report.metrics.pageViews} pageviews`,

@@ -49,7 +49,7 @@
 <body>
 
 <h1>Yalla London — System Validator</h1>
-<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content, Orchestrator, Indexing, Site Health, Schema Audit (22 sections) + One-Click DB Migration + Copiable JSON Export</p>
+<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content, Orchestrator, Indexing, X/Twitter API, Site Health, Schema Audit (23 sections) + One-Click DB Migration + Comprehensive JSON Export</p>
 
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchMode('quick')">Quick Test</button>
@@ -1462,17 +1462,88 @@ async function runAllTests() {
       }
     } catch (e) { log('  ERROR in section 10: ' + e.message); addResult('trends', 'Trends Monitor', 'fail', 'JS Error: ' + e.message); }
 
-    // ── 11. Analytics Sync ──
-    log('  Testing analytics sync...');
-    addSection('analytics', '11. Analytics Sync');
+    // ── 11. Analytics Sync (Extensive) ──
+    log('  Testing analytics sync (full run)...');
+    addSection('analytics', '11. Analytics & Website Status — GA4 + GSC');
     try {
       const analyticsResp = await testFetch('/api/cron/analytics', { headers: cronHeaders });
       if (analyticsResp.ok && analyticsResp.json) {
         const j = analyticsResp.json;
-        addResult('analytics', 'Analytics Cron', 'pass', j.message || 'OK');
-        if (j.reach !== undefined) addResult('analytics', 'Reach Count', 'pass', String(j.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
-        if (j.pageViews !== undefined) addResult('analytics', 'Page Views', 'pass', String(j.pageViews).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
-        if (j.visitors !== undefined) addResult('analytics', 'Visitors', 'pass', String(j.visitors).replace(/\B(?=(\d{3})+(?!\d))/g, ','));
+        const ga = j.results?.ga4 || {};
+        const gsc = j.results?.gsc || {};
+        const snap = j.results?.snapshot || {};
+
+        // GA4 Configuration Status
+        if (ga.status === 'not_configured') {
+          addResult('analytics', 'GA4 Configuration', 'fail', 'NOT CONFIGURED — Missing env vars: ' + (ga.missing || []).join(', '),
+            'GA4 requires 3 env vars in Vercel: <code>GA4_PROPERTY_ID</code> (numeric), <code>GOOGLE_ANALYTICS_CLIENT_EMAIL</code> (service account), <code>GOOGLE_ANALYTICS_PRIVATE_KEY</code> (PEM key). Service account needs "Viewer" role on GA4 property.');
+        } else if (ga.status === 'error') {
+          addResult('analytics', 'GA4 Data', 'fail', 'Error: ' + (ga.message || 'Unknown error'));
+        } else if (ga.status === 'success') {
+          addResult('analytics', 'GA4 Status', 'pass', 'Connected and returning data');
+
+          // Core metrics
+          addResult('analytics', 'Sessions (30d)', ga.sessions > 0 ? 'pass' : 'warn', (ga.sessions || 0).toLocaleString());
+          addResult('analytics', 'Users (30d)', ga.users > 0 ? 'pass' : 'warn', (ga.users || 0).toLocaleString());
+          addResult('analytics', 'Page Views (30d)', ga.pageViews > 0 ? 'pass' : 'warn', (ga.pageViews || 0).toLocaleString());
+          addResult('analytics', 'Bounce Rate', ga.bounceRate < 70 ? 'pass' : 'warn', (ga.bounceRate || 0).toFixed(1) + '%',
+            ga.bounceRate > 70 ? 'Bounce rate above 70% indicates visitors leave quickly. Improve content quality, page speed, and calls to action.' : undefined);
+          addResult('analytics', 'Engagement Rate', ga.engagementRate > 30 ? 'pass' : 'warn', (ga.engagementRate || 0).toFixed(1) + '%',
+            ga.engagementRate < 30 ? 'Low engagement rate (<30%) suggests content isn\'t holding attention. Consider better headlines, images, and content depth.' : undefined);
+          if (ga.avgSessionDuration !== undefined) addResult('analytics', 'Avg Session Duration', ga.avgSessionDuration > 30 ? 'pass' : 'warn', (ga.avgSessionDuration || 0).toFixed(0) + 's');
+
+          // Insights
+          if (ga.insights) {
+            addResult('analytics', 'Pages per Session', 'pass', ga.insights.pagesPerSession);
+            addResult('analytics', 'New vs Returning', 'pass', ga.insights.newVsReturning);
+          }
+
+          // Top pages
+          if (ga.topPages?.length) {
+            addResult('analytics', 'Top Pages', 'pass', ga.topPages.length + ' pages tracked');
+            for (const p of ga.topPages.slice(0, 5)) {
+              addResult('analytics', '  ↳ ' + (p.path || '/').substring(0, 50), 'pass', (p.pageViews || 0) + ' views, ' + (p.sessions || 0) + ' sessions');
+            }
+          }
+
+          // Top sources
+          if (ga.topSources?.length) {
+            addResult('analytics', 'Traffic Sources', 'pass', ga.topSources.length + ' sources');
+            for (const s of ga.topSources.slice(0, 5)) {
+              addResult('analytics', '  ↳ ' + (s.source || 'unknown'), 'pass', (s.sessions || 0) + ' sessions, ' + (s.users || 0) + ' users');
+            }
+          }
+
+          // Alerts
+          if (ga.alerts?.length) {
+            for (const alert of ga.alerts) {
+              addResult('analytics', 'Alert', 'warn', alert);
+            }
+          } else {
+            addResult('analytics', 'Alerts', 'pass', 'No issues detected');
+          }
+        }
+
+        // GSC Data
+        if (gsc.status === 'success') {
+          addResult('analytics', 'GSC Queries (30d)', 'pass', (gsc.queriesCount || 0) + ' search queries tracked');
+          if (gsc.topQueries?.length) {
+            for (const q of gsc.topQueries.slice(0, 5)) {
+              addResult('analytics', '  ↳ "' + q.query + '"', 'pass',
+                q.clicks + ' clicks, ' + q.impressions + ' impressions, CTR ' + q.ctr + '%, pos ' + q.position);
+            }
+          }
+        } else if (gsc.status === 'not_configured') {
+          addResult('analytics', 'GSC Status', 'warn', 'Not configured — set GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL + PRIVATE_KEY',
+            'Google Search Console provides search query data (what people search to find your site). Requires a service account with "Full" access to the GSC property.');
+        } else {
+          addResult('analytics', 'GSC Status', 'warn', gsc.message || 'No data available');
+        }
+
+        // Snapshot
+        if (snap.status === 'created') addResult('analytics', 'Data Snapshot', 'pass', 'Saved to AnalyticsSnapshot table in DB');
+
+        addResult('analytics', 'Duration', 'pass', (j.durationMs || '?') + 'ms');
         addJsonBlock('analytics', j);
       } else if (analyticsResp.status === 401) {
         addResult('analytics', 'Analytics Cron', 'fail', 'HTTP 401 — CRON_SECRET mismatch',
@@ -1644,6 +1715,22 @@ async function runAllTests() {
         addResult('indexing', 'Indexing API', 'warn', 'HTTP ' + idxResp.status);
         if (idxResp.json) addJsonBlock('indexing', idxResp.json);
       }
+
+      // Also query the google-indexing cron healthcheck for per-URL status details
+      log('  Querying google-indexing cron for per-URL status...');
+      try {
+        const idxCronResp = await testFetch('/api/cron/google-indexing?healthcheck=true', { headers: cronHeaders });
+        if (idxCronResp.ok && idxCronResp.json) {
+          const ic = idxCronResp.json;
+          addResult('indexing', 'IndexNow Key', ic.hasIndexNowKey ? 'pass' : 'fail',
+            ic.hasIndexNowKey ? 'INDEXNOW_KEY is configured' : 'INDEXNOW_KEY not set — Bing/Yandex submissions disabled',
+            !ic.hasIndexNowKey ? 'Set <code>INDEXNOW_KEY</code> in Vercel env vars. Also create <code>public/{key}.txt</code> with the key as content for ownership verification.' : undefined);
+          addResult('indexing', 'GSC Credentials', ic.hasGscCredentials ? 'pass' : 'warn',
+            ic.hasGscCredentials ? 'Google Search Console credentials configured' : 'GSC credentials missing — sitemap pings disabled',
+            !ic.hasGscCredentials ? 'Set <code>GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL</code> and <code>GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY</code> in Vercel env vars. The service account needs "Full" access to the GSC property.' : undefined);
+        }
+      } catch (e2) { log('  (google-indexing healthcheck skipped: ' + e2.message + ')'); }
+
     } catch (e) { log('  ERROR in section 16: ' + e.message); addResult('indexing', 'Indexing', 'fail', 'JS Error: ' + e.message); }
 
     // ── 17. GA4 Server-Side Data (real proof of analytics) ──
@@ -1891,6 +1978,70 @@ async function runAllTests() {
       }
     } catch (e) { log('  ERROR in section 21: ' + e.message); addResult('contentaudit', 'Content Audit', 'fail', 'JS Error: ' + e.message); }
 
+    // ── 21b. X/Twitter API & Social Integration ──
+    log('  Testing X/Twitter API & social integration...');
+    addSection('xapi', '21b. X/Twitter API & Social Integration');
+    try {
+      // Check social cron healthcheck for pending posts
+      const socialResp = await testFetch('/api/cron/social?healthcheck=true', { headers: cronHeaders });
+      if (socialResp.ok && socialResp.json) {
+        const sj = socialResp.json;
+        addResult('xapi', 'Social Cron Status', sj.status === 'healthy' ? 'pass' : 'warn',
+          sj.status === 'healthy' ? 'Social cron endpoint operational' : 'Social cron unhealthy',
+          sj.status !== 'healthy' ? 'The social cron endpoint is not responding correctly. Check that the <code>ScheduledContent</code> and <code>ModelProvider</code> tables exist in the database.' : undefined);
+        addResult('xapi', 'Pending Social Posts', sj.pendingPosts > 0 ? 'pass' : 'warn',
+          sj.pendingPosts + ' posts queued for social publishing',
+          sj.pendingPosts === 0 ? 'No pending social posts. Posts are created by the content pipeline and scheduled for social distribution. Currently the social cron marks posts as "published" in the DB but does NOT actually post to Twitter/X/Instagram/LinkedIn.' : undefined);
+      } else if (socialResp.status === 401) {
+        addResult('xapi', 'Social Cron', 'warn', 'HTTP 401 — CRON_SECRET mismatch');
+      } else if (socialResp.status === 503) {
+        addResult('xapi', 'Social Cron', 'warn', 'Unhealthy — DB tables may be missing',
+          'The social cron returned 503 (unhealthy). This usually means the <code>ScheduledContent</code> or <code>ModelProvider</code> tables do not exist. Run the DB migration (section 22) or click "Fix Missing Tables & Columns" to resolve.');
+      } else {
+        addResult('xapi', 'Social Cron', 'warn', 'HTTP ' + socialResp.status);
+        if (socialResp.json) addJsonBlock('xapi', socialResp.json);
+      }
+
+      // Check for Twitter/X API env vars via a lightweight probe
+      // We test by looking at what the social cron returns when it actually tries to process
+      const socialRunResp = await testFetch('/api/cron/social', { headers: cronHeaders, method: 'POST' });
+      if (socialRunResp.ok && socialRunResp.json) {
+        const sr = socialRunResp.json;
+        addResult('xapi', 'Social Run Result', 'pass', sr.postsProcessed + ' posts processed: ' + sr.published + ' published, ' + sr.failed + ' failed');
+
+        // Check individual post results for API connection details
+        if (sr.results && sr.results.length > 0) {
+          for (const r of sr.results.slice(0, 5)) {
+            const isMock = r.note && r.note.includes('Mock');
+            const noAccount = r.reason && r.reason.includes('not connected');
+            addResult('xapi', '  ↳ ' + (r.platform || 'unknown') + ' #' + (r.postId || '?').toString().substring(0, 8),
+              r.status === 'published' ? (isMock ? 'warn' : 'pass') : 'fail',
+              r.status + (isMock ? ' (MOCK — not actually posted)' : '') + (noAccount ? ' — ' + r.reason : ''),
+              isMock ? 'This post was marked as published in the DB but was NOT actually sent to ' + r.platform + '. To enable real posting, integrate the Twitter/X API by setting <code>TWITTER_API_KEY</code>, <code>TWITTER_API_SECRET</code>, <code>TWITTER_ACCESS_TOKEN</code>, and <code>TWITTER_ACCESS_TOKEN_SECRET</code> env vars, then implement the API call in <code>app/api/cron/social/route.ts</code>.' :
+              noAccount ? 'No <code>ModelProvider</code> record found for platform "' + r.platform + '". Create one in the admin dashboard or seed one with <code>provider_type: "social"</code> and the encrypted API key.' : undefined);
+          }
+        } else {
+          addResult('xapi', 'Social Queue', 'warn', 'No posts in queue to process — social pipeline is idle',
+            'No posts were due for social publishing. The content pipeline creates <code>ScheduledContent</code> records with <code>platform: "twitter"</code> (or other platforms). These are processed by the social cron when their <code>scheduled_time</code> arrives.');
+        }
+
+        addJsonBlock('xapi', sr);
+      } else if (socialRunResp.status === 401) {
+        addResult('xapi', 'Social Run', 'warn', 'HTTP 401 — check CRON_SECRET');
+      } else {
+        addResult('xapi', 'Social Run', 'warn', 'HTTP ' + socialRunResp.status + ' — ' + (socialRunResp.json?.error || ''));
+        if (socialRunResp.json) addJsonBlock('xapi', socialRunResp.json);
+      }
+
+      // Summary of what's needed for real X/Twitter integration
+      addResult('xapi', 'Integration Status', 'warn', 'Social posting is currently MOCK — real API integration required',
+        'To enable real Twitter/X posting:<br>' +
+        '1. Set env vars: <code>TWITTER_API_KEY</code>, <code>TWITTER_API_SECRET</code>, <code>TWITTER_ACCESS_TOKEN</code>, <code>TWITTER_ACCESS_TOKEN_SECRET</code><br>' +
+        '2. Create a <code>ModelProvider</code> record with <code>provider_type: "social"</code>, <code>name: "twitter"</code><br>' +
+        '3. Implement the Twitter API v2 call in <code>app/api/cron/social/route.ts</code> (replace the MOCK section)<br>' +
+        '4. Similarly for Instagram (Meta Graph API), LinkedIn (LinkedIn API), etc.');
+    } catch (e) { log('  ERROR in section 21b: ' + e.message); addResult('xapi', 'X/Twitter API', 'fail', 'JS Error: ' + e.message); }
+
   } else if (testMode === 'full' && !cronSecret) {
     addSection('pipeline', '7. Content Generation Pipeline');
     addResult('pipeline', 'Pipeline Tests', 'fail', 'Enter CRON_SECRET above and re-run');
@@ -1962,10 +2113,94 @@ async function runAllTests() {
 }
 
 function renderJsonResult() {
+  // Categorize results by section
+  const sections = {};
+  for (const r of allResults) {
+    const sec = r.section || 'uncategorized';
+    if (!sections[sec]) sections[sec] = [];
+    sections[sec].push({ name: r.name, status: r.status, detail: r.detail });
+  }
+
+  // Identify failures and warnings for recommendations
+  const failures = allResults.filter(r => r.status === 'fail');
+  const warnings = allResults.filter(r => r.status === 'warn');
+  const recommendations = [];
+
+  // Auto-generate recommendations from failures
+  for (const f of failures.slice(0, 10)) {
+    if (f.detail && f.detail.includes('CRON_SECRET')) recommendations.push('Verify CRON_SECRET is set correctly in Vercel env vars');
+    else if (f.detail && f.detail.includes('GA4')) recommendations.push('Configure GA4_PROPERTY_ID + GOOGLE_ANALYTICS_CLIENT_EMAIL + PRIVATE_KEY');
+    else if (f.detail && f.detail.includes('GSC')) recommendations.push('Configure GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL + PRIVATE_KEY');
+    else if (f.detail && f.detail.includes('INDEXNOW')) recommendations.push('Set INDEXNOW_KEY env var for Bing/Yandex indexing');
+    else if (f.detail && f.detail.includes('table')) recommendations.push('Run DB migration to create missing tables — click "Fix Missing Tables & Columns"');
+    else if (f.name) recommendations.push('Fix: ' + f.name + ' — ' + (f.detail || '').substring(0, 80));
+  }
+  // Deduplicate
+  const uniqueRecs = [...new Set(recommendations)];
+
+  // Env vars detected status
+  const envVars = {
+    confirmed: [],
+    missing: [],
+    unknown: [],
+  };
+  for (const r of allResults) {
+    const d = (r.detail || '').toLowerCase();
+    if (d.includes('configured') || d.includes('credentials present') || d.includes('key is configured')) {
+      if (d.includes('ga4') || r.name?.includes('GA4')) envVars.confirmed.push('GA4_PROPERTY_ID');
+      if (d.includes('gsc') || d.includes('search console')) envVars.confirmed.push('GSC_CREDENTIALS');
+      if (d.includes('indexnow')) envVars.confirmed.push('INDEXNOW_KEY');
+    }
+    if (d.includes('not configured') || d.includes('not set') || d.includes('missing')) {
+      if (d.includes('ga4')) envVars.missing.push('GA4_PROPERTY_ID');
+      if (d.includes('gsc') || d.includes('search console')) envVars.missing.push('GSC_CREDENTIALS');
+      if (d.includes('indexnow')) envVars.missing.push('INDEXNOW_KEY');
+    }
+  }
+  envVars.confirmed = [...new Set(envVars.confirmed)];
+  envVars.missing = [...new Set(envVars.missing)];
+
   const jsonResult = {
+    _generator: 'Yalla London System Validator',
     timestamp: new Date().toISOString(),
     mode: testMode,
-    summary: { passed: pass, warnings: warn, failed: fail, total: pass + warn + fail },
+    platform: {
+      url: window.location.origin,
+      activeSites: ['yalla-london'],
+      allSites: ['yalla-london', 'arabaldives', 'yalladubai', 'yallaistanbul', 'yallathailand'],
+    },
+    summary: {
+      passed: pass,
+      warnings: warn,
+      failed: fail,
+      total: pass + warn + fail,
+      healthScore: pass + warn + fail > 0 ? Math.round((pass / (pass + warn + fail)) * 100) : 0,
+      verdict: fail === 0 && warn === 0 ? 'ALL_SYSTEMS_GO' : fail === 0 ? 'OPERATIONAL_WITH_WARNINGS' : 'NEEDS_ATTENTION',
+    },
+    environmentVariables: envVars,
+    recommendations: uniqueRecs,
+    cronSchedule: {
+      '03:00': 'Analytics sync (GA4 + GSC)',
+      '04:00 Mon': 'Weekly topic research',
+      '05:00': 'Daily content generation',
+      '05:00 Sun': 'SEO orchestrator (weekly)',
+      '06:00': 'Trends monitor + SEO orchestrator (daily)',
+      '07:00': 'SEO agent run 1',
+      '07:30': 'SEO cron (daily)',
+      '08:00 Sun': 'SEO cron (weekly)',
+      '09:00': 'Scheduled publish (morning)',
+      '10:00': 'Google indexing (IndexNow + GSC)',
+      '13:00': 'SEO agent run 2',
+      '16:00': 'Scheduled publish (afternoon)',
+      '20:00': 'SEO agent run 3',
+    },
+    knownIssues: [
+      'Social posting is MOCK — marks as published in DB but does NOT post to Twitter/X/Instagram/LinkedIn',
+      'Trends monitor may timeout (55s client-side) if external APIs are slow',
+      'GA4 Data API requires service account with Viewer role on the GA4 property',
+      'PgBouncer session mode limits concurrent DB connections to 1 per function',
+    ],
+    sectionResults: sections,
     results: allResults,
   };
   const jsonStr = JSON.stringify(jsonResult, null, 2);
@@ -1975,10 +2210,13 @@ function renderJsonResult() {
   if (existing) existing.remove();
 
   const html = `<div class="section" id="section-jsonexport">
-    <h2>Test Results — Copiable JSON</h2>
-    <p style="color:#888;font-size:0.8rem;margin-bottom:8px;">Click the text area below and press Ctrl+A then Ctrl+C to copy, or use the Copy button.</p>
-    <button onclick="copyJsonResult()" style="margin:0 0 12px;padding:8px 20px;font-size:0.85rem;background:#7c3aed;">Copy JSON to Clipboard</button>
-    <textarea id="jsonResultArea" readonly style="width:100%;height:300px;background:#0d1117;color:#7ee787;border:1px solid #30363d;border-radius:8px;padding:12px;font-family:monospace;font-size:0.75rem;resize:vertical;">${escapeHtml(jsonStr)}</textarea>
+    <h2>Test Results — Comprehensive JSON Export</h2>
+    <p style="color:#888;font-size:0.8rem;margin-bottom:8px;">Full test report with environment status, recommendations, cron schedule, and detailed results. Click Copy to share.</p>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button onclick="copyJsonResult()" style="margin:0;padding:8px 20px;font-size:0.85rem;background:#7c3aed;">Copy JSON to Clipboard</button>
+      <span style="color:#888;font-size:0.8rem;line-height:36px;">${jsonStr.length.toLocaleString()} chars | ${allResults.length} test results | Health: ${pass + warn + fail > 0 ? Math.round((pass / (pass + warn + fail)) * 100) : 0}%</span>
+    </div>
+    <textarea id="jsonResultArea" readonly style="width:100%;height:400px;background:#0d1117;color:#7ee787;border:1px solid #30363d;border-radius:8px;padding:12px;font-family:monospace;font-size:0.75rem;resize:vertical;">${escapeHtml(jsonStr)}</textarea>
   </div>`;
   document.getElementById('results').insertAdjacentHTML('beforeend', html);
 }

@@ -45,9 +45,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check current topic backlog
+    // Check current topic backlog (count all unused topics)
     const pendingCount = await prisma.topicProposal.count({
-      where: { status: 'proposed' }
+      where: { status: { in: ['proposed', 'ready', 'queued', 'planned'] } }
     });
 
     console.log(`📊 Current pending topics: ${pendingCount}`);
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
             questions: [],
             suggested_page_type: 'guide',
             locale: t.locale,
-            status: 'proposed',
+            status: 'ready',
             confidence_score: 0.7,
             source: 'weekly-topics-cron',
             evergreen: false,

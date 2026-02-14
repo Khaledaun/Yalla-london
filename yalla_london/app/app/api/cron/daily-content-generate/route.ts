@@ -450,7 +450,7 @@ async function pickTopic(language: string, site: SiteConfig, prisma: any) {
   try {
     const topic = await prisma.topicProposal.findFirst({
       where: {
-        status: { in: ["ready", "queued", "planned"] },
+        status: { in: ["ready", "queued", "planned", "proposed"] },
         locale: language,
         site_id: site.id,
         scheduled_content: { none: {} },

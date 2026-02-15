@@ -23,6 +23,7 @@ import {
   Activity,
   RefreshCw,
   ChevronRight,
+  ChevronDown,
   AlertCircle,
   AlertTriangle,
   ArrowRight,
@@ -358,155 +359,126 @@ export default function AdminDashboard() {
       )}
 
       {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
-            <h1 className="text-xl sm:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
-              <Home className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 flex-shrink-0" />
+      <div className="mb-4 sm:mb-8">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+              <Home className="h-5 w-5 sm:h-8 sm:w-8 text-purple-500 flex-shrink-0" />
               Dashboard
             </h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">
-              Multi-site command center &mdash; {sites.length > 0 ? `${sites.length} sites` : "all sites"}
+            <p className="text-xs sm:text-base text-gray-600 mt-0.5 sm:mt-1 truncate">
+              {sites.length > 0 ? `${sites.length} sites` : "Command center"}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            {/* System status */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {systemStatus && (
-              <span className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium px-3 py-1.5 rounded-full ${
+              <span className={`flex items-center gap-1 text-[10px] sm:text-sm font-medium px-2 sm:px-3 py-1 sm:py-1.5 rounded-full ${
                 systemStatus.aiStatus === "online"
                   ? "bg-green-50 text-green-700"
                   : systemStatus.aiStatus === "degraded"
                     ? "bg-yellow-50 text-yellow-700"
                     : "bg-red-50 text-red-700"
               }`}>
-                <span className={`w-2 h-2 rounded-full ${
+                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${
                   systemStatus.aiStatus === "online" ? "bg-green-500 animate-pulse" :
                   systemStatus.aiStatus === "degraded" ? "bg-yellow-500" : "bg-red-500"
                 }`} />
-                AI {systemStatus.aiStatus}
+                <span className="hidden sm:inline">AI </span>{systemStatus.aiStatus}
               </span>
             )}
             <button
               onClick={loadData}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-1.5 sm:p-2 hover:bg-gray-100 active:bg-gray-200 rounded-lg transition-colors"
               title="Refresh"
             >
               <RefreshCw className="h-4 w-4 text-gray-500" />
             </button>
-            <div className="text-right hidden sm:block">
-              <div className="text-xs text-gray-500">Last updated</div>
-              <div className="text-xs font-medium text-gray-900">
-                {new Date().toLocaleTimeString()}
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
+      {/* Quick Actions — horizontal scroll on mobile, grid on desktop */}
+      <div className="mb-5 sm:mb-8">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-2.5 sm:mb-4">
           Quick Actions
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 lg:grid-cols-8 sm:gap-3 sm:overflow-visible sm:pb-0 snap-x snap-mandatory sm:snap-none">
           {[
-            { name: "New Article", href: "/admin/editor", icon: Edit3, color: "bg-blue-500 hover:bg-blue-600", desc: "Write or paste from Word" },
-            { name: "Add Topic", href: "/admin/topics", icon: Lightbulb, color: "bg-green-500 hover:bg-green-600", desc: "Add to content pipeline" },
-            { name: "AI Studio", href: "/admin/ai-studio", icon: Brain, color: "bg-purple-500 hover:bg-purple-600", desc: "Manage prompts & models" },
-            { name: "SEO Audit", href: "/admin/seo", icon: Search, color: "bg-yellow-500 hover:bg-yellow-600", desc: "Run SEO analysis" },
-            { name: "New Site", href: "/admin/command-center/sites/new", icon: Plus, color: "bg-indigo-500 hover:bg-indigo-600", desc: "Launch a new domain" },
+            { name: "New Article", href: "/admin/editor", icon: Edit3, color: "bg-blue-500 active:bg-blue-600" },
+            { name: "Add Topic", href: "/admin/topics", icon: Lightbulb, color: "bg-green-500 active:bg-green-600" },
+            { name: "AI Studio", href: "/admin/ai-studio", icon: Brain, color: "bg-purple-500 active:bg-purple-600" },
+            { name: "SEO Audit", href: "/admin/seo", icon: Search, color: "bg-yellow-500 active:bg-yellow-600" },
+            { name: "New Site", href: "/admin/command-center/sites/new", icon: Plus, color: "bg-indigo-500 active:bg-indigo-600" },
           ].map((action) => (
             <Link
               key={action.name}
               href={action.href}
-              className={`${action.color} text-white p-3 sm:p-4 rounded-xl transition-colors active:opacity-90`}
+              className={`${action.color} text-white rounded-xl transition-colors flex-shrink-0 snap-start flex flex-col items-center justify-center text-center w-[4.5rem] h-[4.5rem] sm:w-auto sm:h-auto sm:p-3 sm:items-start sm:text-left`}
             >
-              <action.icon className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
-              <div className="text-sm sm:text-base font-medium leading-tight">{action.name}</div>
-              <div className="text-xs opacity-80 hidden sm:block mt-0.5">{action.desc}</div>
+              <action.icon className="h-5 w-5 sm:mb-1.5" />
+              <div className="text-[10px] sm:text-sm font-medium leading-tight mt-1 sm:mt-0">{action.name}</div>
             </Link>
           ))}
-          {/* Publish All Ready button */}
           <button
             onClick={handlePublishAllReady}
             disabled={publishingAll}
-            className="bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed text-white p-3 sm:p-4 rounded-xl transition-colors active:opacity-90 text-left"
+            className="bg-emerald-500 active:bg-emerald-600 disabled:opacity-60 text-white rounded-xl transition-colors flex-shrink-0 snap-start flex flex-col items-center justify-center text-center w-[4.5rem] h-[4.5rem] sm:w-auto sm:h-auto sm:p-3 sm:items-start sm:text-left"
           >
-            {publishingAll ? (
-              <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2 animate-spin" />
-            ) : (
-              <Send className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
-            )}
-            <div className="text-sm sm:text-base font-medium leading-tight">
-              {publishingAll ? "Publishing..." : "Publish All Ready"}
+            {publishingAll ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5 sm:mb-1.5" />}
+            <div className="text-[10px] sm:text-sm font-medium leading-tight mt-1 sm:mt-0">
+              {publishingAll ? "Publishing" : "Publish All"}
             </div>
-            <div className="text-xs opacity-80 hidden sm:block mt-0.5">Publish eligible drafts</div>
           </button>
-          {/* Generate Topics button */}
           <button
             onClick={handleSeedTopics}
             disabled={seedingTopics}
-            className="bg-blue-500 hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed text-white p-3 sm:p-4 rounded-xl transition-colors active:opacity-90 text-left"
+            className="bg-cyan-500 active:bg-cyan-600 disabled:opacity-60 text-white rounded-xl transition-colors flex-shrink-0 snap-start flex flex-col items-center justify-center text-center w-[4.5rem] h-[4.5rem] sm:w-auto sm:h-auto sm:p-3 sm:items-start sm:text-left"
           >
-            {seedingTopics ? (
-              <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2 animate-spin" />
-            ) : (
-              <Plus className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
-            )}
-            <div className="text-sm sm:text-base font-medium leading-tight">
-              {seedingTopics ? "Seeding..." : "Generate Topics"}
+            {seedingTopics ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5 sm:mb-1.5" />}
+            <div className="text-[10px] sm:text-sm font-medium leading-tight mt-1 sm:mt-0">
+              {seedingTopics ? "Seeding" : "Gen Topics"}
             </div>
-            <div className="text-xs opacity-80 hidden sm:block mt-0.5">Add 10 topics (EN + AR)</div>
           </button>
-          {/* Run All Crons button */}
           <button
             onClick={handleRunAllCrons}
             disabled={runningCrons}
-            className="bg-orange-500 hover:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white p-3 sm:p-4 rounded-xl transition-colors active:opacity-90 text-left"
+            className="bg-orange-500 active:bg-orange-600 disabled:opacity-60 text-white rounded-xl transition-colors flex-shrink-0 snap-start flex flex-col items-center justify-center text-center w-[4.5rem] h-[4.5rem] sm:w-auto sm:h-auto sm:p-3 sm:items-start sm:text-left"
           >
-            {runningCrons ? (
-              <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2 animate-spin" />
-            ) : (
-              <Play className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
-            )}
-            <div className="text-sm sm:text-base font-medium leading-tight">
-              {runningCrons ? "Running..." : "Run All Crons"}
+            {runningCrons ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5 sm:mb-1.5" />}
+            <div className="text-[10px] sm:text-sm font-medium leading-tight mt-1 sm:mt-0">
+              {runningCrons ? "Running" : "Run Crons"}
             </div>
-            <div className="text-xs opacity-80 hidden sm:block mt-0.5">Trigger content pipeline</div>
           </button>
         </div>
       </div>
 
       {/* Pipeline Status Flow */}
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+      <div className="mb-5 sm:mb-8">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-2.5 sm:mb-4 flex items-center gap-2">
           <Activity className="h-5 w-5 text-purple-500" />
           Content Pipeline
         </h2>
-        <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
-          <div className="flex items-center justify-center gap-2 sm:gap-4">
-            <div className="text-center flex-1">
-              <div className="text-2xl sm:text-3xl font-bold text-yellow-600">{pipelineCounts.topics}</div>
-              <div className="text-xs sm:text-sm font-medium text-gray-600 mt-1">Topics</div>
+        <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-6">
+          <div className="grid grid-cols-4 gap-1 sm:flex sm:items-center sm:justify-center sm:gap-4">
+            <div className="text-center">
+              <div className="text-xl sm:text-3xl font-bold text-yellow-600">{pipelineCounts.topics}</div>
+              <div className="text-[10px] sm:text-sm font-medium text-gray-600 mt-0.5 sm:mt-1">Topics</div>
             </div>
-            <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6 text-gray-300 flex-shrink-0" />
-            <div className="text-center flex-1">
-              <div className="text-2xl sm:text-3xl font-bold text-blue-600">{pipelineCounts.drafts}</div>
-              <div className="text-xs sm:text-sm font-medium text-gray-600 mt-1">Drafts</div>
+            <div className="text-center">
+              <div className="text-xl sm:text-3xl font-bold text-blue-600">{pipelineCounts.drafts}</div>
+              <div className="text-[10px] sm:text-sm font-medium text-gray-600 mt-0.5 sm:mt-1">Drafts</div>
             </div>
-            <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6 text-gray-300 flex-shrink-0" />
-            <div className="text-center flex-1">
-              <div className="text-2xl sm:text-3xl font-bold text-green-600">{pipelineCounts.published}</div>
-              <div className="text-xs sm:text-sm font-medium text-gray-600 mt-1">Published</div>
+            <div className="text-center">
+              <div className="text-xl sm:text-3xl font-bold text-green-600">{pipelineCounts.published}</div>
+              <div className="text-[10px] sm:text-sm font-medium text-gray-600 mt-0.5 sm:mt-1">Published</div>
             </div>
-            <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6 text-gray-300 flex-shrink-0" />
-            <Link href="/admin/indexing" className="text-center flex-1 group">
-              <div className={`text-2xl sm:text-3xl font-bold ${
+            <Link href="/admin/indexing" className="text-center group">
+              <div className={`text-xl sm:text-3xl font-bold ${
                 indexingStats.indexed > 0 ? "text-emerald-600" : "text-gray-400"
               }`}>
                 {indexingStats.indexed}
               </div>
-              <div className="text-xs sm:text-sm font-medium text-gray-600 mt-1 group-hover:text-emerald-600 transition-colors">
+              <div className="text-[10px] sm:text-sm font-medium text-gray-600 mt-0.5 sm:mt-1 group-hover:text-emerald-600 transition-colors">
                 Indexed
               </div>
             </Link>
@@ -514,59 +486,88 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Indexing Status */}
-      <div className="mb-6 sm:mb-8">
-        <div className="flex items-center justify-between mb-3 sm:mb-4">
+      {/* Indexing Status — compact inline on mobile */}
+      <div className="mb-5 sm:mb-8">
+        <div className="flex items-center justify-between mb-2.5 sm:mb-4">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
             <Globe className="h-5 w-5 text-emerald-500" />
-            Google Indexing Status
+            Google Indexing
           </h2>
           <Link
             href="/admin/indexing"
             className="text-xs sm:text-sm text-emerald-600 hover:text-emerald-700 font-medium"
           >
-            Full Details &rarr;
+            Details &rarr;
           </Link>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-          <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+        {/* Mobile: compact row of stats inside one card */}
+        <div className="bg-white rounded-xl border border-gray-200 p-3 sm:hidden">
+          <div className="grid grid-cols-5 gap-1 text-center">
+            <div>
+              <p className="text-lg font-bold text-emerald-600">{indexingStats.indexed}</p>
+              <p className="text-[9px] font-medium text-gray-500">Indexed</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-blue-600">{indexingStats.submitted}</p>
+              <p className="text-[9px] font-medium text-gray-500">Submitted</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold text-gray-600">{indexingStats.discovered}</p>
+              <p className="text-[9px] font-medium text-gray-500">Found</p>
+            </div>
+            <div>
+              <p className={`text-lg font-bold ${indexingStats.errors > 0 ? "text-red-600" : "text-gray-400"}`}>{indexingStats.errors}</p>
+              <p className="text-[9px] font-medium text-gray-500">Errors</p>
+            </div>
+            <div>
+              <p className={`text-lg font-bold ${
+                indexingStats.indexRate >= 70 ? "text-emerald-600" :
+                indexingStats.indexRate >= 40 ? "text-yellow-600" : "text-red-600"
+              }`}>{indexingStats.indexRate}%</p>
+              <p className="text-[9px] font-medium text-gray-500">Rate</p>
+            </div>
+          </div>
+        </div>
+        {/* Desktop: full cards */}
+        <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+          <div className="bg-white p-4 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-gray-500">Indexed</p>
-                <p className="text-lg sm:text-xl font-bold text-emerald-600">{indexingStats.indexed}</p>
+                <p className="text-xl font-bold text-emerald-600">{indexingStats.indexed}</p>
               </div>
               <div className="p-2 bg-emerald-50 rounded-lg">
                 <CheckCircle className="h-4 w-4 text-emerald-600" />
               </div>
             </div>
           </div>
-          <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+          <div className="bg-white p-4 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-gray-500">Submitted</p>
-                <p className="text-lg sm:text-xl font-bold text-blue-600">{indexingStats.submitted}</p>
+                <p className="text-xl font-bold text-blue-600">{indexingStats.submitted}</p>
               </div>
               <div className="p-2 bg-blue-50 rounded-lg">
                 <Send className="h-4 w-4 text-blue-600" />
               </div>
             </div>
           </div>
-          <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+          <div className="bg-white p-4 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-gray-500">Discovered</p>
-                <p className="text-lg sm:text-xl font-bold text-gray-600">{indexingStats.discovered}</p>
+                <p className="text-xl font-bold text-gray-600">{indexingStats.discovered}</p>
               </div>
               <div className="p-2 bg-gray-50 rounded-lg">
                 <Search className="h-4 w-4 text-gray-500" />
               </div>
             </div>
           </div>
-          <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+          <div className="bg-white p-4 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-gray-500">Errors</p>
-                <p className={`text-lg sm:text-xl font-bold ${indexingStats.errors > 0 ? "text-red-600" : "text-gray-400"}`}>
+                <p className={`text-xl font-bold ${indexingStats.errors > 0 ? "text-red-600" : "text-gray-400"}`}>
                   {indexingStats.errors}
                 </p>
               </div>
@@ -575,11 +576,11 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-          <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+          <div className="bg-white p-4 rounded-xl border border-gray-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-gray-500">Index Rate</p>
-                <p className={`text-lg sm:text-xl font-bold ${
+                <p className={`text-xl font-bold ${
                   indexingStats.indexRate >= 70 ? "text-emerald-600" :
                   indexingStats.indexRate >= 40 ? "text-yellow-600" : "text-red-600"
                 }`}>
@@ -593,8 +594,8 @@ export default function AdminDashboard() {
           </div>
         </div>
         {indexingStats.lastSubmitted && (
-          <div className="mt-2 text-xs text-gray-500 text-right">
-            Last submitted: {new Date(indexingStats.lastSubmitted).toLocaleString()}
+          <div className="mt-1.5 sm:mt-2 text-[10px] sm:text-xs text-gray-500 text-right">
+            Last: {new Date(indexingStats.lastSubmitted).toLocaleDateString()}
           </div>
         )}
       </div>
@@ -643,8 +644,8 @@ export default function AdminDashboard() {
 
       {/* Multi-Site Overview */}
       {sites.length > 0 && (
-        <div className="mb-6 sm:mb-8">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <div className="mb-5 sm:mb-8">
+          <div className="flex items-center justify-between mb-2.5 sm:mb-4">
             <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
               <Globe className="h-5 w-5 text-blue-500" />
               Your Sites
@@ -657,71 +658,38 @@ export default function AdminDashboard() {
             </Link>
           </div>
 
-          {/* Multi-site aggregate stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
-            <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500">Total Traffic</p>
-                  <p className="text-lg sm:text-xl font-bold text-gray-900">{formatNumber(totalTraffic)}</p>
-                </div>
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <Activity className="h-4 w-4 text-blue-600" />
-                </div>
+          {/* Aggregate stats — compact 4-col on mobile */}
+          <div className="grid grid-cols-4 gap-2 sm:gap-4 mb-3 sm:mb-4">
+            {[
+              { label: "Traffic", value: formatNumber(totalTraffic), color: "text-gray-900" },
+              { label: "Revenue", value: `$${formatNumber(totalRevenue)}`, color: "text-green-600" },
+              { label: "Articles", value: formatNumber(stats.totalArticles), color: "text-gray-900" },
+              { label: "Leads", value: formatNumber(totalLeads), color: "text-gray-900" },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-white p-2.5 sm:p-4 rounded-xl border border-gray-200">
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500">{stat.label}</p>
+                <p className={`text-base sm:text-xl font-bold ${stat.color}`}>{stat.value}</p>
               </div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500">Revenue (MTD)</p>
-                  <p className="text-lg sm:text-xl font-bold text-green-600">${formatNumber(totalRevenue)}</p>
-                </div>
-                <div className="p-2 bg-green-50 rounded-lg">
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                </div>
-              </div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500">Total Articles</p>
-                  <p className="text-lg sm:text-xl font-bold text-gray-900">{formatNumber(stats.totalArticles)}</p>
-                </div>
-                <div className="p-2 bg-purple-50 rounded-lg">
-                  <FileText className="h-4 w-4 text-purple-600" />
-                </div>
-              </div>
-            </div>
-            <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500">Leads</p>
-                  <p className="text-lg sm:text-xl font-bold text-gray-900">{formatNumber(totalLeads)}</p>
-                </div>
-                <div className="p-2 bg-amber-50 rounded-lg">
-                  <Sparkles className="h-4 w-4 text-amber-600" />
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
 
-          {/* Sites list */}
+          {/* Sites list — tighter on mobile */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="divide-y divide-gray-100">
               {sites.map((site) => (
-                <div key={site.siteId} className="p-3 sm:p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center ${
+                <div key={site.siteId} className="px-3 py-2.5 sm:p-4 flex items-center justify-between active:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                       site.locale === "ar" ? "bg-emerald-100 text-emerald-600" : "bg-blue-100 text-blue-600"
                     }`}>
                       <Globe className="h-4 w-4 sm:h-5 sm:w-5" />
                     </div>
-                    <div>
-                      <div className="font-medium text-sm sm:text-base text-gray-900">{site.siteName}</div>
-                      <div className="text-xs text-gray-500">{site.domain}</div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm text-gray-900 truncate">{site.siteName}</div>
+                      <div className="text-[10px] sm:text-xs text-gray-500 truncate">{site.domain}</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 sm:gap-6">
+                  <div className="flex items-center gap-2 sm:gap-6 flex-shrink-0">
                     <div className="text-right hidden sm:block">
                       <div className="text-sm font-medium">{formatNumber(site.traffic)}</div>
                       <div className="text-xs text-gray-500">visitors</div>
@@ -730,7 +698,7 @@ export default function AdminDashboard() {
                       <div className="text-sm font-medium text-green-600">${formatNumber(site.revenue)}</div>
                       <div className="text-xs text-gray-500">revenue</div>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    <span className={`px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
                       site.status === "active" ? "bg-green-100 text-green-700" :
                       site.status === "paused" ? "bg-yellow-100 text-yellow-700" :
                       "bg-gray-100 text-gray-700"
@@ -746,75 +714,34 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Content Pipeline Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
-        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm font-medium text-gray-600">Ready to Publish</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.readyToPublish}</p>
+      {/* Content Pipeline Stats — compact on mobile */}
+      <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 mb-5 sm:mb-8">
+        {[
+          { label: "Ready", value: stats.readyToPublish, icon: CheckCircle, color: "text-green-500" },
+          { label: "Scheduled", value: stats.scheduledContent, icon: Calendar, color: "text-blue-500" },
+          { label: "Topics", value: stats.totalTopics, icon: Lightbulb, color: "text-yellow-500" },
+          { label: "SEO", value: `${stats.seoScore}%`, icon: TrendingUp, color: "text-green-500" },
+          { label: "Automation", value: stats.automationJobs, icon: Zap, color: "text-orange-500" },
+          { label: "Queue", value: systemStatus?.contentQueue ?? 0, icon: Activity, color: "text-indigo-500" },
+        ].map((stat) => (
+          <div key={stat.label} className="bg-white p-2.5 sm:p-4 rounded-xl border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500">{stat.label}</p>
+                <p className="text-base sm:text-xl font-bold text-gray-900">{stat.value}</p>
+              </div>
+              <stat.icon className={`h-4 w-4 sm:h-6 sm:w-6 ${stat.color} flex-shrink-0`} />
             </div>
-            <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 flex-shrink-0" />
           </div>
-        </div>
-
-        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm font-medium text-gray-600">Scheduled</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.scheduledContent}</p>
-            </div>
-            <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 flex-shrink-0" />
-          </div>
-        </div>
-
-        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm font-medium text-gray-600">Active Topics</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.totalTopics}</p>
-            </div>
-            <Lightbulb className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 flex-shrink-0" />
-          </div>
-        </div>
-
-        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm font-medium text-gray-600">SEO Score</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.seoScore}%</p>
-            </div>
-            <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 flex-shrink-0" />
-          </div>
-        </div>
-
-        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm font-medium text-gray-600">Automation Jobs</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.automationJobs}</p>
-            </div>
-            <Zap className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 flex-shrink-0" />
-          </div>
-        </div>
-
-        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs sm:text-sm font-medium text-gray-600">Content Queue</p>
-              <p className="text-xl sm:text-2xl font-bold text-gray-900">{systemStatus?.contentQueue ?? 0}</p>
-            </div>
-            <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-500 flex-shrink-0" />
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Information Hub Stats */}
-      <div className="mb-6 sm:mb-8">
-        <div className="flex items-center justify-between mb-3 sm:mb-4">
+      <div className="mb-5 sm:mb-8">
+        <div className="flex items-center justify-between mb-2.5 sm:mb-4">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-indigo-500" />
-            Information Hub
+            Info Hub
           </h2>
           <Link
             href="/admin/information"
@@ -823,57 +750,54 @@ export default function AdminDashboard() {
             Manage &rarr;
           </Link>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-white p-3 sm:p-5 rounded-xl border border-gray-200">
-            <div className="flex items-center justify-between">
+        <div className="grid grid-cols-4 sm:grid-cols-4 gap-2 sm:gap-4">
+          <div className="bg-white p-2.5 sm:p-4 rounded-xl border border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600">Articles</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900">
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500">Articles</p>
+                <p className="text-base sm:text-xl font-bold text-gray-900">
                   {infoHubStats.publishedArticles}
-                  <span className="text-xs sm:text-sm font-normal text-gray-500">/{infoHubStats.totalArticles}</span>
+                  <span className="text-[10px] sm:text-sm font-normal text-gray-400">/{infoHubStats.totalArticles}</span>
                 </p>
               </div>
-              <FileText className="h-5 w-5 sm:h-7 sm:w-7 text-indigo-500 flex-shrink-0" />
+              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-500 hidden sm:block flex-shrink-0" />
             </div>
           </div>
-
-          <div className="bg-white p-3 sm:p-5 rounded-xl border border-gray-200">
-            <div className="flex items-center justify-between">
+          <div className="bg-white p-2.5 sm:p-4 rounded-xl border border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600">Sections</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900">
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500">Sections</p>
+                <p className="text-base sm:text-xl font-bold text-gray-900">
                   {infoHubStats.publishedSections}
-                  <span className="text-xs sm:text-sm font-normal text-gray-500">/{infoHubStats.totalSections}</span>
+                  <span className="text-[10px] sm:text-sm font-normal text-gray-400">/{infoHubStats.totalSections}</span>
                 </p>
               </div>
-              <Layers className="h-5 w-5 sm:h-7 sm:w-7 text-indigo-500 flex-shrink-0" />
+              <Layers className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-500 hidden sm:block flex-shrink-0" />
             </div>
           </div>
-
-          <div className="bg-white p-3 sm:p-5 rounded-xl border border-gray-200">
-            <div className="flex items-center justify-between">
+          <div className="bg-white p-2.5 sm:p-4 rounded-xl border border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600">Drafts</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900">{infoHubStats.draftArticles}</p>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500">Drafts</p>
+                <p className="text-base sm:text-xl font-bold text-gray-900">{infoHubStats.draftArticles}</p>
               </div>
-              <Edit3 className="h-5 w-5 sm:h-7 sm:w-7 text-yellow-500 flex-shrink-0" />
+              <Edit3 className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 hidden sm:block flex-shrink-0" />
             </div>
           </div>
-
-          <div className="bg-white p-3 sm:p-5 rounded-xl border border-gray-200">
-            <div className="flex items-center justify-between">
+          <div className="bg-white p-2.5 sm:p-4 rounded-xl border border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600">SEO Score</p>
-                <p className="text-lg sm:text-2xl font-bold text-gray-900">{infoHubStats.avgSeoScore}%</p>
+                <p className="text-[10px] sm:text-xs font-medium text-gray-500">SEO</p>
+                <p className="text-base sm:text-xl font-bold text-gray-900">{infoHubStats.avgSeoScore}%</p>
               </div>
-              <TrendingUp className="h-5 w-5 sm:h-7 sm:w-7 text-indigo-500 flex-shrink-0" />
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-500 hidden sm:block flex-shrink-0" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Bottom Panels: Ready to Publish + What's Next */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
         {/* Ready to Publish */}
         <div className="bg-white rounded-xl border border-gray-200">
           <div className="p-4 sm:p-6 border-b border-gray-200">
@@ -987,92 +911,39 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* System Connections */}
-      <div className="mt-6 sm:mt-8 mb-6 sm:mb-8">
-        <div className="flex items-center justify-between mb-3 sm:mb-4">
+      {/* System Connections — collapsible on mobile */}
+      <CollapsibleSystemConnections />
+
+      {/* Feature Hub - Collapsible on mobile */}
+      <FeatureHubSection />
+    </div>
+  );
+}
+
+function CollapsibleSystemConnections() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-5 sm:mt-8 mb-5 sm:mb-8">
+      <div className="flex items-center justify-between mb-2.5 sm:mb-4">
+        <button
+          onClick={() => setOpen(!open)}
+          className="flex items-center gap-2 sm:pointer-events-none"
+        >
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
             <Monitor className="h-5 w-5 text-emerald-500" />
             System Connections
           </h2>
-          <Link
-            href="/admin/health-monitoring"
-            className="text-xs sm:text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-          >
-            Health Monitor &rarr;
-          </Link>
-        </div>
-        <SystemConnections />
+          <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform sm:hidden ${open ? "rotate-180" : ""}`} />
+        </button>
+        <Link
+          href="/admin/health-monitoring"
+          className="text-xs sm:text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+        >
+          Health Monitor &rarr;
+        </Link>
       </div>
-
-      {/* Feature Hub - All Admin Features */}
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
-          <Zap className="h-5 w-5 text-orange-500" />
-          Feature Hub
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Content & AI */}
-          <FeatureGroup title="Content & AI" items={[
-            { name: "Articles", href: "/admin/articles", icon: FileText },
-            { name: "Editor", href: "/admin/editor", icon: Edit3 },
-            { name: "Topics Pipeline", href: "/admin/topics-pipeline", icon: Lightbulb },
-            { name: "AI Studio", href: "/admin/ai-studio", icon: Brain },
-            { name: "AI Prompts", href: "/admin/prompts", icon: Sparkles },
-            { name: "Content Types", href: "/admin/content-types", icon: Layers },
-            { name: "Information Hub", href: "/admin/information", icon: BookOpen },
-            { name: "PDF Generator", href: "/admin/pdf-generator", icon: FileText },
-          ]} />
-
-          {/* SEO & Analytics */}
-          <FeatureGroup title="SEO & Analytics" items={[
-            { name: "SEO Dashboard", href: "/admin/seo", icon: Search },
-            { name: "SEO Audits", href: "/admin/seo-audits", icon: Target },
-            { name: "SEO Command", href: "/admin/seo-command", icon: BarChart3 },
-            { name: "Analytics", href: "/admin/command-center/analytics", icon: TrendingUp },
-            { name: "Sync Status", href: "/admin/sync-status", icon: RefreshCw },
-          ]} />
-
-          {/* Media & Design */}
-          <FeatureGroup title="Media & Design" items={[
-            { name: "Media Library", href: "/admin/media", icon: Image },
-            { name: "Photo Pool", href: "/admin/photo-pool", icon: Image },
-            { name: "Video Studio", href: "/admin/video-studio", icon: Video },
-            { name: "Design Studio", href: "/admin/design-studio", icon: Palette },
-            { name: "Brand Assets", href: "/admin/brand-assets", icon: Palette },
-          ]} />
-
-          {/* Automation & Workflows */}
-          <FeatureGroup title="Automation & Workflows" items={[
-            { name: "Automation Hub", href: "/admin/automation-hub", icon: Zap },
-            { name: "Pipeline", href: "/admin/pipeline", icon: Activity },
-            { name: "Workflow", href: "/admin/workflow", icon: Workflow },
-            { name: "Autopilot", href: "/admin/command-center/autopilot", icon: Brain },
-            { name: "Operations", href: "/admin/operations", icon: Settings },
-          ]} />
-
-          {/* Revenue & Affiliates */}
-          <FeatureGroup title="Revenue & Affiliates" items={[
-            { name: "Affiliates", href: "/admin/affiliates", icon: DollarSign },
-            { name: "Affiliate Links", href: "/admin/affiliate-links", icon: Globe },
-            { name: "Affiliate Pool", href: "/admin/affiliate-pool", icon: Users },
-            { name: "Shop", href: "/admin/shop", icon: ShoppingBag },
-            { name: "Transactions", href: "/admin/transactions", icon: DollarSign },
-            { name: "Billing", href: "/admin/billing", icon: DollarSign },
-          ]} />
-
-          {/* Settings & Security */}
-          <FeatureGroup title="Settings & Security" items={[
-            { name: "Variable Vault", href: "/admin/variable-vault", icon: Key },
-            { name: "API Keys", href: "/admin/command-center/settings/api-keys", icon: Key },
-            { name: "API Security", href: "/admin/api-security", icon: Shield },
-            { name: "Feature Flags", href: "/admin/feature-flags", icon: Flag },
-            { name: "Site Settings", href: "/admin/site", icon: Settings },
-            { name: "Audit Logs", href: "/admin/audit-logs", icon: Shield },
-            { name: "Team", href: "/admin/team", icon: Users },
-            { name: "CRM", href: "/admin/crm", icon: Users },
-            { name: "WordPress Sync", href: "/admin/wordpress", icon: Globe },
-          ]} />
-        </div>
+      <div className={`${open ? "block" : "hidden"} sm:block`}>
+        <SystemConnections />
       </div>
     </div>
   );
@@ -1345,18 +1216,100 @@ function SystemConnections() {
   );
 }
 
+function FeatureHubSection() {
+  const [featureHubOpen, setFeatureHubOpen] = useState(false);
+
+  const featureGroups = [
+    { title: "Content & AI", items: [
+      { name: "Articles", href: "/admin/articles", icon: FileText },
+      { name: "Editor", href: "/admin/editor", icon: Edit3 },
+      { name: "Topics Pipeline", href: "/admin/topics-pipeline", icon: Lightbulb },
+      { name: "AI Studio", href: "/admin/ai-studio", icon: Brain },
+      { name: "AI Prompts", href: "/admin/prompts", icon: Sparkles },
+      { name: "Content Types", href: "/admin/content-types", icon: Layers },
+      { name: "Information Hub", href: "/admin/information", icon: BookOpen },
+      { name: "PDF Generator", href: "/admin/pdf-generator", icon: FileText },
+    ]},
+    { title: "SEO & Analytics", items: [
+      { name: "SEO Dashboard", href: "/admin/seo", icon: Search },
+      { name: "SEO Audits", href: "/admin/seo-audits", icon: Target },
+      { name: "SEO Command", href: "/admin/seo-command", icon: BarChart3 },
+      { name: "Analytics", href: "/admin/command-center/analytics", icon: TrendingUp },
+      { name: "Sync Status", href: "/admin/sync-status", icon: RefreshCw },
+    ]},
+    { title: "Media & Design", items: [
+      { name: "Media Library", href: "/admin/media", icon: Image },
+      { name: "Photo Pool", href: "/admin/photo-pool", icon: Image },
+      { name: "Video Studio", href: "/admin/video-studio", icon: Video },
+      { name: "Design Studio", href: "/admin/design-studio", icon: Palette },
+      { name: "Brand Assets", href: "/admin/brand-assets", icon: Palette },
+    ]},
+    { title: "Automation & Workflows", items: [
+      { name: "Automation Hub", href: "/admin/automation-hub", icon: Zap },
+      { name: "Pipeline", href: "/admin/pipeline", icon: Activity },
+      { name: "Workflow", href: "/admin/workflow", icon: Workflow },
+      { name: "Autopilot", href: "/admin/command-center/autopilot", icon: Brain },
+      { name: "Operations", href: "/admin/operations", icon: Settings },
+    ]},
+    { title: "Revenue & Affiliates", items: [
+      { name: "Affiliates", href: "/admin/affiliates", icon: DollarSign },
+      { name: "Affiliate Links", href: "/admin/affiliate-links", icon: Globe },
+      { name: "Affiliate Pool", href: "/admin/affiliate-pool", icon: Users },
+      { name: "Shop", href: "/admin/shop", icon: ShoppingBag },
+      { name: "Transactions", href: "/admin/transactions", icon: DollarSign },
+      { name: "Billing", href: "/admin/billing", icon: DollarSign },
+    ]},
+    { title: "Settings & Security", items: [
+      { name: "Variable Vault", href: "/admin/variable-vault", icon: Key },
+      { name: "API Keys", href: "/admin/command-center/settings/api-keys", icon: Key },
+      { name: "API Security", href: "/admin/api-security", icon: Shield },
+      { name: "Feature Flags", href: "/admin/feature-flags", icon: Flag },
+      { name: "Site Settings", href: "/admin/site", icon: Settings },
+      { name: "Audit Logs", href: "/admin/audit-logs", icon: Shield },
+      { name: "Team", href: "/admin/team", icon: Users },
+      { name: "CRM", href: "/admin/crm", icon: Users },
+      { name: "WordPress Sync", href: "/admin/wordpress", icon: Globe },
+    ]},
+  ];
+
+  return (
+    <div className="mb-5 sm:mb-8">
+      {/* Mobile: collapsible toggle */}
+      <button
+        onClick={() => setFeatureHubOpen(!featureHubOpen)}
+        className="w-full flex items-center justify-between mb-2.5 sm:mb-4 sm:pointer-events-none"
+      >
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <Zap className="h-5 w-5 text-orange-500" />
+          Feature Hub
+        </h2>
+        <ChevronDown className={`h-5 w-5 text-gray-400 transition-transform sm:hidden ${featureHubOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {/* Always visible on sm+, toggle on mobile */}
+      <div className={`${featureHubOpen ? "block" : "hidden"} sm:block`}>
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {featureGroups.map((group) => (
+            <FeatureGroup key={group.title} title={group.title} items={group.items} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FeatureGroup({ title, items }: { title: string; items: { name: string; href: string; icon: any }[] }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{title}</h3>
-      <div className="space-y-1">
+    <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
+      <h3 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2 sm:mb-3">{title}</h3>
+      <div className="space-y-0.5 sm:space-y-1">
         {items.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs sm:text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100 hover:text-gray-900 transition-colors"
           >
-            <item.icon className="h-4 w-4 text-gray-400" />
+            <item.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
             {item.name}
           </Link>
         ))}

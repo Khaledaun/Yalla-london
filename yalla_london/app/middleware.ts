@@ -39,11 +39,15 @@ const DOMAIN_TO_SITE: Record<
     siteName: "Arabaldives",
     locale: "ar",
   },
-  // Yalla Dubai (UAE)
-  "yalladubai.com": { siteId: "dubai", siteName: "Yalla Dubai", locale: "en" },
-  "www.yalladubai.com": {
-    siteId: "dubai",
-    siteName: "Yalla Dubai",
+  // Yalla Riviera (French Riviera)
+  "yallariviera.com": {
+    siteId: "french-riviera",
+    siteName: "Yalla Riviera",
+    locale: "en",
+  },
+  "www.yallariviera.com": {
+    siteId: "french-riviera",
+    siteName: "Yalla Riviera",
     locale: "en",
   },
   // Yalla Istanbul (Turkey)
@@ -90,13 +94,13 @@ const DOMAIN_TO_SITE: Record<
     locale: "ar",
   },
   "luxuryescapes.me": {
-    siteId: "dubai",
-    siteName: "Yalla Dubai",
+    siteId: "french-riviera",
+    siteName: "Yalla Riviera",
     locale: "ar",
   },
   "www.luxuryescapes.me": {
-    siteId: "dubai",
-    siteName: "Yalla Dubai",
+    siteId: "french-riviera",
+    siteName: "Yalla Riviera",
     locale: "ar",
   },
   // Development
@@ -138,8 +142,8 @@ const ALLOWED_ORIGINS = new Set([
   "https://www.yalla-london.com",
   "https://arabaldives.com",
   "https://www.arabaldives.com",
-  "https://yalladubai.com",
-  "https://www.yalladubai.com",
+  "https://yallariviera.com",
+  "https://www.yallariviera.com",
   "https://yallaistanbul.com",
   "https://www.yallaistanbul.com",
   "https://yallathailand.com",

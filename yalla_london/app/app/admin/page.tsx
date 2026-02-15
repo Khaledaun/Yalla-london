@@ -103,6 +103,7 @@ export default function AdminDashboard() {
   // Action button loading states
   const [publishingAll, setPublishingAll] = useState(false);
   const [runningCrons, setRunningCrons] = useState(false);
+  const [seedingTopics, setSeedingTopics] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const loadData = async () => {
@@ -201,6 +202,25 @@ export default function AdminDashboard() {
       setActionMessage({ type: "error", text: "Network error - could not publish" });
     } finally {
       setPublishingAll(false);
+    }
+  };
+
+  const handleSeedTopics = async () => {
+    setSeedingTopics(true);
+    setActionMessage(null);
+    try {
+      const res = await fetch("/api/admin/seed-topics", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setActionMessage({ type: "success", text: `${data.created} topics queued! ${data.nextStep}` });
+        loadData();
+      } else {
+        setActionMessage({ type: "error", text: data.error || "Failed to seed topics" });
+      }
+    } catch {
+      setActionMessage({ type: "error", text: "Network error - could not seed topics" });
+    } finally {
+      setSeedingTopics(false);
     }
   };
 
@@ -376,6 +396,22 @@ export default function AdminDashboard() {
               {publishingAll ? "Publishing..." : "Publish All Ready"}
             </div>
             <div className="text-xs opacity-80 hidden sm:block mt-0.5">Publish eligible drafts</div>
+          </button>
+          {/* Generate Topics button */}
+          <button
+            onClick={handleSeedTopics}
+            disabled={seedingTopics}
+            className="bg-blue-500 hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed text-white p-3 sm:p-4 rounded-xl transition-colors active:opacity-90 text-left"
+          >
+            {seedingTopics ? (
+              <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2 animate-spin" />
+            ) : (
+              <Plus className="h-5 w-5 sm:h-6 sm:w-6 mb-1 sm:mb-2" />
+            )}
+            <div className="text-sm sm:text-base font-medium leading-tight">
+              {seedingTopics ? "Seeding..." : "Generate Topics"}
+            </div>
+            <div className="text-xs opacity-80 hidden sm:block mt-0.5">Add 10 topics (EN + AR)</div>
           </button>
           {/* Run All Crons button */}
           <button

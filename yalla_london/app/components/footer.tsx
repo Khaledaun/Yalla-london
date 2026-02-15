@@ -7,12 +7,11 @@ import { useLanguage } from './language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Mail, MapPin } from 'lucide-react'
 import { FollowUs } from './follow-us'
+import { ENTITY, getCopyrightLine, getBrandDisclosure } from '@/config/entity'
 
 export function Footer() {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
-
-  const currentYear = new Date().getFullYear()
 
   return (
     <footer className={`bg-charcoal text-cream-100 ${isRTL ? 'rtl' : 'ltr'}`}>
@@ -156,9 +155,14 @@ export function Footer() {
 
         {/* Bottom Bar — Copyright: IBM Plex Mono 8px/400, Stone */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
-          <p className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase">
-            © {currentYear} Yalla London. {language === 'en' ? 'All rights reserved.' : 'جميع الحقوق محفوظة.'}
-          </p>
+          <div className="text-center md:text-left">
+            <p className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase">
+              {getCopyrightLine(language)}
+            </p>
+            <p className="font-mono text-[7px] font-normal text-stone/70 tracking-[0.5px] mt-1">
+              {getBrandDisclosure('Yalla London', language)}
+            </p>
+          </div>
           <div className="flex items-center gap-5">
             <Link href="/privacy" className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors">
               {language === 'en' ? 'Privacy Policy' : 'سياسة الخصوصية'}
@@ -166,8 +170,11 @@ export function Footer() {
             <Link href="/terms" className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors">
               {language === 'en' ? 'Terms of Use' : 'شروط الاستخدام'}
             </Link>
+            <Link href="/affiliate-disclosure" className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors">
+              {language === 'en' ? 'Affiliate Disclosure' : 'إفصاح الإحالة'}
+            </Link>
             <a
-              href="mailto:legal@yalla-london.com"
+              href={`mailto:${ENTITY.contact.legalEmail}`}
               className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors"
             >
               {language === 'en' ? 'Legal' : 'القانونية'}

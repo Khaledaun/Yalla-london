@@ -126,15 +126,13 @@ export function BrandShowcase() {
         <CardContent>
           <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm">
             <div># Switch brand configurations</div>
-            <div>npm run switch-brand kids-retail</div>
-            <div>npm run switch-brand real-estate</div>
             <div>npm run switch-brand luxury-guide</div>
             <br />
             <div># Create new brand template</div>
             <div>npm run create-brand</div>
             <br />
             <div># Deploy with specific brand</div>
-            <div>NEXT_PUBLIC_BRAND_TYPE=kids-retail npm run build</div>
+            <div>NEXT_PUBLIC_BRAND_TYPE=luxury-guide npm run build</div>
           </div>
         </CardContent>
       </Card>

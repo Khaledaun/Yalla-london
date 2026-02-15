@@ -125,6 +125,7 @@ export default function AdminDashboard() {
   const [publishingAll, setPublishingAll] = useState(false);
   const [runningCrons, setRunningCrons] = useState(false);
   const [seedingTopics, setSeedingTopics] = useState(false);
+  const [seedingContent, setSeedingContent] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const loadData = async () => {
@@ -289,6 +290,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSeedContent = async () => {
+    setSeedingContent(true);
+    setActionMessage(null);
+    try {
+      const res = await fetch("/api/admin/seed-content", { method: "POST" });
+      const data = await res.json();
+      if (data.success || res.ok) {
+        setActionMessage({
+          type: "success",
+          text: `Seeded ${data.seeded ?? data.created ?? 0} articles successfully`,
+        });
+        loadData();
+      } else {
+        setActionMessage({ type: "error", text: data.error || "Failed to seed content" });
+      }
+    } catch {
+      setActionMessage({ type: "error", text: "Network error - could not seed content" });
+    } finally {
+      setSeedingContent(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
@@ -402,7 +425,7 @@ export default function AdminDashboard() {
         <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-2.5 sm:mb-4">
           Quick Actions
         </h2>
-        <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 lg:grid-cols-8 sm:gap-3 sm:overflow-visible sm:pb-0 snap-x snap-mandatory sm:snap-none">
+        <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-2 -mx-3 px-3 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-5 lg:grid-cols-9 sm:gap-3 sm:overflow-visible sm:pb-0 snap-x snap-mandatory sm:snap-none">
           {[
             { name: "New Article", href: "/admin/editor", icon: Edit3, color: "bg-blue-500 active:bg-blue-600" },
             { name: "Add Topic", href: "/admin/topics", icon: Lightbulb, color: "bg-green-500 active:bg-green-600" },
@@ -437,6 +460,16 @@ export default function AdminDashboard() {
             {seedingTopics ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5 sm:mb-1.5" />}
             <div className="text-[10px] sm:text-sm font-medium leading-tight mt-1 sm:mt-0">
               {seedingTopics ? "Seeding" : "Gen Topics"}
+            </div>
+          </button>
+          <button
+            onClick={handleSeedContent}
+            disabled={seedingContent}
+            className="bg-rose-500 active:bg-rose-600 disabled:opacity-60 text-white rounded-xl transition-colors flex-shrink-0 snap-start flex flex-col items-center justify-center text-center w-[4.5rem] h-[4.5rem] sm:w-auto sm:h-auto sm:p-3 sm:items-start sm:text-left"
+          >
+            {seedingContent ? <Loader2 className="h-5 w-5 animate-spin" /> : <Database className="h-5 w-5 sm:mb-1.5" />}
+            <div className="text-[10px] sm:text-sm font-medium leading-tight mt-1 sm:mt-0">
+              {seedingContent ? "Seeding" : "Seed Content"}
             </div>
           </button>
           <button

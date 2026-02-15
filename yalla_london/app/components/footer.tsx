@@ -7,12 +7,11 @@ import { useLanguage } from './language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Mail, MapPin } from 'lucide-react'
 import { FollowUs } from './follow-us'
+import { ENTITY, getCopyrightLine, getBrandDisclosure } from '@/config/entity'
 
 export function Footer() {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
-
-  const currentYear = new Date().getFullYear()
 
   return (
     <footer className={`bg-charcoal text-cream-100 ${isRTL ? 'rtl' : 'ltr'}`}>
@@ -158,13 +157,10 @@ export function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
           <div className="text-center md:text-left">
             <p className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase">
-              © 2025–{currentYear} Zenitha.Luxury LLC. {language === 'en' ? 'All rights reserved.' : 'جميع الحقوق محفوظة.'}
+              {getCopyrightLine(language)}
             </p>
             <p className="font-mono text-[7px] font-normal text-stone/70 tracking-[0.5px] mt-1">
-              {language === 'en'
-                ? 'Yalla London is a brand of Zenitha.Luxury LLC, a Delaware limited liability company.'
-                : 'يلا لندن هي علامة تجارية لشركة Zenitha.Luxury LLC، شركة ذات مسؤولية محدودة في ديلاوير.'
-              }
+              {getBrandDisclosure('Yalla London', language)}
             </p>
           </div>
           <div className="flex items-center gap-5">
@@ -178,7 +174,7 @@ export function Footer() {
               {language === 'en' ? 'Affiliate Disclosure' : 'إفصاح الإحالة'}
             </Link>
             <a
-              href="mailto:legal@yalla-london.com"
+              href={`mailto:${ENTITY.contact.legalEmail}`}
               className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors"
             >
               {language === 'en' ? 'Legal' : 'القانونية'}

@@ -273,8 +273,6 @@ export function BrandCustomizationPanel() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="luxury-guide">Luxury Guide</SelectItem>
-                      <SelectItem value="kids-retail">Kids Retail</SelectItem>
-                      <SelectItem value="real-estate">Real Estate</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

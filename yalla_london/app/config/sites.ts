@@ -1,15 +1,27 @@
 /**
  * Multi-Destination Site Configuration
  *
- * Central config for all branded sites. Used by cron jobs, content gen,
- * SEO agent, affiliate inject, and middleware.
+ * Central config for all branded sites under Zenitha.Luxury LLC.
+ * Used by cron jobs, content gen, SEO agent, affiliate inject, and middleware.
  *
  * Each site defines:
  * - Identity (id, name, domain, locale)
+ * - Lifecycle status (active, planned, paused, development)
  * - Content strategy (topic templates EN/AR, categories)
  * - Affiliate partners relevant to the destination
  * - SEO config (primary keywords, geo-targeting)
+ *
+ * Parent entity config lives in ./entity.ts
  */
+
+/**
+ * Site lifecycle status:
+ * - active:      Live website, cron jobs run, content generated, indexed
+ * - development: Being built, accessible but not indexed, no cron spend
+ * - planned:     Configured but not launched. Domain reserved, no deployment
+ * - paused:      Was active, temporarily halted. Content preserved, crons stopped
+ */
+export type SiteStatus = "active" | "development" | "planned" | "paused";
 
 export interface SiteConfig {
   id: string;
@@ -18,6 +30,8 @@ export interface SiteConfig {
   domain: string;
   locale: "en" | "ar";
   direction: "ltr" | "rtl";
+  /** Lifecycle status — controls cron execution and resource spend */
+  status: SiteStatus;
   destination: string;
   country: string;
   currency: string;
@@ -52,6 +66,7 @@ export const SITES: Record<string, SiteConfig> = {
     domain: "yalla-london.com",
     locale: "en",
     direction: "ltr",
+    status: "active",
     destination: "London",
     country: "UK",
     currency: "GBP",
@@ -277,6 +292,7 @@ export const SITES: Record<string, SiteConfig> = {
     domain: "arabaldives.com",
     locale: "ar",
     direction: "rtl",
+    status: "planned",
     destination: "Maldives",
     country: "Maldives",
     currency: "USD",
@@ -495,6 +511,7 @@ export const SITES: Record<string, SiteConfig> = {
     domain: "yalladubai.com",
     locale: "en",
     direction: "ltr",
+    status: "planned",
     destination: "Dubai",
     country: "UAE",
     currency: "AED",
@@ -720,6 +737,7 @@ export const SITES: Record<string, SiteConfig> = {
     domain: "yallaistanbul.com",
     locale: "en",
     direction: "ltr",
+    status: "planned",
     destination: "Istanbul",
     country: "Turkey",
     currency: "TRY",
@@ -938,6 +956,7 @@ export const SITES: Record<string, SiteConfig> = {
     domain: "yallathailand.com",
     locale: "en",
     direction: "ltr",
+    status: "planned",
     destination: "Thailand",
     country: "Thailand",
     currency: "THB",
@@ -1150,30 +1169,34 @@ export const SITES: Record<string, SiteConfig> = {
   },
 };
 
-/**
- * Sites that have a live, deployed website.
- * Other sites are defined in SITES but shouldn't consume AI tokens or cron time.
- * Add site IDs here as their websites go live.
- */
-const LIVE_SITES: string[] = ["yalla-london"];
-
-/** Get all configured site IDs (all 5, including non-live) */
+/** Get all configured site IDs (all sites, any status) */
 export function getAllSiteIds(): string[] {
   return Object.keys(SITES);
 }
 
 /**
- * Get only site IDs with live, deployed websites.
- * Use this in cron jobs, content generation, and indexing to avoid
- * burning AI tokens and cron time on sites that don't exist yet.
+ * Get site IDs by status.
+ * Use this in cron jobs, content generation, and indexing to control spend.
+ * Only "active" sites consume AI tokens and cron time.
+ */
+export function getSiteIdsByStatus(...statuses: SiteStatus[]): string[] {
+  return Object.values(SITES)
+    .filter((site) => statuses.includes(site.status))
+    .map((site) => site.id);
+}
+
+/**
+ * Get only active site IDs (live websites).
+ * Drop-in replacement for the old LIVE_SITES array.
  */
 export function getActiveSiteIds(): string[] {
-  return LIVE_SITES.filter((id) => id in SITES);
+  return getSiteIdsByStatus("active");
 }
 
 /** Check if a site has a live website */
 export function isSiteLive(siteId: string): boolean {
-  return LIVE_SITES.includes(siteId);
+  const site = SITES[siteId];
+  return site?.status === "active";
 }
 
 /** Get site config by ID */

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Mail, MapPin, Heart, Crown, Star, Coffee } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { ENTITY, getBrandDisclosure } from '@/config/entity'
 
 const founderImages = [
   'https://media.cntraveller.com/photos/66b1f6248feace68eac032f7/16:9/w_3200,h_1800,c_limit/south%20asian%20heritage%20month.jpg',
@@ -143,8 +144,8 @@ export default function AboutPage() {
                 </p>
                 <p className="text-base text-stone/80 italic">
                   {language === 'en'
-                    ? '— Khaled N. Aun, Founder & CEO of Zenitha.Luxury LLC'
-                    : '— خالد ن. عون، المؤسس والرئيس التنفيذي لشركة Zenitha.Luxury LLC'
+                    ? `— ${ENTITY.founder.name}, ${ENTITY.founder.title} of ${ENTITY.legalName}`
+                    : `— خالد ن. عون، المؤسس والرئيس التنفيذي لشركة ${ENTITY.legalName}`
                   }
                 </p>
               </div>
@@ -296,18 +297,15 @@ export default function AboutPage() {
             </h2>
             <Card className="p-8 border-0 luxury-shadow">
               <CardContent className="p-0 space-y-3 text-stone">
-                <p className="font-semibold text-charcoal text-lg">Zenitha.Luxury LLC</p>
+                <p className="font-semibold text-charcoal text-lg">{ENTITY.legalName}</p>
                 <p>
                   {language === 'en'
-                    ? 'A Delaware Limited Liability Company, United States'
-                    : 'شركة ذات مسؤولية محدودة مسجلة في ديلاوير، الولايات المتحدة'
+                    ? `A ${ENTITY.jurisdiction} ${ENTITY.entityType}, United States`
+                    : `شركة ذات مسؤولية محدودة مسجلة في ${ENTITY.jurisdiction}، الولايات المتحدة`
                   }
                 </p>
                 <p>
-                  {language === 'en'
-                    ? 'Yalla London is a brand and digital property of Zenitha.Luxury LLC, dedicated to curating luxury travel experiences for Arabic-speaking visitors to London.'
-                    : 'يلا لندن هي علامة تجارية وملكية رقمية لشركة Zenitha.Luxury LLC، مكرسة لتنسيق تجارب السفر الفاخرة للزوار الناطقين بالعربية إلى لندن.'
-                  }
+                  {getBrandDisclosure('Yalla London', language)}
                 </p>
                 <div className="pt-3 border-t border-stone/10">
                   <p className="text-sm">

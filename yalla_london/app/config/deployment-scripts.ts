@@ -1,5 +1,10 @@
 
-// Deployment Scripts for Platform Duplication
+/**
+ * Deployment Scripts — Zenitha.Luxury LLC Content Network
+ *
+ * Generates deployment scripts for sites in the Zenitha content arm.
+ * Each site uses the luxury-guide brand template with per-site color overrides.
+ */
 
 export interface DeploymentConfig {
   brandType: string;
@@ -19,8 +24,9 @@ export const generateDeploymentScript = (config: DeploymentConfig): string => {
 
   return `#!/bin/bash
 # Automated deployment script for ${config.siteName}
+# Part of the Zenitha.Luxury LLC content network
 
-echo "🚀 Deploying ${config.siteName} with brand type: ${config.brandType}"
+echo "Deploying ${config.siteName} with brand type: ${config.brandType}"
 
 # Set environment variables
 cat > .env.production << EOF
@@ -28,7 +34,7 @@ ${envVars}
 EOF
 
 # Install dependencies
-npm install
+npm install --legacy-peer-deps
 
 # Generate Prisma client
 npx prisma generate
@@ -39,36 +45,30 @@ npm run build
 # Deploy to Vercel (if using Vercel)
 vercel --prod ${config.customDomain ? `--scope ${config.customDomain}` : ''}
 
-echo "✅ Deployment completed for ${config.siteName}"
+echo "Deployment completed for ${config.siteName}"
 `;
 };
 
-// Quick deployment configurations
+// Quick deployment configurations for Zenitha content network sites
 export const quickDeployConfigs = {
-  kidsClothing: {
-    brandType: 'kids-retail',
-    siteName: 'Little Stars Fashion',
+  yallaLondon: {
+    brandType: 'luxury-guide',
+    siteName: 'Yalla London',
+    customDomain: 'yalla-london.com',
     envOverrides: {
-      'NEXT_PUBLIC_PRIMARY_COLOR': '#FF6B9D',
-      'NEXT_PUBLIC_SECONDARY_COLOR': '#4ECDC4'
+      'NEXT_PUBLIC_PRIMARY_COLOR': '#C8322B',
+      'NEXT_PUBLIC_SECONDARY_COLOR': '#C49A2A'
     }
   },
-  realEstate: {
-    brandType: 'real-estate', 
-    siteName: 'Prime Properties Guide',
+  arabaldives: {
+    brandType: 'luxury-guide',
+    siteName: 'Arabaldives',
+    customDomain: 'arabaldives.com',
     envOverrides: {
-      'NEXT_PUBLIC_PRIMARY_COLOR': '#1E40AF',
-      'NEXT_PUBLIC_SECONDARY_COLOR': '#059669'
+      'NEXT_PUBLIC_PRIMARY_COLOR': '#0891B2',
+      'NEXT_PUBLIC_SECONDARY_COLOR': '#06B6D4'
     }
   },
-  restaurantGuide: {
-    brandType: 'restaurant-guide',
-    siteName: 'Foodie Paradise',
-    envOverrides: {
-      'NEXT_PUBLIC_PRIMARY_COLOR': '#DC2626',
-      'NEXT_PUBLIC_SECONDARY_COLOR': '#F59E0B'
-    }
-  }
 };
 
 // CLI command generator
@@ -82,7 +82,7 @@ export const generateCLICommands = (brandType: string): string[] => {
     `echo "NEXT_PUBLIC_BRAND_TYPE=${brandType}" > .env.local`,
     ``,
     `# Install and setup`,
-    `npm install`,
+    `npm install --legacy-peer-deps`,
     `npx prisma generate`,
     `npx prisma db push`,
     `npx prisma db seed`,

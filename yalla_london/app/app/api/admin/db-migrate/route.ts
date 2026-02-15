@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminOrCron } from "@/lib/admin-middleware";
 
 /**
  * Database Migration Endpoint
@@ -10,15 +11,12 @@ import { NextRequest, NextResponse } from "next/server";
  * GET  → Scan for missing tables and columns (read-only)
  * POST → Create missing tables and add missing columns
  *
- * Auth: CRON_SECRET bearer token (used by test-connections.html)
+ * Auth: Admin session cookie OR CRON_SECRET bearer token
  */
 
 // ─── Auth ──────────────────────────────────────────────────────────────────
-function checkAuth(request: NextRequest): NextResponse | null {
-  const authHeader = request.headers.get("authorization") || "";
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader === `Bearer ${cronSecret}`) return null;
-  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+async function checkAuth(request: NextRequest): Promise<NextResponse | null> {
+  return requireAdminOrCron(request);
 }
 
 // ─── Schema Definition ─────────────────────────────────────────────────────
@@ -530,7 +528,7 @@ async function migrateDatabase(prisma: any): Promise<MigrateResult> {
 // ─── Route Handlers ─────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
-  const authError = checkAuth(request);
+  const authError = await checkAuth(request);
   if (authError) return authError;
 
   try {
@@ -562,7 +560,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = checkAuth(request);
+  const authError = await checkAuth(request);
   if (authError) return authError;
 
   try {

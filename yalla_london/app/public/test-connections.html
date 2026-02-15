@@ -1044,7 +1044,7 @@ async function runAllJobs() {
   addSection('sites-info', 'Active Sites Configuration');
   addResult('sites-info', 'Live Sites', 'pass', 'yalla-london (yalla-london.com)');
   addResult('sites-info', 'Inactive Sites (no website yet)', 'warn',
-    'arabaldives, dubai, istanbul, thailand — cron jobs skip these sites to save AI tokens and time',
+    'arabaldives, french-riviera, istanbul, thailand — cron jobs skip these sites to save AI tokens and time',
     'These sites are defined in <code>config/sites.ts</code> but have no deployed website. Cron jobs use <code>getActiveSiteIds()</code> to process only live sites. Add site IDs to <code>LIVE_SITES</code> array when their websites go live.');
 
   addSection('jobs', 'Cron Job Execution Results');
@@ -1209,7 +1209,7 @@ async function runAllJobs() {
     timestamp: new Date().toISOString(),
     platform: {
       activeSites: ['yalla-london'],
-      inactiveSites: ['arabaldives', 'dubai', 'istanbul', 'thailand'],
+      inactiveSites: ['arabaldives', 'french-riviera', 'istanbul', 'thailand'],
       reason: 'Only yalla-london has a deployed website. Other sites skip cron processing.',
     },
     summary: {
@@ -2248,7 +2248,7 @@ function renderJsonResult() {
     platform: {
       url: window.location.origin,
       activeSites: ['yalla-london'],
-      allSites: ['yalla-london', 'arabaldives', 'yalladubai', 'yallaistanbul', 'yallathailand'],
+      allSites: ['yalla-london', 'arabaldives', 'french-riviera', 'istanbul', 'thailand'],
     },
     summary: {
       passed: pass,
@@ -2294,7 +2294,7 @@ function renderJsonResult() {
     <h2>Test Results — Comprehensive JSON Export</h2>
     <p style="color:#888;font-size:0.8rem;margin-bottom:8px;">Full test report with environment status, recommendations, cron schedule, and detailed results. Click Copy to share.</p>
     <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <button onclick="copyJsonResult()" style="margin:0;padding:8px 20px;font-size:0.85rem;background:#7c3aed;">Copy JSON to Clipboard</button>
+      <button onclick="copyJsonResult(event)" style="margin:0;padding:8px 20px;font-size:0.85rem;background:#7c3aed;">Copy JSON to Clipboard</button>
       <span style="color:#888;font-size:0.8rem;line-height:36px;">${jsonStr.length.toLocaleString()} chars | ${allResults.length} test results | Health: ${pass + warn + fail > 0 ? Math.round((pass / (pass + warn + fail)) * 100) : 0}%</span>
     </div>
     <textarea id="jsonResultArea" readonly style="width:100%;height:400px;background:#0d1117;color:#7ee787;border:1px solid #30363d;border-radius:8px;padding:12px;font-family:monospace;font-size:0.75rem;resize:vertical;">${escapeHtml(jsonStr)}</textarea>
@@ -2302,16 +2302,18 @@ function renderJsonResult() {
   document.getElementById('results').insertAdjacentHTML('beforeend', html);
 }
 
-function copyJsonResult() {
+function copyJsonResult(evt) {
   const area = document.getElementById('jsonResultArea');
   if (!area) return;
   area.select();
   area.setSelectionRange(0, 99999999);
   navigator.clipboard.writeText(area.value).then(() => {
-    const btn = event.target;
-    btn.textContent = 'Copied!';
-    btn.style.background = '#16a34a';
-    setTimeout(() => { btn.textContent = 'Copy JSON to Clipboard'; btn.style.background = '#7c3aed'; }, 2000);
+    const btn = evt?.target || document.querySelector('[onclick*="copyJsonResult"]');
+    if (btn) {
+      btn.textContent = 'Copied!';
+      btn.style.background = '#16a34a';
+      setTimeout(() => { btn.textContent = 'Copy JSON to Clipboard'; btn.style.background = '#7c3aed'; }, 2000);
+    }
   }).catch(() => {
     // Fallback for older browsers
     document.execCommand('copy');

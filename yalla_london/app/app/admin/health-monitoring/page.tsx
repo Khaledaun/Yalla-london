@@ -21,10 +21,13 @@ import {
   ChevronRight,
   Database,
   ExternalLink,
+  FileText,
   Globe,
+  HardDrive,
   Lightbulb,
   Play,
   RefreshCw,
+  Search,
   Send,
   Server,
   Settings,
@@ -364,6 +367,16 @@ export default function HealthMonitoringPage() {
   const [retriggerResult, setRetriggerResult] = useState<{ job: string; ok: boolean; msg: string } | null>(null);
   const [showDbGuide, setShowDbGuide] = useState(false);
 
+  // Content & Indexing Audit
+  const [contentAudit, setContentAudit] = useState<any>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  // DB Schema Health
+  const [schemaData, setSchemaData] = useState<any>(null);
+  const [schemaLoading, setSchemaLoading] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const [migrateResult, setMigrateResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
@@ -470,6 +483,65 @@ export default function HealthMonitoringPage() {
       retriggerCronJob(job);
     }
     // href actions are handled by <a> or <Link>
+  };
+
+  // ─── Content & Indexing Audit ──────────────────────────────────────
+  const runContentAudit = async () => {
+    setAuditLoading(true);
+    try {
+      const res = await fetch('/api/admin/content-audit');
+      if (res.ok) {
+        setContentAudit(await res.json());
+      } else {
+        setContentAudit({ error: `HTTP ${res.status}` });
+      }
+    } catch (err) {
+      setContentAudit({ error: err instanceof Error ? err.message : 'Failed' });
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  // ─── DB Schema Scan ────────────────────────────────────────────────
+  const runSchemaCheck = async () => {
+    setSchemaLoading(true);
+    try {
+      const res = await fetch('/api/admin/db-migrate');
+      if (res.ok) {
+        setSchemaData(await res.json());
+      } else {
+        setSchemaData({ error: `HTTP ${res.status}` });
+      }
+    } catch (err) {
+      setSchemaData({ error: err instanceof Error ? err.message : 'Failed' });
+    } finally {
+      setSchemaLoading(false);
+    }
+  };
+
+  const runMigration = async () => {
+    setMigrating(true);
+    setMigrateResult(null);
+    try {
+      const res = await fetch('/api/admin/db-migrate', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        const created = data.created?.length ?? 0;
+        const altered = data.altered?.length ?? 0;
+        const indexes = data.indexes?.length ?? 0;
+        setMigrateResult({
+          ok: true,
+          msg: `Fixed: ${created} table(s), ${altered} column(s), ${indexes} index(es)`,
+        });
+        runSchemaCheck(); // refresh scan
+      } else {
+        setMigrateResult({ ok: false, msg: data.error || 'Migration failed' });
+      }
+    } catch (err) {
+      setMigrateResult({ ok: false, msg: err instanceof Error ? err.message : 'Error' });
+    } finally {
+      setMigrating(false);
+    }
   };
 
   // Detect critical alerts that need immediate attention
@@ -999,7 +1071,449 @@ export default function HealthMonitoringPage() {
             </div>
           )}
         </div>
+
+        {/* ── CONTENT & INDEXING AUDIT ── */}
+        <ContentAuditPanel
+          data={contentAudit}
+          loading={auditLoading}
+          onRun={runContentAudit}
+        />
+
+        {/* ── DATABASE SCHEMA HEALTH ── */}
+        <SchemaHealthPanel
+          data={schemaData}
+          loading={schemaLoading}
+          migrating={migrating}
+          migrateResult={migrateResult}
+          onScan={runSchemaCheck}
+          onMigrate={runMigration}
+          onDismissMigrate={() => setMigrateResult(null)}
+        />
       </main>
+    </div>
+  );
+}
+
+// ─── Content & Indexing Audit Panel ──────────────────────────────────
+
+function ContentAuditPanel({
+  data,
+  loading,
+  onRun,
+}: {
+  data: any;
+  loading: boolean;
+  onRun: () => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <FileText className="h-5 w-5 text-blue-400" />
+          Content & Indexing Audit
+        </h2>
+        <button
+          onClick={onRun}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+        >
+          {loading ? (
+            <RefreshCw className="h-4 w-4 animate-spin" />
+          ) : (
+            <Search className="h-4 w-4" />
+          )}
+          {loading ? 'Scanning...' : data ? 'Re-scan' : 'Run Audit'}
+        </button>
+      </div>
+
+      {!data && !loading && (
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center">
+          <FileText className="h-8 w-8 text-gray-700 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">Click "Run Audit" to scan content & indexing status</p>
+          <p className="text-xs text-gray-600 mt-1">
+            Checks published posts, indexing coverage, stuck pages, and untracked URLs
+          </p>
+        </div>
+      )}
+
+      {data?.error && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" />
+          <span className="text-sm text-red-300">{data.error}</span>
+        </div>
+      )}
+
+      {data?.summary && (
+        <div className="space-y-4">
+          {/* Summary cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+            {[
+              { label: 'Total Posts', value: data.summary.totalPosts, color: 'text-gray-300' },
+              { label: 'Published', value: data.summary.totalPublished, color: 'text-emerald-400' },
+              { label: 'Drafts', value: data.summary.totalDrafts, color: 'text-amber-400' },
+              { label: 'Tracked', value: data.summary.totalTrackedUrls, color: 'text-blue-400' },
+              { label: 'Indexed', value: data.summary.totalIndexed, color: 'text-emerald-400' },
+              { label: 'Submitted', value: data.summary.totalSubmittedPending, color: 'text-cyan-400' },
+              { label: 'Errors', value: data.summary.totalErrors, color: data.summary.totalErrors > 0 ? 'text-red-400' : 'text-gray-600' },
+              { label: 'Untracked', value: data.summary.totalUntracked, color: data.summary.totalUntracked > 0 ? 'text-amber-400' : 'text-gray-600' },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
+                <div className={`text-lg font-bold font-mono ${stat.color}`}>{stat.value}</div>
+                <div className="text-xs text-gray-500">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Index rate */}
+          {data.summary.totalTrackedUrls > 0 && (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-400">Content Index Rate</span>
+                <span className={`text-lg font-bold font-mono ${
+                  data.summary.indexRate >= 70 ? 'text-emerald-400' :
+                  data.summary.indexRate >= 40 ? 'text-amber-400' : 'text-red-400'
+                }`}>
+                  {data.summary.indexRate}%
+                </span>
+              </div>
+              <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    data.summary.indexRate >= 70 ? 'bg-emerald-500' :
+                    data.summary.indexRate >= 40 ? 'bg-amber-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${data.summary.indexRate}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Per-site breakdown */}
+          {data.perSite?.length > 0 && (
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-800">
+                <h3 className="font-semibold text-sm text-gray-300">Per-Site Breakdown</h3>
+              </div>
+              <div className="divide-y divide-gray-800">
+                {data.perSite.map((site: any) => (
+                  <div key={site.siteId} className="px-5 py-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-cyan-400" />
+                        <span className="font-medium text-sm">{site.siteName || site.siteId}</span>
+                        {site.domain && (
+                          <span className="text-xs text-gray-600">{site.domain}</span>
+                        )}
+                      </div>
+                      <span className={`text-xs font-mono px-2 py-0.5 rounded-full ${
+                        site.indexing.indexRate >= 70
+                          ? 'bg-emerald-500/10 text-emerald-400'
+                          : site.indexing.indexRate >= 40
+                            ? 'bg-amber-500/10 text-amber-400'
+                            : 'bg-red-500/10 text-red-400'
+                      }`}>
+                        {site.indexing.indexRate}% indexed
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-xs">
+                      <div><span className="text-gray-500">Posts:</span> <span className="font-mono">{site.totalPosts}</span></div>
+                      <div><span className="text-gray-500">Published:</span> <span className="font-mono text-emerald-400">{site.published}</span></div>
+                      <div><span className="text-gray-500">Drafts:</span> <span className="font-mono text-amber-400">{site.drafts}</span></div>
+                      <div><span className="text-gray-500">Tracked:</span> <span className="font-mono">{site.indexing.total}</span></div>
+                      <div><span className="text-gray-500">Indexed:</span> <span className="font-mono text-emerald-400">{site.indexing.indexed}</span></div>
+                      <div><span className="text-gray-500">Errors:</span> <span className={`font-mono ${site.indexing.error > 0 ? 'text-red-400' : 'text-gray-600'}`}>{site.indexing.error}</span></div>
+                    </div>
+                    {/* Not-indexed reasons */}
+                    {site.notIndexedReasons?.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {site.notIndexedReasons.slice(0, 5).map((r: any, i: number) => (
+                          <span key={i} className="text-[10px] bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">
+                            {r.reason}: {r.count}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Stuck pages */}
+          {data.stuckPages?.length > 0 && (
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                <span className="font-semibold text-sm text-amber-300">
+                  {data.stuckPages.length} Stuck Page{data.stuckPages.length !== 1 ? 's' : ''} (submitted &gt;7 days, not indexed)
+                </span>
+              </div>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {data.stuckPages.map((p: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-xs bg-black/20 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-gray-400 truncate max-w-xs">{p.slug || p.url}</span>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {p.coverageState && (
+                        <span className="text-amber-400">{p.coverageState}</span>
+                      )}
+                      <span className="text-gray-500">
+                        {p.attempts} attempt{p.attempts !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Untracked posts */}
+          {data.untrackedPosts?.length > 0 && (
+            <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Lightbulb className="h-4 w-4 text-blue-400" />
+                <span className="font-semibold text-sm text-blue-300">
+                  {data.untrackedPosts.length} Published Post{data.untrackedPosts.length !== 1 ? 's' : ''} Not Being Tracked
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mb-2">
+                These posts are published but have no entry in the URL indexing tracker. Run the SEO agent to pick them up.
+              </p>
+              <div className="space-y-1 max-h-36 overflow-y-auto">
+                {data.untrackedPosts.map((p: any, i: number) => (
+                  <div key={i} className="text-xs text-gray-400 flex items-center gap-2">
+                    <span className="text-gray-600 font-mono w-4">{i + 1}.</span>
+                    <span className="truncate">{p.title || p.slug}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* URL errors */}
+          {data.urlErrors?.length > 0 && (
+            <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <XCircle className="h-4 w-4 text-red-400" />
+                <span className="font-semibold text-sm text-red-300">
+                  {data.urlErrors.length} URL Error{data.urlErrors.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {data.urlErrors.map((e: any, i: number) => (
+                  <div key={i} className="text-xs bg-black/20 rounded-lg px-3 py-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400 truncate max-w-xs">{e.slug || e.url}</span>
+                      <span className="text-red-400 ml-2 flex-shrink-0">{e.coverageState}</span>
+                    </div>
+                    {e.error && (
+                      <p className="text-red-300/70 mt-1 truncate">{e.error}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Timestamp */}
+          {data.timestamp && (
+            <p className="text-xs text-gray-600 text-right">
+              Scanned: {timeAgo(data.timestamp)}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Database Schema Health Panel ────────────────────────────────────
+
+function SchemaHealthPanel({
+  data,
+  loading,
+  migrating,
+  migrateResult,
+  onScan,
+  onMigrate,
+  onDismissMigrate,
+}: {
+  data: any;
+  loading: boolean;
+  migrating: boolean;
+  migrateResult: { ok: boolean; msg: string } | null;
+  onScan: () => void;
+  onMigrate: () => void;
+  onDismissMigrate: () => void;
+}) {
+  const hasMissing = data && !data.error && (
+    (data.missingTables?.length > 0) || (data.missingColumns?.length > 0)
+  );
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <HardDrive className="h-5 w-5 text-purple-400" />
+          Database Schema Health
+        </h2>
+        <div className="flex items-center gap-2">
+          {hasMissing && (
+            <button
+              onClick={onMigrate}
+              disabled={migrating}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {migrating ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Wrench className="h-4 w-4" />
+              )}
+              {migrating ? 'Fixing...' : 'Fix Missing'}
+            </button>
+          )}
+          <button
+            onClick={onScan}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            {loading ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <Database className="h-4 w-4" />
+            )}
+            {loading ? 'Scanning...' : data ? 'Re-scan' : 'Scan Schema'}
+          </button>
+        </div>
+      </div>
+
+      {/* Migration result */}
+      {migrateResult && (
+        <div className={`${migrateResult.ok ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'} border rounded-xl p-4 mb-4 flex items-center justify-between`}>
+          <div className="flex items-center gap-3">
+            {migrateResult.ok ? (
+              <CheckCircle className="h-5 w-5 text-emerald-400" />
+            ) : (
+              <XCircle className="h-5 w-5 text-red-400" />
+            )}
+            <span className={`text-sm ${migrateResult.ok ? 'text-emerald-300' : 'text-red-300'}`}>
+              {migrateResult.msg}
+            </span>
+          </div>
+          <button onClick={onDismissMigrate} className="text-gray-500 hover:text-gray-400">
+            <XCircle className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {!data && !loading && (
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center">
+          <HardDrive className="h-8 w-8 text-gray-700 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">Click "Scan Schema" to check for missing tables & columns</p>
+          <p className="text-xs text-gray-600 mt-1">
+            Compares your database against the Prisma schema and reports gaps
+          </p>
+        </div>
+      )}
+
+      {data?.error && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" />
+          <span className="text-sm text-red-300">{data.error}</span>
+        </div>
+      )}
+
+      {data && !data.error && (
+        <div className="space-y-4">
+          {/* Sync status banner */}
+          <div className={`rounded-2xl p-5 ${
+            hasMissing
+              ? 'bg-gradient-to-r from-red-500/10 to-amber-500/10 border border-red-500/20'
+              : 'bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20'
+          }`}>
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                hasMissing ? 'bg-red-500/20' : 'bg-emerald-500/20'
+              }`}>
+                {hasMissing ? (
+                  <AlertTriangle className="h-6 w-6 text-red-400" />
+                ) : (
+                  <CheckCircle className="h-6 w-6 text-emerald-400" />
+                )}
+              </div>
+              <div>
+                <h3 className="text-lg font-bold">
+                  {hasMissing ? 'Schema Out of Sync' : 'Schema In Sync'}
+                </h3>
+                <p className="text-sm text-gray-400">
+                  {data.existingTables?.length ?? 0} tables found
+                  {hasMissing
+                    ? ` · ${data.missingTables?.length ?? 0} missing table(s), ${data.missingColumns?.length ?? 0} missing column(s)`
+                    : ' · All checked columns present'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Missing tables */}
+          {data.missingTables?.length > 0 && (
+            <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <XCircle className="h-4 w-4 text-red-400" />
+                <span className="font-semibold text-sm text-red-300">
+                  {data.missingTables.length} Missing Table{data.missingTables.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {data.missingTables.map((t: any, i: number) => (
+                  <div key={i} className="bg-black/20 rounded-lg px-3 py-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <code className="text-red-300 font-mono">{t.table}</code>
+                      <span className="text-gray-500">Model: {t.model}</span>
+                    </div>
+                    <p className="text-gray-500 mt-1">
+                      Any route querying <code className="text-cyan-400">prisma.{t.model.charAt(0).toLowerCase() + t.model.slice(1)}</code> will throw P2021
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Missing columns */}
+          {data.missingColumns?.length > 0 && (
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                <span className="font-semibold text-sm text-amber-300">
+                  {data.missingColumns.length} Missing Column{data.missingColumns.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {data.missingColumns.map((c: any, i: number) => (
+                  <div key={i} className="bg-black/20 rounded-lg px-3 py-2 text-xs flex items-center justify-between">
+                    <div>
+                      <code className="text-amber-300 font-mono">{c.table}.{c.column}</code>
+                    </div>
+                    <span className="text-gray-500 font-mono">{c.type}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Existing tables count */}
+          {data.existingTables?.length > 0 && !hasMissing && (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+              <p className="text-sm text-gray-400">
+                All <span className="text-emerald-400 font-mono">{data.existingTables.length}</span> tables
+                and checked columns are in sync with the Prisma schema.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

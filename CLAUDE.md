@@ -56,16 +56,39 @@ These are not suggestions. These are hard rules for every commit:
 
 ## Platform Overview
 
-Multi-tenant luxury travel content platform. 5 branded sites, bilingual (EN/AR), autonomous SEO and content agents, affiliate monetization. Built on Next.js 14 App Router, Prisma ORM, Supabase PostgreSQL, deployed on Vercel Pro.
+Multi-tenant luxury travel content platform under **Zenitha.Luxury LLC** (Delaware). 5 branded sites, bilingual (EN/AR), autonomous SEO and content agents, affiliate monetization. Built on Next.js 14 App Router, Prisma ORM, Supabase PostgreSQL, deployed on Vercel Pro.
+
+### Parent Entity
+
+**Zenitha.Luxury LLC** — Delaware limited liability company, founded by Khaled N. Aun.
+- **Content Arm:** Zenitha Content Network (5 travel sites below)
+- **Tech Arm:** ZenithaOS (travel tech, future SaaS)
+- Config: `config/entity.ts`
 
 ### Sites
-| Site | Domain | Locale | Aesthetic | Status |
-|------|--------|--------|-----------|--------|
-| Yalla London | yalla-london.com | en | Deep navy + gold | Active (primary) |
-| Arabaldives | arabaldives.com | ar | Turquoise + coral | Inactive |
-| Yalla Dubai | yalladubai.com | en | Black + rose gold | Inactive |
-| Yalla Istanbul | yallaistanbul.com | en | Burgundy + copper | Inactive |
-| Yalla Thailand | yallathailand.com | en | Emerald + saffron | Inactive |
+| Site | Domain | Site ID | Locale | Aesthetic | Status |
+|------|--------|---------|--------|-----------|--------|
+| Yalla London | yalla-london.com | yalla-london | en | Deep navy + gold | Active (primary) |
+| Arabaldives | arabaldives.com | arabaldives | ar | Turquoise + coral | Planned |
+| Yalla Riviera | yallariviera.com | french-riviera | en | Mediterranean navy + champagne gold + lavender | Planned |
+| Yalla Istanbul | yallaistanbul.com | istanbul | en | Burgundy + copper | Planned |
+| Yalla Thailand | yallathailand.com | thailand | en | Emerald + saffron | Planned |
+
+**Note:** Yalla Dubai was replaced by Yalla Riviera (French Riviera / Côte d'Azur) — higher affiliate value, stronger Gulf tourist presence, and uncontested Arabic-language niche.
+
+### Site Research Reports
+
+Comprehensive market research for each site lives in `yalla_london/app/docs/site-research/`:
+
+| # | Site | File | Status | Key Findings |
+|---|------|------|--------|-------------|
+| 1 | Yalla London | `01-yalla-london.md` | Complete | 746 lines — design, content strategy, affiliate programs, site architecture, content engine integration |
+| 2 | Arabaldives | `02-arabaldives.md` | Complete | 282 lines — Maldives launch strategy, RTL Arabic-first content, halal resort reviews |
+| 3 | Yalla Riviera | `03-yalla-riviera.md` | Complete | 712 lines — Côte d'Azur design, Gulf tourist market ($75B+ GCC spending), yacht charter affiliates, halal dining guide |
+| 4 | Yalla Istanbul | — | Not started | — |
+| 5 | Yalla Thailand | — | Not started | — |
+
+Each report covers: Design & Visual Identity, Content Strategy & Sources, Profitable Affiliate Programs, Website Layout & Must-Have Sections, Content Engine Integration.
 
 ### Revenue Model
 ```
@@ -281,6 +304,30 @@ This is the order in which things must work. Do not jump ahead.
 3. **Articles contain affiliate links** (monetization)
 4. **Dashboard shows pipeline status** (Khaled can monitor from phone)
 5. **Scale to 2 articles/day on Yalla London**
-6. **Activate site #2 (Arabaldives)**
-7. **Scale across all 5 sites**
-8. **Optimize: CRO, A/B testing, performance tuning**
+6. **Complete site research for all 5 sites** (3/5 done — Istanbul & Thailand remaining)
+7. **Activate site #2 (Arabaldives)** — Arabic-first Maldives content
+8. **Activate site #3 (Yalla Riviera)** — French Riviera luxury + yacht charters
+9. **Scale across all 5 sites**
+10. **Optimize: CRO, A/B testing, performance tuning**
+
+## Recent Development History
+
+### Session: February 2026 — Entity & Research Phase
+
+**Entity Restructuring:**
+- Established **Zenitha.Luxury LLC** as parent umbrella entity (`config/entity.ts`)
+- Updated all legal pages (privacy policy, terms) with Zenitha.Luxury LLC company info
+- Replaced Yalla Dubai with **Yalla Riviera** (French Riviera / Côte d'Azur) — better market fit
+
+**Site Research Reports (3 of 5 complete):**
+- Yalla London: Full research — design, content, affiliates (HalalBooking as top priority), site architecture
+- Arabaldives: Arabic-first Maldives strategy — RTL layout, halal resorts, honeymoon content focus
+- Yalla Riviera: French Riviera research — Gulf tourist market ($75B+ GCC spending), yacht charter affiliates (Boatbookings 20%), Michelin dining, halal restaurant guide
+
+**Pipeline & Infrastructure (prior sessions):**
+- Content pipeline: Topics → Drafts (8 phases) → Reservoir → BlogPost (published, bilingual)
+- Cron jobs: 13 scheduled jobs with budget guards (53s budget / 7s buffer)
+- SEO orchestrator: 5 modules (index, audit, research, goals, performance monitor)
+- Admin dashboard: Mobile-accessible, cron controls, pipeline status, health monitoring
+- Grok (xAI) integration for EN content generation and trending topics
+- Pre-publication SEO gate enforced on all content

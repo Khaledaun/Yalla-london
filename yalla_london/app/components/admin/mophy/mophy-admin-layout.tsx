@@ -778,7 +778,7 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
         {/* Main Content */}
         {/* ──────────────────────────────────────────────────────────────── */}
         <main className={`
-          min-h-screen pt-14 lg:pt-16 pb-20 lg:pb-0 transition-all duration-300
+          min-h-screen pt-14 lg:pt-16 pb-[5.5rem] lg:pb-0 transition-all duration-300
           ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'}
           bg-gray-50 dark:bg-slate-950
         `}>
@@ -790,8 +790,8 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
         {/* ──────────────────────────────────────────────────────────────── */}
         {/* Mobile Bottom Navigation Bar (lg:hidden) */}
         {/* ──────────────────────────────────────────────────────────────── */}
-        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 lg:hidden safe-area-bottom">
-          <div className="flex items-center justify-around h-16">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-t border-gray-200 dark:border-slate-700 lg:hidden safe-area-bottom">
+          <div className="flex items-center justify-around h-14">
             {mobileBottomNav.map((item) => {
               const Icon = item.icon
               const isTrigger = item.href === '__menu__'
@@ -802,7 +802,7 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
                   <button
                     key={item.label}
                     onClick={() => setMobileMenuOpen(true)}
-                    className="flex flex-col items-center justify-center gap-0.5 w-16 h-full text-gray-400"
+                    className="flex flex-col items-center justify-center gap-0.5 min-w-[3rem] py-1 text-gray-400 active:text-gray-600"
                   >
                     <Icon size={20} />
                     <span className="text-[10px] font-medium">{item.label}</span>
@@ -815,9 +815,9 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
                   <Link
                     key={item.label}
                     href={item.href}
-                    className="flex items-center justify-center w-12 h-12 -mt-4 rounded-full bg-gradient-to-br from-primary to-purple-600 text-white shadow-lg shadow-primary/30"
+                    className="flex items-center justify-center w-11 h-11 -mt-5 rounded-full bg-gradient-to-br from-primary to-purple-600 text-white shadow-lg shadow-primary/30 active:shadow-sm active:scale-95 transition-transform"
                   >
-                    <Icon size={22} />
+                    <Icon size={20} />
                   </Link>
                 )
               }
@@ -826,8 +826,8 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`flex flex-col items-center justify-center gap-0.5 w-16 h-full transition-colors ${
-                    active ? 'text-primary' : 'text-gray-400'
+                  className={`flex flex-col items-center justify-center gap-0.5 min-w-[3rem] py-1 transition-colors ${
+                    active ? 'text-primary' : 'text-gray-400 active:text-gray-600'
                   }`}
                 >
                   <Icon size={20} />

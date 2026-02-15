@@ -23,7 +23,7 @@ import { timingSafeEqual } from 'crypto';
 /** SECURITY: Constant-time string comparison to prevent timing attacks */
 function safeCompare(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
-  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  return timingSafeEqual(new Uint8Array(Buffer.from(a)), new Uint8Array(Buffer.from(b)));
 }
 
 // Vercel cron requires GET method

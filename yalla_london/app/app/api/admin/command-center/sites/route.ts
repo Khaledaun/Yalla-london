@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       sites.map(async (site) => {
         const [articleCount, leadCount, pageViewCount] = await Promise.all([
           prisma.blogPost.count({
-            where: { published: true },
+            where: { published: true, siteId: site.id },
           }).catch(() => 0),
           prisma.lead.count({
             where: { site_id: site.id },

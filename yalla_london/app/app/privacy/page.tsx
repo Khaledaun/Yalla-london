@@ -8,7 +8,7 @@ const content = {
   en: {
     title: 'Privacy Policy',
     lastUpdated: 'Last updated',
-    intro: 'Yalla London ("we", "us", or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, store, and share your personal information when you visit yallalondon.com (the "Website"). We operate as a bilingual (English/Arabic) luxury London travel guide, and this policy applies to all users regardless of language preference.',
+    intro: 'Zenitha.Luxury LLC, operating as Yalla London ("we", "us", or "our"), is committed to protecting your privacy. This Privacy Policy explains how we collect, use, store, and share your personal information when you visit yallalondon.com (the "Website"). We operate as a bilingual (English/Arabic) luxury London travel guide, and this policy applies to all users regardless of language preference. Zenitha.Luxury LLC is the data controller for all personal information processed through this Website.',
 
     dataCollectTitle: 'Information We Collect',
     dataCollectPersonalTitle: 'Personal Information You Provide',
@@ -58,7 +58,7 @@ const content = {
     ],
     cookiesThirdPartyTitle: 'Third-Party Cookies from Affiliate Partners',
     cookiesThirdPartyItems: [
-      'When you click an affiliate link on our Website (e.g. to StubHub, Ticketmaster, GetYourGuide, or Viator), the affiliate partner\'s website may set its own cookies on your device. These cookies are governed by that partner\'s own privacy and cookie policies, not ours',
+      'When you click an affiliate link on our Website (e.g. to Booking.com, Expedia, HalalBooking, GetYourGuide, Viator, StubHub, Ticketmaster, Klook, Skyscanner, or Blacklane), the affiliate partner\'s website may set its own cookies on your device. These cookies are governed by that partner\'s own privacy and cookie policies, not ours',
       'We do not control the cookies set by affiliate partners. We encourage you to review their respective privacy policies before making purchases through their platforms',
       'Affiliate cookies are only set if you actively click through to a partner site. Simply browsing our Website does not trigger third-party affiliate cookies',
     ],
@@ -70,13 +70,14 @@ const content = {
       'Supabase (Supabase Inc.): provides our database hosting and backend infrastructure. Contact form submissions and newsletter email addresses are stored securely in Supabase-managed databases with row-level security, encryption at rest, and encrypted connections',
       'Vercel (Vercel Inc.): provides our web hosting, content delivery network (CDN), and serverless functions. Vercel processes server logs including anonymised request data. Vercel\'s infrastructure spans global edge locations for fast page delivery',
       'Email marketing service: we use a third-party email service to manage newsletter subscriptions and deliver emails. Your email address is shared with this provider solely for the purpose of sending you the newsletters you subscribed to',
-      'Affiliate partners (StubHub, Ticketmaster, GetYourGuide, Viator, and select hotel/restaurant booking platforms): we link to these partners within our content. When you click through, your interaction with their platform is governed by their own terms and privacy policies. We receive anonymised commission reports but no personal data about your purchases',
+      'Stripe (Stripe Inc.): processes payments for digital products and e-documents purchased through our shop. Stripe collects payment card details directly and processes them under its own privacy policy. We do not store full card numbers on our servers. Stripe is PCI-DSS Level 1 certified',
+      'Affiliate partners (Booking.com, Expedia, HalalBooking, GetYourGuide, Viator, StubHub, Ticketmaster, Klook, Skyscanner, Blacklane, Allianz Travel Insurance, and select hotel/restaurant booking platforms): we link to these partners within our content. When you click through, your interaction with their platform is governed by their own terms and privacy policies. We receive anonymised commission reports but no personal data about your purchases',
     ],
 
     affiliateTitle: 'Affiliate Disclosure',
     affiliateIntro: 'Transparency is important to us. Please be aware of the following regarding our affiliate relationships:',
     affiliateItems: [
-      'Yalla London participates in affiliate programmes with booking and ticketing partners including StubHub, Ticketmaster, GetYourGuide, Viator, and select hotel and restaurant booking platforms. When you click an affiliate link on our Website and make a purchase or booking, we may earn a commission',
+      'Yalla London participates in affiliate programmes with booking and ticketing partners including Booking.com, Expedia, HalalBooking, GetYourGuide, Viator, StubHub, Ticketmaster, Klook, Skyscanner, Blacklane, Allianz Travel Insurance, and select hotel and restaurant booking platforms. When you click an affiliate link on our Website and make a purchase or booking, we may earn a commission',
       'This commission comes from the affiliate partner, not from you. Clicking an affiliate link does not increase the price you pay. In some cases, we may be able to offer exclusive discounts or deals through our affiliate partnerships',
       'Our editorial recommendations are completely independent of our affiliate relationships. We recommend venues, experiences, and services based on genuine personal experience and editorial judgement. We will never recommend something solely because it offers a higher commission',
       'Affiliate links are clearly present within our recommendations and content. Where a page contains affiliate links, we display a disclosure notice informing you of this fact',
@@ -155,7 +156,7 @@ const content = {
   ar: {
     title: 'سياسة الخصوصية',
     lastUpdated: 'آخر تحديث',
-    intro: 'تلتزم يلا لندن ("نحن" أو "لنا" أو "خاصتنا") بحماية خصوصيتك. توضح سياسة الخصوصية هذه كيف نجمع ونستخدم ونخزن ونشارك معلوماتك الشخصية عند زيارتك لموقع yallalondon.com ("الموقع"). نعمل كدليل سفر فاخر ثنائي اللغة (إنجليزي/عربي) للندن، وتنطبق هذه السياسة على جميع المستخدمين بغض النظر عن تفضيل اللغة.',
+    intro: 'تلتزم شركة Zenitha.Luxury LLC، التي تعمل تحت اسم يلا لندن ("نحن" أو "لنا" أو "خاصتنا")، بحماية خصوصيتك. توضح سياسة الخصوصية هذه كيف نجمع ونستخدم ونخزن ونشارك معلوماتك الشخصية عند زيارتك لموقع yallalondon.com ("الموقع"). نعمل كدليل سفر فاخر ثنائي اللغة (إنجليزي/عربي) للندن، وتنطبق هذه السياسة على جميع المستخدمين بغض النظر عن تفضيل اللغة. شركة Zenitha.Luxury LLC هي المتحكم في البيانات لجميع المعلومات الشخصية التي تتم معالجتها عبر هذا الموقع.',
 
     dataCollectTitle: 'المعلومات التي نجمعها',
     dataCollectPersonalTitle: 'المعلومات الشخصية التي تقدمها',
@@ -205,7 +206,7 @@ const content = {
     ],
     cookiesThirdPartyTitle: 'ملفات تعريف ارتباط الطرف الثالث من شركاء الإحالة',
     cookiesThirdPartyItems: [
-      'عند النقر على رابط إحالة على موقعنا (مثل StubHub أو Ticketmaster أو GetYourGuide أو Viator)، قد يضع موقع شريك الإحالة ملفات تعريف ارتباط خاصة به على جهازك. تخضع هذه الملفات لسياسات الخصوصية وملفات تعريف الارتباط الخاصة بذلك الشريك، وليس لسياستنا',
+      'عند النقر على رابط إحالة على موقعنا (مثل Booking.com أو Expedia أو HalalBooking أو GetYourGuide أو Viator أو StubHub أو Ticketmaster أو Klook أو Skyscanner أو Blacklane)، قد يضع موقع شريك الإحالة ملفات تعريف ارتباط خاصة به على جهازك. تخضع هذه الملفات لسياسات الخصوصية وملفات تعريف الارتباط الخاصة بذلك الشريك، وليس لسياستنا',
       'لا نتحكم في ملفات تعريف الارتباط التي يضعها شركاء الإحالة. نشجعك على مراجعة سياسات الخصوصية الخاصة بهم قبل إجراء عمليات شراء عبر منصاتهم',
       'يتم تعيين ملفات تعريف ارتباط الإحالة فقط إذا نقرت بنشاط للانتقال إلى موقع الشريك. مجرد تصفح موقعنا لا يؤدي إلى تشغيل ملفات تعريف ارتباط إحالة من طرف ثالث',
     ],
@@ -217,13 +218,14 @@ const content = {
       'Supabase (Supabase Inc.): يوفر استضافة قاعدة البيانات والبنية التحتية الخلفية. يتم تخزين نماذج الاتصال وعناوين البريد الإلكتروني للنشرة الإخبارية بشكل آمن في قواعد بيانات Supabase المُدارة مع أمان على مستوى الصف وتشفير في حالة السكون واتصالات مشفرة',
       'Vercel (Vercel Inc.): يوفر استضافة الويب وشبكة توصيل المحتوى (CDN) والوظائف بدون خادم. يعالج Vercel سجلات الخادم بما في ذلك بيانات الطلبات المجهولة الهوية. تمتد بنية Vercel التحتية عبر مواقع حافة عالمية لتسليم الصفحات بسرعة',
       'خدمة التسويق عبر البريد الإلكتروني: نستخدم خدمة بريد إلكتروني من طرف ثالث لإدارة اشتراكات النشرة الإخبارية وتسليم الرسائل. يتم مشاركة عنوان بريدك الإلكتروني مع هذا المزود فقط لغرض إرسال النشرات الإخبارية التي اشتركت فيها',
-      'شركاء الإحالة (StubHub و Ticketmaster و GetYourGuide و Viator ومنصات حجز فنادق/مطاعم مختارة): نضع روابط لهؤلاء الشركاء ضمن محتوانا. عند النقر للانتقال، يخضع تفاعلك مع منصتهم لشروطهم وسياسات الخصوصية الخاصة بهم. نتلقى تقارير عمولة مجهولة الهوية ولكن لا نتلقى بيانات شخصية عن مشترياتك',
+      'Stripe (Stripe Inc.): يعالج المدفوعات للمنتجات الرقمية والوثائق الإلكترونية المشتراة عبر متجرنا. يجمع Stripe تفاصيل بطاقة الدفع مباشرة ويعالجها بموجب سياسة الخصوصية الخاصة به. لا نخزن أرقام البطاقات الكاملة على خوادمنا. Stripe حاصل على شهادة PCI-DSS المستوى 1',
+      'شركاء الإحالة (Booking.com و Expedia و HalalBooking و GetYourGuide و Viator و StubHub و Ticketmaster و Klook و Skyscanner و Blacklane و Allianz Travel Insurance ومنصات حجز فنادق/مطاعم مختارة): نضع روابط لهؤلاء الشركاء ضمن محتوانا. عند النقر للانتقال، يخضع تفاعلك مع منصتهم لشروطهم وسياسات الخصوصية الخاصة بهم. نتلقى تقارير عمولة مجهولة الهوية ولكن لا نتلقى بيانات شخصية عن مشترياتك',
     ],
 
     affiliateTitle: 'الإفصاح عن الإحالة',
     affiliateIntro: 'الشفافية مهمة بالنسبة لنا. يرجى الانتباه لما يلي بخصوص علاقات الإحالة لدينا:',
     affiliateItems: [
-      'تشارك يلا لندن في برامج إحالة مع شركاء الحجز والتذاكر بما في ذلك StubHub و Ticketmaster و GetYourGuide و Viator ومنصات حجز فنادق ومطاعم مختارة. عندما تنقر على رابط إحالة على موقعنا وتجري عملية شراء أو حجز، قد نكسب عمولة',
+      'تشارك يلا لندن في برامج إحالة مع شركاء الحجز والتذاكر بما في ذلك Booking.com و Expedia و HalalBooking و GetYourGuide و Viator و StubHub و Ticketmaster و Klook و Skyscanner و Blacklane و Allianz Travel Insurance ومنصات حجز فنادق ومطاعم مختارة. عندما تنقر على رابط إحالة على موقعنا وتجري عملية شراء أو حجز، قد نكسب عمولة',
       'تأتي هذه العمولة من شريك الإحالة وليس منك. النقر على رابط إحالة لا يزيد السعر الذي تدفعه. في بعض الحالات، قد نتمكن من تقديم خصومات أو عروض حصرية من خلال شراكات الإحالة لدينا',
       'توصياتنا التحريرية مستقلة تماماً عن علاقات الإحالة. نوصي بالأماكن والتجارب والخدمات بناءً على تجربة شخصية حقيقية وحكم تحريري. لن نوصي بشيء لمجرد أنه يقدم عمولة أعلى',
       'روابط الإحالة موجودة بوضوح ضمن توصياتنا ومحتوانا. عندما تحتوي صفحة على روابط إحالة، نعرض إشعار إفصاح يخبرك بهذه الحقيقة',
@@ -312,7 +314,7 @@ export default function PrivacyPolicy() {
           {c.title}
         </h1>
         <p className="text-stone">
-          {c.lastUpdated}: February 2025
+          {c.lastUpdated}: February 2026
         </p>
         <p className="text-stone mt-4 leading-relaxed">
           {c.intro}

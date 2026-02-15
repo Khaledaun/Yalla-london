@@ -120,7 +120,7 @@ export default function AboutPage() {
               className="space-y-6"
             >
               <h2 className="text-4xl font-display font-bold gradient-text">
-                {language === 'en' ? 'A Passionate Explorer' : 'مستكشفة شغوفة'}
+                {language === 'en' ? 'A Passionate Explorer' : 'مستكشف شغوف'}
               </h2>
               <div className="space-y-4 text-lg text-stone leading-relaxed">
                 <p>
@@ -139,6 +139,12 @@ export default function AboutPage() {
                   {language === 'en'
                     ? 'Yalla London represents my commitment to sharing the sophisticated side of this magnificent city with discerning travelers who appreciate quality, authenticity, and exceptional experiences.'
                     : 'يالا لندن يمثل التزامي بمشاركة الجانب المتطور من هذه المدينة الرائعة مع المسافرين المميزين الذين يقدرون الجودة والأصالة والتجارب الاستثنائية.'
+                  }
+                </p>
+                <p className="text-base text-stone/80 italic">
+                  {language === 'en'
+                    ? '— Khaled N. Aun, Founder & CEO of Zenitha.Luxury LLC'
+                    : '— خالد ن. عون، المؤسس والرئيس التنفيذي لشركة Zenitha.Luxury LLC'
                   }
                 </p>
               </div>
@@ -273,6 +279,45 @@ export default function AboutPage() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Company Imprint */}
+      <section className="py-16 bg-cream-100">
+        <div className="max-w-4xl mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-3xl font-display font-bold gradient-text mb-6 text-center">
+              {language === 'en' ? 'Company Information' : 'معلومات الشركة'}
+            </h2>
+            <Card className="p-8 border-0 luxury-shadow">
+              <CardContent className="p-0 space-y-3 text-stone">
+                <p className="font-semibold text-charcoal text-lg">Zenitha.Luxury LLC</p>
+                <p>
+                  {language === 'en'
+                    ? 'A Delaware Limited Liability Company, United States'
+                    : 'شركة ذات مسؤولية محدودة مسجلة في ديلاوير، الولايات المتحدة'
+                  }
+                </p>
+                <p>
+                  {language === 'en'
+                    ? 'Yalla London is a brand and digital property of Zenitha.Luxury LLC, dedicated to curating luxury travel experiences for Arabic-speaking visitors to London.'
+                    : 'يلا لندن هي علامة تجارية وملكية رقمية لشركة Zenitha.Luxury LLC، مكرسة لتنسيق تجارب السفر الفاخرة للزوار الناطقين بالعربية إلى لندن.'
+                  }
+                </p>
+                <div className="pt-3 border-t border-stone/10">
+                  <p className="text-sm">
+                    {language === 'en' ? 'Contact: ' : 'تواصل: '}
+                    <a href="mailto:hello@yallalondon.com" className="text-brand-primary hover:underline">hello@yallalondon.com</a>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
       </section>
 

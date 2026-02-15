@@ -8,7 +8,7 @@ const content = {
   en: {
     title: 'Terms of Use',
     lastUpdated: 'Last updated',
-    intro: 'Welcome to Yalla London. By accessing and using our website at yallalondon.com (the "Website"), you agree to be bound by these Terms of Use. If you do not agree with any part of these terms, please do not use our Website. These terms apply to all visitors, users, and subscribers regardless of language preference.',
+    intro: 'Welcome to Yalla London, operated by Zenitha.Luxury LLC ("Company", "we", "us", or "our"). By accessing and using our website at yallalondon.com (the "Website"), you agree to be bound by these Terms of Use. If you do not agree with any part of these terms, please do not use our Website. These terms apply to all visitors, users, and subscribers regardless of language preference.',
 
     aboutTitle: 'About Our Service',
     aboutIntro: 'Yalla London is a bilingual (English/Arabic) luxury London travel guide providing curated, editorially independent content:',
@@ -24,7 +24,7 @@ const content = {
     affiliateTitle: 'Affiliate Relationships',
     affiliateIntro: 'Yalla London earns revenue through affiliate partnerships. We believe in full transparency about how this works:',
     affiliateItems: [
-      'We participate in affiliate programmes with StubHub, Ticketmaster, GetYourGuide, Viator, and select hotel and restaurant booking platforms. When you click an affiliate link on our Website and complete a purchase or booking on the partner platform, we earn a commission from that partner',
+      'We participate in affiliate programmes with Booking.com, Expedia, HalalBooking, GetYourGuide, Viator, StubHub, Ticketmaster, Klook, Skyscanner, Blacklane, Allianz Travel Insurance, and select hotel and restaurant booking platforms. When you click an affiliate link on our Website and complete a purchase or booking on the partner platform, we earn a commission from that partner',
       'Affiliate commissions never affect the price you pay. You pay the same price whether you arrive at a partner site through our link or directly. In some cases, our partnerships may give you access to exclusive offers or discounts',
       'Our editorial recommendations are completely independent of our affiliate relationships. We select venues, experiences, and services to feature based on quality, personal experience, and editorial merit. We will never recommend a venue or experience solely because it offers higher commission',
       'Pages that contain affiliate links include a disclosure notice. Affiliate links within our content may be identified through standard URL parameters. We encourage you to be aware that clicking outbound links in our recommendations and event listings may be affiliate links',
@@ -84,8 +84,8 @@ const content = {
     liabilityItems: [
       'Yalla London provides informational and editorial content only. We are not a travel agency, tour operator, booking platform, or concierge service. We do not arrange, manage, or guarantee any bookings, reservations, or travel arrangements',
       'We are not liable for your experiences at any venue, hotel, restaurant, attraction, or event that we recommend or link to. Our recommendations are editorial opinions based on personal experience and research, not guarantees of quality or satisfaction',
-      'We are not responsible for the products, services, content, or practices of our affiliate partners (StubHub, Ticketmaster, GetYourGuide, Viator, or any other linked platform). Your use of third-party platforms is governed by their own terms and conditions',
-      'To the fullest extent permitted by the laws of England and Wales, Yalla London shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our Website, reliance on our content, or interaction with our affiliate partners',
+      'We are not responsible for the products, services, content, or practices of our affiliate partners (Booking.com, Expedia, HalalBooking, GetYourGuide, Viator, StubHub, Ticketmaster, Klook, Skyscanner, Blacklane, Allianz Travel Insurance, or any other linked platform). Your use of third-party platforms is governed by their own terms and conditions',
+      'To the fullest extent permitted by applicable law, Zenitha.Luxury LLC (operating as Yalla London) shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our Website, reliance on our content, or interaction with our affiliate partners',
       'Our Website is provided on an "as is" and "as available" basis without warranties of any kind, either express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement',
     ],
 
@@ -100,10 +100,10 @@ const content = {
     ],
 
     governingTitle: 'Governing Law and Jurisdiction',
-    governingIntro: 'These Terms of Use are governed by English law:',
+    governingIntro: 'These Terms of Use are governed by the laws of the State of Delaware, United States:',
     governingItems: [
-      'These terms are governed by and construed in accordance with the laws of England and Wales, without regard to conflict of law principles',
-      'Any disputes arising from or relating to these terms or your use of our Website shall be subject to the exclusive jurisdiction of the courts of England and Wales',
+      'These terms are governed by and construed in accordance with the laws of the State of Delaware, United States, without regard to conflict of law principles. Zenitha.Luxury LLC is a Delaware limited liability company',
+      'Any disputes arising from or relating to these terms or your use of our Website shall be subject to the exclusive jurisdiction of the courts located in the State of Delaware, United States',
       'If any provision of these terms is found to be unenforceable by a court of competent jurisdiction, the remaining provisions shall continue in full force and effect',
       'Our failure to enforce any right or provision of these terms shall not be considered a waiver of that right or provision',
     ],
@@ -130,7 +130,7 @@ const content = {
   ar: {
     title: 'شروط الاستخدام',
     lastUpdated: 'آخر تحديث',
-    intro: 'مرحباً بك في يلا لندن. بالوصول إلى موقعنا واستخدامه على yallalondon.com ("الموقع")، فإنك توافق على الالتزام بشروط الاستخدام هذه. إذا كنت لا توافق على أي جزء من هذه الشروط، يرجى عدم استخدام موقعنا. تنطبق هذه الشروط على جميع الزوار والمستخدمين والمشتركين بغض النظر عن تفضيل اللغة.',
+    intro: 'مرحباً بك في يلا لندن، الذي تديره شركة Zenitha.Luxury LLC ("الشركة" أو "نحن" أو "لنا" أو "خاصتنا"). بالوصول إلى موقعنا واستخدامه على yallalondon.com ("الموقع")، فإنك توافق على الالتزام بشروط الاستخدام هذه. إذا كنت لا توافق على أي جزء من هذه الشروط، يرجى عدم استخدام موقعنا. تنطبق هذه الشروط على جميع الزوار والمستخدمين والمشتركين بغض النظر عن تفضيل اللغة.',
 
     aboutTitle: 'حول خدمتنا',
     aboutIntro: 'يلا لندن هو دليل سفر فاخر ثنائي اللغة (إنجليزي/عربي) للندن يقدم محتوى مختاراً ومستقلاً تحريرياً:',
@@ -146,7 +146,7 @@ const content = {
     affiliateTitle: 'علاقات الإحالة',
     affiliateIntro: 'تحقق يلا لندن إيرادات من خلال شراكات الإحالة. نؤمن بالشفافية الكاملة حول كيفية عمل ذلك:',
     affiliateItems: [
-      'نشارك في برامج إحالة مع StubHub و Ticketmaster و GetYourGuide و Viator ومنصات حجز فنادق ومطاعم مختارة. عندما تنقر على رابط إحالة على موقعنا وتكمل عملية شراء أو حجز على منصة الشريك، نكسب عمولة من ذلك الشريك',
+      'نشارك في برامج إحالة مع Booking.com و Expedia و HalalBooking و GetYourGuide و Viator و StubHub و Ticketmaster و Klook و Skyscanner و Blacklane و Allianz Travel Insurance ومنصات حجز فنادق ومطاعم مختارة. عندما تنقر على رابط إحالة على موقعنا وتكمل عملية شراء أو حجز على منصة الشريك، نكسب عمولة من ذلك الشريك',
       'عمولات الإحالة لا تؤثر أبداً على السعر الذي تدفعه. تدفع نفس السعر سواء وصلت إلى موقع الشريك من خلال رابطنا أو مباشرة. في بعض الحالات، قد تمنحك شراكاتنا وصولاً إلى عروض أو خصومات حصرية',
       'توصياتنا التحريرية مستقلة تماماً عن علاقات الإحالة. نختار الأماكن والتجارب والخدمات للعرض بناءً على الجودة والتجربة الشخصية والجدارة التحريرية. لن نوصي أبداً بمكان أو تجربة فقط لأنها تقدم عمولة أعلى',
       'الصفحات التي تحتوي على روابط إحالة تتضمن إشعار إفصاح. قد يتم تحديد روابط الإحالة ضمن محتوانا من خلال معلمات URL القياسية. نشجعك على الانتباه إلى أن النقر على الروابط الصادرة في توصياتنا وقوائم الفعاليات قد يكون روابط إحالة',
@@ -206,8 +206,8 @@ const content = {
     liabilityItems: [
       'يقدم يلا لندن محتوى معلوماتي وتحريري فقط. نحن لسنا وكالة سفر أو منظم رحلات أو منصة حجز أو خدمة كونسيرج. لا نرتب أو ندير أو نضمن أي حجوزات أو ترتيبات سفر',
       'لسنا مسؤولين عن تجاربك في أي مكان أو فندق أو مطعم أو معلم أو فعالية نوصي بها أو نربط إليها. توصياتنا هي آراء تحريرية مبنية على تجربة شخصية وأبحاث، وليست ضمانات للجودة أو الرضا',
-      'لسنا مسؤولين عن منتجات أو خدمات أو محتوى أو ممارسات شركاء الإحالة لدينا (StubHub و Ticketmaster و GetYourGuide و Viator أو أي منصة مرتبطة أخرى). يخضع استخدامك لمنصات الطرف الثالث لشروطهم وأحكامهم الخاصة',
-      'إلى أقصى حد يسمح به قانون إنجلترا وويلز، لن تكون يلا لندن مسؤولة عن أي أضرار غير مباشرة أو عرضية أو خاصة أو تبعية أو عقابية ناتجة عن استخدامك لموقعنا أو اعتمادك على محتوانا أو تفاعلك مع شركاء الإحالة لدينا',
+      'لسنا مسؤولين عن منتجات أو خدمات أو محتوى أو ممارسات شركاء الإحالة لدينا (Booking.com و Expedia و HalalBooking و GetYourGuide و Viator و StubHub و Ticketmaster و Klook و Skyscanner و Blacklane و Allianz Travel Insurance أو أي منصة مرتبطة أخرى). يخضع استخدامك لمنصات الطرف الثالث لشروطهم وأحكامهم الخاصة',
+      'إلى أقصى حد يسمح به القانون المعمول به، لن تكون شركة Zenitha.Luxury LLC (التي تعمل باسم يلا لندن) مسؤولة عن أي أضرار غير مباشرة أو عرضية أو خاصة أو تبعية أو عقابية ناتجة عن استخدامك لموقعنا أو اعتمادك على محتوانا أو تفاعلك مع شركاء الإحالة لدينا',
       'يُقدم موقعنا على أساس "كما هو" و"كما هو متاح" دون أي ضمانات من أي نوع، سواء صريحة أو ضمنية، بما في ذلك على سبيل المثال لا الحصر ضمانات القابلية للتسويق أو الملاءمة لغرض معين أو عدم الانتهاك',
     ],
 
@@ -222,10 +222,10 @@ const content = {
     ],
 
     governingTitle: 'القانون الحاكم والولاية القضائية',
-    governingIntro: 'تخضع شروط الاستخدام هذه للقانون الإنجليزي:',
+    governingIntro: 'تخضع شروط الاستخدام هذه لقوانين ولاية ديلاوير، الولايات المتحدة:',
     governingItems: [
-      'تخضع هذه الشروط وتُفسر وفقاً لقوانين إنجلترا وويلز، دون مراعاة مبادئ تنازع القوانين',
-      'أي نزاعات ناشئة عن أو متعلقة بهذه الشروط أو استخدامك لموقعنا تخضع للولاية القضائية الحصرية لمحاكم إنجلترا وويلز',
+      'تخضع هذه الشروط وتُفسر وفقاً لقوانين ولاية ديلاوير، الولايات المتحدة، دون مراعاة مبادئ تنازع القوانين. شركة Zenitha.Luxury LLC هي شركة ذات مسؤولية محدودة مسجلة في ديلاوير',
+      'أي نزاعات ناشئة عن أو متعلقة بهذه الشروط أو استخدامك لموقعنا تخضع للولاية القضائية الحصرية للمحاكم الموجودة في ولاية ديلاوير، الولايات المتحدة',
       'إذا وُجد أن أي حكم من هذه الشروط غير قابل للتنفيذ من قبل محكمة مختصة، تظل الأحكام المتبقية سارية المفعول بالكامل',
       'عدم إنفاذنا لأي حق أو حكم من هذه الشروط لا يُعتبر تنازلاً عن ذلك الحق أو الحكم',
     ],
@@ -262,7 +262,7 @@ export default function TermsOfUse() {
           {c.title}
         </h1>
         <p className="text-stone">
-          {c.lastUpdated}: February 2025
+          {c.lastUpdated}: February 2026
         </p>
         <p className="text-stone mt-4 leading-relaxed">
           {c.intro}

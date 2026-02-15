@@ -156,15 +156,26 @@ export function Footer() {
 
         {/* Bottom Bar — Copyright: IBM Plex Mono 8px/400, Stone */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
-          <p className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase">
-            © {currentYear} Yalla London. {language === 'en' ? 'All rights reserved.' : 'جميع الحقوق محفوظة.'}
-          </p>
+          <div className="text-center md:text-left">
+            <p className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase">
+              © 2025–{currentYear} Zenitha.Luxury LLC. {language === 'en' ? 'All rights reserved.' : 'جميع الحقوق محفوظة.'}
+            </p>
+            <p className="font-mono text-[7px] font-normal text-stone/70 tracking-[0.5px] mt-1">
+              {language === 'en'
+                ? 'Yalla London is a brand of Zenitha.Luxury LLC, a Delaware limited liability company.'
+                : 'يلا لندن هي علامة تجارية لشركة Zenitha.Luxury LLC، شركة ذات مسؤولية محدودة في ديلاوير.'
+              }
+            </p>
+          </div>
           <div className="flex items-center gap-5">
             <Link href="/privacy" className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors">
               {language === 'en' ? 'Privacy Policy' : 'سياسة الخصوصية'}
             </Link>
             <Link href="/terms" className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors">
               {language === 'en' ? 'Terms of Use' : 'شروط الاستخدام'}
+            </Link>
+            <Link href="/affiliate-disclosure" className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors">
+              {language === 'en' ? 'Affiliate Disclosure' : 'إفصاح الإحالة'}
             </Link>
             <a
               href="mailto:legal@yalla-london.com"

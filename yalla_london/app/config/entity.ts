@@ -93,7 +93,7 @@ export const ENTITY: EntityConfig = {
       name: "Zenitha Content Network",
       description:
         "Multi-destination luxury travel content platform. Bilingual (EN/AR) blogs targeting Arab travelers with affiliate monetization.",
-      siteIds: ["yalla-london", "arabaldives", "dubai", "istanbul", "thailand"],
+      siteIds: ["yalla-london", "arabaldives", "french-riviera", "istanbul", "thailand"],
     },
     tech: {
       name: "ZenithaOS",

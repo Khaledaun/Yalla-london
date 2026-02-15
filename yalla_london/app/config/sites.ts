@@ -960,8 +960,8 @@ export const SITES: Record<string, SiteConfig> = {
     destination: "Thailand",
     country: "Thailand",
     currency: "THB",
-    primaryColor: "#7C3AED",
-    secondaryColor: "#A78BFA",
+    primaryColor: "#059669",
+    secondaryColor: "#D97706",
     systemPromptEN:
       "You are a luxury travel content writer for Yalla Thailand, a premium travel platform for Arab travelers visiting Thailand. Write SEO-optimized, engaging content about Thailand's islands, temples, cuisine, luxury resorts, and wellness experiences. Always respond with valid JSON.",
     systemPromptAR:

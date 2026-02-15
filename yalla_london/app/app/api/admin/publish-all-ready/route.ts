@@ -12,32 +12,43 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const { prisma } = await import("@/lib/db");
 
-    // Find eligible unpublished posts:
-    // 1. seo_score >= 50, OR
-    // 2. seo_score is null AND content_en length > 1000
-    const eligiblePosts = await prisma.blogPost.findMany({
-      where: {
-        published: false,
-        OR: [
-          { seo_score: { gte: 50 } },
-          { seo_score: null },
-        ],
-      },
-      select: {
-        id: true,
-        title_en: true,
-        slug: true,
-        seo_score: true,
-        content_en: true,
-      },
-    });
+    // Find eligible unpublished posts in two targeted queries:
+    // 1. seo_score >= 50 (directly publishable)
+    // 2. seo_score is null AND content_en length > 1000 chars
+    const [scoredPosts, unscoredPosts] = await Promise.all([
+      prisma.blogPost.findMany({
+        where: {
+          published: false,
+          seo_score: { gte: 50 },
+        },
+        select: {
+          id: true,
+          title_en: true,
+          slug: true,
+          seo_score: true,
+        },
+      }),
+      prisma.blogPost.findMany({
+        where: {
+          published: false,
+          seo_score: null,
+        },
+        select: {
+          id: true,
+          title_en: true,
+          slug: true,
+          seo_score: true,
+          content_en: true,
+        },
+      }),
+    ]);
 
-    // Filter null seo_score posts by content length
-    const toPublish = eligiblePosts.filter((post) => {
-      if (post.seo_score !== null && post.seo_score >= 50) return true;
-      if (post.seo_score === null && (post.content_en?.length || 0) > 1000) return true;
-      return false;
-    });
+    // Filter unscored posts by content length (must have substantial content)
+    const qualifiedUnscored = unscoredPosts.filter(
+      (post) => (post.content_en?.length || 0) > 1000,
+    );
+
+    const toPublish = [...scoredPosts, ...qualifiedUnscored];
 
     if (toPublish.length === 0) {
       return NextResponse.json({

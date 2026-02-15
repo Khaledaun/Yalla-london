@@ -223,20 +223,47 @@ async function fetchSiteHealth(): Promise<SiteHealth[]> {
   );
 
   // Get recent cron failures per site (last 24h)
+  // Include both site-specific failures AND multi-site failures (site_id=null with sites_processed)
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const recentFailures = await (prisma as any).cronJobLog.groupBy({
-    by: ["site_id"],
-    where: {
-      status: "failed",
-      started_at: { gte: oneDayAgo },
-      site_id: { not: null },
-    },
-    _count: true,
-  });
+  const [siteSpecificFailures, multiSiteFailures] = await Promise.all([
+    (prisma as any).cronJobLog.groupBy({
+      by: ["site_id"],
+      where: {
+        status: { in: ["failed", "timed_out"] },
+        started_at: { gte: oneDayAgo },
+        site_id: { not: null },
+      },
+      _count: true,
+    }),
+    (prisma as any).cronJobLog.findMany({
+      where: {
+        status: { in: ["failed", "timed_out"] },
+        started_at: { gte: oneDayAgo },
+        site_id: null,
+      },
+      select: {
+        sites_processed: true,
+      },
+    }),
+  ]);
 
-  const failureMap = new Map(
-    recentFailures.map((f: any) => [f.site_id, f._count])
+  const failureMap = new Map<string, number>(
+    siteSpecificFailures.map((f: any) => [f.site_id, f._count])
   );
+
+  // Distribute multi-site failures to each affected site
+  for (const msFailure of multiSiteFailures) {
+    const sites = msFailure.sites_processed ?? [];
+    for (const sId of sites) {
+      failureMap.set(sId, (failureMap.get(sId) ?? 0) + 1);
+    }
+    // If no sites_processed recorded, count against all active sites
+    if (sites.length === 0) {
+      for (const sId of siteIds) {
+        failureMap.set(sId, (failureMap.get(sId) ?? 0) + 1);
+      }
+    }
+  }
 
   return siteIds.map((id) => {
     const cfg = getSiteConfig(id);

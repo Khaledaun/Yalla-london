@@ -127,11 +127,19 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       },
     });
   } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
       {
-        alerts: [],
-        summary: { total: 0, critical: 1, warning: 0, info: 0 },
-        dbError: err instanceof Error ? err.message : String(err),
+        alerts: [{
+          id: "db-error",
+          severity: "critical" as const,
+          jobName: "health-monitor",
+          siteId: null,
+          error: `Database error: ${errorMsg}`,
+          timestamp: new Date().toISOString(),
+          timedOut: false,
+        }],
+        summary: { total: 1, critical: 1, warning: 0, info: 0 },
       },
       { status: 500 },
     );

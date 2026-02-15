@@ -64,9 +64,10 @@ const mainNavigation = [
     href: '/admin',
     children: [
       { label: 'Command Center', href: '/admin' },
+      { label: 'Health Monitor', href: '/admin/health-monitoring' },
+      { label: 'Cron Logs', href: '/admin/cron-logs' },
       { label: 'Analytics', href: '/admin/command-center/analytics' },
       { label: 'SEO Audits', href: '/admin/seo-audits' },
-      { label: 'SEO Command', href: '/admin/seo-command' },
     ]
   },
   {

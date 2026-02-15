@@ -1280,6 +1280,7 @@ function FeatureHubSection() {
     { title: "Automation & Workflows", items: [
       { name: "Automation Hub", href: "/admin/automation-hub", icon: Zap },
       { name: "Pipeline", href: "/admin/pipeline", icon: Activity },
+      { name: "Cron Logs", href: "/admin/cron-logs", icon: Clock },
       { name: "Workflow", href: "/admin/workflow", icon: Workflow },
       { name: "Autopilot", href: "/admin/command-center/autopilot", icon: Brain },
       { name: "Operations", href: "/admin/operations", icon: Settings },

@@ -105,18 +105,18 @@ Each article MUST contain relevant affiliate/booking links to monetize traffic.
 ```
 yalla_london/app/                    # Main Next.js application
 ├── app/                             # App Router pages & API routes
-│   ├── api/cron/                    # 13 scheduled cron jobs
-│   ├── api/seo/                     # 30 SEO API routes
+│   ├── api/cron/                    # 20 cron job routes (17 scheduled in vercel.json)
+│   ├── api/seo/                     # 28 SEO API routes
 │   ├── api/admin/                   # Admin dashboard API
-│   └── admin/                       # Admin UI (53 sections)
-├── lib/                             # Shared utilities (423 files)
+│   └── admin/                       # Admin UI (52 sections)
+├── lib/                             # Shared utilities
 │   ├── seo/orchestrator/            # Master SEO orchestrator (5 modules)
 │   ├── seo/                         # SEO services (schema, indexing, audit, analytics)
 │   ├── content-automation/          # Content generation pipeline
 │   └── db.ts                        # Prisma singleton
 ├── config/sites.ts                  # 5-site configuration (brand, keywords, prompts)
 ├── middleware.ts                     # Multi-tenant routing, CSRF, UTM, sessions
-├── prisma/schema.prisma             # 94 models (2659 lines)
+├── prisma/schema.prisma             # 95 models (2729 lines)
 └── next.config.js                   # Image optimization, caching, security headers
 ```
 
@@ -289,11 +289,14 @@ All → Analytics:     Every agent action trackable in GA4/CronJobLog
 | 7:00 | SEO agent run 1 | IndexNow + monitoring |
 | 7:30 | SEO cron (daily) | SEO metrics |
 | 8:00 Sun | SEO cron (weekly) | SEO reports |
+| 8:30 | Content builder (continuous, every 15 min) | ArticleDraft phases |
 | 8:30 | Content selector | BlogPost table (published) |
+| 9:00 | Affiliate injection | Affiliate links in articles |
 | 9:00 | Scheduled publish (morning) | Public pages |
 | 13:00 | SEO agent run 2 | IndexNow + monitoring |
 | 16:00 | Scheduled publish (afternoon) | Public pages |
 | 20:00 | SEO agent run 3 | IndexNow + monitoring |
+| 22:00 | Site health check | Health dashboard |
 
 ## Launch Priority Order
 
@@ -329,12 +332,29 @@ This is the order in which things must work. Do not jump ahead.
 **Cross-Report Standardization Audit:**
 - All 5 reports now follow consistent format: Date/Subject/Target header, Table of Contents, 5 numbered sections (Design, Content Strategy, Affiliates, Layout, Content Engine), Appendices A-C/D, source citations
 - All reports include: brand identity (from destination-themes.ts), competitive benchmarks, Arab market opportunity, competitor landscape, seasonal calendar, priority affiliate stack (Tier 1/2/3), URL architecture, homepage structure, schema markup strategy, internal linking strategy (including Zenitha Network cross-links), affiliate injection strategy, content-to-revenue flow, revenue projections, content velocity targets, 90-day success metrics
-- Known config issue: Thailand's `sites.ts` colors (#7C3AED purple) don't match its destination-theme.ts colors (#059669 emerald) — to be fixed in a code session
+- ~~Known config issue: Thailand's `sites.ts` colors (#7C3AED purple) don't match its destination-theme.ts colors (#059669 emerald)~~ **(FIXED — Feb 15, 2026)**
 
 **Pipeline & Infrastructure (prior sessions):**
 - Content pipeline: Topics → Drafts (8 phases) → Reservoir → BlogPost (published, bilingual)
-- Cron jobs: 13 scheduled jobs with budget guards (53s budget / 7s buffer)
+- Cron jobs: 20 cron routes, 17 scheduled in vercel.json, with budget guards (53s budget / 7s buffer)
 - SEO orchestrator: 5 modules (index, audit, research, goals, performance monitor)
 - Admin dashboard: Mobile-accessible, cron controls, pipeline status, health monitoring
 - Grok (xAI) integration for EN content generation and trending topics
 - Pre-publication SEO gate enforced on all content
+
+### Session: February 15, 2026 — Infrastructure Hardening & Dashboard
+
+**Admin Dashboard Improvements:**
+- Overhauled mobile layout for iPhone usability — Quick Actions, Pipeline flow, Indexing stats, Content stats all responsive
+- Feature Hub and System Connections made collapsible on mobile
+- Added dedicated Cron Job Log History page (`/admin/cron-logs`) with filterable history
+- Integrated test-connections APIs into admin dashboard (Content & Indexing Audit, DB Schema Health panels)
+- Fixed BlogPost count scoping per-site in sites endpoint
+
+**Infrastructure Fixes:**
+- Resolved 15 pre-existing TypeScript errors
+- Fixed Run All Crons + added indexing status to dashboard
+- Fixed multi-site cron failure visibility in health dashboard
+- Fixed publish-all-ready logic with query optimization
+- Expanded CI triggers to run checks on `claude/*` branch PRs
+- Fixed Thailand color mismatch in `sites.ts` — now matches `destination-themes.ts` (#059669 emerald)

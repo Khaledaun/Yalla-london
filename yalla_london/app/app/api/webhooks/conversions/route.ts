@@ -180,5 +180,5 @@ function verifySignature(body: string, signature: string | null, secret: string)
 
   const expectedSignature = crypto.createHmac('sha256', secret).update(body).digest('hex');
 
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+  return crypto.timingSafeEqual(new Uint8Array(Buffer.from(signature)), new Uint8Array(Buffer.from(expectedSignature)));
 }

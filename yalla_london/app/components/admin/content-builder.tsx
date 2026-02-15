@@ -464,7 +464,7 @@ export function ContentBuilder({
                   </div>
                 </SortableContext>
                 
-                <DragOverlay>
+                <DragOverlay adjustScale={false} className="" style={undefined} transition={undefined}>
                   {activeId && (
                     <div className="bg-white border border-slate-300 rounded-lg p-4 shadow-lg">
                       Dragging block...

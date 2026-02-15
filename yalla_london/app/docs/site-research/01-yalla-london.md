@@ -595,6 +595,15 @@ When a new article is published, the content engine should:
 - Run weekly audit to detect orphan pages and add links
 - Surface orphan pages on admin dashboard for manual review
 
+**Cross-Site Internal Links (Zenitha Network):**
+- Multi-destination itineraries (London + Paris, London + Istanbul) → link to Yalla Istanbul, Yalla Riviera
+- "Before/After London" content (Gulf travelers visiting London often combine with European destinations) → link to Yalla Riviera (French Riviera)
+- Honeymoon circuits (London + Maldives romantic getaway) → link to Arabaldives
+- Shopping guides comparing London vs. Istanbul bazaars → link to Yalla Istanbul
+- Spa/wellness content comparing London hammams to Istanbul originals → link to Yalla Istanbul
+- Beach/sun escape content for London visitors → link to Yalla Thailand, Arabaldives
+- Builds domain authority across the entire Zenitha Content Network
+
 ### 5.3 Affiliate Link Injection Strategy
 
 **Per Content Type:**
@@ -687,6 +696,25 @@ With 60 articles published (2/day for 30 days), projected monthly revenue at 6 m
 
 This scales significantly with content volume. At 300 articles (5 sites x 2/day x 30 days): **$300-$10,800/month** is achievable within 6-12 months.
 
+### 5.5 Content Velocity Targets
+
+| Period | Target | Focus |
+|--------|--------|-------|
+| Month 1-2 | 2 articles/day | Evergreen neighborhood guides, hotel reviews, restaurant lists |
+| Month 3-4 | 2-3 articles/day | Seasonal content, shopping guides, experience reviews |
+| Month 5-6 | 3 articles/day | Itineraries, event guides, comparison content |
+
+### 5.6 90-Day Success Metrics
+
+| Metric | Target |
+|--------|--------|
+| Indexed pages | 50+ |
+| Organic sessions/month | 1,000 |
+| Average CTR | 4.5% |
+| Affiliate click-through | 8% |
+| Content velocity | 3 articles/day |
+| Revenue per visit | Baseline established |
+
 Sources:
 - [Black Bear Media -- Schema for Travel Websites](https://blackbearmedia.io/11-powerful-schema-markup-strategies-for-travel-websites/)
 - [Schema.org -- TouristAttraction](https://schema.org/TouristAttraction)
@@ -740,6 +768,21 @@ Sources:
 - Multi-faith prayer rooms at Westfield Stratford, Westfield White City, Harrods
 - Prayer time API: Aladhan API (https://aladhan.com/prayer-times-api) -- free, JSON
 - Halal restaurant apps: Zabihah, HalalTrip, Muslim Pro
+
+## Appendix D: Key London Neighborhoods & Their Luxury Character
+
+| Neighborhood | Character | Primary Appeal | Key Content Angles |
+|-------------|-----------|---------------|-------------------|
+| **Mayfair** | Ultra-premium, old money, exclusive | Five-star hotels, Michelin dining, Bond Street luxury shopping | The Dorchester, Claridge's, Sketch, Mount Street boutiques |
+| **Knightsbridge** | Retail royalty, international luxury | Harrods, Harvey Nichols, designer flagship stores | Shopping guides, luxury hotel reviews (Mandarin Oriental, Bulgari) |
+| **Kensington** | Cultural elegance, family-friendly | Museums (V&A, Natural History, Science), parks, Embassy quarter | Family guides, cultural itineraries, high-end residential |
+| **Chelsea** | Stylish, artistic, boutique charm | King's Road shopping, Saatchi Gallery, riverside dining | Boutique shopping, art galleries, brunch culture |
+| **Marylebone** | Village charm in central London | Independent boutiques, Chiltern Firehouse, artisan food | Hidden gem guides, foodie content, boutique hotels |
+| **Westminster** | Iconic landmarks, political heart | Big Ben, Buckingham Palace, Westminster Abbey, Thames | First-timer itineraries, landmark guides, river cruises |
+| **The City** | Financial district, historic London | Tower of London, St. Paul's, Sky Garden, modern architecture | Historic tours, rooftop bars, modern London contrast |
+| **Covent Garden** | Entertainment, theatre, street life | West End shows, Royal Opera House, market dining | Theatre guides, entertainment reviews, dining near shows |
+| **Notting Hill** | Colorful, bohemian-chic, photogenic | Portobello Road, pastel houses, antique markets | Instagram-worthy walks, market guides, film location tours |
+| **Hampstead** | Village retreat, green spaces | Hampstead Heath, Kenwood House, literary heritage | Day trip from central London, nature escapes, afternoon tea |
 
 ---
 

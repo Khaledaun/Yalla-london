@@ -4,10 +4,15 @@ export const maxDuration = 45;
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 
+// Full content pipeline: topics → drafts → build → select → publish → affiliate → index → SEO
 const CRON_JOBS = [
+  { name: "weekly-topics", path: "/api/cron/weekly-topics" },
+  { name: "daily-content-generate", path: "/api/cron/daily-content-generate" },
   { name: "content-builder", path: "/api/cron/content-builder" },
   { name: "content-selector", path: "/api/cron/content-selector" },
+  { name: "scheduled-publish", path: "/api/cron/scheduled-publish" },
   { name: "affiliate-injection", path: "/api/cron/affiliate-injection" },
+  { name: "google-indexing", path: "/api/cron/google-indexing" },
   { name: "seo-agent", path: "/api/cron/seo-agent" },
 ];
 
@@ -56,13 +61,22 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
           // Response may not be JSON
         }
 
-        return { name: job.name, status: res.status, ok: res.ok, data };
+        return {
+          name: job.name,
+          status: res.status,
+          ok: res.ok,
+          data,
+          error: !res.ok
+            ? data?.error || data?.message || `HTTP ${res.status} ${res.statusText}`
+            : undefined,
+        };
       } catch (err) {
+        const msg = err instanceof Error ? err.message : "Request failed";
         return {
           name: job.name,
           status: 0,
           ok: false,
-          error: err instanceof Error ? err.message : "Request failed",
+          error: msg.includes("abort") ? "Timed out (>38s)" : msg,
         };
       }
     });

@@ -377,9 +377,9 @@ export default function ContentPipelineKanban() {
           })}
         </div>
         
-        <DragOverlay>
+        <DragOverlay adjustScale={false} className="" style={undefined} transition={undefined}>
           {draggedItem && (
-            <ContentCard 
+            <ContentCard
               content={draggedItem}
               onClick={() => {}}
               isDragging

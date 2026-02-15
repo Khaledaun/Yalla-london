@@ -72,7 +72,7 @@ Multi-tenant luxury travel content platform under **Zenitha.Luxury LLC** (Delawa
 | Arabaldives | arabaldives.com | arabaldives | ar | Turquoise + coral | Planned |
 | Yalla Riviera | yallariviera.com | french-riviera | en | Mediterranean navy + champagne gold + lavender | Planned |
 | Yalla Istanbul | yallaistanbul.com | istanbul | en | Burgundy + copper | Planned |
-| Yalla Thailand | yallathailand.com | thailand | en | Emerald + saffron | Planned |
+| Yalla Thailand | yallathailand.com | thailand | en | Emerald + golden amber | Planned |
 
 **Note:** Yalla Dubai was replaced by Yalla Riviera (French Riviera / Côte d'Azur) — higher affiliate value, stronger Gulf tourist presence, and uncontested Arabic-language niche.
 
@@ -82,11 +82,11 @@ Comprehensive market research for each site lives in `yalla_london/app/docs/site
 
 | # | Site | File | Status | Key Findings |
 |---|------|------|--------|-------------|
-| 1 | Yalla London | `01-yalla-london.md` | Complete | 746 lines — design, content strategy, affiliate programs, site architecture, content engine integration |
-| 2 | Arabaldives | `02-arabaldives.md` | Complete | 282 lines — Maldives launch strategy, RTL Arabic-first content, halal resort reviews |
+| 1 | Yalla London | `01-yalla-london.md` | Complete | 780+ lines — design, content strategy, affiliate programs, site architecture, content engine integration, cross-site links, neighborhoods guide |
+| 2 | Arabaldives | `02-arabaldives.md` | Complete | 670 lines — Maldives launch strategy, RTL Arabic-first content, halal resort reviews, Arab market gap analysis, atoll guides, resort comparison tool, full affiliate stack |
 | 3 | Yalla Riviera | `03-yalla-riviera.md` | Complete | 712 lines — Côte d'Azur design, Gulf tourist market ($75B+ GCC spending), yacht charter affiliates, halal dining guide |
-| 4 | Yalla Istanbul | — | Not started | — |
-| 5 | Yalla Thailand | — | Not started | — |
+| 4 | Yalla Istanbul | `05-yalla-istanbul.md` | Complete | 782 lines — Ottoman + modern design, $35B Turkish tourism economy, Bosphorus luxury positioning, bazaar culture, highest revenue ceiling of all sites |
+| 5 | Yalla Thailand | `04-yalla-thailand.md` | Complete | 664 lines — Emerald + golden amber brand, 40M+ annual tourists, island/wellness/halal focus, strong GCC travel pipeline |
 
 Each report covers: Design & Visual Identity, Content Strategy & Sources, Profitable Affiliate Programs, Website Layout & Must-Have Sections, Content Engine Integration.
 
@@ -304,7 +304,7 @@ This is the order in which things must work. Do not jump ahead.
 3. **Articles contain affiliate links** (monetization)
 4. **Dashboard shows pipeline status** (Khaled can monitor from phone)
 5. **Scale to 2 articles/day on Yalla London**
-6. **Complete site research for all 5 sites** (3/5 done — Istanbul & Thailand remaining)
+6. ~~**Complete site research for all 5 sites**~~ **(DONE — 5/5 complete)**
 7. **Activate site #2 (Arabaldives)** — Arabic-first Maldives content
 8. **Activate site #3 (Yalla Riviera)** — French Riviera luxury + yacht charters
 9. **Scale across all 5 sites**
@@ -319,10 +319,17 @@ This is the order in which things must work. Do not jump ahead.
 - Updated all legal pages (privacy policy, terms) with Zenitha.Luxury LLC company info
 - Replaced Yalla Dubai with **Yalla Riviera** (French Riviera / Côte d'Azur) — better market fit
 
-**Site Research Reports (3 of 5 complete):**
-- Yalla London: Full research — design, content, affiliates (HalalBooking as top priority), site architecture
-- Arabaldives: Arabic-first Maldives strategy — RTL layout, halal resorts, honeymoon content focus
+**Site Research Reports (5 of 5 complete):**
+- Yalla London: Full research — design, content, affiliates (HalalBooking as top priority), site architecture, cross-site links, London neighborhoods guide
+- Arabaldives: Comprehensive rewrite (282→670 lines) — Arab market gap analysis, brand identity from destination-themes.ts, competitive benchmarks, seasonal calendar, full affiliate stack (Tier 1/2/3), URL architecture, resort comparison tool, atoll guides, schema markup strategy, internal linking, affiliate injection, revenue projections, 3 appendices
 - Yalla Riviera: French Riviera research — Gulf tourist market ($75B+ GCC spending), yacht charter affiliates (Boatbookings 20%), Michelin dining, halal restaurant guide
+- Yalla Istanbul: 782 lines — Ottoman + modern design, $35B Turkish tourism economy, Bosphorus luxury positioning, bazaar culture, hammam heritage, identified as highest revenue ceiling site
+- Yalla Thailand: 664 lines — Emerald + golden amber brand, 40M+ annual tourists, island/temple/wellness content, halal food strategy, strong GCC travel pipeline
+
+**Cross-Report Standardization Audit:**
+- All 5 reports now follow consistent format: Date/Subject/Target header, Table of Contents, 5 numbered sections (Design, Content Strategy, Affiliates, Layout, Content Engine), Appendices A-C/D, source citations
+- All reports include: brand identity (from destination-themes.ts), competitive benchmarks, Arab market opportunity, competitor landscape, seasonal calendar, priority affiliate stack (Tier 1/2/3), URL architecture, homepage structure, schema markup strategy, internal linking strategy (including Zenitha Network cross-links), affiliate injection strategy, content-to-revenue flow, revenue projections, content velocity targets, 90-day success metrics
+- Known config issue: Thailand's `sites.ts` colors (#7C3AED purple) don't match its destination-theme.ts colors (#059669 emerald) — to be fixed in a code session
 
 **Pipeline & Infrastructure (prior sessions):**
 - Content pipeline: Topics → Drafts (8 phases) → Reservoir → BlogPost (published, bilingual)

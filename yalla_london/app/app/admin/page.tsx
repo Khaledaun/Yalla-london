@@ -100,6 +100,26 @@ export default function AdminDashboard() {
     published: 0,
   });
 
+  // Indexing stats
+  const [indexingStats, setIndexingStats] = useState({
+    totalUrls: 0,
+    indexed: 0,
+    submitted: 0,
+    discovered: 0,
+    errors: 0,
+    lastSubmitted: null as string | null,
+    lastInspected: null as string | null,
+    indexRate: 0,
+  });
+
+  // Cron job results (per-job detail)
+  const [cronResults, setCronResults] = useState<Array<{
+    name: string;
+    ok: boolean;
+    status: number;
+    error?: string;
+  }> | null>(null);
+
   // Action button loading states
   const [publishingAll, setPublishingAll] = useState(false);
   const [runningCrons, setRunningCrons] = useState(false);
@@ -162,13 +182,25 @@ export default function AdminDashboard() {
         });
       }
 
-      // Fetch cron failure count from health monitor
+      // Fetch cron failure count + indexing stats from health monitor
       try {
         const cronRes = await fetch("/api/admin/health-monitor").catch(() => null);
         if (cronRes?.ok) {
           const data = await cronRes.json().catch(() => null);
           if (data?.summary?.errorsLast24h !== undefined) {
             setCronFailures(data.summary.errorsLast24h);
+          }
+          if (data?.indexing) {
+            setIndexingStats({
+              totalUrls: data.indexing.totalUrls ?? 0,
+              indexed: data.indexing.indexed ?? 0,
+              submitted: data.indexing.submitted ?? 0,
+              discovered: data.indexing.discovered ?? 0,
+              errors: data.indexing.errors ?? 0,
+              lastSubmitted: data.indexing.lastSubmitted ?? null,
+              lastInspected: data.indexing.lastInspected ?? null,
+              indexRate: data.indexing.indexRate ?? 0,
+            });
           }
         }
       } catch {
@@ -227,14 +259,27 @@ export default function AdminDashboard() {
   const handleRunAllCrons = async () => {
     setRunningCrons(true);
     setActionMessage(null);
+    setCronResults(null);
     try {
       const res = await fetch("/api/admin/run-all-crons", { method: "POST" });
       const data = await res.json();
+      if (data.results) {
+        setCronResults(data.results);
+      }
       if (data.success) {
         setActionMessage({ type: "success", text: data.message });
         loadData(); // Refresh dashboard
       } else {
-        setActionMessage({ type: "error", text: data.message || data.error || "Some crons failed" });
+        const failedJobs = (data.results || [])
+          .filter((r: any) => !r.ok)
+          .map((r: any) => `${r.name}: ${r.error || `HTTP ${r.status}`}`)
+          .join(", ");
+        setActionMessage({
+          type: "error",
+          text: failedJobs
+            ? `Failed: ${failedJobs}`
+            : data.message || data.error || "Some crons failed",
+        });
       }
     } catch {
       setActionMessage({ type: "error", text: "Network error - could not run crons" });
@@ -454,9 +499,147 @@ export default function AdminDashboard() {
               <div className="text-2xl sm:text-3xl font-bold text-green-600">{pipelineCounts.published}</div>
               <div className="text-xs sm:text-sm font-medium text-gray-600 mt-1">Published</div>
             </div>
+            <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6 text-gray-300 flex-shrink-0" />
+            <Link href="/admin/indexing" className="text-center flex-1 group">
+              <div className={`text-2xl sm:text-3xl font-bold ${
+                indexingStats.indexed > 0 ? "text-emerald-600" : "text-gray-400"
+              }`}>
+                {indexingStats.indexed}
+              </div>
+              <div className="text-xs sm:text-sm font-medium text-gray-600 mt-1 group-hover:text-emerald-600 transition-colors">
+                Indexed
+              </div>
+            </Link>
           </div>
         </div>
       </div>
+
+      {/* Indexing Status */}
+      <div className="mb-6 sm:mb-8">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <Globe className="h-5 w-5 text-emerald-500" />
+            Google Indexing Status
+          </h2>
+          <Link
+            href="/admin/indexing"
+            className="text-xs sm:text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+          >
+            Full Details &rarr;
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+          <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500">Indexed</p>
+                <p className="text-lg sm:text-xl font-bold text-emerald-600">{indexingStats.indexed}</p>
+              </div>
+              <div className="p-2 bg-emerald-50 rounded-lg">
+                <CheckCircle className="h-4 w-4 text-emerald-600" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500">Submitted</p>
+                <p className="text-lg sm:text-xl font-bold text-blue-600">{indexingStats.submitted}</p>
+              </div>
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <Send className="h-4 w-4 text-blue-600" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500">Discovered</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-600">{indexingStats.discovered}</p>
+              </div>
+              <div className="p-2 bg-gray-50 rounded-lg">
+                <Search className="h-4 w-4 text-gray-500" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500">Errors</p>
+                <p className={`text-lg sm:text-xl font-bold ${indexingStats.errors > 0 ? "text-red-600" : "text-gray-400"}`}>
+                  {indexingStats.errors}
+                </p>
+              </div>
+              <div className={`p-2 rounded-lg ${indexingStats.errors > 0 ? "bg-red-50" : "bg-gray-50"}`}>
+                <AlertCircle className={`h-4 w-4 ${indexingStats.errors > 0 ? "text-red-500" : "text-gray-400"}`} />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-500">Index Rate</p>
+                <p className={`text-lg sm:text-xl font-bold ${
+                  indexingStats.indexRate >= 70 ? "text-emerald-600" :
+                  indexingStats.indexRate >= 40 ? "text-yellow-600" : "text-red-600"
+                }`}>
+                  {indexingStats.indexRate}%
+                </p>
+              </div>
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <TrendingUp className="h-4 w-4 text-purple-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+        {indexingStats.lastSubmitted && (
+          <div className="mt-2 text-xs text-gray-500 text-right">
+            Last submitted: {new Date(indexingStats.lastSubmitted).toLocaleString()}
+          </div>
+        )}
+      </div>
+
+      {/* Cron Job Results (shown after Run All Crons) */}
+      {cronResults && (
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+            <Zap className="h-5 w-5 text-orange-500" />
+            Last Cron Run Results
+          </h2>
+          <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+            {cronResults.map((job) => (
+              <div key={job.name} className="p-3 sm:p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                    job.ok ? "bg-green-500" : "bg-red-500"
+                  }`} />
+                  <span className="text-sm font-medium text-gray-900">{job.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {!job.ok && job.error && (
+                    <span className="text-xs text-red-600 max-w-[200px] truncate hidden sm:block">
+                      {job.error}
+                    </span>
+                  )}
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    job.ok
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
+                  }`}>
+                    {job.ok ? "OK" : `Failed (${job.status || "timeout"})`}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => setCronResults(null)}
+            className="mt-2 text-xs text-gray-500 hover:text-gray-700"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Multi-Site Overview */}
       {sites.length > 0 && (

@@ -92,6 +92,7 @@ const mainNavigation = [
     children: [
       { label: 'All Articles', href: '/admin/articles' },
       { label: 'New Article', href: '/admin/articles/new' },
+      { label: 'Generation Monitor', href: '/admin/content?tab=generation' },
       { label: 'Topics Pipeline', href: '/admin/topics' },
       { label: 'Content Pipeline', href: '/admin/pipeline' },
       { label: 'Categories', href: '/admin/content-types' },

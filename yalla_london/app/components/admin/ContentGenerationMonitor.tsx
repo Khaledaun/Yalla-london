@@ -66,6 +66,14 @@ interface CronLog {
   result_summary: Record<string, unknown> | null;
 }
 
+interface PipelineHealth {
+  ai_configured: boolean;
+  ai_provider: string | null;
+  feature_flags: Record<string, boolean | null>;
+  topics_available: number;
+  blockers: string[];
+}
+
 interface MonitorData {
   active_drafts: DraftItem[];
   recent_drafts: DraftItem[];
@@ -76,6 +84,7 @@ interface MonitorData {
     published_today: number;
     total_active: number;
   };
+  health?: PipelineHealth;
   timestamp: string;
 }
 
@@ -399,6 +408,40 @@ export default function ContentGenerationMonitor() {
         <div className="px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-700 flex items-start gap-2">
           <Zap className="h-4 w-4 mt-0.5 text-amber-500 flex-shrink-0" />
           <span>{triggerResult}</span>
+        </div>
+      )}
+
+      {/* ── Pipeline Health Banner ── */}
+      {data?.health && data.health.blockers.length > 0 && (
+        <Card className="border-red-300 bg-red-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-red-800 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Pipeline Blocked — {data.health.blockers.length} issue{data.health.blockers.length > 1 ? "s" : ""} preventing content generation
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ul className="space-y-2">
+              {data.health.blockers.map((blocker, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-red-700">
+                  <XCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>{blocker}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Pipeline OK Banner ── */}
+      {data?.health && data.health.blockers.length === 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-800">
+          <CheckCircle className="h-5 w-5 flex-shrink-0" />
+          <span>
+            Pipeline healthy — AI provider: <strong>{data.health.ai_provider || "unknown"}</strong>
+            {" | "}
+            Topics available: <strong>{data.health.topics_available}</strong>
+          </span>
         </div>
       )}
 

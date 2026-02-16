@@ -54,52 +54,49 @@ const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'claude', 'openai', 'gemini'];
  * Get API key for a provider from the database
  */
 async function getApiKey(provider: AIProvider): Promise<string | null> {
-  try {
-    // Check ModelProvider table first (has encrypted keys)
-    const modelProvider = await prisma.modelProvider.findFirst({
-      where: {
-        name: provider,
-        is_active: true,
-      },
-    });
+  // Environment variable mapping — always checked, even if DB is down
+  const envKeys: Record<AIProvider, string[]> = {
+    grok: ['XAI_API_KEY', 'GROK_API_KEY'],
+    claude: ['ANTHROPIC_API_KEY'],
+    openai: ['OPENAI_API_KEY'],
+    gemini: ['GOOGLE_API_KEY'],
+  };
 
+  // 1. Try DB sources (ModelProvider table, then ApiSettings)
+  try {
+    const modelProvider = await prisma.modelProvider.findFirst({
+      where: { name: provider, is_active: true },
+    });
     if (modelProvider?.api_key_encrypted) {
       return decrypt(modelProvider.api_key_encrypted);
     }
 
-    // Grok uses env var only (no DB storage yet) — check early for speed
-    if (provider === 'grok') {
-      return process.env.XAI_API_KEY || process.env.GROK_API_KEY || null;
-    }
-
-    // Fallback to ApiSettings table
-    const keyNames: Record<string, string> = {
+    // Check ApiSettings table (not used for grok)
+    const settingNames: Record<string, string> = {
       claude: 'anthropic_api_key',
       openai: 'openai_api_key',
       gemini: 'google_api_key',
     };
-
-    if (keyNames[provider]) {
+    if (settingNames[provider]) {
       const apiSetting = await prisma.apiSettings.findUnique({
-        where: { key_name: keyNames[provider] },
+        where: { key_name: settingNames[provider] },
       });
       if (apiSetting?.key_value) {
         return apiSetting.key_value;
       }
     }
-
-    // Last resort: environment variables
-    const envKeys: Record<string, string> = {
-      claude: 'ANTHROPIC_API_KEY',
-      openai: 'OPENAI_API_KEY',
-      gemini: 'GOOGLE_API_KEY',
-    };
-
-    return process.env[envKeys[provider] || ''] || null;
   } catch (error) {
-    console.error(`Failed to get API key for ${provider}:`, error);
-    return null;
+    // DB unavailable or table missing — fall through to env vars
+    console.warn(`[ai/provider] DB key lookup failed for ${provider}, checking env vars:`, error instanceof Error ? error.message : error);
   }
+
+  // 2. Always check environment variables as fallback
+  for (const envKey of envKeys[provider] || []) {
+    const val = process.env[envKey];
+    if (val) return val;
+  }
+
+  return null;
 }
 
 /**

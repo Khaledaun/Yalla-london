@@ -179,8 +179,33 @@ export default function ContentGenerationMonitor() {
   const [showHistory, setShowHistory] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [expandedDrafts, setExpandedDrafts] = useState<Set<string>>(new Set());
+  const [migrationRunning, setMigrationRunning] = useState(false);
+  const [migrationResult, setMigrationResult] = useState<string | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const triggerCountRef = useRef(0);
+
+  // Run database migration (creates missing tables)
+  const runMigration = async () => {
+    setMigrationRunning(true);
+    setMigrationResult(null);
+    try {
+      const res = await fetch("/api/admin/run-migration", { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        setMigrationResult(
+          `Migration complete: ${json.results?.map((r: { table: string; status: string }) => `${r.table}: ${r.status}`).join(", ")}`,
+        );
+        // Refresh data to clear the blocker
+        await fetchData();
+      } else {
+        setMigrationResult(`Migration failed: ${json.error || json.errors?.join(", ") || "Unknown error"}`);
+      }
+    } catch {
+      setMigrationResult("Migration failed: Network error");
+    } finally {
+      setMigrationRunning(false);
+    }
+  };
 
   // Fetch data
   const fetchData = useCallback(async (silent = false) => {
@@ -365,6 +390,19 @@ export default function ContentGenerationMonitor() {
             <Send className="h-4 w-4 mr-2" />
             Publish Ready
           </Button>
+          <Button
+            onClick={runMigration}
+            disabled={migrationRunning}
+            variant="outline"
+            className="border-amber-300 text-amber-700 hover:bg-amber-50"
+          >
+            {migrationRunning ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4 mr-2" />
+            )}
+            {migrationRunning ? "Fixing..." : "Fix Database"}
+          </Button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -411,6 +449,14 @@ export default function ContentGenerationMonitor() {
         </div>
       )}
 
+      {/* ── Migration Result ── */}
+      {migrationResult && (
+        <div className={`px-4 py-3 rounded-lg text-sm flex items-start gap-2 ${migrationResult.includes("complete") ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+          <Zap className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <span>{migrationResult}</span>
+        </div>
+      )}
+
       {/* ── Pipeline Health Banner ── */}
       {data?.health && data.health.blockers.length > 0 && (
         <Card className="border-red-300 bg-red-50">
@@ -420,7 +466,7 @@ export default function ContentGenerationMonitor() {
               Pipeline Blocked — {data.health.blockers.length} issue{data.health.blockers.length > 1 ? "s" : ""} preventing content generation
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 space-y-3">
             <ul className="space-y-2">
               {data.health.blockers.map((blocker, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-red-700">
@@ -429,6 +475,25 @@ export default function ContentGenerationMonitor() {
                 </li>
               ))}
             </ul>
+            <div className="pt-2 border-t border-red-200">
+              <Button
+                onClick={runMigration}
+                disabled={migrationRunning}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {migrationRunning ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Zap className="h-4 w-4 mr-2" />
+                )}
+                {migrationRunning ? "Creating Tables..." : "Fix Database — Create Missing Tables"}
+              </Button>
+              {migrationResult && (
+                <p className={`mt-2 text-sm ${migrationResult.includes("complete") ? "text-green-700" : "text-red-700"}`}>
+                  {migrationResult}
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

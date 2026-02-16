@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       where: {
         action: 'bulk_publish',
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { timestamp: 'desc' },
       take: limit,
     });
 
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
         action: op.action,
         details: op.details,
         success: op.success,
-        createdAt: op.createdAt,
+        createdAt: op.timestamp,
       })),
     });
   } catch (error) {

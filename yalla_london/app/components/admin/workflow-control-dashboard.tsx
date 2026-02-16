@@ -97,6 +97,10 @@ export function WorkflowControlDashboard() {
   const [localeFilter, setLocaleFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Quick action state
+  const [actionRunning, setActionRunning] = useState<string | null>(null);
+  const [actionResult, setActionResult] = useState<string | null>(null);
+
   // Fetch queue data
   const fetchQueueData = useCallback(async () => {
     try {
@@ -146,7 +150,7 @@ export function WorkflowControlDashboard() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([
+      await Promise.allSettled([
         fetchQueueData(),
         fetchPerformanceData(),
         fetchBulkStatus(),
@@ -254,6 +258,60 @@ export function WorkflowControlDashboard() {
       setSelectedContent([]);
     } else {
       setSelectedContent(readyContent.map(c => c.id));
+    }
+  };
+
+  // Quick Actions handler
+  const runQuickAction = async (action: string, label: string) => {
+    setActionRunning(action);
+    setActionResult(null);
+    try {
+      let endpoint = '';
+      let method = 'POST';
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+      switch (action) {
+        case 'generate_topics':
+          endpoint = '/api/admin/content-generation-monitor';
+          break;
+        case 'generate_content':
+          endpoint = '/api/admin/content-generation-monitor';
+          break;
+        case 'publish_ready':
+          endpoint = '/api/admin/content-generation-monitor';
+          break;
+        case 'full_cycle':
+          endpoint = '/api/admin/content-generation-monitor';
+          break;
+        case 'seo_report':
+          endpoint = '/api/admin/pipeline';
+          break;
+      }
+
+      const body: Record<string, string> = {};
+      if (action === 'generate_topics') body.action = 'trigger_build';
+      if (action === 'generate_content') body.action = 'trigger_build';
+      if (action === 'publish_ready') body.action = 'trigger_selector';
+      if (action === 'full_cycle') body.action = 'trigger_build';
+      if (action === 'seo_report') {
+        endpoint = '/api/admin/pipeline';
+        Object.assign(body, { operation: 'seo_audit', parameters: { scope: 'all_published_content' } });
+      }
+
+      const res = await fetch(endpoint, { method, headers, body: JSON.stringify(body) });
+      const data = await res.json();
+
+      if (data.success) {
+        setActionResult(`${label}: Success`);
+        // Refresh data
+        await Promise.all([fetchQueueData(), fetchBulkStatus()]);
+      } else {
+        setActionResult(`${label}: ${data.error || 'Failed'}`);
+      }
+    } catch {
+      setActionResult(`${label}: Network error`);
+    } finally {
+      setActionRunning(null);
     }
   };
 
@@ -866,28 +924,79 @@ export function WorkflowControlDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <Button className="w-full justify-start" variant="outline">
-                    <Sparkles className="h-4 w-4 mr-2" />
+                  {actionResult && (
+                    <div className="text-sm px-3 py-2 rounded bg-gray-50 border text-gray-700 mb-2">
+                      {actionResult}
+                    </div>
+                  )}
+
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    disabled={!!actionRunning}
+                    onClick={() => runQuickAction('generate_topics', 'Generate Topics')}
+                  >
+                    {actionRunning === 'generate_topics' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2" />
+                    )}
                     Generate Topics from Trends
                   </Button>
 
-                  <Button className="w-full justify-start" variant="outline">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Generate Content for All Queued Topics
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    disabled={!!actionRunning}
+                    onClick={() => runQuickAction('generate_content', 'Generate Content')}
+                  >
+                    {actionRunning === 'generate_content' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <FileText className="h-4 w-4 mr-2" />
+                    )}
+                    Generate Content for Queued Topics
                   </Button>
 
-                  <Button className="w-full justify-start" variant="outline">
-                    <Send className="h-4 w-4 mr-2" />
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    disabled={!!actionRunning}
+                    onClick={() => runQuickAction('publish_ready', 'Publish Ready')}
+                  >
+                    {actionRunning === 'publish_ready' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
                     Publish All Ready Content
                   </Button>
 
-                  <Button className="w-full justify-start" variant="outline">
-                    <RefreshCw className="h-4 w-4 mr-2" />
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    disabled={!!actionRunning}
+                    onClick={() => runQuickAction('full_cycle', 'Full Cycle')}
+                  >
+                    {actionRunning === 'full_cycle' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
                     Run Full Workflow Cycle
                   </Button>
 
-                  <Button className="w-full justify-start" variant="outline">
-                    <BarChart3 className="h-4 w-4 mr-2" />
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    disabled={!!actionRunning}
+                    onClick={() => runQuickAction('seo_report', 'SEO Report')}
+                  >
+                    {actionRunning === 'seo_report' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                    )}
                     Generate SEO Health Report
                   </Button>
                 </div>

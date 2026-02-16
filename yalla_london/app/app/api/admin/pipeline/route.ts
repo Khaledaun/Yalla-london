@@ -61,7 +61,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       where: {
         action: { in: ['topic_generation', 'auto_publish', 'content_pipeline', 'seo_audit'] }
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { timestamp: 'desc' },
       take: 50
     });
 
@@ -176,7 +176,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       in_progress_topics: await prisma.topicProposal.count({ where: { status: 'in_progress' } }),
       seo_audits_completed: await prisma.seoAuditResult.count(),
       automation_runs_today: recentLogs.filter(log => {
-        const logDate = new Date(log.created_at);
+        const logDate = new Date(log.timestamp);
         const today = new Date();
         return logDate.toDateString() === today.toDateString();
       }).length
@@ -277,10 +277,10 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       await prisma.auditLog.create({
         data: {
           action: operation,
-          details: JSON.stringify(result.details),
-          user_id: 'admin',
-          ip_address: request.headers.get('x-forwarded-for') || 'unknown',
-          user_agent: request.headers.get('user-agent') || 'unknown'
+          details: result.details,
+          userId: 'admin',
+          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+          userAgent: request.headers.get('user-agent') || 'unknown'
         }
       });
     } catch (logError) {

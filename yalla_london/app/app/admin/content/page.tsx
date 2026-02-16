@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   FileText,
   Plus,
@@ -21,7 +23,13 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Activity,
 } from "lucide-react";
+
+const ContentGenerationMonitor = dynamic(
+  () => import("@/components/admin/ContentGenerationMonitor"),
+  { ssr: false },
+);
 
 interface Article {
   id: string;
@@ -39,13 +47,19 @@ interface Article {
 }
 
 export default function ContentHub() {
-  const [activeTab, setActiveTab] = useState("articles");
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "articles");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterLocale, setFilterLocale] = useState("all");
   const [articles, setArticles] = useState<Article[]>([]);
   const [mediaAssets, setMediaAssets] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (tabFromUrl) setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
 
   useEffect(() => {
     loadContent();
@@ -110,6 +124,7 @@ export default function ContentHub() {
 
   const tabs = [
     { id: "articles", name: "Articles", icon: FileText },
+    { id: "generation", name: "Generation Monitor", icon: Activity },
     { id: "media", name: "Media", icon: Image },
     { id: "preview", name: "Social Preview", icon: Share },
     { id: "upload", name: "Upload Content", icon: Upload },
@@ -399,6 +414,8 @@ export default function ContentHub() {
           )}
         </div>
       )}
+
+      {activeTab === "generation" && <ContentGenerationMonitor />}
 
       {activeTab === "media" && (
         <div>

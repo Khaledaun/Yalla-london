@@ -260,26 +260,34 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     const body = await request.json().catch(() => ({}));
     const action = (body as Record<string, unknown>).action || "trigger_build";
 
+    // Derive base URL from the incoming request — guarantees same domain the browser is using
+    const requestUrl = new URL(request.url);
+    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
+
+    const cronSecret = process.env.CRON_SECRET;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (cronSecret) {
+      headers["Authorization"] = `Bearer ${cronSecret}`;
+    }
+
     if (action === "trigger_build") {
-      // Call the content-builder cron endpoint directly
-      const baseUrl =
-        process.env.NEXT_PUBLIC_BASE_URL ||
-        (process.env.VERCEL_URL
-          ? `https://${process.env.VERCEL_URL}`
-          : "http://localhost:3000");
-
-      const cronSecret = process.env.CRON_SECRET;
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (cronSecret) {
-        headers["Authorization"] = `Bearer ${cronSecret}`;
-      }
-
       const res = await fetch(`${baseUrl}/api/cron/content-builder`, {
         method: "POST",
         headers,
       });
+
+      // Guard against non-JSON responses (e.g. HTML error pages)
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        return NextResponse.json({
+          success: false,
+          action: "trigger_build",
+          error: `Content builder returned ${res.status} (${contentType || "no content-type"}). URL: ${baseUrl}/api/cron/content-builder`,
+          timestamp: new Date().toISOString(),
+        });
+      }
 
       const result = await res.json();
 
@@ -292,24 +300,21 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     }
 
     if (action === "trigger_selector") {
-      const baseUrl =
-        process.env.NEXT_PUBLIC_BASE_URL ||
-        (process.env.VERCEL_URL
-          ? `https://${process.env.VERCEL_URL}`
-          : "http://localhost:3000");
-
-      const cronSecret = process.env.CRON_SECRET;
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (cronSecret) {
-        headers["Authorization"] = `Bearer ${cronSecret}`;
-      }
-
       const res = await fetch(`${baseUrl}/api/cron/content-selector`, {
         method: "POST",
         headers,
       });
+
+      // Guard against non-JSON responses
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        return NextResponse.json({
+          success: false,
+          action: "trigger_selector",
+          error: `Content selector returned ${res.status} (${contentType || "no content-type"}). URL: ${baseUrl}/api/cron/content-selector`,
+          timestamp: new Date().toISOString(),
+        });
+      }
 
       const result = await res.json();
 

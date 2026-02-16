@@ -2,13 +2,13 @@
  * Content Generation Monitor API
  *
  * GET  — Returns all active ArticleDrafts with phase details, phase distribution,
- *        and recent content-builder cron logs for the monitoring dashboard.
+ *        recent content-builder cron logs, AND pipeline health diagnostics.
  * POST — Triggers the content-builder cron manually and returns its result.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 
-// GET — Live generation status
+// GET — Live generation status + health diagnostics
 export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const { prisma } = await import("@/lib/db");
@@ -86,6 +86,84 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       // Best effort
     }
 
+    // ─── Pipeline Health Diagnostics ───────────────────────────────
+    // Surface exactly why the pipeline isn't producing articles.
+    const health: {
+      ai_configured: boolean;
+      ai_provider: string | null;
+      feature_flags: Record<string, boolean | null>;
+      topics_available: number;
+      blockers: string[];
+    } = {
+      ai_configured: false,
+      ai_provider: null,
+      feature_flags: {},
+      topics_available: 0,
+      blockers: [],
+    };
+
+    // Check AI provider availability
+    try {
+      const { getProvidersStatus } = await import("@/lib/ai/provider");
+      const providers = await getProvidersStatus();
+      const configuredProvider = Object.entries(providers).find(
+        ([, v]) => v.configured,
+      );
+      health.ai_configured = !!configuredProvider;
+      health.ai_provider = configuredProvider ? configuredProvider[0] : null;
+      if (!configuredProvider) {
+        health.blockers.push(
+          "No AI provider configured. Add XAI_API_KEY (Grok, cheapest), ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY to Vercel environment variables.",
+        );
+      }
+    } catch {
+      health.blockers.push(
+        "Could not check AI provider status. The AI provider module may have an error.",
+      );
+    }
+
+    // Check feature flags that control the pipeline
+    try {
+      const { getFeatureFlagValue } = await import("@/lib/feature-flags");
+      const pipelineFlag = await getFeatureFlagValue("FEATURE_CONTENT_PIPELINE");
+      const publishFlag = await getFeatureFlagValue("FEATURE_AUTO_PUBLISHING");
+      const topicFlag = await getFeatureFlagValue("FEATURE_TOPICS_RESEARCH");
+      health.feature_flags = {
+        FEATURE_CONTENT_PIPELINE: pipelineFlag,
+        FEATURE_AUTO_PUBLISHING: publishFlag,
+        FEATURE_TOPICS_RESEARCH: topicFlag,
+      };
+      if (pipelineFlag === false) {
+        health.blockers.push(
+          "FEATURE_CONTENT_PIPELINE is disabled. Enable it in the Feature Flags dashboard page.",
+        );
+      }
+      if (publishFlag === false) {
+        health.blockers.push(
+          "FEATURE_AUTO_PUBLISHING is disabled. Articles won't be published automatically.",
+        );
+      }
+    } catch {
+      // Non-fatal
+    }
+
+    // Check if there are topics ready for content generation
+    try {
+      health.topics_available = await prisma.topicProposal.count({
+        where: {
+          status: { in: ["planned", "queued", "ready", "proposed"] },
+          ...(siteFilter ? { site_id: siteFilter } : {}),
+        },
+      });
+      if (health.topics_available === 0 && activeDrafts.length === 0) {
+        health.blockers.push(
+          "No topics available for generation. Run Weekly Topics from the dashboard, or wait for the Monday 4 AM UTC cron.",
+        );
+      }
+    } catch {
+      // Non-fatal
+    }
+
     // Shape active drafts for the frontend
     const shapeDraft = (d: Record<string, unknown>) => ({
       id: d.id,
@@ -136,6 +214,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
           published_today: publishedTodayCount,
           total_active: activeDrafts.length,
         },
+        health,
         timestamp: new Date().toISOString(),
       },
     });

@@ -23,18 +23,11 @@ import { logCronExecution } from "@/lib/cron-logger";
  * Grok (xAI) is preferred for EN content — cheapest ($0.20/$0.50/1M tokens), fastest, 2M context.
  */
 export async function GET(request: NextRequest) {
-  // Verify cron secret for security
+  // Verify cron secret for security (optional — Vercel sends it when CRON_SECRET is set)
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!cronSecret && process.env.NODE_ENV === "production") {
-    console.error("CRON_SECRET not configured in production");
-    return NextResponse.json(
-      { error: "Server misconfiguration" },
-      { status: 503 },
-    );
   }
 
   // Healthcheck mode — quick DB ping + status, no content generation

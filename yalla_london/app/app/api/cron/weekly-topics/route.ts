@@ -11,15 +11,10 @@ import { logCronExecution } from "@/lib/cron-logger";
  * Generates 30 topics weekly + triggers on low backlog
  */
 export async function POST(request: NextRequest) {
-  // Verify cron secret for security
+  // Verify cron secret for security (optional — Vercel sends it when CRON_SECRET is set)
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error('CRON_SECRET not configured');
-    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-  }
-
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     console.error('❌ Unauthorized cron request');
     return NextResponse.json(
       { error: 'Unauthorized' },
@@ -59,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // Check if it's time for weekly generation (run on Sundays)
     const today = new Date();
-    const isWeeklySchedule = today.getDay() === 0; // Sunday = 0
+    const isWeeklySchedule = today.getDay() === 1; // Monday = 1 (matches vercel.json "0 4 * * 1")
 
     // Check for low backlog trigger
     const isLowBacklog = pendingCount < 10;

@@ -193,12 +193,267 @@ export async function runPrePublicationGate(
     warnings.push(`Low SEO score: ${content.seo_score}/100`);
   }
 
+  // ── 5. Heading hierarchy check (AIO optimization) ─────────────────
+  if (content.content_en && content.content_en.length > 300) {
+    const headingResult = validateHeadingHierarchy(content.content_en);
+    checks.push(headingResult.check);
+    if (!headingResult.check.passed) {
+      if (headingResult.check.severity === "blocker") {
+        blockers.push(headingResult.check.message);
+      } else {
+        warnings.push(headingResult.check.message);
+      }
+    }
+  }
+
+  // ── 6. Word count check (quality gate) ────────────────────────────
+  if (content.content_en) {
+    const wordCount = countWords(content.content_en);
+    if (wordCount < 1200) {
+      const check: GateCheck = {
+        name: "Word Count",
+        passed: false,
+        message: `Content has ${wordCount} words (minimum 1,200 required for indexing quality)`,
+        severity: wordCount < 500 ? "blocker" : "warning",
+      };
+      checks.push(check);
+      if (wordCount < 500) {
+        blockers.push(check.message);
+      } else {
+        warnings.push(check.message);
+      }
+    } else {
+      checks.push({
+        name: "Word Count",
+        passed: true,
+        message: `Content has ${wordCount} words (meets 1,200 minimum)`,
+        severity: "info",
+      });
+    }
+  }
+
+  // ── 7. Internal links check ───────────────────────────────────────
+  if (content.content_en) {
+    const internalLinkCount = countInternalLinks(content.content_en);
+    if (internalLinkCount < 3) {
+      checks.push({
+        name: "Internal Links",
+        passed: false,
+        message: `Content has ${internalLinkCount} internal links (minimum 3 required)`,
+        severity: "warning",
+      });
+      warnings.push(`Only ${internalLinkCount} internal links (need at least 3)`);
+    } else {
+      checks.push({
+        name: "Internal Links",
+        passed: true,
+        message: `Content has ${internalLinkCount} internal links`,
+        severity: "info",
+      });
+    }
+  }
+
+  // ── 8. Readability check (Flesch-Kincaid approximation) ───────────
+  if (content.content_en && content.content_en.length > 500) {
+    const readability = estimateReadability(content.content_en);
+    if (readability.gradeLevel > 12) {
+      checks.push({
+        name: "Readability",
+        passed: false,
+        message: `Reading level too high (grade ${readability.gradeLevel.toFixed(1)}, target ≤12). Simplify sentences for better AI extraction.`,
+        severity: "warning",
+      });
+      warnings.push(`High reading level: grade ${readability.gradeLevel.toFixed(1)}`);
+    } else {
+      checks.push({
+        name: "Readability",
+        passed: true,
+        message: `Reading level: grade ${readability.gradeLevel.toFixed(1)} (good for AI + human readability)`,
+        severity: "info",
+      });
+    }
+  }
+
+  // ── 9. Image alt text check ───────────────────────────────────────
+  if (content.content_en) {
+    const imgResult = checkImageAltText(content.content_en);
+    if (imgResult.totalImages > 0 && imgResult.missingAlt > 0) {
+      checks.push({
+        name: "Image Alt Text",
+        passed: false,
+        message: `${imgResult.missingAlt}/${imgResult.totalImages} images missing alt text (accessibility + SEO)`,
+        severity: "warning",
+      });
+      warnings.push(`${imgResult.missingAlt} images missing alt text`);
+    } else if (imgResult.totalImages > 0) {
+      checks.push({
+        name: "Image Alt Text",
+        passed: true,
+        message: `All ${imgResult.totalImages} images have alt text`,
+        severity: "info",
+      });
+    }
+  }
+
   return {
     allowed: blockers.length === 0,
     checks,
     blockers,
     warnings,
   };
+}
+
+/**
+ * Validate HTML heading hierarchy for SEO and AI readability.
+ * Rules:
+ * - Must have exactly one H1 (or none if it's in the page template)
+ * - Headings must not skip levels (h2 → h4 without h3)
+ * - Should have at least 2 H2s for structured content
+ */
+function validateHeadingHierarchy(html: string): { check: GateCheck } {
+  const headingRegex = /<h([1-6])[^>]*>/gi;
+  const headings: number[] = [];
+  let match;
+  while ((match = headingRegex.exec(html)) !== null) {
+    headings.push(parseInt(match[1]));
+  }
+
+  if (headings.length === 0) {
+    return {
+      check: {
+        name: "Heading Hierarchy",
+        passed: false,
+        message: "No headings found in content. Add H2/H3 headings for SEO structure and AI readability.",
+        severity: "warning",
+      },
+    };
+  }
+
+  const h1Count = headings.filter((h) => h === 1).length;
+  const h2Count = headings.filter((h) => h === 2).length;
+
+  if (h1Count > 1) {
+    return {
+      check: {
+        name: "Heading Hierarchy",
+        passed: false,
+        message: `Multiple H1 tags found (${h1Count}). Only one H1 per page for SEO.`,
+        severity: "warning",
+      },
+    };
+  }
+
+  // Check for skipped levels (e.g., h2 → h4 without h3)
+  const skippedLevels: string[] = [];
+  for (let i = 1; i < headings.length; i++) {
+    if (headings[i] > headings[i - 1] + 1) {
+      skippedLevels.push(`H${headings[i - 1]} → H${headings[i]}`);
+    }
+  }
+
+  if (skippedLevels.length > 0) {
+    return {
+      check: {
+        name: "Heading Hierarchy",
+        passed: false,
+        message: `Heading levels skipped: ${skippedLevels.join(", ")}. This hurts AI content extraction.`,
+        severity: "warning",
+      },
+    };
+  }
+
+  if (h2Count < 2) {
+    return {
+      check: {
+        name: "Heading Hierarchy",
+        passed: false,
+        message: `Only ${h2Count} H2 heading(s). Add more H2 sections for better structure.`,
+        severity: "warning",
+      },
+    };
+  }
+
+  return {
+    check: {
+      name: "Heading Hierarchy",
+      passed: true,
+      message: `Good heading structure: ${h2Count} H2s, ${headings.length} total headings`,
+      severity: "info",
+    },
+  };
+}
+
+/**
+ * Count words in HTML content (strips tags first).
+ */
+function countWords(html: string): number {
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return text.split(/\s+/).filter((w) => w.length > 0).length;
+}
+
+/**
+ * Count internal links in HTML content.
+ */
+function countInternalLinks(html: string): number {
+  const linkRegex = /<a[^>]+href=["'](?:\/|https?:\/\/(?:www\.)?(?:yalla-london|arabaldives|yallariviera|yallaistanbul|yallathailand))[^"']*["'][^>]*>/gi;
+  const matches = html.match(linkRegex);
+  return matches ? matches.length : 0;
+}
+
+/**
+ * Simplified Flesch-Kincaid Grade Level estimation.
+ * Lower grade = easier to read. Target: 8-12 for travel content.
+ */
+function estimateReadability(html: string): { gradeLevel: number; readingEase: number } {
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 5);
+  const words = text.split(/\s+/).filter((w) => w.length > 0);
+  const syllables = words.reduce((sum, word) => sum + countSyllables(word), 0);
+
+  if (sentences.length === 0 || words.length === 0) {
+    return { gradeLevel: 0, readingEase: 100 };
+  }
+
+  const avgWordsPerSentence = words.length / sentences.length;
+  const avgSyllablesPerWord = syllables / words.length;
+
+  // Flesch-Kincaid Grade Level
+  const gradeLevel = 0.39 * avgWordsPerSentence + 11.8 * avgSyllablesPerWord - 15.59;
+  // Flesch Reading Ease
+  const readingEase = 206.835 - 1.015 * avgWordsPerSentence - 84.6 * avgSyllablesPerWord;
+
+  return {
+    gradeLevel: Math.max(0, gradeLevel),
+    readingEase: Math.max(0, Math.min(100, readingEase)),
+  };
+}
+
+/**
+ * Approximate syllable count for a word.
+ */
+function countSyllables(word: string): number {
+  word = word.toLowerCase().replace(/[^a-z]/g, "");
+  if (word.length <= 3) return 1;
+  const vowelGroups = word.match(/[aeiouy]+/g);
+  let count = vowelGroups ? vowelGroups.length : 1;
+  if (word.endsWith("e") && !word.endsWith("le")) count--;
+  if (word.endsWith("ed") && !word.endsWith("ted") && !word.endsWith("ded")) count--;
+  return Math.max(1, count);
+}
+
+/**
+ * Check for images missing alt text.
+ */
+function checkImageAltText(html: string): { totalImages: number; missingAlt: number } {
+  const imgRegex = /<img[^>]*>/gi;
+  const images = html.match(imgRegex) || [];
+  let missingAlt = 0;
+  for (const img of images) {
+    if (!img.includes("alt=") || /alt=["']\s*["']/.test(img)) {
+      missingAlt++;
+    }
+  }
+  return { totalImages: images.length, missingAlt };
 }
 
 /**

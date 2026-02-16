@@ -1199,6 +1199,26 @@ export function isSiteLive(siteId: string): boolean {
   return site?.status === "active";
 }
 
+/**
+ * Get the default site ID (first active site, or first configured site).
+ * Used as a safe fallback instead of hardcoding "yalla-london".
+ */
+export function getDefaultSiteId(): string {
+  const active = getActiveSiteIds();
+  if (active.length > 0) return active[0];
+  // Fallback to first configured site if none active
+  const allIds = Object.keys(SITES);
+  return allIds[0] || "yalla-london";
+}
+
+/**
+ * Get the default site name (matches getDefaultSiteId).
+ */
+export function getDefaultSiteName(): string {
+  const id = getDefaultSiteId();
+  return SITES[id]?.name || "Yalla London";
+}
+
 /** Get site config by ID */
 export function getSiteConfig(siteId: string): SiteConfig | undefined {
   return SITES[siteId];
@@ -1207,8 +1227,12 @@ export function getSiteConfig(siteId: string): SiteConfig | undefined {
 /** Get site-specific domain URL */
 export function getSiteDomain(siteId: string): string {
   const site = SITES[siteId];
-  if (!site)
-    return process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  if (!site) {
+    // Fall back to env var, then to the first configured site's domain
+    if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+    const firstSite = Object.values(SITES)[0];
+    return firstSite ? `https://www.${firstSite.domain}` : "https://www.yalla-london.com";
+  }
   return `https://www.${site.domain}`;
 }
 

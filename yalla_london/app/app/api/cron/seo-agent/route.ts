@@ -285,7 +285,8 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       });
 
       let schemasInjected = 0;
-      const baseSiteUrl = siteUrl || process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      const { getSiteDomain: _gsd } = await import("@/config/sites");
+      const baseSiteUrl = siteUrl || _gsd(siteId);
       for (const post of postsWithoutSchema) {
         if (!post.content_en || post.content_en.length < 100) continue;
         try {
@@ -665,10 +666,11 @@ async function checkIndexingStatus(
   siteUrl?: string,
   siteId?: string,
 ) {
-  siteUrl =
-    siteUrl ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://www.yalla-london.com";
+  if (!siteUrl && siteId) {
+    const { getSiteDomain } = await import("@/config/sites");
+    siteUrl = getSiteDomain(siteId);
+  }
+  siteUrl = siteUrl || process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
   const blogSiteFilter = siteId ? { siteId } : {};
 
   try {
@@ -703,10 +705,11 @@ async function checkIndexingStatus(
  * Submit new/updated URLs to search engines via IndexNow
  */
 async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, siteId?: string) {
-  siteUrl =
-    siteUrl ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://www.yalla-london.com";
+  if (!siteUrl && siteId) {
+    const { getSiteDomain } = await import("@/config/sites");
+    siteUrl = getSiteDomain(siteId);
+  }
+  siteUrl = siteUrl || process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
   const indexNowKey = process.env.INDEXNOW_KEY;
   const blogSiteFilter = siteId ? { siteId } : {};
 

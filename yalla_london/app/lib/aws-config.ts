@@ -1,10 +1,18 @@
 
 import { S3Client } from '@aws-sdk/client-s3'
 
-export function getBucketConfig() {
+/**
+ * Get S3 bucket config. Optionally pass siteId for per-site folder isolation.
+ */
+export function getBucketConfig(siteId?: string) {
+  const prefix = siteId
+    ? process.env[`AWS_FOLDER_PREFIX_${siteId.toUpperCase().replace(/-/g, "_")}`]
+      || `${siteId}/`
+    : process.env.AWS_FOLDER_PREFIX || 'uploads/';
+
   return {
     bucketName: process.env.AWS_BUCKET_NAME || 'default-bucket',
-    folderPrefix: process.env.AWS_FOLDER_PREFIX || 'yalla-london/'
+    folderPrefix: prefix,
   }
 }
 

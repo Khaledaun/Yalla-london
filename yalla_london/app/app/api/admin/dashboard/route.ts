@@ -126,16 +126,17 @@ export const GET = withTenantAuth(
           where: {
             status: "pending",
             scheduled_time: { gte: now },
+            site_id: siteId,
           },
         }),
         db.blogPost.count({
           where: { published: false },
         }),
         prisma.scheduledContent.count({
-          where: { status: "pending" },
+          where: { status: "pending", site_id: siteId },
         }),
         prisma.topicProposal.count({
-          where: { status: { in: ["planned", "queued", "ready"] } },
+          where: { status: { in: ["planned", "queued", "ready"] }, site_id: siteId },
         }),
         db.blogPost.aggregate({
           _avg: { seo_score: true },
@@ -158,7 +159,7 @@ export const GET = withTenantAuth(
         }),
         // Upcoming topic proposals
         prisma.topicProposal.findMany({
-          where: { status: { in: ["planned", "queued", "ready"] } },
+          where: { status: { in: ["planned", "queued", "ready"] }, site_id: siteId },
           select: {
             id: true,
             title: true,

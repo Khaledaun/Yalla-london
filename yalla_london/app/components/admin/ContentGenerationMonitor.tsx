@@ -390,6 +390,19 @@ export default function ContentGenerationMonitor() {
             <Send className="h-4 w-4 mr-2" />
             Publish Ready
           </Button>
+          <Button
+            onClick={runMigration}
+            disabled={migrationRunning}
+            variant="outline"
+            className="border-amber-300 text-amber-700 hover:bg-amber-50"
+          >
+            {migrationRunning ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4 mr-2" />
+            )}
+            {migrationRunning ? "Fixing..." : "Fix Database"}
+          </Button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -436,6 +449,14 @@ export default function ContentGenerationMonitor() {
         </div>
       )}
 
+      {/* ── Migration Result ── */}
+      {migrationResult && (
+        <div className={`px-4 py-3 rounded-lg text-sm flex items-start gap-2 ${migrationResult.includes("complete") ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+          <Zap className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <span>{migrationResult}</span>
+        </div>
+      )}
+
       {/* ── Pipeline Health Banner ── */}
       {data?.health && data.health.blockers.length > 0 && (
         <Card className="border-red-300 bg-red-50">
@@ -454,27 +475,25 @@ export default function ContentGenerationMonitor() {
                 </li>
               ))}
             </ul>
-            {data.health.blockers.some((b) => b.includes("migration") || b.includes("does not exist")) && (
-              <div className="pt-2 border-t border-red-200">
-                <Button
-                  onClick={runMigration}
-                  disabled={migrationRunning}
-                  className="bg-red-600 hover:bg-red-700 text-white"
-                >
-                  {migrationRunning ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Zap className="h-4 w-4 mr-2" />
-                  )}
-                  {migrationRunning ? "Creating Tables..." : "Fix Database — Create Missing Tables"}
-                </Button>
-                {migrationResult && (
-                  <p className={`mt-2 text-sm ${migrationResult.includes("complete") ? "text-green-700" : "text-red-700"}`}>
-                    {migrationResult}
-                  </p>
+            <div className="pt-2 border-t border-red-200">
+              <Button
+                onClick={runMigration}
+                disabled={migrationRunning}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {migrationRunning ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Zap className="h-4 w-4 mr-2" />
                 )}
-              </div>
-            )}
+                {migrationRunning ? "Creating Tables..." : "Fix Database — Create Missing Tables"}
+              </Button>
+              {migrationResult && (
+                <p className={`mt-2 text-sm ${migrationResult.includes("complete") ? "text-green-700" : "text-red-700"}`}>
+                  {migrationResult}
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

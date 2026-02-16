@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { prisma } from "@/lib/db";
+import { invalidateFlagCache } from "@/lib/feature-flags";
 
 /**
  * Feature Flags API — Backed by real database (FeatureFlag table).
@@ -106,6 +107,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
             enabled: data.enabled ?? false,
           },
         });
+        invalidateFlagCache();
         return NextResponse.json({
           success: true,
           message: "Feature flag created",
@@ -123,6 +125,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
           where: { id: data.flagId },
           data: { enabled: data.enabled },
         });
+        invalidateFlagCache();
         return NextResponse.json({
           success: true,
           message: `Feature flag ${flag.enabled ? "enabled" : "disabled"}`,
@@ -141,6 +144,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
             ...(data.enabled !== undefined && { enabled: data.enabled }),
           },
         });
+        invalidateFlagCache();
         return NextResponse.json({
           success: true,
           message: "Feature flag updated",
@@ -157,6 +161,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         await prisma.featureFlag.delete({
           where: { id: data.flagId },
         });
+        invalidateFlagCache();
         return NextResponse.json({
           success: true,
           message: "Feature flag deleted",

@@ -1,0 +1,305 @@
+/**
+ * Content Builder — Core Logic (extracted from cron route)
+ *
+ * Callable directly without HTTP. Used by:
+ * - /api/cron/content-builder (cron route)
+ * - /api/admin/content-generation-monitor (dashboard trigger)
+ *
+ * Each invocation:
+ * 1. Finds the oldest in-progress ArticleDraft and advances it one phase
+ * 2. If no in-progress drafts, creates TWO new ones (EN + AR) from TopicProposal queue
+ * 3. Respects budget timeout
+ */
+
+import { logCronExecution } from "@/lib/cron-logger";
+
+const DEFAULT_TIMEOUT_MS = 53_000;
+
+export interface BuildRunnerResult {
+  success: boolean;
+  draftId?: string;
+  keyword?: string;
+  locale?: string;
+  previousPhase?: string;
+  nextPhase?: string;
+  phaseSuccess?: boolean;
+  phaseError?: string | null;
+  strategy?: string;
+  message?: string;
+  reservoirCount?: number;
+  durationMs: number;
+}
+
+export async function runContentBuilder(
+  options: { timeoutMs?: number } = {},
+): Promise<BuildRunnerResult> {
+  const timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
+  const cronStart = Date.now();
+  const deadline = {
+    remainingMs: () => timeoutMs - (Date.now() - cronStart),
+    isExpired: () => Date.now() - cronStart >= timeoutMs,
+  };
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getActiveSiteIds, SITES } = await import("@/config/sites");
+    const { runPhase } = await import("@/lib/content-pipeline/phases");
+
+    const activeSites = getActiveSiteIds();
+    if (activeSites.length === 0) {
+      return { success: true, message: "No active sites", durationMs: Date.now() - cronStart };
+    }
+
+    // Step 1: Find the oldest in-progress draft
+    let draft: Record<string, unknown> | null = null;
+    try {
+      const allDrafts = await prisma.articleDraft.findMany({
+        where: {
+          site_id: { in: activeSites },
+          current_phase: {
+            in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
+          },
+          phase_attempts: { lt: 3 },
+        },
+        orderBy: { updated_at: "asc" },
+        take: 20,
+      });
+
+      const phaseOrder: Record<string, number> = {
+        scoring: 7, seo: 6, images: 5, assembly: 4, drafting: 3, outline: 2, research: 1,
+      };
+      allDrafts.sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+        const orderA = phaseOrder[a.current_phase as string] || 0;
+        const orderB = phaseOrder[b.current_phase as string] || 0;
+        return orderB - orderA;
+      });
+
+      draft = allDrafts[0] || null;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("does not exist") || msg.includes("P2021")) {
+        return {
+          success: false,
+          message: "ArticleDraft table not found. Use Fix Database button to create it.",
+          durationMs: Date.now() - cronStart,
+        };
+      }
+      throw e;
+    }
+
+    // Step 2: If no in-progress draft, create a new one from topic queue
+    if (!draft) {
+      const siteId = activeSites[0];
+      const site = SITES[siteId];
+      if (!site) {
+        return { success: true, message: "No site config found for " + siteId, durationMs: Date.now() - cronStart };
+      }
+
+      const reservoirCount = await prisma.articleDraft.count({
+        where: { site_id: siteId, current_phase: "reservoir" },
+      });
+
+      if (reservoirCount >= 10) {
+        return {
+          success: true,
+          message: "Reservoir is full (" + reservoirCount + " articles). Waiting for selector to publish.",
+          reservoirCount,
+          durationMs: Date.now() - cronStart,
+        };
+      }
+
+      let keyword = "";
+      let topicProposalId: string | null = null;
+      let strategy = "template_cycle";
+      let locale = "en";
+
+      try {
+        const topic = await prisma.topicProposal.findFirst({
+          where: {
+            status: { in: ["ready", "queued", "planned", "proposed"] },
+            OR: [{ site_id: siteId }, { site_id: null }],
+          },
+          orderBy: [{ confidence_score: "desc" }, { created_at: "asc" }],
+        });
+
+        if (topic) {
+          keyword = topic.primary_keyword;
+          topicProposalId = topic.id;
+          locale = topic.locale || "en";
+          strategy = "topic_db";
+          await prisma.topicProposal.update({
+            where: { id: topic.id },
+            data: { status: "generated" },
+          });
+        }
+      } catch {
+        // TopicProposal query failed — fall through to template
+      }
+
+      if (!keyword) {
+        const topics = site.topicsEN;
+        if (!topics || topics.length === 0) {
+          return { success: true, message: "No template topics configured for site " + siteId, durationMs: Date.now() - cronStart };
+        }
+        const dayOfYear = Math.floor(
+          (Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000,
+        );
+        const topic = topics[dayOfYear % topics.length];
+        keyword = topic.keyword;
+        locale = "en";
+        strategy = "template_cycle";
+      }
+
+      const enDraft = await prisma.articleDraft.create({
+        data: {
+          site_id: siteId,
+          keyword,
+          locale: "en",
+          current_phase: "research",
+          topic_proposal_id: topicProposalId,
+          generation_strategy: strategy,
+          phase_started_at: new Date(),
+        },
+      });
+
+      const arDraft = await prisma.articleDraft.create({
+        data: {
+          site_id: siteId,
+          keyword,
+          locale: "ar",
+          current_phase: "research",
+          topic_proposal_id: topicProposalId,
+          generation_strategy: strategy + "_ar",
+          phase_started_at: new Date(),
+          paired_draft_id: enDraft.id,
+        },
+      });
+
+      await prisma.articleDraft.update({
+        where: { id: enDraft.id },
+        data: { paired_draft_id: arDraft.id },
+      });
+
+      draft = enDraft;
+
+      console.log(
+        `[content-builder] Created bilingual pair: EN=${enDraft.id}, AR=${arDraft.id} for keyword "${keyword}" (${strategy})`,
+      );
+    }
+
+    // Step 3: Run the current phase
+    if (deadline.isExpired()) {
+      return {
+        success: true,
+        message: "Budget expired before phase execution",
+        draftId: draft.id as string,
+        previousPhase: draft.current_phase as string,
+        durationMs: Date.now() - cronStart,
+      };
+    }
+
+    const draftRecord = draft as Record<string, unknown>;
+    const siteId = draftRecord.site_id as string;
+    const site = SITES[siteId];
+
+    if (!site) {
+      return { success: false, message: "No site config for " + siteId, durationMs: Date.now() - cronStart };
+    }
+
+    const currentPhase = draftRecord.current_phase as string;
+    console.log(
+      `[content-builder] Running phase "${currentPhase}" for draft ${draftRecord.id} (keyword: "${draftRecord.keyword}")`,
+    );
+
+    const result = await runPhase(draftRecord as any, site, deadline.remainingMs());
+
+    // Step 4: Save phase result to DB
+    const updateData: Record<string, unknown> = { updated_at: new Date() };
+
+    if (result.success) {
+      updateData.current_phase = result.nextPhase;
+      updateData.phase_attempts = 0;
+      updateData.last_error = null;
+      updateData.phase_started_at = new Date();
+
+      if (result.data.research_data) updateData.research_data = result.data.research_data;
+      if (result.data.outline_data) updateData.outline_data = result.data.outline_data;
+      if (result.data.sections_data) updateData.sections_data = result.data.sections_data;
+      if (result.data.assembled_html) updateData.assembled_html = result.data.assembled_html;
+      if (result.data.assembled_html_alt) updateData.assembled_html_alt = result.data.assembled_html_alt;
+      if (result.data.seo_meta) updateData.seo_meta = result.data.seo_meta;
+      if (result.data.images_data) updateData.images_data = result.data.images_data;
+      if (result.data.topic_title) updateData.topic_title = result.data.topic_title;
+      if (result.data.sections_total !== undefined) updateData.sections_total = result.data.sections_total;
+      if (result.data.sections_completed !== undefined) updateData.sections_completed = result.data.sections_completed;
+      if (result.data.quality_score !== undefined) updateData.quality_score = result.data.quality_score;
+      if (result.data.seo_score !== undefined) updateData.seo_score = result.data.seo_score;
+      if (result.data.word_count !== undefined) updateData.word_count = result.data.word_count;
+      if (result.data.readability_score !== undefined) updateData.readability_score = result.data.readability_score;
+      if (result.data.content_depth_score !== undefined) updateData.content_depth_score = result.data.content_depth_score;
+      if (result.aiModelUsed) updateData.ai_model_used = result.aiModelUsed;
+
+      if (result.nextPhase === "reservoir" || result.nextPhase === "rejected") {
+        updateData.completed_at = new Date();
+        if (result.nextPhase === "rejected") {
+          updateData.rejection_reason = "Quality score below threshold";
+        }
+      }
+    } else {
+      updateData.phase_attempts = ((draftRecord.phase_attempts as number) || 0) + 1;
+      updateData.last_error = result.error || "Unknown error";
+
+      if ((updateData.phase_attempts as number) >= 3) {
+        updateData.current_phase = "rejected";
+        updateData.rejection_reason = `Phase "${currentPhase}" failed after 3 attempts: ${result.error ?? "Unknown error"}`;
+        updateData.completed_at = new Date();
+      }
+    }
+
+    await prisma.articleDraft.update({
+      where: { id: draftRecord.id as string },
+      data: updateData,
+    });
+
+    const durationMs = Date.now() - cronStart;
+
+    await logCronExecution("content-builder", "completed", {
+      durationMs,
+      resultSummary: {
+        draftId: draftRecord.id,
+        keyword: draftRecord.keyword,
+        phase: currentPhase,
+        nextPhase: result.nextPhase,
+        success: result.success,
+        error: result.error,
+      },
+    });
+
+    return {
+      success: true,
+      draftId: draftRecord.id as string,
+      keyword: draftRecord.keyword as string,
+      locale: draftRecord.locale as string,
+      previousPhase: currentPhase,
+      nextPhase: result.nextPhase,
+      phaseSuccess: result.success,
+      phaseError: result.error || null,
+      strategy: draftRecord.generation_strategy as string,
+      durationMs,
+    };
+  } catch (error) {
+    const durationMs = Date.now() - cronStart;
+    console.error("[content-builder] Failed:", error);
+
+    await logCronExecution("content-builder", "failed", {
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+    }).catch(() => {});
+
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error",
+      durationMs,
+    };
+  }
+}

@@ -254,45 +254,20 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   }
 });
 
-// POST — Trigger content-builder manually
+// POST — Trigger content-builder or content-selector directly (no HTTP round-trip)
 export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json().catch(() => ({}));
     const action = (body as Record<string, unknown>).action || "trigger_build";
 
-    // Derive base URL from the incoming request — guarantees same domain the browser is using
-    const requestUrl = new URL(request.url);
-    const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`;
-
-    const cronSecret = process.env.CRON_SECRET;
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (cronSecret) {
-      headers["Authorization"] = `Bearer ${cronSecret}`;
-    }
-
     if (action === "trigger_build") {
-      const res = await fetch(`${baseUrl}/api/cron/content-builder`, {
-        method: "POST",
-        headers,
-      });
-
-      // Guard against non-JSON responses (e.g. HTML error pages)
-      const contentType = res.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) {
-        return NextResponse.json({
-          success: false,
-          action: "trigger_build",
-          error: `Content builder returned ${res.status} (${contentType || "no content-type"}). URL: ${baseUrl}/api/cron/content-builder`,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      const result = await res.json();
+      const { runContentBuilder } = await import(
+        "@/lib/content-pipeline/build-runner"
+      );
+      const result = await runContentBuilder({ timeoutMs: 53_000 });
 
       return NextResponse.json({
-        success: true,
+        success: result.success,
         action: "trigger_build",
         result,
         timestamp: new Date().toISOString(),
@@ -300,26 +275,13 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     }
 
     if (action === "trigger_selector") {
-      const res = await fetch(`${baseUrl}/api/cron/content-selector`, {
-        method: "POST",
-        headers,
-      });
-
-      // Guard against non-JSON responses
-      const contentType = res.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) {
-        return NextResponse.json({
-          success: false,
-          action: "trigger_selector",
-          error: `Content selector returned ${res.status} (${contentType || "no content-type"}). URL: ${baseUrl}/api/cron/content-selector`,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      const result = await res.json();
+      const { runContentSelector } = await import(
+        "@/lib/content-pipeline/select-runner"
+      );
+      const result = await runContentSelector({ timeoutMs: 53_000 });
 
       return NextResponse.json({
-        success: true,
+        success: result.success,
         action: "trigger_selector",
         result,
         timestamp: new Date().toISOString(),

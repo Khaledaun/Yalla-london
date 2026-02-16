@@ -108,7 +108,7 @@ yalla_london/app/                    # Main Next.js application
 │   ├── api/cron/                    # 20 cron job routes (17 scheduled in vercel.json)
 │   ├── api/seo/                     # 28 SEO API routes
 │   ├── api/admin/                   # Admin dashboard API
-│   └── admin/                       # Admin UI (52 sections)
+│   └── admin/                       # Admin UI (75 pages)
 ├── lib/                             # Shared utilities
 │   ├── seo/orchestrator/            # Master SEO orchestrator (5 modules)
 │   ├── seo/                         # SEO services (schema, indexing, audit, analytics)
@@ -358,3 +358,29 @@ This is the order in which things must work. Do not jump ahead.
 - Fixed publish-all-ready logic with query optimization
 - Expanded CI triggers to run checks on `claude/*` branch PRs
 - Fixed Thailand color mismatch in `sites.ts` — now matches `destination-themes.ts` (#059669 emerald)
+
+### Session: February 16, 2026 — Content Pipeline Unblock & Generation Monitor
+
+**Content Pipeline Unblock (Critical Fix):**
+- Fixed `weekly-topics` cron: removed mandatory `CRON_SECRET` check that returned 500 when not configured, blocking all topic generation in production
+- Fixed `weekly-topics` day-of-week bug: `vercel.json` schedules Monday (day 1) but code checked for Sunday (day 0) — weekly topics never fired
+- Fixed `daily-content-generate` cron: removed conflicting auth that returned 503 when `CRON_SECRET` was unset
+- Dashboard now scopes `topicProposal` and `scheduledContent` counts per-site instead of showing global totals
+
+**Content Generation Monitor (New Feature):**
+- New "Generation Monitor" tab in Content Hub (`/admin/content?tab=generation`) — real-time content pipeline visibility from iPhone
+- "Generate Content" button triggers `content-builder` cron on demand
+- "Publish Ready" button triggers `content-selector` for reservoir articles
+- Live pipeline view: all active ArticleDrafts with 8-phase stepper (research → outline → drafting → assembly → images → seo → scoring → reservoir)
+- Phase distribution badges show counts per pipeline stage
+- Auto-refresh mode polls every 5s when active
+- Expandable draft cards show quality/SEO scores, word count, errors
+- Recent completions (last 24h) and build logs sections
+- Summary cards: Active, Reservoir, Published Today, Total
+- New API endpoint: `/api/admin/content-generation-monitor` (GET + POST)
+- Sidebar navigation updated with "Generation Monitor" link
+
+**Workflow Page Activation (Bug Fix):**
+- Fixed `AuditLog` field mismatches in `bulk-publish` and `pipeline` APIs — code used `createdAt`, `created_at`, `user_id`, `ip_address` but Prisma model uses `timestamp`, `userId`, `ipAddress`, `userAgent`
+- Wired up all 5 Quick Action buttons in `/admin/workflow` Automation tab (were dead — no onClick handlers)
+- Changed `Promise.all` to `Promise.allSettled` so one failing API doesn't block the entire workflow page from loading

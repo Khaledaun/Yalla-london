@@ -16,28 +16,45 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const siteFilter = searchParams.get("site_id");
 
     // 1. Active drafts (not in terminal states)
-    const activeDrafts = await prisma.articleDraft.findMany({
-      where: {
-        current_phase: {
-          notIn: ["published", "rejected"],
+    let activeDrafts: Array<Record<string, unknown>> = [];
+    let recentDrafts: Array<Record<string, unknown>> = [];
+    let tableMissing = false;
+
+    try {
+      activeDrafts = await prisma.articleDraft.findMany({
+        where: {
+          current_phase: {
+            notIn: ["published", "rejected"],
+          },
+          ...(siteFilter ? { site_id: siteFilter } : {}),
         },
-        ...(siteFilter ? { site_id: siteFilter } : {}),
-      },
-      orderBy: [{ updated_at: "desc" }],
-      take: 50,
-    });
+        orderBy: [{ updated_at: "desc" }],
+        take: 50,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("does not exist") || msg.includes("P2021")) {
+        tableMissing = true;
+      }
+    }
 
     // 2. Recently completed/rejected drafts (last 24 hours)
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentDrafts = await prisma.articleDraft.findMany({
-      where: {
-        current_phase: { in: ["published", "rejected", "reservoir"] },
-        updated_at: { gte: oneDayAgo },
-        ...(siteFilter ? { site_id: siteFilter } : {}),
-      },
-      orderBy: [{ updated_at: "desc" }],
-      take: 30,
-    });
+    if (!tableMissing) {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      try {
+        recentDrafts = await prisma.articleDraft.findMany({
+          where: {
+            current_phase: { in: ["published", "rejected", "reservoir"] },
+            updated_at: { gte: oneDayAgo },
+            ...(siteFilter ? { site_id: siteFilter } : {}),
+          },
+          orderBy: [{ updated_at: "desc" }],
+          take: 30,
+        });
+      } catch {
+        // Non-fatal
+      }
+    }
 
     // 3. Phase distribution counts
     const phaseCounts: Record<string, number> = {};
@@ -101,6 +118,13 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       topics_available: 0,
       blockers: [],
     };
+
+    // Check if article_drafts table exists
+    if (tableMissing) {
+      health.blockers.push(
+        "Database migration needed: article_drafts table does not exist. Deploy the latest code to run the migration, or run 'npx prisma migrate deploy' manually.",
+      );
+    }
 
     // Check AI provider availability
     try {

@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
 
       try {
         const siteUrl = getSiteDomain(siteId);
-        const report = await runOrchestrator(prisma, siteId, siteUrl || `https://www.yalla-london.com`, {
+        const report = await runOrchestrator(prisma, siteId, siteUrl || getSiteDomain(siteId), {
           includeResearch: mode === "weekly",
           maxDurationMs: Math.min(45000, 53000 - (Date.now() - cronStart)),
         });

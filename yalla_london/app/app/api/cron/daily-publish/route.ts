@@ -174,7 +174,8 @@ async function createContentFromTopic(topic: any) {
   
   // Generate article URL (this would be the actual published URL)
   const slug = generateSlug(topic.primary_keyword);
-  const articleUrl = `${process.env.NEXTAUTH_URL || 'https://yalla-london.com'}/articles/${slug}`;
+  const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+  const articleUrl = `${process.env.NEXTAUTH_URL || getSiteDomain(topic.site_id || getDefaultSiteId())}/articles/${slug}`;
 
   // Create the scheduled content entry
   const content = await prisma.scheduledContent.create({

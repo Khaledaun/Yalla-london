@@ -179,8 +179,33 @@ export default function ContentGenerationMonitor() {
   const [showHistory, setShowHistory] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [expandedDrafts, setExpandedDrafts] = useState<Set<string>>(new Set());
+  const [migrationRunning, setMigrationRunning] = useState(false);
+  const [migrationResult, setMigrationResult] = useState<string | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const triggerCountRef = useRef(0);
+
+  // Run database migration (creates missing tables)
+  const runMigration = async () => {
+    setMigrationRunning(true);
+    setMigrationResult(null);
+    try {
+      const res = await fetch("/api/admin/run-migration", { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        setMigrationResult(
+          `Migration complete: ${json.results?.map((r: { table: string; status: string }) => `${r.table}: ${r.status}`).join(", ")}`,
+        );
+        // Refresh data to clear the blocker
+        await fetchData();
+      } else {
+        setMigrationResult(`Migration failed: ${json.error || json.errors?.join(", ") || "Unknown error"}`);
+      }
+    } catch {
+      setMigrationResult("Migration failed: Network error");
+    } finally {
+      setMigrationRunning(false);
+    }
+  };
 
   // Fetch data
   const fetchData = useCallback(async (silent = false) => {
@@ -420,7 +445,7 @@ export default function ContentGenerationMonitor() {
               Pipeline Blocked — {data.health.blockers.length} issue{data.health.blockers.length > 1 ? "s" : ""} preventing content generation
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent className="pt-0 space-y-3">
             <ul className="space-y-2">
               {data.health.blockers.map((blocker, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-red-700">
@@ -429,6 +454,27 @@ export default function ContentGenerationMonitor() {
                 </li>
               ))}
             </ul>
+            {data.health.blockers.some((b) => b.includes("migration") || b.includes("does not exist")) && (
+              <div className="pt-2 border-t border-red-200">
+                <Button
+                  onClick={runMigration}
+                  disabled={migrationRunning}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {migrationRunning ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Zap className="h-4 w-4 mr-2" />
+                  )}
+                  {migrationRunning ? "Creating Tables..." : "Fix Database — Create Missing Tables"}
+                </Button>
+                {migrationResult && (
+                  <p className={`mt-2 text-sm ${migrationResult.includes("complete") ? "text-green-700" : "text-red-700"}`}>
+                    {migrationResult}
+                  </p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

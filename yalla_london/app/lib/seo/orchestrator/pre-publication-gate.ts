@@ -48,10 +48,15 @@ export async function runPrePublicationGate(
   const checks: GateCheck[] = [];
   const blockers: string[] = [];
   const warnings: string[] = [];
-  const baseUrl =
-    siteUrl ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://www.yalla-london.com";
+  let baseUrl = siteUrl || process.env.NEXT_PUBLIC_SITE_URL;
+  if (!baseUrl) {
+    try {
+      const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+      baseUrl = getSiteDomain(getDefaultSiteId());
+    } catch {
+      baseUrl = "https://www.yalla-london.com";
+    }
+  }
 
   // ── 1. Route existence check ────────────────────────────────────────
   // Verify the target URL will actually resolve (not return 404)

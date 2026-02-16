@@ -120,10 +120,19 @@ export async function processSubscriberNotifications(): Promise<ProcessingSummar
         continue;
       }
 
-      const baseUrl = process.env.NEXTAUTH_URL || "https://yalla-london.com";
-      const siteName = "Yalla London";
+      let baseUrl = process.env.NEXTAUTH_URL;
+      let siteName = "Yalla London";
+      if (siteId) {
+        try {
+          const { getSiteDomain, getSiteConfig } = await import("@/config/sites");
+          baseUrl = baseUrl || getSiteDomain(siteId);
+          const config = getSiteConfig(siteId);
+          if (config) siteName = config.name;
+        } catch { /* use defaults */ }
+      }
+      if (!baseUrl) baseUrl = "https://yalla-london.com";
       const fromAddress =
-        process.env.EMAIL_FROM || "notifications@yalla-london.com";
+        process.env.EMAIL_FROM || "notifications@zenitha.luxury";
 
       let jobSent = 0;
       let jobFailed = 0;
@@ -225,7 +234,7 @@ export async function processSubscriberNotifications(): Promise<ProcessingSummar
 export async function sendEmail(params: SendEmailParams): Promise<void> {
   const { to, subject, html, from } = params;
   const provider = (process.env.EMAIL_PROVIDER || "").toLowerCase().trim();
-  const defaultFrom = from || process.env.EMAIL_FROM || "notifications@yalla-london.com";
+  const defaultFrom = from || process.env.EMAIL_FROM || "notifications@zenitha.luxury";
 
   // --- Resend ---
   if (provider === "resend") {

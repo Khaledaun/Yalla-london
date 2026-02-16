@@ -47,9 +47,12 @@ export async function POST(request: NextRequest) {
       locale as "ar" | "en",
     );
 
+    const { getSiteDomain, getSiteConfig, getDefaultSiteId } = await import("@/config/sites");
+    const currentSiteId = getDefaultSiteId();
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
-    const siteName = "Yalla London";
+      process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(currentSiteId);
+    const siteConfig = getSiteConfig(currentSiteId);
+    const siteName = siteConfig?.name || "Yalla London";
 
     // Step 2: Generate HTML
     const html = generatePDFHTML({

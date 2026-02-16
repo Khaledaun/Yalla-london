@@ -151,51 +151,60 @@ export async function POST(request: NextRequest) {
 
     // Persist generated topics as TopicProposal rows
     // Assign to all active sites so content-builder can find them
-    const { getActiveSiteIds } = await import('@/config/sites');
+    const { getActiveSiteIds, getSiteConfig, getDefaultSiteId } = await import('@/config/sites');
     const activeSiteIds = getActiveSiteIds();
-    const primarySiteId = activeSiteIds[0] || 'yalla-london';
+    const primarySiteId = activeSiteIds[0] || getDefaultSiteId();
 
     const allTopics = [
       ...(topicData?.topics || []).map((t: any) => ({ ...t, locale: 'en' })),
       ...(arabicData?.topics || []).map((t: any) => ({ ...t, locale: 'ar' })),
     ];
 
+    // Save topics for ALL active sites (multi-site distribution)
+    // Each active site gets the generated topics assigned to it
+    const targetSiteIds = activeSiteIds.length > 0 ? activeSiteIds : [primarySiteId];
     let savedCount = 0;
-    for (const t of allTopics) {
-      // Budget check — stop DB saves if we're running out of time
-      if (budgetLeft() < 3_000) {
-        console.log(`[weekly-topics] Budget exhausted during DB saves (${budgetLeft()}ms left), stopping`);
-        break;
-      }
-      try {
-        const keyword = t.slug || t.title || '';
-        if (!keyword) continue;
-        // Skip duplicates
-        const exists = await prisma.topicProposal.findFirst({
-          where: { primary_keyword: keyword, locale: t.locale },
-        });
-        if (exists) continue;
 
-        await prisma.topicProposal.create({
-          data: {
-            title: t.title || keyword,
-            primary_keyword: keyword,
-            longtails: [],
-            questions: [],
-            intent: 'info',
-            suggested_page_type: 'guide',
-            locale: t.locale,
-            site_id: primarySiteId,
-            status: 'ready',
-            confidence_score: 0.7,
-            evergreen: false,
-            source_weights_json: { source: 'weekly-topics-cron' },
-            authority_links_json: { rationale: t.rationale || '', sources: t.sources || [] },
-          },
-        });
-        savedCount++;
-      } catch (saveErr) {
-        console.warn(`[weekly-topics] Failed to save topic "${t.title}":`, saveErr instanceof Error ? saveErr.message : saveErr);
+    for (const targetSiteId of targetSiteIds) {
+      const siteConfig = getSiteConfig(targetSiteId);
+      const siteDestination = siteConfig?.destination || 'London';
+
+      for (const t of allTopics) {
+        // Budget check — stop DB saves if we're running out of time
+        if (budgetLeft() < 3_000) {
+          console.log(`[weekly-topics] Budget exhausted during DB saves (${budgetLeft()}ms left), stopping`);
+          break;
+        }
+        try {
+          const keyword = t.slug || t.title || '';
+          if (!keyword) continue;
+          // Skip duplicates per site
+          const exists = await prisma.topicProposal.findFirst({
+            where: { primary_keyword: keyword, locale: t.locale, site_id: targetSiteId },
+          });
+          if (exists) continue;
+
+          await prisma.topicProposal.create({
+            data: {
+              title: t.title || keyword,
+              primary_keyword: keyword,
+              longtails: [],
+              questions: [],
+              intent: 'info',
+              suggested_page_type: 'guide',
+              locale: t.locale,
+              site_id: targetSiteId,
+              status: 'ready',
+              confidence_score: 0.7,
+              evergreen: false,
+              source_weights_json: { source: 'weekly-topics-cron', site: targetSiteId, destination: siteDestination },
+              authority_links_json: { rationale: t.rationale || '', sources: t.sources || [] },
+            },
+          });
+          savedCount++;
+        } catch (saveErr) {
+          console.warn(`[weekly-topics] Failed to save topic "${t.title}" for ${targetSiteId}:`, saveErr instanceof Error ? saveErr.message : saveErr);
+        }
       }
     }
 

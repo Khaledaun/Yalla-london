@@ -238,7 +238,7 @@ async function fetchSourceFeed(
     const res = await fetch(rssUrl, {
       headers: {
         "User-Agent":
-          "YallaLondon-ResearchAgent/1.0 (+https://www.yalla-london.com)",
+          "Zenitha-ResearchAgent/1.0 (+https://zenitha.luxury)",
       },
       signal: AbortSignal.timeout(10000),
     });
@@ -251,7 +251,7 @@ async function fetchSourceFeed(
     const htmlRes = await fetch(sourceUrl, {
       headers: {
         "User-Agent":
-          "YallaLondon-ResearchAgent/1.0 (+https://www.yalla-london.com)",
+          "Zenitha-ResearchAgent/1.0 (+https://zenitha.luxury)",
       },
       signal: AbortSignal.timeout(10000),
     });

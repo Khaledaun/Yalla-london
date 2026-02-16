@@ -219,11 +219,12 @@ async function processContentAction(
   scheduledTime: string | undefined,
   options: any
 ): Promise<any> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+  const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
 
   if (contentType === 'blog_post' || contentType === 'mixed') {
     const blogPost = await prisma.blogPost.findUnique({ where: { id: contentId } });
     if (blogPost) {
+      const baseUrl = getSiteDomain(blogPost.siteId || getDefaultSiteId());
       return await processBlogPostAction(blogPost, action, options, baseUrl);
     }
   }
@@ -238,6 +239,7 @@ async function processContentAction(
     throw new Error(`Content not found: ${contentId}`);
   }
 
+  const baseUrl = getSiteDomain(scheduledContent.site_id || getDefaultSiteId());
   return await processScheduledContentAction(
     scheduledContent,
     action,
@@ -415,7 +417,7 @@ async function createBlogPostFromScheduledContent(content: any): Promise<any> {
   const systemUser = await prisma.user.findFirst() ||
     await prisma.user.create({
       data: {
-        email: 'system@yalla-london.com',
+        email: 'system@zenitha.luxury',
         name: 'System',
       },
     });

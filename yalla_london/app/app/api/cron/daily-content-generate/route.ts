@@ -10,6 +10,7 @@ import {
 } from "@/config/sites";
 import type { SiteConfig, TopicTemplate } from "@/config/sites";
 import { logCronExecution } from "@/lib/cron-logger";
+import { getFeatureFlagValue } from "@/lib/feature-flags";
 
 /**
  * Daily Content Generation Cron - Runs at 5am UTC daily
@@ -62,6 +63,17 @@ export async function GET(request: NextRequest) {
   }
 
   const _cronStart = Date.now();
+
+  // Feature flag: DB toggle (dashboard) takes precedence, env var fallback, default=enabled.
+  const pipelineFlag = await getFeatureFlagValue("FEATURE_CONTENT_PIPELINE");
+  if (pipelineFlag === false) {
+    console.log("[daily-content-generate] Content pipeline disabled via feature flag");
+    return NextResponse.json({
+      success: true,
+      message: "Content pipeline disabled by feature flag",
+      timestamp: new Date().toISOString(),
+    });
+  }
 
   try {
     const result = await generateDailyContentAllSites();

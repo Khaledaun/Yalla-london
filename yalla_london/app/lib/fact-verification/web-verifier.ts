@@ -118,7 +118,7 @@ async function searchWeb(query: string, limit = 8): Promise<SearchResult[]> {
       {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; YallaLondonFactChecker/1.0; +https://yalla-london.com)",
+            "Mozilla/5.0 (compatible; ZenithaFactChecker/1.0; +https://zenitha.luxury)",
           Accept: "text/html",
         },
       },
@@ -185,7 +185,7 @@ async function fetchAndCheck(
       {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; YallaLondonFactChecker/1.0; +https://yalla-london.com)",
+            "Mozilla/5.0 (compatible; ZenithaFactChecker/1.0; +https://zenitha.luxury)",
           Accept: "text/html",
         },
         signal: AbortSignal.timeout(8000),

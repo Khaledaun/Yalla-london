@@ -136,7 +136,9 @@ export function withTenantAuth(
     const authResult = await requireAdmin(request);
     if (authResult) return authResult;
 
-    const siteId = request.headers.get("x-site-id") || "yalla-london";
+    // Use config-driven default instead of hardcoded "yalla-london"
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = request.headers.get("x-site-id") || getDefaultSiteId();
     const locale = request.headers.get("x-site-locale") || "en";
 
     const { getTenantPrisma } = await import("@/lib/db/tenant-queries");

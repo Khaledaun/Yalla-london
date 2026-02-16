@@ -82,8 +82,8 @@ export class MailchimpAPI {
             },
             settings: {
               subject_line: campaign.subject,
-              from_name: 'Yalla London',
-              reply_to: 'hello@yalla-london.com',
+              from_name: 'Zenitha Content Network',
+              reply_to: 'hello@zenitha.luxury',
             },
           }),
         }
@@ -196,7 +196,7 @@ export class SendGridAPI {
             to: [{ email: to }],
             subject: subject,
           }],
-          from: { email: 'hello@yalla-london.com', name: 'Yalla London' },
+          from: { email: 'hello@zenitha.luxury', name: 'Zenitha Content Network' },
           content: [{
             type: 'text/html',
             value: htmlContent,

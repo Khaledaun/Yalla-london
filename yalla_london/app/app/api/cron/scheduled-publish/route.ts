@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 import { withCronLog } from "@/lib/cron-logger";
-import { getSiteDomain } from "@/config/sites";
+import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
 
 /**
  * Scheduled Content Publishing Cron Job
@@ -43,7 +43,7 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
         continue;
       }
 
-      const siteId = item.site_id || "yalla-london";
+      const siteId = item.site_id || getDefaultSiteId();
       log.addSite(siteId);
 
       try {

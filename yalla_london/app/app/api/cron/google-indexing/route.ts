@@ -70,10 +70,10 @@ async function handleIndexing(request: NextRequest) {
 
       try {
         const siteConfig = getSiteConfig(siteId);
-        const siteUrl =
-          siteConfig?.domain
+        const { getSiteDomain: getDomain } = await import("@/config/sites");
+        const siteUrl = siteConfig?.domain
             ? `https://${siteConfig.domain}`
-            : "https://www.yalla-london.com";
+            : getDomain(siteId);
 
         // Discover new URLs from the last 3 days
         const newUrls = await getNewUrls(3, siteId, siteUrl);

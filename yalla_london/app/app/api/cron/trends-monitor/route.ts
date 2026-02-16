@@ -466,9 +466,9 @@ async function saveTrendsData(data: any): Promise<void> {
 
     // Feed high-relevance trending topics into the content pipeline as TopicProposals
     // This connects trends → content-builder → articles
-    const { getActiveSiteIds } = await import("@/config/sites");
+    const { getActiveSiteIds, getDefaultSiteId } = await import("@/config/sites");
     const activeSites = getActiveSiteIds();
-    const siteId = activeSites[0] || "yalla-london";
+    const siteId = activeSites[0] || getDefaultSiteId();
 
     const relevantTopics = (data.trendingTopics || []).filter(
       (t: any) => t.isRelevant && t.relevanceScore >= 0.5,

@@ -5,6 +5,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { logCronExecution } from "@/lib/cron-logger";
+import { getFeatureFlagValue } from "@/lib/feature-flags";
 
 /**
  * Daily Publishing Automation Cron Job
@@ -32,12 +33,12 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🕐 Daily publishing cron triggered');
 
-    // Feature flags — default to enabled so the pipeline works out of the box.
-    // Set FEATURE_AUTO_PUBLISHING=false to explicitly disable.
-    const autoPublishingDisabled = process.env.FEATURE_AUTO_PUBLISHING === 'false';
-
-    if (autoPublishingDisabled) {
-      console.log('[daily-publish] Auto publishing explicitly disabled via FEATURE_AUTO_PUBLISHING=false');
+    // Feature flag: DB toggle (dashboard) takes precedence, env var fallback, default=enabled.
+    // To disable: toggle FEATURE_AUTO_PUBLISHING off in dashboard, or set env var to "false".
+    const flagValue = await getFeatureFlagValue("FEATURE_AUTO_PUBLISHING");
+    // null = not configured anywhere → default enabled
+    if (flagValue === false) {
+      console.log('[daily-publish] Auto publishing disabled via feature flag (dashboard or env)');
       return NextResponse.json({
         success: true,
         message: 'Auto publishing disabled by feature flag',
@@ -174,7 +175,8 @@ async function createContentFromTopic(topic: any) {
   
   // Generate article URL (this would be the actual published URL)
   const slug = generateSlug(topic.primary_keyword);
-  const articleUrl = `${process.env.NEXTAUTH_URL || 'https://yalla-london.com'}/articles/${slug}`;
+  const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+  const articleUrl = `${process.env.NEXTAUTH_URL || getSiteDomain(topic.site_id || getDefaultSiteId())}/articles/${slug}`;
 
   // Create the scheduled content entry
   const content = await prisma.scheduledContent.create({

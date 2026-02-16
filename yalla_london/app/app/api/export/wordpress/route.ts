@@ -178,8 +178,17 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 });
 
 function generateWordPressWXR(content: any[]): string {
-  const siteName = process.env.SITE_NAME || 'Yalla London';
-  const siteUrl = process.env.NEXTAUTH_URL || 'https://yalla-london.com';
+  let siteName = process.env.SITE_NAME || 'Yalla London';
+  let siteUrl = process.env.NEXTAUTH_URL;
+  try {
+    const { getSiteDomain, getSiteConfig, getDefaultSiteId } = require("@/config/sites");
+    const id = getDefaultSiteId();
+    siteUrl = siteUrl || getSiteDomain(id);
+    const config = getSiteConfig(id);
+    if (config && !process.env.SITE_NAME) siteName = config.name;
+  } catch {
+    siteUrl = siteUrl || 'https://yalla-london.com';
+  }
   
   let wxr = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"

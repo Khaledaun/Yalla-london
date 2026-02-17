@@ -182,16 +182,21 @@ export async function runContentSelector(
     };
   } catch (error) {
     const durationMs = Date.now() - cronStart;
-    console.error("[content-selector] Failed:", error);
+    const errMsg = error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : JSON.stringify(error) || "Content selector crashed with no error details";
+    console.error("[content-selector] Failed:", errMsg);
 
     await logCronExecution("content-selector", "failed", {
       durationMs,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     }).catch(() => {});
 
     return {
       success: false,
-      message: error instanceof Error ? error.message : "Unknown error",
+      message: errMsg,
       durationMs,
     };
   }

@@ -303,16 +303,21 @@ export async function runContentBuilder(
     };
   } catch (error) {
     const durationMs = Date.now() - cronStart;
-    console.error("[content-builder] Failed:", error);
+    const errMsg = error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : JSON.stringify(error) || "Content builder crashed with no error details";
+    console.error("[content-builder] Failed:", errMsg);
 
     await logCronExecution("content-builder", "failed", {
       durationMs,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     }).catch(() => {});
 
     return {
       success: false,
-      message: error instanceof Error ? error.message : "Unknown error",
+      message: errMsg,
       durationMs,
     };
   }

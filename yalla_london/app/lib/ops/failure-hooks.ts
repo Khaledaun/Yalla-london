@@ -531,6 +531,9 @@ async function logSweeperEvent(entry: SweeperLogEntry): Promise<void> {
         items_processed: 1,
         items_succeeded: entry.outcome === "recovered" ? 1 : 0,
         items_failed: entry.outcome === "recovered" ? 0 : 1,
+        // Store the full description in error_message so alerts & cron tab can read it
+        error_message: entry.failureDescription,
+        error_stack: entry.diagnosis,
         result_summary: entry as unknown as Record<string, unknown>,
       },
     });

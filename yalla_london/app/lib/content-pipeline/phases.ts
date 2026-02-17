@@ -146,8 +146,8 @@ Return JSON:
 
   try {
     const research = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a luxury travel SEO researcher for the ${site.destination} market targeting Arab travelers. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
-      maxTokens: 1500,
+      systemPrompt: `You are a luxury travel SEO researcher for the ${site.destination} market targeting Arab travelers. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
+      maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.4,
     });
 
@@ -218,8 +218,8 @@ ${isArabic(draft.locale) ? "ALL headings, key points, and text MUST be in Arabic
 
   try {
     const outline = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a luxury travel content architect. Create structured, SEO-optimized outlines. Articles must have 6-10 sections, target 1500-2500 words, include 3+ internal link opportunities and 2+ affiliate placements. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
-      maxTokens: 1500,
+      systemPrompt: `You are a luxury travel content architect. Create structured, SEO-optimized outlines. Articles must have 6-10 sections, target 1500-2500 words, include 3+ internal link opportunities and 2+ affiliate placements. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
+      maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.5,
     });
 
@@ -317,8 +317,8 @@ Write in ${writeLang}. Use HTML tags: h2, h3, p, ul, ol, li, strong, em. NO mark
 
     try {
       const result = await generateJSON<Record<string, unknown>>(prompt, {
-        systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content. Use HTML formatting. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
-        maxTokens: 1500,
+        systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content. Use HTML formatting. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
+        maxTokens: isArabic(draft.locale) ? 2500 : 1500,
         temperature: 0.7,
       });
 
@@ -664,8 +664,8 @@ Return JSON:
 
   try {
     const seoResult = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a technical SEO specialist for luxury travel. Optimize metadata for maximum search visibility. Return only valid JSON.${isArabic(draft.locale) ? " Arabic meta tags should be in Arabic." : ""}`,
-      maxTokens: 1200,
+      systemPrompt: `You are a technical SEO specialist for luxury travel. Optimize metadata for maximum search visibility. Return only valid JSON. All string values must be properly escaped.${isArabic(draft.locale) ? " Arabic meta tags should be in Arabic." : ""}`,
+      maxTokens: isArabic(draft.locale) ? 1800 : 1200,
       temperature: 0.3,
     });
 

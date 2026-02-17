@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { onCronFailure } from "@/lib/ops/failure-hooks";
 
 interface CronLogHandle {
   /** Increment success/failure counters */
@@ -168,6 +169,9 @@ export function withCronLog(
       errorMessage = error instanceof Error ? error.message : String(error);
       errorStack = error instanceof Error ? error.stack ?? null : null;
       console.error(`[cron-logger] ${jobName} failed:`, error);
+
+      // Fire failure hook for automatic recovery
+      onCronFailure({ jobName, error }).catch(() => {});
     }
 
     if (timedOut) status = "timed_out";

@@ -51,6 +51,12 @@ async function handleContentSelector(request: NextRequest) {
   const { runContentSelector } = await import("@/lib/content-pipeline/select-runner");
   const result = await runContentSelector({ timeoutMs: 53_000 });
 
+  // Fire failure hook if the selector returned a failure
+  if (!result.success && result.message) {
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "content-selector", error: result.message }).catch(() => {});
+  }
+
   return NextResponse.json(
     { ...result, timestamp: new Date().toISOString() },
     { status: result.success ? 200 : 500 },

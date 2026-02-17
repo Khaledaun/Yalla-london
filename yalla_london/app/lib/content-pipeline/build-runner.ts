@@ -12,6 +12,7 @@
  */
 
 import { logCronExecution } from "@/lib/cron-logger";
+import { onPipelineFailure } from "@/lib/ops/failure-hooks";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
 
@@ -249,11 +250,24 @@ export async function runContentBuilder(
       updateData.phase_attempts = ((draftRecord.phase_attempts as number) || 0) + 1;
       updateData.last_error = result.error || "Unknown error";
 
-      if ((updateData.phase_attempts as number) >= 3) {
+      const wasRejected = (updateData.phase_attempts as number) >= 3;
+      if (wasRejected) {
         updateData.current_phase = "rejected";
         updateData.rejection_reason = `Phase "${currentPhase}" failed after 3 attempts: ${result.error ?? "Unknown error"}`;
         updateData.completed_at = new Date();
       }
+
+      // Fire failure hook — triggers immediate recovery for retryable errors
+      onPipelineFailure({
+        draftId: draftRecord.id as string,
+        phase: currentPhase,
+        error: result.error || "Unknown error",
+        locale: draftRecord.locale as string,
+        keyword: draftRecord.keyword as string,
+        siteId: siteId,
+        attemptNumber: updateData.phase_attempts as number,
+        wasRejected,
+      }).catch(() => {}); // fire-and-forget
     }
 
     await prisma.articleDraft.update({

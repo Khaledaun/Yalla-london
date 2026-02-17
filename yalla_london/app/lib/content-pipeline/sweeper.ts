@@ -340,7 +340,7 @@ export async function runSweeper(): Promise<SweeperResult> {
 
     await logCronExecution("sweeper-agent", "failed", {
       durationMs,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: error instanceof Error ? error.message : String(error),
     }).catch(() => {});
 
     return {

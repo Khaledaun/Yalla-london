@@ -136,7 +136,7 @@ export async function runContentSelector(
           published.push(result);
         }
       } catch (promoteErr) {
-        const errMsg = promoteErr instanceof Error ? promoteErr.message : "Unknown error";
+        const errMsg = promoteErr instanceof Error ? promoteErr.message : String(promoteErr);
         console.error(
           `[content-selector] Failed to promote draft ${draft.id}:`,
           errMsg,

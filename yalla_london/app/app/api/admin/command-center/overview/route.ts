@@ -56,10 +56,10 @@ export const GET = withAdminAuth(async (_request: NextRequest) => {
     // Reservoir count
     prisma.articleDraft.count({ where: { current_phase: "reservoir" } }),
     // Total published
-    prisma.blogPost.count({ where: { status: "published" } }),
-    // Published today
+    prisma.blogPost.count({ where: { published: true } }),
+    // Published today (using updated_at as proxy — no publishedAt field)
     prisma.blogPost.count({
-      where: { status: "published", publishedAt: { gte: yesterday } },
+      where: { published: true, updated_at: { gte: yesterday } },
     }),
     // Indexing aggregates
     prisma.uRLIndexingStatus.groupBy({
@@ -94,7 +94,7 @@ export const GET = withAdminAuth(async (_request: NextRequest) => {
       take: 30,
     }),
     // Per-site article counts
-    prisma.blogPost.groupBy({ by: ["site_id"], where: { status: "published" }, _count: { id: true } }),
+    prisma.blogPost.groupBy({ by: ["siteId"], where: { published: true }, _count: { id: true } }),
     // Per-site topic counts
     prisma.topicProposal.groupBy({ by: ["site_id"], _count: { id: true } }),
     // Per-site draft counts
@@ -222,7 +222,7 @@ export const GET = withAdminAuth(async (_request: NextRequest) => {
   // ── Per-site metrics ──
   const { SITES } = await import("@/config/sites");
   const sites = Object.values(SITES).map((site) => {
-    const articles = siteArticleCounts.find((s) => s.site_id === site.id)?._count.id || 0;
+    const articles = siteArticleCounts.find((s) => s.siteId === site.id)?._count.id || 0;
     const topics = siteTopicCounts.find((s) => s.site_id === site.id)?._count.id || 0;
     const drafts = siteDraftCounts.find((s) => s.site_id === site.id)?._count.id || 0;
     const indexed = siteIndexCounts.find((s) => s.site_id === site.id)?._count.id || 0;

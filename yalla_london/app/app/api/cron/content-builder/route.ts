@@ -15,8 +15,10 @@ export const maxDuration = 60;
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { logCronExecution } from "@/lib/cron-logger";
 
 async function handleContentBuilder(request: NextRequest) {
+  const cronStart = Date.now();
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
@@ -49,20 +51,55 @@ async function handleContentBuilder(request: NextRequest) {
     }
   }
 
-  // Run the builder
-  const { runContentBuilder } = await import("@/lib/content-pipeline/build-runner");
-  const result = await runContentBuilder({ timeoutMs: 53_000 });
+  try {
+    // Run the builder
+    const { runContentBuilder } = await import("@/lib/content-pipeline/build-runner");
+    const result = await runContentBuilder({ timeoutMs: 53_000 });
 
-  // Fire failure hook if the builder returned a failure
-  if (!result.success && result.message) {
+    const durationMs = Date.now() - cronStart;
+
+    const resultAny = result as unknown as Record<string, unknown>;
+
+    // Fire failure hook if the builder returned a failure
+    if (!result.success && result.message) {
+      const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+      onCronFailure({ jobName: "content-builder", error: result.message }).catch(() => {});
+
+      await logCronExecution("content-builder", "failed", {
+        durationMs,
+        errorMessage: result.message,
+        resultSummary: { phase: resultAny.phase, draftsProcessed: resultAny.draftsProcessed },
+      });
+    } else {
+      await logCronExecution("content-builder", "completed", {
+        durationMs,
+        itemsProcessed: (resultAny.draftsProcessed as number) || 0,
+        itemsSucceeded: (resultAny.draftsProcessed as number) || 0,
+        resultSummary: { message: result.message, phase: resultAny.phase },
+      });
+    }
+
+    return NextResponse.json(
+      { ...result, timestamp: new Date().toISOString() },
+      { status: result.success ? 200 : 500 },
+    );
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const durationMs = Date.now() - cronStart;
+
+    await logCronExecution("content-builder", "failed", {
+      durationMs,
+      errorMessage: errMsg,
+    });
+
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "content-builder", error: result.message }).catch(() => {});
-  }
+    onCronFailure({ jobName: "content-builder", error: errMsg }).catch(() => {});
 
-  return NextResponse.json(
-    { ...result, timestamp: new Date().toISOString() },
-    { status: result.success ? 200 : 500 },
-  );
+    return NextResponse.json(
+      { success: false, error: errMsg, timestamp: new Date().toISOString() },
+      { status: 500 },
+    );
+  }
 }
 
 export async function GET(request: NextRequest) {

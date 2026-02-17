@@ -225,14 +225,18 @@ async function handleAffiliateInjection(request: NextRequest) {
     });
   } catch (error) {
     const duration = Date.now() - startTime;
+    const errMsg = error instanceof Error ? error.message : String(error);
 
     await logCronExecution("affiliate-injection", "failed", {
       durationMs: duration,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     }).catch(() => {});
 
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "affiliate-injection", error: errMsg }).catch(() => {});
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Injection failed" },
+      { error: errMsg },
       { status: 500 },
     );
   }

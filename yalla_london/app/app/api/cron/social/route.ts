@@ -174,16 +174,18 @@ async function handleSocialCron(request: NextRequest) {
       results,
     });
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error('Social cron failed:', error);
     await logCronExecution("social", "failed", {
       durationMs: Date.now() - _cronStart,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "social", error: errMsg }).catch(() => {});
+
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { success: false, error: errMsg },
       { status: 500 }
     );
   }

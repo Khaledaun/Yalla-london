@@ -291,6 +291,32 @@ export const CRON_JOBS: CronJobDef[] = [
     critical: true,
     order: 7,
   },
+  {
+    id: "google-indexing",
+    name: "Google Indexing",
+    route: "/api/cron/google-indexing",
+    schedule: "15 9 * * *",
+    scheduleHuman: "Daily 9:15 AM UTC",
+    description: "Discovers new/updated published posts and submits them to IndexNow + Google Search Console. Tracks submission status in URLIndexingStatus table.",
+    produces: "URLIndexingStatus (submitted)",
+    consumes: "BlogPost (published)",
+    group: "seo",
+    critical: true,
+    order: 8,
+  },
+  {
+    id: "verify-indexing",
+    name: "Verify Indexing",
+    route: "/api/cron/verify-indexing",
+    schedule: "0 11 * * *",
+    scheduleHuman: "Daily 11:00 AM UTC",
+    description: "Uses Google Search Console URL Inspection API to verify if submitted URLs are actually indexed by Google. Updates indexing state and coverage status.",
+    produces: "URLIndexingStatus (indexed/not_indexed)",
+    consumes: "URLIndexingStatus (submitted)",
+    group: "seo",
+    critical: true,
+    order: 9,
+  },
 ];
 
 // ─── Pipelines ──────────────────────────────────────────────────────────
@@ -417,6 +443,9 @@ export const DATA_FLOWS: DataFlowDef[] = [
   { from: "content-builder", to: "sweeper", dataType: "ArticleDraft", description: "Failed drafts trigger immediate auto-recovery via failure hooks" },
   { from: "content-selector", to: "sweeper", dataType: "ArticleDraft", description: "Failed promotions trigger immediate recovery via failure hooks" },
   { from: "sweeper", to: "content-builder", dataType: "ArticleDraft", description: "Recovered drafts re-enter the content pipeline" },
+  { from: "content-selector", to: "google-indexing", dataType: "URLIndexingStatus", description: "New BlogPost URLs discovered → submitted to search engines" },
+  { from: "seo-agent-morning", to: "google-indexing", dataType: "URLIndexingStatus", description: "SEO agent also submits URLs and tracks in URLIndexingStatus" },
+  { from: "google-indexing", to: "verify-indexing", dataType: "URLIndexingStatus", description: "Submitted URLs verified against Google Search Console" },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────

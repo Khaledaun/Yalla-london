@@ -154,16 +154,18 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ Daily publishing failed:', error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('Daily publishing failed:', error);
     await logCronExecution("daily-publish", "failed", {
       durationMs: Date.now() - _cronStart,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "daily-publish", error: errMsg }).catch(() => {});
+
     return NextResponse.json(
-      { 
-        error: 'Daily publishing failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Daily publishing failed', details: errMsg },
       { status: 500 }
     );
   }

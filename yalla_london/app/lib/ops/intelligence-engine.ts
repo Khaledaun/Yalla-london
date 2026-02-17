@@ -101,13 +101,26 @@ export async function generateIntelligenceReport(): Promise<IntelligenceReport> 
       health = "healthy";
     }
 
+    // Extract error from error_message first, then fall back to result_summary
+    let lastError: string | null = null;
+    if (lastLog) {
+      lastError = (lastLog.error_message as string | null) || null;
+      if (!lastError && lastLog.status === "failed") {
+        const summary = lastLog.result_summary as Record<string, unknown> | null;
+        lastError = (summary?.failureDescription as string)
+          || (summary?.error as string)
+          || (summary?.message as string)
+          || "Failed (no details)";
+      }
+    }
+
     return {
       id: cron.id,
       name: cron.name,
       lastRun: lastLog ? new Date(lastLog.started_at as string) : null,
       lastStatus: lastLog ? (lastLog.status as CronJobStatus["lastStatus"]) : "never_run",
       lastDurationMs: lastLog ? (lastLog.duration_ms as number | null) : null,
-      lastError: lastLog ? (lastLog.error_message as string | null) : null,
+      lastError,
       runsLast24h: logs.length,
       failsLast24h,
       nextRun: getNextRunTime(cron.schedule),

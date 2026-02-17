@@ -85,17 +85,22 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
-    console.error("Daily content generation failed:", error);
+    const errMsg = error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : JSON.stringify(error) || "Daily content generation crashed with no error details";
+    console.error("Daily content generation failed:", errMsg);
     await logCronExecution("daily-content-generate", "failed", {
       durationMs: Date.now() - _cronStart,
-      errorMessage: error instanceof Error ? error.message : "Generation failed",
+      errorMessage: errMsg,
     });
 
     // Fire failure hook for automatic recovery
-    onCronFailure({ jobName: "daily-content-generate", error }).catch(() => {});
+    onCronFailure({ jobName: "daily-content-generate", error: errMsg }).catch(() => {});
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Generation failed" },
+      { error: errMsg },
       { status: 500 },
     );
   }

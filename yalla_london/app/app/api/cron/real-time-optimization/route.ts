@@ -111,16 +111,18 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error('Real-time optimization error:', error);
     await logCronExecution("real-time-optimization", "failed", {
       durationMs: Date.now() - _cronStart,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "real-time-optimization", error: errMsg }).catch(() => {});
+
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Optimization check failed',
-      },
+      { success: false, error: errMsg },
       { status: 500 },
     );
   }

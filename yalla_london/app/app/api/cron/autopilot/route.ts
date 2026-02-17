@@ -66,15 +66,22 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const timedOut = error instanceof Error && error.message.includes('timed out');
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error('Cron autopilot failed:', error);
     await logCronExecution("autopilot", timedOut ? "timed_out" : "failed", {
       durationMs: Date.now() - _cronStart,
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorMessage: errMsg,
     });
+
+    if (!timedOut) {
+      const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+      onCronFailure({ jobName: "autopilot", error: errMsg }).catch(() => {});
+    }
+
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Cron job failed',
+        error: errMsg,
         timedOut,
         timestamp: new Date().toISOString(),
       },

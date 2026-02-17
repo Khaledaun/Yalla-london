@@ -1000,10 +1000,13 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const durationMs = Date.now() - startTime;
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
 
     console.error("[london-news] Cron job failed:", error);
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "london-news", error: errorMessage }).catch(() => {});
 
     // Update research log with failure
     if (researchLogId) {

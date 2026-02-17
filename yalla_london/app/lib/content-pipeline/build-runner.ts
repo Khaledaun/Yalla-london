@@ -248,12 +248,13 @@ export async function runContentBuilder(
       }
     } else {
       updateData.phase_attempts = ((draftRecord.phase_attempts as number) || 0) + 1;
-      updateData.last_error = result.error || "Unknown error";
+      const phaseError = result.error || `Phase "${currentPhase}" returned failure with no error details`;
+      updateData.last_error = phaseError;
 
       const wasRejected = (updateData.phase_attempts as number) >= 3;
       if (wasRejected) {
         updateData.current_phase = "rejected";
-        updateData.rejection_reason = `Phase "${currentPhase}" failed after 3 attempts: ${result.error ?? "Unknown error"}`;
+        updateData.rejection_reason = `Phase "${currentPhase}" failed after 3 attempts: ${phaseError}`;
         updateData.completed_at = new Date();
       }
 
@@ -261,7 +262,7 @@ export async function runContentBuilder(
       onPipelineFailure({
         draftId: draftRecord.id as string,
         phase: currentPhase,
-        error: result.error || "Unknown error",
+        error: phaseError,
         locale: draftRecord.locale as string,
         keyword: draftRecord.keyword as string,
         siteId: siteId,

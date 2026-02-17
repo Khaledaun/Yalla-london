@@ -356,6 +356,8 @@ async function fetchRecentErrors(): Promise<RecentError[]> {
       job_name: true,
       site_id: true,
       error_message: true,
+      error_stack: true,
+      result_summary: true,
       started_at: true,
       duration_ms: true,
     },
@@ -386,14 +388,28 @@ async function fetchRecentErrors(): Promise<RecentError[]> {
 
   return errors
     .filter((e: any) => !recoveredJobs.has(e.job_name))
-    .map((e: any) => ({
-      id: e.id,
-      jobName: e.job_name,
-      siteId: e.site_id,
-      error: e.error_message ?? "Unknown error",
-      timestamp: e.started_at?.toISOString() ?? new Date().toISOString(),
-      durationMs: e.duration_ms,
-    }));
+    .map((e: any) => {
+      // Extract real error from every available source — NEVER show "Unknown error"
+      let errorText = e.error_message as string | null;
+      if (!errorText) {
+        const summary = e.result_summary as Record<string, unknown> | null;
+        errorText =
+          (summary?.failureDescription as string) ||
+          (summary?.errorMessage as string) ||
+          (summary?.error as string) ||
+          (summary?.message as string) ||
+          (e.error_stack as string | null) ||
+          `${e.job_name} failed (no error details captured)`;
+      }
+      return {
+        id: e.id,
+        jobName: e.job_name,
+        siteId: e.site_id,
+        error: errorText,
+        timestamp: e.started_at?.toISOString() ?? new Date().toISOString(),
+        durationMs: e.duration_ms,
+      };
+    });
 }
 
 async function fetchIndexingStatus(): Promise<IndexingStatus> {

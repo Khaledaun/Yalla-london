@@ -288,6 +288,27 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       });
     }
 
+    if (action === "full_pipeline") {
+      const { runFullPipeline } = await import(
+        "@/lib/content-pipeline/full-pipeline-runner"
+      );
+      const { keyword, siteId, locale, singleLanguage } = body as Record<string, unknown>;
+      const result = await runFullPipeline({
+        timeoutMs: 55_000,
+        keyword: keyword as string | undefined,
+        siteId: siteId as string | undefined,
+        locale: locale as string | undefined,
+        singleLanguage: singleLanguage as boolean | undefined,
+      });
+
+      return NextResponse.json({
+        success: result.success,
+        action: "full_pipeline",
+        result,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     return NextResponse.json(
       { success: false, error: "Unknown action: " + action },
       { status: 400 },

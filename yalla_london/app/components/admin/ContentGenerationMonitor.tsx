@@ -310,6 +310,56 @@ export default function ContentGenerationMonitor() {
     }
   };
 
+  // Trigger full pipeline — Generate + Publish + Index in one shot
+  const triggerFullPipeline = async () => {
+    setTriggering(true);
+    setTriggerResult(null);
+    triggerCountRef.current++;
+    const runNumber = triggerCountRef.current;
+
+    try {
+      const res = await fetch("/api/admin/content-generation-monitor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "full_pipeline" }),
+      });
+      const json = await res.json();
+
+      const r = json.result;
+      if (json.success && r?.published) {
+        // Success — article published
+        const sweepInfo = r.steps?.find((s: Record<string, unknown>) => s.phase === "sweeper" && Number((s.data as Record<string, unknown>)?.recovered) > 0);
+        setTriggerResult(
+          `Full Pipeline #${runNumber}: "${r.keyword}" — Generated, Published & ${r.indexed ? "Indexed" : "Ready for indexing"} (${Math.round((r.durationMs || 0) / 1000)}s)${sweepInfo ? ` | Sweeper recovered ${(sweepInfo.data as Record<string, unknown>).recovered} stuck draft(s)` : ""}`,
+        );
+      } else if (r?.stopReason === "budget_exhausted") {
+        setTriggerResult(
+          `Full Pipeline #${runNumber}: "${r.keyword}" — Reached ${r.steps?.length || 0} phases, paused at budget limit. The 15-min cron will continue.`,
+        );
+      } else if (r?.failureDiagnosis) {
+        // Failure with detailed diagnosis — show WHAT/WHERE/WHY
+        const d = r.failureDiagnosis;
+        setTriggerResult(
+          `Full Pipeline #${runNumber} FAILED:\n` +
+          `WHAT: ${d.what}\n` +
+          `WHERE: ${d.where}\n` +
+          `WHY: ${d.why}\n` +
+          `FIX: ${d.fix}`,
+        );
+      } else {
+        setTriggerResult(
+          `Full Pipeline #${runNumber}: ${r?.message || json.error || "Completed"}`,
+        );
+      }
+
+      await fetchData(true);
+    } catch {
+      setTriggerResult(`Full Pipeline #${runNumber}: Network error`);
+    } finally {
+      setTriggering(false);
+    }
+  };
+
   const toggleDraft = (id: string) => {
     setExpandedDrafts((prev) => {
       const next = new Set(prev);
@@ -391,6 +441,18 @@ export default function ContentGenerationMonitor() {
             Publish Ready
           </Button>
           <Button
+            onClick={triggerFullPipeline}
+            disabled={triggering}
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            {triggering ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Globe className="h-4 w-4 mr-2" />
+            )}
+            Generate & Publish
+          </Button>
+          <Button
             onClick={runMigration}
             disabled={migrationRunning}
             variant="outline"
@@ -443,9 +505,15 @@ export default function ContentGenerationMonitor() {
 
       {/* ── Trigger Result ── */}
       {triggerResult && (
-        <div className="px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-sm text-gray-700 flex items-start gap-2">
-          <Zap className="h-4 w-4 mt-0.5 text-amber-500 flex-shrink-0" />
-          <span>{triggerResult}</span>
+        <div className={`px-4 py-3 rounded-lg text-sm flex items-start gap-2 ${
+          triggerResult.includes("FAILED") || triggerResult.includes("Error")
+            ? "bg-red-50 border border-red-300 text-red-800"
+            : triggerResult.includes("Published") || triggerResult.includes("Generated")
+              ? "bg-green-50 border border-green-300 text-green-800"
+              : "bg-gray-50 border border-gray-200 text-gray-700"
+        }`}>
+          <Zap className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <span className="whitespace-pre-wrap">{triggerResult}</span>
         </div>
       )}
 

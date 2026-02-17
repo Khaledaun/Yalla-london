@@ -311,6 +311,7 @@ export default function ContentGenerationMonitor() {
   };
 
   // Trigger full pipeline — Generate + Publish + Index in one shot
+  // Uses the dedicated /api/admin/full-pipeline-run endpoint (has maxDuration=60)
   const triggerFullPipeline = async () => {
     setTriggering(true);
     setTriggerResult(null);
@@ -318,27 +319,33 @@ export default function ContentGenerationMonitor() {
     const runNumber = triggerCountRef.current;
 
     try {
-      const res = await fetch("/api/admin/content-generation-monitor", {
+      const controller = new AbortController();
+      // 65s client timeout — slightly longer than the 60s Vercel max to let the server respond
+      const clientTimeout = setTimeout(() => controller.abort(), 65_000);
+
+      const res = await fetch("/api/admin/full-pipeline-run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "full_pipeline" }),
+        body: JSON.stringify({}),
+        signal: controller.signal,
       });
+      clearTimeout(clientTimeout);
+
       const json = await res.json();
 
-      const r = json.result;
-      if (json.success && r?.published) {
+      if (json.published) {
         // Success — article published
-        const sweepInfo = r.steps?.find((s: Record<string, unknown>) => s.phase === "sweeper" && Number((s.data as Record<string, unknown>)?.recovered) > 0);
+        const sweepInfo = json.steps?.find((s: Record<string, unknown>) => s.phase === "sweeper" && Number((s.data as Record<string, unknown>)?.recovered) > 0);
         setTriggerResult(
-          `Full Pipeline #${runNumber}: "${r.keyword}" — Generated, Published & ${r.indexed ? "Indexed" : "Ready for indexing"} (${Math.round((r.durationMs || 0) / 1000)}s)${sweepInfo ? ` | Sweeper recovered ${(sweepInfo.data as Record<string, unknown>).recovered} stuck draft(s)` : ""}`,
+          `Full Pipeline #${runNumber}: "${json.keyword}" — Generated, Published & ${json.indexed ? "Indexed" : "Ready for indexing"} (${Math.round((json.durationMs || 0) / 1000)}s)${sweepInfo ? ` | Sweeper recovered ${(sweepInfo.data as Record<string, unknown>).recovered} stuck draft(s)` : ""}`,
         );
-      } else if (r?.stopReason === "budget_exhausted") {
+      } else if (json.stopReason === "budget_exhausted") {
         setTriggerResult(
-          `Full Pipeline #${runNumber}: "${r.keyword}" — Reached ${r.steps?.length || 0} phases, paused at budget limit. The 15-min cron will continue.`,
+          `Full Pipeline #${runNumber}: "${json.keyword}" — Reached ${json.steps?.length || 0} phases, paused at budget limit. The 15-min cron will continue.`,
         );
-      } else if (r?.failureDiagnosis) {
+      } else if (json.failureDiagnosis) {
         // Failure with detailed diagnosis — show WHAT/WHERE/WHY
-        const d = r.failureDiagnosis;
+        const d = json.failureDiagnosis;
         setTriggerResult(
           `Full Pipeline #${runNumber} FAILED:\n` +
           `WHAT: ${d.what}\n` +
@@ -348,13 +355,24 @@ export default function ContentGenerationMonitor() {
         );
       } else {
         setTriggerResult(
-          `Full Pipeline #${runNumber}: ${r?.message || json.error || "Completed"}`,
+          `Full Pipeline #${runNumber}: ${json.message || "Completed"}`,
         );
       }
 
       await fetchData(true);
-    } catch {
-      setTriggerResult(`Full Pipeline #${runNumber}: Network error`);
+    } catch (err) {
+      const isAbort = err instanceof DOMException && err.name === "AbortError";
+      if (isAbort) {
+        setTriggerResult(
+          `Full Pipeline #${runNumber}: Server timed out (>60s). The pipeline may still be running server-side. Check the dashboard in 1-2 minutes — the cron will continue any in-progress drafts.`,
+        );
+      } else {
+        setTriggerResult(
+          `Full Pipeline #${runNumber}: Connection failed. Check that the site is deployed and reachable. (${err instanceof Error ? err.message : "Unknown error"})`,
+        );
+      }
+      // Still refresh data — the pipeline may have partially completed
+      await fetchData(true).catch(() => {});
     } finally {
       setTriggering(false);
     }

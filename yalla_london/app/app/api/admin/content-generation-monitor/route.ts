@@ -3,8 +3,15 @@
  *
  * GET  — Returns all active ArticleDrafts with phase details, phase distribution,
  *        recent content-builder cron logs, AND pipeline health diagnostics.
- * POST — Triggers the content-builder cron manually and returns its result.
+ * POST — Triggers the content-builder, content-selector, or full pipeline.
+ *
+ * CRITICAL: maxDuration = 60 is required because POST actions run pipelines
+ * that take 53-55 seconds. Without this, Vercel kills the function at default
+ * timeout (~15s on Pro), the connection drops, and the dashboard shows "Network error".
  */
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 

@@ -127,17 +127,18 @@ export async function GET(request: NextRequest) {
       errors: Object.keys(errors).length > 0 ? errors : undefined,
     });
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error("SEO Orchestrator error:", error);
     await logCronExecution("seo-orchestrator", "failed", {
       durationMs: Date.now() - cronStart,
-      errorMessage:
-        error instanceof Error ? error.message : "Orchestrator failed",
+      errorMessage: errMsg,
     });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "seo-orchestrator", error: errMsg }).catch(() => {});
+
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "SEO Orchestrator failed",
-      },
+      { error: errMsg },
       { status: 500 }
     );
   }

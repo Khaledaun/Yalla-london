@@ -227,6 +227,9 @@ async function handleVerifyIndexing(request: NextRequest) {
       errorMessage: errMsg,
     }).catch(() => {});
 
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "verify-indexing", error: errMsg }).catch(() => {});
+
     return NextResponse.json(
       { success: false, error: errMsg },
       { status: 500 },

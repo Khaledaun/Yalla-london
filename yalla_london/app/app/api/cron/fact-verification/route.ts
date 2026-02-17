@@ -572,7 +572,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const durationMs = Date.now() - startTime;
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
 
     console.error("[fact-verification] Fatal error:", error);
@@ -592,6 +592,9 @@ export async function GET(request: NextRequest) {
         errorMessage,
       },
     });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "fact-verification", error: errorMessage }).catch(() => {});
 
     return NextResponse.json(
       {

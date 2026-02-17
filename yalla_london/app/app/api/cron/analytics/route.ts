@@ -227,17 +227,18 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const durationMs = Date.now() - startTime;
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error(`[ANALYTICS-CRON] Failed after ${durationMs}ms:`, error);
     await logCronExecution("analytics", "failed", {
       durationMs: Date.now() - _cronStart,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "analytics", error: errMsg }).catch(() => {});
+
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        durationMs,
-      },
+      { success: false, error: errMsg, durationMs },
       { status: 500 },
     );
   }

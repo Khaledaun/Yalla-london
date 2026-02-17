@@ -269,16 +269,18 @@ async function handleIndexing(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error("[google-indexing] Cron job failed:", error);
     await logCronExecution("google-indexing", "failed", {
       durationMs: Date.now() - _cronStart,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "google-indexing", error: errMsg }).catch(() => {});
+
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Indexing cron failed",
-      },
+      { success: false, error: errMsg },
       { status: 500 },
     );
   }

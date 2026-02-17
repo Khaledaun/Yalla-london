@@ -52,11 +52,16 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error('Cron job failed:', error);
     await logCronExecution("auto-generate", "failed", {
       durationMs: Date.now() - _cronStart,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "auto-generate", error: errMsg }).catch(() => {});
+
     // SECURITY: Do not leak error details to client
     return NextResponse.json(
       { error: 'Cron job failed' },

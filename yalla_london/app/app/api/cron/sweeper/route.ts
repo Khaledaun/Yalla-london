@@ -14,8 +14,10 @@ export const maxDuration = 30;
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { logCronExecution } from "@/lib/cron-logger";
 
 async function handleSweeper(request: NextRequest) {
+  const cronStart = Date.now();
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
@@ -23,18 +25,50 @@ async function handleSweeper(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { runSweeper } = await import("@/lib/content-pipeline/sweeper");
-  const result = await runSweeper();
+  try {
+    const { runSweeper } = await import("@/lib/content-pipeline/sweeper");
+    const result = await runSweeper();
 
-  // If sweeper itself failed, log it (but don't trigger sweeper recursively)
-  if (!result.success) {
-    console.error(`[sweeper] Sweeper run failed: ${result.message}`);
+    const durationMs = Date.now() - cronStart;
+
+    const resultAny = result as unknown as Record<string, unknown>;
+
+    if (!result.success) {
+      console.error(`[sweeper] Sweeper run failed: ${result.message}`);
+      await logCronExecution("sweeper", "failed", {
+        durationMs,
+        errorMessage: result.message || "Sweeper failed",
+        resultSummary: resultAny,
+      });
+      // Note: Don't call onCronFailure — sweeper IS the recovery agent. Recursive loops = bad.
+    } else {
+      await logCronExecution("sweeper", "completed", {
+        durationMs,
+        itemsProcessed: (resultAny.recovered as number) || 0,
+        itemsSucceeded: (resultAny.recovered as number) || 0,
+        resultSummary: resultAny,
+      });
+    }
+
+    return NextResponse.json(
+      { ...result, timestamp: new Date().toISOString() },
+      { status: result.success ? 200 : 500 },
+    );
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const durationMs = Date.now() - cronStart;
+    console.error(`[sweeper] Sweeper crashed:`, errMsg);
+
+    await logCronExecution("sweeper", "failed", {
+      durationMs,
+      errorMessage: errMsg,
+    });
+
+    return NextResponse.json(
+      { success: false, error: errMsg, timestamp: new Date().toISOString() },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json(
-    { ...result, timestamp: new Date().toISOString() },
-    { status: result.success ? 200 : 500 },
-  );
 }
 
 export async function GET(request: NextRequest) {

@@ -724,12 +724,26 @@ export default function HealthMonitoringPage() {
               <FixGuidePanel guide={DB_FIX_GUIDE} onAction={handleAction} retriggeringJob={retriggeringJob} />
             )}
 
-            {/* Critical alert summaries */}
-            {criticalAlerts.slice(0, 3).map((alert) => {
+            {/* Critical alert summaries — show ALL alerts, not just those with fix guides */}
+            {criticalAlerts.slice(0, 5).map((alert) => {
               const guide = getErrorFixGuide(alert.error, alert.jobName);
-              return guide ? (
-                <FixGuidePanel key={alert.id} guide={guide} onAction={handleAction} retriggeringJob={retriggeringJob} />
-              ) : null;
+              return (
+                <div key={alert.id} className="space-y-2">
+                  {/* Always show the raw alert */}
+                  <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold text-red-300 uppercase">{alert.jobName}</span>
+                      <span className="text-[10px] text-red-400/60">{new Date(alert.timestamp).toLocaleString()}</span>
+                    </div>
+                    <p className="text-sm text-red-200 break-words">{alert.error}</p>
+                    {alert.itemsFailed > 0 && (
+                      <p className="text-[10px] text-red-400/70 mt-1">{alert.itemsProcessed} processed, {alert.itemsFailed} failed</p>
+                    )}
+                  </div>
+                  {/* Show fix guide as bonus if available */}
+                  {guide && <FixGuidePanel guide={guide} onAction={handleAction} retriggeringJob={retriggeringJob} />}
+                </div>
+              );
             })}
           </div>
         )}
@@ -750,15 +764,29 @@ export default function HealthMonitoringPage() {
             </div>
             {failedCrons.map((cron) => {
               const guide = CRON_FIX_GUIDE[cron.jobName];
-              return guide ? (
-                <FixGuidePanel
-                  key={cron.jobName}
-                  guide={guide}
-                  errorDetail={cron.error ?? undefined}
-                  onAction={handleAction}
-                  retriggeringJob={retriggeringJob}
-                />
-              ) : null;
+              return (
+                <div key={cron.jobName} className="space-y-2">
+                  {/* Always show the raw error */}
+                  <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold text-amber-300 uppercase">{cron.jobName}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${cron.status === "failed" ? "bg-red-500/20 text-red-300" : "bg-amber-500/20 text-amber-300"}`}>
+                        {cron.status}
+                      </span>
+                    </div>
+                    {cron.error && <p className="text-sm text-amber-200/80 break-words">{cron.error}</p>}
+                  </div>
+                  {/* Show fix guide as bonus if available */}
+                  {guide && (
+                    <FixGuidePanel
+                      guide={guide}
+                      errorDetail={cron.error ?? undefined}
+                      onAction={handleAction}
+                      retriggeringJob={retriggeringJob}
+                    />
+                  )}
+                </div>
+              );
             })}
           </div>
         )}

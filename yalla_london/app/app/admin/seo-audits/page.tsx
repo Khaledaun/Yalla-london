@@ -192,11 +192,47 @@ const mockAudits: SEOAudit[] = [
 ]
 
 export default function SEOAuditsPage() {
-  const [audits, setAudits] = useState<SEOAudit[]>(mockAudits)
+  const [audits, setAudits] = useState<SEOAudit[]>([])
   const [selectedAudit, setSelectedAudit] = useState<SEOAudit | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
   const [isRunningFullAudit, setIsRunningFullAudit] = useState(false)
+
+  // Load real audit data from API
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/seo?type=audits');
+        if (res.ok) {
+          const data = await res.json();
+          const realAudits = (Array.isArray(data) ? data : data.audits || []).map((a: any, idx: number) => ({
+            id: a.id || String(idx),
+            url: `/content/${a.content_id}`,
+            title: `${a.content_type || 'Article'} #${a.content_id}`,
+            status: 'completed' as const,
+            score: a.score || 0,
+            lastAudited: a.created_at || new Date().toISOString(),
+            issues: (a.quick_fixes ? JSON.parse(typeof a.quick_fixes === 'string' ? a.quick_fixes : '[]') : []).map((fix: string, i: number) => ({
+              id: `fix-${i}`,
+              type: 'warning' as const,
+              category: 'content' as const,
+              title: fix,
+              description: fix,
+              impact: 'medium' as const,
+              canAutoFix: false,
+            })),
+            metrics: { performance: a.score || 0, accessibility: 0, bestPractices: 0, seo: a.score || 0, pwa: 0 },
+            suggestions: a.suggestions ? (typeof a.suggestions === 'string' ? JSON.parse(a.suggestions) : a.suggestions) : [],
+            history: [],
+          }));
+          if (realAudits.length > 0) setAudits(realAudits);
+          else setAudits(mockAudits); // fallback if no data yet
+        }
+      } catch {
+        // Keep mock data as fallback
+      }
+    })();
+  }, [])
 
   const statusColors: Record<string, string> = {
     'pending': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',

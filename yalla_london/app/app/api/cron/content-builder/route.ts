@@ -53,6 +53,12 @@ async function handleContentBuilder(request: NextRequest) {
   const { runContentBuilder } = await import("@/lib/content-pipeline/build-runner");
   const result = await runContentBuilder({ timeoutMs: 53_000 });
 
+  // Fire failure hook if the builder returned a failure
+  if (!result.success && result.message) {
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "content-builder", error: result.message }).catch(() => {});
+  }
+
   return NextResponse.json(
     { ...result, timestamp: new Date().toISOString() },
     { status: result.success ? 200 : 500 },

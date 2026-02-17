@@ -10,6 +10,7 @@
  */
 
 import { logCronExecution } from "@/lib/cron-logger";
+import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
 const MIN_QUALITY_SCORE = 50;
@@ -135,17 +136,26 @@ export async function runContentSelector(
           published.push(result);
         }
       } catch (promoteErr) {
+        const errMsg = promoteErr instanceof Error ? promoteErr.message : "Unknown error";
         console.error(
           `[content-selector] Failed to promote draft ${draft.id}:`,
-          promoteErr instanceof Error ? promoteErr.message : promoteErr,
+          errMsg,
         );
         await prisma.articleDraft.update({
           where: { id: draft.id as string },
           data: {
-            last_error: `Promotion failed: ${promoteErr instanceof Error ? promoteErr.message : "Unknown error"}`,
+            last_error: `Promotion failed: ${errMsg}`,
             phase_attempts: ((draft.phase_attempts as number) || 0) + 1,
           },
         }).catch(() => {});
+
+        // Fire promotion failure hook for immediate recovery
+        onPromotionFailure({
+          draftId: draft.id as string,
+          keyword: draft.keyword as string,
+          error: errMsg,
+          siteId: draft.site_id as string,
+        }).catch(() => {}); // fire-and-forget
       }
     }
 

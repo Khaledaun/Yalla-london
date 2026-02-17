@@ -3,6 +3,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
+import { onCronFailure } from "@/lib/ops/failure-hooks";
 
 /**
  * Autonomous SEO Agent - Runs 3x daily (7am, 1pm, 8pm UTC)
@@ -107,6 +108,10 @@ export async function GET(request: NextRequest) {
       durationMs: Date.now() - _cronStart,
       errorMessage: error instanceof Error ? error.message : "SEO agent failed",
     });
+
+    // Fire failure hook for dashboard visibility
+    onCronFailure({ jobName: "seo-agent", error }).catch(() => {});
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "SEO Agent failed" },
       { status: 500 },

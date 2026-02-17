@@ -26,6 +26,11 @@ async function handleSweeper(request: NextRequest) {
   const { runSweeper } = await import("@/lib/content-pipeline/sweeper");
   const result = await runSweeper();
 
+  // If sweeper itself failed, log it (but don't trigger sweeper recursively)
+  if (!result.success) {
+    console.error(`[sweeper] Sweeper run failed: ${result.message}`);
+  }
+
   return NextResponse.json(
     { ...result, timestamp: new Date().toISOString() },
     { status: result.success ? 200 : 500 },

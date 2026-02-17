@@ -11,6 +11,7 @@ import {
 import type { SiteConfig, TopicTemplate } from "@/config/sites";
 import { logCronExecution } from "@/lib/cron-logger";
 import { getFeatureFlagValue } from "@/lib/feature-flags";
+import { onCronFailure } from "@/lib/ops/failure-hooks";
 
 /**
  * Daily Content Generation Cron - Runs at 5am UTC daily
@@ -89,6 +90,10 @@ export async function GET(request: NextRequest) {
       durationMs: Date.now() - _cronStart,
       errorMessage: error instanceof Error ? error.message : "Generation failed",
     });
+
+    // Fire failure hook for automatic recovery
+    onCronFailure({ jobName: "daily-content-generate", error }).catch(() => {});
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Generation failed" },
       { status: 500 },

@@ -5,6 +5,7 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { logCronExecution } from "@/lib/cron-logger";
+import { onCronFailure } from "@/lib/ops/failure-hooks";
 
 /**
  * Weekly Topic Generation Cron Job
@@ -249,8 +250,12 @@ export async function POST(request: NextRequest) {
       durationMs: Date.now() - _cronStart,
       errorMessage: error instanceof Error ? error.message : "Unknown error",
     });
+
+    // Fire failure hook — checks topic backlog and raises alert if critical
+    onCronFailure({ jobName: "weekly-topics", error }).catch(() => {});
+
     return NextResponse.json(
-      { 
+      {
         error: 'Weekly topic generation failed',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

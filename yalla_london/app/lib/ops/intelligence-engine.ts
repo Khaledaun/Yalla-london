@@ -222,11 +222,14 @@ export async function generateIntelligenceReport(): Promise<IntelligenceReport> 
       });
     }
     if (cs.health === "warning" && cs.lastStatus === "never_run") {
+      const cron = CRON_JOBS.find((c) => c.id === cs.id);
       alerts.push({
         severity: "warning",
         title: `${cs.name} has never run`,
-        detail: `This cron job has no execution history in the last 24 hours. It may not be configured or deployed yet.`,
+        detail: `This cron job has no execution history in the last 24 hours. Click "Run Now" to trigger it manually.`,
         cronJobId: cs.id,
+        fixAction: cron?.route,
+        fixLabel: `Run ${cs.name} Now`,
       });
     }
   }
@@ -338,8 +341,13 @@ export async function generateIntelligenceReport(): Promise<IntelligenceReport> 
     } else {
       seoInsight = "No SEO audit reports found yet. The SEO orchestrator runs daily at 6 AM UTC.";
     }
-  } catch {
-    seoInsight = "Could not load SEO data. The SeoReport table may need migration.";
+  } catch (seoErr) {
+    const errMsg = seoErr instanceof Error ? seoErr.message : "";
+    if (errMsg.includes("does not exist") || errMsg.includes("P2021")) {
+      seoInsight = "SEO reports table needs setup. Click 'Fix Database' on the Generation Monitor page to create missing tables, then run the SEO agent.";
+    } else {
+      seoInsight = "No SEO audit data available yet. The SEO agent runs 3x daily (7am, 1pm, 8pm UTC) and will create reports automatically after its first run.";
+    }
   }
 
   // ── Indexing insight ────────────────────────────────────────────────

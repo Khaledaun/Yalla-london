@@ -390,6 +390,14 @@ export const AGENTS: AgentDef[] = [
     cronJobs: ["site-health-check"],
     domain: "Monitoring",
   },
+  {
+    id: "sweeper-agent",
+    name: "Sweeper & Auto-Recovery Agent",
+    description: "Automatic failure recovery. Detects failed/stuck/rejected ArticleDrafts, diagnoses the cause, applies fixes, and restarts. Triggered BOTH on schedule (8:45 AM UTC) AND immediately when any pipeline step fails via failure hooks.",
+    skills: ["content-creator"],
+    cronJobs: ["sweeper"],
+    domain: "Recovery",
+  },
 ];
 
 // ─── Data Flow ──────────────────────────────────────────────────────────
@@ -406,6 +414,9 @@ export const DATA_FLOWS: DataFlowDef[] = [
   { from: "seo-orchestrator-daily", to: "seo-agent-morning", dataType: "SeoReport", description: "Orchestrator directives guide agent" },
   { from: "analytics", to: "seo-orchestrator-daily", dataType: "AnalyticsSnapshot", description: "Analytics data feeds SEO decisions" },
   { from: "analytics", to: "site-health-check", dataType: "AnalyticsSnapshot", description: "GA4 data feeds health score" },
+  { from: "content-builder", to: "sweeper", dataType: "ArticleDraft", description: "Failed drafts trigger immediate auto-recovery via failure hooks" },
+  { from: "content-selector", to: "sweeper", dataType: "ArticleDraft", description: "Failed promotions trigger immediate recovery via failure hooks" },
+  { from: "sweeper", to: "content-builder", dataType: "ArticleDraft", description: "Recovered drafts re-enter the content pipeline" },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────

@@ -305,6 +305,10 @@ export default function OpsCenter() {
                                   runFixAction("generate-topics");
                                 } else if (alert.fixAction?.includes("seo-agent")) {
                                   runFixAction("run-seo-agent");
+                                } else if (alert.fixAction?.includes("sweeper")) {
+                                  runFixAction("run-sweeper");
+                                } else if (alert.cronJobId) {
+                                  runFixAction("run-cron", { cronId: alert.cronJobId });
                                 } else {
                                   runFixAction("generate-content");
                                 }

@@ -122,7 +122,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       }));
   }
 
-  // Blog posts from database (scoped by site_id)
+  // Blog posts from database (scoped by siteId)
   const staticSlugs = new Set(allStaticPosts.map((p) => p.slug));
   let dbBlogPages: MetadataRoute.Sitemap = [];
   try {
@@ -130,7 +130,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       where: {
         published: true,
         deletedAt: null,
-        site_id: siteId,
+        siteId: siteId,
       },
       select: { slug: true, updated_at: true },
     });

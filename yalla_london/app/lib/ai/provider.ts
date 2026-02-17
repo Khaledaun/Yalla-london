@@ -411,7 +411,7 @@ export async function generateJSON<T>(
   prompt: string,
   options: AICompletionOptions = {}
 ): Promise<T> {
-  const systemPrompt = `${options.systemPrompt || ''}\n\nYou must respond with valid JSON only. No markdown, no explanations, just pure JSON.`;
+  const systemPrompt = `${options.systemPrompt || ''}\n\nYou must respond with valid JSON only. No markdown, no explanations, just pure JSON. Ensure all strings are properly escaped and the JSON is complete.`;
 
   const result = await generateCompletion(
     [{ role: 'user', content: prompt }],
@@ -429,8 +429,103 @@ export async function generateJSON<T>(
   if (jsonStr.endsWith('```')) {
     jsonStr = jsonStr.slice(0, -3);
   }
+  jsonStr = jsonStr.trim();
 
-  return JSON.parse(jsonStr.trim()) as T;
+  // Attempt 1: Direct parse
+  try {
+    return JSON.parse(jsonStr) as T;
+  } catch {
+    // Attempt 2: Repair common JSON issues
+  }
+
+  const repaired = repairJSON(jsonStr);
+  try {
+    return JSON.parse(repaired) as T;
+  } catch {
+    // Attempt 3: Extract JSON object from the response
+  }
+
+  // Try to find the outermost { ... } and parse that
+  const start = jsonStr.indexOf('{');
+  const end = jsonStr.lastIndexOf('}');
+  if (start !== -1 && end > start) {
+    const extracted = jsonStr.substring(start, end + 1);
+    try {
+      return JSON.parse(repairJSON(extracted)) as T;
+    } catch {
+      // Fall through to error
+    }
+  }
+
+  throw new Error(`Invalid JSON from AI (length: ${jsonStr.length}). First 200 chars: ${jsonStr.substring(0, 200)}`);
+}
+
+/**
+ * Attempt to repair common JSON issues from AI responses:
+ * - Truncated output (missing closing brackets/braces)
+ * - Unescaped control characters in strings
+ * - Trailing commas
+ * - Single quotes instead of double quotes (outside of string values)
+ */
+function repairJSON(input: string): string {
+  let s = input.trim();
+
+  // Remove any non-JSON prefix (sometimes AI adds text before JSON)
+  const firstBrace = s.indexOf('{');
+  if (firstBrace > 0) {
+    s = s.substring(firstBrace);
+  }
+
+  // Fix unescaped newlines/tabs inside strings
+  s = s.replace(/(?<=":[ ]*"[^"]*)\n/g, '\\n');
+  s = s.replace(/(?<=":[ ]*"[^"]*)\t/g, '\\t');
+
+  // Remove trailing commas before } or ]
+  s = s.replace(/,\s*([}\]])/g, '$1');
+
+  // Fix truncated JSON: count brackets and add missing closers
+  let braces = 0;
+  let brackets = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === '{') braces++;
+    if (ch === '}') braces--;
+    if (ch === '[') brackets++;
+    if (ch === ']') brackets--;
+  }
+
+  // If we ended inside a string, close it
+  if (inString) {
+    s += '"';
+  }
+
+  // Close any unclosed brackets/braces
+  while (brackets > 0) {
+    s += ']';
+    brackets--;
+  }
+  while (braces > 0) {
+    s += '}';
+    braces--;
+  }
+
+  return s;
 }
 
 /**

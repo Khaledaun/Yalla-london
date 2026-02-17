@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
         return runSEOAgent(prisma, siteId, siteUrl);
       },
       7_000, // 7s safety margin for response serialization
-      120_000 // match maxDuration = 120s
+      53_000 // 53s budget within maxDuration = 60s (7s buffer for response)
     );
 
     await logCronExecution("seo-agent", loopResult.timedOut ? "timed_out" : "completed", {

@@ -51,8 +51,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const { withTimeout } = await import('@/lib/resilience');
-    // 110s budget (120s maxDuration - 10s buffer for response + logging)
-    const result = await withTimeout(runDueTasks(), 110_000, 'Autopilot runDueTasks');
+    // 53s budget (60s maxDuration on Vercel Pro - 7s buffer for response + logging)
+    const result = await withTimeout(runDueTasks(), 53_000, 'Autopilot runDueTasks');
 
     await logCronExecution("autopilot", "completed", {
       durationMs: Date.now() - _cronStart,

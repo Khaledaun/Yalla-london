@@ -1,11 +1,11 @@
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 /**
  * Admin Bulk Content Operations API
  * Handles bulk updates on blog posts (publish, unpublish, delete, tag/category management)
  */
 import { NextRequest, NextResponse } from 'next/server';
-
-// Force dynamic rendering to avoid build-time database access
-export const dynamic = 'force-dynamic';
 
 import { prisma } from '@/lib/db';
 import { withAdminAuth } from '@/lib/admin-middleware';

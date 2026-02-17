@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 /**
  * Phase 4C Content Publishing API
  * Enhanced publishing with automatic backlink inspection trigger

@@ -462,8 +462,8 @@ export async function GET(request: NextRequest) {
       }
 
       // Time guard: stop if approaching maxDuration
-      if (Date.now() - startTime > 240_000) {
-        // 4 min safety margin (web fetches are slower than placeholder)
+      if (Date.now() - startTime > 53_000) {
+        // 53s budget within 60s maxDuration (Vercel Pro), 7s buffer for response
         console.warn("[fact-verification] Approaching time limit, stopping verification loop");
         break;
       }

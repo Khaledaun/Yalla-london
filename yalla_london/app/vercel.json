@@ -148,6 +148,14 @@
     {
       "path": "/api/cron/sweeper",
       "schedule": "45 8 * * *"
+    },
+    {
+      "path": "/api/cron/google-indexing",
+      "schedule": "15 9 * * *"
+    },
+    {
+      "path": "/api/cron/verify-indexing",
+      "schedule": "0 11 * * *"
     }
   ]
 }

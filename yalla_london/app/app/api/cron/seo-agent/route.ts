@@ -774,6 +774,35 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
       }
     }
 
+    // Track submissions in URLIndexingStatus
+    if (siteId) {
+      try {
+        await Promise.allSettled(
+          urls.map((url: string) =>
+            prisma.uRLIndexingStatus.upsert({
+              where: { site_id_url: { site_id: siteId, url } },
+              create: {
+                site_id: siteId,
+                url,
+                slug: url.split("/blog/")[1] || null,
+                status: "submitted",
+                submitted_indexnow: !!indexNowKey,
+                last_submitted_at: new Date(),
+              },
+              update: {
+                status: "submitted",
+                submitted_indexnow: !!indexNowKey,
+                last_submitted_at: new Date(),
+                submission_attempts: { increment: 1 },
+              },
+            }),
+          ),
+        );
+      } catch {
+        // Best-effort tracking — don't block the SEO agent
+      }
+    }
+
     return { submitted: urls.length, urls };
   } catch {
     return { submitted: 0, error: "Failed to check for new posts" };

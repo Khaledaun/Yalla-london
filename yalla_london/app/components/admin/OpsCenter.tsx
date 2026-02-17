@@ -363,10 +363,11 @@ export default function OpsCenter() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {[
                   { action: "generate-content", label: "Generate Content", icon: <Play className="h-4 w-4" /> },
                   { action: "publish-ready", label: "Publish Ready", icon: <ArrowRight className="h-4 w-4" /> },
+                  { action: "run-sweeper", label: "Sweep Failures", icon: <RefreshCw className="h-4 w-4" /> },
                   { action: "generate-topics", label: "Generate Topics", icon: <Zap className="h-4 w-4" /> },
                   { action: "fix-database", label: "Fix Database", icon: <Activity className="h-4 w-4" /> },
                 ].map((btn) => (

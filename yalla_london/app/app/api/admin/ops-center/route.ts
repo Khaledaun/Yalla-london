@@ -102,6 +102,13 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       }
     }
 
+    // Fix: Run sweeper agent (direct call)
+    if (action === "run-sweeper") {
+      const { runSweeper } = await import("@/lib/content-pipeline/sweeper");
+      const result = await runSweeper();
+      return NextResponse.json({ success: result.success, action, result, durationMs: Date.now() - startTime });
+    }
+
     // Fix: Generate content (direct call)
     if (action === "generate-content") {
       const { runContentBuilder } = await import("@/lib/content-pipeline/build-runner");

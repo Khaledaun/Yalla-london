@@ -278,6 +278,19 @@ export const CRON_JOBS: CronJobDef[] = [
     critical: false,
     order: 14,
   },
+  {
+    id: "sweeper",
+    name: "Sweeper Agent",
+    route: "/api/cron/sweeper",
+    schedule: "45 8 * * *",
+    scheduleHuman: "Daily 8:45 AM UTC",
+    description: "Automatic failure recovery. Scans for rejected/stuck/failing drafts, diagnoses the error, applies the fix, and restarts the pipeline.",
+    produces: "ArticleDraft (recovered)",
+    consumes: "ArticleDraft (rejected/stuck/failing)",
+    group: "content",
+    critical: true,
+    order: 7,
+  },
 ];
 
 // ─── Pipelines ──────────────────────────────────────────────────────────

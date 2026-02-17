@@ -16,6 +16,7 @@
  */
 
 import { logCronExecution } from "@/lib/cron-logger";
+import type { SweeperLogEntry } from "@/lib/ops/failure-hooks";
 
 export interface SweeperResult {
   success: boolean;
@@ -46,6 +47,32 @@ export async function runSweeper(): Promise<SweeperResult> {
 
   try {
     const { prisma } = await import("@/lib/db");
+
+    // ── 0. Read recent recovery logs to avoid double-recovering ─────
+    const recentlyRecoveredIds = new Set<string>();
+    try {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      const recentLogs = await prisma.cronJobLog.findMany({
+        where: {
+          job_name: { in: ["failure-hook", "sweeper-agent"] },
+          status: "completed",
+          started_at: { gte: twoHoursAgo },
+        },
+        select: { result_summary: true },
+        take: 50,
+      });
+      for (const log of recentLogs) {
+        const summary = log.result_summary as Record<string, unknown> | null;
+        if (summary?.target && typeof summary.target === "string") {
+          recentlyRecoveredIds.add(summary.target);
+        }
+      }
+      if (recentlyRecoveredIds.size > 0) {
+        console.log(`[sweeper] Found ${recentlyRecoveredIds.size} recently recovered draft(s) — will skip these`);
+      }
+    } catch {
+      // Non-fatal — proceed without dedup
+    }
 
     // ── 1. Find rejected drafts with retryable errors ──────────────
     let rejectedDrafts: Array<Record<string, unknown>> = [];
@@ -81,6 +108,13 @@ export async function runSweeper(): Promise<SweeperResult> {
       const draftId = draft.id as string;
       const keyword = (draft.keyword as string) || "unknown";
       const locale = (draft.locale as string) || "en";
+
+      // Skip if already recovered by failure hooks recently
+      if (recentlyRecoveredIds.has(draftId)) {
+        console.log(`[sweeper] Skipping draft ${draftId} — already recovered by failure hook`);
+        skipped++;
+        continue;
+      }
 
       // Diagnose the failure
       const diagnosis = diagnoseProblem(reason);
@@ -238,15 +272,56 @@ export async function runSweeper(): Promise<SweeperResult> {
 
     const durationMs = Date.now() - start;
 
+    // Log each recovery action as a structured sweeper event
+    for (const action of recovered) {
+      const entry: SweeperLogEntry = {
+        eventType: "auto_recovery",
+        source: "sweeper-agent",
+        target: action.draftId,
+        failureDescription: `Draft "${action.keyword}" (${action.locale}) — ${action.problem}`,
+        detectedAt: new Date(Date.now() - durationMs).toISOString(),
+        diagnosis: action.diagnosis,
+        errorCategory: classifyErrorForLog(action.problem),
+        fixApplied: action.fix,
+        reactivatedAt: new Date().toISOString(),
+        outcome: "recovered",
+        context: { keyword: action.keyword, locale: action.locale, previousPhase: action.previousPhase, newPhase: action.newPhase },
+      };
+
+      await prisma.cronJobLog.create({
+        data: {
+          job_name: "sweeper-agent",
+          job_type: "scheduled",
+          status: "completed",
+          started_at: new Date(Date.now() - durationMs),
+          completed_at: new Date(),
+          duration_ms: durationMs,
+          items_processed: 1,
+          items_succeeded: 1,
+          items_failed: 0,
+          result_summary: entry as unknown as Record<string, unknown>,
+        },
+      }).catch(() => {});
+    }
+
+    // Also log a summary
     await logCronExecution("sweeper-agent", "completed", {
       durationMs,
       itemsProcessed: recovered.length + skipped,
       itemsSucceeded: recovered.length,
       itemsFailed: skipped,
       resultSummary: {
-        recovered: recovered.length,
-        skipped,
-        actions: recovered.map((r) => `${r.keyword} (${r.locale}): ${r.fix}`),
+        eventType: "targeted_sweep",
+        source: "sweeper-agent",
+        target: "all",
+        failureDescription: `Scheduled sweep: recovered ${recovered.length}, skipped ${skipped}`,
+        detectedAt: new Date(Date.now() - durationMs).toISOString(),
+        diagnosis: `Scanned ${rejectedDrafts.length} rejected, ${stuckDrafts.length} stuck, ${failingDrafts.length} failing drafts`,
+        errorCategory: "unknown",
+        fixApplied: recovered.length > 0 ? recovered.map((r) => `${r.keyword} (${r.locale}): ${r.fix}`).join("; ") : null,
+        reactivatedAt: recovered.length > 0 ? new Date().toISOString() : null,
+        outcome: recovered.length > 0 ? "recovered" : "logged",
+        context: { recovered: recovered.length, skipped, recentlySkipped: recentlyRecoveredIds.size },
       },
     }).catch(() => {});
 
@@ -362,6 +437,16 @@ function diagnoseProblem(errorText: string): Diagnosis {
     explanation: "Unknown error. Giving it one more chance with fresh attempts.",
     fixDescription: `Reset to "${failedPhase}" phase for retry`,
   };
+}
+
+function classifyErrorForLog(errorText: string): SweeperLogEntry["errorCategory"] {
+  const lower = errorText.toLowerCase();
+  if (lower.includes("json") || lower.includes("parse")) return "json_parse";
+  if (lower.includes("timeout") || lower.includes("timed out")) return "timeout";
+  if (lower.includes("rate limit") || lower.includes("429")) return "rate_limit";
+  if (lower.includes("network") || lower.includes("fetch")) return "network";
+  if (lower.includes("auth") || lower.includes("api key")) return "auth";
+  return "unknown";
 }
 
 function extractPhaseFromError(errorText: string): string {

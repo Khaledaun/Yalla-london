@@ -94,6 +94,20 @@ interface AgentDef {
   domain: string;
 }
 
+interface SweeperLog {
+  eventType: string;
+  source: string;
+  target: string;
+  failureDescription: string;
+  detectedAt: string;
+  diagnosis: string;
+  errorCategory: string;
+  fixApplied: string | null;
+  reactivatedAt: string | null;
+  outcome: string;
+  context: Record<string, unknown>;
+}
+
 interface OpsData {
   generatedAt: string;
   overallHealth: string;
@@ -106,6 +120,7 @@ interface OpsData {
   seoInsight: string | null;
   indexingInsight: string | null;
   revenueInsight: string | null;
+  sweeperLogs: SweeperLog[];
   registry: {
     cronJobs: CronJobDef[];
     pipelines: PipelineDef[];
@@ -150,7 +165,7 @@ export default function OpsCenter() {
   const [error, setError] = useState<string | null>(null);
   const [fixingAction, setFixingAction] = useState<string | null>(null);
   const [fixResult, setFixResult] = useState<{ action: string; success: boolean; message: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "crons" | "pipelines" | "timeline" | "agents">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "crons" | "pipelines" | "timeline" | "agents" | "sweeper">("overview");
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["alerts", "insights"]));
 
   const toggleSection = (id: string) => {
@@ -254,17 +269,26 @@ export default function OpsCenter() {
 
       {/* ── Tab Navigation ── */}
       <div className="flex gap-1 overflow-x-auto pb-1">
-        {(["overview", "crons", "pipelines", "timeline", "agents"] as const).map((tab) => (
-          <Button
-            key={tab}
-            variant={activeTab === tab ? "default" : "outline"}
-            size="sm"
-            onClick={() => setActiveTab(tab)}
-            className={activeTab === tab ? "bg-gray-900 text-white" : ""}
-          >
-            {tab === "overview" ? "Overview" : tab === "crons" ? "Cron Jobs" : tab === "pipelines" ? "Pipelines" : tab === "timeline" ? "Timeline" : "Agents"}
-          </Button>
-        ))}
+        {(["overview", "crons", "pipelines", "timeline", "agents", "sweeper"] as const).map((tab) => {
+          const labels: Record<string, string> = {
+            overview: "Overview", crons: "Cron Jobs", pipelines: "Pipelines",
+            timeline: "Timeline", agents: "Agents", sweeper: "Sweeper Logs",
+          };
+          return (
+            <Button
+              key={tab}
+              variant={activeTab === tab ? "default" : "outline"}
+              size="sm"
+              onClick={() => setActiveTab(tab)}
+              className={activeTab === tab ? "bg-gray-900 text-white" : ""}
+            >
+              {labels[tab]}
+              {tab === "sweeper" && (data.sweeperLogs?.length || 0) > 0 && (
+                <Badge variant="outline" className="ml-1 text-[10px] px-1">{data.sweeperLogs.length}</Badge>
+              )}
+            </Button>
+          );
+        })}
       </div>
 
       {/* ── OVERVIEW TAB ── */}
@@ -641,6 +665,147 @@ export default function OpsCenter() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* ── SWEEPER LOGS TAB ── */}
+      {activeTab === "sweeper" && (
+        <div className="space-y-4">
+          {/* Summary stats */}
+          {(() => {
+            const logs = data.sweeperLogs || [];
+            const recoveredCount = logs.filter((l) => l.outcome === "recovered").length;
+            const failedCount = logs.filter((l) => ["logged", "not_recoverable", "critical_alert"].includes(l.outcome)).length;
+            const retryCount = logs.filter((l) => l.outcome === "will_retry").length;
+
+            return (
+              <div className="grid grid-cols-4 gap-2">
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-gray-900">{logs.length}</div>
+                  <div className="text-[10px] text-gray-500 uppercase">Total Events</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-green-700">{recoveredCount}</div>
+                  <div className="text-[10px] text-green-600 uppercase">Recovered</div>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-amber-700">{retryCount}</div>
+                  <div className="text-[10px] text-amber-600 uppercase">Auto-Retry</div>
+                </div>
+                <div className="bg-red-50 rounded-lg p-3 text-center">
+                  <div className="text-lg font-bold text-red-700">{failedCount}</div>
+                  <div className="text-[10px] text-red-600 uppercase">Needs Help</div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Quick Actions */}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!!fixingAction}
+              onClick={() => runFixAction("run-sweeper")}
+            >
+              {fixingAction === "run-sweeper" ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Play className="h-3 w-3 mr-1" />}
+              Run Sweeper Now
+            </Button>
+            <Button size="sm" variant="ghost" onClick={fetchData} disabled={loading}>
+              <RefreshCw className={`h-3 w-3 mr-1 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
+
+          {/* Log entries */}
+          {(data.sweeperLogs || []).length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Activity className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">No sweeper activity yet.</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Failure hooks activate automatically when any cron job, content generation, or SEO audit fails.
+                  Recovery events will appear here with full details.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {(data.sweeperLogs || []).map((log, i) => {
+                const outcomeStyles: Record<string, { bg: string; text: string; label: string }> = {
+                  recovered: { bg: "bg-green-50 border-green-200", text: "text-green-700", label: "Recovered" },
+                  will_retry: { bg: "bg-blue-50 border-blue-200", text: "text-blue-700", label: "Will Retry" },
+                  not_recoverable: { bg: "bg-red-50 border-red-200", text: "text-red-700", label: "Needs Manual Fix" },
+                  critical_alert: { bg: "bg-red-50 border-red-200", text: "text-red-700", label: "Critical" },
+                  logged: { bg: "bg-gray-50 border-gray-200", text: "text-gray-700", label: "Logged" },
+                };
+                const os = outcomeStyles[log.outcome] || outcomeStyles.logged;
+
+                const categoryLabels: Record<string, string> = {
+                  json_parse: "JSON Parse Error",
+                  timeout: "Timeout",
+                  rate_limit: "Rate Limit",
+                  network: "Network Error",
+                  auth: "Auth Error",
+                  data_integrity: "Data Issue",
+                  quality: "Quality Gate",
+                  unknown: "Unknown",
+                };
+
+                const eventIcons: Record<string, React.ReactNode> = {
+                  auto_recovery: <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />,
+                  pipeline_failure: <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />,
+                  cron_failure: <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />,
+                  promotion_failure: <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />,
+                  targeted_sweep: <Activity className="h-4 w-4 text-blue-500 flex-shrink-0" />,
+                  topic_backlog_alert: <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />,
+                };
+
+                return (
+                  <Card key={i} className={`border ${os.bg}`}>
+                    <CardContent className="pt-3 pb-3">
+                      {/* Header row */}
+                      <div className="flex items-start gap-2 mb-2">
+                        {eventIcons[log.eventType] || <Activity className="h-4 w-4 text-gray-400 flex-shrink-0" />}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm leading-tight">{log.failureDescription}</div>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${os.text}`}>{os.label}</Badge>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-gray-500">{categoryLabels[log.errorCategory] || log.errorCategory}</Badge>
+                            <span className="text-[10px] text-gray-400">{log.source}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Timeline: Detected → Diagnosed → Fixed → Reactivated */}
+                      <div className="ml-6 space-y-1.5 text-xs">
+                        <div className="flex items-start gap-2">
+                          <span className="text-gray-400 w-20 flex-shrink-0">Detected</span>
+                          <span className="text-gray-600">{timeAgo(log.detectedAt)}</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-gray-400 w-20 flex-shrink-0">Diagnosis</span>
+                          <span className="text-gray-700">{log.diagnosis}</span>
+                        </div>
+                        {log.fixApplied && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-gray-400 w-20 flex-shrink-0">Fix Applied</span>
+                            <span className={log.outcome === "recovered" ? "text-green-700 font-medium" : "text-gray-700"}>{log.fixApplied}</span>
+                          </div>
+                        )}
+                        {log.reactivatedAt && (
+                          <div className="flex items-start gap-2">
+                            <span className="text-gray-400 w-20 flex-shrink-0">Restarted</span>
+                            <span className="text-green-700">{timeAgo(log.reactivatedAt)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

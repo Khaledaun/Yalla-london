@@ -5,201 +5,327 @@
  * this module triggers IMMEDIATE recovery when any pipeline
  * step, cron job, or agent fails.
  *
- * Usage:
- *   import { onPipelineFailure, onCronFailure } from "@/lib/ops/failure-hooks";
+ * Every recovery action is logged to CronJobLog with detailed structured data:
+ * - What failed (source cron/pipeline, draft ID, error)
+ * - When the failure was detected
+ * - What diagnosis was made
+ * - What fix was applied
+ * - When the process was reactivated
+ * - Result of the recovery
  *
- *   // In content-builder when a phase fails:
- *   await onPipelineFailure({ draftId, phase, error, locale, keyword });
- *
- *   // In any cron job catch block:
- *   await onCronFailure({ jobName, error });
- *
- * Design:
- * - All hooks are fire-and-forget (never throw, never block the caller)
- * - Each hook does targeted recovery, not a full sweeper scan
- * - Recovery actions are logged to CronJobLog for dashboard visibility
- * - Budget-aware: won't run expensive operations if caller is near timeout
+ * The sweeper and failure hooks READ recent logs before acting to avoid
+ * double-recovery or harming the system.
  */
-
-import { logCronExecution } from "@/lib/cron-logger";
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
 export interface PipelineFailureContext {
-  /** The ArticleDraft ID that failed */
   draftId: string;
-  /** Which phase failed (research, outline, drafting, etc.) */
   phase: string;
-  /** The error message */
   error: string;
-  /** Draft locale (en/ar) */
   locale?: string;
-  /** Draft keyword */
   keyword?: string;
-  /** Site ID */
   siteId?: string;
-  /** Current attempt count AFTER incrementing */
   attemptNumber?: number;
-  /** Whether the draft was just rejected (3rd failure) */
   wasRejected?: boolean;
 }
 
 export interface CronFailureContext {
-  /** Name of the cron job that failed */
   jobName: string;
-  /** The error message or Error object */
   error: unknown;
-  /** Site ID if applicable */
   siteId?: string;
-  /** Any additional context */
   details?: Record<string, unknown>;
 }
 
 export interface PromotionFailureContext {
-  /** The ArticleDraft ID that failed to promote */
   draftId: string;
-  /** The keyword */
   keyword?: string;
-  /** The error */
   error: string;
-  /** Site ID */
   siteId?: string;
 }
 
+/** Structured log entry for every sweeper/recovery action */
+export interface SweeperLogEntry {
+  /** Type of event */
+  eventType: "pipeline_failure" | "cron_failure" | "promotion_failure" | "auto_recovery" | "targeted_sweep" | "topic_backlog_alert";
+  /** Source that triggered this (e.g., "content-builder", "content-selector") */
+  source: string;
+  /** Target entity (draft ID, cron name) */
+  target: string;
+  /** Human-readable description of what failed */
+  failureDescription: string;
+  /** When the failure was detected */
+  detectedAt: string;
+  /** Diagnosis: what went wrong */
+  diagnosis: string;
+  /** Category of the error */
+  errorCategory: "json_parse" | "timeout" | "rate_limit" | "network" | "auth" | "data_integrity" | "quality" | "unknown";
+  /** What fix was applied */
+  fixApplied: string | null;
+  /** When the process was reactivated (null if not recoverable) */
+  reactivatedAt: string | null;
+  /** Outcome of the recovery attempt */
+  outcome: "recovered" | "will_retry" | "not_recoverable" | "logged" | "critical_alert";
+  /** Additional context */
+  context: Record<string, unknown>;
+}
+
+// ─── Error Classification ────────────────────────────────────────────────
+
+function classifyError(errorText: string): SweeperLogEntry["errorCategory"] {
+  const lower = errorText.toLowerCase();
+  if (lower.includes("json") || lower.includes("unterminated string") || lower.includes("unexpected token") || lower.includes("unexpected end")) return "json_parse";
+  if (lower.includes("timeout") || lower.includes("budget") || lower.includes("timed out") || lower.includes("aborted")) return "timeout";
+  if (lower.includes("rate limit") || lower.includes("429") || lower.includes("too many requests")) return "rate_limit";
+  if (lower.includes("network") || lower.includes("econnrefused") || lower.includes("fetch failed") || lower.includes("socket")) return "network";
+  if (lower.includes("api key") || lower.includes("unauthorized") || lower.includes("401") || lower.includes("403")) return "auth";
+  if (lower.includes("required") || lower.includes("not null") || lower.includes("foreign key") || lower.includes("unique constraint") || lower.includes("duplicate")) return "data_integrity";
+  if (lower.includes("quality score") || lower.includes("below threshold")) return "quality";
+  return "unknown";
+}
+
+const RETRYABLE_CATEGORIES = new Set<SweeperLogEntry["errorCategory"]>(["json_parse", "timeout", "rate_limit", "network", "unknown"]);
+
 // ─── Pipeline Failure Hook ──────────────────────────────────────────────
-// Called when a content-builder phase fails for a specific draft.
-// Does targeted diagnosis + recovery for THAT specific draft.
 
 export async function onPipelineFailure(ctx: PipelineFailureContext): Promise<void> {
   try {
-    const errorLower = (ctx.error || "").toLowerCase();
+    const category = classifyError(ctx.error);
+    const detectedAt = new Date().toISOString();
 
-    // Classify the failure
-    const isJsonError = errorLower.includes("json") ||
-      errorLower.includes("unterminated string") ||
-      errorLower.includes("unexpected token") ||
-      errorLower.includes("unexpected end");
-
-    const isTimeout = errorLower.includes("timeout") ||
-      errorLower.includes("budget") ||
-      errorLower.includes("timed out") ||
-      errorLower.includes("aborted");
-
-    const isRateLimit = errorLower.includes("rate limit") ||
-      errorLower.includes("429") ||
-      errorLower.includes("too many requests");
-
-    const isNetworkError = errorLower.includes("network") ||
-      errorLower.includes("econnrefused") ||
-      errorLower.includes("fetch failed") ||
-      errorLower.includes("socket");
-
-    const isAuthError = errorLower.includes("api key") ||
-      errorLower.includes("unauthorized") ||
-      errorLower.includes("401") ||
-      errorLower.includes("403");
-
-    // Auth errors can't be auto-fixed — just log them prominently
-    if (isAuthError) {
+    // Auth errors can't be auto-fixed
+    if (category === "auth") {
       console.error(`[failure-hook] AUTH ERROR for draft ${ctx.draftId} — needs manual API key fix`);
-      await logFailureEvent("pipeline-auth-error", ctx.draftId, ctx.error, "not_recoverable");
+      await logSweeperEvent({
+        eventType: "pipeline_failure",
+        source: "content-builder",
+        target: ctx.draftId,
+        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) failed at "${ctx.phase}" — API authentication error`,
+        detectedAt,
+        diagnosis: "AI provider authentication failed. Needs valid API key.",
+        errorCategory: category,
+        fixApplied: null,
+        reactivatedAt: null,
+        outcome: "not_recoverable",
+        context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300) },
+      });
       return;
     }
 
     // If the draft was just rejected (3rd attempt), try immediate recovery
-    if (ctx.wasRejected && (isJsonError || isTimeout || isRateLimit || isNetworkError)) {
+    if (ctx.wasRejected && RETRYABLE_CATEGORIES.has(category)) {
+      // Check if this draft was already recovered recently (prevent loops)
+      const alreadyRecovered = await wasRecentlyRecovered(ctx.draftId);
+      if (alreadyRecovered) {
+        console.log(`[failure-hook] Draft ${ctx.draftId} was already recovered recently — skipping to prevent loop`);
+        await logSweeperEvent({
+          eventType: "pipeline_failure",
+          source: "content-builder",
+          target: ctx.draftId,
+          failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) rejected again at "${ctx.phase}" — already recovered once`,
+          detectedAt,
+          diagnosis: `Error: ${category}. Already recovered once — not retrying again to prevent loops.`,
+          errorCategory: category,
+          fixApplied: null,
+          reactivatedAt: null,
+          outcome: "logged",
+          context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300), reason: "already_recovered_recently" },
+        });
+        return;
+      }
+
       console.log(`[failure-hook] Draft ${ctx.draftId} rejected — attempting immediate recovery`);
-      await recoverDraft(ctx.draftId, ctx.phase, isJsonError ? "json_repair" : "retry");
+      const strategy = category === "json_parse" ? "json_repair" : "retry";
+      const recovered = await recoverDraft(ctx.draftId, ctx.phase, strategy);
+
+      await logSweeperEvent({
+        eventType: "auto_recovery",
+        source: "content-builder",
+        target: ctx.draftId,
+        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) rejected at "${ctx.phase}" after 3 attempts`,
+        detectedAt,
+        diagnosis: `Error category: ${category}. ${strategy === "json_repair" ? "AI returned malformed JSON — retrying with JSON repair logic" : "Transient error — retrying with fresh attempts"}`,
+        errorCategory: category,
+        fixApplied: recovered ? `Reset to "${ctx.phase}" with fresh attempt counter (strategy: ${strategy})` : "Recovery failed — could not update draft",
+        reactivatedAt: recovered ? new Date().toISOString() : null,
+        outcome: recovered ? "recovered" : "logged",
+        context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300), strategy },
+      });
       return;
     }
 
-    // For non-rejected failures (1st or 2nd attempt), just log the context
-    // The content-builder will retry naturally on next run
+    // For non-rejected failures (1st or 2nd attempt), log for visibility but don't intervene
     if ((ctx.attemptNumber || 0) < 3) {
-      console.log(
-        `[failure-hook] Draft ${ctx.draftId} failed at "${ctx.phase}" ` +
-        `(attempt ${ctx.attemptNumber || "?"}/3) — will auto-retry on next builder run`
-      );
+      console.log(`[failure-hook] Draft ${ctx.draftId} failed at "${ctx.phase}" (attempt ${ctx.attemptNumber || "?"}/3) — will auto-retry`);
+      await logSweeperEvent({
+        eventType: "pipeline_failure",
+        source: "content-builder",
+        target: ctx.draftId,
+        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) failed at "${ctx.phase}" (attempt ${ctx.attemptNumber}/3)`,
+        detectedAt,
+        diagnosis: `Error category: ${category}. Attempt ${ctx.attemptNumber}/3 — content-builder will auto-retry on next run.`,
+        errorCategory: category,
+        fixApplied: "No intervention — auto-retry on next builder run",
+        reactivatedAt: null,
+        outcome: "will_retry",
+        context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, attemptNumber: ctx.attemptNumber, error: ctx.error.substring(0, 300) },
+      });
       return;
     }
 
     // Catch-all: attempt recovery for unknown errors that caused rejection
     if (ctx.wasRejected) {
-      console.log(`[failure-hook] Draft ${ctx.draftId} rejected with unknown error — attempting recovery`);
-      await recoverDraft(ctx.draftId, ctx.phase, "retry");
+      const recovered = await recoverDraft(ctx.draftId, ctx.phase, "retry");
+      await logSweeperEvent({
+        eventType: "auto_recovery",
+        source: "content-builder",
+        target: ctx.draftId,
+        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) rejected at "${ctx.phase}" — unknown error`,
+        detectedAt,
+        diagnosis: `Unknown error category. Giving it one more chance.`,
+        errorCategory: category,
+        fixApplied: recovered ? `Reset to "${ctx.phase}" with fresh attempts` : "Recovery failed",
+        reactivatedAt: recovered ? new Date().toISOString() : null,
+        outcome: recovered ? "recovered" : "logged",
+        context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300) },
+      });
     }
   } catch (hookError) {
-    // Never let the hook itself crash the caller
     console.error("[failure-hook] Pipeline hook error (non-fatal):", hookError);
   }
 }
 
 // ─── Cron Failure Hook ──────────────────────────────────────────────────
-// Called when any cron job fails completely.
-// Logs the failure and triggers targeted recovery where possible.
 
 export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
   try {
     const errorMsg = ctx.error instanceof Error ? ctx.error.message : String(ctx.error || "Unknown");
+    const category = classifyError(errorMsg);
+    const detectedAt = new Date().toISOString();
     console.error(`[failure-hook] Cron "${ctx.jobName}" failed: ${errorMsg}`);
 
-    // For content pipeline crons, run the sweeper to recover any stuck drafts
-    const contentCrons = [
-      "content-builder", "daily-content-generate",
-      "content-selector", "content-publish",
-    ];
-
+    // Content pipeline crons — run targeted sweeper
+    const contentCrons = ["content-builder", "daily-content-generate", "content-selector", "content-publish"];
     if (contentCrons.some(name => ctx.jobName.includes(name))) {
       console.log(`[failure-hook] Content cron "${ctx.jobName}" failed — running targeted sweeper`);
-      await runTargetedSweep(ctx.siteId);
+      const sweepResult = await runTargetedSweep(ctx.siteId);
+
+      await logSweeperEvent({
+        eventType: "cron_failure",
+        source: ctx.jobName,
+        target: ctx.jobName,
+        failureDescription: `Cron job "${ctx.jobName}" crashed with error: ${errorMsg.substring(0, 200)}`,
+        detectedAt,
+        diagnosis: `Content pipeline cron failed (${category}). Ran targeted sweep to recover any stuck drafts.`,
+        errorCategory: category,
+        fixApplied: sweepResult > 0 ? `Targeted sweep recovered ${sweepResult} draft(s)` : "Targeted sweep found no recoverable drafts",
+        reactivatedAt: sweepResult > 0 ? new Date().toISOString() : null,
+        outcome: sweepResult > 0 ? "recovered" : "logged",
+        context: { jobName: ctx.jobName, siteId: ctx.siteId, error: errorMsg.substring(0, 300), draftsRecovered: sweepResult },
+      });
       return;
     }
 
-    // For SEO crons, just log — SEO failures are usually non-critical
+    // SEO crons — log
     const seoCrons = ["seo-agent", "seo-cron", "seo-orchestrator"];
     if (seoCrons.some(name => ctx.jobName.includes(name))) {
-      await logFailureEvent("seo-cron-failure", ctx.jobName, errorMsg, "logged");
+      await logSweeperEvent({
+        eventType: "cron_failure",
+        source: ctx.jobName,
+        target: ctx.jobName,
+        failureDescription: `SEO cron "${ctx.jobName}" failed: ${errorMsg.substring(0, 200)}`,
+        detectedAt,
+        diagnosis: `SEO failure (${category}). SEO cron failures are non-critical — will retry on next scheduled run.`,
+        errorCategory: category,
+        fixApplied: "No intervention — SEO runs 3x daily and will retry automatically",
+        reactivatedAt: null,
+        outcome: "will_retry",
+        context: { jobName: ctx.jobName, error: errorMsg.substring(0, 300) },
+      });
       return;
     }
 
-    // For topic generation, check if we have enough backlog
+    // Topic generation — check backlog
     if (ctx.jobName.includes("weekly-topics") || ctx.jobName.includes("topic")) {
-      await handleTopicGenerationFailure(errorMsg);
+      await handleTopicGenerationFailure(errorMsg, detectedAt, category);
       return;
     }
 
-    // Generic: just log
-    await logFailureEvent("cron-failure", ctx.jobName, errorMsg, "logged");
+    // Generic cron failure
+    await logSweeperEvent({
+      eventType: "cron_failure",
+      source: ctx.jobName,
+      target: ctx.jobName,
+      failureDescription: `Cron "${ctx.jobName}" failed: ${errorMsg.substring(0, 200)}`,
+      detectedAt,
+      diagnosis: `General cron failure (${category}).`,
+      errorCategory: category,
+      fixApplied: null,
+      reactivatedAt: null,
+      outcome: "logged",
+      context: { jobName: ctx.jobName, error: errorMsg.substring(0, 300), ...(ctx.details || {}) },
+    });
   } catch (hookError) {
     console.error("[failure-hook] Cron hook error (non-fatal):", hookError);
   }
 }
 
 // ─── Promotion Failure Hook ─────────────────────────────────────────────
-// Called when content-selector fails to promote a draft to BlogPost.
 
 export async function onPromotionFailure(ctx: PromotionFailureContext): Promise<void> {
   try {
+    const category = classifyError(ctx.error);
+    const detectedAt = new Date().toISOString();
     console.warn(`[failure-hook] Promotion failed for draft ${ctx.draftId}: ${ctx.error}`);
 
-    const errorLower = (ctx.error || "").toLowerCase();
-
-    // If it's a unique constraint violation (duplicate slug), fix the slug
-    if (errorLower.includes("unique constraint") || errorLower.includes("duplicate")) {
-      console.log(`[failure-hook] Duplicate slug detected — draft ${ctx.draftId} will retry with unique slug on next selector run`);
-      await logFailureEvent("promotion-duplicate", ctx.draftId, ctx.error, "will_retry");
+    if (category === "data_integrity" && (ctx.error.toLowerCase().includes("unique") || ctx.error.toLowerCase().includes("duplicate"))) {
+      await logSweeperEvent({
+        eventType: "promotion_failure",
+        source: "content-selector",
+        target: ctx.draftId,
+        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" promotion failed — duplicate slug`,
+        detectedAt,
+        diagnosis: "Duplicate slug detected. The selector will generate a unique slug on next run.",
+        errorCategory: category,
+        fixApplied: "No intervention — selector auto-generates unique slug on retry",
+        reactivatedAt: null,
+        outcome: "will_retry",
+        context: { draftId: ctx.draftId, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300) },
+      });
       return;
     }
 
-    // If it's a missing field/relation, the draft may need reprocessing
-    if (errorLower.includes("required") || errorLower.includes("not null") || errorLower.includes("foreign key")) {
-      console.log(`[failure-hook] Data integrity issue — resetting draft ${ctx.draftId} to scoring phase`);
-      await recoverDraft(ctx.draftId, "scoring", "reprocess");
+    if (category === "data_integrity") {
+      const recovered = await recoverDraft(ctx.draftId, "scoring", "reprocess");
+      await logSweeperEvent({
+        eventType: "promotion_failure",
+        source: "content-selector",
+        target: ctx.draftId,
+        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" promotion failed — data integrity issue`,
+        detectedAt,
+        diagnosis: "Missing required field or relation. Resetting to previous phase for reprocessing.",
+        errorCategory: category,
+        fixApplied: recovered ? "Reset draft to 'seo' phase (one step before scoring) for reprocessing" : "Recovery failed",
+        reactivatedAt: recovered ? new Date().toISOString() : null,
+        outcome: recovered ? "recovered" : "logged",
+        context: { draftId: ctx.draftId, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300) },
+      });
       return;
     }
 
-    // Generic: log the failure
-    await logFailureEvent("promotion-failure", ctx.draftId, ctx.error, "logged");
+    await logSweeperEvent({
+      eventType: "promotion_failure",
+      source: "content-selector",
+      target: ctx.draftId,
+      failureDescription: `Draft "${ctx.keyword || ctx.draftId}" promotion failed: ${ctx.error.substring(0, 150)}`,
+      detectedAt,
+      diagnosis: `Promotion error (${category}).`,
+      errorCategory: category,
+      fixApplied: null,
+      reactivatedAt: null,
+      outcome: "logged",
+      context: { draftId: ctx.draftId, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300) },
+    });
   } catch (hookError) {
     console.error("[failure-hook] Promotion hook error (non-fatal):", hookError);
   }
@@ -208,9 +334,33 @@ export async function onPromotionFailure(ctx: PromotionFailureContext): Promise<
 // ─── Recovery Helpers ────────────────────────────────────────────────────
 
 /**
- * Recover a specific draft by resetting its phase and attempt counter.
- * This is the targeted version of what the sweeper does — but for ONE draft.
+ * Check if a draft was already recovered in the last 2 hours.
+ * Prevents infinite recovery loops.
  */
+async function wasRecentlyRecovered(draftId: string): Promise<boolean> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+    const recentRecovery = await prisma.cronJobLog.findFirst({
+      where: {
+        job_name: { in: ["failure-hook", "sweeper-agent"] },
+        status: "completed",
+        started_at: { gte: twoHoursAgo },
+        result_summary: {
+          path: ["target"],
+          equals: draftId,
+        },
+      },
+    });
+
+    return !!recentRecovery;
+  } catch {
+    // If we can't check, allow recovery (better to recover twice than never)
+    return false;
+  }
+}
+
 async function recoverDraft(
   draftId: string,
   failedPhase: string,
@@ -219,10 +369,8 @@ async function recoverDraft(
   try {
     const { prisma } = await import("@/lib/db");
 
-    // Determine which phase to reset to
     let resetPhase = failedPhase;
     if (strategy === "reprocess") {
-      // Go back one phase for reprocessing
       const phaseOrder = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring", "reservoir"];
       const idx = phaseOrder.indexOf(failedPhase);
       resetPhase = idx > 0 ? phaseOrder[idx - 1] : failedPhase;
@@ -242,14 +390,6 @@ async function recoverDraft(
     });
 
     console.log(`[failure-hook] Recovered draft ${draftId}: reset to "${resetPhase}" (strategy: ${strategy})`);
-
-    await logFailureEvent(
-      "auto-recovery",
-      draftId,
-      `Recovered from "${failedPhase}" → "${resetPhase}" (${strategy})`,
-      "recovered",
-    );
-
     return true;
   } catch (err) {
     console.error(`[failure-hook] Failed to recover draft ${draftId}:`, err);
@@ -258,17 +398,41 @@ async function recoverDraft(
 }
 
 /**
- * Run a targeted sweep for stuck/failed drafts in a specific site.
- * Lighter than the full sweeper — only checks the most urgent cases.
+ * Run a targeted sweep for stuck/failed drafts.
+ * Reads recent recovery logs to avoid double-recovering the same draft.
+ * Returns number of recovered drafts.
  */
-async function runTargetedSweep(siteId?: string): Promise<void> {
+async function runTargetedSweep(siteId?: string): Promise<number> {
   try {
     const { prisma } = await import("@/lib/db");
+
+    // Read recent recovery logs to avoid double-recovery
+    const recentlyRecoveredIds = new Set<string>();
+    try {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      const recentLogs = await prisma.cronJobLog.findMany({
+        where: {
+          job_name: { in: ["failure-hook", "sweeper-agent"] },
+          status: "completed",
+          started_at: { gte: twoHoursAgo },
+        },
+        select: { result_summary: true },
+        take: 50,
+      });
+      for (const log of recentLogs) {
+        const summary = log.result_summary as Record<string, unknown> | null;
+        if (summary?.target && typeof summary.target === "string") {
+          recentlyRecoveredIds.add(summary.target);
+        }
+      }
+    } catch {
+      // Non-fatal — proceed without dedup
+    }
 
     const whereClause: Record<string, unknown> = {
       current_phase: "rejected",
       rejection_reason: { not: null },
-      completed_at: { gte: new Date(Date.now() - 6 * 60 * 60 * 1000) }, // last 6h
+      completed_at: { gte: new Date(Date.now() - 6 * 60 * 60 * 1000) },
     };
     if (siteId) whereClause.site_id = siteId;
 
@@ -279,6 +443,12 @@ async function runTargetedSweep(siteId?: string): Promise<void> {
 
     let recovered = 0;
     for (const draft of rejected) {
+      // Skip if already recovered recently
+      if (recentlyRecoveredIds.has(draft.id)) {
+        console.log(`[failure-hook] Skipping draft ${draft.id} — already recovered recently`);
+        continue;
+      }
+
       const reason = (draft.rejection_reason || "").toLowerCase();
       const isRetryable =
         reason.includes("json") || reason.includes("timeout") ||
@@ -305,48 +475,37 @@ async function runTargetedSweep(siteId?: string): Promise<void> {
       }
     }
 
-    if (recovered > 0) {
-      console.log(`[failure-hook] Targeted sweep recovered ${recovered} draft(s)`);
-      await logFailureEvent(
-        "targeted-sweep",
-        siteId || "all",
-        `Recovered ${recovered} rejected drafts`,
-        "recovered",
-      );
-    }
+    return recovered;
   } catch (err) {
     console.error("[failure-hook] Targeted sweep failed:", err);
+    return 0;
   }
 }
 
-/**
- * Handle topic generation failure — check if we have enough topics in backlog.
- * If backlog is dangerously low, log a critical alert.
- */
-async function handleTopicGenerationFailure(errorMsg: string): Promise<void> {
+async function handleTopicGenerationFailure(errorMsg: string, detectedAt: string, category: SweeperLogEntry["errorCategory"]): Promise<void> {
   try {
     const { prisma } = await import("@/lib/db");
     const pendingCount = await prisma.topicProposal.count({
       where: { status: { in: ["ready", "queued", "planned", "proposed"] } },
     });
 
-    if (pendingCount < 5) {
-      console.error(`[failure-hook] CRITICAL: Topic generation failed AND backlog is low (${pendingCount} topics left)`);
-      await logFailureEvent(
-        "topic-generation-critical",
-        "weekly-topics",
-        `Topic generation failed: ${errorMsg}. Only ${pendingCount} topics remain.`,
-        "critical_alert",
-      );
-    } else {
-      console.warn(`[failure-hook] Topic generation failed but backlog is OK (${pendingCount} topics)`);
-      await logFailureEvent(
-        "topic-generation-warning",
-        "weekly-topics",
-        `Topic generation failed: ${errorMsg}. ${pendingCount} topics in backlog — not urgent.`,
-        "logged",
-      );
-    }
+    const isCritical = pendingCount < 5;
+
+    await logSweeperEvent({
+      eventType: "topic_backlog_alert",
+      source: "weekly-topics",
+      target: "weekly-topics",
+      failureDescription: `Topic generation failed: ${errorMsg.substring(0, 200)}`,
+      detectedAt,
+      diagnosis: isCritical
+        ? `CRITICAL: Topic generation failed AND only ${pendingCount} topics remain. Pipeline will stall soon.`
+        : `Topic generation failed but backlog is OK (${pendingCount} topics). Not urgent — will retry on next schedule.`,
+      errorCategory: category,
+      fixApplied: null,
+      reactivatedAt: null,
+      outcome: isCritical ? "critical_alert" : "will_retry",
+      context: { pendingTopics: pendingCount, error: errorMsg.substring(0, 300) },
+    });
   } catch (err) {
     console.error("[failure-hook] Topic failure handler error:", err);
   }
@@ -355,26 +514,75 @@ async function handleTopicGenerationFailure(errorMsg: string): Promise<void> {
 // ─── Logging ─────────────────────────────────────────────────────────────
 
 /**
- * Log a failure event to CronJobLog so it appears on the dashboard.
- * Uses the "failure-hook" job name for easy filtering.
+ * Log a structured sweeper event to CronJobLog.
+ * Uses job_name "failure-hook" for easy filtering in the dashboard.
  */
-async function logFailureEvent(
-  eventType: string,
-  target: string,
-  message: string,
-  outcome: string,
-): Promise<void> {
-  await logCronExecution("failure-hook", outcome === "recovered" ? "completed" : "failed", {
-    durationMs: 0,
-    itemsProcessed: 1,
-    itemsSucceeded: outcome === "recovered" ? 1 : 0,
-    itemsFailed: outcome === "recovered" ? 0 : 1,
-    resultSummary: {
-      eventType,
-      target,
-      message,
-      outcome,
-      timestamp: new Date().toISOString(),
-    },
-  }).catch(() => {});
+async function logSweeperEvent(entry: SweeperLogEntry): Promise<void> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    await prisma.cronJobLog.create({
+      data: {
+        job_name: "failure-hook",
+        job_type: "reactive",
+        status: entry.outcome === "recovered" ? "completed" : "failed",
+        started_at: new Date(entry.detectedAt),
+        completed_at: new Date(),
+        duration_ms: 0,
+        items_processed: 1,
+        items_succeeded: entry.outcome === "recovered" ? 1 : 0,
+        items_failed: entry.outcome === "recovered" ? 0 : 1,
+        result_summary: entry as unknown as Record<string, unknown>,
+      },
+    });
+  } catch {
+    // Best-effort — never break the caller
+  }
+}
+
+// ─── Query: Fetch Sweeper Logs for Dashboard ─────────────────────────────
+
+/**
+ * Fetch structured sweeper/failure-hook logs for the Ops Center dashboard.
+ * Returns the most recent recovery events with full detail.
+ */
+export async function getSweeperLogs(limit = 50): Promise<SweeperLogEntry[]> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const logs = await prisma.cronJobLog.findMany({
+      where: {
+        job_name: { in: ["failure-hook", "sweeper-agent"] },
+      },
+      orderBy: { started_at: "desc" },
+      take: limit,
+    });
+
+    const entries: SweeperLogEntry[] = [];
+    for (const log of logs) {
+      const summary = log.result_summary as Record<string, unknown> | null;
+      if (summary?.eventType) {
+        entries.push(summary as unknown as SweeperLogEntry);
+      } else {
+        // Legacy sweeper-agent logs — convert to our format
+        entries.push({
+          eventType: "auto_recovery",
+          source: "sweeper-agent",
+          target: (summary?.target as string) || "unknown",
+          failureDescription: (summary?.message as string) || "Scheduled sweeper run",
+          detectedAt: log.started_at?.toISOString() || new Date().toISOString(),
+          diagnosis: (summary?.message as string) || "Scheduled sweep",
+          errorCategory: "unknown",
+          fixApplied: summary?.outcome === "recovered"
+            ? `Recovered ${summary?.recovered || 0} draft(s)`
+            : null,
+          reactivatedAt: summary?.outcome === "recovered" ? log.completed_at?.toISOString() || null : null,
+          outcome: (summary?.outcome as SweeperLogEntry["outcome"]) || "logged",
+          context: summary || {},
+        });
+      }
+    }
+
+    return entries;
+  } catch {
+    return [];
+  }
 }

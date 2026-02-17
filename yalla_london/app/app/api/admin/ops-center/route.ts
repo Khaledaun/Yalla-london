@@ -13,17 +13,31 @@ import { withAdminAuth } from "@/lib/admin-middleware";
 
 // ─── GET — Intelligence Report ──────────────────────────────────────────
 
-export const GET = withAdminAuth(async () => {
+export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
+    // Check if requesting sweeper logs specifically
+    const url = new URL(request.url);
+    if (url.searchParams.get("view") === "sweeper-logs") {
+      const { getSweeperLogs } = await import("@/lib/ops/failure-hooks");
+      const limit = parseInt(url.searchParams.get("limit") || "50", 10);
+      const logs = await getSweeperLogs(limit);
+      return NextResponse.json({ success: true, data: { sweeperLogs: logs } });
+    }
+
     const { generateIntelligenceReport } = await import("@/lib/ops/intelligence-engine");
     const { CRON_JOBS, PIPELINES, AGENTS, DATA_FLOWS, getDailySchedule } = await import("@/lib/ops/system-registry");
+    const { getSweeperLogs } = await import("@/lib/ops/failure-hooks");
 
-    const report = await generateIntelligenceReport();
+    const [report, sweeperLogs] = await Promise.all([
+      generateIntelligenceReport(),
+      getSweeperLogs(30),
+    ]);
 
     return NextResponse.json({
       success: true,
       data: {
         ...report,
+        sweeperLogs,
         registry: {
           cronJobs: CRON_JOBS,
           pipelines: PIPELINES,

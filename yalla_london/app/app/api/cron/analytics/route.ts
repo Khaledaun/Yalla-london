@@ -23,7 +23,7 @@ export const maxDuration = 60;
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import {
   fetchGA4Metrics,
   isGA4Configured,

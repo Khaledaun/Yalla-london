@@ -90,7 +90,9 @@ export async function analyzeSearchPerformance(
       if (siteUrl) {
         searchConsole.setSiteUrl(siteUrl);
       }
-    } catch {}
+    } catch (error) {
+      console.warn(`[SEO Intelligence] Failed to load site SEO config from vault for site "${siteId}":`, error);
+    }
   }
   if (!siteUrl) {
     siteUrl = process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
@@ -300,7 +302,9 @@ export async function analyzeTrafficPatterns(
         const { getSiteSeoConfigFromVault } = await import("@/config/sites");
         const seoConfig = await getSiteSeoConfigFromVault(siteId);
         ga4PropertyId = seoConfig.ga4PropertyId;
-      } catch {}
+      } catch (error) {
+        console.warn(`[SEO Intelligence] Failed to load GA4 config from vault for site "${siteId}":`, error);
+      }
     }
     const ga4Data = await fetchGA4Metrics(startDate, "today", ga4PropertyId);
 
@@ -591,7 +595,9 @@ export async function submitUnindexedPages(
       siteUrl = getSiteDomain(siteId) || siteUrl;
       const seoConfig = await getSiteSeoConfigFromVault(siteId);
       indexNowKey = seoConfig.indexNowKey || indexNowKey;
-    } catch {}
+    } catch (error) {
+      console.warn(`[SEO Intelligence] Failed to load IndexNow/domain config from vault for site "${siteId}":`, error);
+    }
   }
   let indexNowCount = 0;
   let gscApiCount = 0;

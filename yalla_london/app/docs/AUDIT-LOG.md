@@ -13,6 +13,8 @@
 | 2 | 2026-02-18 | Schema validation, field names, hardcoded fallbacks | 9 issues | 9 | 0 |
 | 3 | 2026-02-18 | Deep comprehensive audit (6 dimensions) | 45+ issues | 15 | 30+ (documented) |
 | 4 | 2026-02-18 | API routes, pipeline, frontend, schema, security, config | 80+ issues | 11 | 70+ (documented) |
+| 5 | 2026-02-18 | Remaining HIGHs: dead buttons, siteId, URL fallbacks, login auth | 22 issues | 22 | 0 |
+| 6 | 2026-02-18 | Convergence: 38 wrong imports, 5 empty catches, circular dep | 44 issues | 44 | 0 |
 
 ---
 
@@ -432,6 +434,70 @@
 - **A4-D25:** Security headers in middleware hardcode Vercel deployment URLs
 - **A4-D26:** 18 TODO/FIXME comments indicating incomplete work (email confirmations, GA4 API, social posting, translations)
 - **A4-D27:** 26 Math.random() instances for non-deterministic data (SEO scores, engagement stats, confidence scores)
+
+---
+
+## Audit #5 — Remaining HIGHs Convergence
+
+**Date:** 2026-02-18
+**Trigger:** Post-Audit #4 — fix all remaining HIGH-severity issues
+**Scope:** Dead UI buttons, missing siteId, URL fallbacks, login security, info disclosure
+
+### Fixed
+
+#### A5-001: Dead Article Buttons
+- **File:** `app/admin/articles/page.tsx`
+- **Fix:** Create button now navigates to `/admin/editor`; Edit button navigates to `/admin/editor?slug=${slug}`
+
+#### A5-002: BlogPost Create Missing siteId
+- **File:** `app/api/admin/content/route.ts`
+- **Fix:** Added `siteId: z.string().optional()` to Zod schema; create uses `data.siteId || getDefaultSiteId()`
+
+#### A5-003: Login GET Diagnostic Without Auth
+- **File:** `app/api/admin/login/route.ts`
+- **Fix:** Added `requireAdmin(request)` guard; removed user count and error details from response
+
+#### A5-004: Login POST Info Disclosure
+- **File:** `app/api/admin/login/route.ts`
+- **Fix:** Changed error from `"Login failed at step: ${step}"` + `error.message` to generic `"Login failed. Please try again."`
+
+#### A5-005: Blog API Public Info Disclosure
+- **File:** `app/api/content/blog/[slug]/route.ts`
+- **Fix:** Removed `details: error.message` from public 500 error response
+
+#### A5-006–A5-022: Hardcoded URL Fallbacks (16 instances, 8 files)
+- **Files:** `og/route.ts`, `generate-og-image/route.ts`, `internal-links/route.ts` (4), `multilingual/route.ts` (3), `redirects/route.ts`, `enhanced-metadata.tsx` (4), `sitemap/enhanced-generate/route.ts` (5), `content/publish/route.ts` (2)
+- **Fix:** All replaced with dynamic `getSiteDomain(getDefaultSiteId())` from `config/sites.ts`
+
+### Known Gaps Updated
+- KG-024 (Login Security): Diagnostic GET now requires admin auth — **Partially resolved**
+
+---
+
+## Audit #6 — Import Standardization & Silent Failure Elimination
+
+**Date:** 2026-02-18
+**Trigger:** Audit #6 validation found 38 files using wrong import path and 5 empty catch blocks
+**Scope:** `@/lib/prisma` → `@/lib/db` migration, empty catch block elimination
+
+### Fixed
+
+#### A6-001–A6-037: Wrong Prisma Import Path (37 files)
+- **Issue:** 38 files imported from `@/lib/prisma` instead of canonical `@/lib/db`
+- **Fix:** Changed import path in 37 files to `@/lib/db`
+- **Exception:** `lib/db/tenant-queries.ts` intentionally kept on `@/lib/prisma` to avoid circular dependency (`lib/db.ts` re-exports from `tenant-queries.ts`)
+- **Files fixed:** `flags/route.ts`, `social/posts/route.ts`, `sitemap.ts`, `seo/route.ts`, `content/generate/route.ts`, `cron/social/route.ts`, `cron/analytics/route.ts`, `ai/provider.ts`, `affiliates/route.ts`, `autopilot/logs/route.ts`, `autopilot/tasks/route.ts`, `command-center/content/route.ts`, `pdf/download/route.ts`, `pdf/generate/route.ts`, `pdf/route.ts`, `api-keys/test/route.ts`, `sites/create/route.ts`, `sites/route.ts`, `social/accounts/route.ts`, `status/route.ts`, `domains/[id]/route.ts`, `domains/[id]/verify/route.ts`, `domains/route.ts`, `editor/route.ts`, `seo/content/route.ts`, `site/route.ts`, `sites/seed/route.ts`, `topics/route.ts`, `leads/route.ts`, `news/route.ts`, `search/route.ts`, `news/[slug]/page.tsx`, `news/page.tsx`, `affiliate/service.ts`, `resorts/service.ts`, `pdf/generator.ts`, `scheduler/autopilot.ts`
+
+#### A6-038–A6-042: Empty Catch Blocks (5 files)
+- **A6-038:** `lib/seo/seo-intelligence.ts` line 93 — Added `console.warn('[SEO Intelligence] Failed to load site SEO config from vault')`
+- **A6-039:** `lib/seo/seo-intelligence.ts` line 303 — Added `console.warn('[SEO Intelligence] Failed to load GA4 config from vault')`
+- **A6-040:** `lib/seo/seo-intelligence.ts` line 594 — Added `console.warn('[SEO Intelligence] Failed to load IndexNow/domain config from vault')`
+- **A6-041:** `app/events/page.tsx` line 216 — Added `console.warn('[Events] Failed to track affiliate click')`
+- **A6-042:** `app/api/generate-content/route.ts` line 76 — Added `console.warn('[Generate Content] Failed to load Arabic copywriting directives')`
+
+### Acceptable Empty Catches (Not Fixed)
+- `app/admin/health-monitoring/page.tsx` line 451 — `JSON.parse` try/catch (standard pattern)
+- `lib/log.ts` line 3 — Logging utility cannot log its own failure
 
 ---
 

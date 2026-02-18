@@ -4,6 +4,11 @@ export const revalidate = 0;
 
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getDefaultSiteId, getSiteDomain } from '@/config/sites';
+
+function getBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+}
 
 interface SitemapUrl {
   loc: string;
@@ -31,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   const searchParams = request.nextUrl.searchParams;
   const type = searchParams.get('type') || 'index';
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+  const baseUrl = getBaseUrl();
 
   try {
     switch (type) {
@@ -100,7 +105,7 @@ export async function POST(request: NextRequest) {
 }
 
 function generateSitemapIndex() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+  const baseUrl = getBaseUrl();
   const now = new Date().toISOString();
   
   const sitemaps = [
@@ -414,7 +419,7 @@ function generateXmlResponse(urls: SitemapUrl[], type: 'standard' | 'image' | 'v
 
 async function regenerateAllSitemaps() {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+    const baseUrl = getBaseUrl();
     
     // In production, you would:
     // 1. Fetch all content from database
@@ -456,7 +461,7 @@ async function submitToSearchConsole() {
       );
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+    const baseUrl = getBaseUrl();
     const sitemapUrl = `${baseUrl}/sitemap.xml`;
 
     // In production, implement actual Google Search Console API submission
@@ -491,7 +496,7 @@ async function submitToSearchConsole() {
 
 async function validateSitemaps() {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+    const baseUrl = getBaseUrl();
     const sitemapTypes = ['index', 'pages', 'blog', 'events', 'recommendations', 'images', 'videos'];
     
     const validationResults = [];

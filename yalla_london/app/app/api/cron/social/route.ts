@@ -13,7 +13,7 @@ export const maxDuration = 60;
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { logCronExecution } from '@/lib/cron-logger';
 
 async function handleSocialCron(request: NextRequest) {

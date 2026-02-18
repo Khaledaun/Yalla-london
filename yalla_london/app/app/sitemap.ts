@@ -8,7 +8,7 @@ import {
   informationCategories,
 } from "@/data/information-hub-content";
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 
 // Combine all static blog posts
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];

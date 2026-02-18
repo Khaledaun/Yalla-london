@@ -10,7 +10,7 @@
  *   - Real-time web & X search via Responses API (see grok-live-search.ts)
  */
 
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { decrypt } from '@/lib/encryption';
 
 export type AIProvider = 'grok' | 'claude' | 'openai' | 'gemini';

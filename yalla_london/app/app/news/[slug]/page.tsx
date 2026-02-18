@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { getRelatedArticles } from "@/lib/related-content";
 import NewsDetailClient from "./NewsDetailClient";
 

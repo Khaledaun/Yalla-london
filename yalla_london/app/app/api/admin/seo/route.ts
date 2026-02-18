@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { withAdminAuth } from "@/lib/admin-middleware";
 
 export const GET = withAdminAuth(async (request: NextRequest) => {

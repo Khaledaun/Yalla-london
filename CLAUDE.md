@@ -569,16 +569,31 @@ Targeted areas previous audits missed: (1) API Route Completeness, (2) Content P
 10. **Recent Indexing Activity** — New section showing last 20 cron runs related to indexing, with status dots, items processed, error messages, and timestamps.
 11. **API enhanced** — `/api/admin/content-indexing` now returns `healthDiagnosis` object and `recentActivity` array for richer frontend data.
 
-**Key Documented Issues (Not Yet Fixed — See AUDIT-LOG.md Audit #4):**
+### Session: February 18, 2026 — Audits #5 & #6: Import Standardization & HIGHs Convergence
 
-| Area | Issue | Severity | Audit Ref |
-|------|-------|----------|-----------|
-| URL Fallbacks | 50+ SEO routes hardcode `yalla-london.com` fallback | HIGH | A4-D01,D22 |
-| Emails | 30+ hardcoded email addresses in code | HIGH | A4-D03 |
-| XSS | dangerouslySetInnerHTML without sanitization in blog renderer | HIGH | A4-D17 |
-| Login Security | No rate limiting; diagnostic GET without auth | HIGH | A4-D18,D20 |
-| Pipeline | Dual pipelines, race conditions, slug collision possible | MEDIUM | A4-D05,D06,D07 |
-| Dead Buttons | Articles Create/Edit, media View/Download, upload buttons | MEDIUM | A4-D08,D11,D12 |
-| Orphan Models | 16 Prisma models never referenced in code | LOW | A4-D14 |
-| Brand Templates | Only Yalla London template exists | MEDIUM | A4-D23 |
-| CSP Headers | Missing Content-Security-Policy | MEDIUM | A4-D21 |
+**Audit #5 — Remaining HIGH Fixes (22 issues fixed):**
+
+1. **Dead article buttons wired** — Create/Edit buttons in articles page now navigate to `/admin/editor`
+2. **BlogPost.create missing siteId** — Added `siteId` to Zod schema, defaults to `getDefaultSiteId()` on create
+3. **Login GET diagnostic secured** — Added `requireAdmin()` guard, removed user count and error details
+4. **Login POST info disclosure fixed** — Generic error message replaces internal step/error.message
+5. **Blog API public info disclosure fixed** — Removed `details` from 500 response
+6. **16 hardcoded URL fallbacks replaced** — Across 8 files (og, sitemap, SEO routes, metadata, publish), all now use `getSiteDomain(getDefaultSiteId())`
+
+**Audit #6 — Import Standardization (44 issues fixed):**
+
+1. **37 files migrated from `@/lib/prisma` to `@/lib/db`** — Canonical import convention now enforced across entire codebase. Only `lib/db.ts`, `lib/db/index.ts` (re-export bridges), and `lib/db/tenant-queries.ts` (circular dep avoidance) retain direct `@/lib/prisma` import.
+2. **5 empty catch blocks eliminated** — Added contextual `console.warn()` logging in `seo-intelligence.ts` (3), `events/page.tsx` (1), `generate-content/route.ts` (1). Two acceptable empty catches left: `JSON.parse` pattern in health monitoring, logging utility self-failure.
+
+**Remaining Known Issues (See AUDIT-LOG.md):**
+
+| Area | Issue | Severity | Status |
+|------|-------|----------|--------|
+| Emails | 30+ hardcoded email addresses in code | HIGH | Open |
+| XSS | dangerouslySetInnerHTML without sanitization in blog renderer | HIGH | Open |
+| Login Security | No rate limiting on login endpoint | MEDIUM | Open |
+| Pipeline | Dual pipelines, race conditions, slug collision possible | MEDIUM | Open |
+| Dead Buttons | Media View/Download, upload buttons | MEDIUM | Open |
+| Orphan Models | 16+ Prisma models never referenced in code | LOW | Open |
+| Brand Templates | Only Yalla London template exists | MEDIUM | Open |
+| CSP Headers | Missing Content-Security-Policy | MEDIUM | Open |

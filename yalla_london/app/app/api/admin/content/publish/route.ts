@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      publishUrl = `${process.env.NEXTAUTH_URL || "https://yalla-london.com"}/blog/${content.slug}`;
+      publishUrl = `${process.env.NEXTAUTH_URL || (await import("@/config/sites")).getSiteDomain((await import("@/config/sites")).getDefaultSiteId())}/blog/${content.slug}`;
 
       // PRE-PUBLISH QUALITY GATES
       const qualityIssues: string[] = [];
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      publishUrl = `${process.env.NEXTAUTH_URL || "https://yalla-london.com"}/content/${content.id}`;
+      publishUrl = `${process.env.NEXTAUTH_URL || (await import("@/config/sites")).getSiteDomain((await import("@/config/sites")).getDefaultSiteId())}/content/${content.id}`;
 
       // Update scheduled content status
       const updateData: any = {

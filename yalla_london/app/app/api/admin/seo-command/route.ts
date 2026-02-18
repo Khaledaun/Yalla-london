@@ -1,220 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/admin-middleware'
+import { prisma } from '@/lib/db'
+import { getDefaultSiteId } from '@/config/sites'
 
-// GET - Fetch SEO data and issues
+// GET - Fetch SEO data and issues from real database
 export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'overview'
-    
+    const siteId = request.headers.get('x-site-id') || getDefaultSiteId()
+
     switch (type) {
       case 'overview':
-        return NextResponse.json({
-          healthScore: 87,
-          totalPages: 45,
-          indexedPages: 38,
-          issuesFound: 12,
-          lastCrawl: new Date().toISOString(),
-          avgLoadTime: 2.3,
-          mobileFriendly: 95,
-          recentActivity: [
-            {
-              id: '1',
-              action: 'Fixed 3 missing meta descriptions',
-              timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-              type: 'fix'
-            },
-            {
-              id: '2',
-              action: 'Found 2 new thin content pages',
-              timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-              type: 'issue'
-            },
-            {
-              id: '3',
-              action: 'Optimized 5 image alt texts',
-              timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-              type: 'fix'
-            }
-          ]
-        })
-        
+        return await getOverview(siteId)
       case 'issues':
-        return NextResponse.json({
-          issues: [
-            {
-              id: '1',
-              type: 'missing_meta',
-              severity: 'high',
-              title: 'Missing Meta Description',
-              description: 'Page lacks a meta description which is crucial for search engine snippets',
-              pageUrl: '/blog/london-attractions',
-              suggestions: [
-                'Add a compelling meta description between 150-160 characters',
-                'Include primary keyword naturally'
-              ],
-              quickFix: { action: 'Generate meta description', automated: true },
-              status: 'pending',
-              detectedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-            },
-            {
-              id: '2',
-              type: 'thin_content',
-              severity: 'medium',
-              title: 'Thin Content Detected',
-              description: 'Page content is below recommended word count for comprehensive coverage',
-              pageUrl: '/events/summer-festival',
-              suggestions: [
-                'Expand content to at least 800 words',
-                'Add more detailed information about the event'
-              ],
-              status: 'pending',
-              detectedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
-            },
-            {
-              id: '3',
-              type: 'image_alt',
-              severity: 'low',
-              title: 'Missing Alt Text',
-              description: 'Images without alt text affect accessibility and SEO',
-              pageUrl: '/recommendations/restaurants',
-              suggestions: [
-                'Add descriptive alt text to all images',
-                'Include relevant keywords in alt text'
-              ],
-              quickFix: { action: 'Generate alt text', automated: true },
-              status: 'pending',
-              detectedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
-            },
-            {
-              id: '4',
-              type: 'weak_structure',
-              severity: 'medium',
-              title: 'Weak Heading Structure',
-              description: 'Page lacks proper H1-H6 hierarchy for better content organization',
-              pageUrl: '/guide/london-transport',
-              suggestions: [
-                'Add a clear H1 tag with primary keyword',
-                'Use H2 tags for main sections',
-                'Maintain logical heading hierarchy'
-              ],
-              status: 'pending',
-              detectedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString()
-            },
-            {
-              id: '5',
-              type: 'internal_links',
-              severity: 'low',
-              title: 'Missing Internal Links',
-              description: 'Page has few internal links, missing opportunities for SEO and user navigation',
-              pageUrl: '/attractions/tower-bridge',
-              suggestions: [
-                'Add links to related attractions',
-                'Link to relevant blog posts',
-                'Include contextual internal links'
-              ],
-              status: 'pending',
-              detectedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
-            }
-          ]
-        })
-        
+        return await getIssues(siteId)
       case 'crawler':
-        return NextResponse.json({
-          config: {
-            frequency: 'daily',
-            includePatterns: ['/blog/*', '/events/*', '/recommendations/*', '/guide/*'],
-            excludePatterns: ['/admin/*', '/api/*', '/_next/*'],
-            maxPages: 100,
-            timeout: 30
-          },
-          history: [
-            {
-              id: '1',
-              timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-              pagesCrawled: 45,
-              issuesFound: 12,
-              status: 'completed',
-              duration: 180
-            },
-            {
-              id: '2',
-              timestamp: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
-              pagesCrawled: 45,
-              issuesFound: 8,
-              status: 'completed',
-              duration: 165
-            },
-            {
-              id: '3',
-              timestamp: new Date(Date.now() - 50 * 60 * 60 * 1000).toISOString(),
-              pagesCrawled: 42,
-              issuesFound: 15,
-              status: 'completed',
-              duration: 195
-            }
-          ]
-        })
-        
+        return await getCrawlerHistory()
       case 'quick-fixes':
-        return NextResponse.json({
-          availableFixes: [
-            {
-              id: 'meta-descriptions',
-              title: 'Generate Meta Descriptions',
-              description: 'Auto-generate meta descriptions for pages missing them',
-              count: 5,
-              automated: true,
-              estimatedTime: '2 minutes'
-            },
-            {
-              id: 'alt-text',
-              title: 'Add Alt Text to Images',
-              description: 'Generate descriptive alt text for images',
-              count: 12,
-              automated: true,
-              estimatedTime: '5 minutes'
-            },
-            {
-              id: 'internal-links',
-              title: 'Optimize Internal Links',
-              description: 'Suggest internal linking opportunities',
-              count: 3,
-              automated: false,
-              estimatedTime: '15 minutes'
-            },
-            {
-              id: 'broken-links',
-              title: 'Fix Broken Links',
-              description: 'Identify and fix broken internal/external links',
-              count: 2,
-              automated: true,
-              estimatedTime: '1 minute'
-            },
-            {
-              id: 'compress-images',
-              title: 'Compress Images',
-              description: 'Optimize image file sizes for faster loading',
-              count: 8,
-              automated: true,
-              estimatedTime: '10 minutes'
-            },
-            {
-              id: 'schema-markup',
-              title: 'Add Schema Markup',
-              description: 'Add structured data markup to pages',
-              count: 7,
-              automated: true,
-              estimatedTime: '3 minutes'
-            }
-          ]
-        })
-        
+        return await getQuickFixes(siteId)
       default:
         return NextResponse.json({ error: 'Invalid type parameter' }, { status: 400 })
     }
   } catch (error) {
-    console.error('SEO Command Center API error:', error)
+    console.error('[seo-command] API error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch SEO data' },
       { status: 500 }
@@ -222,47 +31,336 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   }
 })
 
-// POST - Apply quick fixes or run crawler
+async function getOverview(siteId: string) {
+  const siteFilter = { siteId, deletedAt: null }
+
+  // Real article counts
+  const totalPublished = await prisma.blogPost.count({
+    where: { published: true, ...siteFilter },
+  })
+
+  // Average SEO score
+  const avgResult = await prisma.blogPost.aggregate({
+    _avg: { seo_score: true },
+    where: { published: true, seo_score: { not: null }, ...siteFilter },
+  })
+  const healthScore = Math.round(avgResult._avg.seo_score || 0)
+
+  // Indexed pages count
+  let indexedPages = 0
+  try {
+    indexedPages = await prisma.uRLIndexingStatus.count({
+      where: { status: 'indexed' },
+    })
+  } catch { /* table may not exist */ }
+
+  // Issues: articles with low SEO scores
+  const issuesCount = await prisma.blogPost.count({
+    where: { seo_score: { lt: 70 }, published: true, ...siteFilter },
+  })
+
+  // Recent cron activity related to SEO
+  let recentActivity: Array<{ id: string; action: string; timestamp: string; type: string }> = []
+  try {
+    const recentLogs = await prisma.cronJobLog.findMany({
+      where: {
+        job_name: { in: ['seo-agent', 'seo-cron', 'seo-health-report', 'content-selector', 'scheduled-publish'] },
+      },
+      orderBy: { started_at: 'desc' },
+      take: 5,
+      select: { id: true, job_name: true, status: true, started_at: true, items_processed: true },
+    })
+    recentActivity = recentLogs.map(log => ({
+      id: log.id,
+      action: `${log.job_name}: ${log.status}${log.items_processed ? ` (${log.items_processed} items)` : ''}`,
+      timestamp: log.started_at.toISOString(),
+      type: log.status === 'completed' ? 'fix' : 'issue',
+    }))
+  } catch { /* CronJobLog table may not exist */ }
+
+  // Load time not available without real monitoring — return null instead of fake
+  return NextResponse.json({
+    healthScore,
+    totalPages: totalPublished,
+    indexedPages,
+    issuesFound: issuesCount,
+    lastCrawl: recentActivity.length > 0 ? recentActivity[0].timestamp : null,
+    avgLoadTime: null, // Requires real monitoring (PageSpeed API or RUM)
+    mobileFriendly: null, // Requires Lighthouse or PageSpeed API
+    recentActivity,
+  })
+}
+
+async function getIssues(siteId: string) {
+  // Find real articles with SEO issues
+  const articlesWithIssues = await prisma.blogPost.findMany({
+    where: {
+      published: true,
+      siteId,
+      deletedAt: null,
+      OR: [
+        { meta_title_en: null },
+        { meta_description_en: null },
+        { featured_image: null },
+        { seo_score: { lt: 60 } },
+      ],
+    },
+    select: {
+      id: true,
+      title_en: true,
+      slug: true,
+      meta_title_en: true,
+      meta_description_en: true,
+      featured_image: true,
+      content_en: true,
+      seo_score: true,
+    },
+    take: 20,
+    orderBy: { seo_score: 'asc' },
+  })
+
+  const issues = articlesWithIssues.flatMap((article, idx) => {
+    const articleIssues: Array<{
+      id: string
+      type: string
+      severity: string
+      title: string
+      description: string
+      pageUrl: string
+      suggestions: string[]
+      quickFix?: { action: string; automated: boolean }
+      status: string
+      detectedAt: string
+    }> = []
+
+    if (!article.meta_title_en) {
+      articleIssues.push({
+        id: `${article.id}-meta-title`,
+        type: 'missing_meta',
+        severity: 'high',
+        title: 'Missing Meta Title',
+        description: `"${article.title_en}" has no meta title set`,
+        pageUrl: `/blog/${article.slug}`,
+        suggestions: ['Add a meta title between 30-60 characters', 'Include primary keyword naturally'],
+        quickFix: { action: 'Generate meta title from article title', automated: true },
+        status: 'pending',
+        detectedAt: new Date().toISOString(),
+      })
+    }
+
+    if (!article.meta_description_en) {
+      articleIssues.push({
+        id: `${article.id}-meta-desc`,
+        type: 'missing_meta',
+        severity: 'high',
+        title: 'Missing Meta Description',
+        description: `"${article.title_en}" has no meta description`,
+        pageUrl: `/blog/${article.slug}`,
+        suggestions: ['Add a meta description between 120-160 characters', 'Include a call to action'],
+        quickFix: { action: 'Generate meta description from excerpt', automated: true },
+        status: 'pending',
+        detectedAt: new Date().toISOString(),
+      })
+    }
+
+    if (!article.featured_image) {
+      articleIssues.push({
+        id: `${article.id}-image`,
+        type: 'image_alt',
+        severity: 'medium',
+        title: 'Missing Featured Image',
+        description: `"${article.title_en}" has no featured image`,
+        pageUrl: `/blog/${article.slug}`,
+        suggestions: ['Add a high-quality featured image', 'Include descriptive alt text'],
+        status: 'pending',
+        detectedAt: new Date().toISOString(),
+      })
+    }
+
+    const wordCount = (article.content_en || '').split(/\s+/).filter(Boolean).length
+    if (wordCount < 800) {
+      articleIssues.push({
+        id: `${article.id}-thin`,
+        type: 'thin_content',
+        severity: wordCount < 300 ? 'high' : 'medium',
+        title: 'Thin Content',
+        description: `"${article.title_en}" has only ${wordCount} words (minimum: 800)`,
+        pageUrl: `/blog/${article.slug}`,
+        suggestions: ['Expand content to at least 800 words', 'Add more detailed sections and subheadings'],
+        status: 'pending',
+        detectedAt: new Date().toISOString(),
+      })
+    }
+
+    return articleIssues
+  })
+
+  return NextResponse.json({ issues })
+}
+
+async function getCrawlerHistory() {
+  // Real cron job history for SEO-related jobs
+  let history: Array<{
+    id: string
+    timestamp: string
+    pagesCrawled: number
+    issuesFound: number
+    status: string
+    duration: number
+  }> = []
+
+  try {
+    const logs = await prisma.cronJobLog.findMany({
+      where: {
+        job_name: { in: ['seo-agent', 'seo-cron', 'seo-health-report'] },
+      },
+      orderBy: { started_at: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        job_name: true,
+        status: true,
+        started_at: true,
+        duration_ms: true,
+        items_processed: true,
+        error_message: true,
+      },
+    })
+
+    history = logs.map(log => ({
+      id: log.id,
+      timestamp: log.started_at.toISOString(),
+      pagesCrawled: log.items_processed || 0,
+      issuesFound: log.error_message ? 1 : 0,
+      status: log.status === 'completed' ? 'completed' : 'failed',
+      duration: Math.round((log.duration_ms || 0) / 1000),
+    }))
+  } catch { /* CronJobLog may not exist */ }
+
+  return NextResponse.json({
+    config: {
+      frequency: 'daily',
+      includePatterns: ['/blog/*', '/events/*', '/recommendations/*', '/news/*'],
+      excludePatterns: ['/admin/*', '/api/*', '/_next/*'],
+      maxPages: 100,
+      timeout: 60,
+    },
+    history,
+  })
+}
+
+async function getQuickFixes(siteId: string) {
+  const siteFilter = { siteId, deletedAt: null, published: true }
+
+  // Count real issues
+  const missingMetaTitle = await prisma.blogPost.count({
+    where: { meta_title_en: null, ...siteFilter },
+  })
+
+  const missingMetaDesc = await prisma.blogPost.count({
+    where: { meta_description_en: null, ...siteFilter },
+  })
+
+  const missingImage = await prisma.blogPost.count({
+    where: { featured_image: null, ...siteFilter },
+  })
+
+  const lowScore = await prisma.blogPost.count({
+    where: { seo_score: { lt: 50 }, ...siteFilter },
+  })
+
+  const availableFixes = [
+    ...(missingMetaTitle > 0 ? [{
+      id: 'meta-titles',
+      title: 'Generate Missing Meta Titles',
+      description: 'Auto-copy article titles as meta titles',
+      count: missingMetaTitle,
+      automated: true,
+      estimatedTime: `${Math.ceil(missingMetaTitle * 0.5)} minutes`,
+    }] : []),
+    ...(missingMetaDesc > 0 ? [{
+      id: 'meta-descriptions',
+      title: 'Generate Missing Meta Descriptions',
+      description: 'Auto-generate meta descriptions from excerpts',
+      count: missingMetaDesc,
+      automated: true,
+      estimatedTime: `${Math.ceil(missingMetaDesc * 0.5)} minutes`,
+    }] : []),
+    ...(missingImage > 0 ? [{
+      id: 'featured-images',
+      title: 'Add Featured Images',
+      description: 'Articles without featured images need manual upload',
+      count: missingImage,
+      automated: false,
+      estimatedTime: `${Math.ceil(missingImage * 3)} minutes`,
+    }] : []),
+    ...(lowScore > 0 ? [{
+      id: 'low-score',
+      title: 'Improve Low SEO Score Articles',
+      description: 'Articles scoring below 50 need content improvement',
+      count: lowScore,
+      automated: false,
+      estimatedTime: `${Math.ceil(lowScore * 15)} minutes`,
+    }] : []),
+  ]
+
+  return NextResponse.json({ availableFixes })
+}
+
+// POST - Apply quick fixes or trigger audit
 export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json()
     const { action, data } = body
-    
+    const siteId = request.headers.get('x-site-id') || getDefaultSiteId()
+
     switch (action) {
-      case 'run-crawler':
-        // Simulate crawler execution
+      case 'apply-quick-fix': {
+        const { fixId } = data
+        let fixed = 0
+
+        if (fixId === 'meta-titles') {
+          const articles = await prisma.blogPost.findMany({
+            where: { meta_title_en: null, published: true, siteId, deletedAt: null },
+            select: { id: true, title_en: true },
+          })
+          for (const article of articles) {
+            if (article.title_en) {
+              await prisma.blogPost.update({
+                where: { id: article.id },
+                data: { meta_title_en: article.title_en.substring(0, 60) },
+              })
+              fixed++
+            }
+          }
+        } else if (fixId === 'meta-descriptions') {
+          const articles = await prisma.blogPost.findMany({
+            where: { meta_description_en: null, published: true, siteId, deletedAt: null },
+            select: { id: true, excerpt_en: true, title_en: true },
+          })
+          for (const article of articles) {
+            const desc = article.excerpt_en || article.title_en || ''
+            await prisma.blogPost.update({
+              where: { id: article.id },
+              data: { meta_description_en: desc.substring(0, 160) },
+            })
+            fixed++
+          }
+        }
+
         return NextResponse.json({
           success: true,
-          message: 'Crawler started successfully',
-          jobId: `crawl_${Date.now()}`
+          message: `Applied ${fixId}: ${fixed} items fixed`,
+          fixedCount: fixed,
+          timestamp: new Date().toISOString(),
         })
-        
-      case 'apply-quick-fix':
-        const { fixId, issueIds } = data
-        
-        // Simulate quick fix application
-        return NextResponse.json({
-          success: true,
-          message: `Applied ${fixId} to ${issueIds.length} items`,
-          fixedItems: issueIds,
-          timestamp: new Date().toISOString()
-        })
-        
-      case 'update-crawler-config':
-        const { config } = data
-        
-        // Simulate config update
-        return NextResponse.json({
-          success: true,
-          message: 'Crawler configuration updated',
-          config
-        })
-        
+      }
+
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
   } catch (error) {
-    console.error('SEO Command Center POST error:', error)
+    console.error('[seo-command] POST error:', error)
     return NextResponse.json(
       { error: 'Failed to process request' },
       { status: 500 }

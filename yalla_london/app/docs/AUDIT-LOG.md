@@ -24,6 +24,7 @@
 | 13 | 2026-02-18 | Credential exposure, crash fixes, XSS, fake metrics, smoke test suite | 15 issues | 15 | 0 |
 | 14 | 2026-02-18 | London News feature + SEO audit scalability | 19 issues | 19 | 0 |
 | 15 | 2026-02-18 | System-wide validation: maxDuration, blog siteId, sitemap scoping | 5 issues | 5 | 0 |
+| 16 | 2026-02-18 | SEO dashboard real data: audit page rewrite, command route, full-site audit API | 5 issues | 5 | 0 |
 
 ---
 
@@ -1170,6 +1171,37 @@ Added 5 new tests in "System Validation" category:
 - sitemap news items scoped by siteId
 
 Total test suite: 83 tests across 15 categories.
+
+---
+
+## Audit #16 — SEO Dashboard Real Data & Full Audit Wiring
+
+**Date:** 2026-02-18
+**Scope:** SEO audits page, SEO command center, full-site audit API
+**Smoke Test:** 90/90 PASS (100%)
+
+### Findings & Fixes
+
+| ID | Severity | Area | Finding | Fix |
+|----|----------|------|---------|-----|
+| A16-001 | CRITICAL | SEO Audits Page | `runFullSiteAudit()` and `runSingleAudit()` were fake `setTimeout` animations — never called any API. All data was from `mockAudits` array. | Complete page rewrite: buttons call real `POST /api/admin/seo { action: "run_full_audit" }` and `{ action: "run_audit" }`. Auto-fix buttons call `{ action: "apply_quick_fix" }`. Data loaded from `GET /api/admin/seo?type=articles`. |
+| A16-002 | CRITICAL | SEO Command Route | `seo-command/route.ts` returned 100% hardcoded mock data: fake health score 87, fake issue list, fake crawler history, fake quick-fix counts | Complete rewrite: all endpoints query real DB (BlogPost, CronJobLog, URLIndexingStatus). Returns `null` honestly for unavailable data (load time, mobile score). |
+| A16-003 | HIGH | SEO API | No "full site audit" capability — could only audit one article at a time | Added `run_full_audit` POST action: fetches all published articles, runs `performSEOAudit()` on each with 53s budget guard, saves results to DB |
+| A16-004 | HIGH | SEO API | No page-by-page view with indexing status | Added `GET ?type=articles` endpoint: returns all published articles with SEO scores, latest audit breakdown, suggestions, quick fixes, indexing status, word count |
+| A16-005 | MEDIUM | SEO API | `getSEOOverview()` not scoped by siteId | Added siteId parameter from x-site-id header, scoped all BlogPost queries per-site |
+
+### Smoke Test Additions
+
+Added 7 new tests in "SEO Dashboard" category:
+- No mock data in seo-audits page
+- Full audit wired to real API
+- No hardcoded healthScore in seo-command
+- seo-command queries real DB
+- run_full_audit action exists
+- getArticlesWithSEOData endpoint exists
+- No Math.random() in seo-command
+
+Total test suite: 90 tests across 16 categories.
 
 ---
 

@@ -618,6 +618,54 @@ test("System Validation", "sitemap news items scoped by siteId", () => {
     : { status: FAIL, details: "News sitemap leaks cross-site items" };
 });
 
+// ==================== CATEGORY 16: SEO Dashboard Real Data (Audit #16) ====================
+
+test("SEO Dashboard", "seo-audits page has no mockAudits array", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/admin/seo-audits/page.tsx"), "utf-8");
+  return content.includes("mockAudit")
+    ? { status: FAIL, details: "Mock audit data still present" }
+    : { status: PASS, details: "No mock data — uses real API" };
+});
+
+test("SEO Dashboard", "seo-audits page calls real API for full audit", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/admin/seo-audits/page.tsx"), "utf-8");
+  return content.includes("run_full_audit") && content.includes("/api/admin/seo")
+    ? { status: PASS, details: "Full audit wired to real API" }
+    : { status: FAIL, details: "Full audit button not wired to API" };
+});
+
+test("SEO Dashboard", "seo-command route has no hardcoded healthScore", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/seo-command/route.ts"), "utf-8");
+  return content.includes("healthScore: 87")
+    ? { status: FAIL, details: "Hardcoded fake health score 87 still present" }
+    : { status: PASS, details: "Health score from real DB query" };
+});
+
+test("SEO Dashboard", "seo-command route queries real DB", () => {
+  return fileContains("app/api/admin/seo-command/route.ts", "prisma.blogPost")
+    ? { status: PASS, details: "Uses real Prisma queries" }
+    : { status: FAIL, details: "No Prisma queries — likely still mock data" };
+});
+
+test("SEO Dashboard", "seo API has run_full_audit action", () => {
+  return fileContains("app/api/admin/seo/route.ts", "run_full_audit")
+    ? { status: PASS, details: "Full audit endpoint exists" }
+    : { status: FAIL, details: "Missing run_full_audit action" };
+});
+
+test("SEO Dashboard", "seo API has articles type for page-by-page view", () => {
+  return fileContains("app/api/admin/seo/route.ts", "getArticlesWithSEOData")
+    ? { status: PASS, details: "Articles endpoint exists" }
+    : { status: FAIL, details: "Missing getArticlesWithSEOData" };
+});
+
+test("SEO Dashboard", "seo-command no Math.random() fake data", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/admin/seo-command/route.ts"), "utf-8");
+  return content.includes("Math.random")
+    ? { status: FAIL, details: "Math.random() fake data present" }
+    : { status: PASS, details: "No fake random data" };
+});
+
 // ==================== PRINT RESULTS ====================
 
 console.log("\n" + "=".repeat(80));

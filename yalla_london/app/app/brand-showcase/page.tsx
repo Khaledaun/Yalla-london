@@ -13,5 +13,6 @@ export default function BrandShowcasePage() {
 
 export const metadata = {
   title: 'Brand Platform Showcase',
-  description: 'Demonstration of the multi-brand platform system'
+  description: 'Demonstration of the multi-brand platform system',
+  robots: { index: false, follow: false },
 };

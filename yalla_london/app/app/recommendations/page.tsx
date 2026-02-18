@@ -1,52 +1,43 @@
 'use client'
 
-
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
+import { Star, MapPin, Phone, Globe, Search } from 'lucide-react'
 import { useLanguage } from '@/components/language-provider'
-import { getTranslation } from '@/lib/i18n'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Search, MapPin, Star, Phone, Globe, ExternalLink, Filter } from 'lucide-react'
-import { motion } from 'framer-motion'
 
-const sampleRecommendations = [
+const recommendations = [
   {
     id: '1',
-    name_en: 'The Savoy Hotel',
-    name_ar: 'فندق السافوي',
+    name_en: 'The Dorchester',
+    name_ar: 'دورتشستر',
     type: 'hotel',
-    category: 'luxury',
-    description_en: 'An iconic luxury hotel on the Strand, offering legendary service and elegant accommodations with Thames views.',
-    description_ar: 'فندق فاخر أيقوني على الستراند، يقدم خدمة أسطورية وإقامة أنيقة مع إطلالات على نهر التايمز.',
-    address_en: 'Strand, Covent Garden, London WC2R 0EU',
-    address_ar: 'ستراند، كوفنت غاردن، لندن WC2R 0EU',
+    description_en: 'Overlooking Hyde Park since 1931, The Dorchester is London\'s crown jewel. Home to Alain Ducasse\'s three-Michelin-starred restaurant, a world-class spa, and the legendary Promenade afternoon tea.',
+    description_ar: 'يطل على هايد بارك منذ 1931، دورتشستر هو جوهرة تاج لندن. يضم مطعم آلان دوكاس الحائز على ثلاث نجوم ميشلان وسبا عالمي وشاي بعد الظهر الأسطوري.',
+    address_en: 'Park Lane, Mayfair, London W1K 1QA',
+    address_ar: 'بارك لين، مايفير، لندن W1K 1QA',
     rating: 4.9,
-    price_range: '£800-2000',
-    images: ['https://media.houseandgarden.co.uk/photos/62136a961d28f04fde7897ff/16:9/w_6992,h_3933,c_limit/PRINT%20-%20The%20London%20EDITION%20-%20Lobby%203%20-%20Please%20credit%20Nikolas%20Koenig.jpg'],
-    features_en: ['River Thames Views', 'Michelin-starred Dining', 'American Bar', '24/7 Butler Service', 'Spa & Fitness'],
-    features_ar: ['إطلالات نهر التايمز', 'مطعم حاصل على نجمة ميشلان', 'البار الأمريكي', 'خدمة الخادم الشخصي ٢٤/٧', 'سبا وصالة رياضية'],
-    phone: '+44 20 7836 4343',
-    website: 'https://www.thesavoylondon.com'
+    price_range: '£650-3,500',
+    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80',
+    features_en: ['Michelin-Starred Dining', 'Hyde Park Views', 'World-Class Spa', 'Butler Service'],
+    features_ar: ['مطعم بنجمة ميشلان', 'إطلالة هايد بارك', 'سبا عالمي', 'خدمة الخادم الشخصي'],
+    phone: '+44 20 7629 8888',
+    website: 'https://www.dorchestercollection.com/london/the-dorchester'
   },
   {
     id: '2',
-    name_en: 'Sketch Restaurant',
-    name_ar: 'مطعم سكيتش',
+    name_en: 'Sketch — The Lecture Room & Library',
+    name_ar: 'سكيتش — قاعة المحاضرات والمكتبة',
     type: 'restaurant',
-    category: 'luxury',
-    description_en: 'A surreal dining experience in Mayfair with innovative cuisine and artistic pink pod restrooms.',
-    description_ar: 'تجربة طعام سريالية في مايفير مع مأكولات مبتكرة وحمامات فنية وردية.',
-    address_en: '9 Conduit St, Mayfair, London W1S 2XG',
-    address_ar: '٩ شارع كوندويت، مايفير، لندن W1S 2XG',
+    description_en: 'A Michelin-starred culinary journey inside a surreal Mayfair townhouse. The Lecture Room serves dazzling French cuisine, while the Gallery (with its famous pink pods) offers an Instagram-famous afternoon tea.',
+    description_ar: 'رحلة طهوية حائزة على نجمة ميشلان داخل منزل مايفير السريالي. تقدم قاعة المحاضرات المأكولات الفرنسية المبهرة بينما يقدم المعرض شاي بعد الظهر الشهير.',
+    address_en: '9 Conduit Street, Mayfair, London W1S 2XG',
+    address_ar: '9 شارع كوندويت، مايفير، لندن W1S 2XG',
     rating: 4.7,
-    price_range: '£150-300',
-    images: ["https://s3.amazonaws.com/a.storyblok.com/f/116532/1600x900/99055d6381/park-chinois-london-restaurant.webp"],
-    features_en: ['Michelin Star', 'Unique Art Installation', 'Afternoon Tea', 'Private Dining Rooms', 'Cocktail Bar'],
-    features_ar: ['نجمة ميشلان', 'معرض فني فريد', 'شاي بعد الظهر', 'غرف طعام خاصة', 'بار كوكتيل'],
+    price_range: '£120-300',
+    image: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=80',
+    features_en: ['Michelin Star', 'Art Installation', 'Afternoon Tea', 'Cocktail Bar'],
+    features_ar: ['نجمة ميشلان', 'معرض فني', 'شاي بعد الظهر', 'بار كوكتيل'],
     phone: '+44 20 7659 4500',
     website: 'https://sketch.london'
   },
@@ -55,289 +46,320 @@ const sampleRecommendations = [
     name_en: 'Harrods',
     name_ar: 'هارودز',
     type: 'attraction',
-    category: 'luxury',
-    description_en: 'The world\'s most famous luxury department store in Knightsbridge, offering exclusive shopping and dining.',
-    description_ar: 'أشهر متجر متعدد الأقسام الفاخر في العالم في نايتسبريدج، يقدم التسوق والطعام الحصري.',
-    address_en: '87-135 Brompton Rd, Knightsbridge, London SW1X 7XL',
-    address_ar: '٨٧-١٣٥ طريق برومبتون، نايتسبريدج، لندن SW1X 7XL',
+    description_en: 'The world\'s most famous luxury department store in Knightsbridge. Spanning 1 million sq ft across 330 departments, Harrods offers everything from couture fashion to its legendary Food Halls.',
+    description_ar: 'أشهر متجر فاخر في العالم في نايتسبريدج. يمتد على مليون قدم مربع عبر 330 قسمًا، يقدم هارودز كل شيء من الأزياء الراقية إلى قاعات الطعام الأسطورية.',
+    address_en: '87-135 Brompton Road, Knightsbridge, London SW1X 7XL',
+    address_ar: '87-135 طريق برومبتون، نايتسبريدج، لندن SW1X 7XL',
     rating: 4.6,
-    price_range: '£50-5000',
-    images: ['https://images.squarespace-cdn.com/content/v1/5411b34ee4b0aa818cc870ab/1466172908075-A6FV4TX6XWUGBVAK7O8R/image-asset.jpeg'],
-    features_en: ['Personal Shopping Service', 'Food Halls', 'Luxury Brands', 'Beauty Concierge', 'Gift Wrapping'],
-    features_ar: ['خدمة التسوق الشخصي', 'قاعات الطعام', 'العلامات التجارية الفاخرة', 'كونسيرج الجمال', 'تغليف الهدايا'],
+    price_range: '£50-50,000+',
+    image: 'https://images.unsplash.com/photo-1513467535987-fd81bc7d62f8?w=600&q=80',
+    features_en: ['Personal Shopping', 'Food Halls', 'Luxury Brands', 'Beauty Concierge'],
+    features_ar: ['تسوق شخصي', 'قاعات الطعام', 'علامات فاخرة', 'كونسيرج الجمال'],
     phone: '+44 20 7730 1234',
     website: 'https://www.harrods.com'
   },
   {
     id: '4',
-    name_en: 'Claridge\'s Hotel',
-    name_ar: 'فندق كلاريدجز',
+    name_en: "Claridge's",
+    name_ar: 'كلاريدجز',
     type: 'hotel',
-    category: 'luxury',
-    description_en: 'Art Deco elegance meets modern luxury in this Mayfair institution, favored by royalty and celebrities.',
-    description_ar: 'أناقة آرت ديكو تلتقي بالفخامة الحديثة في هذه المؤسسة في مايفير، المفضلة لدى الملوك والمشاهير.',
-    address_en: 'Brook St, Mayfair, London W1K 4HR',
+    description_en: 'Art Deco elegance meets modern luxury in this Mayfair institution. Favoured by royalty since the 1850s, Claridge\'s features Gordon Ramsay\'s restaurant, the iconic foyer, and immaculate butler service.',
+    description_ar: 'أناقة آرت ديكو تلتقي بالفخامة الحديثة في هذه المؤسسة العريقة في مايفير. مفضلة لدى الملوك منذ 1850، تضم مطعم غوردون رامزي والبهو الأيقوني.',
+    address_en: 'Brook Street, Mayfair, London W1K 4HR',
     address_ar: 'شارع بروك، مايفير، لندن W1K 4HR',
-    rating: 4.8,
-    price_range: '£900-3000',
-    images: ['https://cms.inspirato.com/ImageGen.ashx?image=%2Fmedia%2F9420869%2Flondon_shangri-la-hotel-at-the-shard-london-iconic-city-view-king.jpg&width=1081.5'],
-    features_en: ['Art Deco Design', 'Michelin-starred Restaurant', 'Afternoon Tea', 'Spa by ESPA', 'Private Dining'],
-    features_ar: ['تصميم آرت ديكو', 'مطعم حاصل على نجمة ميشلان', 'شاي بعد الظهر', 'سبا من ESPA', 'طعام خاص'],
+    rating: 4.9,
+    price_range: '£580-4,000',
+    image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=600&q=80',
+    features_en: ['Art Deco Design', 'Gordon Ramsay', 'Afternoon Tea', 'Butler Service'],
+    features_ar: ['تصميم آرت ديكو', 'غوردون رامزي', 'شاي بعد الظهر', 'خادم شخصي'],
     phone: '+44 20 7629 8860',
     website: 'https://www.claridges.co.uk'
-  }
+  },
+  {
+    id: '5',
+    name_en: 'Dinner by Heston Blumenthal',
+    name_ar: 'دينر باي هيستون بلومنثال',
+    type: 'restaurant',
+    description_en: 'Two-Michelin-starred restaurant at the Mandarin Oriental, Hyde Park. Chef Heston Blumenthal reimagines historic British recipes with modern techniques — the Meat Fruit starter is legendary.',
+    description_ar: 'مطعم حائز على نجمتي ميشلان في ماندارين أورينتال، هايد بارك. الشيف هيستون بلومنثال يعيد تخيل الوصفات البريطانية التاريخية بتقنيات حديثة.',
+    address_en: 'Mandarin Oriental, 66 Knightsbridge, London SW1X 7LA',
+    address_ar: 'ماندارين أورينتال، 66 نايتسبريدج، لندن SW1X 7LA',
+    rating: 4.8,
+    price_range: '£80-200',
+    image: 'https://images.unsplash.com/photo-1550966871-3ed3cdb51f3a?w=600&q=80',
+    features_en: ['Two Michelin Stars', 'Historic Recipes', 'Park Views', 'Tasting Menu'],
+    features_ar: ['نجمتا ميشلان', 'وصفات تاريخية', 'إطلالة الحديقة', 'قائمة تذوق'],
+    phone: '+44 20 7201 3833',
+    website: 'https://www.dinnerbyheston.co.uk'
+  },
+  {
+    id: '6',
+    name_en: 'The View from The Shard',
+    name_ar: 'المنظر من ذا شارد',
+    type: 'attraction',
+    description_en: 'Western Europe\'s highest viewing platform at 244 metres. On a clear day, see up to 40 miles across London from the open-air Sky Deck on level 72 of The Shard.',
+    description_ar: 'أعلى منصة مشاهدة في أوروبا الغربية على ارتفاع 244 مترًا. في يوم صافٍ، شاهد حتى 64 كم عبر لندن من سطح السماء المفتوح في الطابق 72.',
+    address_en: '32 London Bridge Street, London SE1 9SG',
+    address_ar: '32 شارع جسر لندن، لندن SE1 9SG',
+    rating: 4.5,
+    price_range: '£28-40',
+    image: 'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=600&q=80',
+    features_en: ['360° Views', 'Open-Air Sky Deck', 'Champagne Bar', 'Interactive Telescopes'],
+    features_ar: ['إطلالات 360°', 'سطح سماء مفتوح', 'بار شامبانيا', 'تلسكوبات تفاعلية'],
+    phone: '+44 844 499 7111',
+    website: 'https://www.the-shard.com/viewing-gallery'
+  },
+  {
+    id: '7',
+    name_en: 'The Connaught',
+    name_ar: 'كونوت',
+    type: 'hotel',
+    description_en: 'Understated perfection in Mayfair\'s quietest corner. Features the Connaught Bar (consistently ranked World\'s Best), Hélène Darroze\'s two-Michelin-starred restaurant, and an exclusive Aman Spa.',
+    description_ar: 'كمال هادئ في أهدأ زاوية من مايفير. يضم بار كونوت (المصنف باستمرار كأفضل بار في العالم) ومطعم هيلين داروز بنجمتي ميشلان وسبا آمان الحصري.',
+    address_en: 'Carlos Place, Mayfair, London W1K 2AL',
+    address_ar: 'كارلوس بلايس، مايفير، لندن W1K 2AL',
+    rating: 4.9,
+    price_range: '£690-5,000',
+    image: 'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=600&q=80',
+    features_en: ['World\'s Best Bar', 'Aman Spa', 'Michelin Dining', 'Butler Service'],
+    features_ar: ['أفضل بار في العالم', 'سبا آمان', 'مطعم ميشلان', 'خادم شخصي'],
+    phone: '+44 20 7499 7070',
+    website: 'https://www.the-connaught.co.uk'
+  },
+  {
+    id: '8',
+    name_en: 'NOBU London',
+    name_ar: 'نوبو لندن',
+    type: 'restaurant',
+    description_en: 'The original London outpost of Nobu Matsuhisa\'s iconic Japanese-Peruvian restaurant in the Metropolitan Hotel. Famous for Black Cod Miso, yellowtail sashimi, and a buzzy Mayfair atmosphere.',
+    description_ar: 'الفرع الأصلي في لندن لمطعم نوبو ماتسوهيسا الأيقوني الياباني-البيروفي في فندق متروبوليتان. مشهور بسمك القد الأسود بالميسو وساشيمي الهمور.',
+    address_en: 'Metropolitan Hotel, 19 Old Park Lane, London W1K 1LB',
+    address_ar: 'فندق متروبوليتان، 19 أولد بارك لين، لندن W1K 1LB',
+    rating: 4.6,
+    price_range: '£80-200',
+    image: 'https://images.unsplash.com/photo-1579027989536-b7b1f875659b?w=600&q=80',
+    features_en: ['Japanese-Peruvian Cuisine', 'Celebrity Scene', 'Omakase Menu', 'Cocktail Bar'],
+    features_ar: ['مطبخ ياباني-بيروفي', 'أجواء المشاهير', 'قائمة أوماكاسي', 'بار كوكتيل'],
+    phone: '+44 20 7447 4747',
+    website: 'https://www.noburestaurants.com/london'
+  },
+  {
+    id: '9',
+    name_en: 'Kensington Palace',
+    name_ar: 'قصر كنسينغتون',
+    type: 'attraction',
+    description_en: 'The official London residence of the Prince and Princess of Wales, set within the beautiful Kensington Gardens. Explore the King\'s and Queen\'s State Apartments and the stunning Sunken Garden.',
+    description_ar: 'المقر الرسمي في لندن لأمير وأميرة ويلز، داخل حدائق كنسينغتون الجميلة. استكشف شقق الملك والملكة الرسمية والحديقة الغارقة المذهلة.',
+    address_en: 'Kensington Gardens, London W8 4PX',
+    address_ar: 'حدائق كنسينغتون، لندن W8 4PX',
+    rating: 4.5,
+    price_range: '£21-25',
+    image: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=600&q=80',
+    features_en: ['Royal Residence', 'State Apartments', 'Fashion Exhibitions', 'Sunken Garden'],
+    features_ar: ['مقر ملكي', 'شقق رسمية', 'معارض أزياء', 'الحديقة الغارقة'],
+    phone: '+44 33 3320 6000',
+    website: 'https://www.hrp.org.uk/kensington-palace'
+  },
+  {
+    id: '10',
+    name_en: 'Shangri-La The Shard',
+    name_ar: 'شانغريلا ذا شارد',
+    type: 'hotel',
+    description_en: 'London\'s highest hotel occupying floors 34-52 of The Shard. Every room offers floor-to-ceiling views across the entire city. The 52nd-floor infinity pool is the highest in Western Europe.',
+    description_ar: 'أعلى فندق في لندن يحتل الطوابق 34-52 من ذا شارد. كل غرفة توفر إطلالات بانورامية على المدينة بأكملها. مسبح الإنفينيتي في الطابق 52 هو الأعلى في أوروبا الغربية.',
+    address_en: '31 St Thomas Street, London SE1 9QU',
+    address_ar: '31 شارع سانت توماس، لندن SE1 9QU',
+    rating: 4.7,
+    price_range: '£450-2,500',
+    image: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600&q=80',
+    features_en: ['Infinity Pool', 'Panoramic Views', 'TING Restaurant', 'Sky Bar'],
+    features_ar: ['مسبح إنفينيتي', 'إطلالات بانورامية', 'مطعم TING', 'بار السماء'],
+    phone: '+44 20 7234 8000',
+    website: 'https://www.shangri-la.com/london/shangrila'
+  },
 ]
 
+const typeLabels = {
+  en: { all: 'All', hotel: 'Hotels', restaurant: 'Restaurants', attraction: 'Attractions' },
+  ar: { all: 'الكل', hotel: 'فنادق', restaurant: 'مطاعم', attraction: 'معالم' },
+}
+
 export default function RecommendationsPage() {
-  const { language, isRTL } = useLanguage()
-  const t = (key: string) => getTranslation(language, key)
+  const { language } = useLanguage()
+  const locale = (language || 'en') as 'en' | 'ar'
+  const isRTL = locale === 'ar'
+
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('all')
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  const [filteredRecommendations, setFilteredRecommendations] = useState(sampleRecommendations)
 
-  useEffect(() => {
-    let filtered = sampleRecommendations
+  const labels = typeLabels[locale]
 
-    if (searchTerm) {
-      filtered = filtered.filter(item =>
-        (language === 'en' ? item.name_en : item.name_ar)
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        (language === 'en' ? item.description_en : item.description_ar)
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())
-      )
-    }
-
-    if (selectedType !== 'all') {
-      filtered = filtered.filter(item => item.type === selectedType)
-    }
-
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(item => item.category === selectedCategory)
-    }
-
-    setFilteredRecommendations(filtered)
-  }, [searchTerm, selectedType, selectedCategory, language])
-
-  const types = [
-    { value: 'all', label: language === 'en' ? 'All Types' : 'جميع الأنواع' },
-    { value: 'hotel', label: t('hotels') },
-    { value: 'restaurant', label: t('restaurants') },
-    { value: 'attraction', label: t('attractions') }
-  ]
-
-  const categories = [
-    { value: 'all', label: language === 'en' ? 'All Categories' : 'جميع الفئات' },
-    { value: 'luxury', label: t('luxury') },
-    { value: 'mid-range', label: t('midRange') },
-    { value: 'budget', label: t('budget') }
-  ]
-
-  const renderStars = (rating: number) => {
-    const stars = []
-    for (let i = 0; i < 5; i++) {
-      stars.push(
-        <Star
-          key={i}
-          className={`h-4 w-4 ${i < Math.floor(rating) ? 'fill-yalla-gold-400 text-yalla-gold-400' : 'text-sand'}`}
-        />
-      )
-    }
-    return stars
-  }
+  const filtered = recommendations.filter(item => {
+    const name = locale === 'en' ? item.name_en : item.name_ar
+    const desc = locale === 'en' ? item.description_en : item.description_ar
+    const matchesSearch = !searchTerm || name.toLowerCase().includes(searchTerm.toLowerCase()) || desc.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesType = selectedType === 'all' || item.type === selectedType
+    return matchesSearch && matchesType
+  })
 
   return (
-    <div className={`py-12 ${isRTL ? 'rtl' : 'ltr'}`}>
-      {/* Header */}
-      <section className="bg-gradient-to-br from-cream to-cream-100 py-16">
-        <div className="max-w-6xl mx-auto px-6">
-          <motion.div
-            className="text-center"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <h1 className="text-5xl font-display font-bold gradient-text mb-4">
-              {t('recommendations')}
-            </h1>
-            <p className="text-xl text-stone max-w-2xl mx-auto">
-              {language === 'en'
-                ? 'Handpicked luxury experiences across London\'s finest establishments'
-                : 'تجارب فاخرة مختارة يدوياً من أفضل المؤسسات في لندن'
-              }
-            </p>
-          </motion.div>
+    <div className={`bg-cream min-h-screen ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+      {/* Hero */}
+      <section className="bg-gradient-to-b from-charcoal to-charcoal-light pb-12">
+        <div className="max-w-6xl mx-auto px-6 pt-8 text-center">
+          <h1 className="text-4xl md:text-5xl font-display font-bold text-white mb-4">
+            {locale === 'en' ? 'Our Recommendations' : 'توصياتنا'}
+          </h1>
+          <p className="text-xl text-cream-300 mb-8 max-w-2xl mx-auto">
+            {locale === 'en'
+              ? 'Handpicked luxury hotels, restaurants, and experiences across London — curated for Arab travellers'
+              : 'فنادق ومطاعم وتجارب فاخرة مختارة بعناية في جميع أنحاء لندن — مختارة للمسافرين العرب'}
+          </p>
+          <div className="max-w-xl mx-auto relative">
+            <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5 text-stone`} />
+            <input
+              type="text"
+              placeholder={locale === 'en' ? 'Search recommendations...' : 'ابحث في التوصيات...'}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-london-600`}
+            />
+          </div>
         </div>
       </section>
 
-      {/* Search and Filter */}
-      <section className="py-8 bg-white border-b">
+      {/* Type Filter */}
+      <div className="bg-white border-b border-sand py-4 sticky top-16 z-40">
         <div className="max-w-6xl mx-auto px-6">
-          <motion.div
-            className="flex flex-col md:flex-row gap-4 items-center justify-between"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone" />
-                <Input
-                  placeholder={language === 'en' ? 'Search recommendations...' : 'البحث في التوصيات...'}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full sm:w-80"
-                />
-              </div>
-              <Select value={selectedType} onValueChange={setSelectedType}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {types.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.value} value={category.value}>
-                      {category.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="text-sm text-stone">
-              {filteredRecommendations.length} {language === 'en' ? 'recommendations' : 'توصية'}
-            </div>
-          </motion.div>
+          <div className="flex items-center gap-3 overflow-x-auto pb-2">
+            {(['all', 'hotel', 'restaurant', 'attraction'] as const).map((type) => (
+              <button
+                key={type}
+                onClick={() => setSelectedType(type)}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                  selectedType === type
+                    ? 'bg-charcoal text-white'
+                    : 'bg-cream-100 text-stone hover:bg-cream-200'
+                }`}
+              >
+                {labels[type]}
+              </button>
+            ))}
+            <span className="text-sm text-stone ml-auto">
+              {filtered.length} {locale === 'en' ? 'results' : 'نتيجة'}
+            </span>
+          </div>
         </div>
-      </section>
+      </div>
 
       {/* Recommendations Grid */}
-      <section className="py-12">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="grid md:grid-cols-2 gap-8">
-            {filteredRecommendations.map((item, index) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                whileHover={{ scale: 1.02 }}
-              >
-                <Card className="overflow-hidden border-0 luxury-shadow hover:shadow-xl transition-all duration-300 h-full">
-                  <div className="relative aspect-video">
-                    <Image
-                      src={item.images[0]}
-                      alt={language === 'en' ? item.name_en : item.name_ar}
-                      fill
-                      className="object-cover"
-                    />
-                    <div className="absolute top-4 left-4 flex gap-2">
-                      <Badge className="bg-white/90 text-charcoal hover:bg-white">
-                        {t(item.type === 'hotel' ? 'hotels' : item.type === 'restaurant' ? 'restaurants' : 'attractions')}
-                      </Badge>
-                      <Badge variant="secondary" className="bg-yalla-gold-500 text-charcoal hover:bg-yalla-gold-500">
-                        {t(item.category)}
-                      </Badge>
+      <section className="max-w-6xl mx-auto px-6 py-12">
+        <div className="grid md:grid-cols-2 gap-8">
+          {filtered.map((item) => (
+            <div key={item.id} className="bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-all group border border-sand/50">
+              <div className="relative aspect-video">
+                <Image
+                  src={item.image}
+                  alt={locale === 'en' ? item.name_en : item.name_ar}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} flex gap-2`}>
+                  <span className="px-3 py-1 bg-white/90 backdrop-blur text-charcoal text-xs font-semibold rounded-full">
+                    {labels[item.type as keyof typeof labels]}
+                  </span>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h3 className="text-xl font-semibold text-charcoal mb-2">
+                      {locale === 'en' ? item.name_en : item.name_ar}
+                    </h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-4 w-4 ${i < Math.floor(item.rating) ? 'fill-amber-500 text-amber-500' : 'text-sand'}`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm text-stone">{item.rating}</span>
                     </div>
                   </div>
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <h3 className="text-xl font-semibold text-charcoal mb-2">
-                          {language === 'en' ? item.name_en : item.name_ar}
-                        </h3>
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="flex items-center">
-                            {renderStars(item.rating)}
-                          </div>
-                          <span className="text-sm text-stone">
-                            {item.rating} / 5
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-semibold text-london-600">
-                          {item.price_range}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <p className="text-stone leading-relaxed mb-4">
-                      {language === 'en' ? item.description_en : item.description_ar}
-                    </p>
-                    
-                    <div className="flex items-center gap-2 text-sm text-stone mb-4">
-                      <MapPin className="h-4 w-4" />
-                      <span>{language === 'en' ? item.address_en : item.address_ar}</span>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {(language === 'en' ? item.features_en : item.features_ar).slice(0, 3).map((feature, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {feature}
-                        </Badge>
-                      ))}
-                    </div>
-                    
-                    <div className="flex items-center gap-2 pt-4 border-t">
-                      {item.phone && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="flex-1"
-                          onClick={() => {
-                            if (typeof window !== 'undefined') {
-                              window.open(`tel:${item.phone}`, '_self');
-                            }
-                          }}
-                        >
-                          <Phone className="h-4 w-4 mr-2" />
-                          {language === 'en' ? 'Call' : 'اتصل'}
-                        </Button>
-                      )}
-                      {item.website && (
-                        <Button asChild size="sm" className="flex-1 bg-london-600 hover:bg-london-700">
-                          <a href={item.website} target="_blank" rel="noopener noreferrer">
-                            <Globe className="h-4 w-4 mr-2" />
-                            {language === 'en' ? 'Visit' : 'زيارة'}
-                          </a>
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+                  <div className={`${isRTL ? 'text-left' : 'text-right'}`}>
+                    <div className="text-lg font-semibold text-london-600">{item.price_range}</div>
+                  </div>
+                </div>
 
-          {filteredRecommendations.length === 0 && (
-            <motion.div
-              className="text-center py-12"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6 }}
-            >
-              <p className="text-xl text-stone">
-                {language === 'en' 
-                  ? 'No recommendations found matching your criteria.'
-                  : 'لم يتم العثور على توصيات تطابق معاييرك.'
-                }
-              </p>
-            </motion.div>
-          )}
+                <p className="text-sm text-stone leading-relaxed mb-4">
+                  {locale === 'en' ? item.description_en : item.description_ar}
+                </p>
+
+                <div className="flex items-center gap-2 text-sm text-stone mb-4">
+                  <MapPin className="h-4 w-4 shrink-0" />
+                  <span>{locale === 'en' ? item.address_en : item.address_ar}</span>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {(locale === 'en' ? item.features_en : item.features_ar).map((feature) => (
+                    <span key={feature} className="px-2 py-1 bg-cream-100 text-xs text-stone rounded-full border border-sand/50">
+                      {feature}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2 pt-4 border-t border-sand">
+                  {item.phone && (
+                    <a
+                      href={`tel:${item.phone}`}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-sand rounded-lg text-sm text-stone hover:bg-cream-100 transition-colors"
+                    >
+                      <Phone className="h-4 w-4" />
+                      {locale === 'en' ? 'Call' : 'اتصل'}
+                    </a>
+                  )}
+                  <a
+                    href={item.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-london-600 text-white text-sm font-medium rounded-lg hover:bg-london-700 transition-colors"
+                  >
+                    <Globe className="h-4 w-4" />
+                    {locale === 'en' ? 'Visit Website' : 'زيارة الموقع'}
+                  </a>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {filtered.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-xl text-stone">
+              {locale === 'en' ? 'No recommendations found matching your search.' : 'لم يتم العثور على توصيات تطابق بحثك.'}
+            </p>
+          </div>
+        )}
+
+        {/* Cross-linking */}
+        <div className="mt-16 text-center">
+          <p className="text-stone mb-4">
+            {locale === 'en' ? 'Looking for more?' : 'تبحث عن المزيد؟'}
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link href="/hotels" className="px-6 py-3 bg-charcoal text-white rounded-full text-sm font-medium hover:bg-charcoal-light transition-colors">
+              {locale === 'en' ? 'All Luxury Hotels' : 'جميع الفنادق الفاخرة'}
+            </Link>
+            <Link href="/experiences" className="px-6 py-3 bg-charcoal text-white rounded-full text-sm font-medium hover:bg-charcoal-light transition-colors">
+              {locale === 'en' ? 'All Experiences' : 'جميع التجارب'}
+            </Link>
+            <Link href="/london-by-foot" className="px-6 py-3 bg-london-600 text-white rounded-full text-sm font-medium hover:bg-london-700 transition-colors">
+              {locale === 'en' ? 'London Walking Guides' : 'أدلة المشي في لندن'}
+            </Link>
+          </div>
         </div>
       </section>
     </div>

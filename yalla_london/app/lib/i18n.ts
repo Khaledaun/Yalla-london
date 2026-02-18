@@ -9,6 +9,7 @@ export const translations = {
     information: 'Information',
     recommendations: 'Recommendations',
     eventsTickets: 'Events Tickets',
+    londonByFoot: 'London by Foot',
     about: 'The Founder',
     
     // Homepage
@@ -95,6 +96,7 @@ export const translations = {
     information: 'معلومات',
     recommendations: 'التوصيات',
     eventsTickets: 'تذاكر الفعاليات',
+    londonByFoot: 'لندن سيرًا على الأقدام',
     about: 'المؤسسة',
     
     // Homepage

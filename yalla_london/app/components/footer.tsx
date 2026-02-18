@@ -63,6 +63,7 @@ export function Footer() {
                 { href: '/information', en: 'Information Hub', ar: 'مركز المعلومات' },
                 { href: '/blog', en: 'London Stories', ar: 'حكايات لندن' },
                 { href: '/recommendations', en: 'Recommendations', ar: 'التوصيات' },
+                { href: '/london-by-foot', en: 'London by Foot', ar: 'لندن سيرًا على الأقدام' },
                 { href: '/events', en: 'Events & Tickets', ar: 'الفعاليات والتذاكر' },
                 { href: '/about', en: 'The Founder', ar: 'المؤسس' },
                 { href: '/contact', en: 'Contact Us', ar: 'تواصل معنا' },

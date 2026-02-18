@@ -120,8 +120,8 @@ const mainNavigation = [
     badge: 'Live',
     children: [
       { label: 'Dashboard', href: '/admin/news' },
-      { label: 'Published', href: '/admin/news' },
-      { label: 'Research Logs', href: '/admin/news' },
+      { label: 'Published', href: '/admin/news?tab=items&status=published' },
+      { label: 'Research Logs', href: '/admin/news?tab=logs' },
     ]
   },
   {

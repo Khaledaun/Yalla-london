@@ -191,6 +191,14 @@ const config: Config = {
           from: { backgroundPosition: "-200% 0" },
           to: { backgroundPosition: "200% 0" },
         },
+        "ticker": {
+          from: { transform: "translateX(0%)" },
+          to: { transform: "translateX(-50%)" },
+        },
+        "ticker-rtl": {
+          from: { transform: "translateX(0%)" },
+          to: { transform: "translateX(50%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -199,6 +207,8 @@ const config: Config = {
         "slide-up": "slide-up 0.5s ease-out",
         "scale-in": "scale-in 0.3s ease-out",
         "shimmer": "shimmer 2s infinite linear",
+        "ticker": "ticker 40s linear infinite",
+        "ticker-rtl": "ticker-rtl 40s linear infinite",
       },
       fontFamily: {
         'sans': ['var(--font-body)'],

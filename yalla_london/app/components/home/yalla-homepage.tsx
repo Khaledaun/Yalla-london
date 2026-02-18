@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { NewsCarousel } from '@/components/news-carousel'
+import { NewsTicker } from '@/components/news-ticker'
 import { FollowUs } from '@/components/follow-us'
 
 interface YallaHomepageProps {
@@ -350,6 +351,9 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
   return (
     <div className={`bg-cream ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+
+      {/* ═══ BREAKING NEWS TICKER ═══ */}
+      <NewsTicker speed={45} />
 
       {/* ═══ HERO ═══ */}
       <section className="relative min-h-[85vh] flex items-end overflow-hidden">

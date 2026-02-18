@@ -302,7 +302,8 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const { prisma } = await import("@/lib/db");
 
-    const siteId = "yalla-london";
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
     let created = 0;
     let skipped = 0;
 

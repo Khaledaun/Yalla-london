@@ -326,17 +326,17 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       await prisma.auditLog.create({
         data: {
           action: "ANALYTICS_CONFIG_UPDATE",
-          entity_type: "ANALYTICS_SERVICE",
-          entity_id: service,
+          resource: "ANALYTICS_SERVICE",
+          resourceId: service,
           details: {
             service,
             status: config.status,
             features_enabled: config.features.length,
             test_connection,
           },
-          user_id: "admin",
-          ip_address: request.ip || "unknown",
-          user_agent: request.headers.get("user-agent") || "unknown",
+          userId: "admin",
+          ipAddress: request.ip || "unknown",
+          userAgent: request.headers.get("user-agent") || "unknown",
         },
       });
     } catch (dbError) {

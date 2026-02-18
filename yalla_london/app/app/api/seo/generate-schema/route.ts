@@ -28,10 +28,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+    const { getSiteDomain, getSiteConfig, getDefaultSiteId } = await import("@/config/sites");
+    const reqSiteId = data?.siteId || getDefaultSiteId();
+    const siteConfig = getSiteConfig(reqSiteId);
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(reqSiteId);
     const brandConfig = {
-      name: 'Yalla London',
-      description: 'Your Guide to London',
+      name: siteConfig?.name || 'Yalla London',
+      description: siteConfig ? `Luxury ${siteConfig.destination} travel guide` : 'Your Guide to London',
       url: baseUrl
     };
 

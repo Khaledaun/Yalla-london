@@ -41,9 +41,10 @@ export async function GET(request: NextRequest) {
   );
 
   // Per-site scoping: query param > header > default
+  const { getDefaultSiteId } = await import("@/config/sites");
   const siteId = searchParams.get("siteId")
     || request.headers.get("x-site-id")
-    || "yalla-london";
+    || getDefaultSiteId();
   const seoConfig = getSiteSeoConfig(siteId);
   const siteUrl = seoConfig.siteUrl;
   const gscSiteUrl = seoConfig.gscSiteUrl;

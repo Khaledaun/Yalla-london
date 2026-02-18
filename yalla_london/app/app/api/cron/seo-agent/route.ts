@@ -685,11 +685,10 @@ async function checkIndexingStatus(
   siteUrl?: string,
   siteId?: string,
 ) {
-  if (!siteUrl && siteId) {
-    const { getSiteDomain } = await import("@/config/sites");
-    siteUrl = getSiteDomain(siteId);
+  if (!siteUrl) {
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+    siteUrl = getSiteDomain(siteId || getDefaultSiteId());
   }
-  siteUrl = siteUrl || process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
   const blogSiteFilter = siteId ? { siteId } : {};
 
   try {
@@ -724,11 +723,10 @@ async function checkIndexingStatus(
  * Submit new/updated URLs to search engines via IndexNow
  */
 async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, siteId?: string) {
-  if (!siteUrl && siteId) {
-    const { getSiteDomain } = await import("@/config/sites");
-    siteUrl = getSiteDomain(siteId);
+  if (!siteUrl) {
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+    siteUrl = getSiteDomain(siteId || getDefaultSiteId());
   }
-  siteUrl = siteUrl || process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
   const indexNowKey = process.env.INDEXNOW_KEY;
   const blogSiteFilter = siteId ? { siteId } : {};
 
@@ -827,10 +825,10 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
  * Verify sitemap is healthy and accessible
  */
 async function verifySitemapHealth(issues: string[], siteUrl?: string) {
-  siteUrl =
-    siteUrl ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://www.yalla-london.com";
+  if (!siteUrl) {
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+    siteUrl = getSiteDomain(getDefaultSiteId());
+  }
 
   try {
     const response = await fetch(`${siteUrl}/sitemap.xml`, {

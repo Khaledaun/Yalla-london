@@ -44,7 +44,6 @@ export async function runPrePublicationGate(
     seo_score?: number;
     author_id?: string;
     keywords_json?: unknown;
-    structured_data_json?: unknown;
   },
   siteUrl?: string
 ): Promise<GateResult> {
@@ -326,12 +325,13 @@ export async function runPrePublicationGate(
   }
 
   // ── 11. Structured data presence check ──────────────────────────
-  // JSON-LD is Google's recommended format. Articles without it miss rich results.
-  if (content.structured_data_json || content.keywords_json) {
+  // Note: JSON-LD structured data is auto-injected at render time by the EnhancedSchemaInjector.
+  // It is NOT stored in BlogPost DB records, so this check uses keywords_json as a proxy signal.
+  if (content.keywords_json) {
     checks.push({
       name: "Structured Data",
       passed: true,
-      message: "Article has structured data for rich results",
+      message: "Article has keyword data; structured data will be auto-injected at render time",
       severity: "info",
     });
   } else {

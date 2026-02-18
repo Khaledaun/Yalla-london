@@ -307,12 +307,8 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
     await signOut()
   }
 
-  // Sample notifications
-  const notifications = [
-    { id: 1, title: 'New article published', time: '5 min ago', type: 'success' },
-    { id: 2, title: 'SEO score improved', time: '1 hour ago', type: 'info' },
-    { id: 3, title: 'Automation completed', time: '2 hours ago', type: 'success' },
-  ]
+  // Notifications — empty until real notification system is wired up
+  const notifications: { id: number; title: string; time: string; type: string }[] = []
 
   // If on the login page, render children without admin chrome
   if (isLoginPage) {
@@ -383,12 +379,19 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
                 </button>
               </div>
               <div className="p-4 space-y-3 overflow-y-auto max-h-[calc(100vh-5rem)]">
-                {notifications.map(notif => (
-                  <div key={notif.id} className="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{notif.title}</p>
-                    <p className="text-xs text-gray-500 mt-1">{notif.time}</p>
+                {notifications.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Bell size={24} className="mx-auto text-gray-300 dark:text-slate-600 mb-2" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No notifications</p>
                   </div>
-                ))}
+                ) : (
+                  notifications.map(notif => (
+                    <div key={notif.id} className="p-3 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">{notif.title}</p>
+                      <p className="text-xs text-gray-500 mt-1">{notif.time}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </>
@@ -715,7 +718,9 @@ export function MophyAdminLayout({ children, pageTitle }: MophyAdminLayoutProps)
                 className="relative p-2 lg:p-2.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-all"
               >
                 <Bell size={18} />
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
+                {notifications.length > 0 && (
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
+                )}
               </button>
 
               {/* User Menu (desktop) */}

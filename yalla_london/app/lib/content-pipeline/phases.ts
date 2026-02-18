@@ -211,7 +211,7 @@ Return JSON:
   "internalLinkPlan": [
     {"anchor": "anchor text", "targetTopic": "related article topic"}
   ],
-  "schemaType": "Article|FAQPage|HowTo"
+  "schemaType": "Article"
 }
 
 ${isArabic(draft.locale) ? "ALL headings, key points, and text MUST be in Arabic." : ""}`;

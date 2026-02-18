@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { withAdminAuth } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 export const dynamic = "force-dynamic";
 
@@ -128,6 +129,8 @@ async function handleCreateTopic(data: any) {
       authority_links_json: data.authority_links_json,
       intent: data.intent || "info",
       suggested_page_type: data.suggested_page_type || "guide",
+      source_weights_json: data.source_weights_json || { source: "admin-manual" },
+      site_id: data.site_id || getDefaultSiteId(),
       evergreen: data.evergreen !== undefined ? data.evergreen : true,
       season: data.season,
       planned_at: data.planned_at,

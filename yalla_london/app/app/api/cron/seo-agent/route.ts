@@ -1106,7 +1106,7 @@ async function queueContentRewrites(
     const existingProposal = await prisma.topicProposal.findFirst({
       where: {
         ...siteFilter,
-        source: "seo-agent-rewrite",
+        title: { startsWith: "[REWRITE]" },
         status: { in: ["planned", "queued", "ready"] },
         primary_keyword: post.slug,
       },
@@ -1121,18 +1121,22 @@ async function queueContentRewrites(
     await prisma.topicProposal.create({
       data: {
         title: `[REWRITE] ${post.title_en || post.slug}`,
-        description: `Auto-queued rewrite: Low CTR/engagement after 30+ days. Original slug: ${post.slug}`,
         primary_keyword: post.slug,
         longtails: post.tags || [],
+        featured_longtails: [],
         questions: [],
         suggested_page_type: "guide",
         locale: "en",
         status: "ready",
         confidence_score: 0.8,
-        source: "seo-agent-rewrite",
         intent: "rewrite",
         evergreen: true,
         ...siteFilter,
+        source_weights_json: {
+          source: "seo-agent-rewrite",
+          originalSlug: post.slug,
+          reason: "Low CTR",
+        },
         authority_links_json: {
           contentType: "rewrite",
           originalPostId: post.id,

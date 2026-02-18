@@ -11,9 +11,10 @@
 
 import { logCronExecution } from "@/lib/cron-logger";
 import { onPromotionFailure } from "@/lib/ops/failure-hooks";
+import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
-const MIN_QUALITY_SCORE = 50;
+const MIN_QUALITY_SCORE = 60; // Aligned with CONTENT_QUALITY.qualityGateScore from lib/seo/standards.ts
 const MAX_ARTICLES_PER_RUN = 2;
 
 export interface SelectRunnerResult {
@@ -327,6 +328,70 @@ async function promoteToBlogPost(
   const missingLanguageTags = [];
   if (!hasEn) missingLanguageTags.push("missing-english");
   if (!hasAr) missingLanguageTags.push("missing-arabic");
+
+  // ── Pre-Publication SEO Gate (fail CLOSED — don't publish without verification) ──
+  const targetUrl = `/blog/${slug}`;
+  const siteUrl = getSiteDomain(siteId);
+  try {
+    const gateResult = await runPrePublicationGate(
+      targetUrl,
+      {
+        title_en: enTitle,
+        title_ar: arTitle,
+        meta_title_en: enMetaTitle,
+        meta_description_en: enMetaDesc,
+        content_en: enHtml,
+        content_ar: arHtml,
+        locale,
+        tags: keywords.slice(0, 5),
+        seo_score: Math.round((draft.seo_score as number) || (draft.quality_score as number) || 0),
+        author_id: "system", // System-generated content always has author
+        keywords_json: keywords,
+      },
+      siteUrl,
+    );
+
+    if (!gateResult.allowed) {
+      console.warn(
+        `[content-selector] Pre-pub gate BLOCKED draft ${draft.id} (keyword: "${keyword}"): ${gateResult.blockers.join("; ")}`,
+      );
+      if (gateResult.warnings.length > 0) {
+        console.warn(
+          `[content-selector] Pre-pub gate warnings for draft ${draft.id}: ${gateResult.warnings.join("; ")}`,
+        );
+      }
+      // Mark the draft with the gate failure so it's visible in dashboard
+      await prisma.articleDraft.update({
+        where: { id: draft.id as string },
+        data: {
+          last_error: `Pre-pub gate blocked: ${gateResult.blockers.join("; ")}`,
+          updated_at: new Date(),
+        },
+      }).catch(() => {});
+      return null; // Skip this draft — do not publish
+    }
+
+    // Log warnings even when allowed (visible in cron logs for quality monitoring)
+    if (gateResult.warnings.length > 0) {
+      console.log(
+        `[content-selector] Pre-pub gate PASSED draft ${draft.id} with warnings: ${gateResult.warnings.join("; ")}`,
+      );
+    }
+  } catch (gateErr) {
+    // Fail CLOSED — if the gate itself errors, do NOT publish
+    const gateErrMsg = gateErr instanceof Error ? gateErr.message : String(gateErr);
+    console.warn(
+      `[content-selector] Pre-pub gate ERROR for draft ${draft.id} — blocking publication: ${gateErrMsg}`,
+    );
+    await prisma.articleDraft.update({
+      where: { id: draft.id as string },
+      data: {
+        last_error: `Pre-pub gate error (blocked): ${gateErrMsg}`,
+        updated_at: new Date(),
+      },
+    }).catch(() => {});
+    return null; // Fail closed — don't publish without gate verification
+  }
 
   const blogPost = await prisma.blogPost.create({
     data: {

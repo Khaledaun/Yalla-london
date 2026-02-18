@@ -91,13 +91,17 @@ export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostC
       {/* Hero Section */}
       <section className="relative h-96 overflow-hidden">
         <div className="absolute inset-0">
-          <Image
-            src={post.featured_image}
-            alt={language === 'en' ? post.title_en : post.title_ar}
-            fill
-            className="object-cover"
-            priority
-          />
+          {post.featured_image ? (
+            <Image
+              src={post.featured_image}
+              alt={language === 'en' ? post.title_en : post.title_ar}
+              fill
+              className="object-cover"
+              priority
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-london-700 to-london-900" />
+          )}
           <div className="absolute inset-0 bg-black/50" />
         </div>
 

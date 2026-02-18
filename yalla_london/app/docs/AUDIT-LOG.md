@@ -15,6 +15,8 @@
 | 4 | 2026-02-18 | API routes, pipeline, frontend, schema, security, config | 80+ issues | 11 | 70+ (documented) |
 | 5 | 2026-02-18 | Remaining HIGHs: dead buttons, siteId, URL fallbacks, login auth | 22 issues | 22 | 0 |
 | 6 | 2026-02-18 | Convergence: 38 wrong imports, 5 empty catches, circular dep | 44 issues | 44 | 0 |
+| 7 | 2026-02-18 | Build error, auth gaps, info disclosure, fake data, URLs | 31 issues | 31 | 0 |
+| 8 | 2026-02-18 | Water pipe test: end-to-end pipeline trace (5 stages + monitoring) | 35+ issues | 13 critical | 22+ (documented) |
 
 ---
 
@@ -501,6 +503,108 @@
 
 ---
 
+## Audit #7 — Build Error, Auth Gaps, Info Disclosure, Fake Data, Hardcoded URLs
+
+**Date:** 2026-02-18
+**Trigger:** Vercel build failure + validation of Audit #6 fixes
+**Scope:** Build errors, auth coverage, info disclosure, mock data, URL fallbacks
+
+### Fixed (31 issues)
+
+#### A7-001–A7-002: Build Error — @typescript-eslint/no-var-requires
+- `lib/seo/enhanced-schema-injector.ts` and `lib/seo/orchestrator/pre-publication-gate.ts`
+- Removed eslint-disable comments referencing non-existent rule
+
+#### A7-003–A7-004: Unprotected Admin Routes
+- `app/api/admin/shop/stats/route.ts` — Added `withAdminAuth` (was exposing revenue data publicly)
+- `app/api/admin/skill-engine/route.ts` — Added `withAdminAuth` (was exposing automation registry)
+
+#### A7-005–A7-017: Public Info Disclosure (13 routes)
+- Removed `error.message` from responses in: content, search, blog, information (3 files), checkout, social/x-buzz, seo/generate-schema, test/article-creation
+
+#### A7-018–A7-022: Fake Data Removal (5 instances)
+- `blog-card.tsx` — Hide likes when 0 instead of random 50-250
+- `seo-audits/page.tsx` — Keep existing score instead of random 70-100
+- `editor/page.tsx` — Show "Not scored" instead of random SEO score
+- `content-pipeline-panel.tsx` — Show "—" instead of fake +23%, 8.4%, 12.1%
+- `products/pdf/page.tsx` — Remove fake "+15% this month"
+
+#### A7-023–A7-031: Hardcoded URL Fixes (11 instances)
+- `about/layout.tsx`, `articles/performance/route.ts`, `pdf/generate/route.ts`, `contact/route.ts`, `seo/entities/route.ts`, `seo/report/page.tsx` (4 instances)
+
+---
+
+## Audit #8 — Water Pipe Test: End-to-End Pipeline Trace
+
+**Date:** 2026-02-18
+**Trigger:** User request for full pipeline trace ("water pipe" test)
+**Scope:** Traced 5 pipeline stages + monitoring layer end-to-end
+
+### Pipeline Stages Traced
+
+| Stage | Status | Critical Issues |
+|-------|--------|-----------------|
+| 1. Topic Generation | PARTIAL | 2 runtime crashes (admin create, SEO rewrite) |
+| 2. Content Building | WORKING | Single-site bottleneck in draft creation |
+| 3. Selection & Publishing | BROKEN | Pre-pub gate never called on main path |
+| 4. SEO & Indexing | BROKEN | IndexNow key not served, sitemap conflict |
+| 5. Public Rendering | PARTIAL | Soft 404, image crash, hardcoded brand |
+| Monitoring | GOOD | Pipeline viz works, no traffic/revenue data |
+
+### Fixed (13 critical issues)
+
+#### A8-001: Admin Topic Creation Crash
+- `app/api/admin/topics/route.ts` — Added missing `source_weights_json` and `site_id` fields
+
+#### A8-002: SEO Agent Rewrite Crash
+- `app/api/cron/seo-agent/route.ts` — Removed non-existent `source` and `description` fields, added required fields
+
+#### A8-003: Pre-Publication Gate Not Enforced
+- `lib/content-pipeline/select-runner.ts` — Added `runPrePublicationGate()` call before BlogPost creation. Fails closed (blocks on error). Logs blockers to draft's `last_error` field.
+
+#### A8-004: Quality Score Threshold
+- `lib/content-pipeline/select-runner.ts` — Changed `MIN_QUALITY_SCORE` from 50 to 60 (matches `CONTENT_QUALITY.qualityGateScore`)
+
+#### A8-005: IndexNow Key File Not Served
+- Created `app/api/indexnow-key/route.ts` — serves `INDEXNOW_KEY` as plain text
+- Added `/:key.txt → /api/indexnow-key` rewrite to `vercel.json`
+
+#### A8-006: Sitemap Route Conflict
+- Removed `/sitemap.xml → /api/sitemap/generate` rewrite from `vercel.json`
+- Next.js built-in `/app/sitemap.ts` (tenant-aware, scoped) now serves naturally
+
+#### A8-007: Blog Post 404 Handling
+- `app/blog/[slug]/page.tsx` — Call `notFound()` when post not found (proper HTTP 404 instead of soft 200)
+
+#### A8-008: Featured Image Crash Guard
+- `app/blog/[slug]/BlogPostClient.tsx` — Conditional render on truthy `featured_image`, gradient placeholder when empty
+
+#### A8-009: Multi-Site JSON-LD
+- `app/blog/[slug]/page.tsx` — Dynamic brand name, publisher, logo from site config via `x-site-id` header
+
+#### A8-010: Deprecated Schema Types in Prompt
+- `lib/content-pipeline/phases.ts` — Changed outline prompt from `"Article|FAQPage|HowTo"` to `"Article"`
+
+#### A8-011: Mock Notifications
+- `components/admin/mophy/mophy-admin-layout.tsx` — Replaced fake notifications with empty state
+
+#### A8-012: Build Error Fix
+- Removed 2 `@typescript-eslint/no-var-requires` eslint-disable comments (rule doesn't exist)
+
+### Documented (Not Fixed — Tracked in Known Gaps)
+
+- `daily-publish` cron queries unreachable `approved` status (dead code)
+- Build-runner only creates new drafts for first active site
+- Trends monitor only targets first active site
+- No Arabic SSR (hreflang mismatch for crawlers)
+- Related articles only from static content, not DB
+- Affiliate injection hardcoded to London destinations
+- No traffic/revenue data on dashboard (GA4 not connected)
+- No push/email alerting for cron failures
+- Scheduled-publish POST handler bypasses all gates
+
+---
+
 ## Known Gaps (Not Blocking — Tracked for Future)
 
 | ID | Area | Description | Ref | Status | Added |
@@ -533,6 +637,17 @@
 | KG-026 | CSP Headers | Missing Content-Security-Policy headers | A4-D21 | Open | 2026-02-18 |
 | KG-027 | Brand Templates | Only Yalla London template exists in brand-templates.ts | A4-D23 | Open | 2026-02-18 |
 | KG-028 | Cron Auth | CRON_SECRET bypass when env var not set | A4-D19 | Open | 2026-02-18 |
+| KG-029 | Pipeline | daily-publish queries unreachable `approved` status (dead cron) | A8-S1 | Open | 2026-02-18 |
+| KG-030 | Multi-site | Build-runner only creates new drafts for first active site | A8-S2 | Open | 2026-02-18 |
+| KG-031 | Multi-site | Trends monitor only targets first active site | A8-S1 | Open | 2026-02-18 |
+| KG-032 | SEO | No Arabic SSR — hreflang promises /ar/ routes but server renders EN | A8-S5 | Open | 2026-02-18 |
+| KG-033 | SEO | Related articles only from static content, DB articles excluded | A8-S5 | Open | 2026-02-18 |
+| KG-034 | Multi-site | Affiliate injection rules hardcoded to London destinations | A8-S3,S5 | Open | 2026-02-18 |
+| KG-035 | Dashboard | No traffic/revenue data — GA4 not connected | A8-Mon | Open | 2026-02-18 |
+| KG-036 | Dashboard | No push/email alerts for cron failures | A8-Mon | Open | 2026-02-18 |
+| KG-037 | Pipeline | Scheduled-publish POST handler bypasses all quality gates | A8-S3 | Open | 2026-02-18 |
+| KG-038 | SEO | Posts older than 3 days may never be auto-submitted to IndexNow | A8-S4 | Open | 2026-02-18 |
+| KG-039 | Pipeline | Blog post query not scoped by siteId (slug must be globally unique) | A8-S5 | Open | 2026-02-18 |
 
 ---
 

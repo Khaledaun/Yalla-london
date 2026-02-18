@@ -24,10 +24,16 @@ import {
   Clock,
   AlertCircle,
   Activity,
+  SearchCheck,
 } from "lucide-react";
 
 const ContentGenerationMonitor = dynamic(
   () => import("@/components/admin/ContentGenerationMonitor"),
+  { ssr: false },
+);
+
+const ContentIndexingTab = dynamic(
+  () => import("@/components/admin/ContentIndexingTab"),
   { ssr: false },
 );
 
@@ -124,6 +130,7 @@ export default function ContentHub() {
 
   const tabs = [
     { id: "articles", name: "Articles", icon: FileText },
+    { id: "indexing", name: "Indexing", icon: SearchCheck },
     { id: "generation", name: "Generation Monitor", icon: Activity },
     { id: "media", name: "Media", icon: Image },
     { id: "preview", name: "Social Preview", icon: Share },
@@ -414,6 +421,8 @@ export default function ContentHub() {
           )}
         </div>
       )}
+
+      {activeTab === "indexing" && <ContentIndexingTab />}
 
       {activeTab === "generation" && <ContentGenerationMonitor />}
 

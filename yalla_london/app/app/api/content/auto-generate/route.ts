@@ -6,9 +6,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ContentGenerationService } from '@/lib/content-generation-service';
 import { aiLimiter } from '@/lib/rate-limit';
 import { detectPromptInjection, sanitizePromptInput } from '@/lib/prompt-safety';
+import { requireAdmin } from '@/lib/admin-middleware';
 
 // Auto-generate content endpoint
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const blocked = aiLimiter(request);
   if (blocked) return blocked;
 

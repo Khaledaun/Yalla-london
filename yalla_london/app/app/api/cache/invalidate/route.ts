@@ -4,8 +4,12 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidateTag, revalidatePath } from 'next/cache';
+import { requireAdmin } from '@/lib/admin-middleware';
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { contentType, contentId, paths } = await request.json();
 

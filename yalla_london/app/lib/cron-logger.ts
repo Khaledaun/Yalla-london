@@ -77,8 +77,8 @@ export async function logCronExecution(
         timed_out: status === "timed_out",
       },
     });
-  } catch {
-    // best-effort — never break the cron route
+  } catch (logError) {
+    console.error(`[cron-logger] Failed to persist log for ${jobName}:`, logError instanceof Error ? logError.message : logError);
   }
 }
 
@@ -167,7 +167,7 @@ export function withCronLog(
       console.error(`[cron-logger] ${jobName} failed:`, error);
 
       // Fire failure hook for automatic recovery
-      onCronFailure({ jobName, error }).catch(() => {});
+      onCronFailure({ jobName, error }).catch(err => console.error(`[cron-logger] onCronFailure hook failed for ${jobName}:`, err instanceof Error ? err.message : err));
     }
 
     if (timedOut) status = "timed_out";

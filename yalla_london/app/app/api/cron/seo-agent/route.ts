@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
           orderBy: { started_at: "desc" },
           select: { status: true, started_at: true, duration_ms: true },
         });
-      } catch {
+      } catch (logErr) {
+        console.warn("[seo-agent] CronJobLog query failed (table may not exist yet):", logErr instanceof Error ? logErr.message : logErr);
         // cron_job_logs table may not exist yet — still healthy
         await prisma.$queryRaw`SELECT 1`;
       }
@@ -50,7 +51,8 @@ export async function GET(request: NextRequest) {
         activeSites: getActiveSiteIds(),
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (healthErr) {
+      console.warn("[seo-agent] Healthcheck failed:", healthErr instanceof Error ? healthErr.message : healthErr);
       return NextResponse.json(
         { status: "unhealthy", endpoint: "seo-agent" },
         { status: 503 },
@@ -104,7 +106,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Fire failure hook for dashboard visibility
-    onCronFailure({ jobName: "seo-agent", error }).catch(() => {});
+    onCronFailure({ jobName: "seo-agent", error }).catch(err => console.error("[seo-agent] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "SEO Agent failed" },
@@ -662,7 +664,8 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
       postsWithIssues,
       topIssues: Object.entries(postIssues).slice(0, 5),
     };
-  } catch {
+  } catch (err) {
+    console.warn("[seo-agent] auditBlogPosts failed:", err instanceof Error ? err.message : err);
     return {
       totalPosts: 0,
       averageSEOScore: 0,
@@ -710,7 +713,8 @@ async function checkIndexingStatus(
       siteUrl,
       message: "URLs ready for indexing verification",
     };
-  } catch {
+  } catch (err) {
+    console.warn("[seo-agent] checkIndexingStatus failed:", err instanceof Error ? err.message : err);
     return { status: "check_failed", checkedUrls: 0 };
   }
 }
@@ -781,13 +785,14 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
             }),
           ),
         );
-      } catch {
-        // Best-effort tracking — don't block the SEO agent
+      } catch (trackErr) {
+        console.warn("[seo-agent] URL tracking in URLIndexingStatus failed (non-fatal):", trackErr instanceof Error ? trackErr.message : trackErr);
       }
     }
 
     return { discovered: urls.length, urls, delegatedTo: "seo/cron", submitted: 0 };
-  } catch {
+  } catch (err) {
+    console.warn("[seo-agent] submitNewUrls failed:", err instanceof Error ? err.message : err);
     return { submitted: 0, discovered: 0, error: "Failed to check for new posts" };
   }
 }
@@ -822,8 +827,8 @@ async function verifySitemapHealth(issues: string[], siteUrl?: string) {
     }
 
     return { healthy: true, urlCount, status: 200 };
-  } catch {
-    // Can't reach own sitemap - likely running locally or DNS issue
+  } catch (err) {
+    console.warn("[seo-agent] verifySitemapHealth failed (may be running locally):", err instanceof Error ? err.message : err);
     return {
       healthy: "unknown",
       message: "Could not fetch sitemap (may be running locally)",
@@ -879,7 +884,8 @@ async function detectContentGaps(prisma: any, issues: string[], siteId?: string)
     }
 
     return { categoryGaps: gaps, enPosts, arPosts };
-  } catch {
+  } catch (err) {
+    console.warn("[seo-agent] detectContentGaps failed:", err instanceof Error ? err.message : err);
     return { categoryGaps: [], enPosts: 0, arPosts: 0 };
   }
 }

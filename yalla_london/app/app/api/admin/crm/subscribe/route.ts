@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         });
 
         // TODO: Send confirmation email
-        console.log(`Resending confirmation email to ${email} with token ${doubleOptinToken}`);
+        console.log(`Sending confirmation email to ${email}`);
 
         return NextResponse.json({
           success: true,
@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
     });
 
     // TODO: Send double opt-in confirmation email
-    console.log(`Sending confirmation email to ${email} with token ${doubleOptinToken}`);
+    console.log(`Sending confirmation email to ${email}`);
 
     return NextResponse.json({
       success: true,

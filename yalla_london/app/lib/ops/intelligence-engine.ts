@@ -80,8 +80,8 @@ export async function generateIntelligenceReport(): Promise<IntelligenceReport> 
       orderBy: { started_at: "desc" },
       take: 500,
     });
-  } catch {
-    // Table may not exist
+  } catch (err) {
+    console.warn("[intelligence-engine] Failed to fetch cron logs (table may not exist):", err instanceof Error ? err.message : err);
   }
 
   // ── Build cron job statuses ─────────────────────────────────────────
@@ -160,7 +160,7 @@ export async function generateIntelligenceReport(): Promise<IntelligenceReport> 
         current_phase: "published",
         published_at: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
       },
-    }).catch(() => 0);
+    }).catch(err => { console.warn("[intelligence-engine] Failed to count published-today drafts:", err instanceof Error ? err.message : err); return 0; });
 
     pipelineStatuses.push({
       id: "content-to-revenue",
@@ -171,7 +171,8 @@ export async function generateIntelligenceReport(): Promise<IntelligenceReport> 
       throughputLast24h: publishedToday,
       health: totalActive > 0 ? "healthy" : publishedToday > 0 ? "healthy" : "idle",
     });
-  } catch {
+  } catch (err) {
+    console.warn("[intelligence-engine] Failed to query content pipeline status:", err instanceof Error ? err.message : err);
     pipelineStatuses.push({
       id: "content-to-revenue",
       name: "Content → Revenue",
@@ -206,7 +207,8 @@ export async function generateIntelligenceReport(): Promise<IntelligenceReport> 
       throughputLast24h: indexed,
       health: total === 0 ? "idle" : indexed > 0 ? "healthy" : "warning",
     });
-  } catch {
+  } catch (err) {
+    console.warn("[intelligence-engine] Failed to query indexing pipeline status:", err instanceof Error ? err.message : err);
     pipelineStatuses.push({
       id: "indexing-pipeline",
       name: "Google Indexing",
@@ -290,7 +292,9 @@ export async function generateIntelligenceReport(): Promise<IntelligenceReport> 
         detail: "Topic supply is running low. The weekly cron generates 30 topics every Monday.",
       });
     }
-  } catch { /* */ }
+  } catch (err) {
+    console.warn("[intelligence-engine] Failed to count topic proposals:", err instanceof Error ? err.message : err);
+  }
 
   // Published article count
   try {
@@ -305,7 +309,9 @@ export async function generateIntelligenceReport(): Promise<IntelligenceReport> 
         pipelineId: "content-to-revenue",
       });
     }
-  } catch { /* */ }
+  } catch (err) {
+    console.warn("[intelligence-engine] Failed to count published articles:", err instanceof Error ? err.message : err);
+  }
 
   // ── Build timeline ──────────────────────────────────────────────────
   const timeline: TimelineEvent[] = [];
@@ -378,7 +384,9 @@ export async function generateIntelligenceReport(): Promise<IntelligenceReport> 
         indexingInsight = `${total} URLs tracked: ${indexed} indexed by Google, ${submitted} submitted (waiting), ${discovered} discovered (not yet submitted). Indexing rate: ${total > 0 ? Math.round((indexed / total) * 100) : 0}%.`;
       }
     }
-  } catch { /* */ }
+  } catch (err) {
+    console.warn("[intelligence-engine] Failed to generate indexing insight:", err instanceof Error ? err.message : err);
+  }
 
   // ── Revenue insight ─────────────────────────────────────────────────
   let revenueInsight: string | null = null;
@@ -395,7 +403,9 @@ export async function generateIntelligenceReport(): Promise<IntelligenceReport> 
     } else {
       revenueInsight = `${postsWithAffiliates} of ${totalPublished} published articles have affiliate links (${Math.round((postsWithAffiliates / totalPublished) * 100)}%). Each click on a partner link earns commission.`;
     }
-  } catch { /* */ }
+  } catch (err) {
+    console.warn("[intelligence-engine] Failed to generate revenue insight:", err instanceof Error ? err.message : err);
+  }
 
   // ── Overall health score ────────────────────────────────────────────
   const criticalAlerts = alerts.filter((a) => a.severity === "critical").length;

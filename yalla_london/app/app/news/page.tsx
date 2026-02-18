@@ -1,51 +1,58 @@
 import { Metadata } from "next";
 import { prisma } from "@/lib/db";
+import { getBaseUrl } from "@/lib/url-utils";
+import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
 import NewsListClient from "./NewsListClient";
 
 export const revalidate = 600;
 
-export const metadata: Metadata = {
-  title: "London Today — News & Updates | Yalla London",
-  description:
-    "Stay up to date with the latest London news, transport updates, events, and travel tips curated for Arab visitors. Your daily briefing on what's happening in London.",
-  keywords:
-    "london news, london today, london transport updates, london events, arab visitors london, tfl updates, london travel tips",
-  alternates: {
-    canonical: "https://www.yalla-london.com/news",
-    languages: {
-      "en-GB": "https://www.yalla-london.com/news",
-      "ar-SA": "https://www.yalla-london.com/ar/news",
-    },
-  },
-  openGraph: {
+// Dynamic metadata for SEO — resolves base URL from request context
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = await getBaseUrl();
+
+  return {
     title: "London Today — News & Updates | Yalla London",
     description:
-      "Stay up to date with the latest London news, transport updates, and events curated for Arab visitors.",
-    url: "https://www.yalla-london.com/news",
-    siteName: "Yalla London",
-    locale: "en_GB",
-    alternateLocale: "ar_SA",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    site: "@yallalondon",
-    title: "London Today | Yalla London",
-    description:
-      "Daily London news, transport updates, and events for Arab visitors",
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+      "Stay up to date with the latest London news, transport updates, events, and travel tips curated for Arab visitors. Your daily briefing on what's happening in London.",
+    keywords:
+      "london news, london today, london transport updates, london events, arab visitors london, tfl updates, london travel tips",
+    alternates: {
+      canonical: `${baseUrl}/news`,
+      languages: {
+        "en-GB": `${baseUrl}/news`,
+        "ar-SA": `${baseUrl}/ar/news`,
+      },
+    },
+    openGraph: {
+      title: "London Today — News & Updates | Yalla London",
+      description:
+        "Stay up to date with the latest London news, transport updates, and events curated for Arab visitors.",
+      url: `${baseUrl}/news`,
+      siteName: "Yalla London",
+      locale: "en_GB",
+      alternateLocale: "ar_SA",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: "@yallalondon",
+      title: "London Today | Yalla London",
+      description:
+        "Daily London news, transport updates, and events for Arab visitors",
+    },
+    robots: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
-  },
-};
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Seed data — same as the API route so the listing works without a database
@@ -170,7 +177,7 @@ async function getAllNews(): Promise<NewsItem[]> {
 
 function generateStructuredData(items: NewsItem[]) {
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
 
   return {
     "@context": "https://schema.org",

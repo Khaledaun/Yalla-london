@@ -2,10 +2,13 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin-middleware'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
   try {
     // Get table count
     const tableResult = await (prisma as any).$queryRaw`

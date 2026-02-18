@@ -284,7 +284,23 @@ async function generateArticle(
   deadline?: { remainingMs: () => number },
 ) {
   const topic = await pickTopic(primaryLanguage, site, prisma);
-  const content = await generateWithAI(topic, primaryLanguage, site, deadline);
+
+  let content;
+  try {
+    content = await generateWithAI(topic, primaryLanguage, site, deadline);
+  } catch (aiErr) {
+    // If AI generation fails and we claimed a topic from the DB, revert its status
+    // so it can be picked up again by a future run
+    if (topic.id) {
+      await prisma.topicProposal.update({
+        where: { id: topic.id },
+        data: { status: "ready" },
+      }).catch((revertErr: unknown) => {
+        console.warn(`[daily-content-generate] Failed to revert topic ${topic.id} status after AI failure:`, revertErr instanceof Error ? revertErr.message : revertErr);
+      });
+    }
+    throw aiErr;
+  }
   const category = await getOrCreateCategory(site, prisma);
   const systemUser = await getOrCreateSystemUser(site, prisma);
   const slug = generateSlug(content.title, primaryLanguage);
@@ -465,7 +481,8 @@ async function generateArticle(
 async function pickTopic(language: string, site: SiteConfig, prisma: any) {
   // Try to get a queued/ready topic from the database for this site
   try {
-    const topic = await prisma.topicProposal.findFirst({
+    // Find a candidate topic
+    const candidate = await prisma.topicProposal.findFirst({
       where: {
         status: { in: ["ready", "queued", "planned", "proposed"] },
         locale: language,
@@ -475,15 +492,33 @@ async function pickTopic(language: string, site: SiteConfig, prisma: any) {
       orderBy: [{ confidence_score: "desc" }, { created_at: "asc" }],
     });
 
-    if (topic) {
-      return {
-        id: topic.id,
-        keyword: topic.primary_keyword,
-        longtails: topic.longtails || [],
-        questions: topic.questions || [],
-        pageType: topic.suggested_page_type || "guide",
-        authorityLinks: topic.authority_links_json || {},
-      };
+    if (candidate) {
+      // Atomically claim it — only succeeds if status hasn't changed
+      // This prevents race conditions where multiple pipelines grab the same topic
+      const claimed = await prisma.topicProposal.updateMany({
+        where: {
+          id: candidate.id,
+          status: { in: ["ready", "queued", "planned", "proposed"] },
+        },
+        data: {
+          status: "generating",
+          updated_at: new Date(),
+        },
+      });
+
+      if (claimed.count === 0) {
+        // Another process already claimed this topic — fall through to template
+        console.log(`[daily-content-generate] Topic ${candidate.id} already claimed by another process, using fallback`);
+      } else {
+        return {
+          id: candidate.id,
+          keyword: candidate.primary_keyword,
+          longtails: candidate.longtails || [],
+          questions: candidate.questions || [],
+          pageType: candidate.suggested_page_type || "guide",
+          authorityLinks: candidate.authority_links_json || {},
+        };
+      }
     }
   } catch (dbErr) {
     console.warn(`[daily-content-generate] DB topic lookup failed, using fallback topics:`, dbErr instanceof Error ? dbErr.message : dbErr);

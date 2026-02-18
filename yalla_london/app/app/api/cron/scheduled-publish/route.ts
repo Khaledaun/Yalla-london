@@ -162,7 +162,7 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
           const url = `${siteUrl}/blog/${post.slug}`;
           await fetch(
             `https://api.indexnow.org/indexnow?url=${encodeURIComponent(url)}&key=${indexNowKey}`,
-          ).catch(() => {});
+          ).catch(err => console.warn(`[scheduled-publish] IndexNow submission failed for ${url}:`, err instanceof Error ? err.message : err));
         }
       }
     }
@@ -172,7 +172,8 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
       published: results,
       orphaned_drafts: orphanedDrafts.length,
     };
-  } catch {
+  } catch (err) {
+    console.warn("[scheduled-publish] Orphan check or IndexNow submission error:", err instanceof Error ? err.message : err);
     return {
       published_count: results.length,
       published: results,
@@ -291,8 +292,8 @@ export const POST = withCronLog("scheduled-publish-manual", async (log) => {
         log.trackItem(false);
       }
     }
-  } catch {
-    // non-fatal
+  } catch (err) {
+    console.warn("[scheduled-publish-manual] Query error (non-fatal):", err instanceof Error ? err.message : err);
   }
 
   return { published_count: published, skipped_count: skipped.length, skipped };

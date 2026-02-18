@@ -355,8 +355,9 @@ async function wasRecentlyRecovered(draftId: string): Promise<boolean> {
     });
 
     return !!recentRecovery;
-  } catch {
+  } catch (err) {
     // If we can't check, allow recovery (better to recover twice than never)
+    console.warn(`[failure-hook] Could not check recent recovery for draft ${draftId}:`, err instanceof Error ? err.message : err);
     return false;
   }
 }
@@ -425,8 +426,8 @@ async function runTargetedSweep(siteId?: string): Promise<number> {
           recentlyRecoveredIds.add(summary.target);
         }
       }
-    } catch {
-      // Non-fatal — proceed without dedup
+    } catch (dedupErr) {
+      console.warn("[failure-hook] Non-fatal: could not fetch recent recovery logs for dedup:", dedupErr instanceof Error ? dedupErr.message : dedupErr);
     }
 
     const whereClause: Record<string, unknown> = {
@@ -537,8 +538,8 @@ async function logSweeperEvent(entry: SweeperLogEntry): Promise<void> {
         result_summary: entry as unknown as Record<string, unknown>,
       },
     });
-  } catch {
-    // Best-effort — never break the caller
+  } catch (logErr) {
+    console.error(`[logSweeperEvent] Failed to persist sweeper log for ${entry.source}→${entry.target}:`, logErr instanceof Error ? logErr.message : logErr);
   }
 }
 
@@ -585,7 +586,8 @@ export async function getSweeperLogs(limit = 50): Promise<SweeperLogEntry[]> {
     }
 
     return entries;
-  } catch {
+  } catch (err) {
+    console.warn("[getSweeperLogs] Failed to fetch sweeper logs:", err instanceof Error ? err.message : err);
     return [];
   }
 }

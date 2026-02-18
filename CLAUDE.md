@@ -670,14 +670,45 @@ Deeper trace of every handoff point in the pipeline:
 - KG-034: Affiliate injection London-only → **Resolved** (per-site destination URLs)
 - KG-038: IndexNow 24h window → **Resolved** (extended to 7 days)
 
-**Remaining Known Gaps (See AUDIT-LOG.md for full tracking):**
+### Session: February 18, 2026 — Audit #12: Critical Security Lockdown & Functioning Roadmap
 
-| Area | Issue | Severity | Status |
-|------|-------|----------|--------|
-| SEO | No Arabic SSR — hreflang mismatch | MEDIUM | Open (KG-032) |
-| Dashboard | No traffic/revenue data — GA4 not connected | MEDIUM | Open (KG-035) |
-| Dashboard | No push/email alerts for cron failures | MEDIUM | Open (KG-036) |
-| GA4 | Dashboard returns 0s for traffic — API calls stubbed | MEDIUM | Open (KG-001) |
-| Login Security | No rate limiting on admin login | MEDIUM | Open (KG-024) |
-| Orphan Models | 16+ Prisma models never referenced in code | LOW | Open (KG-020) |
-| Brand Templates | Only Yalla London template exists | MEDIUM | Open (KG-027) |
+**Audit #12 — Critical Security, Pipeline Integrity, Observability, URL Correctness (85+ issues fixed):**
+
+1. **CRITICAL security: Unauthenticated database routes (KG-040):** Added `requireAdmin` to 7 handlers across 5 database API routes. Fixed `pg_dump`/`psql` password injection.
+2. **CRITICAL security: Admin setup password reset bypass (KG-041):** Setup endpoint now returns 403 when admin already exists.
+3. **HIGH security: 7 public mutation APIs (KG-042):** Added `requireAdmin` to content/auto-generate, content/schedule, homepage-blocks, homepage-blocks/publish, cache/invalidate, media/upload, test-content-generation.
+4. **HIGH info disclosure:** Removed API key prefix logging and verification token logging.
+5. **HIGH observability: 34 empty catch blocks (KG-043):** Central fixes in `onCronFailure` (failure-hooks.ts) and `logCronExecution` (cron-logger.ts) plus per-file fixes. All now log with module tags.
+6. **CRITICAL pipeline: Race conditions (KG-025):** Atomic topic claiming with `updateMany` + new "generating" status across all 3 consumer pipelines. Soft-lock on ArticleDraft processing.
+7. **CRITICAL SEO: Static metadata (KG-044):** 5 pages converted from static `metadata` to `generateMetadata()` with new `lib/url-utils.ts` utility.
+8. **HIGH URL fallbacks:** 9 layout.tsx files now use config-driven fallback instead of hardcoded yalla-london.com.
+
+**Functioning Roadmap Created:**
+- `docs/FUNCTIONING-ROADMAP.md` — comprehensive 8-phase path to 100% healthy platform
+- Master checklist with anti-duplication, anti-conflict, anti-contradiction, anti-misalignment, anti-malfunction verification
+- Anti-patterns registry documenting 12 recurring bad patterns with correct alternatives
+- Validation protocol for every code change, pipeline change, and deployment
+- All 47 Known Gaps tracked with phase assignments
+
+**Known Gaps Resolved by Audit #12:**
+- KG-025: Pipeline race conditions → **Resolved** (atomic claiming + "generating" status)
+- KG-040: Unauthenticated database routes → **Resolved** (requireAdmin on all)
+- KG-041: Admin setup password reset → **Resolved** (403 after first admin)
+- KG-042: Public mutation APIs → **Resolved** (requireAdmin on 7 routes)
+- KG-043: 34 empty catch blocks → **Resolved** (central + per-file logging)
+- KG-044: Static metadata URLs → **Resolved** (generateMetadata + getBaseUrl)
+
+**Remaining Known Gaps (See AUDIT-LOG.md + FUNCTIONING-ROADMAP.md for full tracking):**
+
+| Area | Issue | Severity | Phase |
+|------|-------|----------|-------|
+| SEO | No Arabic SSR — hreflang mismatch | MEDIUM | Phase 8 (KG-032) |
+| Dashboard | No traffic/revenue data — GA4 not connected | MEDIUM | Phase 6 (KG-035) |
+| Dashboard | No push/email alerts for cron failures | MEDIUM | Phase 4 (KG-036) |
+| Dashboard | 13+ admin pages show mock/fake data | HIGH | Phase 5 (KG-045) |
+| Dashboard | 14+ admin buttons dead (no handlers) | HIGH | Phase 5 (KG-046) |
+| Navigation | Broken sidebar links to /admin/news, /admin/facts | HIGH | Phase 5 (KG-047) |
+| Login Security | No rate limiting on admin login | MEDIUM | Phase 1 (KG-024) |
+| URL Hardcoding | ~30 remaining in API routes and lib files | MEDIUM | Phase 3 (KG-021) |
+| Orphan Models | 16+ Prisma models never referenced | LOW | Phase 8 (KG-020) |
+| Brand Templates | Only Yalla London template exists | MEDIUM | Phase 7 (KG-027) |

@@ -148,7 +148,7 @@ export async function runContentSelector(
             last_error: `Promotion failed: ${errMsg}`,
             phase_attempts: ((draft.phase_attempts as number) || 0) + 1,
           },
-        }).catch(() => {});
+        }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
 
         // Fire promotion failure hook for immediate recovery
         onPromotionFailure({
@@ -156,7 +156,7 @@ export async function runContentSelector(
           keyword: draft.keyword as string,
           error: errMsg,
           siteId: draft.site_id as string,
-        }).catch(() => {}); // fire-and-forget
+        }).catch(err => console.warn("[select-runner] onPromotionFailure hook failed:", err instanceof Error ? err.message : err));
       }
     }
 
@@ -193,7 +193,7 @@ export async function runContentSelector(
     await logCronExecution("content-selector", "failed", {
       durationMs,
       errorMessage: errMsg,
-    }).catch(() => {});
+    }).catch(err => console.warn("[select-runner] Failed to log cron execution:", err instanceof Error ? err.message : err));
 
     return {
       success: false,
@@ -271,7 +271,8 @@ async function promoteToBlogPost(
         console.log(`[content-selector] Paired draft ${pairedDraftId} has no assembled HTML yet — publishing single-language`);
         pairedDraft = null;
       }
-    } catch {
+    } catch (pairErr) {
+      console.warn(`[select-runner] Failed to fetch paired draft ${pairedDraftId}:`, pairErr instanceof Error ? pairErr.message : pairErr);
       // Proceed with single language
     }
   }
@@ -407,7 +408,7 @@ async function promoteToBlogPost(
           last_error: `Pre-pub gate blocked: ${gateResult.blockers.join("; ")}`,
           updated_at: new Date(),
         },
-      }).catch(() => {});
+      }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
       return null; // Skip this draft — do not publish
     }
 
@@ -429,7 +430,7 @@ async function promoteToBlogPost(
         last_error: `Pre-pub gate error (blocked): ${gateErrMsg}`,
         updated_at: new Date(),
       },
-    }).catch(() => {});
+    }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
     return null; // Fail closed — don't publish without gate verification
   }
 
@@ -537,8 +538,8 @@ async function promoteToBlogPost(
         tags: keywords.slice(0, 5),
       },
     );
-  } catch {
-    // Non-fatal
+  } catch (schemaErr) {
+    console.warn("[select-runner] Schema injection failed (non-fatal):", schemaErr instanceof Error ? schemaErr.message : schemaErr);
   }
 
   // Update BOTH drafts to published state
@@ -571,8 +572,8 @@ async function promoteToBlogPost(
         where: { id: draft.topic_proposal_id as string },
         data: { status: "published" },
       });
-    } catch {
-      // Non-fatal
+    } catch (topicErr) {
+      console.warn(`[select-runner] Failed to update TopicProposal ${draft.topic_proposal_id}:`, topicErr instanceof Error ? topicErr.message : topicErr);
     }
   }
 

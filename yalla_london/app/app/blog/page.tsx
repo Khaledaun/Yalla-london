@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
+import { getBaseUrl } from "@/lib/url-utils";
+import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
 import BlogListClient from "./BlogListClient";
 
 // Combine all static blog posts (legacy content)
@@ -9,56 +11,60 @@ const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 // ISR: Revalidate blog listing every 10 minutes for Cloudflare edge caching
 export const revalidate = 600;
 
-// Static metadata for SEO
-export const metadata: Metadata = {
-  title: "Blog | Yalla London - Travel Guides & Stories for Arab Visitors",
-  description:
-    "Explore our collection of travel guides, restaurant reviews, hotel comparisons, and insider tips for Arab visitors to London. Find halal dining, luxury hotels, and cultural experiences.",
-  keywords:
-    "london blog, halal travel london, arab visitors london, london guides, halal restaurants, luxury hotels london, arab friendly london",
-  alternates: {
-    canonical: "https://www.yalla-london.com/blog",
-    languages: {
-      "en-GB": "https://www.yalla-london.com/blog",
-      "ar-SA": "https://www.yalla-london.com/ar/blog",
-    },
-  },
-  openGraph: {
-    title: "Blog | Yalla London - Travel Guides for Arab Visitors",
+// Dynamic metadata for SEO — resolves base URL from request context
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = await getBaseUrl();
+
+  return {
+    title: "Blog | Yalla London - Travel Guides & Stories for Arab Visitors",
     description:
-      "Discover London through the eyes of Arab travelers. Halal dining, luxury hotels, shopping guides, and cultural experiences.",
-    url: "https://www.yalla-london.com/blog",
-    siteName: "Yalla London",
-    locale: "en_GB",
-    alternateLocale: "ar_SA",
-    type: "website",
-    images: [
-      {
-        url: "https://www.yalla-london.com/images/blog-og.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Yalla London Blog - Travel Guides for Arab Visitors",
+      "Explore our collection of travel guides, restaurant reviews, hotel comparisons, and insider tips for Arab visitors to London. Find halal dining, luxury hotels, and cultural experiences.",
+    keywords:
+      "london blog, halal travel london, arab visitors london, london guides, halal restaurants, luxury hotels london, arab friendly london",
+    alternates: {
+      canonical: `${baseUrl}/blog`,
+      languages: {
+        "en-GB": `${baseUrl}/blog`,
+        "ar-SA": `${baseUrl}/ar/blog`,
       },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    site: "@yallalondon",
-    title: "Blog | Yalla London",
-    description: "Travel guides and stories for Arab visitors to London",
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+    },
+    openGraph: {
+      title: "Blog | Yalla London - Travel Guides for Arab Visitors",
+      description:
+        "Discover London through the eyes of Arab travelers. Halal dining, luxury hotels, shopping guides, and cultural experiences.",
+      url: `${baseUrl}/blog`,
+      siteName: "Yalla London",
+      locale: "en_GB",
+      alternateLocale: "ar_SA",
+      type: "website",
+      images: [
+        {
+          url: `${baseUrl}/images/blog-og.jpg`,
+          width: 1200,
+          height: 630,
+          alt: "Yalla London Blog - Travel Guides for Arab Visitors",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: "@yallalondon",
+      title: "Blog | Yalla London",
+      description: "Travel guides and stories for Arab visitors to London",
+    },
+    robots: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
-  },
-};
+  };
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -93,7 +99,7 @@ function generateStructuredData(
   }>,
 ) {
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
 
   const blogSchema = {
     "@context": "https://schema.org",

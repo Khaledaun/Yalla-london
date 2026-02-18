@@ -62,6 +62,12 @@ export async function runContentBuilder(
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
           phase_attempts: { lt: 3 },
+          // Soft-lock: skip drafts actively being processed by another runner (within last 60s)
+          // This prevents build-runner and full-pipeline-runner from processing the same draft
+          OR: [
+            { phase_started_at: null },
+            { phase_started_at: { lt: new Date(Date.now() - 60 * 1000) } },
+          ],
         },
         orderBy: { updated_at: "asc" },
         take: 20,
@@ -124,7 +130,8 @@ export async function runContentBuilder(
         let locale = "en";
 
         try {
-          const topic = await prisma.topicProposal.findFirst({
+          // Find a candidate topic
+          const candidate = await prisma.topicProposal.findFirst({
             where: {
               status: { in: ["ready", "queued", "planned", "proposed"] },
               OR: [{ site_id: siteId }, { site_id: null }],
@@ -132,15 +139,29 @@ export async function runContentBuilder(
             orderBy: [{ confidence_score: "desc" }, { created_at: "asc" }],
           });
 
-          if (topic) {
-            keyword = topic.primary_keyword;
-            topicProposalId = topic.id;
-            locale = topic.locale || "en";
-            strategy = "topic_db";
-            await prisma.topicProposal.update({
-              where: { id: topic.id },
-              data: { status: "generated" },
+          if (candidate) {
+            // Atomically claim it — only succeeds if status hasn't changed
+            // This prevents race conditions where multiple pipelines grab the same topic
+            const claimed = await prisma.topicProposal.updateMany({
+              where: {
+                id: candidate.id,
+                status: { in: ["ready", "queued", "planned", "proposed"] },
+              },
+              data: {
+                status: "generating",
+                updated_at: new Date(),
+              },
             });
+
+            if (claimed.count === 0) {
+              // Another process already claimed this topic — skip it
+              console.log(`[content-builder] Topic ${candidate.id} already claimed by another process, skipping`);
+            } else {
+              keyword = candidate.primary_keyword;
+              topicProposalId = candidate.id;
+              locale = candidate.locale || "en";
+              strategy = "topic_db";
+            }
           }
         } catch {
           // TopicProposal query failed — fall through to template
@@ -190,6 +211,16 @@ export async function runContentBuilder(
           where: { id: enDraft.id },
           data: { paired_draft_id: arDraft.id },
         });
+
+        // Transition topic from "generating" to "generated" now that drafts are created
+        if (topicProposalId) {
+          await prisma.topicProposal.update({
+            where: { id: topicProposalId },
+            data: { status: "generated" },
+          }).catch((err: unknown) => {
+            console.warn(`[content-builder] Failed to mark topic ${topicProposalId} as generated:`, err instanceof Error ? err.message : err);
+          });
+        }
 
         // Use the first created draft for phase execution in Step 3
         if (!draft) {

@@ -20,6 +20,7 @@
 | 9 | 2026-02-18 | Deep pipeline trace: cron auth, scheduled-publish gates, multi-site build, blog scoping | 18 issues | 18 | 0 |
 | 10 | 2026-02-18 | XSS sanitization, 6 more cron auth, dead code, multi-site affiliates, trends monitor | 28 issues | 28 | 0 |
 | 11 | 2026-02-18 | Hardcoded emails, IndexNow window, admin XSS, DB related articles, duplicate crons | 25 issues | 25 | 0 |
+| 12 | 2026-02-18 | CRITICAL security lockdown, pipeline race conditions, empty catches, URL hardcoding | 85+ issues | 85+ | 0 |
 
 ---
 
@@ -820,6 +821,79 @@ All 18 Audit #9 fixes verified clean by independent validation agent. PASS on al
 
 ---
 
+## Audit #12 — Critical Security Lockdown, Pipeline Race Conditions, Empty Catches, URL Hardcoding
+
+**Date:** 2026-02-18
+**Trigger:** 5 deep research sweeps across URL hardcoding, empty catches, pipeline integrity, admin pages, and security
+**Scope:** CRITICAL security fixes, pipeline race conditions, 34 empty catch blocks, 14 URL hardcoding fixes, functioning roadmap
+**Commit:** (pending)
+
+### Findings
+
+#### A12-001: Unauthenticated Database Routes (CRITICAL — KG-040)
+- **Issue:** 4 database API routes had ZERO authentication — any anonymous user could create/list/download/restore database backups
+- **Fix:** Added `requireAdmin` auth to all 7 handlers across 5 files (backups GET/POST, backup [id] GET/DELETE, download GET, restore POST, stats GET)
+- **Bonus:** Fixed `pg_dump` and `psql` password injection — now uses `env` option instead of string interpolation
+- **Files:** `api/database/backups/route.ts`, `api/database/backups/[id]/route.ts`, `api/database/backups/[id]/download/route.ts`, `api/database/backups/[id]/restore/route.ts`, `api/database/stats/route.ts`
+
+#### A12-002: Admin Setup Password Reset Bypass (CRITICAL — KG-041)
+- **Issue:** `/api/admin/setup` POST allowed unauthenticated password reset for existing admins if attacker knew the admin email
+- **Fix:** Returns 403 "Setup already completed" when admin with password already exists
+- **File:** `api/admin/setup/route.ts`
+
+#### A12-003: 7 Public Mutation Routes Without Auth (HIGH — KG-042)
+- **Issue:** 7 public API routes allowed unauthenticated mutations (AI content gen, file upload, homepage editing, cache purge)
+- **Fix:** Added `requireAdmin` to all 10 handlers across 7 files
+- **Files:** `api/content/auto-generate/route.ts`, `api/content/schedule/route.ts`, `api/homepage-blocks/route.ts`, `api/homepage-blocks/publish/route.ts`, `api/cache/invalidate/route.ts`, `api/media/upload/route.ts`, `api/test-content-generation/route.ts`
+
+#### A12-004: Information Disclosure (HIGH)
+- **Issue:** API key prefix logged to console in test-content-generation; verification tokens logged in CRM subscribe
+- **Fix:** Removed API key substring logging; removed token values from log statements
+- **Files:** `api/test-content-generation/route.ts`, `api/admin/crm/subscribe/route.ts`
+
+#### A12-005: 34 Empty Catch Blocks Fixed Systemically (HIGH — KG-043)
+- **Issue:** 34 catch blocks silently swallowed errors across cron jobs, pipeline, dashboard, and recovery systems
+- **Fix:** All 34 now log with contextual `console.error` (critical) or `console.warn` (non-fatal) with module tags
+- **Central fixes:** `onCronFailure` in failure-hooks.ts (eliminates 21 call-site catches), `logCronExecution` in cron-logger.ts (eliminates 9 call-site catches)
+- **Files:** `lib/ops/failure-hooks.ts` (5), `lib/cron-logger.ts` (2), `lib/content-pipeline/select-runner.ts` (8), `lib/ops/intelligence-engine.ts` (7), `api/cron/scheduled-publish/route.ts` (3), `api/cron/seo-agent/route.ts` (9)
+
+#### A12-006: Pipeline Race Condition — 3 Consumers Without Locking (CRITICAL — KG-025)
+- **Issue:** build-runner, daily-content-generate, and full-pipeline-runner could grab the same TopicProposal simultaneously, creating duplicate content
+- **Fix:** Implemented atomic topic claiming with `updateMany` pattern + new "generating" intermediate status. All 3 consumers now claim atomically; if claim fails (count=0), they skip gracefully
+- **Bonus:** Added soft-lock on ArticleDraft processing — skip drafts where `phase_started_at` < 60 seconds ago
+- **Bonus:** daily-content-generate reverts topic to "ready" if AI generation fails
+- **Files:** `lib/content-pipeline/build-runner.ts`, `api/cron/daily-content-generate/route.ts`, `lib/content-pipeline/full-pipeline-runner.ts`
+
+#### A12-007: Static Metadata Exports Hardcode yalla-london.com (CRITICAL — KG-044)
+- **Issue:** 5 pages used `export const metadata` with hardcoded canonical/OG URLs — all sites would point to yalla-london.com
+- **Fix:** Converted to `generateMetadata()` functions using new `getBaseUrl()` utility; 26+ hardcoded URL instances removed
+- **New file:** `lib/url-utils.ts` — shared URL resolution (x-hostname header → env var → config)
+- **Files:** `app/layout.tsx`, `app/blog/page.tsx`, `app/news/page.tsx`, `app/information/page.tsx`, `app/information/articles/page.tsx`
+
+#### A12-008: 9 Layout URL Fallbacks Hardcoded (HIGH)
+- **Issue:** 9 layout.tsx files used `|| "https://www.yalla-london.com"` fallback
+- **Fix:** All now use `getSiteDomain(getDefaultSiteId())` config-driven fallback
+- **Files:** experiences, events, terms, contact, privacy, team, shop, hotels, recommendations layout.tsx
+
+### Known Gaps Updated
+
+| ID | Update | Status |
+|----|--------|--------|
+| KG-025 | Pipeline race conditions fixed with atomic claiming + "generating" status | **Resolved** |
+| KG-040 | All database routes now require admin auth | **Resolved** |
+| KG-041 | Admin setup locked down after first admin created | **Resolved** |
+| KG-042 | All 7 public mutation routes now require admin auth | **Resolved** |
+| KG-043 | 34 empty catch blocks now log errors (central + per-file) | **Resolved** |
+| KG-044 | 5 static metadata exports converted to dynamic generateMetadata() | **Resolved** |
+
+### New Documentation
+- Created `docs/FUNCTIONING-ROADMAP.md` — comprehensive 8-phase roadmap with master checklist, anti-patterns registry, and validation protocol
+
+### TypeScript Compilation
+- **Result:** Build passes — ZERO TypeScript errors
+
+---
+
 ## Known Gaps (Not Blocking — Tracked for Future)
 
 | ID | Area | Description | Ref | Status | Added |
@@ -848,7 +922,7 @@ All 18 Audit #9 fixes verified clean by independent validation agent. PASS on al
 | KG-022 | Emails | ~~30+ hardcoded email addresses; inconsistent format~~ (all dynamic from site config) | A4-D03,D04, A11-001 | **Resolved** | 2026-02-18 |
 | KG-023 | XSS | ~~dangerouslySetInnerHTML without sanitization~~ (all 9 files sanitized: 3 public + 6 admin) | A4-D17, A10-001, A11-003 | **Resolved** | 2026-02-18 |
 | KG-024 | Login Security | No rate limiting on admin login; diagnostic GET without auth | A4-D18,D20 | Open | 2026-02-18 |
-| KG-025 | Race Conditions | TopicProposal consumed by both pipelines; slug collision possible | A4-D06,D07 | Open | 2026-02-18 |
+| KG-025 | Race Conditions | ~~TopicProposal consumed by 3 pipelines without locking~~ (atomic claiming + "generating" status) | A4-D06,D07, A12-006 | **Resolved** | 2026-02-18 |
 | KG-026 | CSP Headers | ~~Missing Content-Security-Policy headers~~ (already configured in next.config.js) | A4-D21, A11 | **Resolved** (false positive) | 2026-02-18 |
 | KG-027 | Brand Templates | Only Yalla London template exists in brand-templates.ts | A4-D23 | Open | 2026-02-18 |
 | KG-028 | Cron Auth | ~~CRON_SECRET bypass when env var not set~~ | A4-D19, A9-001–006 | **Resolved** | 2026-02-18 |
@@ -863,6 +937,14 @@ All 18 Audit #9 fixes verified clean by independent validation agent. PASS on al
 | KG-037 | Pipeline | ~~Scheduled-publish POST handler bypasses all quality gates~~ | A8-S3, A9-007–008 | **Resolved** | 2026-02-18 |
 | KG-038 | SEO | ~~Posts older than 24h may never be auto-submitted to IndexNow~~ (window extended to 7 days) | A8-S4, A11-002 | **Resolved** | 2026-02-18 |
 | KG-039 | Pipeline | ~~Blog post query not scoped by siteId (slug must be globally unique)~~ | A8-S5, A9-010–012 | **Resolved** | 2026-02-18 |
+| KG-040 | Security | ~~Unauthenticated database backup/restore/download/stats routes~~ | A12-001 | **Resolved** | 2026-02-18 |
+| KG-041 | Security | ~~Admin setup allows unauthenticated password reset~~ | A12-002 | **Resolved** | 2026-02-18 |
+| KG-042 | Security | ~~7 public mutation APIs without auth (content gen, upload, homepage, cache)~~ | A12-003 | **Resolved** | 2026-02-18 |
+| KG-043 | Observability | ~~34+ empty catch blocks silently swallow errors~~ (all now log with module tags) | A12-005 | **Resolved** | 2026-02-18 |
+| KG-044 | SEO | ~~5 static metadata exports hardcode yalla-london.com canonical/OG URLs~~ | A12-007 | **Resolved** | 2026-02-18 |
+| KG-045 | Dashboard | 13+ admin pages show entirely mock/fake data | A12-research | Open | 2026-02-18 |
+| KG-046 | Dashboard | 14+ admin buttons are dead (no onClick handlers) | A12-research | Open | 2026-02-18 |
+| KG-047 | Navigation | Broken sidebar links to /admin/news and /admin/facts (pages don't exist) | A12-research | Open | 2026-02-18 |
 
 ---
 

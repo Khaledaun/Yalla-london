@@ -71,14 +71,13 @@ export async function GET(request: NextRequest) {
         slug: true,
         seo_score: true,
         content_en: true,
-        published_at: true,
         created_at: true,
         updated_at: true,
-        meta_title: true,
-        meta_description: true,
-        structured_data_json: true,
+        meta_title_en: true,
+        meta_description_en: true,
+        keywords_json: true,
       },
-      orderBy: { published_at: "desc" },
+      orderBy: { created_at: "desc" },
     });
 
     // 2. Get indexing status for all article URLs
@@ -204,14 +203,11 @@ export async function GET(request: NextRequest) {
       if ((post.seo_score || 0) < 50) {
         reasons.push(`Low SEO score (${post.seo_score || 0}/100) — improve meta tags, headings, and content structure`);
       }
-      if (!post.meta_title) {
+      if (!post.meta_title_en) {
         reasons.push("Missing meta title — critical for SEO");
       }
-      if (!post.meta_description) {
+      if (!post.meta_description_en) {
         reasons.push("Missing meta description — important for click-through rate");
-      }
-      if (!post.structured_data_json) {
-        reasons.push("No structured data (JSON-LD) — reduces rich snippet eligibility");
       }
 
       return {
@@ -219,7 +215,7 @@ export async function GET(request: NextRequest) {
         title: post.title_en || post.title_ar || "(Untitled)",
         slug: post.slug,
         url: `/blog/${post.slug}`,
-        publishedAt: (post.published_at || post.created_at)?.toISOString() || null,
+        publishedAt: post.created_at?.toISOString() || null,
         seoScore: post.seo_score || 0,
         wordCount,
         indexingStatus,

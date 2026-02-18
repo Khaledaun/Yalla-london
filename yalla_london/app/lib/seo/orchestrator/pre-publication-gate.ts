@@ -42,6 +42,9 @@ export async function runPrePublicationGate(
     locale?: string;
     tags?: string[];
     seo_score?: number;
+    author_id?: string;
+    keywords_json?: unknown;
+    structured_data_json?: unknown;
   },
   siteUrl?: string
 ): Promise<GateResult> {
@@ -154,27 +157,29 @@ export async function runPrePublicationGate(
     });
   }
 
-  if (!content.meta_title_en || content.meta_title_en.length < 20) {
+  // Meta title: Google displays ~60 chars. Min 30 for meaningful title.
+  if (!content.meta_title_en || content.meta_title_en.length < 30) {
     checks.push({
       name: "Meta Title",
       passed: false,
-      message: `Meta title missing or too short (${content.meta_title_en?.length || 0} chars, min 20)`,
+      message: `Meta title missing or too short (${content.meta_title_en?.length || 0} chars, min 30, optimal 50-60)`,
       severity: "warning",
     });
-    warnings.push("Meta title should be at least 20 characters");
+    warnings.push("Meta title should be 30-60 characters for optimal SERP display");
   }
 
+  // Meta description: Google displays 120-160 chars. Min 70 for useful snippet.
   if (
     !content.meta_description_en ||
-    content.meta_description_en.length < 50
+    content.meta_description_en.length < 70
   ) {
     checks.push({
       name: "Meta Description",
       passed: false,
-      message: `Meta description missing or too short (${content.meta_description_en?.length || 0} chars, min 50)`,
+      message: `Meta description missing or too short (${content.meta_description_en?.length || 0} chars, min 70, optimal 120-160)`,
       severity: "warning",
     });
-    warnings.push("Meta description should be at least 50 characters");
+    warnings.push("Meta description should be 70-160 characters for optimal SERP display");
   }
 
   if (!content.content_en || content.content_en.length < 300) {
@@ -187,12 +192,12 @@ export async function runPrePublicationGate(
     blockers.push("Content is too short for indexing");
   }
 
-  // ── 4. SEO score check ─────────────────────────────────────────────
-  if (content.seo_score !== undefined && content.seo_score < 40) {
+  // ── 4. SEO score check (2025 standards: 60+ for quality content) ───
+  if (content.seo_score !== undefined && content.seo_score < 60) {
     checks.push({
       name: "SEO Score",
       passed: false,
-      message: `SEO score ${content.seo_score} is below minimum threshold (40)`,
+      message: `SEO score ${content.seo_score} is below minimum threshold (60)`,
       severity: "warning",
     });
     warnings.push(`Low SEO score: ${content.seo_score}/100`);
@@ -211,18 +216,18 @@ export async function runPrePublicationGate(
     }
   }
 
-  // ── 6. Word count check (quality gate) ────────────────────────────
+  // ── 6. Word count check (2025 standards: 800+ min, 1200+ target) ──
   if (content.content_en) {
     const wordCount = countWords(content.content_en);
     if (wordCount < 1200) {
       const check: GateCheck = {
         name: "Word Count",
         passed: false,
-        message: `Content has ${wordCount} words (minimum 1,200 required for indexing quality)`,
-        severity: wordCount < 500 ? "blocker" : "warning",
+        message: `Content has ${wordCount} words (target 1,200+ for indexing quality, ${wordCount < 800 ? "below 800 minimum" : "close to target"})`,
+        severity: wordCount < 800 ? "blocker" : "warning",
       };
       checks.push(check);
-      if (wordCount < 500) {
+      if (wordCount < 800) {
         blockers.push(check.message);
       } else {
         warnings.push(check.message);
@@ -231,7 +236,7 @@ export async function runPrePublicationGate(
       checks.push({
         name: "Word Count",
         passed: true,
-        message: `Content has ${wordCount} words (meets 1,200 minimum)`,
+        message: `Content has ${wordCount} words (meets 1,200 target)`,
         severity: "info",
       });
     }
@@ -298,6 +303,45 @@ export async function runPrePublicationGate(
         severity: "info",
       });
     }
+  }
+
+  // ── 10. E-E-A-T: Author attribution check ────────────────────────
+  // Google's 2025 Quality Rater Guidelines emphasize: author credentials,
+  // first-hand experience, and trustworthiness are increasingly weighted.
+  if (content.author_id) {
+    checks.push({
+      name: "Author Attribution",
+      passed: true,
+      message: "Article has author attribution (E-E-A-T signal)",
+      severity: "info",
+    });
+  } else {
+    checks.push({
+      name: "Author Attribution",
+      passed: false,
+      message: "No author attributed — E-E-A-T requires identifiable authorship for quality content",
+      severity: "warning",
+    });
+    warnings.push("Missing author attribution (E-E-A-T signal)");
+  }
+
+  // ── 11. Structured data presence check ──────────────────────────
+  // JSON-LD is Google's recommended format. Articles without it miss rich results.
+  if (content.structured_data_json || content.keywords_json) {
+    checks.push({
+      name: "Structured Data",
+      passed: true,
+      message: "Article has structured data for rich results",
+      severity: "info",
+    });
+  } else {
+    checks.push({
+      name: "Structured Data",
+      passed: false,
+      message: "No structured data (JSON-LD) — reduces rich snippet and AI Overview citation eligibility",
+      severity: "warning",
+    });
+    warnings.push("Missing structured data/keywords");
   }
 
   return {
@@ -398,9 +442,28 @@ function countWords(html: string): number {
 
 /**
  * Count internal links in HTML content.
+ * Dynamically builds regex from configured sites — no hardcoded domains.
  */
 function countInternalLinks(html: string): number {
-  const linkRegex = /<a[^>]+href=["'](?:\/|https?:\/\/(?:www\.)?(?:yalla-london|arabaldives|yallariviera|yallaistanbul|yallathailand))[^"']*["'][^>]*>/gi;
+  let domainPattern = "yalla-london|arabaldives|yallariviera|yallaistanbul|yallathailand";
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { SITES } = require("@/config/sites");
+    const domains = Object.values(SITES)
+      .map((s: any) => s.domain?.replace(/\./g, "\\."))
+      .filter(Boolean);
+    if (domains.length > 0) {
+      // Match domain slugs (e.g. yalla-london) and full domains (yalla-london.com)
+      const slugs = Object.keys(SITES);
+      domainPattern = [...new Set([...slugs, ...domains])].join("|");
+    }
+  } catch {
+    // Fall back to static list if config import fails
+  }
+  const linkRegex = new RegExp(
+    `<a[^>]+href=["'](?:\\/|https?:\\/\\/(?:www\\.)?(?:${domainPattern}))[^"']*["'][^>]*>`,
+    "gi"
+  );
   const matches = html.match(linkRegex);
   return matches ? matches.length : 0;
 }

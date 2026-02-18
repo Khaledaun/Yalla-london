@@ -299,12 +299,12 @@ export async function GET(request: NextRequest) {
         contentType: info.type as string,
         publishedAt: new Date().toISOString(), // static content, no publish date
         updatedAt: new Date().toISOString(),
-        seoScore: 0, // static content doesn't have DB SEO scores
+        seoScore: null, // static content — no DB SEO score available
         pageType: info.type,
-        hasMetaTitle: true, // static pages have hardcoded meta
+        hasMetaTitle: true,
         hasMetaDescription: true,
-        hasFeaturedImage: true,
-        siteId: "yalla-london",
+        hasFeaturedImage: false, // unknown for static pages
+        siteId: siteId,
         gsc: gsc
           ? {
               impressions: gsc.impressions,

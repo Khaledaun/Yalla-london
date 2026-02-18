@@ -446,3 +446,68 @@ Audited the entire platform across: (1) Dashboard/cron/monitoring/GA4, (2) AI se
 - Dashboard: 85% ready (multi-site view works, some features still mock)
 - Design generation: 40% ready (canvas editor works, no AI generation)
 - Workflow control: 50% ready (DB models exist, UIs are placeholders)
+
+### Session: February 18, 2026 — SEO Standards Overhaul & Dashboard Data Integrity
+
+**Content Hub — Indexing Tab (New Feature):**
+- New "Indexing" tab in Content Hub (`/admin/content?tab=indexing`) — per-article indexing visibility
+- Summary cards: Total, Indexed, Submitted, Not Indexed, Never Submitted, Errors
+- Config status banner alerts when INDEXNOW_KEY or GSC credentials are missing
+- Per-article rows with status badges, SEO score, word count, submission channels
+- Submit/Resubmit buttons per article + "Submit All" bulk action
+- "Indexing Issues & Diagnostics" section with severity-colored issue cards
+- "SEO Compliance Audit" button — audits all published pages against centralized standards
+- Compliance audit results panel: passing/failing counts, average score, auto-fixes applied
+- API: `/api/admin/content-indexing` (GET + POST with `submit`, `submit_all`, `compliance_audit` actions)
+- Fixed Google Indexing API confusion: blog content uses GSC Sitemap + IndexNow, not Indexing API (restricted to JobPosting/BroadcastEvent only)
+
+**Centralized SEO Standards (`lib/seo/standards.ts` — New File):**
+- Single source of truth for ALL SEO thresholds and algorithm context
+- Referenced by: pre-pub gate, schema generator, SEO agent, content pipeline, weekly research agent
+- Exports: `STANDARDS_VERSION`, `ALGORITHM_CONTEXT`, `CORE_WEB_VITALS`, `CONTENT_QUALITY`, `EEAT_REQUIREMENTS`, `SCHEMA_TYPES`, `AIO_OPTIMIZATION`, `INDEXING_CONFIG`, `TECHNICAL_SEO`, `AUTHORITATIVE_SOURCES`
+- Helper functions: `isSchemaDeprecated()`, `getSchemaDeprecationInfo()`
+- Updated: Feb 2026, sourced from Google Search Central + Quality Rater Guidelines Sept 2025
+
+**SEO Standards Updates (2025-2026 Compliance):**
+- **Schema deprecated types removed:** FAQPage (restricted Aug 2023), HowTo (deprecated Sept 2023), CourseInfo, ClaimReview, EstimatedSalary, LearningVideo, SpecialAnnouncement, VehicleListing (June 2025), PracticeProblems (Nov 2025), SitelinksSearchBox (Oct 2024)
+- **Schema generator updated:** `faq`/`howto`/`guide` page types now generate `Article` schema instead of deprecated types
+- **Enhanced schema injector cleaned:** Removed FAQ/HowTo schema injection + SEO score bonuses for deprecated types
+- **Pre-publication gate tightened:** Meta title min 20→30 chars, meta description min 50→70 chars, word count blocker 500→800 words, SEO score threshold 40→60
+- **Pre-pub gate new checks:** E-E-A-T author attribution (check 10), structured data presence (check 11)
+- **SEO agent scoring updated:** Weighted severity (high -15, medium -10, low -5) replaces flat -10, plus E-E-A-T bonuses for authority links/keywords
+- **Phase 7 quality gate aligned:** `phases.ts` threshold changed from >= 50 to >= 60 (matching `CONTENT_QUALITY.qualityGateScore`)
+- **Core Web Vitals:** INP replaced FID in March 2024 (reflected in standards: LCP ≤2.5s, INP ≤200ms, CLS ≤0.1)
+- **Algorithm context documented:** Helpful Content absorbed into core (March 2024), AI Overviews live (1.5B+ users), mobile-first indexing 100% complete (July 2024), topical authority elevated, information gain rewarded
+
+**Weekly Standards Refresh:**
+- Weekly research agent (`lib/seo/orchestrator/weekly-research-agent.ts`) now checks 4 additional trusted sources: Google Doc Changelog, Search Status Dashboard, Search Engine Roundtable, Search Engine Land
+- New Phase 3 "Standards Refresh" imports from `standards.ts`, logs current config, and flags staleness (>30 days)
+
+**Multi-Website SEO Scoping:**
+- **Enhanced schema injector:** Now accepts `siteId` parameter, dynamically loads site config for branding (name, domain, email) instead of hardcoded Yalla London
+- **Schema generator:** Logo path and author name now use `brandConfig` properties instead of hardcoding
+- **Content-indexing API:** All 3 hardcoded "yalla-london" defaults replaced with `getDefaultSiteId()` from config
+- **Full-audit API:** Hardcoded "yalla-london" fallback replaced with `getDefaultSiteId()`
+- **Pre-publication gate:** Internal links regex now dynamically built from configured sites (no hardcoded domain list)
+- **SEO report API:** Hardcoded `yallalondon.com` fallback replaced with `getSiteDomain(getDefaultSiteId())`
+- **Articles performance API:** Info hub articles now use dynamic `siteId` instead of hardcoded "yalla-london"
+
+**Dashboard Mock Data Purge:**
+- **Social posts API:** Removed `Math.random()` fake engagement stats (likes, comments, shares, reach) — returns null until real platform APIs connected. Fixed hardcoded `site: 'Arabaldives'` to read from post metadata
+- **Social media page:** Removed mock posts/accounts fallback — shows honest empty state when APIs fail. Removed hardcoded "+2.5% this week" and "+15% vs last month" growth claims
+- **PDF guide page:** Removed `mockGuides` fallback — shows empty state until real data exists
+- **Flags API:** Replaced hardcoded `cronStatus = 'running'` with actual CronJobLog query (checks last 24h)
+- **Rate-limiting API:** Replaced `Math.random()` stats and fake IP addresses with zero-initialized honest defaults
+- **Indexing cron:** Fixed schema mismatches: `last_checked_at` → `last_inspected_at`, `error_message` → `last_error`
+
+**Audit Findings — Updated Known Gaps:**
+
+| Area | Finding | Status |
+|------|---------|--------|
+| GA4 Integration | Dashboard returns 0s for traffic metrics (API calls stubbed) | Known — needs GA4 Data API integration |
+| Social Media APIs | Engagement stats (likes, reach) require platform API integration | Known — returns null honestly now |
+| Design Generation | No AI image/logo generation; PDF generator is mock only | Known — design studio has canvas editor but no AI gen |
+| Workflow Control | Automation Hub and Autopilot UIs are placeholders | Known — DB models exist but no CRUD endpoints |
+| Feature Flags | DB-backed but not wired to actual code behavior | Known — flags stored but no runtime checks |
+| Article Create/Edit | Buttons in articles page have TODO comments, no handlers | Known — needs API endpoint wiring |
+| Rate Limiting | Stats are in-memory only, reset on deploy | Known — needs Redis or DB persistence |

@@ -137,12 +137,12 @@ export default function PDFGeneratorPage() {
       const response = await fetch('/api/admin/command-center/products/pdf');
       if (response.ok) {
         const data = await response.json();
-        setGuides(data.guides);
+        setGuides(data.guides || []);
       } else {
-        setGuides(mockGuides);
+        setGuides([]); // No mock data — show honest empty state
       }
     } catch (error) {
-      setGuides(mockGuides);
+      setGuides([]); // No mock data — show honest empty state
     }
     setIsLoading(false);
   };

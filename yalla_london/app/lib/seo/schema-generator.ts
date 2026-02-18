@@ -261,7 +261,7 @@ export class SchemaGenerator {
       description: brandConfig.description,
       logo: {
         '@type': 'ImageObject',
-        url: `${baseUrl}/images/yalla-london-logo.svg`,
+        url: `${baseUrl}/images/${(brandConfig.logoFileName as string) || 'logo.svg'}`,
         width: 300,
         height: 100
       },
@@ -279,7 +279,7 @@ export class SchemaGenerator {
       '@context': 'https://schema.org',
       '@type': 'Person',
       '@id': `${baseUrl}#founder`,
-      name: 'Yalla London Team',
+      name: `${brandConfig.siteName || 'Yalla London'} Team`,
       jobTitle: 'Content Creator',
       worksFor: this.defaultOrganization
     };
@@ -698,25 +698,24 @@ export class SchemaGenerator {
 
   /**
    * Auto-generate schema based on page type
+   *
+   * NOTE (2025-2026 Standards Update):
+   * - FAQPage: Restricted to authoritative government/health sites since Aug 2023.
+   *   No longer generates rich results for travel content. Removed from auto-generation.
+   * - HowTo: Fully deprecated Sept 2023. No longer generates rich results at all.
+   *   Removed from auto-generation.
+   * - Focus on Article + Review + BreadcrumbList — the evergreen types Google actively supports.
    */
   generateSchemaForPageType(pageType: string, data: any): SchemaBaseProps | SchemaBaseProps[] | null {
     switch (pageType.toLowerCase()) {
       case 'article':
       case 'blog':
         const schemas: SchemaBaseProps[] = [this.generateArticle(data)];
-        
-        // Add FAQ schema if Q&A content detected
-        const faqSchema = this.generateFAQFromContent(data.content, `${this.baseUrl}/blog/${data.slug}`);
-        if (faqSchema) schemas.push(faqSchema);
-        
-        // Add HowTo schema if step content detected
-        const howToSchema = this.generateHowToFromContent(data.title, data.content, `${this.baseUrl}/blog/${data.slug}`);
-        if (howToSchema) schemas.push(howToSchema);
-        
-        // Add Review schema if review content detected
+
+        // Add Review schema if review content detected (still fully supported)
         const reviewSchema = this.generateReviewFromContent(data);
         if (reviewSchema) schemas.push(reviewSchema);
-        
+
         return schemas.length === 1 ? schemas[0] : schemas;
 
       case 'event':
@@ -727,15 +726,14 @@ export class SchemaGenerator {
       case 'hotel':
         return this.generatePlace(data);
 
-      case 'faq':
-        return this.generateFAQFromContent(data.content, data.url);
-
-      case 'howto':
-      case 'guide':
-        return this.generateHowToFromContent(data.title, data.content, data.url);
-
       case 'review':
         return this.generateReviewFromContent(data);
+
+      // FAQPage and HowTo deprecated — return Article schema instead
+      case 'faq':
+      case 'howto':
+      case 'guide':
+        return this.generateArticle(data);
 
       default:
         return null;

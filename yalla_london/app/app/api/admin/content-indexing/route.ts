@@ -40,22 +40,23 @@ export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
+  const { getDefaultSiteId } = await import("@/config/sites");
   const siteId =
     request.nextUrl.searchParams.get("siteId") ||
     request.headers.get("x-site-id") ||
-    "yalla-london";
+    getDefaultSiteId();
 
   try {
     const { prisma } = await import("@/lib/db");
     const { searchConsole } = await import(
       "@/lib/integrations/google-search-console"
     );
-    const { getSiteConfig } = await import("@/config/sites");
+    const { getSiteConfig, getSiteDomain } = await import("@/config/sites");
 
     const siteConfig = getSiteConfig(siteId);
     const baseUrl = siteConfig?.domain
       ? `https://${siteConfig.domain}`
-      : process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      : getSiteDomain(siteId);
 
     // 1. Get all published blog posts
     const posts = await prisma.blogPost.findMany({
@@ -470,20 +471,160 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action, slugs, siteId: reqSiteId } = body as {
-      action: "submit" | "submit_all" | "resubmit";
+      action: "submit" | "submit_all" | "resubmit" | "compliance_audit";
       slugs?: string[];
       siteId?: string;
     };
 
-    const siteId = reqSiteId || "yalla-london";
+    const { getDefaultSiteId: getDefaultSite, getSiteConfig, getSiteDomain } = await import("@/config/sites");
+    const siteId = reqSiteId || getDefaultSite();
     const { prisma } = await import("@/lib/db");
     const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
-    const { getSiteConfig } = await import("@/config/sites");
 
     const siteConfig = getSiteConfig(siteId);
     const baseUrl = siteConfig?.domain
       ? `https://${siteConfig.domain}`
-      : process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      : getSiteDomain(siteId);
+
+    // ── Compliance Audit: check all published pages against SEO standards ──
+    if (action === "compliance_audit") {
+      const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
+      const posts = await prisma.blogPost.findMany({
+        where: { published: true, siteId, deletedAt: null },
+        select: {
+          id: true, slug: true, title_en: true, title_ar: true,
+          meta_title_en: true, meta_description_en: true,
+          content_en: true, content_ar: true, seo_score: true,
+          page_type: true, tags: true, keywords_json: true,
+          authority_links_json: true,
+        },
+      });
+
+      const results: Array<{
+        slug: string; score: number; issues: string[]; fixes: string[];
+      }> = [];
+      let totalFixed = 0;
+
+      for (const post of posts) {
+        const issues: string[] = [];
+        const fixes: string[] = [];
+        let score = 100;
+
+        // Meta title check (standards: min 30, optimal 50-60)
+        const metaTitle = post.meta_title_en || "";
+        if (metaTitle.length < CONTENT_QUALITY.metaTitleMin) {
+          issues.push(`Meta title too short (${metaTitle.length} chars, min ${CONTENT_QUALITY.metaTitleMin})`);
+          score -= 15;
+        } else if (metaTitle.length > CONTENT_QUALITY.metaTitleOptimal.max) {
+          issues.push(`Meta title may be truncated (${metaTitle.length} chars, optimal max ${CONTENT_QUALITY.metaTitleOptimal.max})`);
+          score -= 5;
+        }
+
+        // Meta description check (standards: min 70, optimal 120-160)
+        const metaDesc = post.meta_description_en || "";
+        if (metaDesc.length < CONTENT_QUALITY.metaDescriptionMin) {
+          issues.push(`Meta description too short (${metaDesc.length} chars, min ${CONTENT_QUALITY.metaDescriptionMin})`);
+          score -= 10;
+        } else if (metaDesc.length > CONTENT_QUALITY.metaDescriptionOptimal.max) {
+          issues.push(`Meta description too long (${metaDesc.length} chars, max ${CONTENT_QUALITY.metaDescriptionOptimal.max})`);
+          score -= 5;
+        }
+
+        // Word count check (standards: min 800)
+        const wordCount = post.content_en ? post.content_en.split(/\s+/).filter(Boolean).length : 0;
+        if (wordCount < CONTENT_QUALITY.thinContentThreshold) {
+          issues.push(`Critically thin content (${wordCount} words, min ${CONTENT_QUALITY.minWords})`);
+          score -= 20;
+        } else if (wordCount < CONTENT_QUALITY.minWords) {
+          issues.push(`Below minimum word count (${wordCount} words, min ${CONTENT_QUALITY.minWords})`);
+          score -= 10;
+        }
+
+        // H2 headings check
+        const h2Count = (post.content_en || "").match(/<h2/gi)?.length || 0;
+        if (h2Count < CONTENT_QUALITY.minH2Count) {
+          issues.push(`Insufficient H2 headings (${h2Count}, min ${CONTENT_QUALITY.minH2Count})`);
+          score -= 5;
+        }
+
+        // Arabic content check (bilingual requirement)
+        if (!post.content_ar || post.content_ar.length < 100) {
+          issues.push("Missing or insufficient Arabic content");
+          score -= 5;
+        }
+        if (!post.title_ar) {
+          issues.push("Missing Arabic title");
+          score -= 5;
+        }
+
+        // Tags check
+        if (!post.tags || post.tags.length < 2) {
+          issues.push("Insufficient tags (<2)");
+          score -= 5;
+        }
+
+        // Page type check (needed for schema markup)
+        if (!post.page_type) {
+          issues.push("Missing page_type for structured data");
+          // Auto-fix: set to 'guide'
+          try {
+            await prisma.blogPost.update({
+              where: { id: post.id },
+              data: { page_type: "guide" },
+            });
+            fixes.push("Set page_type to 'guide'");
+            totalFixed++;
+          } catch { /* non-fatal */ }
+        }
+
+        // E-E-A-T: authority links and keywords
+        if (post.authority_links_json) score += 5;
+        if (post.keywords_json) score += 5;
+
+        score = Math.max(0, Math.min(100, score));
+
+        // Update SEO score if it changed significantly
+        if (!post.seo_score || Math.abs(post.seo_score - score) > 5) {
+          try {
+            await prisma.blogPost.update({
+              where: { id: post.id },
+              data: { seo_score: score },
+            });
+            fixes.push(`Updated SEO score: ${post.seo_score || "null"} → ${score}`);
+            totalFixed++;
+          } catch { /* non-fatal */ }
+        }
+
+        results.push({ slug: post.slug, score, issues, fixes });
+      }
+
+      const passing = results.filter((r) => r.score >= CONTENT_QUALITY.qualityGateScore).length;
+      const failing = results.filter((r) => r.score < CONTENT_QUALITY.qualityGateScore).length;
+      const avgScore = results.length > 0
+        ? Math.round(results.reduce((sum, r) => sum + r.score, 0) / results.length)
+        : 0;
+
+      return NextResponse.json({
+        success: true,
+        action: "compliance_audit",
+        siteId,
+        standards: {
+          version: "2026-02-18",
+          qualityGateScore: CONTENT_QUALITY.qualityGateScore,
+          minWords: CONTENT_QUALITY.minWords,
+          metaTitleMin: CONTENT_QUALITY.metaTitleMin,
+          metaDescriptionMin: CONTENT_QUALITY.metaDescriptionMin,
+        },
+        summary: {
+          totalPosts: results.length,
+          passing,
+          failing,
+          averageScore: avgScore,
+          totalAutoFixes: totalFixed,
+        },
+        posts: results,
+      });
+    }
 
     // Determine which articles to submit
     let postsToSubmit;

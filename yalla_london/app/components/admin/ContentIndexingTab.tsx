@@ -81,6 +81,12 @@ export default function ContentIndexingTab() {
   const [submitResult, setSubmitResult] = useState<string | null>(null);
   const [submittingSlugs, setSubmittingSlugs] = useState<Set<string>>(new Set());
   const [showIssues, setShowIssues] = useState(true);
+  const [auditRunning, setAuditRunning] = useState(false);
+  const [auditResult, setAuditResult] = useState<{
+    totalPosts: number; passing: number; failing: number;
+    averageScore: number; totalAutoFixes: number;
+    posts: Array<{ slug: string; score: number; issues: string[]; fixes: string[] }>;
+  } | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -150,6 +156,32 @@ export default function ContentIndexingTab() {
       setSubmitResult(`Error: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const runComplianceAudit = async () => {
+    setAuditRunning(true);
+    setAuditResult(null);
+    try {
+      const res = await fetch("/api/admin/content-indexing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "compliance_audit" }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setAuditResult(json.summary);
+        setSubmitResult(
+          `Compliance audit complete: ${json.summary.passing} passing, ${json.summary.failing} failing (avg score: ${json.summary.averageScore}). ${json.summary.totalAutoFixes} auto-fixes applied.`
+        );
+        await loadData();
+      } else {
+        setSubmitResult(`Audit failed: ${json.error}`);
+      }
+    } catch (e) {
+      setSubmitResult(`Audit error: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setAuditRunning(false);
     }
   };
 
@@ -381,7 +413,19 @@ export default function ContentIndexingTab() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+            <button
+              onClick={runComplianceAudit}
+              disabled={auditRunning || data.summary.total === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium whitespace-nowrap"
+            >
+              {auditRunning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Shield className="h-4 w-4" />
+              )}
+              SEO Compliance Audit
+            </button>
             <button
               onClick={submitAll}
               disabled={submitting || data.summary.total === 0}
@@ -392,7 +436,7 @@ export default function ContentIndexingTab() {
               ) : (
                 <Zap className="h-4 w-4" />
               )}
-              Submit All to Search Engines
+              Submit All
             </button>
             <button
               onClick={loadData}
@@ -410,6 +454,40 @@ export default function ContentIndexingTab() {
           </div>
         )}
       </div>
+
+      {/* Compliance Audit Results */}
+      {auditResult && (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-amber-50">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-amber-600" />
+              SEO Compliance Audit Results
+            </h3>
+          </div>
+          <div className="p-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <div className="text-2xl font-bold text-gray-800">{auditResult.totalPosts}</div>
+              <div className="text-xs text-gray-500">Total</div>
+            </div>
+            <div className="text-center p-3 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-700">{auditResult.passing}</div>
+              <div className="text-xs text-green-600">Passing</div>
+            </div>
+            <div className="text-center p-3 bg-red-50 rounded-lg">
+              <div className="text-2xl font-bold text-red-700">{auditResult.failing}</div>
+              <div className="text-xs text-red-600">Failing</div>
+            </div>
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-700">{auditResult.averageScore}</div>
+              <div className="text-xs text-blue-600">Avg Score</div>
+            </div>
+            <div className="text-center p-3 bg-amber-50 rounded-lg">
+              <div className="text-2xl font-bold text-amber-700">{auditResult.totalAutoFixes}</div>
+              <div className="text-xs text-amber-600">Auto-Fixes</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Articles Table */}
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">

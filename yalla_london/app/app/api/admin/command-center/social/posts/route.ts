@@ -34,12 +34,12 @@ export async function GET(request: NextRequest) {
       orderBy: { created_at: 'desc' },
     });
 
-    // Map to response format
+    // Map to response format — no mock stats; show null until real platform APIs are connected
     const socialPosts = posts.map((post) => ({
       id: post.id,
       content: post.content,
       platforms: [post.platform || 'twitter'],
-      site: 'Arabaldives', // Would need site relation
+      site: (post.metadata as any)?.site || post.site_id || null,
       status: post.status === 'published' ? 'published' :
               post.status === 'pending' ? 'scheduled' :
               post.status === 'failed' ? 'failed' : 'draft',
@@ -47,12 +47,9 @@ export async function GET(request: NextRequest) {
       publishedAt: post.published_time?.toISOString(),
       media: (post.metadata as any)?.media || [],
       link: (post.metadata as any)?.link || null,
-      stats: post.published ? {
-        likes: Math.floor(Math.random() * 500),
-        comments: Math.floor(Math.random() * 50),
-        shares: Math.floor(Math.random() * 100),
-        reach: Math.floor(Math.random() * 5000),
-      } : null,
+      // Real engagement stats require social platform API integration (Twitter/X API, Instagram Graph API)
+      // Returning null instead of fake random numbers to avoid misleading the dashboard
+      stats: null,
     }));
 
     return NextResponse.json({ posts: socialPosts });

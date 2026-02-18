@@ -551,25 +551,30 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
     for (const post of posts) {
       const postProblems: string[] = [];
 
-      // Check meta title
-      if (!post.meta_title_en || post.meta_title_en.length < 20) {
-        postProblems.push("Missing or short EN meta title");
+      // Check meta title (2025: optimal 50-60 chars, min 30)
+      if (!post.meta_title_en || post.meta_title_en.length < 30) {
+        postProblems.push("Missing or short EN meta title (<30 chars, optimal 50-60)");
       }
       if (post.meta_title_en && post.meta_title_en.length > 60) {
-        postProblems.push("EN meta title too long (>60 chars)");
+        postProblems.push("EN meta title too long (>60 chars, may be truncated in SERP)");
       }
 
-      // Check meta description
-      if (!post.meta_description_en || post.meta_description_en.length < 50) {
-        postProblems.push("Missing or short EN meta description");
+      // Check meta description (2025: optimal 120-160 chars, min 70)
+      if (!post.meta_description_en || post.meta_description_en.length < 70) {
+        postProblems.push("Missing or short EN meta description (<70 chars, optimal 120-160)");
       }
       if (post.meta_description_en && post.meta_description_en.length > 160) {
         postProblems.push("EN meta description too long (>160 chars)");
       }
 
-      // Check content length
+      // Check content length (2025: 800+ min for indexing, 1200+ target)
       if (post.content_en && post.content_en.length < 500) {
-        postProblems.push("EN content too short (<500 chars)");
+        postProblems.push("EN content critically short (<500 chars)");
+      } else if (post.content_en) {
+        const words = post.content_en.split(/\s+/).filter(Boolean).length;
+        if (words < 800) {
+          postProblems.push(`Thin content (${words} words, min 800 for indexing quality)`);
+        }
       }
 
       // Check Arabic content
@@ -603,9 +608,18 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
         }
       }
 
-      // Calculate SEO score
+      // Calculate SEO score (2025 standards: weighted by severity)
       let score = 100;
-      score -= postProblems.length * 10;
+      for (const problem of postProblems) {
+        if (problem.includes("critically short") || problem.includes("Missing or short EN meta title")) {
+          score -= 15; // High-severity: missing essentials
+        } else if (problem.includes("Thin content") || problem.includes("Missing or short EN meta description")) {
+          score -= 10; // Medium-severity: quality issues
+        } else {
+          score -= 5;  // Low-severity: minor issues
+        }
+      }
+      // E-E-A-T bonuses: authority links and keywords show topical depth
       if (post.authority_links_json) score += 5;
       if (post.keywords_json) score += 5;
       score = Math.max(0, Math.min(100, score));

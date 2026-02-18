@@ -94,20 +94,20 @@ export default function SocialMediaPage() {
 
       if (postsRes.ok) {
         const data = await postsRes.json();
-        setPosts(data.posts);
+        setPosts(data.posts || []);
       } else {
-        setPosts(mockPosts);
+        setPosts([]); // No mock data — show honest empty state
       }
 
       if (accountsRes.ok) {
         const data = await accountsRes.json();
-        setAccounts(data.accounts);
+        setAccounts(data.accounts || []);
       } else {
-        setAccounts(mockAccounts);
+        setAccounts([]); // No mock data — show honest empty state
       }
     } catch (error) {
-      setPosts(mockPosts);
-      setAccounts(mockAccounts);
+      setPosts([]);
+      setAccounts([]);
     }
     setIsLoading(false);
   };
@@ -206,10 +206,11 @@ export default function SocialMediaPage() {
               <Users className="h-5 w-5 text-blue-500" />
             </div>
             <div className="text-2xl font-bold">{totalFollowers.toLocaleString()}</div>
-            <div className="text-sm text-green-600 flex items-center gap-1 mt-1">
-              <TrendingUp className="h-4 w-4" />
-              +2.5% this week
-            </div>
+            {totalFollowers > 0 ? (
+              <div className="text-sm text-gray-500 mt-1">across all accounts</div>
+            ) : (
+              <div className="text-sm text-gray-400 mt-1">no accounts connected</div>
+            )}
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -235,11 +236,12 @@ export default function SocialMediaPage() {
               <span className="text-gray-500 text-sm">Total Reach</span>
               <BarChart3 className="h-5 w-5 text-purple-500" />
             </div>
-            <div className="text-2xl font-bold">{(totalReach / 1000).toFixed(1)}K</div>
-            <div className="text-sm text-green-600 flex items-center gap-1 mt-1">
-              <TrendingUp className="h-4 w-4" />
-              +15% vs last month
-            </div>
+            <div className="text-2xl font-bold">{totalReach > 0 ? `${(totalReach / 1000).toFixed(1)}K` : '—'}</div>
+            {totalReach > 0 ? (
+              <div className="text-sm text-gray-500 mt-1">all platforms</div>
+            ) : (
+              <div className="text-sm text-gray-400 mt-1">requires platform APIs</div>
+            )}
           </div>
         </div>
 

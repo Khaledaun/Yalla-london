@@ -75,13 +75,10 @@ const walks = [
 ];
 
 export async function POST(request: NextRequest) {
-  try {
-    // Require admin auth
-    const { requireAdmin } = await import("@/lib/admin-auth");
-    await requireAdmin(request);
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // Require admin auth
+  const { requireAdmin } = await import("@/lib/admin-middleware");
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
 
   try {
     const { prisma } = await import("@/lib/db");

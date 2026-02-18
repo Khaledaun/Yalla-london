@@ -266,9 +266,8 @@ Each hotel's unique character and world-class amenities ensure that your visit t
         setExcerpt(generatedExcerpt)
       }
       
-      // Auto-generate SEO score
-      const seoScore = Math.floor(Math.random() * 30) + 70 // 70-100
-      setSeoScore(seoScore)
+      // TODO: connect to real SEO scoring API
+      setSeoScore(0)
       
       alert('AI Review completed! All fields have been auto-generated based on your content.')
     } catch (error) {
@@ -680,10 +679,11 @@ Each hotel's unique character and world-class amenities ensure that your visit t
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-600">SEO Score:</span>
                       <span className={`text-sm font-medium ${
-                        seoScore >= 90 ? 'text-green-600' : 
+                        seoScore === 0 ? 'text-gray-400' :
+                        seoScore >= 90 ? 'text-green-600' :
                         seoScore >= 70 ? 'text-yellow-600' : 'text-red-600'
                       }`}>
-                        {seoScore}%
+                        {seoScore === 0 ? 'Not scored' : `${seoScore}%`}
                       </span>
                     </div>
                   </div>

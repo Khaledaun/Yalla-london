@@ -447,7 +447,6 @@ function countWords(html: string): number {
 function countInternalLinks(html: string): number {
   let domainPattern = "yalla-london|arabaldives|yallariviera|yallaistanbul|yallathailand";
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { SITES } = require("@/config/sites");
     const domains = Object.values(SITES)
       .map((s: any) => s.domain?.replace(/\./g, "\\."))

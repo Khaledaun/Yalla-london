@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { withAdminAuth } from "@/lib/admin-middleware";
 
 /**
  * Admin Shop Stats API
@@ -8,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
  *
  * Returns real revenue, sales, and product data from the database.
  */
-export async function GET(request: NextRequest) {
+export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const { prisma } = await import("@/lib/db");
 
@@ -124,4 +125,4 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

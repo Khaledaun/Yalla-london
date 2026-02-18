@@ -281,7 +281,7 @@ export default function SEOAuditsPage() {
         setAudits(prev => prev.map(audit => ({
           ...audit,
           status: audit.status === 'running' ? 'completed' as const : audit.status,
-          score: audit.status === 'running' ? Math.floor(Math.random() * 30) + 70 : audit.score
+          score: audit.status === 'running' ? audit.score : audit.score
         })))
         setIsRunningFullAudit(false)
       }, 3000)
@@ -297,7 +297,7 @@ export default function SEOAuditsPage() {
         audit.id === auditId ? {
           ...audit,
           status: 'completed' as const,
-          score: Math.floor(Math.random() * 30) + 70,
+          score: audit.score, // Score unchanged until real audit API returns results
           lastAudited: new Date().toISOString()
         } : audit
       ))

@@ -143,9 +143,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Schema generation error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Schema generation failed' 
+      {
+        success: false,
+        error: 'Schema generation failed'
       },
       { status: 500 }
     );
@@ -214,9 +214,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Schema API error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to process request' 
+      {
+        success: false,
+        error: 'Failed to process request'
       },
       { status: 500 }
     );

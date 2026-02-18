@@ -285,7 +285,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Search failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 },
     );

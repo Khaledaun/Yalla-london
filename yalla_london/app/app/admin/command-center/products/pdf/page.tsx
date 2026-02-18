@@ -263,10 +263,7 @@ export default function PDFGeneratorPage() {
               <Download className="h-5 w-5 text-green-500" />
             </div>
             <div className="text-2xl font-bold">{totalDownloads.toLocaleString()}</div>
-            <div className="text-sm text-green-600 flex items-center gap-1 mt-1">
-              <TrendingUp className="h-4 w-4" />
-              +15% this month
-            </div>
+            <div className="text-sm text-gray-500 mt-1">total</div>
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-4">

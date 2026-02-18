@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[x-buzz] Failed to fetch social buzz:', error);
     return NextResponse.json(
-      { posts: [], error: error instanceof Error ? error.message : 'Unknown error' },
+      { posts: [], error: 'Failed to fetch social buzz' },
       { status: 500 },
     );
   }

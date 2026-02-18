@@ -204,7 +204,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Failed to fetch information articles',
-        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );
@@ -311,7 +310,6 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     return NextResponse.json(
       {
         error: 'Failed to create information article',
-        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );

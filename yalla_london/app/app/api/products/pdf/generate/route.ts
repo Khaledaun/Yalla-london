@@ -66,15 +66,15 @@ export async function POST(request: NextRequest) {
           : "Your Complete Guide by Yalla London",
       destination,
       locale: locale as "ar" | "en",
-      siteId: "yalla-london",
+      siteId: currentSiteId,
       template: template as any,
       sections,
       branding: {
-        primaryColor: "#7c3aed",
-        secondaryColor: "#d4af37",
+        primaryColor: siteConfig?.primaryColor || "#7c3aed",
+        secondaryColor: siteConfig?.secondaryColor || "#d4af37",
         logoUrl: `${siteUrl}/images/yalla-london-logo.svg`,
         siteName,
-        contactEmail: "hello@yalla-london.com",
+        contactEmail: `hello@${siteConfig?.domain || "yalla-london.com"}`,
         website: siteUrl,
       },
       includeAffiliate: true,
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       if (product) {
         await prisma.purchase.create({
           data: {
-            site_id: "yalla-london",
+            site_id: currentSiteId,
             product_id: product.id,
             customer_email: customerEmail,
             customer_name: customerName || "",
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
       try {
         await prisma.lead.create({
           data: {
-            site_id: "yalla-london",
+            site_id: currentSiteId,
             email: customerEmail,
             name: customerName,
             lead_type: "GUIDE_DOWNLOAD",

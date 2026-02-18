@@ -3,6 +3,7 @@ export const maxDuration = 45;
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId, getSiteDomain } from "@/config/sites";
 
 /**
  * Article Performance API
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
   const siteId =
     request.nextUrl.searchParams.get("siteId") ||
     request.headers.get("x-site-id") ||
-    "yalla-london";
+    getDefaultSiteId();
 
   const startTime = Date.now();
 
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
     );
 
     const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId || getDefaultSiteId());
 
     // ── 1a. Get published blog articles from DB ────────────────────
     const articles = await prisma.blogPost.findMany({

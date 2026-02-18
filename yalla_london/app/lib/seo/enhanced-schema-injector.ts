@@ -51,7 +51,6 @@ export class EnhancedSchemaInjector {
     };
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { getSiteConfig, getSiteDomain, getDefaultSiteId } = require('@/config/sites');
       const effectiveSiteId = siteId || getDefaultSiteId();
       const config = getSiteConfig(effectiveSiteId);

@@ -155,7 +155,7 @@
     "input-otp": "1.2.4",
     "isomorphic-dompurify": "2.29.0",
     "jotai": "2.6.0",
-    "jsdom": "^26.1.0",
+    "jsdom": "26.1.0",
     "jsonwebtoken": "^9.0.2",
     "konva": "^10.2.0",
     "lodash": "4.17.21",

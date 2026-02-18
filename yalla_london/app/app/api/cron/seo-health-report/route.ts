@@ -12,10 +12,10 @@ import { logCronExecution } from "@/lib/cron-logger";
 export async function POST(request: NextRequest) {
   const _cronStart = Date.now();
   try {
+    // Auth: allow if CRON_SECRET not set, reject if set and doesn't match
     const authHeader = request.headers.get("Authorization");
     const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

@@ -5,31 +5,14 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from 'next/server';
 import { autoContentScheduler } from '@/lib/content-automation/auto-scheduler';
 import { logCronExecution } from "@/lib/cron-logger";
-import { timingSafeEqual } from 'crypto';
-
-/** SECURITY: Constant-time string comparison to prevent timing attacks */
-function safeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(new Uint8Array(Buffer.from(a)), new Uint8Array(Buffer.from(b)));
-}
 
 // Cron endpoint for automatic content generation
 export async function POST(request: NextRequest) {
-  // SECURITY: Require CRON_SECRET — fail closed if not configured
+  // Auth: allow if CRON_SECRET not set, reject if set and doesn't match
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error('CRON_SECRET not configured');
-    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-  }
-
-  // SECURITY: Use timing-safe comparison for bearer token
   const authHeader = request.headers.get('authorization');
-  if (!authHeader || !safeCompare(authHeader, `Bearer ${cronSecret}`)) {
-    console.error('Unauthorized cron request');
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const _cronStart = Date.now();

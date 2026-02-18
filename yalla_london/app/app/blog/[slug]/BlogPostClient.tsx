@@ -11,6 +11,7 @@ import { motion } from 'framer-motion'
 import { RelatedArticles, type RelatedArticleData } from '@/components/related-articles'
 import { ShareButtons } from '@/components/share-buttons'
 import { FollowUs } from '@/components/follow-us'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 
 interface BlogPostData {
   id: string;
@@ -177,7 +178,7 @@ export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostC
             <div
               className="text-charcoal leading-relaxed prose-headings:font-display prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-a:text-london-600 prose-strong:text-charcoal"
               dangerouslySetInnerHTML={{
-                __html: language === 'en' ? post.content_en : post.content_ar
+                __html: sanitizeHtml(language === 'en' ? post.content_en : post.content_ar)
               }}
             />
           </motion.div>

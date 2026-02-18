@@ -18,33 +18,14 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from 'next/server';
 import { runDueTasks } from '@/lib/scheduler';
 import { logCronExecution } from "@/lib/cron-logger";
-import { timingSafeEqual } from 'crypto';
-
-/** SECURITY: Constant-time string comparison to prevent timing attacks */
-function safeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(new Uint8Array(Buffer.from(a)), new Uint8Array(Buffer.from(b)));
-}
 
 // Vercel cron requires GET method
 export async function GET(request: NextRequest) {
-  // SECURITY: Require CRON_SECRET — fail closed if not configured
+  // Auth: allow if CRON_SECRET not set, reject if set and doesn't match
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error('CRON_SECRET not configured — rejecting cron request');
-    return NextResponse.json(
-      { error: 'Server misconfigured' },
-      { status: 500 }
-    );
-  }
-
-  // SECURITY: Validate authorization header with timing-safe comparison
   const authHeader = request.headers.get('authorization');
-  if (!authHeader || !safeCompare(authHeader, `Bearer ${cronSecret}`)) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const _cronStart = Date.now();
@@ -92,28 +73,14 @@ export async function GET(request: NextRequest) {
 
 // Also support POST for manual triggers
 export async function POST(request: NextRequest) {
-  // SECURITY: Require CRON_SECRET — fail closed if not configured
+  // Auth: allow if CRON_SECRET not set, reject if set and doesn't match
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error('CRON_SECRET not configured — rejecting manual trigger');
-    return NextResponse.json(
-      { error: 'Server misconfigured' },
-      { status: 500 }
-    );
+  const authHeader = request.headers.get('authorization');
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const body = await request.json().catch(() => ({}));
-    const { secret } = body;
-
-    // SECURITY: Validate secret with timing-safe comparison
-    if (!secret || !safeCompare(secret, cronSecret)) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
     const result = await runDueTasks();
 
     return NextResponse.json({

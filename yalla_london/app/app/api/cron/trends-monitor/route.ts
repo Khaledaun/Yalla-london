@@ -471,51 +471,54 @@ async function saveTrendsData(data: any): Promise<void> {
 
     // Feed high-relevance trending topics into the content pipeline as TopicProposals
     // This connects trends → content-builder → articles
+    // Creates proposals for ALL active sites, not just the first one
     const { getActiveSiteIds, getDefaultSiteId } = await import("@/config/sites");
     const activeSites = getActiveSiteIds();
-    const siteId = activeSites[0] || getDefaultSiteId();
+    const targetSites = activeSites.length > 0 ? activeSites : [getDefaultSiteId()];
 
     const relevantTopics = (data.trendingTopics || []).filter(
       (t: any) => t.isRelevant && t.relevanceScore >= 0.5,
     );
 
     let trendsQueued = 0;
-    for (const topic of relevantTopics.slice(0, 5)) {
-      const keyword = (topic.title || "").toLowerCase().trim();
-      if (!keyword || keyword.length < 5) continue;
+    for (const siteId of targetSites) {
+      for (const topic of relevantTopics.slice(0, 5)) {
+        const keyword = (topic.title || "").toLowerCase().trim();
+        if (!keyword || keyword.length < 5) continue;
 
-      // Skip if a similar topic already exists
-      const exists = await prisma.topicProposal.findFirst({
-        where: { primary_keyword: keyword },
-      });
-      if (exists) continue;
-
-      try {
-        await prisma.topicProposal.create({
-          data: {
-            title: topic.title,
-            primary_keyword: keyword,
-            site_id: siteId,
-            locale: "en",
-            longtails: [],
-            questions: [],
-            intent: "info",
-            suggested_page_type: "news",
-            status: "ready",
-            confidence_score: Math.min(topic.relevanceScore || 0.5, 1.0),
-            evergreen: false,
-            source_weights_json: { source: "trends-monitor" },
-            authority_links_json: { traffic: topic.traffic, category: topic.category },
-          },
+        // Skip if a similar topic already exists for this site
+        const exists = await prisma.topicProposal.findFirst({
+          where: { primary_keyword: keyword, site_id: siteId },
         });
-        trendsQueued++;
-      } catch {
-        // Duplicate or schema issue — skip
+        if (exists) continue;
+
+        try {
+          await prisma.topicProposal.create({
+            data: {
+              title: topic.title,
+              primary_keyword: keyword,
+              site_id: siteId,
+              locale: "en",
+              longtails: [],
+              questions: [],
+              intent: "info",
+              suggested_page_type: "news",
+              status: "ready",
+              confidence_score: Math.min(topic.relevanceScore || 0.5, 1.0),
+              evergreen: false,
+              source_weights_json: { source: "trends-monitor" },
+              authority_links_json: { traffic: topic.traffic, category: topic.category },
+            },
+          });
+          trendsQueued++;
+        } catch {
+          // Duplicate or schema issue — skip
+        }
       }
     }
 
     if (trendsQueued > 0) {
-      console.log(`[Trends Monitor] Queued ${trendsQueued} trending topics as TopicProposals for content generation`);
+      console.log(`[Trends Monitor] Queued ${trendsQueued} trending topics as TopicProposals across ${targetSites.length} sites`);
     }
   } catch (error) {
     console.error("[Trends Monitor] Failed to save trends data:", error);

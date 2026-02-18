@@ -1,280 +1,54 @@
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
 import { logCronExecution } from "@/lib/cron-logger";
-import { getFeatureFlagValue } from "@/lib/feature-flags";
 
 /**
- * Daily Publishing Automation Cron Job
- * Publishes 1 general + 1 date-relevant topic daily
+ * DEPRECATED — daily-publish cron route
+ *
+ * This route queried TopicProposals with status "approved", but that status is
+ * never set by any active pipeline step. Topics go through:
+ *   planned → ready → queued → generated → drafted → published
+ *
+ * The functional publish path is `/api/cron/scheduled-publish` (runs 9 AM + 4 PM UTC).
+ * Content reaches BlogPost via: weekly-topics → content-builder → content-selector → scheduled-publish.
+ *
+ * This route is kept as a no-op stub because dashboard components reference it
+ * (health-monitoring, automation-status, pipeline API). Deleting it would break those UIs.
+ *
+ * See AUDIT-LOG.md KG-029 for full analysis.
  */
+
 export async function POST(request: NextRequest) {
-  // If CRON_SECRET is configured and doesn't match, reject.
-  // If CRON_SECRET is NOT configured, allow — Vercel crons don't send secrets unless configured.
-  const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
+  const authHeader = request.headers.get('authorization');
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const _cronStart = Date.now();
-
-  try {
-    console.log('🕐 Daily publishing cron triggered');
-
-    // Feature flag: DB toggle (dashboard) takes precedence, env var fallback, default=enabled.
-    // To disable: toggle FEATURE_AUTO_PUBLISHING off in dashboard, or set env var to "false".
-    const flagValue = await getFeatureFlagValue("FEATURE_AUTO_PUBLISHING");
-    // null = not configured anywhere → default enabled
-    if (flagValue === false) {
-      console.log('[daily-publish] Auto publishing disabled via feature flag (dashboard or env)');
-      return NextResponse.json({
-        success: true,
-        message: 'Auto publishing disabled by feature flag',
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Check if we've already published today
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-
-    const publishedToday = await prisma.scheduledContent.count({
-      where: {
-        published_time: {
-          gte: startOfDay,
-          lt: endOfDay,
-        },
-        generation_source: 'topic_proposal',
-      },
-    });
-
-    if (publishedToday >= 2) {
-      console.log(`⏭️ Already published ${publishedToday} topics today`);
-      return NextResponse.json({
-        success: true,
-        message: 'Daily publishing quota already met',
-        publishedToday,
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    const remainingSlots = 2 - publishedToday;
-    console.log(`📝 Publishing ${remainingSlots} topics today`);
-
-    // Get approved topics sorted by priority (date-relevant first, then general)
-    const availableTopics = await prisma.topicProposal.findMany({
-      where: { 
-        status: 'approved',
-        // Exclude topics that have already been used for content
-        scheduled_content: {
-          none: {}
-        }
-      },
-      orderBy: [
-        { confidence_score: 'desc' },
-        { created_at: 'asc' }, // Older approved topics first
-      ],
-      take: remainingSlots,
-    });
-
-    if (availableTopics.length === 0) {
-      console.log('⚠️ No approved topics available for publishing');
-      return NextResponse.json({
-        success: true,
-        message: 'No approved topics available for publishing',
-        availableTopics: 0,
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    const publishedContent = [];
-
-    // Process each selected topic
-    for (const topic of availableTopics) {
-      try {
-        // Create scheduled content from topic
-        const content = await createContentFromTopic(topic);
-        
-        // Mark topic as used
-        await prisma.topicProposal.update({
-          where: { id: topic.id },
-          data: { status: 'approved' }, // Keep as approved but track via scheduled_content relation
-        });
-
-        publishedContent.push({
-          topicId: topic.id,
-          contentId: content.id,
-          title: content.title,
-          status: 'published',
-        });
-
-        console.log(`✅ Published topic: ${topic.primary_keyword}`);
-
-      } catch (error) {
-        console.error(`❌ Failed to publish topic ${topic.id}:`, error);
-        publishedContent.push({
-          topicId: topic.id,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          status: 'failed',
-        });
-      }
-    }
-
-    const publishedCount = publishedContent.filter(p => p.status === 'published').length;
-    const failedCount = publishedContent.filter(p => p.status === 'failed').length;
-
-    await logCronExecution("daily-publish", "completed", {
-      durationMs: Date.now() - _cronStart,
-      itemsProcessed: publishedContent.length,
-      itemsSucceeded: publishedCount,
-      itemsFailed: failedCount,
-      resultSummary: { publishedCount, failedCount },
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Daily publishing completed',
-      publishedCount,
-      failedCount,
-      publishedContent,
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    console.error('Daily publishing failed:', error);
-    await logCronExecution("daily-publish", "failed", {
-      durationMs: Date.now() - _cronStart,
-      errorMessage: errMsg,
-    });
-
-    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "daily-publish", error: errMsg }).catch(() => {});
-
-    return NextResponse.json(
-      { error: 'Daily publishing failed', details: errMsg },
-      { status: 500 }
-    );
-  }
-}
-
-async function createContentFromTopic(topic: any) {
-  // Extract topic data from source_weights_json
-  const originalData = topic.source_weights_json?.original_data || {};
-  
-  // Generate article URL (this would be the actual published URL)
-  const slug = generateSlug(topic.primary_keyword);
-  const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
-  const articleUrl = `${process.env.NEXTAUTH_URL || getSiteDomain(topic.site_id || getDefaultSiteId())}/articles/${slug}`;
-
-  // Create the scheduled content entry
-  const content = await prisma.scheduledContent.create({
-    data: {
-      title: originalData.title || topic.primary_keyword,
-      content: generateContentFromTopic(topic, originalData),
-      content_type: 'blog_post',
-      language: topic.locale || 'en',
-      category: originalData.category || 'london_general',
-      tags: topic.longtails || [],
-      metadata: {
-        topicId: topic.id,
-        keywords: topic.longtails,
-        authorityLinks: topic.authority_links_json,
-        questions: topic.questions,
-        articleUrl, // Store the article URL for backlink suggestions
-        publishedDate: new Date().toISOString(),
-        ...originalData,
-      },
-      scheduled_time: new Date(), // Published immediately
-      published_time: new Date(),
-      status: 'published',
-      platform: 'blog',
-      published: true,
-      page_type: topic.suggested_page_type || 'guide',
-      topic_proposal_id: topic.id,
-      seo_score: Math.floor((topic.confidence_score || 0.8) * 100),
-      generation_source: 'topic_proposal',
-      authority_links_used: topic.authority_links_json,
-      longtails_used: topic.longtails,
-    },
+  await logCronExecution("daily-publish", "completed", {
+    durationMs: 0,
+    resultSummary: { deprecated: true, message: "Route deprecated — use scheduled-publish instead" },
   });
 
-  return content;
+  return NextResponse.json({
+    success: true,
+    deprecated: true,
+    message: 'daily-publish is deprecated. Publishing is handled by /api/cron/scheduled-publish.',
+    timestamp: new Date().toISOString(),
+  });
 }
 
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-}
-
-function generateContentFromTopic(topic: any, originalData: any): string {
-  // This is a simplified content generation - in production this would call the content generation API
-  const title = originalData.title || topic.primary_keyword;
-  const description = originalData.description || `Comprehensive guide to ${topic.primary_keyword} in London`;
-  
-  return `
-# ${title}
-
-${description}
-
-## Key Information
-
-${topic.questions?.map((q: string) => `### ${q}\n\n[Content to be generated]\n`).join('\n') || ''}
-
-## Essential Details
-
-- **Category**: ${originalData.category || 'General'}
-- **Best Time to Visit**: Year-round
-- **Location**: London, UK
-
-## Authority Sources
-
-${topic.authority_links_json?.map((link: any) => `- [${link.title}](${link.url})`).join('\n') || ''}
-
-*This content was automatically generated and published as part of our daily content automation.*
-  `.trim();
-}
-
-// GET handler — supports both healthcheck and real execution for Vercel cron compatibility
 export async function GET(request: NextRequest) {
-  // Healthcheck mode — quick status without publishing
   if (request.nextUrl.searchParams.get("healthcheck") === "true") {
-    const approvedCount = await prisma.topicProposal.count({
-      where: {
-        status: 'approved',
-        scheduled_content: { none: {} }
-      }
-    });
-
-    const publishedToday = await prisma.scheduledContent.count({
-      where: {
-        published_time: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-        },
-        generation_source: 'topic_proposal',
-      },
-    });
-
     return NextResponse.json({
       status: 'healthy',
       endpoint: 'daily-publish cron',
-      approvedTopicsAvailable: approvedCount,
-      publishedToday,
-      dailyQuotaRemaining: Math.max(0, 2 - publishedToday),
-      timestamp: new Date().toISOString()
+      deprecated: true,
+      message: 'Route deprecated — use scheduled-publish instead',
+      timestamp: new Date().toISOString(),
     });
   }
 
-  // Real execution — delegate to POST handler
   return POST(request);
 }

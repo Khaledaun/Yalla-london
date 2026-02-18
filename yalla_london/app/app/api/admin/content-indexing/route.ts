@@ -28,7 +28,7 @@ interface ArticleIndexingInfo {
   lastInspectedAt: string | null;
   coverageState: string | null;
   submittedIndexnow: boolean;
-  submittedGoogle: boolean;
+  submittedSitemap: boolean;
   submissionAttempts: number;
   // Why not indexed
   notIndexedReasons: string[];
@@ -153,8 +153,8 @@ export async function GET(request: NextRequest) {
         if (!record?.submitted_indexnow) {
           reasons.push("Not submitted via IndexNow (Bing/Yandex)");
         }
-        if (!record?.submitted_google_api) {
-          reasons.push("Not submitted via Google Indexing API");
+        if (!record?.submitted_sitemap) {
+          reasons.push("Sitemap not submitted to Google via GSC — Google relies on sitemap discovery for blog content");
         }
       } else if (indexingStatus === "not_indexed") {
         const coverage = record?.coverage_state || "";
@@ -224,7 +224,7 @@ export async function GET(request: NextRequest) {
         lastInspectedAt: record?.last_inspected_at?.toISOString() || null,
         coverageState: record?.coverage_state || null,
         submittedIndexnow: record?.submitted_indexnow || false,
-        submittedGoogle: record?.submitted_google_api || false,
+        submittedSitemap: record?.submitted_sitemap || false,
         submissionAttempts: record?.submission_attempts || 0,
         notIndexedReasons: reasons,
         fixAction,
@@ -525,9 +525,11 @@ export async function POST(request: NextRequest) {
     try {
       const { searchConsole } = await import("@/lib/integrations/google-search-console");
       if (searchConsole.isConfigured()) {
-        const result = await searchConsole.submitUrl(`${baseUrl}/sitemap.xml`);
+        // Submit sitemap — Google Indexing API only works for JobPosting/BroadcastEvent,
+        // NOT regular blog content. Sitemap submission is the correct path for articles.
+        const result = await searchConsole.submitSitemap(`${baseUrl}/sitemap.xml`);
         gscSuccess = !!result;
-        gscMessage = result ? "Sitemap submitted" : "Submission failed";
+        gscMessage = result ? "Sitemap submitted to Google" : "Sitemap submission failed";
       } else {
         gscMessage = "GSC not configured";
       }
@@ -548,12 +550,14 @@ export async function POST(request: NextRequest) {
             slug,
             status: "submitted",
             submitted_indexnow: indexNowSuccess,
+            submitted_sitemap: gscSuccess,
             last_submitted_at: new Date(),
             submission_attempts: 1,
           },
           update: {
             status: "submitted",
             submitted_indexnow: indexNowSuccess,
+            submitted_sitemap: gscSuccess || undefined,
             last_submitted_at: new Date(),
             submission_attempts: { increment: 1 },
           },

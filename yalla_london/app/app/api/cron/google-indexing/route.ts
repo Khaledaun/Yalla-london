@@ -160,10 +160,12 @@ async function handleIndexing(request: NextRequest) {
                   slug: url.split("/blog/")[1] || null,
                   status: "submitted",
                   submitted_indexnow: indexNowResult.submitted > 0,
+                  submitted_sitemap: gscResult.success,
                   last_submitted_at: new Date(),
                 },
                 update: {
                   submitted_indexnow: indexNowResult.submitted > 0,
+                  submitted_sitemap: gscResult.success || undefined,
                   last_submitted_at: new Date(),
                 },
               }),

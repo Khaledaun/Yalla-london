@@ -36,7 +36,7 @@ interface ArticleIndexing {
   lastInspectedAt: string | null;
   coverageState: string | null;
   submittedIndexnow: boolean;
-  submittedGoogle: boolean;
+  submittedSitemap: boolean;
   submissionAttempts: number;
   notIndexedReasons: string[];
   fixAction: string | null;
@@ -584,17 +584,17 @@ export default function ContentIndexingTab() {
                           </span>
                           <span
                             className={`inline-flex items-center gap-1 px-2 py-1 rounded ${
-                              article.submittedGoogle
+                              article.submittedSitemap
                                 ? "bg-green-100 text-green-700"
                                 : "bg-gray-100 text-gray-500"
                             }`}
                           >
-                            {article.submittedGoogle ? (
+                            {article.submittedSitemap ? (
                               <CheckCircle className="h-3 w-3" />
                             ) : (
                               <XCircle className="h-3 w-3" />
                             )}
-                            Google API
+                            GSC Sitemap
                           </span>
                           {article.coverageState && (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-100 text-gray-600">

@@ -401,7 +401,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       );
     }
     
-    const ruleIdToUse = rule_id || `rule_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const ruleIdToUse = rule_id || `rule_${Date.now()}_${crypto.randomUUID().slice(0, 9)}`;
     
     const newRule: RateLimitRule = {
       rule_id: ruleIdToUse,

@@ -19,6 +19,7 @@ import {
   Easing,
   Img,
 } from "remotion";
+import { sanitizeSvg } from "@/lib/html-sanitizer";
 import type {
   VideoTemplateConfig,
   VideoScene,
@@ -345,7 +346,7 @@ const LogoElement: React.FC<{
           alignItems: "center",
           justifyContent: "center",
         }}
-        dangerouslySetInnerHTML={{ __html: brand.logoSvg }}
+        dangerouslySetInnerHTML={{ __html: sanitizeSvg(brand.logoSvg) }}
       />
     );
   }

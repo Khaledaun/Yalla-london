@@ -712,3 +712,29 @@ Deeper trace of every handoff point in the pipeline:
 | URL Hardcoding | ~30 remaining in API routes and lib files | MEDIUM | Phase 3 (KG-021) |
 | Orphan Models | 16+ Prisma models never referenced | LOW | Phase 8 (KG-020) |
 | Brand Templates | Only Yalla London template exists | MEDIUM | Phase 7 (KG-027) |
+
+### Session: February 18, 2026 — Audit #13: Deep Compliance + Smoke Test Suite
+
+**Audit #13 — Credential Exposure, Crash Fixes, XSS, Fake Metrics, Smoke Test (15 issues fixed):**
+
+3 parallel research sweeps: (1) Pipeline end-to-end trace (23 pass, 3 fail), (2) Workflow coherence + cron chain mapping (0 critical), (3) Compliance + anti-pattern check (2 critical, 1 high, 3 medium).
+
+1. **CRITICAL: Analytics API credential exposure (KG-048):** Removed raw `client_secret`, `client_id`, `private_key` from analytics API response. Replaced with boolean `_configured` indicators. Also removed API key prefixes and service account emails from system-status endpoint.
+2. **CRITICAL: content-generator.ts crash (KG-049):** `blogPost.create()` was missing required `category_id` field — guaranteed Prisma crash. Added find-or-create default "General" category + system user for `author_id`.
+3. **HIGH: 4 remaining XSS vectors (KG-050):** Sanitized `dangerouslySetInnerHTML` in howto-builder, faq-builder, lite-social-embed, video-composition with `sanitizeHtml()`/`sanitizeSvg()`.
+4. **MEDIUM: 3 Math.random() fake metrics (KG-051):** Eliminated from bulk-publish (audit score), backlinks/inspect (SEO score), topics/generate (confidence).
+5. **MEDIUM: content-strategy.ts missing site_id:** `saveContentProposals()` now accepts and passes `siteId`; seo-agent passes siteId in loop.
+6. **MEDIUM: Math.random() in ID generation (3 admin routes):** Replaced with `crypto.getRandomValues()` / `crypto.randomUUID()` in domains, ab-test, rate-limiting.
+7. **LOW: Pre-pub gate meta length warnings:** Added max-length checks for meta title (>60) and description (>160).
+8. **LOW: onCronFailure error tag:** Updated catch block tag from `[failure-hook]` to `[onCronFailure]` for precise log identification.
+
+**Comprehensive Smoke Test Suite (`scripts/smoke-test.ts`):**
+- 64 tests across 12 categories: Build, Pipeline (16), Quality Gate (4), Cron Auth (12), Security (6), XSS (6), Anti-Patterns (3), Multi-Site (6), Observability (3), SEO (5), Budget Guards (2)
+- **Result: 64/64 PASS — 100% score**
+- Run with: `npx tsx scripts/smoke-test.ts`
+
+**Known Gaps Resolved by Audit #13:**
+- KG-048: Analytics credential exposure → **Resolved**
+- KG-049: content-generator.ts crash → **Resolved**
+- KG-050: 4 remaining XSS vectors → **Resolved**
+- KG-051: Math.random() fake metrics → **Resolved**

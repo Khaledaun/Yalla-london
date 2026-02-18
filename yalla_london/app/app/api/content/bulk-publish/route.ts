@@ -463,19 +463,19 @@ async function createBlogPostFromScheduledContent(content: any): Promise<any> {
 // Helper: Trigger SEO audit
 async function triggerSeoAudit(contentId: string, contentType: string): Promise<void> {
   try {
-    // Create basic SEO audit
-    const auditScore = 70 + Math.floor(Math.random() * 25);
+    // Real audit score computed by pipeline scoring phase
+    const auditScore = null;
 
     await prisma.seoAuditResult.create({
       data: {
         content_id: contentId,
         content_type: contentType,
-        score: auditScore,
+        score: 0, // Placeholder until real pipeline scoring runs
         breakdown_json: {
-          content_quality: 85,
-          keyword_optimization: auditScore - 10,
-          technical_seo: 90,
-          user_experience: auditScore + 5,
+          content_quality: 0,
+          keyword_optimization: 0,
+          technical_seo: 0,
+          user_experience: 0,
         },
         suggestions: [
           'Add more internal links',

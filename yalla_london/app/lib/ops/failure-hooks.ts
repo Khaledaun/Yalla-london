@@ -266,7 +266,7 @@ export async function onCronFailure(ctx: CronFailureContext): Promise<void> {
       context: { jobName: ctx.jobName, error: errorMsg.substring(0, 300), ...(ctx.details || {}) },
     });
   } catch (hookError) {
-    console.error("[failure-hook] Cron hook error (non-fatal):", hookError);
+    console.error("[onCronFailure] Cron hook error (non-fatal):", hookError);
   }
 }
 

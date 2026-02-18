@@ -641,7 +641,7 @@ model TopicProposal {
   suggested_window_start  DateTime?
   suggested_window_end    DateTime?
   source_weights_json     Json     // Citation weights and provenance
-  status                  String   @default("planned") // planned, queued, generated, drafted, ready, published
+  status                  String   @default("planned") // planned, proposed, ready, queued, generating, generated, drafted, approved, published
   confidence_score        Float?   // 0.0 - 1.0
   planned_at              DateTime? // When this topic is scheduled for generation
   evergreen               Boolean  @default(true) // true = evergreen, false = seasonal

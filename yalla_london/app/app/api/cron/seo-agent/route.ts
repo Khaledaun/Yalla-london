@@ -357,7 +357,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
         let proposals = generateContentProposals(searchData, existingSlugs);
         proposals = applyDiversityQuotas(proposals, diversity);
 
-        const saved = await saveContentProposals(prisma, proposals, fixes);
+        const saved = await saveContentProposals(prisma, proposals, fixes, siteId);
 
         report.contentStrategy = {
           proposalsGenerated: proposals.length,

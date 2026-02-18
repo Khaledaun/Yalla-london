@@ -203,7 +203,8 @@ export function generateContentProposals(
 export async function saveContentProposals(
   prisma: any,
   proposals: ContentProposal[],
-  fixes: string[]
+  fixes: string[],
+  siteId?: string
 ): Promise<{ created: number; skipped: number }> {
   let created = 0;
   let skipped = 0;
@@ -215,6 +216,7 @@ export async function saveContentProposals(
         where: {
           primary_keyword: proposal.primaryKeyword,
           status: { in: ["planned", "queued", "ready", "proposed"] },
+          ...(siteId ? { site_id: siteId } : {}),
         },
       });
 
@@ -235,6 +237,7 @@ export async function saveContentProposals(
           confidence_score: proposal.confidenceScore,
           intent: proposal.contentType === "answer" ? "info" : "info",
           evergreen: proposal.contentType !== "seasonal",
+          site_id: siteId || null,
           authority_links_json: {
             contentType: proposal.contentType,
             expandsSlug: proposal.expandsSlug || null,

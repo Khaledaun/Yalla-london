@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Play, ExternalLink, Loader2 } from 'lucide-react'
 import Image from 'next/image'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 import { trackEmbedEvent, generateEmbedCode } from '@/lib/social-embed-utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
@@ -175,7 +176,7 @@ export function LiteSocialEmbed({
             {embedContent && (
               <div 
                 className="w-full"
-                dangerouslySetInnerHTML={{ __html: embedContent }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(embedContent) }}
               />
             )}
           </div>

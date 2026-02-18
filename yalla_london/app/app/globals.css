@@ -547,3 +547,433 @@
   margin-right: calc(2rem * var(--tw-space-x-reverse));
   margin-left: calc(2rem * calc(1 - var(--tw-space-x-reverse)));
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ARTICLE CONTENT TYPOGRAPHY — .yalla-article-content
+   Rich editorial styling for blog post HTML content.
+   Used by BlogPostClient for dangerouslySetInnerHTML output.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.yalla-article-content {
+  font-family: var(--font-editorial);
+  font-size: 1.125rem;
+  line-height: 1.85;
+  color: var(--color-charcoal);
+}
+
+/* ─── Paragraphs ─── */
+.yalla-article-content p {
+  margin-bottom: 1.75rem;
+  font-weight: 400;
+}
+
+.yalla-article-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* ─── Headings ─── */
+.yalla-article-content h1,
+.yalla-article-content h2,
+.yalla-article-content h3,
+.yalla-article-content h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--color-charcoal);
+  line-height: 1.25;
+}
+
+.yalla-article-content h1 {
+  font-size: 2rem;
+  margin-top: 3rem;
+  margin-bottom: 1.25rem;
+}
+
+.yalla-article-content h2 {
+  font-size: 1.625rem;
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--color-sand);
+  position: relative;
+}
+
+.yalla-article-content h2::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-secondary), var(--color-accent));
+}
+
+[dir="rtl"] .yalla-article-content h2::after {
+  left: auto;
+  right: 0;
+}
+
+.yalla-article-content h3 {
+  font-size: 1.375rem;
+  margin-top: 2.25rem;
+  margin-bottom: 0.875rem;
+  color: var(--color-primary);
+}
+
+.yalla-article-content h4 {
+  font-size: 1.125rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.9375rem;
+}
+
+/* Remove top margin from first heading */
+.yalla-article-content > h1:first-child,
+.yalla-article-content > h2:first-child,
+.yalla-article-content > h3:first-child {
+  margin-top: 0;
+}
+
+/* ─── Links ─── */
+.yalla-article-content a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--color-secondary);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.yalla-article-content a:hover {
+  color: var(--color-deep-burgundy);
+  text-decoration-color: var(--color-primary);
+  background-color: rgba(196, 154, 42, 0.08);
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
+
+/* External links — subtle indicator */
+.yalla-article-content a[href^="http"]::after {
+  content: ' \2197';
+  font-size: 0.75em;
+  vertical-align: super;
+  opacity: 0.5;
+}
+
+/* Internal links — no arrow */
+.yalla-article-content a[href^="/"]::after,
+.yalla-article-content a[href^="#"]::after {
+  content: none;
+}
+
+/* ─── Bold & Emphasis ─── */
+.yalla-article-content strong,
+.yalla-article-content b {
+  font-weight: 700;
+  color: var(--color-charcoal);
+}
+
+.yalla-article-content em,
+.yalla-article-content i {
+  font-style: italic;
+}
+
+/* ─── Blockquotes ─── */
+.yalla-article-content blockquote {
+  margin: 2.5rem 0;
+  padding: 1.5rem 1.75rem;
+  border-left: 4px solid var(--color-primary);
+  background: linear-gradient(135deg, rgba(200, 50, 43, 0.04), rgba(196, 154, 42, 0.04));
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--color-graphite);
+}
+
+[dir="rtl"] .yalla-article-content blockquote {
+  border-left: none;
+  border-right: 4px solid var(--color-primary);
+  border-radius: 8px 0 0 8px;
+}
+
+.yalla-article-content blockquote p {
+  margin-bottom: 0.75rem;
+}
+
+.yalla-article-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* ─── Unordered Lists ─── */
+.yalla-article-content ul {
+  margin: 1.5rem 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+[dir="rtl"] .yalla-article-content ul {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.yalla-article-content ul > li {
+  position: relative;
+  padding-left: 1.75rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.7;
+}
+
+[dir="rtl"] .yalla-article-content ul > li {
+  padding-left: 0;
+  padding-right: 1.75rem;
+}
+
+.yalla-article-content ul > li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.65em;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  border-radius: 50%;
+}
+
+[dir="rtl"] .yalla-article-content ul > li::before {
+  left: auto;
+  right: 0;
+}
+
+/* ─── Ordered Lists ─── */
+.yalla-article-content ol {
+  margin: 1.5rem 0;
+  padding-left: 0;
+  list-style: none;
+  counter-reset: article-counter;
+}
+
+[dir="rtl"] .yalla-article-content ol {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.yalla-article-content ol > li {
+  position: relative;
+  padding-left: 2.5rem;
+  margin-bottom: 0.875rem;
+  line-height: 1.7;
+  counter-increment: article-counter;
+}
+
+[dir="rtl"] .yalla-article-content ol > li {
+  padding-left: 0;
+  padding-right: 2.5rem;
+}
+
+.yalla-article-content ol > li::before {
+  content: counter(article-counter);
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: white;
+  font-family: var(--font-system);
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 50%;
+}
+
+[dir="rtl"] .yalla-article-content ol > li::before {
+  left: auto;
+  right: 0;
+}
+
+/* ─── Nested lists ─── */
+.yalla-article-content li ul,
+.yalla-article-content li ol {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+.yalla-article-content li ul > li::before {
+  width: 6px;
+  height: 6px;
+  background: var(--color-sand);
+  border: 1.5px solid var(--color-stone, #78716C);
+}
+
+/* ─── Tables ─── */
+.yalla-article-content table {
+  width: 100%;
+  margin: 2rem 0;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+}
+
+.yalla-article-content thead {
+  background: var(--color-charcoal);
+  color: white;
+}
+
+.yalla-article-content th {
+  padding: 0.875rem 1rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: left;
+}
+
+[dir="rtl"] .yalla-article-content th {
+  text-align: right;
+}
+
+.yalla-article-content td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--color-sand);
+}
+
+.yalla-article-content tbody tr:nth-child(even) {
+  background-color: var(--color-cream);
+}
+
+.yalla-article-content tbody tr:hover {
+  background-color: rgba(196, 154, 42, 0.06);
+}
+
+.yalla-article-content tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ─── Images ─── */
+.yalla-article-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 2rem 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* ─── Horizontal Rules (section dividers) ─── */
+.yalla-article-content hr {
+  border: none;
+  margin: 3rem auto;
+  height: 3px;
+  width: 100px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary), var(--color-accent));
+  border-radius: 2px;
+}
+
+/* ─── Code / Pre ─── */
+.yalla-article-content code {
+  font-family: var(--font-system);
+  font-size: 0.875em;
+  background: var(--color-cream);
+  color: var(--color-primary);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  border: 1px solid var(--color-sand);
+}
+
+.yalla-article-content pre {
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  background: var(--color-charcoal);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.yalla-article-content pre code {
+  background: none;
+  color: var(--color-cream);
+  border: none;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* ─── Special content markers ─── */
+
+/* Tip / info callout — wraps content in a styled box */
+.yalla-article-content .tip,
+.yalla-article-content .info,
+.yalla-article-content [data-callout="tip"] {
+  margin: 2rem 0;
+  padding: 1.25rem 1.5rem;
+  background: rgba(59, 126, 161, 0.06);
+  border-left: 4px solid var(--color-accent);
+  border-radius: 0 8px 8px 0;
+  font-size: 1rem;
+}
+
+/* Warning callout */
+.yalla-article-content .warning,
+.yalla-article-content [data-callout="warning"] {
+  margin: 2rem 0;
+  padding: 1.25rem 1.5rem;
+  background: rgba(245, 158, 11, 0.06);
+  border-left: 4px solid #f59e0b;
+  border-radius: 0 8px 8px 0;
+  font-size: 1rem;
+}
+
+/* ─── RTL Arabic typography ─── */
+[dir="rtl"] .yalla-article-content {
+  font-family: var(--font-arabic);
+  font-size: 1.125rem;
+  line-height: 2;
+}
+
+[dir="rtl"] .yalla-article-content h1,
+[dir="rtl"] .yalla-article-content h2,
+[dir="rtl"] .yalla-article-content h3,
+[dir="rtl"] .yalla-article-content h4 {
+  font-family: var(--font-arabic);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .yalla-article-content {
+    font-size: 1rem;
+    line-height: 1.8;
+  }
+
+  .yalla-article-content h1 { font-size: 1.625rem; }
+  .yalla-article-content h2 { font-size: 1.375rem; }
+  .yalla-article-content h3 { font-size: 1.125rem; }
+
+  .yalla-article-content blockquote {
+    margin: 1.5rem 0;
+    padding: 1rem 1.25rem;
+  }
+
+  .yalla-article-content table {
+    font-size: 0.8125rem;
+  }
+
+  .yalla-article-content th,
+  .yalla-article-content td {
+    padding: 0.625rem 0.75rem;
+  }
+}
+
+/* ─── Print ─── */
+@media print {
+  .yalla-article-content a::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.75em;
+    color: #666;
+  }
+}

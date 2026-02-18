@@ -156,7 +156,7 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="prose prose-lg max-w-none"
+            className="max-w-none"
           >
             {/* Action Buttons */}
             <div className="flex items-center justify-between mb-8 pb-6 border-b">
@@ -185,7 +185,7 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
 
             {/* Article Body */}
             <div
-              className="text-charcoal leading-relaxed prose-headings:font-display prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-a:text-london-600 prose-strong:text-charcoal"
+              className="yalla-article-content"
               dangerouslySetInnerHTML={{
                 __html: sanitizeHtml(language === 'en' ? article.content_en : article.content_ar)
               }}

@@ -248,7 +248,7 @@ export default function SectionClient({
                       {subTitle}
                     </h2>
                     <div
-                      className="prose prose-lg max-w-none text-charcoal leading-relaxed prose-headings:font-display prose-h3:text-xl prose-h4:text-lg prose-a:text-london-600 prose-strong:text-charcoal prose-blockquote:border-london-600"
+                      className="yalla-article-content"
                       dangerouslySetInnerHTML={{ __html: sanitizeHtml(subContent) }}
                     />
                   </div>

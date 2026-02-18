@@ -19,6 +19,7 @@ export function Header() {
     { name: t('information'), href: '/information' },
     { name: t('blog'), href: '/blog' },
     { name: t('recommendations'), href: '/recommendations' },
+    { name: t('londonByFoot'), href: '/london-by-foot' },
     { name: t('eventsTickets'), href: '/events' },
     { name: t('about'), href: '/about' },
   ]

@@ -177,6 +177,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Block internal-only pages from public access → redirect to admin login
+  const BLOCKED_PUBLIC_PATHS = ["/brand-guidelines", "/brand-showcase"];
+  if (BLOCKED_PUBLIC_PATHS.some((path) => effectivePathname.startsWith(path))) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/admin";
+    return NextResponse.redirect(url, 302);
+  }
+
   // Get hostname from request (used for redirect + tenant resolution)
   const hostname = request.headers.get("host") || "localhost:3000";
 

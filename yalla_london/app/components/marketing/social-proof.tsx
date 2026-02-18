@@ -90,12 +90,12 @@ export function SocialProof({
     return () => clearInterval(interval);
   }, [recentBookings.length]);
 
-  // Generate realistic-looking numbers if no real data
+  // Only show real data — never show fake numbers to visitors
   const displayStats = stats || {
-    views_today: Math.floor(Math.random() * 50) + 20,
-    views_week: Math.floor(Math.random() * 200) + 100,
-    views_month: Math.floor(Math.random() * 800) + 400,
-    active_viewers: Math.floor(Math.random() * 5) + 2,
+    views_today: 0,
+    views_week: 0,
+    views_month: 0,
+    active_viewers: 0,
   };
 
   const translations = {
@@ -188,7 +188,8 @@ export function SocialProofBadge({
   count?: number;
   locale?: 'en' | 'ar';
 }) {
-  const displayCount = count || Math.floor(Math.random() * 8) + 3;
+  const displayCount = count || 0;
+  if (displayCount === 0) return null;
   const isArabic = locale === 'ar';
 
   return (

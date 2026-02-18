@@ -435,6 +435,79 @@ export async function GET(request: NextRequest) {
       // SeoReport table may not exist
     }
 
+    // 7. Recent indexing activity from cron logs
+    const recentActivity: Array<{
+      jobName: string;
+      status: string;
+      startedAt: string;
+      durationMs: number;
+      itemsProcessed: number;
+      itemsSucceeded: number;
+      errorMessage: string | null;
+    }> = [];
+    try {
+      const activityLogs = await prisma.cronJobLog.findMany({
+        where: {
+          job_name: { in: ["seo-agent", "google-indexing", "verify-indexing", "content-selector"] },
+        },
+        orderBy: { started_at: "desc" },
+        take: 20,
+      });
+      for (const log of activityLogs) {
+        recentActivity.push({
+          jobName: log.job_name,
+          status: log.status,
+          startedAt: log.started_at.toISOString(),
+          durationMs: log.duration_ms || 0,
+          itemsProcessed: log.items_processed || 0,
+          itemsSucceeded: log.items_succeeded || 0,
+          errorMessage: log.error_message || null,
+        });
+      }
+    } catch {
+      // CronJobLog table may not exist
+    }
+
+    // 8. Build health diagnosis — plain language summary for non-technical owner
+    const indexingRate = articles.length > 0 ? Math.round((indexed / articles.length) * 100) : 0;
+    let healthStatus: "healthy" | "warning" | "critical" | "not_started" = "not_started";
+    let healthMessage = "";
+    let healthDetail = "";
+
+    if (articles.length === 0) {
+      healthStatus = "not_started";
+      healthMessage = "No published articles yet";
+      healthDetail = "The content pipeline needs to produce and publish articles before they can be indexed by search engines.";
+    } else if (!hasIndexNowKey && !hasGscCredentials) {
+      healthStatus = "critical";
+      healthMessage = "Indexing is not configured";
+      healthDetail = "Neither IndexNow nor Google Search Console credentials are set up. Articles cannot be submitted to search engines. Set INDEXNOW_KEY and GSC credentials in Vercel.";
+    } else if (indexed === 0 && neverSubmitted === articles.length) {
+      healthStatus = "critical";
+      healthMessage = "No articles have been submitted to search engines";
+      healthDetail = "All published articles are sitting unsubmitted. The SEO agent cron job may not be running. Check cron logs or use the Submit All button.";
+    } else if (indexed === 0 && submitted > 0) {
+      healthStatus = "warning";
+      healthMessage = `${submitted} articles submitted, waiting for Google to index`;
+      healthDetail = "Articles have been submitted but Google hasn't indexed them yet. This is normal for new sites — Google can take 2-14 days to index new URLs. Check back in a few days.";
+    } else if (errors > 0) {
+      healthStatus = "warning";
+      healthMessage = `${errors} indexing error(s) detected`;
+      healthDetail = `${indexed} of ${articles.length} articles are indexed (${indexingRate}%), but ${errors} have errors that need attention. Expand the error articles below to see details.`;
+    } else if (indexingRate >= 80) {
+      healthStatus = "healthy";
+      healthMessage = `${indexed} of ${articles.length} articles indexed (${indexingRate}%)`;
+      healthDetail = "Indexing is working well. Most articles are being picked up by Google.";
+    } else if (indexingRate >= 40) {
+      healthStatus = "warning";
+      healthMessage = `${indexed} of ${articles.length} articles indexed (${indexingRate}%)`;
+      healthDetail = `Indexing is partially working. ${notIndexed + neverSubmitted} articles need attention — check the reasons below each article.`;
+    } else {
+      healthStatus = "warning";
+      healthMessage = `Only ${indexed} of ${articles.length} articles indexed (${indexingRate}%)`;
+      healthDetail = "Most articles are not indexed. This could be a configuration issue, content quality problem, or the site is too new for Google to trust.";
+    }
+
     return NextResponse.json({
       success: true,
       siteId,
@@ -452,6 +525,13 @@ export async function GET(request: NextRequest) {
         neverSubmitted,
         errors,
       },
+      healthDiagnosis: {
+        status: healthStatus,
+        message: healthMessage,
+        detail: healthDetail,
+        indexingRate,
+      },
+      recentActivity,
       articles,
       systemIssues,
     });

@@ -12,6 +12,7 @@
 | 1 | 2026-02-18 | SEO standards, multi-site scoping, dashboard data | 18 issues | 18 | 0 |
 | 2 | 2026-02-18 | Schema validation, field names, hardcoded fallbacks | 9 issues | 9 | 0 |
 | 3 | 2026-02-18 | Deep comprehensive audit (6 dimensions) | 45+ issues | 15 | 30+ (documented) |
+| 4 | 2026-02-18 | API routes, pipeline, frontend, schema, security, config | 80+ issues | 11 | 70+ (documented) |
 
 ---
 
@@ -317,6 +318,123 @@
 
 ---
 
+## Audit #4 — Deep Targeted Audit (API, Pipeline, Frontend, Schema, Security, Config)
+
+**Date:** 2026-02-18
+**Trigger:** User request for deeper audit after Audits #1-3 each found critical issues
+**Scope:** 6 parallel audit agents: (1) API Route Completeness, (2) Content Pipeline Integrity, (3) Frontend Admin Pages, (4) Prisma Schema Orphans, (5) Security & Input Validation, (6) Hardcoded Strings & Config
+**Commit:** `ec7e647` + current session commit
+
+### Fixed Issues (11)
+
+#### A4-001: Wrong Prisma Import Path — Analytics Route [CRITICAL → FIXED]
+- **Issue:** `import { prisma } from "@/lib/prisma"` — module doesn't exist, correct path is `@/lib/db`
+- **Error:** Route crashes at runtime with module not found error
+- **Fix:** Removed top-level import; use dynamic `const { prisma } = await import("@/lib/db")` in handler
+- **File:** `app/api/admin/command-center/analytics/route.ts` (line 9)
+
+#### A4-002: Wrong Prisma Import Path — Sites Route [CRITICAL → FIXED]
+- **Issue:** `const { prisma } = await import("@/lib/prisma")` — wrong module path
+- **Error:** GET handler falls through to config (silent); POST handler references undefined `prisma` variable
+- **Fix:** Changed to `"@/lib/db"` in GET handler; added `const { prisma } = await import("@/lib/db")` to POST handler
+- **File:** `app/api/admin/sites/route.ts` (lines 64, 95)
+
+#### A4-003: SSRF in Social Embed-Data Route [CRITICAL → FIXED]
+- **Issue:** POST handler fetches user-supplied URLs server-side without any URL validation
+- **Error:** Attacker could use the endpoint to probe internal infrastructure (localhost, 192.168.x.x)
+- **Attack Vector:** `POST /api/social/embed-data { url: "http://localhost:5432/admin", type: "youtube" }`
+- **Fix:** Added `isAllowedUrl()` validator with HTTPS-only enforcement, hostname allowlist (youtube, instagram, tiktok, facebook), and internal IP blocking
+- **File:** `app/api/social/embed-data/route.ts`
+
+#### A4-004: Fake Social Proof Numbers [HIGH → FIXED]
+- **Issue:** `SocialProof` component generated random view/booking stats when no real data available
+- **Error:** Visitors shown fake engagement numbers (e.g., "47 people viewing now") built from Math.random()
+- **What it affects:** Trust — showing fabricated social proof is deceptive and could violate consumer protection laws
+- **Fix:** Replaced random fallbacks with zeros; component now hides when no real data exists
+- **File:** `components/marketing/social-proof.tsx` (lines 94-99, 191)
+
+#### A4-005: Fake SocialProofBadge Count [HIGH → FIXED]
+- **Issue:** `SocialProofBadge` showed random count when no prop passed
+- **Fix:** Returns null when count is 0 instead of showing random number
+- **File:** `components/marketing/social-proof.tsx` (line 191)
+
+#### A4-006: Non-Existent Site in Content Generator Dropdown [HIGH → FIXED]
+- **Issue:** Command center content page had `<option value="gulf-maldives">Gulf Maldives</option>` — this site doesn't exist
+- **Error:** Selecting it would attempt to generate content for a non-existent site
+- **Fix:** Replaced with correct 5 sites from config: yalla-london, arabaldives, french-riviera, istanbul, thailand
+- **File:** `app/admin/command-center/content/page.tsx` (lines 312-316)
+
+#### A4-007: Feature Flags Page — All Mock Data [HIGH → FIXED]
+- **Issue:** Entire page loaded hardcoded mock flags and mock health metrics — never called any API
+- **Error:** Users believed they were managing real feature flags; all changes were illusory
+- **Fix:** Replaced mock data with real API calls to `/api/admin/feature-flags` and `/api/admin/operations-hub`
+- **File:** `app/admin/feature-flags/page.tsx` (lines 82-233)
+
+#### A4-008: Analytics Route Hardcoded "Yalla London" [HIGH → FIXED]
+- **Issue:** Response always returned `siteId: "yalla-london"`, `siteName: "Yalla London"`, `domain: "www.yalla-london.com"`
+- **Fix:** Now reads siteId from request params/headers, loads config dynamically
+- **File:** `app/api/admin/command-center/analytics/route.ts` (lines 114-131)
+
+#### A4-009: Information Disclosure — Login Error [HIGH → FIXED]
+- **Issue:** Login route returned internal error details: `error: "Login failed at step: ${step}"`, `detail: error.message`
+- **Error:** Reveals internal code structure (step names, error messages) to attackers
+- **Fix:** Generic error message: `"Login failed. Please try again."`
+- **File:** `app/api/admin/login/route.ts` (lines 73-81)
+
+#### A4-010: Information Disclosure — Blog API Error [HIGH → FIXED]
+- **Issue:** Public blog API returned `details: error.message` in error responses
+- **Error:** Could expose DB schema, file paths, or internal details to unauthenticated users
+- **Fix:** Removed `details` field from error response
+- **File:** `app/api/content/blog/[slug]/route.ts` (lines 128-134)
+
+#### A4-011: Indexing Visibility Enhancement [FEATURE → ADDED]
+- **Issue:** User requested clearer visibility into whether indexing is working, what's indexed, what failed, and why
+- **Enhancement:** Added "Indexing Health Diagnosis" panel with plain-language status, progress bar, and actionable detail text. Added "Recent Indexing Activity" section showing last 20 cron runs with status, items processed, and errors. API now returns `healthDiagnosis` and `recentActivity` data.
+- **Files:** `app/api/admin/content-indexing/route.ts`, `components/admin/ContentIndexingTab.tsx`
+
+### Documented Issues (Not Fixed — Tracked)
+
+#### API Routes
+- **A4-D01:** 50+ hardcoded `process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com'` fallbacks across SEO routes
+- **A4-D02:** BlogPost.create in admin content route missing `siteId` field
+- **A4-D03:** Hardcoded email addresses in 30+ files (hello@yallalondon.com, system@yallalondon.com)
+- **A4-D04:** Inconsistent email format: hello@yallalondon.com vs hello@yalla-london.com (28 vs 11 instances)
+
+#### Content Pipeline
+- **A4-D05:** Dual content pipeline — daily-content-generate creates BlogPost directly, bypassing 8-phase quality gates
+- **A4-D06:** TopicProposal status race condition — both content-builder and daily-content-generate can consume same topic
+- **A4-D07:** BlogPost slug collision possible under simultaneous content-selector runs
+
+#### Frontend Admin Pages
+- **A4-D08:** Articles page: Create/Edit buttons have TODO comments, no handlers (lines 465, 636)
+- **A4-D09:** Automation Hub: Fetches from `/api/admin/automation-hub` — endpoint likely doesn't exist
+- **A4-D10:** Content generator: POST doesn't check response status before claiming success
+- **A4-D11:** Media View/Download buttons have no click handlers
+- **A4-D12:** Multiple upload buttons across admin pages have no onClick handlers
+- **A4-D13:** Command center content locale defaults to Arabic instead of English
+
+#### Prisma Schema
+- **A4-D14:** 16 orphaned models never referenced in code (Recommendation, ContentGeneration, BillingEntity, URLIndexingStatus, ConsentLog, FactEntry, ExitIntentImpression, SystemMetrics, UserExtended, ModelRoute, ModelProvider, NewsResearchLog, RulebookVersion, PageTypeRecipe, Agreement, TrackingPartner)
+- **A4-D15:** Premium model family (6 models) defined but never instantiated
+- **A4-D16:** Inconsistent naming: ArticleDraft uses `site_id` (snake_case), BlogPost uses `siteId` (camelCase)
+
+#### Security
+- **A4-D17:** XSS risk — BlogPostClient.tsx uses `dangerouslySetInnerHTML` without sanitization (content is admin-generated, risk is stored XSS via compromised admin)
+- **A4-D18:** No rate limiting on admin login endpoint — brute force possible
+- **A4-D19:** Cron auth bypass when CRON_SECRET env var not set (routes silently allow)
+- **A4-D20:** Login GET handler returns diagnostic info (env var presence, user count) without auth
+- **A4-D21:** Missing Content-Security-Policy headers
+
+#### Hardcoded Strings
+- **A4-D22:** 50+ SEO route files use `process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com'` — needs per-site URL resolution
+- **A4-D23:** Brand templates (config/brand-templates.ts) only have Yalla London entry
+- **A4-D24:** UTM source hardcoded as "yallalondon" in affiliate links — should be per-site
+- **A4-D25:** Security headers in middleware hardcode Vercel deployment URLs
+- **A4-D26:** 18 TODO/FIXME comments indicating incomplete work (email confirmations, GA4 API, social posting, translations)
+- **A4-D27:** 26 Math.random() instances for non-deterministic data (SEO scores, engagement stats, confidence scores)
+
+---
+
 ## Known Gaps (Not Blocking — Tracked for Future)
 
 | ID | Area | Description | Ref | Status | Added |
@@ -341,6 +459,14 @@
 | KG-018 | Pipeline | daily-content-generate bypasses ArticleDraft 8-phase pipeline | A3-D19 | Open | 2026-02-18 |
 | KG-019 | SEO Crons | Duplicate: seo-agent + seo/cron both submit to IndexNow | A3-D20 | Open | 2026-02-18 |
 | KG-020 | Orphan Models | 23 Prisma models defined but never referenced in code | A3-D11 | Open | 2026-02-18 |
+| KG-021 | URL Fallbacks | 50+ SEO routes hardcode `yalla-london.com` fallback instead of per-site domain | A4-D01,D22 | Open | 2026-02-18 |
+| KG-022 | Emails | 30+ hardcoded email addresses; inconsistent format (with/without hyphen) | A4-D03,D04 | Open | 2026-02-18 |
+| KG-023 | XSS | dangerouslySetInnerHTML in BlogPostClient without sanitization | A4-D17 | Open | 2026-02-18 |
+| KG-024 | Login Security | No rate limiting on admin login; diagnostic GET without auth | A4-D18,D20 | Open | 2026-02-18 |
+| KG-025 | Race Conditions | TopicProposal consumed by both pipelines; slug collision possible | A4-D06,D07 | Open | 2026-02-18 |
+| KG-026 | CSP Headers | Missing Content-Security-Policy headers | A4-D21 | Open | 2026-02-18 |
+| KG-027 | Brand Templates | Only Yalla London template exists in brand-templates.ts | A4-D23 | Open | 2026-02-18 |
+| KG-028 | Cron Auth | CRON_SECRET bypass when env var not set | A4-D19 | Open | 2026-02-18 |
 
 ---
 

@@ -50,6 +50,23 @@ interface SystemIssue {
   fixAction?: string;
 }
 
+interface IndexingActivity {
+  jobName: string;
+  status: string;
+  startedAt: string;
+  durationMs: number;
+  itemsProcessed: number;
+  itemsSucceeded: number;
+  errorMessage: string | null;
+}
+
+interface HealthDiagnosis {
+  status: "healthy" | "warning" | "critical" | "not_started";
+  message: string;
+  detail: string;
+  indexingRate: number;
+}
+
 interface IndexingData {
   success: boolean;
   siteId: string;
@@ -66,6 +83,8 @@ interface IndexingData {
     neverSubmitted: number;
     errors: number;
   };
+  healthDiagnosis?: HealthDiagnosis;
+  recentActivity?: IndexingActivity[];
   articles: ArticleIndexing[];
   systemIssues: SystemIssue[];
 }
@@ -373,6 +392,123 @@ export default function ContentIndexingTab() {
           active={statusFilter === "error"}
         />
       </div>
+
+      {/* Indexing Health Diagnosis — at-a-glance status */}
+      {data.healthDiagnosis && (
+        <div
+          className={`rounded-lg border p-5 ${
+            data.healthDiagnosis.status === "healthy"
+              ? "bg-green-50 border-green-200"
+              : data.healthDiagnosis.status === "warning"
+              ? "bg-amber-50 border-amber-200"
+              : data.healthDiagnosis.status === "critical"
+              ? "bg-red-50 border-red-200"
+              : "bg-gray-50 border-gray-200"
+          }`}
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 mt-0.5">
+              {data.healthDiagnosis.status === "healthy" ? (
+                <CheckCircle className="h-7 w-7 text-green-500" />
+              ) : data.healthDiagnosis.status === "warning" ? (
+                <AlertTriangle className="h-7 w-7 text-amber-500" />
+              ) : data.healthDiagnosis.status === "critical" ? (
+                <XCircle className="h-7 w-7 text-red-500" />
+              ) : (
+                <Clock className="h-7 w-7 text-gray-400" />
+              )}
+            </div>
+            <div className="flex-1">
+              <h3
+                className={`text-lg font-bold ${
+                  data.healthDiagnosis.status === "healthy"
+                    ? "text-green-800"
+                    : data.healthDiagnosis.status === "warning"
+                    ? "text-amber-800"
+                    : data.healthDiagnosis.status === "critical"
+                    ? "text-red-800"
+                    : "text-gray-700"
+                }`}
+              >
+                {data.healthDiagnosis.message}
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">{data.healthDiagnosis.detail}</p>
+              {data.healthDiagnosis.indexingRate > 0 && (
+                <div className="mt-3">
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                    <span>Indexing Rate</span>
+                    <span className="font-bold text-gray-700">{data.healthDiagnosis.indexingRate}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className={`h-2.5 rounded-full transition-all ${
+                        data.healthDiagnosis.indexingRate >= 80
+                          ? "bg-green-500"
+                          : data.healthDiagnosis.indexingRate >= 40
+                          ? "bg-amber-500"
+                          : "bg-red-500"
+                      }`}
+                      style={{ width: `${data.healthDiagnosis.indexingRate}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recent Indexing Activity */}
+      {data.recentActivity && data.recentActivity.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Activity className="h-4 w-4 text-blue-500" />
+              Recent Indexing Activity
+            </h3>
+          </div>
+          <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+            {data.recentActivity.slice(0, 10).map((activity, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                {/* Status dot */}
+                <span
+                  className={`flex-shrink-0 h-2.5 w-2.5 rounded-full ${
+                    activity.status === "completed"
+                      ? "bg-green-500"
+                      : activity.status === "failed"
+                      ? "bg-red-500"
+                      : "bg-amber-500"
+                  }`}
+                />
+                {/* Job name */}
+                <span className="font-medium text-gray-800 w-32 flex-shrink-0 truncate">
+                  {activity.jobName}
+                </span>
+                {/* Items processed */}
+                <span className="text-gray-500 text-xs w-28 flex-shrink-0">
+                  {activity.itemsSucceeded > 0 ? (
+                    <span className="text-green-600">{activity.itemsSucceeded} submitted</span>
+                  ) : activity.status === "completed" ? (
+                    <span className="text-gray-400">0 items</span>
+                  ) : (
+                    <span className="text-red-500">Failed</span>
+                  )}
+                </span>
+                {/* Error message if any */}
+                {activity.errorMessage && (
+                  <span className="text-red-500 text-xs truncate flex-1" title={activity.errorMessage}>
+                    {activity.errorMessage.substring(0, 80)}
+                  </span>
+                )}
+                {/* Time */}
+                <span className="text-gray-400 text-xs flex-shrink-0 ml-auto">
+                  {timeAgo(activity.startedAt)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Config Status Banner */}
       {(!data.config.hasIndexNowKey || !data.config.hasGscCredentials) && (

@@ -549,3 +549,36 @@ Ran 6 parallel audit agents covering: (1) Auth & Middleware patterns, (2) Error 
 | SEO Crons | Duplicate: seo-agent + seo/cron both submit to IndexNow | MEDIUM | A3-D20 |
 | standards.ts | 11/13 exports unused — not yet integrated into enforcement | MEDIUM | A3-D22 |
 | Mock Data | 14+ admin pages still show mock/placeholder data | MEDIUM | A3-D23 |
+
+### Session: February 18, 2026 — Audit #4: Deep Targeted Audit & Indexing Visibility
+
+**Audit #4 — 6 Parallel Audit Agents:**
+Targeted areas previous audits missed: (1) API Route Completeness, (2) Content Pipeline Integrity, (3) Frontend Admin Pages, (4) Prisma Schema Orphans, (5) Security & Input Validation, (6) Hardcoded Strings & Config.
+
+**Critical Fixes Applied (11):**
+
+1. **Fixed 2 wrong Prisma import paths** — `@/lib/prisma` (doesn't exist) → `@/lib/db` in analytics route and sites route. Both would crash at runtime.
+2. **SSRF protection on social embed endpoint** — Added URL allowlist + internal IP blocking + HTTPS enforcement to `/api/social/embed-data`. Previously any URL could be fetched server-side.
+3. **Removed fake social proof numbers** — `SocialProof` and `SocialProofBadge` components were showing Math.random() engagement stats to visitors. Now show nothing when no real data exists.
+4. **Fixed non-existent site in dropdown** — Command center content generator had "Gulf Maldives" option. Replaced with correct 5 sites.
+5. **Feature flags page wired to real API** — Was loading 100% hardcoded mock data. Now fetches from `/api/admin/feature-flags` and `/api/admin/operations-hub`.
+6. **Analytics route de-hardcoded** — Response always said "Yalla London" regardless of site. Now reads siteId from request and loads config dynamically.
+7. **Login error information disclosure fixed** — Was returning internal step names and error.message to attackers. Now returns generic message.
+8. **Blog API error information disclosure fixed** — Public endpoint was returning internal error details. Removed `details` field.
+9. **Indexing Health Diagnosis** — New at-a-glance panel in Content Hub Indexing tab. Plain-language status (healthy/warning/critical/not_started), progress bar, actionable detail text. Designed for phone viewing.
+10. **Recent Indexing Activity** — New section showing last 20 cron runs related to indexing, with status dots, items processed, error messages, and timestamps.
+11. **API enhanced** — `/api/admin/content-indexing` now returns `healthDiagnosis` object and `recentActivity` array for richer frontend data.
+
+**Key Documented Issues (Not Yet Fixed — See AUDIT-LOG.md Audit #4):**
+
+| Area | Issue | Severity | Audit Ref |
+|------|-------|----------|-----------|
+| URL Fallbacks | 50+ SEO routes hardcode `yalla-london.com` fallback | HIGH | A4-D01,D22 |
+| Emails | 30+ hardcoded email addresses in code | HIGH | A4-D03 |
+| XSS | dangerouslySetInnerHTML without sanitization in blog renderer | HIGH | A4-D17 |
+| Login Security | No rate limiting; diagnostic GET without auth | HIGH | A4-D18,D20 |
+| Pipeline | Dual pipelines, race conditions, slug collision possible | MEDIUM | A4-D05,D06,D07 |
+| Dead Buttons | Articles Create/Edit, media View/Download, upload buttons | MEDIUM | A4-D08,D11,D12 |
+| Orphan Models | 16 Prisma models never referenced in code | LOW | A4-D14 |
+| Brand Templates | Only Yalla London template exists | MEDIUM | A4-D23 |
+| CSP Headers | Missing Content-Security-Policy | MEDIUM | A4-D21 |

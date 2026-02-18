@@ -74,8 +74,7 @@ export async function POST(request: NextRequest) {
     console.error(`Login error at step [${step}]:`, error)
     return NextResponse.json(
       {
-        error: `Login failed at step: ${step}`,
-        detail: error?.message || String(error),
+        error: 'Login failed. Please try again.',
       },
       { status: 500 }
     )

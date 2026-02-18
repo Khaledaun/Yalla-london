@@ -78,162 +78,47 @@ export default function FeatureFlagsHealth() {
   const loadFeatureData = async () => {
     setIsLoading(true)
     try {
-      // Mock data - will be replaced with real API calls
-      const mockFlags: FeatureFlag[] = [
-        {
-          id: '1',
-          name: 'AI Content Generation',
-          description: 'Enable AI-powered content generation for blog posts',
-          enabled: true,
-          rolloutPercentage: 100,
-          targetUsers: ['admin', 'editor'],
-          conditions: {
-            environment: ['production', 'staging'],
-            userRoles: ['admin', 'editor']
-          },
-          metrics: {
-            impressions: 1250,
-            conversions: 89,
-            conversionRate: 7.12
-          },
-          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: '2',
-          name: 'Advanced SEO Tools',
-          description: 'Enable advanced SEO analysis and optimization tools',
-          enabled: true,
-          rolloutPercentage: 75,
-          targetUsers: ['admin', 'editor', 'analyst'],
-          conditions: {
-            environment: ['production'],
-            userRoles: ['admin', 'editor', 'analyst']
-          },
-          metrics: {
-            impressions: 890,
-            conversions: 67,
-            conversionRate: 7.53
-          },
-          createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: '3',
-          name: 'Video Hero Support',
-          description: 'Enable video hero backgrounds on homepage',
-          enabled: false,
-          rolloutPercentage: 0,
-          targetUsers: ['admin'],
-          conditions: {
-            environment: ['staging'],
-            userRoles: ['admin']
-          },
-          metrics: {
-            impressions: 0,
-            conversions: 0,
-            conversionRate: 0
-          },
-          createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: '4',
-          name: 'Real-time Analytics',
-          description: 'Enable real-time analytics dashboard',
-          enabled: true,
-          rolloutPercentage: 50,
-          targetUsers: ['admin', 'analyst'],
-          conditions: {
-            environment: ['production'],
-            userRoles: ['admin', 'analyst'],
-            dateRange: {
-              start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-              end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-            }
-          },
-          metrics: {
-            impressions: 450,
-            conversions: 23,
-            conversionRate: 5.11
-          },
-          createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-          updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-        }
-      ]
-
-      const mockHealth: SystemHealth = {
-        overall: 'healthy',
-        uptime: 99.9,
-        responseTime: 245,
-        errorRate: 0.1,
-        lastIncident: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        metrics: [
-          {
-            id: '1',
-            name: 'Database Performance',
-            status: 'healthy',
-            value: 95,
-            threshold: 80,
-            unit: '%',
-            lastChecked: new Date().toISOString(),
-            trend: 'up'
-          },
-          {
-            id: '2',
-            name: 'API Response Time',
-            status: 'healthy',
-            value: 245,
-            threshold: 500,
-            unit: 'ms',
-            lastChecked: new Date().toISOString(),
-            trend: 'stable'
-          },
-          {
-            id: '3',
-            name: 'Memory Usage',
-            status: 'warning',
-            value: 78,
-            threshold: 85,
-            unit: '%',
-            lastChecked: new Date().toISOString(),
-            trend: 'up'
-          },
-          {
-            id: '4',
-            name: 'CPU Usage',
-            status: 'healthy',
-            value: 45,
-            threshold: 80,
-            unit: '%',
-            lastChecked: new Date().toISOString(),
-            trend: 'down'
-          },
-          {
-            id: '5',
-            name: 'Disk Space',
-            status: 'healthy',
-            value: 62,
-            threshold: 90,
-            unit: '%',
-            lastChecked: new Date().toISOString(),
-            trend: 'stable'
-          },
-          {
-            id: '6',
-            name: 'Error Rate',
-            status: 'healthy',
-            value: 0.1,
-            threshold: 1.0,
-            unit: '%',
-            lastChecked: new Date().toISOString(),
-            trend: 'down'
-          }
-        ]
+      // Fetch real feature flags from API
+      const flagsRes = await fetch('/api/admin/feature-flags')
+      if (flagsRes.ok) {
+        const flagsData = await flagsRes.json()
+        const dbFlags = (flagsData.flags || []).map((f: any) => ({
+          id: f.id,
+          name: f.name || f.key,
+          description: f.description || '',
+          enabled: f.enabled ?? false,
+          rolloutPercentage: f.rolloutPercentage ?? (f.enabled ? 100 : 0),
+          targetUsers: f.targetUsers || [],
+          conditions: f.conditions || { environment: [], userRoles: [] },
+          metrics: f.metrics || { impressions: 0, conversions: 0, conversionRate: 0 },
+          createdAt: f.createdAt || new Date().toISOString(),
+          updatedAt: f.updatedAt || new Date().toISOString(),
+        }))
+        setFeatureFlags(dbFlags)
+      } else {
+        setFeatureFlags([])
       }
 
-      setFeatureFlags(mockFlags)
-      setSystemHealth(mockHealth)
+      // Fetch real system health from cron logs
+      const healthRes = await fetch('/api/admin/operations-hub')
+      if (healthRes.ok) {
+        const healthData = await healthRes.json()
+        const cronLogs = healthData.recentCronLogs || []
+        const failedCount = cronLogs.filter((l: any) => l.status === 'failed').length
+        const successCount = cronLogs.filter((l: any) => l.status === 'completed').length
+        const totalLogs = cronLogs.length
+        const errorRate = totalLogs > 0 ? Math.round((failedCount / totalLogs) * 100 * 10) / 10 : 0
+
+        setSystemHealth({
+          overall: failedCount > 3 ? 'critical' : failedCount > 0 ? 'warning' : 'healthy',
+          uptime: totalLogs > 0 ? Math.round((successCount / totalLogs) * 100 * 10) / 10 : 0,
+          responseTime: 0,
+          errorRate,
+          metrics: [],
+        })
+      } else {
+        setSystemHealth({ overall: 'warning', uptime: 0, responseTime: 0, errorRate: 0, metrics: [] })
+      }
     } catch (error) {
       console.error('Failed to load feature data:', error)
     } finally {

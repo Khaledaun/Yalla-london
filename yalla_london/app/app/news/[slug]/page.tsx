@@ -390,27 +390,27 @@ function generateStructuredData(item: SeedItem) {
 // Related articles helper
 // ---------------------------------------------------------------------------
 
-function resolveRelatedArticles(item: SeedItem) {
+async function resolveRelatedArticles(item: SeedItem) {
   const relatedSlugs = item.related_article_slugs ?? [];
 
   if (relatedSlugs.length > 0) {
     // For each slug in related_article_slugs, try to resolve as blog first,
     // then information. Build RelatedArticleData objects.
-    const resolved = relatedSlugs
-      .map((articleSlug) => {
-        // Try blog
-        const blogRelated = getRelatedArticles(articleSlug, "blog", 1);
-        if (blogRelated.length > 0) {
-          return blogRelated[0];
-        }
-        // Try information
-        const infoRelated = getRelatedArticles(articleSlug, "information", 1);
-        if (infoRelated.length > 0) {
-          return infoRelated[0];
-        }
-        return null;
-      })
-      .filter(Boolean);
+    const resolvedPromises = relatedSlugs.map(async (articleSlug) => {
+      // Try blog
+      const blogRelated = await getRelatedArticles(articleSlug, "blog", 1);
+      if (blogRelated.length > 0) {
+        return blogRelated[0];
+      }
+      // Try information
+      const infoRelated = await getRelatedArticles(articleSlug, "information", 1);
+      if (infoRelated.length > 0) {
+        return infoRelated[0];
+      }
+      return null;
+    });
+
+    const resolved = (await Promise.all(resolvedPromises)).filter(Boolean);
 
     if (resolved.length > 0) {
       return resolved.slice(0, 3);
@@ -442,7 +442,7 @@ export default async function NewsDetailPage({ params }: Props) {
   }
 
   const structuredData = generateStructuredData(item);
-  const relatedArticles = resolveRelatedArticles(item);
+  const relatedArticles = await resolveRelatedArticles(item);
 
   return (
     <>

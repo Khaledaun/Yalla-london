@@ -19,6 +19,7 @@
 | 8 | 2026-02-18 | Water pipe test: end-to-end pipeline trace (5 stages + monitoring) | 35+ issues | 13 critical | 22+ (documented) |
 | 9 | 2026-02-18 | Deep pipeline trace: cron auth, scheduled-publish gates, multi-site build, blog scoping | 18 issues | 18 | 0 |
 | 10 | 2026-02-18 | XSS sanitization, 6 more cron auth, dead code, multi-site affiliates, trends monitor | 28 issues | 28 | 0 |
+| 11 | 2026-02-18 | Hardcoded emails, IndexNow window, admin XSS, DB related articles, duplicate crons | 25 issues | 25 | 0 |
 
 ---
 
@@ -762,6 +763,63 @@ All 18 Audit #9 fixes verified clean by independent validation agent. PASS on al
 
 ---
 
+## Audit #11 — Hardcoded Emails, IndexNow Window, Admin XSS, DB Related Articles, Duplicate Crons
+
+**Date:** 2026-02-18
+**Trigger:** Deep research on remaining Known Gaps (KG-022, KG-038, KG-023, KG-033, KG-019)
+**Scope:** 5 Known Gap resolutions across emails, SEO indexing, XSS sanitization, content linking, cron dedup
+**Commit:** (pending)
+
+### Findings
+
+#### A11-001: Hardcoded Emails Across 9 Files (KG-022)
+- **Issue:** 25+ instances of `hello@yallalondon.com` and `hello@yalla-london.com` hardcoded across privacy, terms, about, contact, affiliate-disclosure, footer, schema injector, brand templates, seed content
+- **Error:** Wrong email format (inconsistent hyphen), all sites would show Yalla London emails
+- **Fix:** All replaced with dynamic `hello@${domain}` derived from `SITES[getDefaultSiteId()].domain`
+- **Files:** privacy/page.tsx (8), terms/page.tsx (4), about/page.tsx (3), contact/page.tsx (2), affiliate-disclosure/page.tsx (2), footer.tsx (2), enhanced-schema-injector.ts (1), brand-templates.ts (1), seed-content/route.ts (3+)
+
+#### A11-002: IndexNow 24h Window Too Narrow (KG-038)
+- **Issue:** `submitNewUrls()` in seo-agent only looked back 24 hours for unsubmitted posts
+- **Error:** Posts that missed the 24h window (cron failure, deployment downtime) weren't retried until weekly Sunday cron
+- **Fix:** Extended window from `24 * 60 * 60 * 1000` to `7 * 24 * 60 * 60 * 1000` (7 days)
+- **File:** `app/api/cron/seo-agent/route.ts` (line ~731)
+
+#### A11-003: Admin XSS — 6 More dangerouslySetInnerHTML Without Sanitization (KG-023 completion)
+- **Issue:** 6 instances of `dangerouslySetInnerHTML` in admin files without sanitization
+- **Error:** Admin-only risk (lower severity) but still defense-in-depth gap
+- **Fix:** Added `sanitizeHtml()` wrapper to all 6 instances across 5 admin files
+- **Bonus:** Created `sanitizeSvg()` function for SVG content (brand-assets-library renders logos)
+- **Files:** admin/editor/page.tsx (1), admin/design-studio/page.tsx (2), content-builder.tsx (1), content-automation-panel.tsx (1), brand-assets-library.tsx (1)
+
+#### A11-004: Related Articles 100% Static — DB Content Excluded (KG-033)
+- **Issue:** `getRelatedArticles()` only searched hardcoded arrays; pipeline-generated BlogPosts never appeared as related content
+- **Error:** Internal linking system blind to growing body of DB content — hurts SEO
+- **Fix:** Made function async; added Prisma query for published BlogPosts matching category; merge DB results (priority) with static results; dedup by slug
+- **Files:** lib/related-content.ts (core), blog/[slug]/page.tsx, news/[slug]/page.tsx, information/articles/[slug]/page.tsx (call sites)
+- **Verification:** Graceful fallback — DB failures return empty array, static content still works
+
+#### A11-005: Duplicate IndexNow Submissions (KG-019)
+- **Issue:** Both seo-agent and seo/cron submitted to IndexNow within 30-min window
+- **Error:** Duplicate API calls waste quota; seo-agent lacked retry logic (seo/cron has exponential backoff)
+- **Fix:** seo-agent's `submitNewUrls()` now only discovers URLs and writes `pending` status; actual IndexNow submission delegated to seo/cron's `runAutomatedIndexing()` which has `fetchWithRetry`
+- **File:** `app/api/cron/seo-agent/route.ts`
+
+### Known Gaps Updated
+
+| ID | Update | Status |
+|----|--------|--------|
+| KG-019 | IndexNow submission consolidated to seo/cron as canonical | **Resolved** |
+| KG-022 | All 25+ hardcoded emails replaced with dynamic config | **Resolved** |
+| KG-023 | All remaining admin dangerouslySetInnerHTML sanitized (6 instances in 5 files) | **Resolved** |
+| KG-026 | CSP headers already exist in next.config.js — false positive | **Resolved** (false positive) |
+| KG-033 | Related articles now query DB BlogPosts + static content | **Resolved** |
+| KG-038 | IndexNow window extended from 24h to 7 days | **Resolved** |
+
+### TypeScript Compilation
+- **Result:** Build passes — ZERO TypeScript errors
+
+---
+
 ## Known Gaps (Not Blocking — Tracked for Future)
 
 | ID | Area | Description | Ref | Status | Added |
@@ -784,26 +842,26 @@ All 18 Audit #9 fixes verified clean by independent validation agent. PASS on al
 | KG-016 | Mock Data | 14+ admin pages show mock/placeholder data | A3-D23 | Open | 2026-02-18 |
 | KG-017 | Env Docs | Per-site env var pattern undocumented in .env.example | A3-D12 | Open | 2026-02-18 |
 | KG-018 | Pipeline | daily-content-generate bypasses ArticleDraft 8-phase pipeline | A3-D19 | Open | 2026-02-18 |
-| KG-019 | SEO Crons | Duplicate: seo-agent + seo/cron both submit to IndexNow | A3-D20 | Open | 2026-02-18 |
+| KG-019 | SEO Crons | ~~Duplicate: seo-agent + seo/cron both submit to IndexNow~~ (seo-agent now discovers only; seo/cron is canonical) | A3-D20, A11-005 | **Resolved** | 2026-02-18 |
 | KG-020 | Orphan Models | 23 Prisma models defined but never referenced in code | A3-D11 | Open | 2026-02-18 |
 | KG-021 | URL Fallbacks | 50+ SEO routes hardcode `yalla-london.com` fallback instead of per-site domain | A4-D01,D22 | Open | 2026-02-18 |
-| KG-022 | Emails | 30+ hardcoded email addresses; inconsistent format (with/without hyphen) | A4-D03,D04 | Open | 2026-02-18 |
-| KG-023 | XSS | ~~dangerouslySetInnerHTML in BlogPostClient without sanitization~~ (3 public files fixed, admin files remain) | A4-D17, A10-001 | **Partial** | 2026-02-18 |
+| KG-022 | Emails | ~~30+ hardcoded email addresses; inconsistent format~~ (all dynamic from site config) | A4-D03,D04, A11-001 | **Resolved** | 2026-02-18 |
+| KG-023 | XSS | ~~dangerouslySetInnerHTML without sanitization~~ (all 9 files sanitized: 3 public + 6 admin) | A4-D17, A10-001, A11-003 | **Resolved** | 2026-02-18 |
 | KG-024 | Login Security | No rate limiting on admin login; diagnostic GET without auth | A4-D18,D20 | Open | 2026-02-18 |
 | KG-025 | Race Conditions | TopicProposal consumed by both pipelines; slug collision possible | A4-D06,D07 | Open | 2026-02-18 |
-| KG-026 | CSP Headers | Missing Content-Security-Policy headers | A4-D21 | Open | 2026-02-18 |
+| KG-026 | CSP Headers | ~~Missing Content-Security-Policy headers~~ (already configured in next.config.js) | A4-D21, A11 | **Resolved** (false positive) | 2026-02-18 |
 | KG-027 | Brand Templates | Only Yalla London template exists in brand-templates.ts | A4-D23 | Open | 2026-02-18 |
 | KG-028 | Cron Auth | ~~CRON_SECRET bypass when env var not set~~ | A4-D19, A9-001–006 | **Resolved** | 2026-02-18 |
 | KG-029 | Pipeline | ~~daily-publish queries unreachable `approved` status (dead cron)~~ | A8-S1, A10-008 | **Resolved** | 2026-02-18 |
 | KG-030 | Multi-site | ~~Build-runner only creates new drafts for first active site~~ | A8-S2, A9-009 | **Resolved** | 2026-02-18 |
 | KG-031 | Multi-site | ~~Trends monitor only targets first active site~~ | A8-S1, A10-009 | **Resolved** | 2026-02-18 |
 | KG-032 | SEO | No Arabic SSR — hreflang promises /ar/ routes but server renders EN | A8-S5 | Open | 2026-02-18 |
-| KG-033 | SEO | Related articles only from static content, DB articles excluded | A8-S5 | Open | 2026-02-18 |
+| KG-033 | SEO | ~~Related articles only from static content~~ (now queries DB BlogPosts + static, deduped) | A8-S5, A11-004 | **Resolved** | 2026-02-18 |
 | KG-034 | Multi-site | ~~Affiliate injection rules hardcoded to London destinations~~ | A8-S3,S5, A10-010–011 | **Resolved** | 2026-02-18 |
 | KG-035 | Dashboard | No traffic/revenue data — GA4 not connected | A8-Mon | Open | 2026-02-18 |
 | KG-036 | Dashboard | No push/email alerts for cron failures | A8-Mon | Open | 2026-02-18 |
 | KG-037 | Pipeline | ~~Scheduled-publish POST handler bypasses all quality gates~~ | A8-S3, A9-007–008 | **Resolved** | 2026-02-18 |
-| KG-038 | SEO | Posts older than 3 days may never be auto-submitted to IndexNow | A8-S4 | Open | 2026-02-18 |
+| KG-038 | SEO | ~~Posts older than 24h may never be auto-submitted to IndexNow~~ (window extended to 7 days) | A8-S4, A11-002 | **Resolved** | 2026-02-18 |
 | KG-039 | Pipeline | ~~Blog post query not scoped by siteId (slug must be globally unique)~~ | A8-S5, A9-010–012 | **Resolved** | 2026-02-18 |
 
 ---

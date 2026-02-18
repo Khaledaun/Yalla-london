@@ -36,3 +36,36 @@ export function sanitizeHtml(html: string): string {
     ADD_ATTR: ['target'],
   });
 }
+
+const SVG_ALLOWED_TAGS = [
+  ...ALLOWED_TAGS,
+  'svg', 'path', 'circle', 'rect', 'ellipse', 'line', 'polyline', 'polygon',
+  'g', 'defs', 'clipPath', 'mask', 'use', 'symbol',
+  'text', 'tspan', 'textPath',
+  'linearGradient', 'radialGradient', 'stop',
+  'filter', 'feGaussianBlur', 'feOffset', 'feMerge', 'feMergeNode', 'feBlend',
+  'pattern', 'image', 'foreignObject',
+];
+
+const SVG_ALLOWED_ATTR = [
+  ...ALLOWED_ATTR,
+  'viewBox', 'xmlns', 'xmlns:xlink', 'fill', 'stroke', 'stroke-width',
+  'stroke-linecap', 'stroke-linejoin', 'stroke-dasharray', 'stroke-dashoffset',
+  'd', 'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
+  'points', 'transform', 'opacity', 'fill-opacity', 'stroke-opacity',
+  'fill-rule', 'clip-rule', 'clip-path', 'mask',
+  'font-family', 'font-size', 'font-weight', 'text-anchor', 'dominant-baseline',
+  'offset', 'stop-color', 'stop-opacity', 'gradientUnits', 'gradientTransform',
+  'patternUnits', 'patternTransform', 'preserveAspectRatio',
+  'xlink:href', 'href',
+];
+
+/** Sanitize SVG content for safe rendering via dangerouslySetInnerHTML */
+export function sanitizeSvg(svg: string): string {
+  if (!svg) return '';
+  return DOMPurify.sanitize(svg, {
+    ALLOWED_TAGS: SVG_ALLOWED_TAGS,
+    ALLOWED_ATTR: SVG_ALLOWED_ATTR,
+    ALLOW_DATA_ATTR: false,
+  });
+}

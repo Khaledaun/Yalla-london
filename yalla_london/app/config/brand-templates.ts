@@ -10,6 +10,10 @@
  * (e.g., a reseller portal, a booking-focused site, etc.)
  */
 
+import { SITES, getDefaultSiteId } from '@/config/sites';
+
+const DEFAULT_DOMAIN = SITES[getDefaultSiteId()]?.domain || 'yalla-london.com';
+
 export type BusinessType = 'luxury-guide';
 
 export interface BrandConfig {
@@ -146,7 +150,7 @@ export const luxuryGuideTemplate: BrandConfig = {
   ],
 
   contact: {
-    email: 'hello@yallalondon.com',
+    email: `hello@${DEFAULT_DOMAIN}`,
     social: {
       instagram: 'https://instagram.com/yallalondon',
       tiktok: 'https://tiktok.com/@yallalondon'

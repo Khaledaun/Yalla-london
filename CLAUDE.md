@@ -635,15 +635,49 @@ Deeper trace of every handoff point in the pipeline:
 - KG-037: Scheduled-publish POST bypass → **Resolved** (full gate added, fail-closed)
 - KG-039: Blog slug global uniqueness → **Resolved** (queries now scoped by siteId)
 
+**Known Gaps Resolved by Audits #7–#9:**
+- KG-028: CRON_SECRET bypass → **Resolved**
+- KG-030: Build-runner single-site → **Resolved**
+- KG-037: Scheduled-publish POST bypass → **Resolved**
+- KG-039: Blog slug global uniqueness → **Resolved**
+
+### Session: February 18, 2026 — Audits #10–#11: XSS, Affiliates, Emails, IndexNow, Related Articles
+
+**Audit #10 — XSS Sanitization, Cron Auth, Dead Code, Multi-Site (28 issues fixed):**
+
+1. **6 more cron auth routes fixed:** auto-generate, autopilot, fact-verification, london-news, real-time-optimization, seo-health-report — all now follow standard pattern (allow if CRON_SECRET unset)
+2. **XSS sanitization (3 public files):** Installed `isomorphic-dompurify`, created `lib/html-sanitizer.ts` with curated allowlists. Wrapped `dangerouslySetInnerHTML` in BlogPostClient, ArticleClient, SectionClient
+3. **Trends monitor multi-site:** Changed from `activeSites[0]` to loop all active sites with per-site dedup
+4. **Affiliate injection per-site:** Both `affiliate-injection/route.ts` and `select-runner.ts` now have destination-specific URLs for all 5 sites (London, Maldives, French Riviera, Istanbul, Thailand)
+5. **daily-publish deprecation stub:** Replaced 280-line dead cron with 55-line no-op that logs deprecation
+
+**Audit #11 — Hardcoded Emails, IndexNow, Admin XSS, Related Articles, Duplicate Crons (25 issues fixed):**
+
+1. **Hardcoded emails (KG-022):** 25+ instances across 9 files replaced with dynamic `hello@${domain}` from site config
+2. **IndexNow window (KG-038):** Extended from 24h to 7 days — posts that miss initial submission caught by daily runs
+3. **Admin XSS (KG-023 completion):** 6 more `dangerouslySetInnerHTML` in 5 admin files wrapped with `sanitizeHtml()`. Added `sanitizeSvg()` for SVG content in brand-assets-library
+4. **Related articles DB (KG-033):** `getRelatedArticles()` now async, queries published BlogPosts by category + merges with static content. DB results prioritized. 3 call sites updated
+5. **Duplicate IndexNow (KG-019):** seo-agent now only discovers URLs (writes `pending` status); actual submission delegated to seo/cron which has exponential backoff
+
+**Known Gaps Resolved by Audits #10–#11:**
+- KG-019: Duplicate IndexNow submission → **Resolved** (seo-agent discovers, seo/cron submits)
+- KG-022: Hardcoded emails → **Resolved** (dynamic from site config)
+- KG-023: XSS dangerouslySetInnerHTML → **Resolved** (all 9 instances sanitized: 3 public + 6 admin)
+- KG-026: Missing CSP headers → **Resolved** (false positive — already in next.config.js)
+- KG-029: daily-publish dead code → **Resolved** (deprecation stub)
+- KG-031: Trends monitor single-site → **Resolved** (loops all active sites)
+- KG-033: Related articles static-only → **Resolved** (DB + static merged)
+- KG-034: Affiliate injection London-only → **Resolved** (per-site destination URLs)
+- KG-038: IndexNow 24h window → **Resolved** (extended to 7 days)
+
 **Remaining Known Gaps (See AUDIT-LOG.md for full tracking):**
 
 | Area | Issue | Severity | Status |
 |------|-------|----------|--------|
-| XSS | dangerouslySetInnerHTML without sanitization | HIGH | Open (KG-023) |
-| Emails | 30+ hardcoded email addresses | HIGH | Open (KG-022) |
-| Pipeline | daily-publish queries unreachable `approved` status | MEDIUM | Open (KG-029) |
 | SEO | No Arabic SSR — hreflang mismatch | MEDIUM | Open (KG-032) |
-| Multi-site | Affiliate injection hardcoded to London destinations | MEDIUM | Open (KG-034) |
 | Dashboard | No traffic/revenue data — GA4 not connected | MEDIUM | Open (KG-035) |
 | Dashboard | No push/email alerts for cron failures | MEDIUM | Open (KG-036) |
-| SEO | Posts >3 days old never auto-submitted to IndexNow | LOW | Open (KG-038) |
+| GA4 | Dashboard returns 0s for traffic — API calls stubbed | MEDIUM | Open (KG-001) |
+| Login Security | No rate limiting on admin login | MEDIUM | Open (KG-024) |
+| Orphan Models | 16+ Prisma models never referenced in code | LOW | Open (KG-020) |
+| Brand Templates | Only Yalla London template exists | MEDIUM | Open (KG-027) |

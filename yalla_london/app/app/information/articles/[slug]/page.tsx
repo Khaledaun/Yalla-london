@@ -271,7 +271,7 @@ export default async function ArticleDetailPage({ params }: Props) {
   const clientArticle = transformArticleForClient(article);
 
   // Compute related articles for internal backlinks
-  const relatedArticles = getRelatedArticles(article.slug, 'information', 3);
+  const relatedArticles = await getRelatedArticles(article.slug, 'information', 3);
 
   return (
     <>

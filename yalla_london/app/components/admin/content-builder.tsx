@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -595,8 +596,8 @@ function BlockContentPreview({ block }: { block: ContentBlock }) {
   switch (block.type) {
     case 'text':
       return (
-        <div dangerouslySetInnerHTML={{ 
-          __html: block.content.html || 'Empty text block' 
+        <div dangerouslySetInnerHTML={{
+          __html: sanitizeHtml(block.content.html || 'Empty text block')
         }} />
       )
     

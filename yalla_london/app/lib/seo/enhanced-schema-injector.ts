@@ -44,10 +44,12 @@ export class EnhancedSchemaInjector {
   constructor(baseUrl?: string, siteId?: string) {
     // Dynamic multi-site config — avoids hardcoding any single site's branding
     let resolvedBaseUrl = baseUrl || process.env.NEXT_PUBLIC_SITE_URL;
+    // Fallback defaults — overridden by site config below when available
+    const fallbackDomain = 'yalla-london.com';
     let brandConfig = {
       siteName: 'Yalla London',
       description: 'Luxury London travel guide',
-      contact: { email: 'hello@yalla-london.com', social: {} as Record<string, string> }
+      contact: { email: `hello@${fallbackDomain}`, social: {} as Record<string, string> }
     };
 
     try {

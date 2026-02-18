@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 import { 
   Edit3, 
   Eye, 
@@ -693,15 +694,15 @@ Each hotel's unique character and world-class amenities ensure that your visit t
                   <div className={`${deviceView === 'mobile' ? 'max-w-sm mx-auto' : 'max-w-4xl mx-auto'}`}>
                     {content ? (
                       <div className="prose prose-lg max-w-none">
-                        <div dangerouslySetInnerHTML={{ 
-                          __html: content
+                        <div dangerouslySetInnerHTML={{
+                          __html: sanitizeHtml(content
                             .replace(/^# (.*$)/gim, '<h1>$1</h1>')
                             .replace(/^## (.*$)/gim, '<h2>$1</h2>')
                             .replace(/^### (.*$)/gim, '<h3>$1</h3>')
                             .replace(/^\* (.*$)/gim, '<li>$1</li>')
                             .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
                             .replace(/\*(.*)\*/gim, '<em>$1</em>')
-                            .replace(/\n/gim, '<br>')
+                            .replace(/\n/gim, '<br>'))
                         }} />
                       </div>
                     ) : (

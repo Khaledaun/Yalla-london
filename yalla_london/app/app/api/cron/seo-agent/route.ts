@@ -152,10 +152,10 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     ? await checkIndexingStatus(prisma, issues, siteUrl, siteId)
     : { status: dbAvailable ? "budget_exhausted" : "db_unavailable", checkedUrls: 0 };
 
-  // 4. SUBMIT NEW URLS TO SEARCH ENGINES
+  // 4. DISCOVER NEW URLS (IndexNow submission delegated to seo/cron — KG-019)
   report.urlSubmissions = (dbAvailable && hasBudget())
     ? await submitNewUrls(prisma, fixes, siteUrl, siteId)
-    : { submitted: 0, error: dbAvailable ? "Budget exhausted" : "Database unavailable" };
+    : { submitted: 0, discovered: 0, delegatedTo: "seo/cron", error: dbAvailable ? "Budget exhausted" : "Database unavailable" };
 
   // 5. VERIFY SITEMAP HEALTH (no DB needed)
   report.sitemapHealth = hasBudget()
@@ -716,73 +716,50 @@ async function checkIndexingStatus(
 }
 
 /**
- * Submit new/updated URLs to search engines via IndexNow
+ * Discover new/updated URLs that need IndexNow submission.
+ *
+ * NOTE (KG-019): IndexNow submission is handled exclusively by the
+ * seo/cron route via lib/seo/indexing-service.ts, which has proper
+ * exponential backoff and error handling. This function only discovers
+ * URLs and marks them as pending in URLIndexingStatus so that seo/cron
+ * picks them up. This avoids double-submitting URLs to IndexNow within
+ * the same 30-minute window.
  */
 async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, siteId?: string) {
   if (!siteUrl) {
     const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
     siteUrl = getSiteDomain(siteId || getDefaultSiteId());
   }
-  const indexNowKey = process.env.INDEXNOW_KEY;
   const blogSiteFilter = siteId ? { siteId } : {};
 
   try {
-    // Find posts created in the last 24 hours that haven't been submitted
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    // Find posts created in the last 7 days that may need submission
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const newPosts = await prisma.blogPost.findMany({
       where: {
         published: true,
-        created_at: { gte: oneDayAgo },
+        created_at: { gte: sevenDaysAgo },
         ...blogSiteFilter,
       },
       select: { slug: true },
     });
 
     if (newPosts.length === 0) {
-      return { submitted: 0, message: "No new posts to submit" };
+      return { submitted: 0, message: "No new posts to submit", delegatedTo: "seo/cron" };
     }
 
     const urls = newPosts.map((p: any) => `${siteUrl}/blog/${p.slug}`);
 
-    // Submit via IndexNow if key available
-    if (indexNowKey) {
-      try {
-        await fetch("https://api.indexnow.org/indexnow", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: AbortSignal.timeout(5_000),
-          body: JSON.stringify({
-            host: new URL(siteUrl).hostname,
-            key: indexNowKey,
-            urlList: urls,
-          }),
-        });
-        fixes.push(`Submitted ${urls.length} new URLs to IndexNow`);
-      } catch (e) {
-        console.warn("IndexNow submission failed:", e);
-      }
-    }
+    // IndexNow submission is delegated to seo/cron (via lib/seo/indexing-service.ts)
+    // which uses fetchWithRetry with exponential backoff for better reliability.
+    console.log(
+      `[SEO-Agent] Found ${urls.length} new URLs — IndexNow submission delegated to seo/cron`,
+    );
+    fixes.push(
+      `Found ${urls.length} new URLs for indexing (submission handled by seo/cron)`,
+    );
 
-    // Submit sitemap via IndexNow (Google deprecated ping endpoint in 2023)
-    if (indexNowKey) {
-      try {
-        await fetch("https://api.indexnow.org/indexnow", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: AbortSignal.timeout(5_000),
-          body: JSON.stringify({
-            host: new URL(siteUrl).hostname,
-            key: indexNowKey,
-            urlList: [`${siteUrl}/sitemap.xml`],
-          }),
-        });
-        fixes.push("Submitted sitemap to IndexNow");
-      } catch (e) {
-        console.warn("Sitemap IndexNow submission failed:", e);
-      }
-    }
-
-    // Track submissions in URLIndexingStatus
+    // Track URLs as pending in URLIndexingStatus so seo/cron picks them up
     if (siteId) {
       try {
         await Promise.allSettled(
@@ -793,15 +770,13 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
                 site_id: siteId,
                 url,
                 slug: url.split("/blog/")[1] || null,
-                status: "submitted",
-                submitted_indexnow: !!indexNowKey,
-                last_submitted_at: new Date(),
+                status: "pending",
+                submitted_indexnow: false,
+                last_submitted_at: null,
               },
               update: {
-                status: "submitted",
-                submitted_indexnow: !!indexNowKey,
-                last_submitted_at: new Date(),
-                submission_attempts: { increment: 1 },
+                // Only update if not already submitted — don't overwrite a successful submission
+                status: "pending",
               },
             }),
           ),
@@ -811,9 +786,9 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
       }
     }
 
-    return { submitted: urls.length, urls };
+    return { discovered: urls.length, urls, delegatedTo: "seo/cron", submitted: 0 };
   } catch {
-    return { submitted: 0, error: "Failed to check for new posts" };
+    return { submitted: 0, discovered: 0, error: "Failed to check for new posts" };
   }
 }
 

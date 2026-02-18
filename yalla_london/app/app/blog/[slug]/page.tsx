@@ -374,7 +374,7 @@ export default async function BlogPostPage({ params }: Props) {
 
   const structuredData = generateStructuredData(result.post, result.source, { siteName, siteDomain, siteSlug });
   const clientPost = transformForClient(result.post, result.source);
-  const relatedArticles = getRelatedArticles(slug, "blog", 3);
+  const relatedArticles = await getRelatedArticles(slug, "blog", 3);
 
   return (
     <>

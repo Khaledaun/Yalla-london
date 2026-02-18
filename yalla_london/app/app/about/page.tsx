@@ -10,6 +10,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Mail, MapPin, Heart, Crown, Star, Coffee } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { ENTITY, getBrandDisclosure } from '@/config/entity'
+import { SITES, getDefaultSiteId } from '@/config/sites'
+
+const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || 'yalla-london.com'
+const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
 
 const founderImages = [
   'https://media.cntraveller.com/photos/66b1f6248feace68eac032f7/16:9/w_3200,h_1800,c_limit/south%20asian%20heritage%20month.jpg',
@@ -150,7 +154,7 @@ export default function AboutPage() {
                 </p>
               </div>
               <Button asChild size="lg" className="bg-brand-primary hover:bg-london-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600">
-                <a href="mailto:hello@yalla-london.com">
+                <a href={`mailto:${CONTACT_EMAIL}`}>
                   <Mail className="mr-2 h-5 w-5" />
                   {language === 'en' ? 'Get in Touch' : 'تواصل معي'}
                 </a>
@@ -310,7 +314,7 @@ export default function AboutPage() {
                 <div className="pt-3 border-t border-stone/10">
                   <p className="text-sm">
                     {language === 'en' ? 'Contact: ' : 'تواصل: '}
-                    <a href="mailto:hello@yallalondon.com" className="text-brand-primary hover:underline">hello@yallalondon.com</a>
+                    <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-primary hover:underline">{CONTACT_EMAIL}</a>
                   </p>
                 </div>
               </CardContent>
@@ -341,7 +345,7 @@ export default function AboutPage() {
               }
             </p>
             <Button asChild size="lg" className="bg-white text-london-900 hover:bg-cream-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
-              <a href="mailto:hello@yalla-london.com">
+              <a href={`mailto:${CONTACT_EMAIL}`}>
                 <Mail className="mr-2 h-5 w-5" />
                 {language === 'en' ? 'Send a Message' : 'أرسل رسالة'}
               </a>

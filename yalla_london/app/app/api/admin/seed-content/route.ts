@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import { getSiteDomain, getDefaultSiteId, getDefaultSiteName, SITES } from "@/config/sites";
 
 /**
  * POST /api/admin/seed-content
@@ -26,11 +27,13 @@ function checkAuth(request: NextRequest): NextResponse | null {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-// ─── Constants ──────────────────────────────────────────────────────────────
+// ─── Constants (derived from site config) ───────────────────────────────────
 
-const BASE_URL = "https://www.yalla-london.com";
-const SYSTEM_AUTHOR_EMAIL = "system@yalla-london.com";
-const SITE_ID = "yalla-london";
+const SITE_ID = getDefaultSiteId();
+const SITE_NAME = getDefaultSiteName();
+const SITE_DOMAIN_RAW = SITES[SITE_ID]?.domain || "yalla-london.com";
+const BASE_URL = getSiteDomain(SITE_ID);
+const SYSTEM_AUTHOR_EMAIL = `system@${SITE_DOMAIN_RAW}`;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -40,7 +43,7 @@ async function ensureSystemAuthor(prisma: any) {
     update: {},
     create: {
       email: SYSTEM_AUTHOR_EMAIL,
-      name: "Yalla London",
+      name: SITE_NAME,
       role: "editor",
       isActive: true,
     },
@@ -157,13 +160,13 @@ function buildSeoMeta(post: any, blogPostId: string, categoryName: string) {
       author: {
         "@type": "Organization",
         "@id": `${BASE_URL}#organization`,
-        name: "Yalla London",
+        name: SITE_NAME,
         url: BASE_URL,
       },
       publisher: {
         "@type": "Organization",
         "@id": `${BASE_URL}#organization`,
-        name: "Yalla London",
+        name: SITE_NAME,
         url: BASE_URL,
         logo: {
           "@type": "ImageObject",

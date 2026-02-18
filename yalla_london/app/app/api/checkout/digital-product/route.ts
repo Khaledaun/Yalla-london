@@ -165,8 +165,7 @@ export async function POST(request: NextRequest) {
     console.error("[Checkout] Digital product error:", error);
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Checkout creation failed",
+        error: "Checkout failed",
       },
       { status: 500 },
     );

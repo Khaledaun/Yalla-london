@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 import { NextRequest, NextResponse } from "next/server";
 import { runAutomatedIndexing, pingSitemaps } from "@/lib/seo/indexing-service";
 
@@ -19,20 +21,14 @@ import { runAutomatedIndexing, pingSitemaps } from "@/lib/seo/indexing-service";
  */
 
 // Verify cron secret to prevent unauthorized access
+// If CRON_SECRET is configured and doesn't match, reject.
+// If CRON_SECRET is NOT configured, allow — Vercel crons don't send secrets unless configured.
 function verifyCronSecret(request: NextRequest): boolean {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  // In production, always require CRON_SECRET
   if (!cronSecret) {
-    if (process.env.NODE_ENV === "production") {
-      console.error(
-        "CRON_SECRET not configured in production - rejecting request",
-      );
-      return false;
-    }
-    console.warn("CRON_SECRET not configured - allowing in development");
-    return true;
+    return true; // No secret configured — allow (Vercel crons work without CRON_SECRET)
   }
 
   return authHeader === `Bearer ${cronSecret}`;

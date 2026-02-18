@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { sanitizeSvg } from '@/lib/html-sanitizer'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -434,7 +435,7 @@ export function BrandAssetsLibrary() {
                         logo.background === 'dark' ? 'bg-[#1C1917]' : 'bg-gray-50'
                       }`}
                       style={{ minHeight: '120px' }}
-                      dangerouslySetInnerHTML={{ __html: logo.svg }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeSvg(logo.svg || '') }}
                     />
                     <div className="p-4 space-y-3">
                       <div className="flex items-center justify-between">

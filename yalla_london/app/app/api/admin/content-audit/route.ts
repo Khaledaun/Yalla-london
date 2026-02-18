@@ -42,8 +42,9 @@ export async function GET(request: NextRequest) {
         where: { deletedAt: null },
         _count: true,
       });
+      const { getDefaultSiteId } = await import("@/config/sites");
       postCountsBySite = globalCounts.map((row) => ({
-        siteId: "yalla-london", // Default site
+        siteId: getDefaultSiteId(),
         published: row.published,
         _count: row._count,
       }));

@@ -213,7 +213,9 @@ export default function EventsPage() {
             affiliateTag: event.affiliateTag,
           }),
         }).catch(() => {});
-      } catch {}
+      } catch (error) {
+        console.warn('[Events] Failed to track affiliate click for event:', event.title.en, error);
+      }
       window.open(event.bookingUrl, "_blank", "noopener,noreferrer");
     }
   };

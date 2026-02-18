@@ -6,7 +6,7 @@
  */
 
 import { generateText, isAIAvailable } from "@/lib/ai";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 
 export interface PDFGuideConfig {
   title: string;

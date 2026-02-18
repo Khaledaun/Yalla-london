@@ -17,6 +17,7 @@ import {
   Clock,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 
 // ---------- Types ----------
 
@@ -248,7 +249,7 @@ export default function SectionClient({
                     </h2>
                     <div
                       className="prose prose-lg max-w-none text-charcoal leading-relaxed prose-headings:font-display prose-h3:text-xl prose-h4:text-lg prose-a:text-london-600 prose-strong:text-charcoal prose-blockquote:border-london-600"
-                      dangerouslySetInnerHTML={{ __html: subContent }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(subContent) }}
                     />
                   </div>
 

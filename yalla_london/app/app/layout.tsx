@@ -14,61 +14,63 @@ import { NextAuthSessionProvider } from "@/components/session-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { brandConfig } from "@/config/brand-config";
 import { HreflangTags } from "@/components/hreflang-tags";
+import { getBaseUrl } from "@/lib/url-utils";
 import type { Language } from "@/lib/types";
 
-export const metadata: Metadata = {
-  title: `${brandConfig.siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
-  description: brandConfig.description,
-  authors: [{ name: brandConfig.seo.author }],
-  creator: brandConfig.seo.author,
-  publisher: brandConfig.seo.author,
-  openGraph: {
-    type: "website",
-    locale: "en_GB",
-    alternateLocale: "ar_SA",
-    url: process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com",
-    siteName: brandConfig.siteName,
-    title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = await getBaseUrl();
+
+  return {
+    title: `${brandConfig.siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
     description: brandConfig.description,
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Yalla London - Luxury London Guide",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    site: brandConfig.seo.twitterHandle || "@example",
-    title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
-    description: brandConfig.description,
-    images: ["/og-image.jpg"],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+    authors: [{ name: brandConfig.seo.author }],
+    creator: brandConfig.seo.author,
+    publisher: brandConfig.seo.author,
+    openGraph: {
+      type: "website",
+      locale: "en_GB",
+      alternateLocale: "ar_SA",
+      url: baseUrl,
+      siteName: brandConfig.siteName,
+      title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
+      description: brandConfig.description,
+      images: [
+        {
+          url: "/og-image.jpg",
+          width: 1200,
+          height: 630,
+          alt: "Yalla London - Luxury London Guide",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: brandConfig.seo.twitterHandle || "@example",
+      title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
+      description: brandConfig.description,
+      images: ["/og-image.jpg"],
+    },
+    robots: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
-  },
-  alternates: {
-    canonical:
-      process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com",
-    languages: {
-      "en-GB":
-        process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com",
-      "ar-SA": `${process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com"}/ar`,
-      "x-default":
-        process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com",
+    alternates: {
+      canonical: baseUrl,
+      languages: {
+        "en-GB": baseUrl,
+        "ar-SA": `${baseUrl}/ar`,
+        "x-default": baseUrl,
+      },
     },
-  },
-};
+  };
+}
 
 export default async function RootLayout({
   children,

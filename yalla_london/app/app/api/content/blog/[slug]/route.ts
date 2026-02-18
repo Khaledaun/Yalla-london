@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { blogPosts, categories } from '@/data/blog-content';
 import { extendedBlogPosts } from '@/data/blog-content-extended';
+import { getDefaultSiteId } from '@/config/sites';
 
 // Force dynamic rendering to avoid build-time database access
 export const dynamic = 'force-dynamic';
@@ -27,14 +28,19 @@ export async function GET(
       );
     }
 
-    // Try database first
+    // Resolve site identity from request headers (set by middleware)
+    const siteId = request.headers.get('x-site-id') || getDefaultSiteId();
+
+    // Try database first — scoped to current site
     let post: any = null;
 
     try {
-      post = await prisma.blogPost.findUnique({
+      post = await prisma.blogPost.findFirst({
         where: {
           slug,
-          published: true
+          published: true,
+          deletedAt: null,
+          siteId,
         },
         include: {
           category: {
@@ -130,7 +136,6 @@ export async function GET(
     return NextResponse.json(
       {
         error: 'Failed to fetch blog post',
-        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

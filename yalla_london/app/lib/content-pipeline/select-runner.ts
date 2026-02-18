@@ -11,9 +11,10 @@
 
 import { logCronExecution } from "@/lib/cron-logger";
 import { onPromotionFailure } from "@/lib/ops/failure-hooks";
+import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
-const MIN_QUALITY_SCORE = 50;
+const MIN_QUALITY_SCORE = 60; // Aligned with CONTENT_QUALITY.qualityGateScore from lib/seo/standards.ts
 const MAX_ARTICLES_PER_RUN = 2;
 
 export interface SelectRunnerResult {
@@ -147,7 +148,7 @@ export async function runContentSelector(
             last_error: `Promotion failed: ${errMsg}`,
             phase_attempts: ((draft.phase_attempts as number) || 0) + 1,
           },
-        }).catch(() => {});
+        }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
 
         // Fire promotion failure hook for immediate recovery
         onPromotionFailure({
@@ -155,7 +156,7 @@ export async function runContentSelector(
           keyword: draft.keyword as string,
           error: errMsg,
           siteId: draft.site_id as string,
-        }).catch(() => {}); // fire-and-forget
+        }).catch(err => console.warn("[select-runner] onPromotionFailure hook failed:", err instanceof Error ? err.message : err));
       }
     }
 
@@ -192,7 +193,7 @@ export async function runContentSelector(
     await logCronExecution("content-selector", "failed", {
       durationMs,
       errorMessage: errMsg,
-    }).catch(() => {});
+    }).catch(err => console.warn("[select-runner] Failed to log cron execution:", err instanceof Error ? err.message : err));
 
     return {
       success: false,
@@ -200,6 +201,46 @@ export async function runContentSelector(
       durationMs,
     };
   }
+}
+
+// ─── Per-site affiliate rules ─────────────────────────────────────────────
+
+function getAffiliateRules(siteId: string) {
+  const SITE_AFFILIATES: Record<string, Array<{ kw: string[]; aff: { name: string; url: string; param: string } }>> = {
+    'yalla-london': [
+      { kw: ["hotel", "accommodation", "stay", "resort"], aff: { name: "Booking.com", url: "https://www.booking.com/city/gb/london.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
+      { kw: ["restaurant", "dining", "food", "halal"], aff: { name: "TheFork", url: "https://www.thefork.co.uk/london", param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}` } },
+      { kw: ["tour", "experience", "activity", "attraction"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com/london-l57/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
+      { kw: ["ticket", "event", "match", "concert", "football"], aff: { name: "StubHub", url: "https://www.stubhub.co.uk", param: `?gcid=${process.env.STUBHUB_AFFILIATE_ID || ""}` } },
+      { kw: ["shopping", "shop", "luxury", "Harrods"], aff: { name: "Harrods", url: "https://www.harrods.com", param: "?utm_source=yallalondon" } },
+      { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com/en/london", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
+    ],
+    'arabaldives': [
+      { kw: ["hotel", "accommodation", "stay", "resort", "villa"], aff: { name: "Booking.com", url: "https://www.booking.com/country/mv.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
+      { kw: ["resort", "island", "overwater"], aff: { name: "Agoda", url: "https://www.agoda.com/maldives", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}` } },
+      { kw: ["tour", "experience", "snorkeling", "diving", "excursion"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com/maldives-l97358/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
+      { kw: ["transfer", "seaplane", "speedboat", "airport"], aff: { name: "Booking.com Taxi", url: "https://www.booking.com/taxi/country/mv.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
+    ],
+    'french-riviera': [
+      { kw: ["hotel", "accommodation", "stay", "resort", "villa"], aff: { name: "Booking.com", url: "https://www.booking.com/region/fr/cote-d-azur.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
+      { kw: ["restaurant", "dining", "food", "halal"], aff: { name: "TheFork", url: "https://www.thefork.fr/nice", param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}` } },
+      { kw: ["tour", "experience", "activity", "yacht", "boat"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com/nice-l176/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
+      { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com/en/nice", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
+    ],
+    'istanbul': [
+      { kw: ["hotel", "accommodation", "stay", "resort"], aff: { name: "Booking.com", url: "https://www.booking.com/city/tr/istanbul.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
+      { kw: ["restaurant", "dining", "food", "halal", "kebab"], aff: { name: "TheFork", url: "https://www.thefork.com/istanbul", param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}` } },
+      { kw: ["tour", "experience", "activity", "bazaar", "mosque"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com/istanbul-l56/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
+      { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com/en/istanbul", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
+    ],
+    'thailand': [
+      { kw: ["hotel", "accommodation", "stay", "resort", "villa"], aff: { name: "Booking.com", url: "https://www.booking.com/country/th.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
+      { kw: ["resort", "island", "beach"], aff: { name: "Agoda", url: "https://www.agoda.com/thailand", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}` } },
+      { kw: ["tour", "experience", "activity", "temple", "market"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com/bangkok-l169/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
+      { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com/en/bangkok", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
+    ],
+  };
+  return SITE_AFFILIATES[siteId] || SITE_AFFILIATES['yalla-london'] || [];
 }
 
 // ─── Promote ArticleDraft → BlogPost ──────────────────────────────────────
@@ -230,7 +271,8 @@ async function promoteToBlogPost(
         console.log(`[content-selector] Paired draft ${pairedDraftId} has no assembled HTML yet — publishing single-language`);
         pairedDraft = null;
       }
-    } catch {
+    } catch (pairErr) {
+      console.warn(`[select-runner] Failed to fetch paired draft ${pairedDraftId}:`, pairErr instanceof Error ? pairErr.message : pairErr);
       // Proceed with single language
     }
   }
@@ -328,6 +370,70 @@ async function promoteToBlogPost(
   if (!hasEn) missingLanguageTags.push("missing-english");
   if (!hasAr) missingLanguageTags.push("missing-arabic");
 
+  // ── Pre-Publication SEO Gate (fail CLOSED — don't publish without verification) ──
+  const targetUrl = `/blog/${slug}`;
+  const siteUrl = getSiteDomain(siteId);
+  try {
+    const gateResult = await runPrePublicationGate(
+      targetUrl,
+      {
+        title_en: enTitle,
+        title_ar: arTitle,
+        meta_title_en: enMetaTitle,
+        meta_description_en: enMetaDesc,
+        content_en: enHtml,
+        content_ar: arHtml,
+        locale,
+        tags: keywords.slice(0, 5),
+        seo_score: Math.round((draft.seo_score as number) || (draft.quality_score as number) || 0),
+        author_id: "system", // System-generated content always has author
+        keywords_json: keywords,
+      },
+      siteUrl,
+    );
+
+    if (!gateResult.allowed) {
+      console.warn(
+        `[content-selector] Pre-pub gate BLOCKED draft ${draft.id} (keyword: "${keyword}"): ${gateResult.blockers.join("; ")}`,
+      );
+      if (gateResult.warnings.length > 0) {
+        console.warn(
+          `[content-selector] Pre-pub gate warnings for draft ${draft.id}: ${gateResult.warnings.join("; ")}`,
+        );
+      }
+      // Mark the draft with the gate failure so it's visible in dashboard
+      await prisma.articleDraft.update({
+        where: { id: draft.id as string },
+        data: {
+          last_error: `Pre-pub gate blocked: ${gateResult.blockers.join("; ")}`,
+          updated_at: new Date(),
+        },
+      }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
+      return null; // Skip this draft — do not publish
+    }
+
+    // Log warnings even when allowed (visible in cron logs for quality monitoring)
+    if (gateResult.warnings.length > 0) {
+      console.log(
+        `[content-selector] Pre-pub gate PASSED draft ${draft.id} with warnings: ${gateResult.warnings.join("; ")}`,
+      );
+    }
+  } catch (gateErr) {
+    // Fail CLOSED — if the gate itself errors, do NOT publish
+    const gateErrMsg = gateErr instanceof Error ? gateErr.message : String(gateErr);
+    console.warn(
+      `[content-selector] Pre-pub gate ERROR for draft ${draft.id} — blocking publication: ${gateErrMsg}`,
+    );
+    await prisma.articleDraft.update({
+      where: { id: draft.id as string },
+      data: {
+        last_error: `Pre-pub gate error (blocked): ${gateErrMsg}`,
+        updated_at: new Date(),
+      },
+    }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
+    return null; // Fail closed — don't publish without gate verification
+  }
+
   const blogPost = await prisma.blogPost.create({
     data: {
       title_en: enTitle || keyword,
@@ -403,14 +509,7 @@ async function promoteToBlogPost(
   // Auto-inject affiliate links
   try {
     const contentLower = ((enHtml || "") + " " + (arHtml || "")).toLowerCase();
-    const AFF_RULES = [
-      { kw: ["hotel", "accommodation", "stay", "resort"], aff: { name: "Booking.com", url: "https://www.booking.com/city/gb/london.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
-      { kw: ["restaurant", "dining", "food", "halal"], aff: { name: "TheFork", url: "https://www.thefork.co.uk/london", param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}` } },
-      { kw: ["tour", "experience", "activity", "attraction"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com/london-l57/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
-      { kw: ["ticket", "event", "match", "concert", "football"], aff: { name: "StubHub", url: "https://www.stubhub.co.uk", param: `?gcid=${process.env.STUBHUB_AFFILIATE_ID || ""}` } },
-      { kw: ["shopping", "shop", "luxury", "Harrods"], aff: { name: "Harrods", url: "https://www.harrods.com", param: "?utm_source=yallalondon" } },
-      { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com/en/london", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
-    ];
+    const AFF_RULES = getAffiliateRules(siteId);
     const matched = AFF_RULES.filter((r) => r.kw.some((k) => contentLower.includes(k))).map((r) => r.aff).slice(0, 3);
 
     if (matched.length > 0) {
@@ -439,8 +538,8 @@ async function promoteToBlogPost(
         tags: keywords.slice(0, 5),
       },
     );
-  } catch {
-    // Non-fatal
+  } catch (schemaErr) {
+    console.warn("[select-runner] Schema injection failed (non-fatal):", schemaErr instanceof Error ? schemaErr.message : schemaErr);
   }
 
   // Update BOTH drafts to published state
@@ -473,8 +572,8 @@ async function promoteToBlogPost(
         where: { id: draft.topic_proposal_id as string },
         data: { status: "published" },
       });
-    } catch {
-      // Non-fatal
+    } catch (topicErr) {
+      console.warn(`[select-runner] Failed to update TopicProposal ${draft.topic_proposal_id}:`, topicErr instanceof Error ? topicErr.message : topicErr);
     }
   }
 

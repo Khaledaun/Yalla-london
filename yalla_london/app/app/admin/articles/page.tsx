@@ -462,7 +462,7 @@ export default function ArticlesPage() {
                     : "Try adjusting your search or filter criteria."
                   }
                 </p>
-                <Button className="mt-4" onClick={() => {/* TODO: Add create article logic */}}>
+                <Button className="mt-4" onClick={() => window.location.href = '/admin/editor'}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Article
                 </Button>
@@ -630,10 +630,10 @@ export default function ArticlesPage() {
                         </td>
                         <td className="p-2">
                           <div className="flex items-center gap-1">
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
-                              onClick={() => {/* TODO: Edit functionality */}}
+                              onClick={() => window.location.href = `/admin/editor?slug=${article.slug}`}
                             >
                               <Edit className="h-3 w-3" />
                             </Button>

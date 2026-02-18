@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { gscApi } from "@/lib/seo/indexing-service";
 import { requireAdmin } from "@/lib/admin-middleware";
 

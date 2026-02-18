@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { withAdminAuth } from "@/lib/admin-middleware";
 import {
   getAllSkills,
   getSkillsByCategory,
@@ -24,7 +25,7 @@ import {
  *  - keyword: find skills matching keywords (comma-separated)
  *  - id: get a specific skill by ID
  */
-export async function GET(request: NextRequest) {
+export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
 
@@ -95,4 +96,4 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     );
   }
-}
+});

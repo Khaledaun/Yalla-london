@@ -5,10 +5,14 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { contentEngine } from '@/lib/content-automation/content-generator';
+import { requireAdmin } from '@/lib/admin-middleware';
 
 
 // Schedule content for automatic publishing
 export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { contentType, category, language, scheduleHours } = await request.json();
 
@@ -64,6 +68,9 @@ export async function POST(request: NextRequest) {
 
 // Publish scheduled content (called by cron job)
 export async function PUT(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     // Get ready content
     const readyContent = await prisma.contentGeneration.findMany({

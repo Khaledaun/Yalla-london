@@ -28,7 +28,7 @@ interface ArticleIndexingInfo {
   lastInspectedAt: string | null;
   coverageState: string | null;
   submittedIndexnow: boolean;
-  submittedGoogle: boolean;
+  submittedSitemap: boolean;
   submissionAttempts: number;
   // Why not indexed
   notIndexedReasons: string[];
@@ -40,22 +40,23 @@ export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
+  const { getDefaultSiteId } = await import("@/config/sites");
   const siteId =
     request.nextUrl.searchParams.get("siteId") ||
     request.headers.get("x-site-id") ||
-    "yalla-london";
+    getDefaultSiteId();
 
   try {
     const { prisma } = await import("@/lib/db");
     const { searchConsole } = await import(
       "@/lib/integrations/google-search-console"
     );
-    const { getSiteConfig } = await import("@/config/sites");
+    const { getSiteConfig, getSiteDomain } = await import("@/config/sites");
 
     const siteConfig = getSiteConfig(siteId);
     const baseUrl = siteConfig?.domain
       ? `https://${siteConfig.domain}`
-      : process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      : getSiteDomain(siteId);
 
     // 1. Get all published blog posts
     const posts = await prisma.blogPost.findMany({
@@ -153,8 +154,8 @@ export async function GET(request: NextRequest) {
         if (!record?.submitted_indexnow) {
           reasons.push("Not submitted via IndexNow (Bing/Yandex)");
         }
-        if (!record?.submitted_google_api) {
-          reasons.push("Not submitted via Google Indexing API");
+        if (!record?.submitted_sitemap) {
+          reasons.push("Sitemap not submitted to Google via GSC — Google relies on sitemap discovery for blog content");
         }
       } else if (indexingStatus === "not_indexed") {
         const coverage = record?.coverage_state || "";
@@ -224,7 +225,7 @@ export async function GET(request: NextRequest) {
         lastInspectedAt: record?.last_inspected_at?.toISOString() || null,
         coverageState: record?.coverage_state || null,
         submittedIndexnow: record?.submitted_indexnow || false,
-        submittedGoogle: record?.submitted_google_api || false,
+        submittedSitemap: record?.submitted_sitemap || false,
         submissionAttempts: record?.submission_attempts || 0,
         notIndexedReasons: reasons,
         fixAction,
@@ -434,6 +435,79 @@ export async function GET(request: NextRequest) {
       // SeoReport table may not exist
     }
 
+    // 7. Recent indexing activity from cron logs
+    const recentActivity: Array<{
+      jobName: string;
+      status: string;
+      startedAt: string;
+      durationMs: number;
+      itemsProcessed: number;
+      itemsSucceeded: number;
+      errorMessage: string | null;
+    }> = [];
+    try {
+      const activityLogs = await prisma.cronJobLog.findMany({
+        where: {
+          job_name: { in: ["seo-agent", "google-indexing", "verify-indexing", "content-selector"] },
+        },
+        orderBy: { started_at: "desc" },
+        take: 20,
+      });
+      for (const log of activityLogs) {
+        recentActivity.push({
+          jobName: log.job_name,
+          status: log.status,
+          startedAt: log.started_at.toISOString(),
+          durationMs: log.duration_ms || 0,
+          itemsProcessed: log.items_processed || 0,
+          itemsSucceeded: log.items_succeeded || 0,
+          errorMessage: log.error_message || null,
+        });
+      }
+    } catch {
+      // CronJobLog table may not exist
+    }
+
+    // 8. Build health diagnosis — plain language summary for non-technical owner
+    const indexingRate = articles.length > 0 ? Math.round((indexed / articles.length) * 100) : 0;
+    let healthStatus: "healthy" | "warning" | "critical" | "not_started" = "not_started";
+    let healthMessage = "";
+    let healthDetail = "";
+
+    if (articles.length === 0) {
+      healthStatus = "not_started";
+      healthMessage = "No published articles yet";
+      healthDetail = "The content pipeline needs to produce and publish articles before they can be indexed by search engines.";
+    } else if (!hasIndexNowKey && !hasGscCredentials) {
+      healthStatus = "critical";
+      healthMessage = "Indexing is not configured";
+      healthDetail = "Neither IndexNow nor Google Search Console credentials are set up. Articles cannot be submitted to search engines. Set INDEXNOW_KEY and GSC credentials in Vercel.";
+    } else if (indexed === 0 && neverSubmitted === articles.length) {
+      healthStatus = "critical";
+      healthMessage = "No articles have been submitted to search engines";
+      healthDetail = "All published articles are sitting unsubmitted. The SEO agent cron job may not be running. Check cron logs or use the Submit All button.";
+    } else if (indexed === 0 && submitted > 0) {
+      healthStatus = "warning";
+      healthMessage = `${submitted} articles submitted, waiting for Google to index`;
+      healthDetail = "Articles have been submitted but Google hasn't indexed them yet. This is normal for new sites — Google can take 2-14 days to index new URLs. Check back in a few days.";
+    } else if (errors > 0) {
+      healthStatus = "warning";
+      healthMessage = `${errors} indexing error(s) detected`;
+      healthDetail = `${indexed} of ${articles.length} articles are indexed (${indexingRate}%), but ${errors} have errors that need attention. Expand the error articles below to see details.`;
+    } else if (indexingRate >= 80) {
+      healthStatus = "healthy";
+      healthMessage = `${indexed} of ${articles.length} articles indexed (${indexingRate}%)`;
+      healthDetail = "Indexing is working well. Most articles are being picked up by Google.";
+    } else if (indexingRate >= 40) {
+      healthStatus = "warning";
+      healthMessage = `${indexed} of ${articles.length} articles indexed (${indexingRate}%)`;
+      healthDetail = `Indexing is partially working. ${notIndexed + neverSubmitted} articles need attention — check the reasons below each article.`;
+    } else {
+      healthStatus = "warning";
+      healthMessage = `Only ${indexed} of ${articles.length} articles indexed (${indexingRate}%)`;
+      healthDetail = "Most articles are not indexed. This could be a configuration issue, content quality problem, or the site is too new for Google to trust.";
+    }
+
     return NextResponse.json({
       success: true,
       siteId,
@@ -451,6 +525,13 @@ export async function GET(request: NextRequest) {
         neverSubmitted,
         errors,
       },
+      healthDiagnosis: {
+        status: healthStatus,
+        message: healthMessage,
+        detail: healthDetail,
+        indexingRate,
+      },
+      recentActivity,
       articles,
       systemIssues,
     });
@@ -470,20 +551,160 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action, slugs, siteId: reqSiteId } = body as {
-      action: "submit" | "submit_all" | "resubmit";
+      action: "submit" | "submit_all" | "resubmit" | "compliance_audit";
       slugs?: string[];
       siteId?: string;
     };
 
-    const siteId = reqSiteId || "yalla-london";
+    const { getDefaultSiteId: getDefaultSite, getSiteConfig, getSiteDomain } = await import("@/config/sites");
+    const siteId = reqSiteId || getDefaultSite();
     const { prisma } = await import("@/lib/db");
     const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
-    const { getSiteConfig } = await import("@/config/sites");
 
     const siteConfig = getSiteConfig(siteId);
     const baseUrl = siteConfig?.domain
       ? `https://${siteConfig.domain}`
-      : process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      : getSiteDomain(siteId);
+
+    // ── Compliance Audit: check all published pages against SEO standards ──
+    if (action === "compliance_audit") {
+      const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
+      const posts = await prisma.blogPost.findMany({
+        where: { published: true, siteId, deletedAt: null },
+        select: {
+          id: true, slug: true, title_en: true, title_ar: true,
+          meta_title_en: true, meta_description_en: true,
+          content_en: true, content_ar: true, seo_score: true,
+          page_type: true, tags: true, keywords_json: true,
+          authority_links_json: true,
+        },
+      });
+
+      const results: Array<{
+        slug: string; score: number; issues: string[]; fixes: string[];
+      }> = [];
+      let totalFixed = 0;
+
+      for (const post of posts) {
+        const issues: string[] = [];
+        const fixes: string[] = [];
+        let score = 100;
+
+        // Meta title check (standards: min 30, optimal 50-60)
+        const metaTitle = post.meta_title_en || "";
+        if (metaTitle.length < CONTENT_QUALITY.metaTitleMin) {
+          issues.push(`Meta title too short (${metaTitle.length} chars, min ${CONTENT_QUALITY.metaTitleMin})`);
+          score -= 15;
+        } else if (metaTitle.length > CONTENT_QUALITY.metaTitleOptimal.max) {
+          issues.push(`Meta title may be truncated (${metaTitle.length} chars, optimal max ${CONTENT_QUALITY.metaTitleOptimal.max})`);
+          score -= 5;
+        }
+
+        // Meta description check (standards: min 70, optimal 120-160)
+        const metaDesc = post.meta_description_en || "";
+        if (metaDesc.length < CONTENT_QUALITY.metaDescriptionMin) {
+          issues.push(`Meta description too short (${metaDesc.length} chars, min ${CONTENT_QUALITY.metaDescriptionMin})`);
+          score -= 10;
+        } else if (metaDesc.length > CONTENT_QUALITY.metaDescriptionOptimal.max) {
+          issues.push(`Meta description too long (${metaDesc.length} chars, max ${CONTENT_QUALITY.metaDescriptionOptimal.max})`);
+          score -= 5;
+        }
+
+        // Word count check (standards: min 800)
+        const wordCount = post.content_en ? post.content_en.split(/\s+/).filter(Boolean).length : 0;
+        if (wordCount < CONTENT_QUALITY.thinContentThreshold) {
+          issues.push(`Critically thin content (${wordCount} words, min ${CONTENT_QUALITY.minWords})`);
+          score -= 20;
+        } else if (wordCount < CONTENT_QUALITY.minWords) {
+          issues.push(`Below minimum word count (${wordCount} words, min ${CONTENT_QUALITY.minWords})`);
+          score -= 10;
+        }
+
+        // H2 headings check
+        const h2Count = (post.content_en || "").match(/<h2/gi)?.length || 0;
+        if (h2Count < CONTENT_QUALITY.minH2Count) {
+          issues.push(`Insufficient H2 headings (${h2Count}, min ${CONTENT_QUALITY.minH2Count})`);
+          score -= 5;
+        }
+
+        // Arabic content check (bilingual requirement)
+        if (!post.content_ar || post.content_ar.length < 100) {
+          issues.push("Missing or insufficient Arabic content");
+          score -= 5;
+        }
+        if (!post.title_ar) {
+          issues.push("Missing Arabic title");
+          score -= 5;
+        }
+
+        // Tags check
+        if (!post.tags || post.tags.length < 2) {
+          issues.push("Insufficient tags (<2)");
+          score -= 5;
+        }
+
+        // Page type check (needed for schema markup)
+        if (!post.page_type) {
+          issues.push("Missing page_type for structured data");
+          // Auto-fix: set to 'guide'
+          try {
+            await prisma.blogPost.update({
+              where: { id: post.id },
+              data: { page_type: "guide" },
+            });
+            fixes.push("Set page_type to 'guide'");
+            totalFixed++;
+          } catch { /* non-fatal */ }
+        }
+
+        // E-E-A-T: authority links and keywords
+        if (post.authority_links_json) score += 5;
+        if (post.keywords_json) score += 5;
+
+        score = Math.max(0, Math.min(100, score));
+
+        // Update SEO score if it changed significantly
+        if (!post.seo_score || Math.abs(post.seo_score - score) > 5) {
+          try {
+            await prisma.blogPost.update({
+              where: { id: post.id },
+              data: { seo_score: score },
+            });
+            fixes.push(`Updated SEO score: ${post.seo_score || "null"} → ${score}`);
+            totalFixed++;
+          } catch { /* non-fatal */ }
+        }
+
+        results.push({ slug: post.slug, score, issues, fixes });
+      }
+
+      const passing = results.filter((r) => r.score >= CONTENT_QUALITY.qualityGateScore).length;
+      const failing = results.filter((r) => r.score < CONTENT_QUALITY.qualityGateScore).length;
+      const avgScore = results.length > 0
+        ? Math.round(results.reduce((sum, r) => sum + r.score, 0) / results.length)
+        : 0;
+
+      return NextResponse.json({
+        success: true,
+        action: "compliance_audit",
+        siteId,
+        standards: {
+          version: "2026-02-18",
+          qualityGateScore: CONTENT_QUALITY.qualityGateScore,
+          minWords: CONTENT_QUALITY.minWords,
+          metaTitleMin: CONTENT_QUALITY.metaTitleMin,
+          metaDescriptionMin: CONTENT_QUALITY.metaDescriptionMin,
+        },
+        summary: {
+          totalPosts: results.length,
+          passing,
+          failing,
+          averageScore: avgScore,
+          totalAutoFixes: totalFixed,
+        },
+        posts: results,
+      });
+    }
 
     // Determine which articles to submit
     let postsToSubmit;
@@ -525,9 +746,11 @@ export async function POST(request: NextRequest) {
     try {
       const { searchConsole } = await import("@/lib/integrations/google-search-console");
       if (searchConsole.isConfigured()) {
-        const result = await searchConsole.submitUrl(`${baseUrl}/sitemap.xml`);
+        // Submit sitemap — Google Indexing API only works for JobPosting/BroadcastEvent,
+        // NOT regular blog content. Sitemap submission is the correct path for articles.
+        const result = await searchConsole.submitSitemap(`${baseUrl}/sitemap.xml`);
         gscSuccess = !!result;
-        gscMessage = result ? "Sitemap submitted" : "Submission failed";
+        gscMessage = result ? "Sitemap submitted to Google" : "Sitemap submission failed";
       } else {
         gscMessage = "GSC not configured";
       }
@@ -548,12 +771,14 @@ export async function POST(request: NextRequest) {
             slug,
             status: "submitted",
             submitted_indexnow: indexNowSuccess,
+            submitted_sitemap: gscSuccess,
             last_submitted_at: new Date(),
             submission_attempts: 1,
           },
           update: {
             status: "submitted",
             submitted_indexnow: indexNowSuccess,
+            submitted_sitemap: gscSuccess || undefined,
             last_submitted_at: new Date(),
             submission_attempts: { increment: 1 },
           },

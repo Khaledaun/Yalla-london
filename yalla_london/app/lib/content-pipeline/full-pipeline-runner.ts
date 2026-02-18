@@ -327,7 +327,8 @@ export async function runFullPipeline(
     if (!keyword) {
       // Try the topic queue first
       try {
-        const topic = await prisma.topicProposal.findFirst({
+        // Find a candidate topic
+        const candidate = await prisma.topicProposal.findFirst({
           where: {
             status: { in: ["ready", "queued", "planned", "proposed"] },
             OR: [{ site_id: siteId }, { site_id: null }],
@@ -335,14 +336,28 @@ export async function runFullPipeline(
           orderBy: [{ confidence_score: "desc" }, { created_at: "asc" }],
         });
 
-        if (topic) {
-          keyword = topic.primary_keyword;
-          topicProposalId = topic.id;
-          strategy = "full_pipeline_topic_db";
-          await prisma.topicProposal.update({
-            where: { id: topic.id },
-            data: { status: "generated" },
+        if (candidate) {
+          // Atomically claim it — only succeeds if status hasn't changed
+          // This prevents race conditions where multiple pipelines grab the same topic
+          const claimed = await prisma.topicProposal.updateMany({
+            where: {
+              id: candidate.id,
+              status: { in: ["ready", "queued", "planned", "proposed"] },
+            },
+            data: {
+              status: "generating",
+              updated_at: new Date(),
+            },
           });
+
+          if (claimed.count === 0) {
+            // Another process already claimed this topic — fall through to template
+            console.log(`[full-pipeline] Topic ${candidate.id} already claimed by another process, using fallback`);
+          } else {
+            keyword = candidate.primary_keyword;
+            topicProposalId = candidate.id;
+            strategy = "full_pipeline_topic_db";
+          }
         }
       } catch {
         // TopicProposal table may not exist — fall through to template
@@ -422,6 +437,16 @@ export async function runFullPipeline(
       await prisma.articleDraft.update({
         where: { id: draft.id },
         data: { paired_draft_id: (pairedDraft as Record<string, unknown>).id as string },
+      });
+    }
+
+    // Transition topic from "generating" to "generated" now that drafts are created
+    if (topicProposalId) {
+      await prisma.topicProposal.update({
+        where: { id: topicProposalId },
+        data: { status: "generated" },
+      }).catch((err: unknown) => {
+        console.warn(`[full-pipeline] Failed to mark topic ${topicProposalId} as generated:`, err instanceof Error ? err.message : err);
       });
     }
 

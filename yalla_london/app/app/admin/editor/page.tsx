@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 import { 
   Edit3, 
   Eye, 
@@ -266,9 +267,8 @@ Each hotel's unique character and world-class amenities ensure that your visit t
         setExcerpt(generatedExcerpt)
       }
       
-      // Auto-generate SEO score
-      const seoScore = Math.floor(Math.random() * 30) + 70 // 70-100
-      setSeoScore(seoScore)
+      // TODO: connect to real SEO scoring API
+      setSeoScore(0)
       
       alert('AI Review completed! All fields have been auto-generated based on your content.')
     } catch (error) {
@@ -680,10 +680,11 @@ Each hotel's unique character and world-class amenities ensure that your visit t
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-600">SEO Score:</span>
                       <span className={`text-sm font-medium ${
-                        seoScore >= 90 ? 'text-green-600' : 
+                        seoScore === 0 ? 'text-gray-400' :
+                        seoScore >= 90 ? 'text-green-600' :
                         seoScore >= 70 ? 'text-yellow-600' : 'text-red-600'
                       }`}>
-                        {seoScore}%
+                        {seoScore === 0 ? 'Not scored' : `${seoScore}%`}
                       </span>
                     </div>
                   </div>
@@ -693,15 +694,15 @@ Each hotel's unique character and world-class amenities ensure that your visit t
                   <div className={`${deviceView === 'mobile' ? 'max-w-sm mx-auto' : 'max-w-4xl mx-auto'}`}>
                     {content ? (
                       <div className="prose prose-lg max-w-none">
-                        <div dangerouslySetInnerHTML={{ 
-                          __html: content
+                        <div dangerouslySetInnerHTML={{
+                          __html: sanitizeHtml(content
                             .replace(/^# (.*$)/gim, '<h1>$1</h1>')
                             .replace(/^## (.*$)/gim, '<h2>$1</h2>')
                             .replace(/^### (.*$)/gim, '<h3>$1</h3>')
                             .replace(/^\* (.*$)/gim, '<li>$1</li>')
                             .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
                             .replace(/\*(.*)\*/gim, '<em>$1</em>')
-                            .replace(/\n/gim, '<br>')
+                            .replace(/\n/gim, '<br>'))
                         }} />
                       </div>
                     ) : (

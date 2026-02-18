@@ -8,6 +8,10 @@ import { getTranslation } from '@/lib/i18n'
 import { Mail, MapPin } from 'lucide-react'
 import { FollowUs } from './follow-us'
 import { ENTITY, getCopyrightLine, getBrandDisclosure } from '@/config/entity'
+import { SITES, getDefaultSiteId } from '@/config/sites'
+
+const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || 'yalla-london.com'
+const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
 
 export function Footer() {
   const { language, isRTL } = useLanguage()
@@ -109,11 +113,11 @@ export function Footer() {
             {/* Contact Info */}
             <div className="space-y-3 mb-5">
               <a
-                href="mailto:hello@yallalondon.com"
+                href={`mailto:${CONTACT_EMAIL}`}
                 className="flex items-center gap-2.5 font-editorial text-[11px] font-light text-stone hover:text-yalla-gold-500 transition-colors"
               >
                 <Mail size={14} className="text-yalla-gold-500 shrink-0" />
-                <span>hello@yallalondon.com</span>
+                <span>{CONTACT_EMAIL}</span>
               </a>
               <div className="flex items-center gap-2.5 font-editorial text-[11px] font-light text-stone">
                 <MapPin size={14} className="text-yalla-gold-500 shrink-0" />

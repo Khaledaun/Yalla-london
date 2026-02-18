@@ -20,14 +20,10 @@ import { logCronExecution } from "@/lib/cron-logger";
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
+  // If CRON_SECRET is configured and doesn't match, reject.
+  // If CRON_SECRET is NOT configured, allow — Vercel crons don't send secrets unless configured.
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!cronSecret && process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      { error: "Server misconfiguration" },
-      { status: 503 }
-    );
   }
 
   const mode = request.nextUrl.searchParams.get("mode") || "daily";

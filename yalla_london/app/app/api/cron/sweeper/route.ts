@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 /**
  * Sweeper Agent — Automatic Failure Recovery

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/db'
 
 
 
@@ -132,8 +132,26 @@ async function getSystemHealthStatus() {
       })
     ])
 
-    // Check cron status (simplified - in real implementation, check actual cron jobs)
-    const cronStatus = 'running'
+    // Check cron status from actual CronJobLog — last 24h
+    let cronStatus = 'unknown';
+    try {
+      const recentCron = await prisma.cronJobLog.findFirst({
+        where: { started_at: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+        orderBy: { started_at: 'desc' },
+        select: { status: true, started_at: true },
+      });
+      if (!recentCron) {
+        cronStatus = 'no_recent_runs';
+      } else if (recentCron.status === 'completed' || recentCron.status === 'timed_out') {
+        cronStatus = 'running';
+      } else if (recentCron.status === 'failed') {
+        cronStatus = 'errors';
+      } else {
+        cronStatus = recentCron.status || 'unknown';
+      }
+    } catch {
+      cronStatus = 'unknown'; // CronJobLog table may not exist yet
+    }
 
     // Get environment info
     const envInfo = {

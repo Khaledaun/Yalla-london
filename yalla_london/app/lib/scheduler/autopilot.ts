@@ -5,7 +5,7 @@
  * Designed to be triggered by cron jobs or Vercel cron.
  */
 
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { generateResortReview, generateTravelGuide, generateComparison } from '@/lib/ai/content-generator';
 import { isAIAvailable } from '@/lib/ai/provider';
 

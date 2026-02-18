@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { RelatedArticles, type RelatedArticleData } from '@/components/related-articles'
 import { ShareButtons } from '@/components/share-buttons'
 import { FollowUs } from '@/components/follow-us'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 
 interface FAQQuestion {
   question_en: string
@@ -186,7 +187,7 @@ export default function ArticleClient({ article, relatedArticles = [] }: Article
             <div
               className="text-charcoal leading-relaxed prose-headings:font-display prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-a:text-london-600 prose-strong:text-charcoal"
               dangerouslySetInnerHTML={{
-                __html: language === 'en' ? article.content_en : article.content_ar
+                __html: sanitizeHtml(language === 'en' ? article.content_en : article.content_ar)
               }}
             />
           </motion.div>

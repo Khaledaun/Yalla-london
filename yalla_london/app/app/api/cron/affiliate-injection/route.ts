@@ -17,66 +17,234 @@ import { logCronExecution } from "@/lib/cron-logger";
 
 const BUDGET_MS = 53_000;
 
-// Keyword-to-affiliate mapping (mirrors /api/affiliates/inject)
-const AFFILIATE_RULES = [
-  {
-    keywords: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "فندق", "فنادق"],
-    affiliates: [
-      { name: "Booking.com", url: "https://www.booking.com/city/gb/london.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
-      { name: "Agoda", url: "https://www.agoda.com/london", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "hotel" },
+// Per-site keyword-to-affiliate mapping
+type AffiliateRule = {
+  keywords: string[];
+  affiliates: Array<{ name: string; url: string; param: string; category: string }>;
+};
+
+function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
+  const utmSource = siteId.replace(/-/g, "");
+
+  const SITE_RULES: Record<string, AffiliateRule[]> = {
+    'yalla-london': [
+      {
+        keywords: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "فندق", "فنادق"],
+        affiliates: [
+          { name: "Booking.com", url: "https://www.booking.com/city/gb/london.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
+          { name: "Agoda", url: "https://www.agoda.com/london", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "hotel" },
+        ],
+      },
+      {
+        keywords: ["restaurant", "dining", "food", "halal", "cuisine", "eat", "مطعم", "طعام", "حلال"],
+        affiliates: [
+          { name: "TheFork", url: "https://www.thefork.co.uk/london", param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}`, category: "restaurant" },
+          { name: "OpenTable", url: "https://www.opentable.co.uk/london", param: `?ref=${process.env.OPENTABLE_AFFILIATE_ID || ""}`, category: "restaurant" },
+        ],
+      },
+      {
+        keywords: ["tour", "tours", "experience", "activity", "visit", "attraction", "جولة", "تجربة"],
+        affiliates: [
+          { name: "GetYourGuide", url: "https://www.getyourguide.com/london-l57/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`, category: "activity" },
+          { name: "Viator", url: "https://www.viator.com/London/d737", param: `?pid=${process.env.VIATOR_AFFILIATE_ID || ""}`, category: "activity" },
+        ],
+      },
+      {
+        keywords: ["ticket", "event", "match", "concert", "show", "theatre", "football", "تذكرة", "فعالية"],
+        affiliates: [
+          { name: "StubHub", url: "https://www.stubhub.co.uk", param: `?gcid=${process.env.STUBHUB_AFFILIATE_ID || ""}`, category: "tickets" },
+          { name: "Ticketmaster", url: "https://www.ticketmaster.co.uk", param: `?tm_link=${process.env.TICKETMASTER_AFFILIATE_ID || ""}`, category: "tickets" },
+        ],
+      },
+      {
+        keywords: ["shopping", "shop", "buy", "luxury", "brand", "fashion", "Harrods", "تسوق"],
+        affiliates: [
+          { name: "Harrods", url: "https://www.harrods.com", param: `?utm_source=${utmSource}`, category: "shopping" },
+          { name: "Selfridges", url: "https://www.selfridges.com", param: `?utm_source=${utmSource}`, category: "shopping" },
+        ],
+      },
+      {
+        keywords: ["transfer", "airport", "taxi", "car", "transport", "Heathrow", "نقل", "مطار"],
+        affiliates: [
+          { name: "Blacklane", url: "https://www.blacklane.com/en/london", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`, category: "transport" },
+        ],
+      },
+      {
+        keywords: ["insurance", "travel insurance", "safety", "protection", "تأمين"],
+        affiliates: [
+          { name: "Allianz Travel", url: "https://www.allianztravelinsurance.com", param: `?utm_source=${utmSource}`, category: "insurance" },
+        ],
+      },
     ],
-  },
-  {
-    keywords: ["restaurant", "dining", "food", "halal", "cuisine", "eat", "مطعم", "طعام", "حلال"],
-    affiliates: [
-      { name: "TheFork", url: "https://www.thefork.co.uk/london", param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}`, category: "restaurant" },
-      { name: "OpenTable", url: "https://www.opentable.co.uk/london", param: `?ref=${process.env.OPENTABLE_AFFILIATE_ID || ""}`, category: "restaurant" },
+    'arabaldives': [
+      {
+        keywords: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "villa", "فندق", "فنادق", "منتجع"],
+        affiliates: [
+          { name: "Booking.com", url: "https://www.booking.com/country/mv.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
+          { name: "Agoda", url: "https://www.agoda.com/maldives", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "hotel" },
+        ],
+      },
+      {
+        keywords: ["resort", "island", "overwater", "water villa", "جزيرة", "فوق الماء"],
+        affiliates: [
+          { name: "Agoda", url: "https://www.agoda.com/maldives", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "resort" },
+        ],
+      },
+      {
+        keywords: ["tour", "tours", "experience", "snorkeling", "diving", "excursion", "غوص", "غطس", "جولة"],
+        affiliates: [
+          { name: "GetYourGuide", url: "https://www.getyourguide.com/maldives-l97358/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`, category: "activity" },
+          { name: "Viator", url: "https://www.viator.com/Maldives/d969", param: `?pid=${process.env.VIATOR_AFFILIATE_ID || ""}`, category: "activity" },
+        ],
+      },
+      {
+        keywords: ["transfer", "seaplane", "speedboat", "airport", "نقل", "طائرة مائية", "مطار"],
+        affiliates: [
+          { name: "Booking.com Taxi", url: "https://www.booking.com/taxi/country/mv.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "transport" },
+        ],
+      },
+      {
+        keywords: ["insurance", "travel insurance", "safety", "protection", "تأمين"],
+        affiliates: [
+          { name: "Allianz Travel", url: "https://www.allianztravelinsurance.com", param: `?utm_source=${utmSource}`, category: "insurance" },
+        ],
+      },
     ],
-  },
-  {
-    keywords: ["tour", "tours", "experience", "activity", "visit", "attraction", "جولة", "تجربة"],
-    affiliates: [
-      { name: "GetYourGuide", url: "https://www.getyourguide.com/london-l57/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`, category: "activity" },
-      { name: "Viator", url: "https://www.viator.com/London/d737", param: `?pid=${process.env.VIATOR_AFFILIATE_ID || ""}`, category: "activity" },
+    'french-riviera': [
+      {
+        keywords: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "villa", "فندق", "فنادق"],
+        affiliates: [
+          { name: "Booking.com", url: "https://www.booking.com/region/fr/cote-d-azur.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
+          { name: "Agoda", url: "https://www.agoda.com/nice", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "hotel" },
+        ],
+      },
+      {
+        keywords: ["restaurant", "dining", "food", "halal", "cuisine", "eat", "مطعم", "طعام", "حلال"],
+        affiliates: [
+          { name: "TheFork", url: "https://www.thefork.fr/nice", param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}`, category: "restaurant" },
+        ],
+      },
+      {
+        keywords: ["tour", "tours", "experience", "activity", "yacht", "boat", "جولة", "تجربة", "يخت"],
+        affiliates: [
+          { name: "GetYourGuide", url: "https://www.getyourguide.com/nice-l176/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`, category: "activity" },
+          { name: "Viator", url: "https://www.viator.com/Nice/d30746", param: `?pid=${process.env.VIATOR_AFFILIATE_ID || ""}`, category: "activity" },
+        ],
+      },
+      {
+        keywords: ["shopping", "shop", "buy", "luxury", "brand", "fashion", "تسوق"],
+        affiliates: [
+          { name: "Galeries Lafayette", url: "https://www.galerieslafayette.com", param: `?utm_source=${utmSource}`, category: "shopping" },
+        ],
+      },
+      {
+        keywords: ["transfer", "airport", "taxi", "car", "transport", "نقل", "مطار"],
+        affiliates: [
+          { name: "Blacklane", url: "https://www.blacklane.com/en/nice", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`, category: "transport" },
+        ],
+      },
+      {
+        keywords: ["insurance", "travel insurance", "safety", "protection", "تأمين"],
+        affiliates: [
+          { name: "Allianz Travel", url: "https://www.allianztravelinsurance.com", param: `?utm_source=${utmSource}`, category: "insurance" },
+        ],
+      },
     ],
-  },
-  {
-    keywords: ["ticket", "event", "match", "concert", "show", "theatre", "football", "تذكرة", "فعالية"],
-    affiliates: [
-      { name: "StubHub", url: "https://www.stubhub.co.uk", param: `?gcid=${process.env.STUBHUB_AFFILIATE_ID || ""}`, category: "tickets" },
-      { name: "Ticketmaster", url: "https://www.ticketmaster.co.uk", param: `?tm_link=${process.env.TICKETMASTER_AFFILIATE_ID || ""}`, category: "tickets" },
+    'istanbul': [
+      {
+        keywords: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "فندق", "فنادق"],
+        affiliates: [
+          { name: "Booking.com", url: "https://www.booking.com/city/tr/istanbul.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
+          { name: "Agoda", url: "https://www.agoda.com/istanbul", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "hotel" },
+        ],
+      },
+      {
+        keywords: ["restaurant", "dining", "food", "halal", "cuisine", "eat", "kebab", "مطعم", "طعام", "حلال"],
+        affiliates: [
+          { name: "TheFork", url: "https://www.thefork.com/istanbul", param: `?ref=${process.env.THEFORK_AFFILIATE_ID || ""}`, category: "restaurant" },
+        ],
+      },
+      {
+        keywords: ["tour", "tours", "experience", "activity", "bazaar", "mosque", "hammam", "جولة", "تجربة", "بازار"],
+        affiliates: [
+          { name: "GetYourGuide", url: "https://www.getyourguide.com/istanbul-l56/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`, category: "activity" },
+          { name: "Viator", url: "https://www.viator.com/Istanbul/d585", param: `?pid=${process.env.VIATOR_AFFILIATE_ID || ""}`, category: "activity" },
+        ],
+      },
+      {
+        keywords: ["shopping", "shop", "buy", "luxury", "brand", "bazaar", "Grand Bazaar", "تسوق"],
+        affiliates: [
+          { name: "Grand Bazaar Istanbul", url: "https://www.grandbazaaristanbul.org", param: `?utm_source=${utmSource}`, category: "shopping" },
+        ],
+      },
+      {
+        keywords: ["transfer", "airport", "taxi", "car", "transport", "نقل", "مطار"],
+        affiliates: [
+          { name: "Blacklane", url: "https://www.blacklane.com/en/istanbul", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`, category: "transport" },
+        ],
+      },
+      {
+        keywords: ["insurance", "travel insurance", "safety", "protection", "تأمين"],
+        affiliates: [
+          { name: "Allianz Travel", url: "https://www.allianztravelinsurance.com", param: `?utm_source=${utmSource}`, category: "insurance" },
+        ],
+      },
     ],
-  },
-  {
-    keywords: ["shopping", "shop", "buy", "luxury", "brand", "fashion", "Harrods", "تسوق"],
-    affiliates: [
-      { name: "Harrods", url: "https://www.harrods.com", param: "?utm_source=yallalondon", category: "shopping" },
-      { name: "Selfridges", url: "https://www.selfridges.com", param: "?utm_source=yallalondon", category: "shopping" },
+    'thailand': [
+      {
+        keywords: ["hotel", "hotels", "accommodation", "stay", "booking", "resort", "villa", "فندق", "فنادق"],
+        affiliates: [
+          { name: "Booking.com", url: "https://www.booking.com/country/th.html", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
+          { name: "Agoda", url: "https://www.agoda.com/thailand", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "hotel" },
+        ],
+      },
+      {
+        keywords: ["resort", "island", "beach", "جزيرة", "شاطئ"],
+        affiliates: [
+          { name: "Agoda", url: "https://www.agoda.com/thailand", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "resort" },
+        ],
+      },
+      {
+        keywords: ["tour", "tours", "experience", "activity", "temple", "market", "جولة", "تجربة", "معبد"],
+        affiliates: [
+          { name: "GetYourGuide", url: "https://www.getyourguide.com/bangkok-l169/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`, category: "activity" },
+          { name: "Viator", url: "https://www.viator.com/Bangkok/d191", param: `?pid=${process.env.VIATOR_AFFILIATE_ID || ""}`, category: "activity" },
+        ],
+      },
+      {
+        keywords: ["shopping", "shop", "buy", "luxury", "brand", "market", "تسوق"],
+        affiliates: [
+          { name: "Central World", url: "https://www.centralworld.co.th", param: `?utm_source=${utmSource}`, category: "shopping" },
+        ],
+      },
+      {
+        keywords: ["transfer", "airport", "taxi", "car", "transport", "نقل", "مطار"],
+        affiliates: [
+          { name: "Blacklane", url: "https://www.blacklane.com/en/bangkok", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`, category: "transport" },
+        ],
+      },
+      {
+        keywords: ["insurance", "travel insurance", "safety", "protection", "تأمين"],
+        affiliates: [
+          { name: "Allianz Travel", url: "https://www.allianztravelinsurance.com", param: `?utm_source=${utmSource}`, category: "insurance" },
+        ],
+      },
     ],
-  },
-  {
-    keywords: ["transfer", "airport", "taxi", "car", "transport", "Heathrow", "نقل", "مطار"],
-    affiliates: [
-      { name: "Blacklane", url: "https://www.blacklane.com/en/london", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`, category: "transport" },
-    ],
-  },
-  {
-    keywords: ["insurance", "travel insurance", "safety", "protection", "تأمين"],
-    affiliates: [
-      { name: "Allianz Travel", url: "https://www.allianztravelinsurance.com", param: "?utm_source=yallalondon", category: "insurance" },
-    ],
-  },
-];
+  };
+
+  return SITE_RULES[siteId] || SITE_RULES['yalla-london'] || [];
+}
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function findMatches(content: string, limit = 4) {
+function findMatches(content: string, siteId: string, limit = 4) {
   const lower = content.toLowerCase();
+  const rules = getAffiliateRulesForSite(siteId);
   const matches: Array<{ keyword: string; name: string; url: string; param: string; category: string; score: number }> = [];
 
-  for (const rule of AFFILIATE_RULES) {
+  for (const rule of rules) {
     for (const keyword of rule.keywords) {
       if (lower.includes(keyword.toLowerCase())) {
         for (const aff of rule.affiliates) {
@@ -92,8 +260,8 @@ function findMatches(content: string, limit = 4) {
   return matches.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
-function injectAffiliates(html: string): { content: string; count: number; partners: string[] } {
-  const matches = findMatches(html, 4);
+function injectAffiliates(html: string, siteId: string): { content: string; count: number; partners: string[] } {
+  const matches = findMatches(html, siteId, 4);
   if (matches.length === 0) return { content: html, count: 0, partners: [] };
 
   let result = html;
@@ -157,12 +325,15 @@ async function handleAffiliateInjection(request: NextRequest) {
     const { prisma } = await import("@/lib/db");
 
     // Find published posts that still have affiliate placeholders OR no affiliate links
+    const { getActiveSiteIds } = await import("@/config/sites");
+    const activeSiteIds = getActiveSiteIds();
     const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const posts = await prisma.blogPost.findMany({
       where: {
         published: true,
         deletedAt: null,
         created_at: { gte: twoDaysAgo },
+        ...(activeSiteIds.length > 0 ? { siteId: { in: activeSiteIds } } : {}),
       },
       select: {
         id: true,
@@ -170,6 +341,7 @@ async function handleAffiliateInjection(request: NextRequest) {
         content_ar: true,
         slug: true,
         title_en: true,
+        siteId: true,
       },
     });
 
@@ -186,8 +358,9 @@ async function handleAffiliateInjection(request: NextRequest) {
     for (const post of needsInjection) {
       if (Date.now() - startTime > BUDGET_MS) break;
 
-      const enResult = injectAffiliates(post.content_en);
-      const arResult = injectAffiliates(post.content_ar);
+      const postSiteId = post.siteId || "yalla-london";
+      const enResult = injectAffiliates(post.content_en, postSiteId);
+      const arResult = injectAffiliates(post.content_ar, postSiteId);
 
       if (enResult.count > 0 || arResult.count > 0) {
         await prisma.blogPost.update({

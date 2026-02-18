@@ -18,10 +18,11 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   const action = request.nextUrl.searchParams.get("action") || "status";
+  const { getDefaultSiteId } = await import("@/config/sites");
   const siteId =
     request.nextUrl.searchParams.get("siteId") ||
     request.headers.get("x-site-id") ||
-    "yalla-london";
+    getDefaultSiteId();
   const batchParam = request.nextUrl.searchParams.get("batch") || "0";
   const batch = parseInt(batchParam, 10);
 
@@ -48,10 +49,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { urls, method } = body as {
+    const { urls, method, siteId: reqSiteId } = body as {
       urls: string[];
       method?: "indexnow" | "google" | "both";
+      siteId?: string;
     };
+    const { getDefaultSiteId: getDefault } = await import("@/config/sites");
+    const postSiteId = reqSiteId || request.headers.get("x-site-id") || getDefault();
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return NextResponse.json(
@@ -60,7 +64,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return await submitForIndexing(urls, method || "both");
+    return await submitForIndexing(urls, method || "both", postSiteId);
   } catch (error) {
     console.error("Indexing submission error:", error);
     return NextResponse.json(
@@ -80,7 +84,7 @@ async function getIndexingStatus(siteId: string) {
   );
 
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || (await import("@/config/sites")).getSiteDomain(siteId);
 
   // Get all indexable URLs
   const allUrls = await getAllIndexableUrls(siteId, baseUrl);
@@ -220,7 +224,7 @@ async function runLiveCheck(siteId: string, batchIndex: number) {
   }
 
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || (await import("@/config/sites")).getSiteDomain(siteId);
   const allUrls = await getAllIndexableUrls(siteId, baseUrl);
 
   const batchSize = 5;
@@ -321,7 +325,8 @@ async function runLiveCheck(siteId: string, batchIndex: number) {
 
 async function submitForIndexing(
   urls: string[],
-  method: "indexnow" | "google" | "both"
+  method: "indexnow" | "google" | "both",
+  siteId?: string,
 ) {
   const { prisma } = await import("@/lib/db");
   const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
@@ -386,13 +391,14 @@ async function submitForIndexing(
     results.push(result);
   }
 
-  // Update DB status
-  const siteId = "yalla-london";
+  // Update DB status — use siteId passed from caller (no hardcoding)
+  const { getDefaultSiteId: _gdi } = await import("@/config/sites");
+  const effectiveSiteId = siteId || _gdi();
   for (const url of urls) {
     try {
       await prisma.uRLIndexingStatus.upsert({
         where: {
-          site_id_url: { site_id: siteId, url },
+          site_id_url: { site_id: effectiveSiteId, url },
         },
         update: {
           status: "submitted",
@@ -401,7 +407,7 @@ async function submitForIndexing(
         },
         create: {
           url,
-          site_id: siteId,
+          site_id: effectiveSiteId,
           status: "submitted",
           last_submitted_at: new Date(),
           submission_attempts: 1,

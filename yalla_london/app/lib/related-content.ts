@@ -185,9 +185,88 @@ function toRelatedArticleData(item: NormalisedItem): RelatedArticleData {
 // ---------------------------------------------------------------------------
 
 /**
+ * Fetches published BlogPosts from the database that could be related to the
+ * current article.  Results are mapped to the same `RelatedArticleData` shape
+ * returned by the static content pool so they can be merged seamlessly.
+ *
+ * The query matches by category name when available and always excludes the
+ * current slug.  Up to `limit` results are returned, ordered by most recent.
+ */
+async function fetchDbRelatedArticles(
+  currentSlug: string,
+  category?: string,
+  limit: number = 6,
+): Promise<RelatedArticleData[]> {
+  try {
+    const { prisma } = await import('@/lib/db');
+
+    const where: Record<string, unknown> = {
+      published: true,
+      slug: { not: currentSlug },
+      deletedAt: null,
+    };
+
+    // If we have a category hint, try to find the Category record first so we
+    // can filter BlogPosts by category_id.
+    if (category) {
+      const cat = await prisma.category.findFirst({
+        where: {
+          OR: [
+            { name_en: { contains: category, mode: 'insensitive' as const } },
+            { slug: { contains: category.toLowerCase().replace(/\s+/g, '-') } },
+          ],
+        },
+        select: { id: true },
+      });
+
+      if (cat) {
+        where.category_id = cat.id;
+      }
+    }
+
+    const dbArticles = await prisma.blogPost.findMany({
+      where,
+      select: {
+        slug: true,
+        title_en: true,
+        title_ar: true,
+        meta_description_en: true,
+        excerpt_en: true,
+        excerpt_ar: true,
+        featured_image: true,
+        category: { select: { name_en: true, name_ar: true } },
+        created_at: true,
+        tags: true,
+      },
+      orderBy: { created_at: 'desc' },
+      take: limit,
+    });
+
+    return dbArticles.map((post): RelatedArticleData => ({
+      slug: post.slug,
+      title_en: post.title_en,
+      title_ar: post.title_ar,
+      excerpt_en: post.meta_description_en || post.excerpt_en || '',
+      excerpt_ar: post.excerpt_ar || '',
+      featured_image: post.featured_image || '',
+      type: 'blog',
+      category_name_en: post.category?.name_en || undefined,
+      category_name_ar: post.category?.name_ar || undefined,
+    }));
+  } catch {
+    // Database unavailable — degrade gracefully to static-only results
+    return [];
+  }
+}
+
+/**
  * Returns related articles for a given piece of content.
  *
- * Scoring is based on shared categories, tags, keywords, and page type.
+ * The function first queries the database for published BlogPosts (pipeline-
+ * generated content) and then supplements with static content scored by shared
+ * categories, tags, keywords, and page type.  DB results appear first so that
+ * freshly generated articles always surface as related content.
+ *
  * A cross-type bonus encourages links between blog and information content.
  * The result set guarantees at least one cross-type entry when possible,
  * aiming for roughly 2 same-type + 1 cross-type in the default case (count=3).
@@ -195,75 +274,92 @@ function toRelatedArticleData(item: NormalisedItem): RelatedArticleData {
  * If fewer than `count` scored results exist, the remainder is filled with
  * random published articles from the opposite type.
  */
-export function getRelatedArticles(
+export async function getRelatedArticles(
   currentSlug: string,
   currentType: 'blog' | 'information',
   count: number = 3,
-): RelatedArticleData[] {
-  // Find the source item
+): Promise<RelatedArticleData[]> {
+  // ── 1. Fetch DB-generated articles (BlogPosts) ──────────────────────────
+  // Determine a category hint from the static content pool (if source found)
   const source = allItems.find(
     (item) => item.slug === currentSlug && item.type === currentType,
   );
+  const categoryHint = source?.category_name_en || undefined;
+
+  const dbResults = await fetchDbRelatedArticles(currentSlug, categoryHint, count * 2);
+
+  // ── 2. Compute static content results ───────────────────────────────────
+  let staticResults: RelatedArticleData[] = [];
 
   if (!source) {
-    // If source not found, return random published items as fallback
-    return allItems
+    // Source not in static pool — return random published static items
+    staticResults = allItems
       .filter((item) => item.published)
       .sort(() => Math.random() - 0.5)
       .slice(0, count)
       .map(toRelatedArticleData);
-  }
+  } else {
+    // Score every static candidate (exclude current article, only published)
+    const scored = allItems
+      .filter((item) => item.slug !== currentSlug && item.published)
+      .map((item) => ({ item, score: computeScore(source, item) }))
+      .sort((a, b) => b.score - a.score);
 
-  // Score every candidate (exclude current article, only published)
-  const scored = allItems
-    .filter((item) => item.slug !== currentSlug && item.published)
-    .map((item) => ({ item, score: computeScore(source, item) }))
-    .sort((a, b) => b.score - a.score);
+    // Take top N by raw score
+    const topN = scored.slice(0, count);
 
-  // Take top N by raw score
-  const topN = scored.slice(0, count);
+    // Ensure at least one cross-type result when possible
+    const hasCrossType = topN.some((entry) => entry.item.type !== currentType);
 
-  // Ensure at least one cross-type result when possible
-  const hasCrossType = topN.some((entry) => entry.item.type !== currentType);
+    if (!hasCrossType && count > 1) {
+      const topNSlugs = new Set(topN.map((e) => e.item.slug));
+      const bestCross = scored.find(
+        (entry) =>
+          entry.item.type !== currentType && !topNSlugs.has(entry.item.slug),
+      );
 
-  if (!hasCrossType && count > 1) {
-    // Find the highest-scoring cross-type candidate not already in topN
-    const topNSlugs = new Set(topN.map((e) => e.item.slug));
-    const bestCross = scored.find(
-      (entry) =>
-        entry.item.type !== currentType && !topNSlugs.has(entry.item.slug),
-    );
-
-    if (bestCross) {
-      // Swap with the lowest-scoring same-type entry in topN
-      // (walk from end to find a same-type entry to replace)
-      for (let i = topN.length - 1; i >= 0; i--) {
-        if (topN[i].item.type === currentType) {
-          topN[i] = bestCross;
-          break;
+      if (bestCross) {
+        for (let i = topN.length - 1; i >= 0; i--) {
+          if (topN[i].item.type === currentType) {
+            topN[i] = bestCross;
+            break;
+          }
         }
       }
     }
+
+    // Fill remainder with random cross-type articles
+    if (topN.length < count) {
+      const usedSlugs = new Set(topN.map((e) => e.item.slug));
+      usedSlugs.add(currentSlug);
+
+      const fillers = allItems
+        .filter(
+          (item) =>
+            item.published &&
+            item.type !== currentType &&
+            !usedSlugs.has(item.slug),
+        )
+        .sort(() => Math.random() - 0.5)
+        .slice(0, count - topN.length)
+        .map((item) => ({ item, score: 0 }));
+
+      topN.push(...fillers);
+    }
+
+    staticResults = topN.map((entry) => toRelatedArticleData(entry.item));
   }
 
-  // If we still have fewer than `count`, fill with random cross-type articles
-  if (topN.length < count) {
-    const usedSlugs = new Set(topN.map((e) => e.item.slug));
-    usedSlugs.add(currentSlug);
+  // ── 3. Merge: DB results first, deduped by slug, capped at `count` ─────
+  const seen = new Set<string>();
+  const merged: RelatedArticleData[] = [];
 
-    const fillers = allItems
-      .filter(
-        (item) =>
-          item.published &&
-          item.type !== currentType &&
-          !usedSlugs.has(item.slug),
-      )
-      .sort(() => Math.random() - 0.5)
-      .slice(0, count - topN.length)
-      .map((item) => ({ item, score: 0 }));
-
-    topN.push(...fillers);
+  for (const article of [...dbResults, ...staticResults]) {
+    if (seen.has(article.slug)) continue;
+    seen.add(article.slug);
+    merged.push(article);
+    if (merged.length >= count) break;
   }
 
-  return topN.map((entry) => toRelatedArticleData(entry.item));
+  return merged;
 }

@@ -19,7 +19,8 @@ export const maxDuration = 60;
 
 import { withCronLog } from "@/lib/cron-logger";
 import { forEachSite } from "@/lib/resilience";
-import { getActiveSiteIds, getSiteSeoConfig, getSiteSeoConfigFromVault } from "@/config/sites";
+import { getActiveSiteIds, getSiteSeoConfig } from "@/config/sites";
+import { getSiteSeoConfigFromVault } from "@/lib/seo/config-vault";
 
 // ---------------------------------------------------------------------------
 // Types

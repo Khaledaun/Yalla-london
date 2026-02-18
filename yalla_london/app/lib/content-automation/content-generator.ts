@@ -389,7 +389,34 @@ export class ContentScheduler {
   // Publish scheduled content
   async publishScheduledContent(): Promise<void> {
     const readyContent = await this.getReadyContent();
-    
+
+    // Find or create a default category for auto-generated content
+    let defaultCategory = await this.db.category.findFirst({
+      where: { slug: "general" }
+    });
+    if (!defaultCategory) {
+      defaultCategory = await this.db.category.create({
+        data: {
+          name_en: "General",
+          name_ar: "عام",
+          slug: "general",
+          description_en: "General content",
+          description_ar: "محتوى عام",
+        }
+      });
+    }
+
+    // Find or create a system user for auto-generated content
+    const systemUser = await this.db.user.findFirst() ||
+      await this.db.user.create({
+        data: {
+          email: "system@yallalondon.com",
+          name: "System",
+        }
+      });
+
+    const siteId = getDefaultSiteId();
+
     for (const content of readyContent) {
       try {
         // Create blog post
@@ -404,7 +431,9 @@ export class ContentScheduler {
             meta_description_en: content.metaDescription,
             published: true,
             tags: content.tags,
-            author_id: 'system-generated' // Replace with actual author ID
+            category_id: defaultCategory.id,
+            author_id: systemUser.id,
+            siteId: siteId,
           }
         });
 

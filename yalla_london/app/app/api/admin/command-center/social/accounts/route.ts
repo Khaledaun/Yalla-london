@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { encrypt, decrypt } from '@/lib/encryption';
 import { requireAdmin } from "@/lib/admin-middleware";
 

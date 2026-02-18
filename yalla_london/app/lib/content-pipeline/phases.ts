@@ -211,7 +211,7 @@ Return JSON:
   "internalLinkPlan": [
     {"anchor": "anchor text", "targetTopic": "related article topic"}
   ],
-  "schemaType": "Article|FAQPage|HowTo"
+  "schemaType": "Article"
 }
 
 ${isArabic(draft.locale) ? "ALL headings, key points, and text MUST be in Arabic." : ""}`;
@@ -756,8 +756,8 @@ export async function phaseScoring(
   // Content depth
   const contentDepthScore = Math.min(100, h2Count * 10 + h3Count * 5 + (wordCount / 30));
 
-  // Quality gate: 50+ → reservoir, else rejected
-  const nextPhase = qualityScore >= 50 ? "reservoir" : "rejected";
+  // Quality gate: 60+ → reservoir, else rejected (aligned with CONTENT_QUALITY.qualityGateScore)
+  const nextPhase = qualityScore >= 60 ? "reservoir" : "rejected";
 
   return {
     success: true,

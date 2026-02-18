@@ -36,7 +36,7 @@ interface ArticleIndexing {
   lastInspectedAt: string | null;
   coverageState: string | null;
   submittedIndexnow: boolean;
-  submittedGoogle: boolean;
+  submittedSitemap: boolean;
   submissionAttempts: number;
   notIndexedReasons: string[];
   fixAction: string | null;
@@ -48,6 +48,23 @@ interface SystemIssue {
   message: string;
   detail: string;
   fixAction?: string;
+}
+
+interface IndexingActivity {
+  jobName: string;
+  status: string;
+  startedAt: string;
+  durationMs: number;
+  itemsProcessed: number;
+  itemsSucceeded: number;
+  errorMessage: string | null;
+}
+
+interface HealthDiagnosis {
+  status: "healthy" | "warning" | "critical" | "not_started";
+  message: string;
+  detail: string;
+  indexingRate: number;
 }
 
 interface IndexingData {
@@ -66,6 +83,8 @@ interface IndexingData {
     neverSubmitted: number;
     errors: number;
   };
+  healthDiagnosis?: HealthDiagnosis;
+  recentActivity?: IndexingActivity[];
   articles: ArticleIndexing[];
   systemIssues: SystemIssue[];
 }
@@ -81,6 +100,12 @@ export default function ContentIndexingTab() {
   const [submitResult, setSubmitResult] = useState<string | null>(null);
   const [submittingSlugs, setSubmittingSlugs] = useState<Set<string>>(new Set());
   const [showIssues, setShowIssues] = useState(true);
+  const [auditRunning, setAuditRunning] = useState(false);
+  const [auditResult, setAuditResult] = useState<{
+    totalPosts: number; passing: number; failing: number;
+    averageScore: number; totalAutoFixes: number;
+    posts: Array<{ slug: string; score: number; issues: string[]; fixes: string[] }>;
+  } | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -150,6 +175,32 @@ export default function ContentIndexingTab() {
       setSubmitResult(`Error: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const runComplianceAudit = async () => {
+    setAuditRunning(true);
+    setAuditResult(null);
+    try {
+      const res = await fetch("/api/admin/content-indexing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "compliance_audit" }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setAuditResult(json.summary);
+        setSubmitResult(
+          `Compliance audit complete: ${json.summary.passing} passing, ${json.summary.failing} failing (avg score: ${json.summary.averageScore}). ${json.summary.totalAutoFixes} auto-fixes applied.`
+        );
+        await loadData();
+      } else {
+        setSubmitResult(`Audit failed: ${json.error}`);
+      }
+    } catch (e) {
+      setSubmitResult(`Audit error: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setAuditRunning(false);
     }
   };
 
@@ -342,6 +393,123 @@ export default function ContentIndexingTab() {
         />
       </div>
 
+      {/* Indexing Health Diagnosis — at-a-glance status */}
+      {data.healthDiagnosis && (
+        <div
+          className={`rounded-lg border p-5 ${
+            data.healthDiagnosis.status === "healthy"
+              ? "bg-green-50 border-green-200"
+              : data.healthDiagnosis.status === "warning"
+              ? "bg-amber-50 border-amber-200"
+              : data.healthDiagnosis.status === "critical"
+              ? "bg-red-50 border-red-200"
+              : "bg-gray-50 border-gray-200"
+          }`}
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 mt-0.5">
+              {data.healthDiagnosis.status === "healthy" ? (
+                <CheckCircle className="h-7 w-7 text-green-500" />
+              ) : data.healthDiagnosis.status === "warning" ? (
+                <AlertTriangle className="h-7 w-7 text-amber-500" />
+              ) : data.healthDiagnosis.status === "critical" ? (
+                <XCircle className="h-7 w-7 text-red-500" />
+              ) : (
+                <Clock className="h-7 w-7 text-gray-400" />
+              )}
+            </div>
+            <div className="flex-1">
+              <h3
+                className={`text-lg font-bold ${
+                  data.healthDiagnosis.status === "healthy"
+                    ? "text-green-800"
+                    : data.healthDiagnosis.status === "warning"
+                    ? "text-amber-800"
+                    : data.healthDiagnosis.status === "critical"
+                    ? "text-red-800"
+                    : "text-gray-700"
+                }`}
+              >
+                {data.healthDiagnosis.message}
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">{data.healthDiagnosis.detail}</p>
+              {data.healthDiagnosis.indexingRate > 0 && (
+                <div className="mt-3">
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                    <span>Indexing Rate</span>
+                    <span className="font-bold text-gray-700">{data.healthDiagnosis.indexingRate}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div
+                      className={`h-2.5 rounded-full transition-all ${
+                        data.healthDiagnosis.indexingRate >= 80
+                          ? "bg-green-500"
+                          : data.healthDiagnosis.indexingRate >= 40
+                          ? "bg-amber-500"
+                          : "bg-red-500"
+                      }`}
+                      style={{ width: `${data.healthDiagnosis.indexingRate}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Recent Indexing Activity */}
+      {data.recentActivity && data.recentActivity.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Activity className="h-4 w-4 text-blue-500" />
+              Recent Indexing Activity
+            </h3>
+          </div>
+          <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+            {data.recentActivity.slice(0, 10).map((activity, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                {/* Status dot */}
+                <span
+                  className={`flex-shrink-0 h-2.5 w-2.5 rounded-full ${
+                    activity.status === "completed"
+                      ? "bg-green-500"
+                      : activity.status === "failed"
+                      ? "bg-red-500"
+                      : "bg-amber-500"
+                  }`}
+                />
+                {/* Job name */}
+                <span className="font-medium text-gray-800 w-32 flex-shrink-0 truncate">
+                  {activity.jobName}
+                </span>
+                {/* Items processed */}
+                <span className="text-gray-500 text-xs w-28 flex-shrink-0">
+                  {activity.itemsSucceeded > 0 ? (
+                    <span className="text-green-600">{activity.itemsSucceeded} submitted</span>
+                  ) : activity.status === "completed" ? (
+                    <span className="text-gray-400">0 items</span>
+                  ) : (
+                    <span className="text-red-500">Failed</span>
+                  )}
+                </span>
+                {/* Error message if any */}
+                {activity.errorMessage && (
+                  <span className="text-red-500 text-xs truncate flex-1" title={activity.errorMessage}>
+                    {activity.errorMessage.substring(0, 80)}
+                  </span>
+                )}
+                {/* Time */}
+                <span className="text-gray-400 text-xs flex-shrink-0 ml-auto">
+                  {timeAgo(activity.startedAt)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Config Status Banner */}
       {(!data.config.hasIndexNowKey || !data.config.hasGscCredentials) && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -381,7 +549,19 @@ export default function ContentIndexingTab() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+            <button
+              onClick={runComplianceAudit}
+              disabled={auditRunning || data.summary.total === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium whitespace-nowrap"
+            >
+              {auditRunning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Shield className="h-4 w-4" />
+              )}
+              SEO Compliance Audit
+            </button>
             <button
               onClick={submitAll}
               disabled={submitting || data.summary.total === 0}
@@ -392,7 +572,7 @@ export default function ContentIndexingTab() {
               ) : (
                 <Zap className="h-4 w-4" />
               )}
-              Submit All to Search Engines
+              Submit All
             </button>
             <button
               onClick={loadData}
@@ -410,6 +590,40 @@ export default function ContentIndexingTab() {
           </div>
         )}
       </div>
+
+      {/* Compliance Audit Results */}
+      {auditResult && (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-amber-50">
+            <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-amber-600" />
+              SEO Compliance Audit Results
+            </h3>
+          </div>
+          <div className="p-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="text-center p-3 bg-gray-50 rounded-lg">
+              <div className="text-2xl font-bold text-gray-800">{auditResult.totalPosts}</div>
+              <div className="text-xs text-gray-500">Total</div>
+            </div>
+            <div className="text-center p-3 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-700">{auditResult.passing}</div>
+              <div className="text-xs text-green-600">Passing</div>
+            </div>
+            <div className="text-center p-3 bg-red-50 rounded-lg">
+              <div className="text-2xl font-bold text-red-700">{auditResult.failing}</div>
+              <div className="text-xs text-red-600">Failing</div>
+            </div>
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-700">{auditResult.averageScore}</div>
+              <div className="text-xs text-blue-600">Avg Score</div>
+            </div>
+            <div className="text-center p-3 bg-amber-50 rounded-lg">
+              <div className="text-2xl font-bold text-amber-700">{auditResult.totalAutoFixes}</div>
+              <div className="text-xs text-amber-600">Auto-Fixes</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Articles Table */}
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -584,17 +798,17 @@ export default function ContentIndexingTab() {
                           </span>
                           <span
                             className={`inline-flex items-center gap-1 px-2 py-1 rounded ${
-                              article.submittedGoogle
+                              article.submittedSitemap
                                 ? "bg-green-100 text-green-700"
                                 : "bg-gray-100 text-gray-500"
                             }`}
                           >
-                            {article.submittedGoogle ? (
+                            {article.submittedSitemap ? (
                               <CheckCircle className="h-3 w-3" />
                             ) : (
                               <XCircle className="h-3 w-3" />
                             )}
-                            Google API
+                            GSC Sitemap
                           </span>
                           {article.coverageState && (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-100 text-gray-600">

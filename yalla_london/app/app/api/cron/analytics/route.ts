@@ -23,7 +23,7 @@ export const maxDuration = 60;
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import {
   fetchGA4Metrics,
   isGA4Configured,
@@ -37,15 +37,8 @@ export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  // Require CRON_SECRET in production
-  if (!cronSecret && process.env.NODE_ENV === "production") {
-    console.error("[ANALYTICS-CRON] CRON_SECRET not configured in production");
-    return NextResponse.json(
-      { error: "Server misconfigured" },
-      { status: 503 },
-    );
-  }
-
+  // If CRON_SECRET is configured and doesn't match, reject.
+  // If CRON_SECRET is NOT configured, allow — Vercel crons don't send secrets unless configured.
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -73,7 +73,9 @@ async function generateContentHandler(request: NextRequest) {
           contentType: type === 'blog_topic' ? 'listicle' : type === 'blog_content' ? 'guide' : 'recommendation',
           audience: 'gulf',
         });
-      } catch {}
+      } catch (error) {
+        console.warn('[Generate Content] Failed to load Arabic copywriting directives:', error);
+      }
     }
 
     // Create system prompts based on content type and language

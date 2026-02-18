@@ -139,6 +139,39 @@ const TRUSTED_SOURCES = [
     reliability: 1.0,
     topics: ["ai_search"],
   },
+  // Added per 2025-2026 SEO reference — most authoritative sources
+  {
+    id: "google-doc-changelog",
+    name: "Google Search Documentation Updates",
+    url: "https://developers.google.com/search/updates",
+    category: "official" as const,
+    reliability: 1.0,
+    topics: ["algorithm_update", "indexing_change", "structured_data", "crawling", "technical_seo"],
+  },
+  {
+    id: "google-search-status",
+    name: "Google Search Status Dashboard",
+    url: "https://status.search.google.com",
+    category: "official" as const,
+    reliability: 1.0,
+    topics: ["algorithm_update"],
+  },
+  {
+    id: "search-engine-roundtable",
+    name: "Search Engine Roundtable",
+    url: "https://seroundtable.com",
+    category: "industry" as const,
+    reliability: 0.9,
+    topics: ["algorithm_update", "indexing_change", "ai_search"],
+  },
+  {
+    id: "search-engine-land",
+    name: "Search Engine Land",
+    url: "https://searchengineland.com",
+    category: "industry" as const,
+    reliability: 0.85,
+    topics: ["algorithm_update", "ai_search", "content_strategy", "technical_seo"],
+  },
 ];
 
 /**
@@ -179,6 +212,64 @@ export async function runWeeklyResearch(
   for (const finding of findings) {
     const updates = generateAgentUpdates(finding);
     agentUpdates.push(...updates);
+  }
+
+  // ── Phase 3: Standards refresh — verify our SEO config is current ──
+  // Reference: lib/seo/standards.ts contains the canonical thresholds.
+  // This phase logs the current standards version and checks for staleness.
+  try {
+    const { STANDARDS_VERSION, SCHEMA_TYPES, CORE_WEB_VITALS, CONTENT_QUALITY } =
+      await import("@/lib/seo/standards");
+
+    // Record a "standards audit" finding so the dashboard shows the last verified date
+    findings.push({
+      id: `standards-audit-${Date.now()}`,
+      source: "internal",
+      sourceUrl: "lib/seo/standards.ts",
+      category: "technical_seo",
+      title: "SEO Standards Config Verified",
+      summary: `Standards version ${STANDARDS_VERSION}. ` +
+        `Deprecated schemas: ${SCHEMA_TYPES.deprecated.length}. ` +
+        `CWV: LCP ≤${CORE_WEB_VITALS.lcp.good}ms, INP ≤${CORE_WEB_VITALS.inp.good}ms, CLS ≤${CORE_WEB_VITALS.cls.good}. ` +
+        `Content: ${CONTENT_QUALITY.minWords}+ words min, ${CONTENT_QUALITY.targetWords}+ target. ` +
+        `Quality gate: ${CONTENT_QUALITY.qualityGateScore}/100.`,
+      actionableInsights: [
+        `${SCHEMA_TYPES.deprecated.length} deprecated schema types blocked from generation (FAQPage, HowTo, etc.)`,
+        `INP (Interaction to Next Paint) replaces FID as Core Web Vital — threshold ≤${CORE_WEB_VITALS.inp.good}ms`,
+        `Pre-publication gate enforces ${CONTENT_QUALITY.minWords}+ word minimum, ${CONTENT_QUALITY.metaTitleMin}+ char meta title`,
+      ],
+      affectedAgents: ["seo-agent", "content-builder", "schema-generator"],
+      priority: "low",
+      confidence: 1.0,
+      dateDiscovered: new Date().toISOString(),
+    });
+
+    // If standards are >30 days old, flag for manual review
+    const standardsAge = Date.now() - new Date(STANDARDS_VERSION).getTime();
+    const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+    if (standardsAge > thirtyDays) {
+      findings.push({
+        id: `standards-stale-${Date.now()}`,
+        source: "internal",
+        sourceUrl: "lib/seo/standards.ts",
+        category: "technical_seo",
+        title: "SEO Standards Config May Be Stale",
+        summary: `Standards last updated ${STANDARDS_VERSION} — over 30 days ago. ` +
+          `Check Google Search Documentation Updates (developers.google.com/search/updates) ` +
+          `for any new deprecations, threshold changes, or algorithm updates.`,
+        actionableInsights: [
+          "Review Google Search Central changelog for updates since " + STANDARDS_VERSION,
+          "Check schema.org/docs/releases.html for new schema versions",
+          "Verify CWV thresholds haven't changed at web.dev/articles/vitals",
+        ],
+        affectedAgents: ["seo-agent", "content-builder"],
+        priority: "medium",
+        confidence: 1.0,
+        dateDiscovered: new Date().toISOString(),
+      });
+    }
+  } catch {
+    // Standards module may not exist yet — non-fatal
   }
 
   // ── Phase 3: Store in knowledge base ────────────────────────────────

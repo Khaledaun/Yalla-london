@@ -3,6 +3,10 @@
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { SITES, getDefaultSiteId } from '@/config/sites'
+
+const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || 'yalla-london.com'
+const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
 
 const content = {
   en: {
@@ -51,7 +55,7 @@ const content = {
 
     questionsTitle: 'Questions?',
     questionsItems: [
-      'If you have any questions about our affiliate relationships or this disclosure, please contact us at hello@yallalondon.com.',
+      `If you have any questions about our affiliate relationships or this disclosure, please contact us at ${CONTACT_EMAIL}.`,
       'For more details on how we handle your data when you interact with affiliate links, please see our Privacy Policy.',
     ],
   },
@@ -102,7 +106,7 @@ const content = {
 
     questionsTitle: 'أسئلة؟',
     questionsItems: [
-      'إذا كانت لديك أي أسئلة حول علاقات الإحالة لدينا أو هذا الإفصاح، يرجى الاتصال بنا على hello@yallalondon.com.',
+      `إذا كانت لديك أي أسئلة حول علاقات الإحالة لدينا أو هذا الإفصاح، يرجى الاتصال بنا على ${CONTACT_EMAIL}.`,
       'لمزيد من التفاصيل حول كيفية تعاملنا مع بياناتك عند تفاعلك مع روابط الإحالة، يرجى الاطلاع على سياسة الخصوصية الخاصة بنا.',
     ],
   },

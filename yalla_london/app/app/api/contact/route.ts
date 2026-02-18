@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createRateLimit } from '@/lib/rate-limiting'
+import { getDefaultSiteId, getSiteConfig } from '@/config/sites'
 
 // Rate limiting for contact form
 const rateLimiter = createRateLimit({
@@ -40,6 +41,9 @@ function escapeHtml(text: string): string {
 async function sendEmail(data: ContactFormData) {
   // If SendGrid is configured
   if (process.env.SENDGRID_API_KEY) {
+    const _siteConfig = getSiteConfig(getDefaultSiteId());
+    const _siteDomain = _siteConfig?.domain || 'yalla-london.com';
+    const _siteName = _siteConfig?.name || 'Yalla London';
     const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
       headers: {
@@ -48,12 +52,12 @@ async function sendEmail(data: ContactFormData) {
       },
       body: JSON.stringify({
         personalizations: [{
-          to: [{ email: process.env.CONTACT_EMAIL || 'hello@yalla-london.com' }],
+          to: [{ email: process.env.CONTACT_EMAIL || `hello@${_siteDomain}` }],
           subject: `[${data.category}] ${data.subject}`
         }],
-        from: { 
-          email: process.env.FROM_EMAIL || 'noreply@yalla-london.com',
-          name: 'Yalla London Contact Form'
+        from: {
+          email: process.env.FROM_EMAIL || `noreply@${_siteDomain}`,
+          name: `${_siteName} Contact Form`
         },
         content: [{
           type: 'text/html',

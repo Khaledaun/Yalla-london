@@ -13,6 +13,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Mail, Phone, MapPin, Send, MessageSquare, Star } from 'lucide-react'
 import { toast } from 'sonner'
+import { SITES, getDefaultSiteId } from '@/config/sites'
+
+const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || 'yalla-london.com'
+const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
+const PRESS_EMAIL = `press@${SITE_DOMAIN}`
 
 interface ContactFormData {
   name: string
@@ -154,7 +159,7 @@ export default function ContactPage() {
                 <Mail className="h-5 w-5 text-yalla-gold-500 mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-medium">Email</h4>
-                  <p className="text-sm text-stone">hello@yalla-london.com</p>
+                  <p className="text-sm text-stone">{CONTACT_EMAIL}</p>
                   <p className="text-sm text-stone">For general inquiries</p>
                 </div>
               </div>
@@ -163,7 +168,7 @@ export default function ContactPage() {
                 <Star className="h-5 w-5 text-yalla-gold-500 mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-medium">Press & Partnerships</h4>
-                  <p className="text-sm text-stone">press@yalla-london.com</p>
+                  <p className="text-sm text-stone">{PRESS_EMAIL}</p>
                   <p className="text-sm text-stone">For media and collaboration</p>
                 </div>
               </div>

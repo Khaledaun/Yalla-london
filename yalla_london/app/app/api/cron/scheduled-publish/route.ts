@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 import { withCronLog } from "@/lib/cron-logger";
 import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
@@ -91,8 +91,17 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
               continue;
             }
           } catch (gateErr) {
-            // Gate check failed — publish anyway (fail open, not closed)
-            console.warn("[Scheduled Publish] Pre-pub gate error (non-fatal):", gateErr);
+            // Gate check failed — fail CLOSED: skip publish rather than risk broken content
+            console.warn(
+              `[Scheduled Publish] Pre-pub gate error for ${postData.slug} — skipping publish (fail closed):`,
+              gateErr
+            );
+            await prisma.scheduledContent.update({
+              where: { id: item.id },
+              data: { status: "failed" },
+            });
+            log.trackItem(false);
+            continue;
           }
         }
 
@@ -153,7 +162,7 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
           const url = `${siteUrl}/blog/${post.slug}`;
           await fetch(
             `https://api.indexnow.org/indexnow?url=${encodeURIComponent(url)}&key=${indexNowKey}`,
-          ).catch(() => {});
+          ).catch(err => console.warn(`[scheduled-publish] IndexNow submission failed for ${url}:`, err instanceof Error ? err.message : err));
         }
       }
     }
@@ -163,19 +172,24 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
       published: results,
       orphaned_drafts: orphanedDrafts.length,
     };
-  } catch {
+  } catch (err) {
+    console.warn("[scheduled-publish] Orphan check or IndexNow submission error:", err instanceof Error ? err.message : err);
     return {
       published_count: results.length,
       published: results,
     };
   }
-}, { maxDurationMs: 30_000 });
+}, { maxDurationMs: 53_000 });
 
 export const POST = withCronLog("scheduled-publish-manual", async (log) => {
   const { prisma } = await import("@/lib/db");
+  const { runPrePublicationGate } = await import(
+    "@/lib/seo/orchestrator/pre-publication-gate"
+  );
   const now = new Date();
 
   let published = 0;
+  const skipped: { id: string; slug: string; reason: string }[] = [];
 
   try {
     const dueContent = await prisma.scheduledContent.findMany({
@@ -192,7 +206,77 @@ export const POST = withCronLog("scheduled-publish-manual", async (log) => {
       if (log.isExpired()) break;
       if (!item.content_id) continue;
 
+      const siteId = item.site_id || getDefaultSiteId();
+      log.addSite(siteId);
+
       try {
+        // Fetch blog post content for quality gate check
+        const postData = await prisma.blogPost.findUnique({
+          where: { id: item.content_id },
+          select: {
+            id: true, slug: true, title_en: true, title_ar: true,
+            meta_title_en: true, meta_description_en: true,
+            content_en: true, content_ar: true, seo_score: true, tags: true,
+          },
+        });
+
+        if (!postData) {
+          console.warn(`[Scheduled Publish Manual] BlogPost ${item.content_id} not found — skipping`);
+          log.trackItem(false);
+          continue;
+        }
+
+        // Pre-publication gate: fail closed — don't publish if gate errors or blocks
+        try {
+          const siteUrl = getSiteDomain(siteId);
+          const gateResult = await runPrePublicationGate(
+            `/blog/${postData.slug}`,
+            {
+              title_en: postData.title_en || undefined,
+              title_ar: postData.title_ar || undefined,
+              meta_title_en: postData.meta_title_en || undefined,
+              meta_description_en: postData.meta_description_en || undefined,
+              content_en: postData.content_en || undefined,
+              content_ar: postData.content_ar || undefined,
+              tags: postData.tags || [],
+              seo_score: postData.seo_score || undefined,
+            },
+            siteUrl
+          );
+
+          if (!gateResult.allowed) {
+            const reason = gateResult.blockers.join("; ");
+            console.warn(
+              `[Scheduled Publish Manual] Pre-pub gate BLOCKED ${postData.slug}: ${reason}`
+            );
+            await prisma.scheduledContent.update({
+              where: { id: item.id },
+              data: { status: "failed" },
+            });
+            skipped.push({ id: postData.id, slug: postData.slug, reason });
+            log.trackItem(false);
+            continue;
+          }
+        } catch (gateErr) {
+          // Gate errored — fail CLOSED: skip publish rather than risk broken content
+          console.warn(
+            `[Scheduled Publish Manual] Pre-pub gate error for ${postData.slug} — skipping publish (fail closed):`,
+            gateErr
+          );
+          await prisma.scheduledContent.update({
+            where: { id: item.id },
+            data: { status: "failed" },
+          });
+          skipped.push({
+            id: postData.id,
+            slug: postData.slug,
+            reason: `Gate error: ${(gateErr as Error).message || "unknown"}`,
+          });
+          log.trackItem(false);
+          continue;
+        }
+
+        // Gate passed — publish
         await prisma.blogPost.update({
           where: { id: item.content_id },
           data: { published: true },
@@ -203,13 +287,14 @@ export const POST = withCronLog("scheduled-publish-manual", async (log) => {
         });
         published++;
         log.trackItem(true);
-      } catch {
+      } catch (err) {
+        console.error(`[Scheduled Publish Manual] Failed to process ${item.content_id}:`, err);
         log.trackItem(false);
       }
     }
-  } catch {
-    // non-fatal
+  } catch (err) {
+    console.warn("[scheduled-publish-manual] Query error (non-fatal):", err instanceof Error ? err.message : err);
   }
 
-  return { published_count: published };
-}, { maxDurationMs: 30_000 });
+  return { published_count: published, skipped_count: skipped.length, skipped };
+}, { maxDurationMs: 53_000 });

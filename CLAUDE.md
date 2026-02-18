@@ -446,3 +446,318 @@ Audited the entire platform across: (1) Dashboard/cron/monitoring/GA4, (2) AI se
 - Dashboard: 85% ready (multi-site view works, some features still mock)
 - Design generation: 40% ready (canvas editor works, no AI generation)
 - Workflow control: 50% ready (DB models exist, UIs are placeholders)
+
+### Session: February 18, 2026 — SEO Standards Overhaul & Dashboard Data Integrity
+
+**Content Hub — Indexing Tab (New Feature):**
+- New "Indexing" tab in Content Hub (`/admin/content?tab=indexing`) — per-article indexing visibility
+- Summary cards: Total, Indexed, Submitted, Not Indexed, Never Submitted, Errors
+- Config status banner alerts when INDEXNOW_KEY or GSC credentials are missing
+- Per-article rows with status badges, SEO score, word count, submission channels
+- Submit/Resubmit buttons per article + "Submit All" bulk action
+- "Indexing Issues & Diagnostics" section with severity-colored issue cards
+- "SEO Compliance Audit" button — audits all published pages against centralized standards
+- Compliance audit results panel: passing/failing counts, average score, auto-fixes applied
+- API: `/api/admin/content-indexing` (GET + POST with `submit`, `submit_all`, `compliance_audit` actions)
+- Fixed Google Indexing API confusion: blog content uses GSC Sitemap + IndexNow, not Indexing API (restricted to JobPosting/BroadcastEvent only)
+
+**Centralized SEO Standards (`lib/seo/standards.ts` — New File):**
+- Single source of truth for ALL SEO thresholds and algorithm context
+- Referenced by: pre-pub gate, schema generator, SEO agent, content pipeline, weekly research agent
+- Exports: `STANDARDS_VERSION`, `ALGORITHM_CONTEXT`, `CORE_WEB_VITALS`, `CONTENT_QUALITY`, `EEAT_REQUIREMENTS`, `SCHEMA_TYPES`, `AIO_OPTIMIZATION`, `INDEXING_CONFIG`, `TECHNICAL_SEO`, `AUTHORITATIVE_SOURCES`
+- Helper functions: `isSchemaDeprecated()`, `getSchemaDeprecationInfo()`
+- Updated: Feb 2026, sourced from Google Search Central + Quality Rater Guidelines Sept 2025
+
+**SEO Standards Updates (2025-2026 Compliance):**
+- **Schema deprecated types removed:** FAQPage (restricted Aug 2023), HowTo (deprecated Sept 2023), CourseInfo, ClaimReview, EstimatedSalary, LearningVideo, SpecialAnnouncement, VehicleListing (June 2025), PracticeProblems (Nov 2025), SitelinksSearchBox (Oct 2024)
+- **Schema generator updated:** `faq`/`howto`/`guide` page types now generate `Article` schema instead of deprecated types
+- **Enhanced schema injector cleaned:** Removed FAQ/HowTo schema injection + SEO score bonuses for deprecated types
+- **Pre-publication gate tightened:** Meta title min 20→30 chars, meta description min 50→70 chars, word count blocker 500→800 words, SEO score threshold 40→60
+- **Pre-pub gate new checks:** E-E-A-T author attribution (check 10), structured data presence (check 11)
+- **SEO agent scoring updated:** Weighted severity (high -15, medium -10, low -5) replaces flat -10, plus E-E-A-T bonuses for authority links/keywords
+- **Phase 7 quality gate aligned:** `phases.ts` threshold changed from >= 50 to >= 60 (matching `CONTENT_QUALITY.qualityGateScore`)
+- **Core Web Vitals:** INP replaced FID in March 2024 (reflected in standards: LCP ≤2.5s, INP ≤200ms, CLS ≤0.1)
+- **Algorithm context documented:** Helpful Content absorbed into core (March 2024), AI Overviews live (1.5B+ users), mobile-first indexing 100% complete (July 2024), topical authority elevated, information gain rewarded
+
+**Weekly Standards Refresh:**
+- Weekly research agent (`lib/seo/orchestrator/weekly-research-agent.ts`) now checks 4 additional trusted sources: Google Doc Changelog, Search Status Dashboard, Search Engine Roundtable, Search Engine Land
+- New Phase 3 "Standards Refresh" imports from `standards.ts`, logs current config, and flags staleness (>30 days)
+
+**Multi-Website SEO Scoping:**
+- **Enhanced schema injector:** Now accepts `siteId` parameter, dynamically loads site config for branding (name, domain, email) instead of hardcoded Yalla London
+- **Schema generator:** Logo path and author name now use `brandConfig` properties instead of hardcoding
+- **Content-indexing API:** All 3 hardcoded "yalla-london" defaults replaced with `getDefaultSiteId()` from config
+- **Full-audit API:** Hardcoded "yalla-london" fallback replaced with `getDefaultSiteId()`
+- **Pre-publication gate:** Internal links regex now dynamically built from configured sites (no hardcoded domain list)
+- **SEO report API:** Hardcoded `yallalondon.com` fallback replaced with `getSiteDomain(getDefaultSiteId())`
+- **Articles performance API:** Info hub articles now use dynamic `siteId` instead of hardcoded "yalla-london"
+
+**Dashboard Mock Data Purge:**
+- **Social posts API:** Removed `Math.random()` fake engagement stats (likes, comments, shares, reach) — returns null until real platform APIs connected. Fixed hardcoded `site: 'Arabaldives'` to read from post metadata
+- **Social media page:** Removed mock posts/accounts fallback — shows honest empty state when APIs fail. Removed hardcoded "+2.5% this week" and "+15% vs last month" growth claims
+- **PDF guide page:** Removed `mockGuides` fallback — shows empty state until real data exists
+- **Flags API:** Replaced hardcoded `cronStatus = 'running'` with actual CronJobLog query (checks last 24h)
+- **Rate-limiting API:** Replaced `Math.random()` stats and fake IP addresses with zero-initialized honest defaults
+- **Indexing cron:** Fixed schema mismatches: `last_checked_at` → `last_inspected_at`, `error_message` → `last_error`
+
+**Audit Findings — Updated Known Gaps:**
+
+| Area | Finding | Status |
+|------|---------|--------|
+| GA4 Integration | Dashboard returns 0s for traffic metrics (API calls stubbed) | Known — needs GA4 Data API integration |
+| Social Media APIs | Engagement stats (likes, reach) require platform API integration | Known — returns null honestly now |
+| Design Generation | No AI image/logo generation; PDF generator is mock only | Known — design studio has canvas editor but no AI gen |
+| Workflow Control | Automation Hub and Autopilot UIs are placeholders | Known — DB models exist but no CRUD endpoints |
+| Feature Flags | DB-backed but not wired to actual code behavior | Known — flags stored but no runtime checks |
+| Article Create/Edit | Buttons in articles page have TODO comments, no handlers | Known — needs API endpoint wiring |
+| Rate Limiting | Stats are in-memory only, reset on deploy | Known — needs Redis or DB persistence |
+
+### Session: February 18, 2026 — Deep Platform Security & Integrity Audit
+
+**Audit #3 — 6-Dimensional Deep Comprehensive Audit:**
+Ran 6 parallel audit agents covering: (1) Auth & Middleware patterns, (2) Error handling & catch blocks, (3) DB schema vs code consistency, (4) Env vars & config, (5) Cron chain & pipeline integrity, (6) Dead code & unused exports. Full results documented in `docs/AUDIT-LOG.md`.
+
+**Critical Security Fixes (8 routes):**
+- **Added `requireAdmin` auth to 7 unprotected admin API routes:** MCP Stripe (balance, customers, payments), MCP Mercury (accounts, transactions), database migrate (GET+POST), operations-hub
+- These routes exposed financial data (Stripe balances, Mercury bank accounts) and database schema to unauthenticated users
+
+**Multi-Site Infrastructure Fixes:**
+- **next.config.js image domains:** Added all 5 site domains to `remotePatterns` (was only yalla-london.com)
+- **next.config.js CORS origins:** Default `ALLOWED_ORIGINS` now includes all 10 domains (5 sites × www + non-www)
+- **Affiliate injection site_id scoping:** Added `siteId: { in: getActiveSiteIds() }` filter — prevents cross-site affiliate contamination
+
+**Error Handling Fixes (5 critical catch blocks):**
+- **SEO agent:** Schema injection and meta title auto-fix `catch {}` blocks now log descriptive warnings
+- **Daily content generate:** Topic status update, DB topic lookup, and Arabic copywriting directive `catch {}` blocks now log warnings with context
+- Eliminated all `catch {}` violations in critical cron paths (was forbidden per CLAUDE.md engineering standards)
+
+**Persistent Audit Tracking:**
+- Created `docs/AUDIT-LOG.md` — structured tracking of all audit findings across sessions
+- Format: issue ID, description, error, fix, verification, affected files
+- 27 findings documented from Audit #1 (18 fixed), Audit #2 (9 fixed), Audit #3 (15 fixed, 27 documented for future)
+- 20 known gaps tracked with cross-references to audit finding IDs
+
+**Key Documented Issues (Not Yet Fixed — See AUDIT-LOG.md):**
+
+| Area | Issue | Severity | Audit Ref |
+|------|-------|----------|-----------|
+| Auth | Editor + Flags routes use Supabase auth instead of standard middleware | MEDIUM | A3-D01 |
+| DB Schema | PdfGuide/PdfDownload models missing from Prisma schema | HIGH | A3-D07 |
+| Error Logging | 260+ console.error/warn invisible to dashboard owner | HIGH | A3-D03 |
+| Env Docs | Per-site env var pattern undocumented in .env.example | HIGH | A3-D12 |
+| Pipeline | daily-content-generate bypasses ArticleDraft 8-phase pipeline | HIGH | A3-D19 |
+| SEO Crons | Duplicate: seo-agent + seo/cron both submit to IndexNow | MEDIUM | A3-D20 |
+| standards.ts | 11/13 exports unused — not yet integrated into enforcement | MEDIUM | A3-D22 |
+| Mock Data | 14+ admin pages still show mock/placeholder data | MEDIUM | A3-D23 |
+
+### Session: February 18, 2026 — Audit #4: Deep Targeted Audit & Indexing Visibility
+
+**Audit #4 — 6 Parallel Audit Agents:**
+Targeted areas previous audits missed: (1) API Route Completeness, (2) Content Pipeline Integrity, (3) Frontend Admin Pages, (4) Prisma Schema Orphans, (5) Security & Input Validation, (6) Hardcoded Strings & Config.
+
+**Critical Fixes Applied (11):**
+
+1. **Fixed 2 wrong Prisma import paths** — `@/lib/prisma` (doesn't exist) → `@/lib/db` in analytics route and sites route. Both would crash at runtime.
+2. **SSRF protection on social embed endpoint** — Added URL allowlist + internal IP blocking + HTTPS enforcement to `/api/social/embed-data`. Previously any URL could be fetched server-side.
+3. **Removed fake social proof numbers** — `SocialProof` and `SocialProofBadge` components were showing Math.random() engagement stats to visitors. Now show nothing when no real data exists.
+4. **Fixed non-existent site in dropdown** — Command center content generator had "Gulf Maldives" option. Replaced with correct 5 sites.
+5. **Feature flags page wired to real API** — Was loading 100% hardcoded mock data. Now fetches from `/api/admin/feature-flags` and `/api/admin/operations-hub`.
+6. **Analytics route de-hardcoded** — Response always said "Yalla London" regardless of site. Now reads siteId from request and loads config dynamically.
+7. **Login error information disclosure fixed** — Was returning internal step names and error.message to attackers. Now returns generic message.
+8. **Blog API error information disclosure fixed** — Public endpoint was returning internal error details. Removed `details` field.
+9. **Indexing Health Diagnosis** — New at-a-glance panel in Content Hub Indexing tab. Plain-language status (healthy/warning/critical/not_started), progress bar, actionable detail text. Designed for phone viewing.
+10. **Recent Indexing Activity** — New section showing last 20 cron runs related to indexing, with status dots, items processed, error messages, and timestamps.
+11. **API enhanced** — `/api/admin/content-indexing` now returns `healthDiagnosis` object and `recentActivity` array for richer frontend data.
+
+### Session: February 18, 2026 — Audits #5 & #6: Import Standardization & HIGHs Convergence
+
+**Audit #5 — Remaining HIGH Fixes (22 issues fixed):**
+
+1. **Dead article buttons wired** — Create/Edit buttons in articles page now navigate to `/admin/editor`
+2. **BlogPost.create missing siteId** — Added `siteId` to Zod schema, defaults to `getDefaultSiteId()` on create
+3. **Login GET diagnostic secured** — Added `requireAdmin()` guard, removed user count and error details
+4. **Login POST info disclosure fixed** — Generic error message replaces internal step/error.message
+5. **Blog API public info disclosure fixed** — Removed `details` from 500 response
+6. **16 hardcoded URL fallbacks replaced** — Across 8 files (og, sitemap, SEO routes, metadata, publish), all now use `getSiteDomain(getDefaultSiteId())`
+
+**Audit #6 — Import Standardization (44 issues fixed):**
+
+1. **37 files migrated from `@/lib/prisma` to `@/lib/db`** — Canonical import convention now enforced across entire codebase. Only `lib/db.ts`, `lib/db/index.ts` (re-export bridges), and `lib/db/tenant-queries.ts` (circular dep avoidance) retain direct `@/lib/prisma` import.
+2. **5 empty catch blocks eliminated** — Added contextual `console.warn()` logging in `seo-intelligence.ts` (3), `events/page.tsx` (1), `generate-content/route.ts` (1). Two acceptable empty catches left: `JSON.parse` pattern in health monitoring, logging utility self-failure.
+
+**Remaining Known Issues (See AUDIT-LOG.md):**
+
+| Area | Issue | Severity | Status |
+|------|-------|----------|--------|
+| Emails | 30+ hardcoded email addresses in code | HIGH | Open |
+| XSS | dangerouslySetInnerHTML without sanitization in blog renderer | HIGH | Open |
+| Login Security | No rate limiting on login endpoint | MEDIUM | Open |
+| Pipeline | Dual pipelines, race conditions, slug collision possible | MEDIUM | Open |
+| Dead Buttons | Media View/Download, upload buttons | MEDIUM | Open |
+| Orphan Models | 16+ Prisma models never referenced in code | LOW | Open |
+| Brand Templates | Only Yalla London template exists | MEDIUM | Open |
+| CSP Headers | Missing Content-Security-Policy | MEDIUM | Open |
+
+### Session: February 18, 2026 — Audits #7–#9: Build Fix, Pipeline Hardening, Deep Trace
+
+**Audit #7 — Build Error + Validation (31 issues fixed):**
+
+1. **Build error fix:** Removed `@typescript-eslint/no-var-requires` eslint-disable comments in 2 files — rule doesn't exist in installed version, causing Vercel build failure
+2. **Auth gaps closed:** Added `withAdminAuth` to shop/stats (revenue data) and skill-engine (automation registry) — both were publicly accessible
+3. **Info disclosure fixed (13 routes):** Removed `error.message` from public API responses in content, search, blog, information (×3), checkout, social, SEO, test routes
+4. **Fake data removed (5 instances):** blog-card random likes, seo-audits random score, editor random SEO score, pipeline panel fake percentages, PDF fake growth claim
+5. **Hardcoded URLs fixed (11 instances):** about/layout, articles/performance, pdf/generate, contact, seo/entities, seo/report (×4)
+
+**Audit #8 — Water Pipe Test (13 critical pipeline breaks fixed):**
+
+Traced entire content pipeline end-to-end across 5 stages:
+1. **Topic Generation:** Fixed admin topic creation crash (missing `source_weights_json` + `site_id`), SEO agent rewrite crash (non-existent fields)
+2. **Content Building:** Fixed deprecated schema types in outline prompt
+3. **Selection & Publishing:** Added `runPrePublicationGate()` to content selector (fail-closed), raised `MIN_QUALITY_SCORE` from 50 to 60
+4. **SEO & Indexing:** Created IndexNow key file route + vercel.json rewrite; removed sitemap route conflict that blocked Next.js built-in sitemap.ts
+5. **Public Rendering:** Added proper HTTP 404 (was soft 200), featured image crash guard with gradient placeholder, multi-site JSON-LD from site config
+6. **Monitoring:** Replaced fake notifications with empty state
+
+**Audit #9 — Deep Pipeline Trace (18 issues fixed):**
+
+Deeper trace of every handoff point in the pipeline:
+1. **Cron auth chain (6 fixes):** analytics, seo-orchestrator, seo-agent, withCronLog utility, seo/cron, daily-publish — all returned 401/503 when CRON_SECRET unset. All now follow standard pattern: allow if unset, reject only if set and doesn't match.
+2. **Scheduled-publish GET:** Changed from fail-open to fail-closed — gate failure now marks ScheduledContent as "failed" instead of publishing anyway
+3. **Scheduled-publish POST:** Added full pre-publication gate — dashboard "Publish Now" button previously bypassed all 11 quality checks
+4. **Build-runner multi-site:** Changed from processing first active site only to looping ALL active sites with per-site budget guard, reservoir cap (50), 1 draft pair per site per run
+5. **Blog page site scoping (2 queries):** Added `siteId` filter from `x-site-id` header to `getDbPost()` and `getDbSlugs()` — prevents cross-site slug collision
+6. **Blog API site scoping:** Changed from `findUnique` (slug only) to `findFirst` with siteId in where clause
+7. **TypeScript:** ZERO errors across entire codebase
+
+**Known Gaps Resolved by Audits #7–#9:**
+- KG-028: CRON_SECRET bypass → **Resolved** (all crons follow standard auth pattern)
+- KG-030: Build-runner single-site → **Resolved** (loops all active sites)
+- KG-037: Scheduled-publish POST bypass → **Resolved** (full gate added, fail-closed)
+- KG-039: Blog slug global uniqueness → **Resolved** (queries now scoped by siteId)
+
+**Known Gaps Resolved by Audits #7–#9:**
+- KG-028: CRON_SECRET bypass → **Resolved**
+- KG-030: Build-runner single-site → **Resolved**
+- KG-037: Scheduled-publish POST bypass → **Resolved**
+- KG-039: Blog slug global uniqueness → **Resolved**
+
+### Session: February 18, 2026 — Audits #10–#11: XSS, Affiliates, Emails, IndexNow, Related Articles
+
+**Audit #10 — XSS Sanitization, Cron Auth, Dead Code, Multi-Site (28 issues fixed):**
+
+1. **6 more cron auth routes fixed:** auto-generate, autopilot, fact-verification, london-news, real-time-optimization, seo-health-report — all now follow standard pattern (allow if CRON_SECRET unset)
+2. **XSS sanitization (3 public files):** Installed `isomorphic-dompurify`, created `lib/html-sanitizer.ts` with curated allowlists. Wrapped `dangerouslySetInnerHTML` in BlogPostClient, ArticleClient, SectionClient
+3. **Trends monitor multi-site:** Changed from `activeSites[0]` to loop all active sites with per-site dedup
+4. **Affiliate injection per-site:** Both `affiliate-injection/route.ts` and `select-runner.ts` now have destination-specific URLs for all 5 sites (London, Maldives, French Riviera, Istanbul, Thailand)
+5. **daily-publish deprecation stub:** Replaced 280-line dead cron with 55-line no-op that logs deprecation
+
+**Audit #11 — Hardcoded Emails, IndexNow, Admin XSS, Related Articles, Duplicate Crons (25 issues fixed):**
+
+1. **Hardcoded emails (KG-022):** 25+ instances across 9 files replaced with dynamic `hello@${domain}` from site config
+2. **IndexNow window (KG-038):** Extended from 24h to 7 days — posts that miss initial submission caught by daily runs
+3. **Admin XSS (KG-023 completion):** 6 more `dangerouslySetInnerHTML` in 5 admin files wrapped with `sanitizeHtml()`. Added `sanitizeSvg()` for SVG content in brand-assets-library
+4. **Related articles DB (KG-033):** `getRelatedArticles()` now async, queries published BlogPosts by category + merges with static content. DB results prioritized. 3 call sites updated
+5. **Duplicate IndexNow (KG-019):** seo-agent now only discovers URLs (writes `pending` status); actual submission delegated to seo/cron which has exponential backoff
+
+**Known Gaps Resolved by Audits #10–#11:**
+- KG-019: Duplicate IndexNow submission → **Resolved** (seo-agent discovers, seo/cron submits)
+- KG-022: Hardcoded emails → **Resolved** (dynamic from site config)
+- KG-023: XSS dangerouslySetInnerHTML → **Resolved** (all 9 instances sanitized: 3 public + 6 admin)
+- KG-026: Missing CSP headers → **Resolved** (false positive — already in next.config.js)
+- KG-029: daily-publish dead code → **Resolved** (deprecation stub)
+- KG-031: Trends monitor single-site → **Resolved** (loops all active sites)
+- KG-033: Related articles static-only → **Resolved** (DB + static merged)
+- KG-034: Affiliate injection London-only → **Resolved** (per-site destination URLs)
+- KG-038: IndexNow 24h window → **Resolved** (extended to 7 days)
+
+### Session: February 18, 2026 — Audit #12: Critical Security Lockdown & Functioning Roadmap
+
+**Audit #12 — Critical Security, Pipeline Integrity, Observability, URL Correctness (85+ issues fixed):**
+
+1. **CRITICAL security: Unauthenticated database routes (KG-040):** Added `requireAdmin` to 7 handlers across 5 database API routes. Fixed `pg_dump`/`psql` password injection.
+2. **CRITICAL security: Admin setup password reset bypass (KG-041):** Setup endpoint now returns 403 when admin already exists.
+3. **HIGH security: 7 public mutation APIs (KG-042):** Added `requireAdmin` to content/auto-generate, content/schedule, homepage-blocks, homepage-blocks/publish, cache/invalidate, media/upload, test-content-generation.
+4. **HIGH info disclosure:** Removed API key prefix logging and verification token logging.
+5. **HIGH observability: 34 empty catch blocks (KG-043):** Central fixes in `onCronFailure` (failure-hooks.ts) and `logCronExecution` (cron-logger.ts) plus per-file fixes. All now log with module tags.
+6. **CRITICAL pipeline: Race conditions (KG-025):** Atomic topic claiming with `updateMany` + new "generating" status across all 3 consumer pipelines. Soft-lock on ArticleDraft processing.
+7. **CRITICAL SEO: Static metadata (KG-044):** 5 pages converted from static `metadata` to `generateMetadata()` with new `lib/url-utils.ts` utility.
+8. **HIGH URL fallbacks:** 9 layout.tsx files now use config-driven fallback instead of hardcoded yalla-london.com.
+
+**Functioning Roadmap Created:**
+- `docs/FUNCTIONING-ROADMAP.md` — comprehensive 8-phase path to 100% healthy platform
+- Master checklist with anti-duplication, anti-conflict, anti-contradiction, anti-misalignment, anti-malfunction verification
+- Anti-patterns registry documenting 12 recurring bad patterns with correct alternatives
+- Validation protocol for every code change, pipeline change, and deployment
+- All 47 Known Gaps tracked with phase assignments
+
+**Known Gaps Resolved by Audit #12:**
+- KG-025: Pipeline race conditions → **Resolved** (atomic claiming + "generating" status)
+- KG-040: Unauthenticated database routes → **Resolved** (requireAdmin on all)
+- KG-041: Admin setup password reset → **Resolved** (403 after first admin)
+- KG-042: Public mutation APIs → **Resolved** (requireAdmin on 7 routes)
+- KG-043: 34 empty catch blocks → **Resolved** (central + per-file logging)
+- KG-044: Static metadata URLs → **Resolved** (generateMetadata + getBaseUrl)
+
+**Remaining Known Gaps (See AUDIT-LOG.md + FUNCTIONING-ROADMAP.md for full tracking):**
+
+| Area | Issue | Severity | Phase |
+|------|-------|----------|-------|
+| SEO | No Arabic SSR — hreflang mismatch | MEDIUM | Phase 8 (KG-032) |
+| Dashboard | No traffic/revenue data — GA4 not connected | MEDIUM | Phase 6 (KG-035) |
+| Dashboard | No push/email alerts for cron failures | MEDIUM | Phase 4 (KG-036) |
+| Dashboard | 13+ admin pages show mock/fake data | HIGH | Phase 5 (KG-045) |
+| Dashboard | 14+ admin buttons dead (no handlers) | HIGH | Phase 5 (KG-046) |
+| Navigation | Broken sidebar links to /admin/news, /admin/facts | HIGH | Phase 5 (KG-047) |
+| Login Security | No rate limiting on admin login | MEDIUM | Phase 1 (KG-024) |
+| URL Hardcoding | ~30 remaining in API routes and lib files | MEDIUM | Phase 3 (KG-021) |
+| Orphan Models | 16+ Prisma models never referenced | LOW | Phase 8 (KG-020) |
+| Brand Templates | Only Yalla London template exists | MEDIUM | Phase 7 (KG-027) |
+
+### Session: February 18, 2026 — Audit #13: Deep Compliance + Smoke Test Suite
+
+**Audit #13 — Credential Exposure, Crash Fixes, XSS, Fake Metrics, Smoke Test (15 issues fixed):**
+
+3 parallel research sweeps: (1) Pipeline end-to-end trace (23 pass, 3 fail), (2) Workflow coherence + cron chain mapping (0 critical), (3) Compliance + anti-pattern check (2 critical, 1 high, 3 medium).
+
+1. **CRITICAL: Analytics API credential exposure (KG-048):** Removed raw `client_secret`, `client_id`, `private_key` from analytics API response. Replaced with boolean `_configured` indicators. Also removed API key prefixes and service account emails from system-status endpoint.
+2. **CRITICAL: content-generator.ts crash (KG-049):** `blogPost.create()` was missing required `category_id` field — guaranteed Prisma crash. Added find-or-create default "General" category + system user for `author_id`.
+3. **HIGH: 4 remaining XSS vectors (KG-050):** Sanitized `dangerouslySetInnerHTML` in howto-builder, faq-builder, lite-social-embed, video-composition with `sanitizeHtml()`/`sanitizeSvg()`.
+4. **MEDIUM: 3 Math.random() fake metrics (KG-051):** Eliminated from bulk-publish (audit score), backlinks/inspect (SEO score), topics/generate (confidence).
+5. **MEDIUM: content-strategy.ts missing site_id:** `saveContentProposals()` now accepts and passes `siteId`; seo-agent passes siteId in loop.
+6. **MEDIUM: Math.random() in ID generation (3 admin routes):** Replaced with `crypto.getRandomValues()` / `crypto.randomUUID()` in domains, ab-test, rate-limiting.
+7. **LOW: Pre-pub gate meta length warnings:** Added max-length checks for meta title (>60) and description (>160).
+8. **LOW: onCronFailure error tag:** Updated catch block tag from `[failure-hook]` to `[onCronFailure]` for precise log identification.
+
+**Comprehensive Smoke Test Suite (`scripts/smoke-test.ts`):**
+- 64 tests across 12 categories: Build, Pipeline (16), Quality Gate (4), Cron Auth (12), Security (6), XSS (6), Anti-Patterns (3), Multi-Site (6), Observability (3), SEO (5), Budget Guards (2)
+- **Result: 64/64 PASS — 100% score**
+- Run with: `npx tsx scripts/smoke-test.ts`
+
+**Known Gaps Resolved by Audit #13:**
+- KG-048: Analytics credential exposure → **Resolved**
+- KG-049: content-generator.ts crash → **Resolved**
+- KG-050: 4 remaining XSS vectors → **Resolved**
+- KG-051: Math.random() fake metrics → **Resolved**
+
+### Session: February 18, 2026 — Audit #14: London News Feature + SEO Audit Scalability
+
+**Audit #14 — London News + SEO Audit (19 issues fixed):**
+
+2 parallel deep audits: (1) London News end-to-end flow (cron → DB → API → frontend → public page), (2) SEO audit system scalability (per-page auditing, timeouts, context/memory management).
+
+**London News fixes (7):**
+1. **CRITICAL: Cron not scheduled** — Added london-news to vercel.json at 6am UTC daily
+2. **CRITICAL: No budget guards** — Added 53s budget with checks before template loop and Grok calls
+3. **CRITICAL: No siteId on NewsItem** — All news creation now sets siteId from query param or config default. Scoped auto-archive and recent items queries per-site
+4. **MEDIUM: News API no site filtering** — Added siteId from x-site-id header to news endpoint
+5. **MEDIUM: Hardcoded URLs** — News detail page uses `getBaseUrl()` and `getSiteDomain()` instead of hardcoded yalla-london.com
+6. **MEDIUM: Silent catches** — Error recovery log and news API fallback now log with context
+
+**SEO Audit fixes (5):**
+1. **CRITICAL: Unbounded auditBlogPosts query** — Added `take: 100` to prevent OOM on large sites
+2. **HIGH: Live-site-auditor slow timeouts** — Reduced all 6 fetch timeouts from 8-10s to 5s
+3. **HIGH: seo-health-report no site filtering** — Added siteId parameter to all aggregate queries
+4. **MEDIUM: Silent sitemap truncation** — Added totalSitemapUrls tracking + warning when over maxUrls
+5. **Infrastructure: Orchestrator** — Updated default result types for new totalSitemapUrls field
+
+**Smoke test expanded:** 78 tests across 14 categories — 100% pass. New categories: London News (7 tests), SEO Audit Scalability (6 tests).

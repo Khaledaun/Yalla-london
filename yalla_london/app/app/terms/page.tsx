@@ -3,6 +3,10 @@
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { SITES, getDefaultSiteId } from '@/config/sites'
+
+const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || 'yalla-london.com'
+const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
 
 const content = {
   en: {
@@ -94,7 +98,7 @@ const content = {
     newsletterItems: [
       'By entering your email address and subscribing, you consent to receiving periodic emails from Yalla London. These may include curated London recommendations, new article announcements, event highlights, seasonal guides, exclusive content, and occasional promotional messages',
       'We send newsletters no more than twice per week. We respect your inbox and aim to deliver only content that adds value to your London experience',
-      'You may unsubscribe at any time by clicking the "unsubscribe" link at the bottom of any newsletter email, or by contacting us at hello@yallalondon.com. Your email address will be removed from our mailing list within 7 days of your request',
+      `You may unsubscribe at any time by clicking the "unsubscribe" link at the bottom of any newsletter email, or by contacting us at ${CONTACT_EMAIL}. Your email address will be removed from our mailing list within 7 days of your request`,
       'We do not sell, rent, or share your email address with third parties for their marketing purposes. Your email is shared only with our email service provider for the sole purpose of delivering the newsletters you subscribed to',
       'Please refer to our Privacy Policy for full details on how we handle your email address and personal data',
     ],
@@ -120,7 +124,7 @@ const content = {
     contactTitle: 'Contact Us',
     contactIntro: 'If you have questions about these Terms of Use, need to request permission for content use, or have any other inquiries, please contact us:',
     contactItems: [
-      'Email: hello@yallalondon.com',
+      `Email: ${CONTACT_EMAIL}`,
       'Location: London, United Kingdom',
       'We aim to respond to all inquiries within 48 hours during business days',
       'For intellectual property or content licensing inquiries, please include "IP Inquiry" in your email subject line to help us route your request appropriately',
@@ -216,7 +220,7 @@ const content = {
     newsletterItems: [
       'بإدخال عنوان بريدك الإلكتروني والاشتراك، فإنك توافق على تلقي رسائل بريد إلكتروني دورية من يلا لندن. قد تشمل هذه توصيات لندن المختارة وإعلانات المقالات الجديدة وأبرز الفعاليات والأدلة الموسمية والمحتوى الحصري ورسائل ترويجية عرضية',
       'نرسل النشرات الإخبارية مرتين في الأسبوع كحد أقصى. نحترم بريدك الوارد ونهدف لتقديم محتوى يضيف قيمة لتجربتك في لندن فقط',
-      'يمكنك إلغاء الاشتراك في أي وقت بالنقر على رابط "إلغاء الاشتراك" في أسفل أي بريد إلكتروني للنشرة، أو بالاتصال بنا على hello@yallalondon.com. ستتم إزالة عنوان بريدك الإلكتروني من قائمتنا البريدية خلال 7 أيام من طلبك',
+      `يمكنك إلغاء الاشتراك في أي وقت بالنقر على رابط "إلغاء الاشتراك" في أسفل أي بريد إلكتروني للنشرة، أو بالاتصال بنا على ${CONTACT_EMAIL}. ستتم إزالة عنوان بريدك الإلكتروني من قائمتنا البريدية خلال 7 أيام من طلبك`,
       'لا نبيع أو نؤجر أو نشارك عنوان بريدك الإلكتروني مع أطراف ثالثة لأغراضهم التسويقية. يُشارك بريدك الإلكتروني فقط مع مزود خدمة البريد الإلكتروني لدينا لغرض وحيد هو تسليم النشرات الإخبارية التي اشتركت فيها',
       'يرجى الرجوع إلى سياسة الخصوصية الخاصة بنا للحصول على التفاصيل الكاملة حول كيفية تعاملنا مع عنوان بريدك الإلكتروني وبياناتك الشخصية',
     ],
@@ -242,7 +246,7 @@ const content = {
     contactTitle: 'اتصل بنا',
     contactIntro: 'إذا كانت لديك أسئلة حول شروط الاستخدام هذه، أو تحتاج إلى طلب إذن لاستخدام المحتوى، أو لديك أي استفسارات أخرى، يرجى الاتصال بنا:',
     contactItems: [
-      'البريد الإلكتروني: hello@yallalondon.com',
+      `البريد الإلكتروني: ${CONTACT_EMAIL}`,
       'الموقع: لندن، المملكة المتحدة',
       'نهدف للرد على جميع الاستفسارات خلال 48 ساعة خلال أيام العمل',
       'لاستفسارات الملكية الفكرية أو ترخيص المحتوى، يرجى تضمين "استفسار ملكية فكرية" في سطر موضوع بريدك الإلكتروني لمساعدتنا في توجيه طلبك بشكل مناسب',

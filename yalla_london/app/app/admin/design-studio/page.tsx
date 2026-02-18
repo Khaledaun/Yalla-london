@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
+import { sanitizeHtml } from "@/lib/html-sanitizer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -416,7 +417,7 @@ function TemplatesTab({
           <CardContent>
             <div
               className="border rounded-lg overflow-auto max-h-[600px] bg-white"
-              dangerouslySetInnerHTML={{ __html: generatedHtml }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(generatedHtml || '') }}
             />
           </CardContent>
         </Card>
@@ -674,7 +675,7 @@ function SimilarDesignTab({
               <CardContent>
                 <div
                   className="border rounded-lg overflow-auto max-h-[500px] bg-white"
-                  dangerouslySetInnerHTML={{ __html: resultHtml }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(resultHtml || '') }}
                 />
               </CardContent>
             </Card>

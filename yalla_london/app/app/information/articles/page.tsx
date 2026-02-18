@@ -4,6 +4,8 @@ import {
   informationCategories,
 } from "@/data/information-hub-content";
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
+import { getBaseUrl } from "@/lib/url-utils";
+import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
 import ArticleListClient from "./ArticleListClient";
 
 // Combine all information articles
@@ -12,63 +14,67 @@ const informationArticles = [...baseArticles, ...extendedInformationArticles];
 // ISR: Revalidate article listing every 10 minutes for Cloudflare edge caching
 export const revalidate = 600;
 
-// Static metadata for SEO
-export const metadata: Metadata = {
-  title:
-    "Travel Articles | Yalla London Information Hub",
-  description:
-    "Browse our comprehensive collection of travel articles for Arab visitors to London. Find guides on planning, transport, dining, attractions, family activities, and practical tips for your London trip.",
-  keywords:
-    "london travel articles, arab visitors london, london guide, halal travel london, london information hub, london planning tips, london attractions, london transport guide",
-  alternates: {
-    canonical: "https://www.yalla-london.com/information/articles",
-    languages: {
-      "en-GB": "https://www.yalla-london.com/information/articles",
-      "ar-SA": "https://www.yalla-london.com/ar/information/articles",
-    },
-  },
-  openGraph: {
-    title: "Travel Articles | Yalla London Information Hub",
+// Dynamic metadata for SEO — resolves base URL from request context
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = await getBaseUrl();
+
+  return {
+    title:
+      "Travel Articles | Yalla London Information Hub",
     description:
-      "Comprehensive travel articles and guides for Arab visitors to London. Planning tips, transport guides, dining recommendations, and insider knowledge.",
-    url: "https://www.yalla-london.com/information/articles",
-    siteName: "Yalla London",
-    locale: "en_GB",
-    alternateLocale: "ar_SA",
-    type: "website",
-    images: [
-      {
-        url: "https://www.yalla-london.com/images/information-hub-og.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Yalla London Information Hub - Travel Articles for Arab Visitors",
+      "Browse our comprehensive collection of travel articles for Arab visitors to London. Find guides on planning, transport, dining, attractions, family activities, and practical tips for your London trip.",
+    keywords:
+      "london travel articles, arab visitors london, london guide, halal travel london, london information hub, london planning tips, london attractions, london transport guide",
+    alternates: {
+      canonical: `${baseUrl}/information/articles`,
+      languages: {
+        "en-GB": `${baseUrl}/information/articles`,
+        "ar-SA": `${baseUrl}/ar/information/articles`,
       },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    site: "@yallalondon",
-    title: "Travel Articles | Yalla London Information Hub",
-    description:
-      "Comprehensive travel articles and guides for Arab visitors to London",
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+    },
+    openGraph: {
+      title: "Travel Articles | Yalla London Information Hub",
+      description:
+        "Comprehensive travel articles and guides for Arab visitors to London. Planning tips, transport guides, dining recommendations, and insider knowledge.",
+      url: `${baseUrl}/information/articles`,
+      siteName: "Yalla London",
+      locale: "en_GB",
+      alternateLocale: "ar_SA",
+      type: "website",
+      images: [
+        {
+          url: `${baseUrl}/images/information-hub-og.jpg`,
+          width: 1200,
+          height: 630,
+          alt: "Yalla London Information Hub - Travel Articles for Arab Visitors",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: "@yallalondon",
+      title: "Travel Articles | Yalla London Information Hub",
+      description:
+        "Comprehensive travel articles and guides for Arab visitors to London",
+    },
+    robots: {
       index: true,
       follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
     },
-  },
-};
+  };
+}
 
 // Generate structured data for the article listing
 function generateStructuredData() {
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
 
   const blogSchema = {
     "@context": "https://schema.org",

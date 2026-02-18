@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
+import { getBaseUrl } from "@/lib/url-utils";
+import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
 import { getRelatedArticles } from "@/lib/related-content";
 import NewsDetailClient from "./NewsDetailClient";
 
@@ -239,8 +241,7 @@ async function getNewsItem(slug: string): Promise<SeedItem | null> {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const slug = resolvedParams.slug;
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  const baseUrl = await getBaseUrl();
 
   const item = await getNewsItem(slug);
 
@@ -326,7 +327,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function generateStructuredData(item: SeedItem) {
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || `https://www.${getSiteDomain(getDefaultSiteId())}`;
 
   const newsArticleSchema = {
     "@context": "https://schema.org",
@@ -390,27 +391,27 @@ function generateStructuredData(item: SeedItem) {
 // Related articles helper
 // ---------------------------------------------------------------------------
 
-function resolveRelatedArticles(item: SeedItem) {
+async function resolveRelatedArticles(item: SeedItem) {
   const relatedSlugs = item.related_article_slugs ?? [];
 
   if (relatedSlugs.length > 0) {
     // For each slug in related_article_slugs, try to resolve as blog first,
     // then information. Build RelatedArticleData objects.
-    const resolved = relatedSlugs
-      .map((articleSlug) => {
-        // Try blog
-        const blogRelated = getRelatedArticles(articleSlug, "blog", 1);
-        if (blogRelated.length > 0) {
-          return blogRelated[0];
-        }
-        // Try information
-        const infoRelated = getRelatedArticles(articleSlug, "information", 1);
-        if (infoRelated.length > 0) {
-          return infoRelated[0];
-        }
-        return null;
-      })
-      .filter(Boolean);
+    const resolvedPromises = relatedSlugs.map(async (articleSlug) => {
+      // Try blog
+      const blogRelated = await getRelatedArticles(articleSlug, "blog", 1);
+      if (blogRelated.length > 0) {
+        return blogRelated[0];
+      }
+      // Try information
+      const infoRelated = await getRelatedArticles(articleSlug, "information", 1);
+      if (infoRelated.length > 0) {
+        return infoRelated[0];
+      }
+      return null;
+    });
+
+    const resolved = (await Promise.all(resolvedPromises)).filter(Boolean);
 
     if (resolved.length > 0) {
       return resolved.slice(0, 3);
@@ -442,7 +443,7 @@ export default async function NewsDetailPage({ params }: Props) {
   }
 
   const structuredData = generateStructuredData(item);
-  const relatedArticles = resolveRelatedArticles(item);
+  const relatedArticles = await resolveRelatedArticles(item);
 
   return (
     <>

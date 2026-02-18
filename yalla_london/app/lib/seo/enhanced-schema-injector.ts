@@ -41,19 +41,38 @@ export class EnhancedSchemaInjector {
   private schemaGenerator: SchemaGenerator;
   private baseUrl: string;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com') {
-    this.baseUrl = baseUrl;
-    this.schemaGenerator = new SchemaGenerator(baseUrl, {
+  constructor(baseUrl?: string, siteId?: string) {
+    // Dynamic multi-site config — avoids hardcoding any single site's branding
+    let resolvedBaseUrl = baseUrl || process.env.NEXT_PUBLIC_SITE_URL;
+    // Fallback defaults — overridden by site config below when available
+    const fallbackDomain = 'yalla-london.com';
+    let brandConfig = {
       siteName: 'Yalla London',
       description: 'Luxury London travel guide',
-      contact: {
-        email: 'hello@yalla-london.com',
-        social: {
-          twitter: 'https://twitter.com/yallalondon',
-          instagram: 'https://instagram.com/yallalondon'
-        }
+      contact: { email: `hello@${fallbackDomain}`, social: {} as Record<string, string> }
+    };
+
+    try {
+      const { getSiteConfig, getSiteDomain, getDefaultSiteId } = require('@/config/sites');
+      const effectiveSiteId = siteId || getDefaultSiteId();
+      const config = getSiteConfig(effectiveSiteId);
+      if (config) {
+        resolvedBaseUrl = resolvedBaseUrl || getSiteDomain(effectiveSiteId);
+        brandConfig = {
+          siteName: config.name,
+          description: `Luxury ${config.destination} travel guide`,
+          contact: {
+            email: `hello@${config.domain}`,
+            social: {} as Record<string, string>,
+          }
+        };
       }
-    });
+    } catch {
+      // Config import may fail in test environments — fall back to defaults
+    }
+
+    this.baseUrl = resolvedBaseUrl || 'https://www.yalla-london.com';
+    this.schemaGenerator = new SchemaGenerator(this.baseUrl, brandConfig);
   }
 
   /**
@@ -223,26 +242,9 @@ export class EnhancedSchemaInjector {
       schemas.push(articleSchema);
       types.push('Article');
 
-      // FAQ Schema
-      if (analysis.detectedElements.hasFAQ && analysis.extractedData.faqs) {
-        const faqSchema = this.schemaGenerator.generateFAQ(analysis.extractedData.faqs);
-        schemas.push(faqSchema);
-        types.push('FAQ');
-      }
-
-      // HowTo Schema
-      if (analysis.detectedElements.hasHowTo && analysis.extractedData.steps) {
-        const howToSchema = this.schemaGenerator.generateHowTo({
-          name: title,
-          description: content.substring(0, 160),
-          steps: analysis.extractedData.steps,
-          totalTime: this.extractTimeFromContent(content),
-          supplies: this.extractSuppliesFromContent(content),
-          tools: this.extractToolsFromContent(content)
-        });
-        schemas.push(howToSchema);
-        types.push('HowTo');
-      }
+      // FAQ Schema — DEPRECATED (Aug 2023): FAQPage restricted to govt/health sites only
+      // HowTo Schema — DEPRECATED (Sept 2023): No longer generates rich results
+      // FAQ/HowTo content is still valuable — it just gets Article schema instead
 
       // Review Schema
       if (analysis.detectedElements.hasReview) {
@@ -372,8 +374,7 @@ export class EnhancedSchemaInjector {
     score += analysis.confidence * 20;
 
     // Bonus for specific schema types
-    if (schemas.some(s => s['@type'] === 'FAQPage')) score += 10;
-    if (schemas.some(s => s['@type'] === 'HowTo')) score += 10;
+    // FAQPage and HowTo deprecated — no bonus for deprecated schema types
     if (schemas.some(s => s['@type'] === 'Review')) score += 10;
     if (schemas.some(s => s['@type'] === 'Event')) score += 10;
     if (schemas.some(s => s['@type'] === 'Place')) score += 10;

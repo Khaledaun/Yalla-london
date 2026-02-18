@@ -74,8 +74,7 @@ export async function POST(request: NextRequest) {
     console.error(`Login error at step [${step}]:`, error)
     return NextResponse.json(
       {
-        error: `Login failed at step: ${step}`,
-        detail: error?.message || String(error),
+        error: 'Login failed. Please try again.',
       },
       { status: 500 }
     )
@@ -187,11 +186,15 @@ async function processLogin(
   return response
 }
 
-// GET handler for diagnostics — shows what's configured (no secrets)
-export async function GET() {
+// GET handler for diagnostics — requires admin auth to prevent info leakage
+export async function GET(request: NextRequest) {
+  const { requireAdmin } = await import('@/lib/admin-middleware')
+  const authError = await requireAdmin(request)
+  if (authError) return authError
+
   const checks: Record<string, string> = {}
 
-  // Check env vars
+  // Check env vars (only presence, never values)
   checks.NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET ? 'SET' : 'MISSING'
   checks.DATABASE_URL = process.env.DATABASE_URL ? 'SET' : 'MISSING'
   checks.NODE_ENV = process.env.NODE_ENV || 'unknown'
@@ -199,10 +202,10 @@ export async function GET() {
   // Check Prisma connection
   try {
     const { prisma } = await import('@/lib/db')
-    const count = await prisma.user.count()
-    checks.database = `connected (${count} users)`
-  } catch (err: any) {
-    checks.database = `error: ${err?.message?.substring(0, 100)}`
+    await prisma.user.count()
+    checks.database = 'connected'
+  } catch {
+    checks.database = 'error'
   }
 
   // Check bcrypt
@@ -210,16 +213,16 @@ export async function GET() {
     const hash = await bcrypt.hash('test', 4)
     const valid = await bcrypt.compare('test', hash)
     checks.bcrypt = valid ? 'working' : 'broken'
-  } catch (err: any) {
-    checks.bcrypt = `error: ${err?.message}`
+  } catch {
+    checks.bcrypt = 'error'
   }
 
   // Check next-auth/jwt
   try {
     const { encode } = await import('next-auth/jwt')
     checks.nextAuthJwt = typeof encode === 'function' ? 'available' : 'not a function'
-  } catch (err: any) {
-    checks.nextAuthJwt = `import error: ${err?.message}`
+  } catch {
+    checks.nextAuthJwt = 'error'
   }
 
   return NextResponse.json({ status: 'diagnostic', checks })

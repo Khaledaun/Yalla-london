@@ -101,10 +101,12 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
         )}
 
         {/* Like Button */}
-        <button className={`absolute ${isRTL ? 'left-4' : 'right-4'} bottom-4 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm text-warm-charcoal hover:bg-burgundy-800 hover:text-white transition-all duration-300 shadow-lg`}>
-          <Heart size={14} className="text-burgundy-600" />
-          <span className="font-medium">{article.likes || Math.floor(Math.random() * 200) + 50}</span>
-        </button>
+        {article.likes ? (
+          <button className={`absolute ${isRTL ? 'left-4' : 'right-4'} bottom-4 flex items-center gap-1.5 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-full text-sm text-warm-charcoal hover:bg-burgundy-800 hover:text-white transition-all duration-300 shadow-lg`}>
+            <Heart size={14} className="text-burgundy-600" />
+            <span className="font-medium">{article.likes}</span>
+          </button>
+        ) : null}
       </div>
 
       {/* Content */}

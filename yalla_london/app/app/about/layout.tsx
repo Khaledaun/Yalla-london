@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
+import { getDefaultSiteId, getSiteDomain } from "@/config/sites";
 
 const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
 
 export const metadata: Metadata = {
   title: "About Yalla London - Your Luxury London Guide | Yalla London",

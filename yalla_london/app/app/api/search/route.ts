@@ -13,7 +13,7 @@ import {
   informationCategories,
 } from '@/data/information-hub-content';
 import { extendedInformationArticles } from '@/data/information-hub-articles-extended';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 
 // Combine static content
 const allBlogPosts = [...blogPosts, ...extendedBlogPosts];
@@ -285,7 +285,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Search failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 },
     );

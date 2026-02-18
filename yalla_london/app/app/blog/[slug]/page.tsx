@@ -1,8 +1,11 @@
 import { Metadata } from "next";
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
 import { markdownToHtml } from "@/lib/markdown";
 import { getRelatedArticles } from "@/lib/related-content";
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import BlogPostClient from "./BlogPostClient";
 
 // Combine all static blog posts (legacy content)
@@ -17,11 +20,11 @@ type Props = {
 
 // ─── Database helpers ──────────────────────────────────────────────────────
 
-async function getDbPost(slug: string) {
+async function getDbPost(slug: string, siteId?: string) {
   try {
     const { prisma } = await import("@/lib/db");
     return await prisma.blogPost.findFirst({
-      where: { slug, published: true, deletedAt: null },
+      where: { slug, published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
       include: { category: true },
     });
   } catch {
@@ -29,11 +32,11 @@ async function getDbPost(slug: string) {
   }
 }
 
-async function getDbSlugs(): Promise<string[]> {
+async function getDbSlugs(siteId?: string): Promise<string[]> {
   try {
     const { prisma } = await import("@/lib/db");
     const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null },
+      where: { published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
       select: { slug: true },
     });
     return posts.map((p) => p.slug);
@@ -54,9 +57,9 @@ type PostResult =
   | { source: "db"; post: NonNullable<Awaited<ReturnType<typeof getDbPost>>> }
   | { source: "static"; post: (typeof allStaticPosts)[0] };
 
-async function findPost(slug: string): Promise<PostResult | null> {
+async function findPost(slug: string, siteId?: string): Promise<PostResult | null> {
   // Database first — this is where pipeline-generated articles live
-  const dbPost = await getDbPost(slug);
+  const dbPost = await getDbPost(slug, siteId);
   if (dbPost) return { source: "db", post: dbPost };
 
   // Fall back to static content (legacy hardcoded articles)
@@ -73,6 +76,7 @@ export async function generateStaticParams() {
     .filter((post) => post.published)
     .map((post) => ({ slug: post.slug }));
 
+  // At build time, generate params for all sites (no site filter)
   const dbSlugs = await getDbSlugs();
   const staticSet = new Set(staticSlugs.map((s) => s.slug));
   const dbOnly = dbSlugs
@@ -87,15 +91,25 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const slug = resolvedParams.slug;
+
+  // Resolve site identity from request headers (set by middleware)
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteDomain = getSiteDomain(siteId);
+  const siteSlug = siteConfig?.slug || "yallalondon";
+
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || `https://www.${siteDomain}`;
   const canonicalUrl = `${baseUrl}/blog/${slug}`;
 
-  const result = await findPost(slug);
+  const result = await findPost(slug, siteId);
   if (!result) {
     return {
-      title: "Post Not Found | Yalla London",
+      title: `Post Not Found | ${siteName}`,
       description: "The blog post you are looking for could not be found.",
+      robots: { index: false, follow: false },
     };
   }
 
@@ -130,9 +144,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     keywords: keywordStr,
-    authors: [{ name: "Yalla London Editorial" }],
-    creator: "Yalla London",
-    publisher: "Yalla London",
+    authors: [{ name: `${siteName} Editorial` }],
+    creator: siteName,
+    publisher: siteName,
     alternates: {
       canonical: canonicalUrl,
       languages: {
@@ -144,13 +158,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       url: canonicalUrl,
-      siteName: "Yalla London",
+      siteName,
       locale: "en_GB",
       alternateLocale: "ar_SA",
       type: "article",
       publishedTime: createdAt,
       modifiedTime: updatedAt,
-      authors: ["Yalla London Editorial"],
+      authors: [`${siteName} Editorial`],
       section: categoryName,
       tags,
       images: image
@@ -159,7 +173,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      site: "@yallalondon",
+      site: `@${siteSlug}`,
       title,
       description,
       images: image ? [image] : [],
@@ -178,7 +192,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     other: {
       "article:published_time": createdAt,
       "article:modified_time": updatedAt,
-      "article:author": "Yalla London Editorial",
+      "article:author": `${siteName} Editorial`,
       "article:section": categoryName,
       "article:tag": tags.join(","),
     },
@@ -190,9 +204,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function generateStructuredData(
   post: any,
   source: "db" | "static",
+  siteInfo: { siteName: string; siteDomain: string; siteSlug: string },
 ) {
+  const { siteName, siteDomain, siteSlug } = siteInfo;
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || `https://www.${siteDomain}`;
 
   let categoryName = "Travel";
   let keywords: string[] = [];
@@ -219,6 +235,8 @@ function generateStructuredData(
       ? post.updated_at.toISOString()
       : String(post.updated_at);
 
+  const logoPath = `${baseUrl}/images/${siteSlug}-logo.svg`;
+
   const articleSchema = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -229,17 +247,17 @@ function generateStructuredData(
     dateModified: updatedAt,
     author: {
       "@type": "Organization",
-      name: "Yalla London",
+      name: siteName,
       url: baseUrl,
-      logo: `${baseUrl}/images/yalla-london-logo.svg`,
+      logo: logoPath,
     },
     publisher: {
       "@type": "Organization",
-      name: "Yalla London",
+      name: siteName,
       url: baseUrl,
       logo: {
         "@type": "ImageObject",
-        url: `${baseUrl}/images/yalla-london-logo.svg`,
+        url: logoPath,
       },
     },
     mainEntityOfPage: {
@@ -340,36 +358,38 @@ export default async function BlogPostPage({ params }: Props) {
   const resolvedParams = await params;
   const slug = resolvedParams.slug;
 
-  const result = await findPost(slug);
+  // Resolve site identity from request headers (set by middleware)
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteDomain = getSiteDomain(siteId);
+  const siteSlug = siteConfig?.slug || "yallalondon";
 
-  const structuredData = result
-    ? generateStructuredData(result.post, result.source)
-    : null;
-  const clientPost = result
-    ? transformForClient(result.post, result.source)
-    : null;
-  const relatedArticles = result
-    ? getRelatedArticles(slug, "blog", 3)
-    : [];
+  const result = await findPost(slug, siteId);
+
+  if (!result) {
+    notFound();
+  }
+
+  const structuredData = generateStructuredData(result.post, result.source, { siteName, siteDomain, siteSlug });
+  const clientPost = transformForClient(result.post, result.source);
+  const relatedArticles = await getRelatedArticles(slug, "blog", 3);
 
   return (
     <>
-      {structuredData && (
-        <>
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify(structuredData.articleSchema),
-            }}
-          />
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify(structuredData.breadcrumbSchema),
-            }}
-          />
-        </>
-      )}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData.articleSchema),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData.breadcrumbSchema),
+        }}
+      />
       <BlogPostClient post={clientPost} relatedArticles={relatedArticles} />
     </>
   );

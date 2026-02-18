@@ -9,15 +9,15 @@ interface AnalyticsConfig {
   config_name: string;
   status: "configured" | "not_configured" | "error" | "testing";
   configuration: {
-    tracking_id?: string;
-    measurement_id?: string;
-    property_id?: string;
-    client_id?: string;
-    client_secret?: string;
-    service_account_email?: string;
-    private_key?: string;
+    tracking_id_configured?: boolean;
+    measurement_id_configured?: boolean;
+    property_id_configured?: boolean;
+    client_id_configured?: boolean;
+    client_secret_configured?: boolean;
+    service_account_email_configured?: boolean;
+    private_key_configured?: boolean;
     site_url?: string;
-    api_key?: string;
+    api_key_configured?: boolean;
   };
   features: string[];
   last_sync?: string;
@@ -61,13 +61,13 @@ const DEFAULT_ANALYTICS_CONFIGS: AnalyticsConfig[] = [
     config_name: "Google Analytics 4",
     status: process.env.GOOGLE_ANALYTICS_ID ? "configured" : "not_configured",
     configuration: {
-      tracking_id: process.env.GOOGLE_ANALYTICS_ID || "",
-      measurement_id: process.env.GOOGLE_ANALYTICS_TRACKING_ID || "",
-      property_id: process.env.GA4_PROPERTY_ID || "",
-      client_id: process.env.GOOGLE_ANALYTICS_CLIENT_ID || "",
-      client_secret: process.env.GOOGLE_ANALYTICS_CLIENT_SECRET || "",
-      service_account_email: process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL || "",
-      private_key: process.env.GOOGLE_ANALYTICS_PRIVATE_KEY || "",
+      tracking_id_configured: !!process.env.GOOGLE_ANALYTICS_ID,
+      measurement_id_configured: !!process.env.GOOGLE_ANALYTICS_TRACKING_ID,
+      property_id_configured: !!process.env.GA4_PROPERTY_ID,
+      client_id_configured: !!process.env.GOOGLE_ANALYTICS_CLIENT_ID,
+      client_secret_configured: !!process.env.GOOGLE_ANALYTICS_CLIENT_SECRET,
+      service_account_email_configured: !!process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL,
+      private_key_configured: !!process.env.GOOGLE_ANALYTICS_PRIVATE_KEY,
     },
     features: [
       "page_views_tracking",
@@ -93,8 +93,8 @@ const DEFAULT_ANALYTICS_CONFIGS: AnalyticsConfig[] = [
       ? "configured"
       : "not_configured",
     configuration: {
-      client_id: process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_ID || "",
-      client_secret: process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_SECRET || "",
+      client_id_configured: !!process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_ID,
+      client_secret_configured: !!process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_SECRET,
       site_url: process.env.NEXTAUTH_URL || "https://your-site.com",
     },
     features: [
@@ -146,14 +146,14 @@ function validateAnalyticsConfig(
   const errors: string[] = [];
 
   if (service === "ga4") {
-    if (!configuration.tracking_id && !configuration.measurement_id) {
+    if (!configuration.tracking_id_configured && !configuration.measurement_id_configured) {
       errors.push("GA4 requires either tracking_id or measurement_id");
     }
-    if (configuration.service_account_email && !configuration.private_key) {
+    if (configuration.service_account_email_configured && !configuration.private_key_configured) {
       errors.push("Service account email requires private key");
     }
   } else if (service === "google_search_console") {
-    if (!configuration.client_id || !configuration.client_secret) {
+    if (!configuration.client_id_configured || !configuration.client_secret_configured) {
       errors.push("Google Search Console requires client_id and client_secret");
     }
     if (!configuration.site_url) {
@@ -300,10 +300,10 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     if (test_connection) {
       // Validate required credentials are present
       const hasCredentials =
-        configuration.tracking_id ||
-        configuration.measurement_id ||
-        configuration.property_id ||
-        configuration.api_key;
+        configuration.tracking_id_configured ||
+        configuration.measurement_id_configured ||
+        configuration.property_id_configured ||
+        configuration.api_key_configured;
       config.status = hasCredentials ? "configured" : "error";
 
       if (!hasCredentials) {
@@ -321,22 +321,22 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
     analyticsConfigurations.set(service, config);
 
-    // Log configuration change
+    // Log configuration change (never log raw config — only metadata)
     try {
       await prisma.auditLog.create({
         data: {
           action: "ANALYTICS_CONFIG_UPDATE",
-          entity_type: "ANALYTICS_SERVICE",
-          entity_id: service,
+          resource: "ANALYTICS_SERVICE",
+          resourceId: service,
           details: {
             service,
             status: config.status,
             features_enabled: config.features.length,
             test_connection,
           },
-          user_id: "admin",
-          ip_address: request.ip || "unknown",
-          user_agent: request.headers.get("user-agent") || "unknown",
+          userId: "admin",
+          ipAddress: request.ip || "unknown",
+          userAgent: request.headers.get("user-agent") || "unknown",
         },
       });
     } catch (dbError) {
@@ -398,10 +398,10 @@ export const PUT = withAdminAuth(async (request: NextRequest) => {
         config.status = "testing";
         // Validate credentials are present for connection test
         const hasCredentials =
-          config.configuration.tracking_id ||
-          config.configuration.measurement_id ||
-          config.configuration.property_id ||
-          config.configuration.api_key;
+          config.configuration.tracking_id_configured ||
+          config.configuration.measurement_id_configured ||
+          config.configuration.property_id_configured ||
+          config.configuration.api_key_configured;
         config.status = hasCredentials ? "configured" : "error";
         actionDescription =
           config.status === "configured"

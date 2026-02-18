@@ -84,13 +84,15 @@ export async function analyzeSearchPerformance(
   let siteUrl: string | undefined;
   if (siteId) {
     try {
-      const { getSiteSeoConfigFromVault } = await import("@/config/sites");
+      const { getSiteSeoConfigFromVault } = await import("@/lib/seo/config-vault");
       const seoConfig = await getSiteSeoConfigFromVault(siteId);
       siteUrl = seoConfig.gscSiteUrl;
       if (siteUrl) {
         searchConsole.setSiteUrl(siteUrl);
       }
-    } catch {}
+    } catch (error) {
+      console.warn(`[SEO Intelligence] Failed to load site SEO config from vault for site "${siteId}":`, error);
+    }
   }
   if (!siteUrl) {
     siteUrl = process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
@@ -297,10 +299,12 @@ export async function analyzeTrafficPatterns(
     let ga4PropertyId: string | undefined;
     if (siteId) {
       try {
-        const { getSiteSeoConfigFromVault } = await import("@/config/sites");
+        const { getSiteSeoConfigFromVault } = await import("@/lib/seo/config-vault");
         const seoConfig = await getSiteSeoConfigFromVault(siteId);
         ga4PropertyId = seoConfig.ga4PropertyId;
-      } catch {}
+      } catch (error) {
+        console.warn(`[SEO Intelligence] Failed to load GA4 config from vault for site "${siteId}":`, error);
+      }
     }
     const ga4Data = await fetchGA4Metrics(startDate, "today", ga4PropertyId);
 
@@ -587,11 +591,14 @@ export async function submitUnindexedPages(
   // Per-site URL and IndexNow key (multi-tenant)
   if (siteId) {
     try {
-      const { getSiteSeoConfigFromVault, getSiteDomain } = await import("@/config/sites");
+      const { getSiteDomain } = await import("@/config/sites");
+      const { getSiteSeoConfigFromVault } = await import("@/lib/seo/config-vault");
       siteUrl = getSiteDomain(siteId) || siteUrl;
       const seoConfig = await getSiteSeoConfigFromVault(siteId);
       indexNowKey = seoConfig.indexNowKey || indexNowKey;
-    } catch {}
+    } catch (error) {
+      console.warn(`[SEO Intelligence] Failed to load IndexNow/domain config from vault for site "${siteId}":`, error);
+    }
   }
   let indexNowCount = 0;
   let gscApiCount = 0;

@@ -3,6 +3,10 @@
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { SITES, getDefaultSiteId } from '@/config/sites'
+
+const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || 'yalla-london.com'
+const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
 
 const content = {
   en: {
@@ -18,7 +22,7 @@ const content = {
       'Newsletter subscriptions: your email address when you sign up to receive Yalla London updates and curated London recommendations',
       'Cookie consent preferences: your choices regarding which categories of cookies you accept or decline, stored locally via our cookie consent banner',
       'Language preference: your selected language (English or Arabic), stored in your browser\'s local storage to personalise your experience across visits',
-      'Feedback and communications: any additional information you choose to share with us through email correspondence at hello@yallalondon.com',
+      `Feedback and communications: any additional information you choose to share with us through email correspondence at ${CONTACT_EMAIL}`,
     ],
     dataCollectAutoTitle: 'Information Collected Automatically',
     dataCollectAutoIntro: 'When you visit our Website, certain information is collected automatically through cookies and similar technologies:',
@@ -104,7 +108,7 @@ const content = {
       'Right to data portability: you can request your personal data in a structured, commonly used, machine-readable format (e.g. CSV or JSON)',
       'Right to object: you can object to our processing of your data for analytics or direct marketing purposes at any time',
       'Right to withdraw consent: you can withdraw your cookie consent at any time via our cookie consent banner. You can unsubscribe from our newsletter at any time via the unsubscribe link in any email. Withdrawal does not affect the lawfulness of processing carried out before withdrawal',
-      'To exercise any of these rights, please contact us at hello@yallalondon.com. We will respond within 30 days. If you are unsatisfied with our response, you have the right to lodge a complaint with the Information Commissioner\'s Office (ICO) at ico.org.uk',
+      `To exercise any of these rights, please contact us at ${CONTACT_EMAIL}. We will respond within 30 days. If you are unsatisfied with our response, you have the right to lodge a complaint with the Information Commissioner's Office (ICO) at ico.org.uk`,
     ],
 
     securityTitle: 'Data Security',
@@ -121,7 +125,7 @@ const content = {
     childrenIntro: 'Protecting children\'s privacy is important to us:',
     childrenItems: [
       'Yalla London is not directed at children under the age of 13. We do not knowingly collect personal information from children under 13',
-      'If you are a parent or guardian and believe your child has provided personal information to us (e.g. via the contact form or newsletter sign-up), please contact us at hello@yallalondon.com and we will promptly delete such information',
+      `If you are a parent or guardian and believe your child has provided personal information to us (e.g. via the contact form or newsletter sign-up), please contact us at ${CONTACT_EMAIL} and we will promptly delete such information`,
       'Our Website content is designed for adults and young adults planning travel to London. While families with children may find our family-friendly guides useful, we expect a parent or guardian to manage any interaction with our services on behalf of minors',
     ],
 
@@ -146,7 +150,7 @@ const content = {
     contactTitle: 'Contact Us',
     contactIntro: 'If you have questions about this Privacy Policy, want to exercise your data rights, or have concerns about how we handle your information, please get in touch:',
     contactItems: [
-      'Email: hello@yallalondon.com',
+      `Email: ${CONTACT_EMAIL}`,
       'Location: London, United Kingdom',
       'We aim to respond to all privacy-related inquiries within 30 days',
       'If you are not satisfied with our response, you have the right to contact the UK Information Commissioner\'s Office (ICO) at ico.org.uk or by calling 0303 123 1113',
@@ -166,7 +170,7 @@ const content = {
       'الاشتراك في النشرة الإخبارية: عنوان بريدك الإلكتروني عند التسجيل لتلقي تحديثات يلا لندن وتوصيات لندن المختارة',
       'تفضيلات ملفات تعريف الارتباط: اختياراتك بشأن فئات ملفات تعريف الارتباط التي تقبلها أو ترفضها، والمخزنة محلياً عبر شريط الموافقة على ملفات تعريف الارتباط',
       'تفضيل اللغة: لغتك المختارة (الإنجليزية أو العربية)، المخزنة في التخزين المحلي لمتصفحك لتخصيص تجربتك عبر الزيارات',
-      'الملاحظات والمراسلات: أي معلومات إضافية تختار مشاركتها معنا عبر المراسلات البريدية على hello@yallalondon.com',
+      `الملاحظات والمراسلات: أي معلومات إضافية تختار مشاركتها معنا عبر المراسلات البريدية على ${CONTACT_EMAIL}`,
     ],
     dataCollectAutoTitle: 'المعلومات المُجمعة تلقائياً',
     dataCollectAutoIntro: 'عند زيارتك لموقعنا، يتم جمع معلومات معينة تلقائياً من خلال ملفات تعريف الارتباط والتقنيات المشابهة:',
@@ -252,7 +256,7 @@ const content = {
       'حق نقل البيانات: يمكنك طلب بياناتك الشخصية بتنسيق منظم وشائع الاستخدام وقابل للقراءة آلياً (مثل CSV أو JSON)',
       'حق الاعتراض: يمكنك الاعتراض على معالجتنا لبياناتك لأغراض التحليلات أو التسويق المباشر في أي وقت',
       'حق سحب الموافقة: يمكنك سحب موافقتك على ملفات تعريف الارتباط في أي وقت عبر شريط الموافقة. يمكنك إلغاء الاشتراك في نشرتنا الإخبارية في أي وقت عبر رابط إلغاء الاشتراك في أي بريد إلكتروني. لا يؤثر السحب على مشروعية المعالجة التي تمت قبل السحب',
-      'لممارسة أي من هذه الحقوق، يرجى الاتصال بنا على hello@yallalondon.com. سنرد خلال 30 يوماً. إذا لم تكن راضياً عن ردنا، لديك الحق في تقديم شكوى لمكتب مفوض المعلومات (ICO) على ico.org.uk',
+      `لممارسة أي من هذه الحقوق، يرجى الاتصال بنا على ${CONTACT_EMAIL}. سنرد خلال 30 يوماً. إذا لم تكن راضياً عن ردنا، لديك الحق في تقديم شكوى لمكتب مفوض المعلومات (ICO) على ico.org.uk`,
     ],
 
     securityTitle: 'أمان البيانات',
@@ -269,7 +273,7 @@ const content = {
     childrenIntro: 'حماية خصوصية الأطفال مهمة بالنسبة لنا:',
     childrenItems: [
       'يلا لندن غير موجه للأطفال دون سن 13 عاماً. لا نجمع عن علم معلومات شخصية من الأطفال دون 13 عاماً',
-      'إذا كنت والداً أو وصياً وتعتقد أن طفلك قد قدم معلومات شخصية لنا (مثل عبر نموذج الاتصال أو الاشتراك في النشرة الإخبارية)، يرجى الاتصال بنا على hello@yallalondon.com وسنحذف هذه المعلومات على الفور',
+      `إذا كنت والداً أو وصياً وتعتقد أن طفلك قد قدم معلومات شخصية لنا (مثل عبر نموذج الاتصال أو الاشتراك في النشرة الإخبارية)، يرجى الاتصال بنا على ${CONTACT_EMAIL} وسنحذف هذه المعلومات على الفور`,
       'محتوى موقعنا مصمم للبالغين والشباب الذين يخططون للسفر إلى لندن. بينما قد تجد العائلات التي لديها أطفال أدلتنا المناسبة للعائلات مفيدة، نتوقع أن يدير أحد الوالدين أو الأوصياء أي تفاعل مع خدماتنا نيابة عن القاصرين',
     ],
 
@@ -294,7 +298,7 @@ const content = {
     contactTitle: 'اتصل بنا',
     contactIntro: 'إذا كانت لديك أسئلة حول سياسة الخصوصية هذه، أو تريد ممارسة حقوقك في البيانات، أو لديك مخاوف بشأن كيفية تعاملنا مع معلوماتك، يرجى التواصل معنا:',
     contactItems: [
-      'البريد الإلكتروني: hello@yallalondon.com',
+      `البريد الإلكتروني: ${CONTACT_EMAIL}`,
       'الموقع: لندن، المملكة المتحدة',
       'نهدف للرد على جميع الاستفسارات المتعلقة بالخصوصية خلال 30 يوماً',
       'إذا لم تكن راضياً عن ردنا، لديك الحق في الاتصال بمكتب مفوض المعلومات في المملكة المتحدة (ICO) على ico.org.uk أو بالاتصال على 0303 123 1113',

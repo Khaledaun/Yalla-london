@@ -19,10 +19,15 @@ import { extendedBlogPosts } from "@/data/blog-content-extended";
 import { informationSections, informationArticles } from "@/data/information-hub-content";
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+// Dynamic base URL — falls back to config-driven default instead of hardcoding
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || (() => {
+  try {
+    const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
+    return getSiteDomain(getDefaultSiteId());
+  } catch { return "https://www.yalla-london.com"; }
+})();
 // GSC property URL - may differ from BASE_URL (e.g., no www)
-const GSC_SITE_URL = process.env.GSC_SITE_URL || "https://yalla-london.com";
+const GSC_SITE_URL = process.env.GSC_SITE_URL || BASE_URL.replace("www.", "");
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY || "";
 
 // Rate limiting: max requests per minute for external APIs
@@ -659,8 +664,9 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
   ];
   staticPages.forEach((page) => urls.push(`${baseUrl}${page}`));
 
-  // Information hub: sections + articles (static data files)
-  if (!siteId || siteId === "yalla-london") {
+  // Information hub: sections + articles (static data files — Yalla London only)
+  const _defaultSite = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
+  if (!siteId || siteId === _defaultSite) {
     informationSections
       .filter((s) => s.published)
       .forEach((s) => urls.push(`${baseUrl}/information/${s.slug}`));
@@ -670,9 +676,9 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
       .forEach((a) => urls.push(`${baseUrl}/information/articles/${a.slug}`));
   }
 
-  // Blog posts from static files (only for yalla-london or when no siteId)
+  // Blog posts from static files (only for default site or when no siteId specified)
   const staticSlugs = new Set<string>();
-  if (!siteId || siteId === "yalla-london") {
+  if (!siteId || siteId === _defaultSite) {
     allPosts
       .filter((post) => post.published)
       .forEach((post) => {
@@ -707,8 +713,9 @@ export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUr
   cutoffDate.setDate(cutoffDate.getDate() - withinDays);
   const urls: string[] = [];
 
-  // Static file posts (only for yalla-london)
-  if (!siteId || siteId === "yalla-london") {
+  // Static file posts (only for default site)
+  const _ds1 = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
+  if (!siteId || siteId === _ds1) {
     allPosts
       .filter((post) => post.published && post.created_at >= cutoffDate)
       .forEach((post) => urls.push(`${baseUrl}/blog/${post.slug}`));
@@ -751,8 +758,9 @@ export async function getUpdatedUrls(
   cutoffDate.setDate(cutoffDate.getDate() - withinDays);
   const urls: string[] = [];
 
-  // Static file posts (only for yalla-london)
-  if (!siteId || siteId === "yalla-london") {
+  // Static file posts (only for default site)
+  const _ds2 = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
+  if (!siteId || siteId === _ds2) {
     allPosts
       .filter((post) => post.published && post.updated_at >= cutoffDate)
       .forEach((post) => urls.push(`${baseUrl}/blog/${post.slug}`));

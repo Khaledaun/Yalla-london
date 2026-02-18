@@ -11,6 +11,7 @@ import { motion } from 'framer-motion'
 import { RelatedArticles, type RelatedArticleData } from '@/components/related-articles'
 import { ShareButtons } from '@/components/share-buttons'
 import { FollowUs } from '@/components/follow-us'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 
 interface BlogPostData {
   id: string;
@@ -91,13 +92,17 @@ export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostC
       {/* Hero Section */}
       <section className="relative h-96 overflow-hidden">
         <div className="absolute inset-0">
-          <Image
-            src={post.featured_image}
-            alt={language === 'en' ? post.title_en : post.title_ar}
-            fill
-            className="object-cover"
-            priority
-          />
+          {post.featured_image ? (
+            <Image
+              src={post.featured_image}
+              alt={language === 'en' ? post.title_en : post.title_ar}
+              fill
+              className="object-cover"
+              priority
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-london-700 to-london-900" />
+          )}
           <div className="absolute inset-0 bg-black/50" />
         </div>
 
@@ -173,7 +178,7 @@ export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostC
             <div
               className="text-charcoal leading-relaxed prose-headings:font-display prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-a:text-london-600 prose-strong:text-charcoal"
               dangerouslySetInnerHTML={{
-                __html: language === 'en' ? post.content_en : post.content_ar
+                __html: sanitizeHtml(language === 'en' ? post.content_en : post.content_ar)
               }}
             />
           </motion.div>

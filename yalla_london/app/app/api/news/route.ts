@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
+import { getDefaultSiteId } from '@/config/sites';
 
 export const dynamic = 'force-dynamic';
 
@@ -147,10 +148,13 @@ export async function GET(request: NextRequest) {
   const category = searchParams.get('category') || undefined;
   const majorOnly = searchParams.get('major_only') === 'true';
 
+  const siteId = request.headers.get("x-site-id") || getDefaultSiteId();
+
   // Try database first, gracefully fall back to seed data
   try {
     const now = new Date();
     const where: Record<string, unknown> = {
+      siteId,
       status: 'published',
       OR: [
         { expires_at: null },
@@ -218,8 +222,8 @@ export async function GET(request: NextRequest) {
         meta: { total, limit, category: category ?? null, major_only: majorOnly, source: 'database' },
       });
     }
-  } catch {
-    // Database unavailable — fall through to seed data
+  } catch (dbErr) {
+    console.warn("[news-api] Database unavailable, falling through to seed data:", dbErr instanceof Error ? dbErr.message : dbErr);
   }
 
   // Seed data fallback (database empty or unavailable)

@@ -252,7 +252,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let newsPages: MetadataRoute.Sitemap = [];
   try {
     const publishedNews = await prisma.newsItem.findMany({
-      where: { status: "published" },
+      where: { status: "published", siteId },
       select: { slug: true, updated_at: true },
       orderBy: { published_at: "desc" },
       take: 100,

@@ -579,6 +579,45 @@ test("SEO Audit", "live-site-auditor warns on sitemap truncation", () => {
     : { status: FAIL, details: "Silent truncation" };
 });
 
+// ==================== CATEGORY 15: System-Wide Validation (Audit #15) ====================
+
+test("System Validation", "seo/cron has maxDuration = 60", () => {
+  return fileContains("app/api/seo/cron/route.ts", "maxDuration = 60")
+    ? { status: PASS, details: "maxDuration = 60 set" }
+    : { status: FAIL, details: "Missing or wrong maxDuration — will silently timeout at 30s" };
+});
+
+test("System Validation", "scheduled-publish has maxDuration = 60", () => {
+  return fileContains("app/api/cron/scheduled-publish/route.ts", "maxDuration = 60")
+    ? { status: PASS, details: "maxDuration = 60 set" }
+    : { status: FAIL, details: "maxDuration too low — needs 60 for Vercel Pro" };
+});
+
+test("System Validation", "sweeper has maxDuration = 60", () => {
+  return fileContains("app/api/cron/sweeper/route.ts", "maxDuration = 60")
+    ? { status: PASS, details: "maxDuration = 60 set" }
+    : { status: FAIL, details: "maxDuration too low — needs 60 for Vercel Pro" };
+});
+
+test("System Validation", "blog listing page filters by siteId", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/blog/page.tsx"), "utf-8");
+  // Must filter DB posts by siteId to prevent cross-site leakage
+  return content.includes("siteId") && content.includes("x-site-id")
+    ? { status: PASS, details: "Blog listing scoped per-site" }
+    : { status: FAIL, details: "Blog listing shows ALL sites' posts mixed together" };
+});
+
+test("System Validation", "sitemap news items scoped by siteId", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/sitemap.ts"), "utf-8");
+  // Find the newsItem findMany block and check it includes siteId
+  const newsQueryIdx = content.indexOf("prisma.newsItem.findMany");
+  if (newsQueryIdx === -1) return { status: WARN, details: "No newsItem query found" };
+  const querySlice = content.substring(newsQueryIdx, newsQueryIdx + 200);
+  return querySlice.includes("siteId")
+    ? { status: PASS, details: "News sitemap scoped per-site" }
+    : { status: FAIL, details: "News sitemap leaks cross-site items" };
+});
+
 // ==================== PRINT RESULTS ====================
 
 console.log("\n" + "=".repeat(80));

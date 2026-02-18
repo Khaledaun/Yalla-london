@@ -1,6 +1,6 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 import { withCronLog } from "@/lib/cron-logger";
 import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
@@ -179,7 +179,7 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
       published: results,
     };
   }
-}, { maxDurationMs: 30_000 });
+}, { maxDurationMs: 53_000 });
 
 export const POST = withCronLog("scheduled-publish-manual", async (log) => {
   const { prisma } = await import("@/lib/db");
@@ -297,4 +297,4 @@ export const POST = withCronLog("scheduled-publish-manual", async (log) => {
   }
 
   return { published_count: published, skipped_count: skipped.length, skipped };
-}, { maxDurationMs: 30_000 });
+}, { maxDurationMs: 53_000 });

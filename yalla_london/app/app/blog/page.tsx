@@ -76,9 +76,13 @@ function computeReadingTime(html: string): number {
 
 async function getDbPosts() {
   try {
+    const { headers } = await import("next/headers");
+    const headersList = await headers();
+    const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+
     const { prisma } = await import("@/lib/db");
     return await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null },
+      where: { published: true, deletedAt: null, siteId },
       include: { category: true },
       orderBy: { created_at: "desc" },
     });

@@ -23,6 +23,7 @@
 | 12 | 2026-02-18 | CRITICAL security lockdown, pipeline race conditions, empty catches, URL hardcoding | 85+ issues | 85+ | 0 |
 | 13 | 2026-02-18 | Credential exposure, crash fixes, XSS, fake metrics, smoke test suite | 15 issues | 15 | 0 |
 | 14 | 2026-02-18 | London News feature + SEO audit scalability | 19 issues | 19 | 0 |
+| 15 | 2026-02-18 | System-wide validation: maxDuration, blog siteId, sitemap scoping | 5 issues | 5 | 0 |
 
 ---
 
@@ -1140,6 +1141,35 @@ New comprehensive smoke test at `scripts/smoke-test.ts` covering 12 categories:
 | KG-045 | Dashboard | 13+ admin pages show entirely mock/fake data | A12-research | Open | 2026-02-18 |
 | KG-046 | Dashboard | 14+ admin buttons are dead (no onClick handlers) | A12-research | Open | 2026-02-18 |
 | KG-047 | Navigation | Broken sidebar links to /admin/news and /admin/facts (pages don't exist) | A12-research | Open | 2026-02-18 |
+
+---
+
+## Audit #15 — System-Wide Validation
+
+**Date:** 2026-02-18
+**Scope:** Full platform validation sweep — cron timeouts, data isolation, sitemap scoping
+**Smoke Test:** 83/83 PASS (100%)
+
+### Findings & Fixes
+
+| ID | Severity | Area | Finding | Fix |
+|----|----------|------|---------|-----|
+| A15-001 | CRITICAL | SEO Cron | `app/api/seo/cron/route.ts` missing `maxDuration = 60` — defaults to 30s, causing silent timeouts on weekly indexing tasks | Added `export const maxDuration = 60` |
+| A15-002 | CRITICAL | Scheduled Publish | `app/api/cron/scheduled-publish/route.ts` had `maxDuration = 30` — too low for processing 20 articles with pre-pub gate checks | Changed to `maxDuration = 60`, updated `maxDurationMs` from 30_000 to 53_000 |
+| A15-003 | CRITICAL | Sweeper | `app/api/cron/sweeper/route.ts` had `maxDuration = 30` — too low for failure recovery operations | Changed to `maxDuration = 60` |
+| A15-004 | CRITICAL | Blog Listing | `app/blog/page.tsx` `getDbPosts()` had no siteId filter — showed ALL sites' posts mixed together | Added `x-site-id` header extraction and siteId filter to Prisma query |
+| A15-005 | MEDIUM | Sitemap | `app/sitemap.ts` news items not scoped by siteId — cross-site news leakage in sitemap | Added `siteId` to newsItem.findMany where clause |
+
+### Smoke Test Additions
+
+Added 5 new tests in "System Validation" category:
+- seo/cron maxDuration = 60
+- scheduled-publish maxDuration = 60
+- sweeper maxDuration = 60
+- blog listing page filters by siteId
+- sitemap news items scoped by siteId
+
+Total test suite: 83 tests across 15 categories.
 
 ---
 

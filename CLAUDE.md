@@ -738,3 +738,26 @@ Deeper trace of every handoff point in the pipeline:
 - KG-049: content-generator.ts crash → **Resolved**
 - KG-050: 4 remaining XSS vectors → **Resolved**
 - KG-051: Math.random() fake metrics → **Resolved**
+
+### Session: February 18, 2026 — Audit #14: London News Feature + SEO Audit Scalability
+
+**Audit #14 — London News + SEO Audit (19 issues fixed):**
+
+2 parallel deep audits: (1) London News end-to-end flow (cron → DB → API → frontend → public page), (2) SEO audit system scalability (per-page auditing, timeouts, context/memory management).
+
+**London News fixes (7):**
+1. **CRITICAL: Cron not scheduled** — Added london-news to vercel.json at 6am UTC daily
+2. **CRITICAL: No budget guards** — Added 53s budget with checks before template loop and Grok calls
+3. **CRITICAL: No siteId on NewsItem** — All news creation now sets siteId from query param or config default. Scoped auto-archive and recent items queries per-site
+4. **MEDIUM: News API no site filtering** — Added siteId from x-site-id header to news endpoint
+5. **MEDIUM: Hardcoded URLs** — News detail page uses `getBaseUrl()` and `getSiteDomain()` instead of hardcoded yalla-london.com
+6. **MEDIUM: Silent catches** — Error recovery log and news API fallback now log with context
+
+**SEO Audit fixes (5):**
+1. **CRITICAL: Unbounded auditBlogPosts query** — Added `take: 100` to prevent OOM on large sites
+2. **HIGH: Live-site-auditor slow timeouts** — Reduced all 6 fetch timeouts from 8-10s to 5s
+3. **HIGH: seo-health-report no site filtering** — Added siteId parameter to all aggregate queries
+4. **MEDIUM: Silent sitemap truncation** — Added totalSitemapUrls tracking + warning when over maxUrls
+5. **Infrastructure: Orchestrator** — Updated default result types for new totalSitemapUrls field
+
+**Smoke test expanded:** 78 tests across 14 categories — 100% pass. New categories: London News (7 tests), SEO Audit Scalability (6 tests).

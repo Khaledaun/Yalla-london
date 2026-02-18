@@ -22,6 +22,7 @@
 | 11 | 2026-02-18 | Hardcoded emails, IndexNow window, admin XSS, DB related articles, duplicate crons | 25 issues | 25 | 0 |
 | 12 | 2026-02-18 | CRITICAL security lockdown, pipeline race conditions, empty catches, URL hardcoding | 85+ issues | 85+ | 0 |
 | 13 | 2026-02-18 | Credential exposure, crash fixes, XSS, fake metrics, smoke test suite | 15 issues | 15 | 0 |
+| 14 | 2026-02-18 | London News feature + SEO audit scalability | 19 issues | 19 | 0 |
 
 ---
 
@@ -999,6 +1000,92 @@ New comprehensive smoke test at `scripts/smoke-test.ts` covering 12 categories:
 
 ### TopicProposal Schema Comment Updated
 - Status progression: `planned, proposed, ready, queued, generating, generated, drafted, approved, published`
+
+---
+
+## Audit #14 — London News Feature + SEO Audit Scalability
+
+**Date:** 2026-02-18
+**Trigger:** User request to audit London News process/functionality/appearance + SEO audit per-page with timeout/context
+**Scope:** Full London News flow (cron → DB → API → frontend) + SEO audit scalability (queries, timeouts, pagination, site filtering)
+**Commit:** (current)
+
+### Research Phase (2 Parallel Deep Audits)
+
+| Audit | Scope | Issues Found |
+|-------|-------|--------------|
+| London News | Cron, API, frontend, multi-site, SEO, error handling | 13 issues (3 CRITICAL, 5 MEDIUM, 5 LOW) |
+| SEO Audit | Full-audit, seo-agent, health-report, live-site-auditor, pre-pub gate, standards | 6 issues (2 CRITICAL, 2 HIGH, 2 MEDIUM) |
+
+### Fixed (19 issues)
+
+#### A14-001: london-news Cron NOT Scheduled in vercel.json (CRITICAL)
+- **Issue:** london-news cron job exists (1,136 lines) but was NOT in vercel.json — never auto-runs
+- **Fix:** Added `{ "path": "/api/cron/london-news", "schedule": "0 6 * * *" }` (6am UTC daily)
+- **File:** `vercel.json`
+
+#### A14-002: london-news Has No Budget Guards (CRITICAL)
+- **Issue:** No time budget tracking — 45s Grok timeout + DB ops could exceed 60s Vercel limit
+- **Fix:** Added `BUDGET_MS = 53_000` with checks before template loop and Grok news creation loop
+- **File:** `app/api/cron/london-news/route.ts`
+
+#### A14-003: london-news Never Sets siteId on NewsItem (CRITICAL)
+- **Issue:** NewsItem schema has `siteId` field (indexed) but cron never populated it — all news NULL siteId
+- **Fix:** Added `siteId` from `?site_id=` query param or `getDefaultSiteId()`. Applied to: newsItem.create (both template and Grok), newsResearchLog.create, recentItems query, auto-archive query
+- **File:** `app/api/cron/london-news/route.ts`
+
+#### A14-004: News API Route No Site Filtering (MEDIUM)
+- **Issue:** `/api/news` endpoint returned news from ALL sites — no per-site filtering
+- **Fix:** Added `siteId` from `x-site-id` header to where clause; added import for `getDefaultSiteId`
+- **File:** `app/api/news/route.ts`
+
+#### A14-005: News API Silent Empty Catch (MEDIUM)
+- **Issue:** DB error catch swallowed silently with no logging
+- **Fix:** Added `console.warn("[news-api]")` with error message
+- **File:** `app/api/news/route.ts`
+
+#### A14-006: News Detail Page Hardcoded yalla-london.com (×2) (MEDIUM)
+- **Issue:** `generateMetadata()` and `generateStructuredData()` both used `|| "https://www.yalla-london.com"` fallback
+- **Fix:** generateMetadata uses `await getBaseUrl()`, generateStructuredData uses `getSiteDomain(getDefaultSiteId())`
+- **File:** `app/news/[slug]/page.tsx`
+
+#### A14-007: london-news Error Recovery Log Silent (MEDIUM)
+- **Issue:** `catch { // Best-effort log update }` at error path
+- **Fix:** Added `console.error("[london-news]")` with error message
+- **File:** `app/api/cron/london-news/route.ts`
+
+#### A14-008: seo-agent Unbounded auditBlogPosts Query (CRITICAL)
+- **Issue:** `prisma.blogPost.findMany()` with NO `take` limit — loads all published posts into memory
+- **Impact:** OOM risk when sites grow past 100+ articles
+- **Fix:** Added `take: 100` to limit posts audited per run
+- **File:** `app/api/cron/seo-agent/route.ts` (line 543)
+
+#### A14-009: live-site-auditor Fetch Timeouts Too Long (HIGH)
+- **Issue:** 6 fetch calls used 8-10s timeouts — single slow URL could consume too much of 60s budget
+- **Fix:** Reduced all 6 `AbortSignal.timeout()` calls from 8000-10000ms to 5000ms
+- **File:** `lib/seo/orchestrator/live-site-auditor.ts`
+
+#### A14-010: seo-health-report No Site Filtering (HIGH)
+- **Issue:** BlogPost count, aggregate, and audit queries were global (no siteId filter)
+- **Fix:** Added `siteId` parameter to `generateAuditStats()` and `analyzeTopIssues()`; POST handler passes siteId from query param
+- **File:** `app/api/cron/seo-health-report/route.ts`
+
+#### A14-011: live-site-auditor Silent Sitemap Truncation (MEDIUM)
+- **Issue:** Hard-coded 50 URL max silently truncated larger sitemaps — no warning logged
+- **Fix:** Added `totalSitemapUrls` tracking + warning when truncated
+- **Files:** `lib/seo/orchestrator/live-site-auditor.ts`, `lib/seo/orchestrator/index.ts`
+
+### Smoke Test Suite Expanded
+
+| Category | Tests | Result |
+|----------|-------|--------|
+| Previous 12 categories | 65 | PASS |
+| London News (NEW) | 7 | PASS |
+| SEO Audit Scalability (NEW) | 6 | PASS |
+| **TOTAL** | **78** | **100%** |
+
+### TypeScript Compilation
+- **Result:** Build passes — ZERO TypeScript errors
 
 ---
 

@@ -28,6 +28,7 @@ export interface LiveAuditResult {
 
 export interface SitemapHealthResult {
   totalUrls: number;
+  totalSitemapUrls: number; // Total URLs in sitemap before truncation
   healthy: number;
   broken: number;
   redirected: number;
@@ -116,6 +117,11 @@ export async function runLiveSiteAudit(
       return defaultCDNResult();
     }),
   ]);
+
+  // Warn if sitemap was truncated
+  if (sitemapHealth.totalSitemapUrls > maxUrls) {
+    warnings.push(`Sitemap has ${sitemapHealth.totalSitemapUrls} URLs but only ${maxUrls} were audited`);
+  }
 
   // Schema + rendering checks depend on sitemap URLs (run after if time remains)
   let schemaValidation = defaultSchemaResult();
@@ -210,6 +216,7 @@ async function checkSitemapHealth(
 ): Promise<SitemapHealthResult> {
   const result: SitemapHealthResult = {
     totalUrls: 0,
+    totalSitemapUrls: 0,
     healthy: 0,
     broken: 0,
     redirected: 0,
@@ -221,7 +228,7 @@ async function checkSitemapHealth(
   // Fetch sitemap
   const sitemapRes = await fetch(`${siteUrl}/sitemap.xml`, {
     headers: { "User-Agent": "YallaLondon-Orchestrator/1.0" },
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(5000),
   });
 
   if (!sitemapRes.ok) {
@@ -237,10 +244,10 @@ async function checkSitemapHealth(
   const sitemapXml = await sitemapRes.text();
   // Extract all <loc> URLs from sitemap
   const urlMatches = sitemapXml.match(/<loc>([^<]+)<\/loc>/g) || [];
-  const urls = urlMatches
-    .map((m) => m.replace(/<\/?loc>/g, ""))
-    .slice(0, maxUrls);
+  const allUrls = urlMatches.map((m) => m.replace(/<\/?loc>/g, ""));
+  const urls = allUrls.slice(0, maxUrls);
 
+  result.totalSitemapUrls = allUrls.length;
   result.totalUrls = urls.length;
   let totalLatency = 0;
 
@@ -257,7 +264,7 @@ async function checkSitemapHealth(
           method: "HEAD",
           headers: { "User-Agent": "YallaLondon-Orchestrator/1.0" },
           redirect: "manual",
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(5000),
         });
         return { url, status: res.status, latencyMs: Date.now() - start };
       })
@@ -312,7 +319,7 @@ async function checkSchemaUrls(
     try {
       const res = await fetch(pageUrl, {
         headers: { "User-Agent": "YallaLondon-Orchestrator/1.0" },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(5000),
       });
 
       if (!res.ok) continue;
@@ -411,7 +418,7 @@ async function checkRobotsConflicts(
   try {
     const res = await fetch(`${siteUrl}/robots.txt`, {
       headers: { "User-Agent": "YallaLondon-Orchestrator/1.0" },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!res.ok) return result;
@@ -569,7 +576,7 @@ async function checkCDNPerformance(
       const res = await fetch(`${siteUrl}${path}`, {
         method: "HEAD",
         headers: { "User-Agent": "YallaLondon-Orchestrator/1.0" },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(5000),
       });
       const ttfb = Date.now() - start;
       totalTTFB += ttfb;
@@ -614,7 +621,7 @@ async function checkRenderingMode(
     try {
       const res = await fetch(url, {
         headers: { "User-Agent": "YallaLondon-Orchestrator/1.0" },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(5000),
       });
 
       if (!res.ok) continue;
@@ -661,7 +668,7 @@ async function checkRenderingMode(
 // ── Default Results ───────────────────────────────────────────────────
 
 function defaultSitemapResult(): SitemapHealthResult {
-  return { totalUrls: 0, healthy: 0, broken: 0, redirected: 0, slow: 0, brokenUrls: [], avgLatencyMs: 0 };
+  return { totalUrls: 0, totalSitemapUrls: 0, healthy: 0, broken: 0, redirected: 0, slow: 0, brokenUrls: [], avgLatencyMs: 0 };
 }
 
 function defaultSchemaResult(): SchemaValidationResult {

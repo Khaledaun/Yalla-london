@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getBaseUrl } from "@/lib/url-utils";
+import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
 import { getRelatedArticles } from "@/lib/related-content";
 import NewsDetailClient from "./NewsDetailClient";
 
@@ -239,8 +241,7 @@ async function getNewsItem(slug: string): Promise<SeedItem | null> {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const slug = resolvedParams.slug;
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  const baseUrl = await getBaseUrl();
 
   const item = await getNewsItem(slug);
 
@@ -326,7 +327,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 function generateStructuredData(item: SeedItem) {
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || `https://www.${getSiteDomain(getDefaultSiteId())}`;
 
   const newsArticleSchema = {
     "@context": "https://schema.org",

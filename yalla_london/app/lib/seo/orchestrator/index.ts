@@ -597,7 +597,7 @@ async function collectCurrentMetrics(
 function createDefaultAudit(): LiveAuditResult {
   return {
     sitemapHealth: {
-      totalUrls: 0, healthy: 0, broken: 0, redirected: 0, slow: 0,
+      totalUrls: 0, totalSitemapUrls: 0, healthy: 0, broken: 0, redirected: 0, slow: 0,
       brokenUrls: [], avgLatencyMs: 0,
     },
     schemaValidation: {

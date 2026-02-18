@@ -540,6 +540,7 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
         keywords_json: true,
         authority_links_json: true,
       },
+      take: 100, // Prevent OOM on large sites — audit max 100 posts per run
     });
 
     let totalScore = 0;

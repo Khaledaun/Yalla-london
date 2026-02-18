@@ -481,6 +481,104 @@ test("Budget", "seo-agent has budget guard", () => {
     : { status: FAIL, details: "Missing budget guard" };
 });
 
+test("Budget", "london-news has budget guard", () => {
+  return fileContains("app/api/cron/london-news/route.ts", "53_000") || fileContains("app/api/cron/london-news/route.ts", "BUDGET_MS")
+    ? { status: PASS, details: "Budget guard present" }
+    : { status: FAIL, details: "Missing budget guard" };
+});
+
+// ==================== CATEGORY 13: London News Feature ====================
+
+test("London News", "london-news cron route exists", () => {
+  return fileExists("app/api/cron/london-news/route.ts")
+    ? { status: PASS, details: "File exists" }
+    : { status: FAIL, details: "Missing london-news cron route" };
+});
+
+test("London News", "london-news scheduled in vercel.json", () => {
+  return fileContains("vercel.json", "/api/cron/london-news")
+    ? { status: PASS, details: "Cron scheduled" }
+    : { status: FAIL, details: "NOT scheduled in vercel.json" };
+});
+
+test("London News", "london-news has budget guard (53s)", () => {
+  return fileContains("app/api/cron/london-news/route.ts", "BUDGET_MS") || fileContains("app/api/cron/london-news/route.ts", "53_000")
+    ? { status: PASS, details: "Budget guard present" }
+    : { status: FAIL, details: "Missing budget guard" };
+});
+
+test("London News", "london-news sets siteId on NewsItem", () => {
+  return fileContains("app/api/cron/london-news/route.ts", "siteId")
+    ? { status: PASS, details: "siteId populated" }
+    : { status: FAIL, details: "Missing siteId on NewsItem creation" };
+});
+
+test("London News", "news API filters by siteId", () => {
+  return fileContains("app/api/news/route.ts", "siteId")
+    ? { status: PASS, details: "Site filtering present" }
+    : { status: FAIL, details: "No site filtering on news API" };
+});
+
+test("London News", "news public page exists", () => {
+  return fileExists("app/news/page.tsx") && fileExists("app/news/[slug]/page.tsx")
+    ? { status: PASS, details: "Both listing and detail pages exist" }
+    : { status: FAIL, details: "Missing news pages" };
+});
+
+test("London News", "news detail page uses dynamic baseUrl", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/news/[slug]/page.tsx"), "utf-8");
+  const hasHardcoded = content.includes('"https://www.yalla-london.com"');
+  return !hasHardcoded
+    ? { status: PASS, details: "No hardcoded yalla-london.com" }
+    : { status: FAIL, details: "Hardcoded URL remains" };
+});
+
+// ==================== CATEGORY 14: SEO Audit Scalability ====================
+
+test("SEO Audit", "seo-agent auditBlogPosts has take limit", () => {
+  const content = fs.readFileSync(path.join(APP_DIR, "app/api/cron/seo-agent/route.ts"), "utf-8");
+  const auditFnStart = content.indexOf("async function auditBlogPosts");
+  if (auditFnStart === -1) return { status: FAIL, details: "auditBlogPosts not found" };
+  const fnSlice = content.substring(auditFnStart, auditFnStart + 1200);
+  return fnSlice.includes("take:")
+    ? { status: PASS, details: "Query has take limit" }
+    : { status: FAIL, details: "Unbounded findMany — OOM risk" };
+});
+
+test("SEO Audit", "live-site-auditor uses AbortSignal.timeout", () => {
+  return fileContains("lib/seo/orchestrator/live-site-auditor.ts", "AbortSignal.timeout")
+    ? { status: PASS, details: "Per-URL timeout present" }
+    : { status: FAIL, details: "No per-URL timeout" };
+});
+
+test("SEO Audit", "seo-health-report accepts siteId", () => {
+  return fileContains("app/api/cron/seo-health-report/route.ts", "siteId")
+    ? { status: PASS, details: "Site filtering supported" }
+    : { status: FAIL, details: "No site filtering" };
+});
+
+test("SEO Audit", "pre-publication gate exists with 11+ checks", () => {
+  if (!fileExists("lib/seo/orchestrator/pre-publication-gate.ts")) return { status: FAIL, details: "Missing" };
+  const content = fs.readFileSync(path.join(APP_DIR, "lib/seo/orchestrator/pre-publication-gate.ts"), "utf-8");
+  // Gate uses numbered section comments: "── 1.", "── 2.", etc.
+  const checkCount = (content.match(/── \d+\./g) || []).length;
+  return checkCount >= 11
+    ? { status: PASS, details: `${checkCount} checks found` }
+    : { status: FAIL, details: `Only ${checkCount} checks` };
+});
+
+test("SEO Audit", "SEO standards.ts exists", () => {
+  return fileExists("lib/seo/standards.ts")
+    ? { status: PASS, details: "Standards file present" }
+    : { status: FAIL, details: "Missing" };
+});
+
+test("SEO Audit", "live-site-auditor warns on sitemap truncation", () => {
+  return fileContains("lib/seo/orchestrator/live-site-auditor.ts", "totalSitemapUrls")
+    ? { status: PASS, details: "Truncation tracking present" }
+    : { status: FAIL, details: "Silent truncation" };
+});
+
 // ==================== PRINT RESULTS ====================
 
 console.log("\n" + "=".repeat(80));

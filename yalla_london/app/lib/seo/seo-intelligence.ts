@@ -84,7 +84,7 @@ export async function analyzeSearchPerformance(
   let siteUrl: string | undefined;
   if (siteId) {
     try {
-      const { getSiteSeoConfigFromVault } = await import("@/config/sites");
+      const { getSiteSeoConfigFromVault } = await import("@/lib/seo/config-vault");
       const seoConfig = await getSiteSeoConfigFromVault(siteId);
       siteUrl = seoConfig.gscSiteUrl;
       if (siteUrl) {
@@ -299,7 +299,7 @@ export async function analyzeTrafficPatterns(
     let ga4PropertyId: string | undefined;
     if (siteId) {
       try {
-        const { getSiteSeoConfigFromVault } = await import("@/config/sites");
+        const { getSiteSeoConfigFromVault } = await import("@/lib/seo/config-vault");
         const seoConfig = await getSiteSeoConfigFromVault(siteId);
         ga4PropertyId = seoConfig.ga4PropertyId;
       } catch (error) {
@@ -591,7 +591,8 @@ export async function submitUnindexedPages(
   // Per-site URL and IndexNow key (multi-tenant)
   if (siteId) {
     try {
-      const { getSiteSeoConfigFromVault, getSiteDomain } = await import("@/config/sites");
+      const { getSiteDomain } = await import("@/config/sites");
+      const { getSiteSeoConfigFromVault } = await import("@/lib/seo/config-vault");
       siteUrl = getSiteDomain(siteId) || siteUrl;
       const seoConfig = await getSiteSeoConfigFromVault(siteId);
       indexNowKey = seoConfig.indexNowKey || indexNowKey;

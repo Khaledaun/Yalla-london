@@ -1,9 +1,11 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useLanguage } from '@/components/language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
+import { getCategoryPhoto } from '@/data/news-photos'
 import {
   Calendar, ArrowLeft, ExternalLink, Newspaper, Clock,
   AlertTriangle, Zap, Train, Music, Cloud, Heart,
@@ -187,20 +189,30 @@ export default function NewsDetailClient({ item, relatedArticles = [] }: NewsDet
 
   const eventDateRange = formatDateRange(item.event_start_date, item.event_end_date, language)
 
+  // Get a category photo for this news item
+  const categoryPhoto = getCategoryPhoto(item.news_category, item.slug)
+  const heroImage = item.featured_image || categoryPhoto.url
+  const heroAlt = item.featured_image
+    ? (language === 'en' ? (item.image_alt_en || item.headline_en) : (item.image_alt_ar || item.headline_ar))
+    : (language === 'en' ? categoryPhoto.alt_en : categoryPhoto.alt_ar)
+
   return (
     <div className={`${isRTL ? 'rtl' : 'ltr'}`}>
       {/* ----------------------------------------------------------------- */}
-      {/* Hero Section — category-themed gradient, no copied images         */}
+      {/* Hero Section — real photo with dark overlay for readability       */}
       {/* ----------------------------------------------------------------- */}
       <section className={`relative min-h-[22rem] md:min-h-[26rem] overflow-hidden bg-gradient-to-br ${getCategoryGradient(item.news_category)}`}>
-        {/* Decorative elements — original design */}
-        <div className="absolute inset-0 overflow-hidden">
-          <CategoryIcon className="absolute -right-10 -bottom-10 w-64 h-64 text-white/[0.03]" />
-          <div className="absolute inset-0 opacity-[0.02]" style={{
-            backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
-            backgroundSize: '32px 32px',
-          }} />
-        </div>
+        {/* Background photo */}
+        <Image
+          src={heroImage}
+          alt={heroAlt}
+          fill
+          className="object-cover"
+          sizes="100vw"
+          priority
+        />
+        {/* Dark gradient overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
 
         <div className="relative z-10 h-full flex items-end">
           <div className="max-w-4xl mx-auto px-6 pb-12 pt-24 w-full">

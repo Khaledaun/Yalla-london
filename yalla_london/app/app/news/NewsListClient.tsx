@@ -1,10 +1,12 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
 import { useLanguage } from '@/components/language-provider'
 import { NewsTicker } from '@/components/news-ticker'
 import { FollowUs } from '@/components/follow-us'
+import { getCategoryPhoto } from '@/data/news-photos'
 import {
   Newspaper, Train, Calendar, Lightbulb, Search, AlertTriangle,
   Cloud, Heart, Music, ShoppingBag, Plane, Sparkles, Globe,
@@ -250,10 +252,24 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                     }`}
                   >
                     <div className="flex items-stretch">
-                      {/* Category-themed thumbnail — gradient + icon, no copied images */}
-                      <div className={`hidden sm:flex w-28 md:w-36 bg-gradient-to-br ${getCategoryGradient(item.news_category)} items-center justify-center shrink-0`}>
-                        <Icon size={32} className="text-white/40" />
-                      </div>
+                      {/* Category photo thumbnail — curated Unsplash photos */}
+                      {(() => {
+                        const photo = item.featured_image ? null : getCategoryPhoto(item.news_category, item.slug)
+                        return (
+                          <div className="hidden sm:block w-28 md:w-36 relative shrink-0 overflow-hidden">
+                            {item.featured_image ? (
+                              <Image src={item.featured_image} alt={isAr ? item.headline_ar : item.headline_en} fill className="object-cover" sizes="144px" />
+                            ) : photo ? (
+                              <Image src={photo.thumbnail} alt={isAr ? photo.alt_ar : photo.alt_en} fill className="object-cover" sizes="144px" />
+                            ) : (
+                              <div className={`w-full h-full bg-gradient-to-br ${getCategoryGradient(item.news_category)} flex items-center justify-center`}>
+                                <Icon size={32} className="text-white/40" />
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/10" />
+                          </div>
+                        )
+                      })()}
 
                       <div className="flex-1 p-5 md:p-6">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
@@ -312,20 +328,29 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                       <div className="flex-1 bg-thames-500" />
                     </div>
 
-                    {/* Category-themed gradient thumbnail — legally safe */}
-                    <div className={`h-32 bg-gradient-to-br ${getCategoryGradient(item.news_category)} flex items-center justify-center relative overflow-hidden`}>
-                      {/* Decorative icon — original design, not a copied image */}
-                      <Icon size={48} className="text-white/15" />
-                      {/* Subtle pattern overlay */}
-                      <div className="absolute inset-0 opacity-[0.03]" style={{
-                        backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
-                        backgroundSize: '20px 20px',
-                      }} />
-                      {/* Category badge */}
-                      <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} font-mono text-[8px] font-semibold tracking-[1.5px] uppercase px-2 py-0.5 rounded border backdrop-blur-sm ${getCategoryBadgeColor(item.news_category)}`}>
-                        {getCategoryLabel(item.news_category, isAr ? 'ar' : 'en')}
-                      </span>
-                    </div>
+                    {/* Category photo thumbnail — curated Unsplash photos */}
+                    {(() => {
+                      const photo = item.featured_image ? null : getCategoryPhoto(item.news_category, item.slug)
+                      return (
+                        <div className="h-40 relative overflow-hidden">
+                          {item.featured_image ? (
+                            <Image src={item.featured_image} alt={isAr ? item.headline_ar : item.headline_en} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
+                          ) : photo ? (
+                            <Image src={photo.url} alt={isAr ? photo.alt_ar : photo.alt_en} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
+                          ) : (
+                            <div className={`w-full h-full bg-gradient-to-br ${getCategoryGradient(item.news_category)} flex items-center justify-center`}>
+                              <Icon size={48} className="text-white/15" />
+                            </div>
+                          )}
+                          {/* Gradient overlay for readability */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                          {/* Category badge */}
+                          <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} font-mono text-[8px] font-semibold tracking-[1.5px] uppercase px-2 py-0.5 rounded border backdrop-blur-sm ${getCategoryBadgeColor(item.news_category)}`}>
+                            {getCategoryLabel(item.news_category, isAr ? 'ar' : 'en')}
+                          </span>
+                        </div>
+                      )
+                    })()}
 
                     {/* Card Content */}
                     <div className="p-5">

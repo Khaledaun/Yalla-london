@@ -20,11 +20,11 @@ type Props = {
 
 // ─── Database helpers ──────────────────────────────────────────────────────
 
-async function getDbPost(slug: string) {
+async function getDbPost(slug: string, siteId?: string) {
   try {
     const { prisma } = await import("@/lib/db");
     return await prisma.blogPost.findFirst({
-      where: { slug, published: true, deletedAt: null },
+      where: { slug, published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
       include: { category: true },
     });
   } catch {
@@ -32,11 +32,11 @@ async function getDbPost(slug: string) {
   }
 }
 
-async function getDbSlugs(): Promise<string[]> {
+async function getDbSlugs(siteId?: string): Promise<string[]> {
   try {
     const { prisma } = await import("@/lib/db");
     const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null },
+      where: { published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
       select: { slug: true },
     });
     return posts.map((p) => p.slug);
@@ -57,9 +57,9 @@ type PostResult =
   | { source: "db"; post: NonNullable<Awaited<ReturnType<typeof getDbPost>>> }
   | { source: "static"; post: (typeof allStaticPosts)[0] };
 
-async function findPost(slug: string): Promise<PostResult | null> {
+async function findPost(slug: string, siteId?: string): Promise<PostResult | null> {
   // Database first — this is where pipeline-generated articles live
-  const dbPost = await getDbPost(slug);
+  const dbPost = await getDbPost(slug, siteId);
   if (dbPost) return { source: "db", post: dbPost };
 
   // Fall back to static content (legacy hardcoded articles)
@@ -76,6 +76,7 @@ export async function generateStaticParams() {
     .filter((post) => post.published)
     .map((post) => ({ slug: post.slug }));
 
+  // At build time, generate params for all sites (no site filter)
   const dbSlugs = await getDbSlugs();
   const staticSet = new Set(staticSlugs.map((s) => s.slug));
   const dbOnly = dbSlugs
@@ -103,7 +104,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     process.env.NEXT_PUBLIC_SITE_URL || `https://www.${siteDomain}`;
   const canonicalUrl = `${baseUrl}/blog/${slug}`;
 
-  const result = await findPost(slug);
+  const result = await findPost(slug, siteId);
   if (!result) {
     return {
       title: `Post Not Found | ${siteName}`,
@@ -365,7 +366,7 @@ export default async function BlogPostPage({ params }: Props) {
   const siteDomain = getSiteDomain(siteId);
   const siteSlug = siteConfig?.slug || "yallalondon";
 
-  const result = await findPost(slug);
+  const result = await findPost(slug, siteId);
 
   if (!result) {
     notFound();

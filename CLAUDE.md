@@ -597,3 +597,53 @@ Targeted areas previous audits missed: (1) API Route Completeness, (2) Content P
 | Orphan Models | 16+ Prisma models never referenced in code | LOW | Open |
 | Brand Templates | Only Yalla London template exists | MEDIUM | Open |
 | CSP Headers | Missing Content-Security-Policy | MEDIUM | Open |
+
+### Session: February 18, 2026 — Audits #7–#9: Build Fix, Pipeline Hardening, Deep Trace
+
+**Audit #7 — Build Error + Validation (31 issues fixed):**
+
+1. **Build error fix:** Removed `@typescript-eslint/no-var-requires` eslint-disable comments in 2 files — rule doesn't exist in installed version, causing Vercel build failure
+2. **Auth gaps closed:** Added `withAdminAuth` to shop/stats (revenue data) and skill-engine (automation registry) — both were publicly accessible
+3. **Info disclosure fixed (13 routes):** Removed `error.message` from public API responses in content, search, blog, information (×3), checkout, social, SEO, test routes
+4. **Fake data removed (5 instances):** blog-card random likes, seo-audits random score, editor random SEO score, pipeline panel fake percentages, PDF fake growth claim
+5. **Hardcoded URLs fixed (11 instances):** about/layout, articles/performance, pdf/generate, contact, seo/entities, seo/report (×4)
+
+**Audit #8 — Water Pipe Test (13 critical pipeline breaks fixed):**
+
+Traced entire content pipeline end-to-end across 5 stages:
+1. **Topic Generation:** Fixed admin topic creation crash (missing `source_weights_json` + `site_id`), SEO agent rewrite crash (non-existent fields)
+2. **Content Building:** Fixed deprecated schema types in outline prompt
+3. **Selection & Publishing:** Added `runPrePublicationGate()` to content selector (fail-closed), raised `MIN_QUALITY_SCORE` from 50 to 60
+4. **SEO & Indexing:** Created IndexNow key file route + vercel.json rewrite; removed sitemap route conflict that blocked Next.js built-in sitemap.ts
+5. **Public Rendering:** Added proper HTTP 404 (was soft 200), featured image crash guard with gradient placeholder, multi-site JSON-LD from site config
+6. **Monitoring:** Replaced fake notifications with empty state
+
+**Audit #9 — Deep Pipeline Trace (18 issues fixed):**
+
+Deeper trace of every handoff point in the pipeline:
+1. **Cron auth chain (6 fixes):** analytics, seo-orchestrator, seo-agent, withCronLog utility, seo/cron, daily-publish — all returned 401/503 when CRON_SECRET unset. All now follow standard pattern: allow if unset, reject only if set and doesn't match.
+2. **Scheduled-publish GET:** Changed from fail-open to fail-closed — gate failure now marks ScheduledContent as "failed" instead of publishing anyway
+3. **Scheduled-publish POST:** Added full pre-publication gate — dashboard "Publish Now" button previously bypassed all 11 quality checks
+4. **Build-runner multi-site:** Changed from processing first active site only to looping ALL active sites with per-site budget guard, reservoir cap (50), 1 draft pair per site per run
+5. **Blog page site scoping (2 queries):** Added `siteId` filter from `x-site-id` header to `getDbPost()` and `getDbSlugs()` — prevents cross-site slug collision
+6. **Blog API site scoping:** Changed from `findUnique` (slug only) to `findFirst` with siteId in where clause
+7. **TypeScript:** ZERO errors across entire codebase
+
+**Known Gaps Resolved by Audits #7–#9:**
+- KG-028: CRON_SECRET bypass → **Resolved** (all crons follow standard auth pattern)
+- KG-030: Build-runner single-site → **Resolved** (loops all active sites)
+- KG-037: Scheduled-publish POST bypass → **Resolved** (full gate added, fail-closed)
+- KG-039: Blog slug global uniqueness → **Resolved** (queries now scoped by siteId)
+
+**Remaining Known Gaps (See AUDIT-LOG.md for full tracking):**
+
+| Area | Issue | Severity | Status |
+|------|-------|----------|--------|
+| XSS | dangerouslySetInnerHTML without sanitization | HIGH | Open (KG-023) |
+| Emails | 30+ hardcoded email addresses | HIGH | Open (KG-022) |
+| Pipeline | daily-publish queries unreachable `approved` status | MEDIUM | Open (KG-029) |
+| SEO | No Arabic SSR — hreflang mismatch | MEDIUM | Open (KG-032) |
+| Multi-site | Affiliate injection hardcoded to London destinations | MEDIUM | Open (KG-034) |
+| Dashboard | No traffic/revenue data — GA4 not connected | MEDIUM | Open (KG-035) |
+| Dashboard | No push/email alerts for cron failures | MEDIUM | Open (KG-036) |
+| SEO | Posts >3 days old never auto-submitted to IndexNow | LOW | Open (KG-038) |

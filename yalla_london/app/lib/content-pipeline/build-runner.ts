@@ -6,9 +6,10 @@
  * - /api/admin/content-generation-monitor (dashboard trigger)
  *
  * Each invocation:
- * 1. Finds the oldest in-progress ArticleDraft and advances it one phase
- * 2. If no in-progress drafts, creates TWO new ones (EN + AR) from TopicProposal queue
- * 3. Respects budget timeout
+ * 1. Finds the oldest in-progress ArticleDraft (across all active sites) and advances it one phase
+ * 2. If no in-progress drafts, iterates ALL active sites and creates bilingual pairs (EN + AR)
+ *    from each site's TopicProposal queue (max 1 pair per site per run, budget-guarded)
+ * 3. Respects budget timeout — stops creating drafts early if time is running out
  */
 
 import { logCronExecution } from "@/lib/cron-logger";
@@ -88,104 +89,136 @@ export async function runContentBuilder(
       throw e;
     }
 
-    // Step 2: If no in-progress draft, create a new one from topic queue
+    // Step 2: If no in-progress draft, create new ones from topic queue
+    // Iterate ALL active sites (not just the first) so sites 2-5 get drafts too.
+    // Creates at most 1 bilingual pair per site per run, checking budget between sites.
     if (!draft) {
-      const siteId = activeSites[0];
-      const site = SITES[siteId];
-      if (!site) {
-        return { success: true, message: "No site config found for " + siteId, durationMs: Date.now() - cronStart };
+      const skippedSites: string[] = [];
+      const fullReservoirs: string[] = [];
+
+      for (const siteId of activeSites) {
+        // Budget guard: stop creating drafts if time is running out
+        if (deadline.isExpired()) {
+          console.log(`[content-builder] Budget expired during draft creation — processed ${activeSites.indexOf(siteId)} of ${activeSites.length} sites`);
+          break;
+        }
+
+        const site = SITES[siteId];
+        if (!site) {
+          skippedSites.push(siteId);
+          continue;
+        }
+
+        const reservoirCount = await prisma.articleDraft.count({
+          where: { site_id: siteId, current_phase: "reservoir" },
+        });
+
+        if (reservoirCount >= 10) {
+          fullReservoirs.push(siteId + "(" + reservoirCount + ")");
+          continue;
+        }
+
+        let keyword = "";
+        let topicProposalId: string | null = null;
+        let strategy = "template_cycle";
+        let locale = "en";
+
+        try {
+          const topic = await prisma.topicProposal.findFirst({
+            where: {
+              status: { in: ["ready", "queued", "planned", "proposed"] },
+              OR: [{ site_id: siteId }, { site_id: null }],
+            },
+            orderBy: [{ confidence_score: "desc" }, { created_at: "asc" }],
+          });
+
+          if (topic) {
+            keyword = topic.primary_keyword;
+            topicProposalId = topic.id;
+            locale = topic.locale || "en";
+            strategy = "topic_db";
+            await prisma.topicProposal.update({
+              where: { id: topic.id },
+              data: { status: "generated" },
+            });
+          }
+        } catch {
+          // TopicProposal query failed — fall through to template
+        }
+
+        if (!keyword) {
+          const topics = site.topicsEN;
+          if (!topics || topics.length === 0) {
+            skippedSites.push(siteId);
+            continue;
+          }
+          const dayOfYear = Math.floor(
+            (Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000,
+          );
+          const topic = topics[dayOfYear % topics.length];
+          keyword = topic.keyword;
+          locale = "en";
+          strategy = "template_cycle";
+        }
+
+        const enDraft = await prisma.articleDraft.create({
+          data: {
+            site_id: siteId,
+            keyword,
+            locale: "en",
+            current_phase: "research",
+            topic_proposal_id: topicProposalId,
+            generation_strategy: strategy,
+            phase_started_at: new Date(),
+          },
+        });
+
+        const arDraft = await prisma.articleDraft.create({
+          data: {
+            site_id: siteId,
+            keyword,
+            locale: "ar",
+            current_phase: "research",
+            topic_proposal_id: topicProposalId,
+            generation_strategy: strategy + "_ar",
+            phase_started_at: new Date(),
+            paired_draft_id: enDraft.id,
+          },
+        });
+
+        await prisma.articleDraft.update({
+          where: { id: enDraft.id },
+          data: { paired_draft_id: arDraft.id },
+        });
+
+        // Use the first created draft for phase execution in Step 3
+        if (!draft) {
+          draft = enDraft;
+        }
+
+        console.log(
+          `[content-builder] Created bilingual pair for site "${siteId}": EN=${enDraft.id}, AR=${arDraft.id} for keyword "${keyword}" (${strategy})`,
+        );
       }
 
-      const reservoirCount = await prisma.articleDraft.count({
-        where: { site_id: siteId, current_phase: "reservoir" },
-      });
+      if (skippedSites.length > 0) {
+        console.log(`[content-builder] Skipped sites (no config or no topics): ${skippedSites.join(", ")}`);
+      }
+      if (fullReservoirs.length > 0) {
+        console.log(`[content-builder] Full reservoirs: ${fullReservoirs.join(", ")}`);
+      }
 
-      if (reservoirCount >= 10) {
+      // If no draft was created for any site, return informational message
+      if (!draft) {
+        const reasons: string[] = [];
+        if (skippedSites.length > 0) reasons.push("no config/topics: " + skippedSites.join(", "));
+        if (fullReservoirs.length > 0) reasons.push("reservoir full: " + fullReservoirs.join(", "));
         return {
           success: true,
-          message: "Reservoir is full (" + reservoirCount + " articles). Waiting for selector to publish.",
-          reservoirCount,
+          message: "No drafts created across " + activeSites.length + " active sites. " + (reasons.length > 0 ? reasons.join("; ") : "No pending topics found."),
           durationMs: Date.now() - cronStart,
         };
       }
-
-      let keyword = "";
-      let topicProposalId: string | null = null;
-      let strategy = "template_cycle";
-      let locale = "en";
-
-      try {
-        const topic = await prisma.topicProposal.findFirst({
-          where: {
-            status: { in: ["ready", "queued", "planned", "proposed"] },
-            OR: [{ site_id: siteId }, { site_id: null }],
-          },
-          orderBy: [{ confidence_score: "desc" }, { created_at: "asc" }],
-        });
-
-        if (topic) {
-          keyword = topic.primary_keyword;
-          topicProposalId = topic.id;
-          locale = topic.locale || "en";
-          strategy = "topic_db";
-          await prisma.topicProposal.update({
-            where: { id: topic.id },
-            data: { status: "generated" },
-          });
-        }
-      } catch {
-        // TopicProposal query failed — fall through to template
-      }
-
-      if (!keyword) {
-        const topics = site.topicsEN;
-        if (!topics || topics.length === 0) {
-          return { success: true, message: "No template topics configured for site " + siteId, durationMs: Date.now() - cronStart };
-        }
-        const dayOfYear = Math.floor(
-          (Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000,
-        );
-        const topic = topics[dayOfYear % topics.length];
-        keyword = topic.keyword;
-        locale = "en";
-        strategy = "template_cycle";
-      }
-
-      const enDraft = await prisma.articleDraft.create({
-        data: {
-          site_id: siteId,
-          keyword,
-          locale: "en",
-          current_phase: "research",
-          topic_proposal_id: topicProposalId,
-          generation_strategy: strategy,
-          phase_started_at: new Date(),
-        },
-      });
-
-      const arDraft = await prisma.articleDraft.create({
-        data: {
-          site_id: siteId,
-          keyword,
-          locale: "ar",
-          current_phase: "research",
-          topic_proposal_id: topicProposalId,
-          generation_strategy: strategy + "_ar",
-          phase_started_at: new Date(),
-          paired_draft_id: enDraft.id,
-        },
-      });
-
-      await prisma.articleDraft.update({
-        where: { id: enDraft.id },
-        data: { paired_draft_id: arDraft.id },
-      });
-
-      draft = enDraft;
-
-      console.log(
-        `[content-builder] Created bilingual pair: EN=${enDraft.id}, AR=${arDraft.id} for keyword "${keyword}" (${strategy})`,
-      );
     }
 
     // Step 3: Run the current phase

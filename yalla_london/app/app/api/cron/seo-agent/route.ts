@@ -18,18 +18,12 @@ import { onCronFailure } from "@/lib/ops/failure-hooks";
  * 7. Track progress and report status
  */
 export async function GET(request: NextRequest) {
-  // Verify cron secret for security
+  // If CRON_SECRET is configured and doesn't match, reject.
+  // If CRON_SECRET is NOT configured, allow — Vercel crons don't send secrets unless configured.
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (!cronSecret && process.env.NODE_ENV === "production") {
-    console.error("CRON_SECRET not configured in production");
-    return NextResponse.json(
-      { error: "Server misconfiguration" },
-      { status: 503 },
-    );
   }
 
   // Healthcheck mode — quick DB ping + last run status

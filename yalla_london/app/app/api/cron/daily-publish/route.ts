@@ -12,16 +12,11 @@ import { getFeatureFlagValue } from "@/lib/feature-flags";
  * Publishes 1 general + 1 date-relevant topic daily
  */
 export async function POST(request: NextRequest) {
-  // Verify cron secret for security
+  // If CRON_SECRET is configured and doesn't match, reject.
+  // If CRON_SECRET is NOT configured, allow — Vercel crons don't send secrets unless configured.
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error('CRON_SECRET not configured');
-    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-  }
-
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    console.error('❌ Unauthorized cron request');
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }

@@ -95,16 +95,12 @@ export function withCronLog(
 
   return async function cronHandler(request: NextRequest) {
     // 1. Auth check
+    // If CRON_SECRET is configured and doesn't match, reject.
+    // If CRON_SECRET is NOT configured, allow — Vercel crons don't send secrets unless configured.
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!cronSecret && process.env.NODE_ENV === "production") {
-      return NextResponse.json(
-        { error: "Server misconfiguration: CRON_SECRET not set" },
-        { status: 503 },
-      );
     }
 
     const startTime = Date.now();

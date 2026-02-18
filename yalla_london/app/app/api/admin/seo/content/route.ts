@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { gscApi } from "@/lib/seo/indexing-service";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,9 @@ export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
+  const BUDGET_MS = 53_000; // 53s budget, 7s buffer for Vercel Pro 60s limit
   const startTime = Date.now();
+  const remainingBudget = () => BUDGET_MS - (Date.now() - startTime);
   const limit = parseInt(request.nextUrl.searchParams.get("limit") || "50");
 
   const report: Record<string, any> = {
@@ -58,7 +61,7 @@ export async function GET(request: NextRequest) {
 
     // Build URL for each post
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      process.env.NEXT_PUBLIC_SITE_URL || `https://www.${getSiteDomain(getDefaultSiteId())}`;
 
     report.published = posts.map((post) => ({
       id: post.id,
@@ -159,7 +162,7 @@ export async function GET(request: NextRequest) {
 
   // 4. Cross-reference published content with GSC data
   const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || `https://www.${getSiteDomain(getDefaultSiteId())}`;
   const endDate = new Date().toISOString().split("T")[0];
   const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     .toISOString()
@@ -172,11 +175,23 @@ export async function GET(request: NextRequest) {
     // GSC not available
   }
 
-  // 5. Check indexing status for recent posts (sample up to 10)
+  // 5. Check indexing status for recent posts — parallel with budget guard
   const recentPosts = report.published.slice(0, 10);
-  const contentSEO = [];
 
-  for (const post of recentPosts) {
+  // Fetch all indexing statuses in parallel (instead of 10 sequential calls)
+  const indexingMap = new Map<string, any>();
+  if (remainingBudget() > 10_000) {
+    const indexResults = await Promise.all(
+      recentPosts.map((post: any) =>
+        gscApi.checkIndexingStatus(post.url).catch(() => null),
+      ),
+    );
+    recentPosts.forEach((post: any, i: number) => {
+      if (indexResults[i]) indexingMap.set(post.url, indexResults[i]);
+    });
+  }
+
+  const contentSEO = recentPosts.map((post: any) => {
     const entry: Record<string, any> = {
       ...post,
       indexingStatus: "unknown",
@@ -203,15 +218,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Check indexing (limit API calls)
-    try {
-      const indexStatus = await gscApi.checkIndexingStatus(post.url);
-      if (indexStatus) {
-        entry.indexingStatus = indexStatus.coverageState || "unknown";
-        entry.lastCrawled = indexStatus.lastCrawlTime;
-      }
-    } catch {
-      // Skip indexing check
+    // Use pre-fetched indexing status
+    const indexStatus = indexingMap.get(post.url);
+    if (indexStatus) {
+      entry.indexingStatus = indexStatus.coverageState || "unknown";
+      entry.lastCrawled = indexStatus.lastCrawlTime;
     }
 
     // Generate per-article recommendations
@@ -259,8 +270,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    contentSEO.push(entry);
-  }
+    return entry;
+  });
 
   report.contentSEO = contentSEO;
 

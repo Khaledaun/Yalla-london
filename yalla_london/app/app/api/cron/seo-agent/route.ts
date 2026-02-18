@@ -304,7 +304,9 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
             { tags: post.tags }
           );
           schemasInjected++;
-        } catch {}
+        } catch (schemaErr) {
+          console.warn(`[seo-agent] Schema injection failed for post ${post.slug}:`, schemaErr instanceof Error ? schemaErr.message : schemaErr);
+        }
       }
 
       if (schemasInjected > 0) {
@@ -957,7 +959,9 @@ async function autoFixSEOIssues(
     if (fixedCount.metaTitles > 0) {
       fixes.push(`Auto-generated ${fixedCount.metaTitles} missing meta titles`);
     }
-  } catch {}
+  } catch (metaErr) {
+    console.warn("[seo-agent] Meta title auto-fix failed:", metaErr instanceof Error ? metaErr.message : metaErr);
+  }
 
   return fixedCount;
 }

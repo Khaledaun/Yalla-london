@@ -511,3 +511,41 @@ Audited the entire platform across: (1) Dashboard/cron/monitoring/GA4, (2) AI se
 | Feature Flags | DB-backed but not wired to actual code behavior | Known — flags stored but no runtime checks |
 | Article Create/Edit | Buttons in articles page have TODO comments, no handlers | Known — needs API endpoint wiring |
 | Rate Limiting | Stats are in-memory only, reset on deploy | Known — needs Redis or DB persistence |
+
+### Session: February 18, 2026 — Deep Platform Security & Integrity Audit
+
+**Audit #3 — 6-Dimensional Deep Comprehensive Audit:**
+Ran 6 parallel audit agents covering: (1) Auth & Middleware patterns, (2) Error handling & catch blocks, (3) DB schema vs code consistency, (4) Env vars & config, (5) Cron chain & pipeline integrity, (6) Dead code & unused exports. Full results documented in `docs/AUDIT-LOG.md`.
+
+**Critical Security Fixes (8 routes):**
+- **Added `requireAdmin` auth to 7 unprotected admin API routes:** MCP Stripe (balance, customers, payments), MCP Mercury (accounts, transactions), database migrate (GET+POST), operations-hub
+- These routes exposed financial data (Stripe balances, Mercury bank accounts) and database schema to unauthenticated users
+
+**Multi-Site Infrastructure Fixes:**
+- **next.config.js image domains:** Added all 5 site domains to `remotePatterns` (was only yalla-london.com)
+- **next.config.js CORS origins:** Default `ALLOWED_ORIGINS` now includes all 10 domains (5 sites × www + non-www)
+- **Affiliate injection site_id scoping:** Added `siteId: { in: getActiveSiteIds() }` filter — prevents cross-site affiliate contamination
+
+**Error Handling Fixes (5 critical catch blocks):**
+- **SEO agent:** Schema injection and meta title auto-fix `catch {}` blocks now log descriptive warnings
+- **Daily content generate:** Topic status update, DB topic lookup, and Arabic copywriting directive `catch {}` blocks now log warnings with context
+- Eliminated all `catch {}` violations in critical cron paths (was forbidden per CLAUDE.md engineering standards)
+
+**Persistent Audit Tracking:**
+- Created `docs/AUDIT-LOG.md` — structured tracking of all audit findings across sessions
+- Format: issue ID, description, error, fix, verification, affected files
+- 27 findings documented from Audit #1 (18 fixed), Audit #2 (9 fixed), Audit #3 (15 fixed, 27 documented for future)
+- 20 known gaps tracked with cross-references to audit finding IDs
+
+**Key Documented Issues (Not Yet Fixed — See AUDIT-LOG.md):**
+
+| Area | Issue | Severity | Audit Ref |
+|------|-------|----------|-----------|
+| Auth | Editor + Flags routes use Supabase auth instead of standard middleware | MEDIUM | A3-D01 |
+| DB Schema | PdfGuide/PdfDownload models missing from Prisma schema | HIGH | A3-D07 |
+| Error Logging | 260+ console.error/warn invisible to dashboard owner | HIGH | A3-D03 |
+| Env Docs | Per-site env var pattern undocumented in .env.example | HIGH | A3-D12 |
+| Pipeline | daily-content-generate bypasses ArticleDraft 8-phase pipeline | HIGH | A3-D19 |
+| SEO Crons | Duplicate: seo-agent + seo/cron both submit to IndexNow | MEDIUM | A3-D20 |
+| standards.ts | 11/13 exports unused — not yet integrated into enforcement | MEDIUM | A3-D22 |
+| Mock Data | 14+ admin pages still show mock/placeholder data | MEDIUM | A3-D23 |

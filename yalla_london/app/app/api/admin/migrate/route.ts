@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from "@/lib/admin-middleware"
 
 /**
  * Database Migration Endpoint
@@ -20,7 +21,10 @@ const REQUIRED_COLUMNS = [
   { name: 'lastLoginAt', sql: 'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lastLoginAt" TIMESTAMP(3)' },
 ]
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const { prisma } = await import('@/lib/db')
 
@@ -46,7 +50,10 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   const results: Array<{ column: string; status: string; error?: string }> = []
 
   try {

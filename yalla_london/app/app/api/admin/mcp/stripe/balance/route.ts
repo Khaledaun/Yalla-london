@@ -1,8 +1,11 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin-middleware";
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
   try {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) {

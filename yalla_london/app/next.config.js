@@ -37,6 +37,7 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
+      // All configured site domains (multi-site support)
       {
         protocol: 'https',
         hostname: '*.yalla-london.com',
@@ -44,6 +45,22 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: '*.yallalondon.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.arabaldives.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.yallariviera.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.yallaistanbul.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.yallathailand.com',
       },
     ]
   },
@@ -65,7 +82,7 @@ const nextConfig = {
   },
   async headers() {
     // SECURITY: Only allow specific origins, not wildcard
-    const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://yallalondon.com,https://www.yallalondon.com,https://yalla-london.com').split(',').map(o => o.trim())
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://yalla-london.com,https://www.yalla-london.com,https://arabaldives.com,https://www.arabaldives.com,https://yallariviera.com,https://www.yallariviera.com,https://yallaistanbul.com,https://www.yallaistanbul.com,https://yallathailand.com,https://www.yallathailand.com').split(',').map(o => o.trim())
     const corsOrigin = process.env.NODE_ENV === 'development'
       ? 'http://localhost:3000'
       : allowedOrigins[0]

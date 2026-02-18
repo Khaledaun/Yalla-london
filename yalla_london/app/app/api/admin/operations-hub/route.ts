@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin-middleware";
 
 /**
  * Operations Hub API
@@ -17,7 +18,9 @@ import { NextRequest, NextResponse } from "next/server";
  *  5. Per-site health checks
  *  6. MCP integrations (Mercury, Stripe)
  */
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
   const startTime = Date.now();
 
   // ── 1. Infrastructure ──────────────────────────────────────

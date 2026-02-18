@@ -453,7 +453,9 @@ async function generateArticle(
         where: { id: topic.id },
         data: { status: "published" },
       });
-    } catch {}
+    } catch (topicErr) {
+      console.warn(`[daily-content-generate] Failed to mark topic ${topic.id} as published:`, topicErr instanceof Error ? topicErr.message : topicErr);
+    }
   }
 
   console.log(`[${site.name}] Generated ${primaryLanguage} article: ${slug}`);
@@ -483,7 +485,9 @@ async function pickTopic(language: string, site: SiteConfig, prisma: any) {
         authorityLinks: topic.authority_links_json || {},
       };
     }
-  } catch {}
+  } catch (dbErr) {
+    console.warn(`[daily-content-generate] DB topic lookup failed, using fallback topics:`, dbErr instanceof Error ? dbErr.message : dbErr);
+  }
 
   // Fallback: use site-specific topic templates
   const topics: TopicTemplate[] =
@@ -523,7 +527,9 @@ async function generateWithAI(
           contentType: topic.authorityLinks?.contentType || "guide",
           audience: "gulf",
         });
-      } catch {}
+      } catch (arErr) {
+        console.warn(`[daily-content-generate] Arabic copywriting directives unavailable:`, arErr instanceof Error ? arErr.message : arErr);
+      }
     }
 
     const systemPrompt = `${baseSystemPrompt}

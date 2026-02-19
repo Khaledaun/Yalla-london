@@ -342,7 +342,20 @@ export function AffiliatePoolManager() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const csv = ['Name,URL,Type,Commission,Site,Active', ...affiliates.map(a =>
+                    `"${a.name}","${a.url}","${a.type}","${a.commission_rate}","${a.site_id}",${a.is_active}`
+                  )].join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url; link.download = 'affiliate-pool.csv'; link.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
                 <Download className="w-4 h-4 mr-2" /> Export
               </Button>
               <Dialog open={isDialogOpen} onOpenChange={(open) => {

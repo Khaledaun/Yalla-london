@@ -6,7 +6,7 @@ import {
   RefreshCw, AlertTriangle, CheckCircle, XCircle, Clock, ChevronDown,
   ChevronRight, Globe, Zap, Play, Send, Loader2, Activity,
   ArrowRight, Search, FileText, Lightbulb, Database, ExternalLink,
-  Eye, BarChart3,
+  Eye, BarChart3, MapPin,
 } from "lucide-react";
 
 // ── Types ──
@@ -265,6 +265,7 @@ export default function CommandCenter() {
           { label: "Publish", url: "/api/admin/publish-all-ready", icon: Send, color: "bg-emerald-600" },
           { label: "Run Crons", url: "/api/admin/run-all-crons", icon: Play, color: "bg-orange-600" },
           { label: "Seed Topics", url: "/api/admin/seed-topics", icon: Lightbulb, color: "bg-cyan-600" },
+          { label: "Seed Walks", url: "/api/admin/seed-walks", icon: MapPin, color: "bg-purple-600" },
         ].map((a) => (
           <button
             key={a.label}

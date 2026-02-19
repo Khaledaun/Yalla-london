@@ -207,15 +207,20 @@ export async function runPrePublicationGate(
     blockers.push("Content is too short for indexing");
   }
 
-  // ── 4. SEO score check (2025 standards: 60+ for quality content) ───
-  if (content.seo_score !== undefined && content.seo_score < 60) {
-    checks.push({
+  // ── 4. SEO score check (2026 standards: 70+ for quality content) ───
+  if (content.seo_score !== undefined && content.seo_score < 70) {
+    const seoCheck: GateCheck = {
       name: "SEO Score",
       passed: false,
-      message: `SEO score ${content.seo_score} is below minimum threshold (60)`,
-      severity: "warning",
-    });
-    warnings.push(`Low SEO score: ${content.seo_score}/100`);
+      message: `SEO score ${content.seo_score} is below minimum threshold (70)`,
+      severity: content.seo_score < 50 ? "blocker" : "warning",
+    };
+    checks.push(seoCheck);
+    if (content.seo_score < 50) {
+      blockers.push(`SEO score critically low: ${content.seo_score}/100`);
+    } else {
+      warnings.push(`Low SEO score: ${content.seo_score}/100 (target: 70+)`);
+    }
   }
 
   // ── 5. Heading hierarchy check (AIO optimization) ─────────────────
@@ -231,18 +236,18 @@ export async function runPrePublicationGate(
     }
   }
 
-  // ── 6. Word count check (2025 standards: 800+ min, 1200+ target) ──
+  // ── 6. Word count check (2026 standards: 1000+ blocker, 1200+ target) ──
   if (content.content_en) {
     const wordCount = countWords(content.content_en);
     if (wordCount < 1200) {
       const check: GateCheck = {
         name: "Word Count",
         passed: false,
-        message: `Content has ${wordCount} words (target 1,200+ for indexing quality, ${wordCount < 800 ? "below 800 minimum" : "close to target"})`,
-        severity: wordCount < 800 ? "blocker" : "warning",
+        message: `Content has ${wordCount} words (target 1,200+ for indexing quality, ${wordCount < 1000 ? "below 1,000 minimum — blocked" : "close to target"})`,
+        severity: wordCount < 1000 ? "blocker" : "warning",
       };
       checks.push(check);
-      if (wordCount < 800) {
+      if (wordCount < 1000) {
         blockers.push(check.message);
       } else {
         warnings.push(check.message);
@@ -358,6 +363,38 @@ export async function runPrePublicationGate(
       severity: "warning",
     });
     warnings.push("Missing structured data/keywords");
+  }
+
+  // ── 12. First-Hand Experience signals (Jan 2026 Authenticity Update) ──
+  // Google's Jan 2026 Core Update heavily rewards content with first-hand experience
+  // signals and demotes "second-hand knowledge" (repackaged summaries).
+  if (content.content_en && content.content_en.length > 500) {
+    const authenticityResult = checkAuthenticitySignals(content.content_en);
+    checks.push(authenticityResult.check);
+    if (!authenticityResult.check.passed) {
+      warnings.push(authenticityResult.check.message);
+    }
+  }
+
+  // ── 13. Affiliate/booking links check (revenue requirement) ──────
+  if (content.content_en) {
+    const affiliateCount = countAffiliateLinks(content.content_en);
+    if (affiliateCount === 0) {
+      checks.push({
+        name: "Affiliate Links",
+        passed: false,
+        message: "No affiliate/booking links found — articles must contain monetization links for revenue generation",
+        severity: "warning",
+      });
+      warnings.push("No affiliate/booking links found (revenue requirement)");
+    } else {
+      checks.push({
+        name: "Affiliate Links",
+        passed: true,
+        message: `Found ${affiliateCount} affiliate/booking link(s)`,
+        severity: "info",
+      });
+    }
   }
 
   return {
@@ -537,6 +574,124 @@ function checkImageAltText(html: string): { totalImages: number; missingAlt: num
     }
   }
   return { totalImages: images.length, missingAlt };
+}
+
+/**
+ * Check for first-hand experience and authenticity signals in content.
+ *
+ * Google's January 2026 "Authenticity Update" heavily rewards content demonstrating
+ * lived experience and demotes "second-hand knowledge." This check looks for
+ * experience markers that signal genuine expertise.
+ */
+function checkAuthenticitySignals(html: string): { check: GateCheck } {
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+
+  // Experience signals — phrases that indicate first-hand knowledge
+  const experienceSignals = [
+    // Sensory/experiential language
+    /\b(we (?:visited|tried|tasted|explored|walked|stayed|experienced|discovered|found))\b/,
+    /\b(i (?:visited|tried|tasted|explored|walked|stayed|experienced|discovered|found|recommend))\b/,
+    /\b(when (?:we|you|i) (?:arrive|visit|walk|enter|step))\b/,
+    // Specific details that indicate real visits
+    /\b(insider tip|local tip|pro tip|editor'?s? (?:pick|note)|our (?:pick|recommendation|favorite))\b/,
+    /\b(what (?:we|most guides|many tourists) (?:don'?t|didn'?t))\b/,
+    /\b(in (?:my|our) experience)\b/,
+    /\b(first[- ]hand|personally)\b/,
+    // Temporal/seasonal signals
+    /\b(when we last visited|on our (?:last|recent) visit|during (?:my|our) (?:stay|visit|trip))\b/,
+    /\b(last time (?:we|i) (?:were|was) there)\b/,
+    // Specific observations
+    /\b(the (?:atmosphere|ambiance|view|decor|service) (?:was|is|feels?))\b/,
+    /\b(don'?t miss|make sure (?:to|you)|be sure to|ask for)\b/,
+    /\b(hidden gem|best[- ]kept secret|locals? (?:know|love|recommend|secret))\b/,
+  ];
+
+  let signalCount = 0;
+  for (const pattern of experienceSignals) {
+    if (pattern.test(text)) {
+      signalCount++;
+    }
+  }
+
+  // AI-generic phrases that indicate lack of authenticity (negative signals)
+  const genericPhrases = [
+    /\bin today'?s (?:world|age|fast[- ]paced)\b/,
+    /\bit'?s worth noting that\b/,
+    /\bwhether you'?re a .+ or a\b/,
+    /\bin conclusion,?\s/,
+    /\blook no further\b/,
+    /\bwithout further ado\b/,
+    /\bin this (?:comprehensive|ultimate|definitive) (?:guide|article)\b/,
+  ];
+
+  let genericCount = 0;
+  for (const pattern of genericPhrases) {
+    if (pattern.test(text)) {
+      genericCount++;
+    }
+  }
+
+  // Scoring: need at least 3 experience signals and fewer generic phrases
+  if (signalCount >= 3 && genericCount <= 1) {
+    return {
+      check: {
+        name: "Authenticity Signals",
+        passed: true,
+        message: `Good authenticity: ${signalCount} experience signals found, ${genericCount} generic phrases (Jan 2026 Authenticity Update compliant)`,
+        severity: "info",
+      },
+    };
+  }
+
+  if (signalCount < 2) {
+    return {
+      check: {
+        name: "Authenticity Signals",
+        passed: false,
+        message: `Low authenticity: only ${signalCount} first-hand experience signals found (need 3+). Add sensory details, personal observations, and insider tips. Google's Jan 2026 update demotes "second-hand knowledge."`,
+        severity: "warning",
+      },
+    };
+  }
+
+  return {
+    check: {
+      name: "Authenticity Signals",
+      passed: false,
+      message: `Moderate authenticity: ${signalCount} experience signals but ${genericCount} AI-generic phrases detected. Replace generic filler with specific, experiential language.`,
+      severity: "warning",
+    },
+  };
+}
+
+/**
+ * Count affiliate/booking links in content.
+ * Checks for known affiliate domains and booking platforms.
+ */
+function countAffiliateLinks(html: string): number {
+  const affiliatePatterns = [
+    /booking\.com/gi,
+    /halalbooking\.com/gi,
+    /agoda\.com/gi,
+    /getyourguide\.com/gi,
+    /viator\.com/gi,
+    /klook\.com/gi,
+    /boatbookings\.com/gi,
+    /thefork\.com/gi,
+    /tripadvisor\.com/gi,
+    /expedia\.com/gi,
+    /hotels\.com/gi,
+    /airbnb\.com/gi,
+    /skyscanner\.com/gi,
+    /kayak\.com/gi,
+  ];
+
+  let count = 0;
+  for (const pattern of affiliatePatterns) {
+    const matches = html.match(pattern);
+    if (matches) count += matches.length;
+  }
+  return count;
 }
 
 /**

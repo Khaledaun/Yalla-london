@@ -14,7 +14,7 @@ import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
-const MIN_QUALITY_SCORE = 60; // Aligned with CONTENT_QUALITY.qualityGateScore from lib/seo/standards.ts
+const MIN_QUALITY_SCORE = 70; // Aligned with CONTENT_QUALITY.qualityGateScore from lib/seo/standards.ts
 const MAX_ARTICLES_PER_RUN = 2;
 
 export interface SelectRunnerResult {

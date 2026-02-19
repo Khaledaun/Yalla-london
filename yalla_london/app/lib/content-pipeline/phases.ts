@@ -756,8 +756,8 @@ export async function phaseScoring(
   // Content depth
   const contentDepthScore = Math.min(100, h2Count * 10 + h3Count * 5 + (wordCount / 30));
 
-  // Quality gate: 60+ → reservoir, else rejected (aligned with CONTENT_QUALITY.qualityGateScore)
-  const nextPhase = qualityScore >= 60 ? "reservoir" : "rejected";
+  // Quality gate: 70+ → reservoir, else rejected (aligned with CONTENT_QUALITY.qualityGateScore)
+  const nextPhase = qualityScore >= 70 ? "reservoir" : "rejected";
 
   return {
     success: true,

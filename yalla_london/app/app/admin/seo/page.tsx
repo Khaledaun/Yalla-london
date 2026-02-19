@@ -192,6 +192,8 @@ const HEALTH_STYLES: Record<string, { bg: string; border: string; icon: string; 
   not_started: { bg: "bg-gray-50", border: "border-gray-200", icon: "text-gray-400", text: "text-gray-700" },
 };
 
+const getScoreColor = (s: number) => s >= 90 ? "text-green-600" : s >= 70 ? "text-yellow-600" : "text-red-600";
+
 // ══════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ══════════════════════════════════════════════════════════════════
@@ -392,7 +394,6 @@ export default function SEOCommandCenter() {
     finally { setIsCrawling(false); }
   };
 
-  const getScoreColor = (s: number) => s >= 90 ? "text-green-600" : s >= 70 ? "text-yellow-600" : "text-red-600";
   const getScoreBadge = (s: number) =>
     s >= 90 ? <Badge className="bg-green-500">Excellent</Badge>
     : s >= 70 ? <Badge className="bg-yellow-500">Good</Badge>

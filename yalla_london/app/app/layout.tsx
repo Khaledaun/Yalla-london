@@ -15,23 +15,26 @@ import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { brandConfig } from "@/config/brand-config";
 import { HreflangTags } from "@/components/hreflang-tags";
 import { getBaseUrl } from "@/lib/url-utils";
+import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 import type { Language } from "@/lib/types";
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
+  const siteConfig = getSiteConfig(getDefaultSiteId());
+  const siteName = siteConfig?.name || brandConfig.siteName;
 
   return {
     title: `${brandConfig.siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
     description: brandConfig.description,
-    authors: [{ name: brandConfig.seo.author }],
-    creator: brandConfig.seo.author,
-    publisher: brandConfig.seo.author,
+    authors: [{ name: siteName }],
+    creator: siteName,
+    publisher: siteName,
     openGraph: {
       type: "website",
       locale: "en_GB",
       alternateLocale: "ar_SA",
       url: baseUrl,
-      siteName: brandConfig.siteName,
+      siteName,
       title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
       description: brandConfig.description,
       images: [
@@ -39,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
           url: "/og-image.jpg",
           width: 1200,
           height: 630,
-          alt: "Yalla London - Luxury London Guide",
+          alt: `${siteName} - ${brandConfig.tagline}`,
         },
       ],
     },
@@ -94,13 +97,13 @@ export default async function RootLayout({
           crossOrigin=""
         />
 
-        {/* PWA Meta Tags */}
+        {/* PWA Meta Tags — theme-color and title from site config */}
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#C8322B" />
+        <meta name="theme-color" content={getSiteConfig(getDefaultSiteId())?.primaryColor || "#C8322B"} />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Yalla London" />
+        <meta name="apple-mobile-web-app-title" content={getSiteConfig(getDefaultSiteId())?.name || "Yalla London"} />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
 
         {/* Other Meta Tags */}

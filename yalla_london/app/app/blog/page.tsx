@@ -1,8 +1,9 @@
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
 import { getBaseUrl } from "@/lib/url-utils";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { getSiteDomain, getSiteConfig, getDefaultSiteId } from "@/config/sites";
 import BlogListClient from "./BlogListClient";
 
 // Combine all static blog posts (legacy content)
@@ -11,29 +12,36 @@ const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 // ISR: Revalidate blog listing every 10 minutes for Cloudflare edge caching
 export const revalidate = 600;
 
-// Dynamic metadata for SEO — resolves base URL from request context
+// Dynamic metadata for SEO — resolves site identity + base URL from request context
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const destination = siteConfig?.destination || "London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
 
   return {
-    title: "Blog | Yalla London - Travel Guides & Stories for Arab Visitors",
+    title: `Blog | ${siteName} - Travel Guides & Stories for Arab Visitors`,
     description:
-      "Explore our collection of travel guides, restaurant reviews, hotel comparisons, and insider tips for Arab visitors to London. Find halal dining, luxury hotels, and cultural experiences.",
+      `Explore our collection of travel guides, restaurant reviews, hotel comparisons, and insider tips for Arab visitors to ${destination}. Find halal dining, luxury hotels, and cultural experiences.`,
     keywords:
-      "london blog, halal travel london, arab visitors london, london guides, halal restaurants, luxury hotels london, arab friendly london",
+      `${destination.toLowerCase()} blog, halal travel ${destination.toLowerCase()}, arab visitors ${destination.toLowerCase()}, ${destination.toLowerCase()} guides`,
     alternates: {
       canonical: `${baseUrl}/blog`,
       languages: {
         "en-GB": `${baseUrl}/blog`,
         "ar-SA": `${baseUrl}/ar/blog`,
+        "x-default": `${baseUrl}/blog`,
       },
     },
     openGraph: {
-      title: "Blog | Yalla London - Travel Guides for Arab Visitors",
+      title: `Blog | ${siteName} - Travel Guides for Arab Visitors`,
       description:
-        "Discover London through the eyes of Arab travelers. Halal dining, luxury hotels, shopping guides, and cultural experiences.",
+        `Discover ${destination} through the eyes of Arab travelers. Halal dining, luxury hotels, shopping guides, and cultural experiences.`,
       url: `${baseUrl}/blog`,
-      siteName: "Yalla London",
+      siteName,
       locale: "en_GB",
       alternateLocale: "ar_SA",
       type: "website",
@@ -42,15 +50,15 @@ export async function generateMetadata(): Promise<Metadata> {
           url: `${baseUrl}/images/blog-og.jpg`,
           width: 1200,
           height: 630,
-          alt: "Yalla London Blog - Travel Guides for Arab Visitors",
+          alt: `${siteName} Blog - Travel Guides for Arab Visitors`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      site: "@yallalondon",
-      title: "Blog | Yalla London",
-      description: "Travel guides and stories for Arab visitors to London",
+      site: `@${siteSlug}`,
+      title: `Blog | ${siteName}`,
+      description: `Travel guides and stories for Arab visitors to ${destination}`,
     },
     robots: {
       index: true,
@@ -101,34 +109,23 @@ function generateStructuredData(
     featured_image: string;
     created_at: string;
   }>,
+  siteInfo: { siteName: string; siteSlug: string; baseUrl: string },
 ) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+  const { siteName, siteSlug, baseUrl } = siteInfo;
 
+  // Use ItemList schema (Google-supported) instead of Blog (non-standard)
   const blogSchema = {
     "@context": "https://schema.org",
-    "@type": "Blog",
-    name: "Yalla London Blog",
-    description:
-      "Travel guides, restaurant reviews, and insider tips for Arab visitors to London",
+    "@type": "ItemList",
+    name: `${siteName} Blog`,
+    description: `Travel guides, restaurant reviews, and insider tips for Arab travelers`,
     url: `${baseUrl}/blog`,
-    publisher: {
-      "@type": "Organization",
-      name: "Yalla London",
-      url: baseUrl,
-      logo: {
-        "@type": "ImageObject",
-        url: `${baseUrl}/images/yalla-london-logo.svg`,
-      },
-    },
-    blogPost: allPosts.slice(0, 10).map((post) => ({
-      "@type": "BlogPosting",
-      headline: post.title_en,
-      description: post.excerpt_en || "",
+    numberOfItems: allPosts.length,
+    itemListElement: allPosts.slice(0, 10).map((post, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
       url: `${baseUrl}/blog/${post.slug}`,
-      image: post.featured_image || "",
-      datePublished: post.created_at,
-      author: { "@type": "Organization", name: "Yalla London" },
+      name: post.title_en,
     })),
   };
 
@@ -152,6 +149,14 @@ function generateStructuredData(
 // ─── Page component ────────────────────────────────────────────────────────
 
 export default async function BlogPage() {
+  // Resolve site identity
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
+
   // 1. Transform static posts
   const staticPosts = allStaticPosts
     .filter((post) => post.published)
@@ -213,7 +218,7 @@ export default async function BlogPage() {
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
 
-  const structuredData = generateStructuredData(allPosts);
+  const structuredData = generateStructuredData(allPosts, { siteName, siteSlug, baseUrl });
 
   return (
     <>

@@ -27,6 +27,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       : `https://${hostname}`;
   const currentDate = new Date().toISOString();
 
+  // Helper: generate hreflang alternates with correct language-region codes
+  function hreflang(path: string) {
+    const enUrl = path ? `${baseUrl}${path}` : baseUrl;
+    const arUrl = path ? `${baseUrl}/ar${path}` : `${baseUrl}/ar`;
+    return {
+      languages: {
+        "en-GB": enUrl,
+        "ar-SA": arUrl,
+        "x-default": enUrl,
+      },
+    };
+  }
+
   // Static pages (common to all sites)
   const staticPages: MetadataRoute.Sitemap = [
     {
@@ -34,72 +47,84 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: currentDate,
       changeFrequency: "daily",
       priority: 1,
-      alternates: {
-        languages: {
-          en: baseUrl,
-          ar: `${baseUrl}/ar`,
-        },
-      },
+      alternates: hreflang(""),
     },
     {
       url: `${baseUrl}/blog`,
       lastModified: currentDate,
       changeFrequency: "daily",
       priority: 0.9,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/blog`,
-          ar: `${baseUrl}/ar/blog`,
-        },
-      },
+      alternates: hreflang("/blog"),
     },
     {
       url: `${baseUrl}/recommendations`,
       lastModified: currentDate,
       changeFrequency: "weekly",
       priority: 0.9,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/recommendations`,
-          ar: `${baseUrl}/ar/recommendations`,
-        },
-      },
+      alternates: hreflang("/recommendations"),
     },
     {
       url: `${baseUrl}/events`,
       lastModified: currentDate,
       changeFrequency: "daily",
       priority: 0.8,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/events`,
-          ar: `${baseUrl}/ar/events`,
-        },
-      },
+      alternates: hreflang("/events"),
+    },
+    {
+      url: `${baseUrl}/experiences`,
+      lastModified: currentDate,
+      changeFrequency: "weekly",
+      priority: 0.8,
+      alternates: hreflang("/experiences"),
+    },
+    {
+      url: `${baseUrl}/hotels`,
+      lastModified: currentDate,
+      changeFrequency: "weekly",
+      priority: 0.8,
+      alternates: hreflang("/hotels"),
     },
     {
       url: `${baseUrl}/about`,
       lastModified: currentDate,
       changeFrequency: "monthly",
       priority: 0.7,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/about`,
-          ar: `${baseUrl}/ar/about`,
-        },
-      },
+      alternates: hreflang("/about"),
     },
     {
       url: `${baseUrl}/contact`,
       lastModified: currentDate,
       changeFrequency: "monthly",
       priority: 0.6,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/contact`,
-          ar: `${baseUrl}/ar/contact`,
-        },
-      },
+      alternates: hreflang("/contact"),
+    },
+    {
+      url: `${baseUrl}/privacy`,
+      lastModified: currentDate,
+      changeFrequency: "yearly",
+      priority: 0.3,
+      alternates: hreflang("/privacy"),
+    },
+    {
+      url: `${baseUrl}/terms`,
+      lastModified: currentDate,
+      changeFrequency: "yearly",
+      priority: 0.3,
+      alternates: hreflang("/terms"),
+    },
+    {
+      url: `${baseUrl}/affiliate-disclosure`,
+      lastModified: currentDate,
+      changeFrequency: "yearly",
+      priority: 0.3,
+      alternates: hreflang("/affiliate-disclosure"),
+    },
+    {
+      url: `${baseUrl}/shop`,
+      lastModified: currentDate,
+      changeFrequency: "weekly",
+      priority: 0.7,
+      alternates: hreflang("/shop"),
     },
   ];
 
@@ -113,12 +138,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         lastModified: post.updated_at.toISOString(),
         changeFrequency: "weekly" as const,
         priority: 0.8,
-        alternates: {
-          languages: {
-            en: `${baseUrl}/blog/${post.slug}`,
-            ar: `${baseUrl}/ar/blog/${post.slug}`,
-          },
-        },
+        alternates: hreflang(`/blog/${post.slug}`),
       }));
   }
 
@@ -141,12 +161,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         lastModified: post.updated_at?.toISOString() || currentDate,
         changeFrequency: "weekly" as const,
         priority: 0.8,
-        alternates: {
-          languages: {
-            en: `${baseUrl}/blog/${post.slug}`,
-            ar: `${baseUrl}/ar/blog/${post.slug}`,
-          },
-        },
+        alternates: hreflang(`/blog/${post.slug}`),
       }));
   } catch {
     // Database not available - use static content only
@@ -167,6 +182,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: event.updated_at?.toISOString() || currentDate,
       changeFrequency: "weekly" as const,
       priority: 0.7,
+      alternates: hreflang(`/events/${event.id}`),
     }));
   } catch {
     // Database not available
@@ -178,12 +194,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: currentDate,
     changeFrequency: "weekly" as const,
     priority: 0.7,
-    alternates: {
-      languages: {
-        en: `${baseUrl}/blog/category/${category.slug}`,
-        ar: `${baseUrl}/ar/blog/category/${category.slug}`,
-      },
-    },
+    alternates: hreflang(`/blog/category/${category.slug}`),
   }));
 
   // Information Hub pages
@@ -194,12 +205,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: currentDate,
       changeFrequency: "weekly" as const,
       priority: 0.9,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/information`,
-          ar: `${baseUrl}/ar/information`,
-        },
-      },
+      alternates: hreflang("/information"),
     },
     // Information articles listing page
     {
@@ -207,12 +213,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: currentDate,
       changeFrequency: "weekly" as const,
       priority: 0.8,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/information/articles`,
-          ar: `${baseUrl}/ar/information/articles`,
-        },
-      },
+      alternates: hreflang("/information/articles"),
     },
   ];
 
@@ -224,12 +225,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: currentDate,
       changeFrequency: "weekly" as const,
       priority: 0.8,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/information/${section.slug}`,
-          ar: `${baseUrl}/ar/information/${section.slug}`,
-        },
-      },
+      alternates: hreflang(`/information/${section.slug}`),
     }));
 
   // Information Hub article pages
@@ -240,12 +236,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: article.updated_at.toISOString(),
       changeFrequency: "weekly" as const,
       priority: 0.8,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/information/articles/${article.slug}`,
-          ar: `${baseUrl}/ar/information/articles/${article.slug}`,
-        },
-      },
+      alternates: hreflang(`/information/articles/${article.slug}`),
     }));
 
   // News pages
@@ -262,12 +253,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: item.updated_at?.toISOString() || currentDate,
       changeFrequency: "daily" as const,
       priority: 0.7,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/news/${item.slug}`,
-          ar: `${baseUrl}/ar/news/${item.slug}`,
-        },
-      },
+      alternates: hreflang(`/news/${item.slug}`),
     }));
   } catch {
     // Database not available - skip news pages
@@ -280,14 +266,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: currentDate,
       changeFrequency: "daily" as const,
       priority: 0.8,
-      alternates: {
-        languages: {
-          en: `${baseUrl}/news`,
-          ar: `${baseUrl}/ar/news`,
-        },
-      },
+      alternates: hreflang("/news"),
     },
   ];
+
+  // London by Foot pages (only for yalla-london)
+  let londonByFootPages: MetadataRoute.Sitemap = [];
+  if (siteId === "yalla-london") {
+    londonByFootPages = [
+      {
+        url: `${baseUrl}/london-by-foot`,
+        lastModified: currentDate,
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+        alternates: hreflang("/london-by-foot"),
+      },
+    ];
+  }
 
   return [
     ...staticPages,
@@ -300,5 +295,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...infoArticlePages,
     ...newsLandingPages,
     ...newsPages,
+    ...londonByFootPages,
   ];
 }

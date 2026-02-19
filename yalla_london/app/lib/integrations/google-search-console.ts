@@ -53,6 +53,19 @@ export interface UrlInspectionResult {
   pageFetchState?: string;
   verdict?: string;
   issues?: string[];
+  // Extended fields for comprehensive diagnostics
+  crawledAs?: string;
+  indexingAllowed?: string;
+  crawlAllowed?: string;
+  userCanonical?: string;
+  googleCanonical?: string;
+  sitemaps?: string[];
+  referringUrls?: string[];
+  mobileUsabilityVerdict?: string;
+  mobileUsabilityIssues?: string[];
+  richResultsVerdict?: string;
+  richResultsItems?: Array<{ type: string; issues?: string[] }>;
+  rawResult?: Record<string, unknown>;
 }
 
 export class GoogleSearchConsole {
@@ -233,16 +246,75 @@ export class GoogleSearchConsole {
 
       if (data.inspectionResult) {
         const result = data.inspectionResult;
+        const indexStatus = result.indexStatusResult || {};
+        const mobileUsability = result.mobileUsabilityResult || {};
+        const richResults = result.richResultsResult || {};
+
+        // Extract mobile usability issues
+        const mobileIssues: string[] = [];
+        if (mobileUsability.issues && Array.isArray(mobileUsability.issues)) {
+          for (const issue of mobileUsability.issues) {
+            mobileIssues.push(issue.issueMessage || issue.severity || String(issue));
+          }
+        }
+
+        // Extract rich results items
+        const richItems: Array<{ type: string; issues?: string[] }> = [];
+        if (richResults.detectedItems && Array.isArray(richResults.detectedItems)) {
+          for (const item of richResults.detectedItems) {
+            const itemIssues: string[] = [];
+            if (item.items && Array.isArray(item.items)) {
+              for (const sub of item.items) {
+                if (sub.issues && Array.isArray(sub.issues)) {
+                  for (const iss of sub.issues) {
+                    itemIssues.push(iss.issueMessage || String(iss));
+                  }
+                }
+              }
+            }
+            richItems.push({ type: item.richResultType || 'unknown', issues: itemIssues.length > 0 ? itemIssues : undefined });
+          }
+        }
+
+        // Collect all indexing-relevant issues
+        const issues: string[] = [];
+        if (!indexStatus.crawlingUserAgent) issues.push('No crawl data available');
+        if (indexStatus.verdict && indexStatus.verdict !== 'PASS' && indexStatus.verdict !== 'NEUTRAL') {
+          issues.push(`Verdict: ${indexStatus.verdict}`);
+        }
+        if (indexStatus.robotsTxtState === 'DISALLOWED') {
+          issues.push('Blocked by robots.txt');
+        }
+        if (indexStatus.pageFetchState && indexStatus.pageFetchState !== 'SUCCESSFUL') {
+          issues.push(`Page fetch: ${indexStatus.pageFetchState}`);
+        }
+        if (mobileIssues.length > 0) {
+          issues.push(...mobileIssues.map(i => `Mobile: ${i}`));
+        }
+
         return {
           url,
-          indexingState: result.indexStatusResult?.indexingState || 'NEUTRAL',
-          coverageState: result.indexStatusResult?.coverageState || 'Unknown',
-          lastCrawlTime: result.indexStatusResult?.lastCrawlTime,
-          crawlStatus: result.indexStatusResult?.crawledAs,
-          robotsTxtState: result.indexStatusResult?.robotsTxtState,
-          pageFetchState: result.indexStatusResult?.pageFetchState,
-          verdict: result.indexStatusResult?.verdict,
-          issues: result.indexStatusResult?.crawlingUserAgent ? [] : ['No crawl data available'],
+          indexingState: indexStatus.indexingState || 'NEUTRAL',
+          coverageState: indexStatus.coverageState || 'Unknown',
+          lastCrawlTime: indexStatus.lastCrawlTime,
+          crawlStatus: indexStatus.crawledAs,
+          robotsTxtState: indexStatus.robotsTxtState,
+          pageFetchState: indexStatus.pageFetchState,
+          verdict: indexStatus.verdict,
+          issues,
+          // Extended fields
+          crawledAs: indexStatus.crawledAs,
+          indexingAllowed: indexStatus.indexingAllowed,
+          crawlAllowed: indexStatus.crawlAllowed,
+          userCanonical: indexStatus.userCanonical,
+          googleCanonical: indexStatus.googleCanonical,
+          sitemaps: indexStatus.sitemap ? [].concat(indexStatus.sitemap) : undefined,
+          referringUrls: indexStatus.referringUrls ? [].concat(indexStatus.referringUrls) : undefined,
+          mobileUsabilityVerdict: mobileUsability.verdict,
+          mobileUsabilityIssues: mobileIssues.length > 0 ? mobileIssues : undefined,
+          richResultsVerdict: richResults.verdict,
+          richResultsItems: richItems.length > 0 ? richItems : undefined,
+          rawResult: result,
         };
       }
 

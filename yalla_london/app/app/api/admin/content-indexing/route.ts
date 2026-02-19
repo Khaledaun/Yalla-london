@@ -191,15 +191,76 @@ export async function GET(request: NextRequest) {
           reasons.push("Submitted but Google has not indexed it — no specific reason available from GSC");
         }
 
-        // Inspection-level issues
+        // Inspection-level issues — extract from stored inspection_result JSON
         const inspectionResult = record?.inspection_result as Record<string, any> | null;
-        if (inspectionResult?.issues && Array.isArray(inspectionResult.issues)) {
-          for (const issue of inspectionResult.issues) {
-            reasons.push(`GSC issue: ${issue}`);
+        if (inspectionResult) {
+          // Verdict — Google's primary reason for not indexing
+          if (inspectionResult.verdict && inspectionResult.verdict !== "PASS" && inspectionResult.verdict !== "NEUTRAL") {
+            reasons.push(`Google verdict: ${inspectionResult.verdict}`);
           }
-        }
-        if (inspectionResult?.robotsTxtState === "DISALLOWED") {
-          reasons.push("robots.txt is blocking Google from crawling this URL");
+          // Robots.txt state
+          if (inspectionResult.robotsTxtState === "DISALLOWED") {
+            reasons.push("robots.txt is blocking Google from crawling this URL");
+          }
+          // Page fetch state
+          if (inspectionResult.pageFetchState && inspectionResult.pageFetchState !== "SUCCESSFUL") {
+            reasons.push(`Page fetch failed: ${inspectionResult.pageFetchState} — Google couldn't load the page`);
+          }
+          // Crawl info
+          if (inspectionResult.crawledAs) {
+            reasons.push(`Crawled as: ${inspectionResult.crawledAs}`);
+          }
+          // Canonical mismatch
+          if (inspectionResult.userCanonical && inspectionResult.googleCanonical &&
+              inspectionResult.userCanonical !== inspectionResult.googleCanonical) {
+            reasons.push(`Canonical mismatch — Your canonical: ${inspectionResult.userCanonical}, Google selected: ${inspectionResult.googleCanonical}`);
+          }
+          // Indexing/crawl permissions
+          if (inspectionResult.indexingAllowed === "DISALLOWED") {
+            reasons.push("Indexing not allowed — page may have a noindex meta tag or X-Robots-Tag header");
+          }
+          if (inspectionResult.crawlAllowed === "DISALLOWED") {
+            reasons.push("Crawling not allowed — robots.txt or robots meta tag is blocking crawl");
+          }
+          // Mobile usability
+          if (inspectionResult.mobileUsabilityVerdict && inspectionResult.mobileUsabilityVerdict !== "PASS") {
+            reasons.push(`Mobile usability: ${inspectionResult.mobileUsabilityVerdict}`);
+          }
+          if (inspectionResult.mobileUsabilityIssues && Array.isArray(inspectionResult.mobileUsabilityIssues)) {
+            for (const issue of inspectionResult.mobileUsabilityIssues) {
+              reasons.push(`Mobile issue: ${issue}`);
+            }
+          }
+          // Rich results
+          if (inspectionResult.richResultsVerdict && inspectionResult.richResultsVerdict !== "PASS") {
+            reasons.push(`Rich results: ${inspectionResult.richResultsVerdict}`);
+          }
+          if (inspectionResult.richResultsItems && Array.isArray(inspectionResult.richResultsItems)) {
+            for (const item of inspectionResult.richResultsItems) {
+              if (item.issues && item.issues.length > 0) {
+                reasons.push(`Rich result "${item.type}" has issues: ${item.issues.join(", ")}`);
+              }
+            }
+          }
+          // Generic issues array
+          if (inspectionResult.issues && Array.isArray(inspectionResult.issues)) {
+            for (const issue of inspectionResult.issues) {
+              reasons.push(`GSC issue: ${issue}`);
+            }
+          }
+          // Referring URLs (useful context)
+          if (inspectionResult.referringUrls && Array.isArray(inspectionResult.referringUrls) && inspectionResult.referringUrls.length > 0) {
+            reasons.push(`Google found ${inspectionResult.referringUrls.length} referring URL(s)`);
+          }
+          // Raw result for deep inspection
+          if (inspectionResult.rawResult) {
+            const raw = inspectionResult.rawResult as Record<string, any>;
+            const indexStatusResult = raw.indexStatusResult || {};
+            // Extract any additional details from raw API response
+            if (indexStatusResult.sitemap && Array.isArray(indexStatusResult.sitemap)) {
+              reasons.push(`Found in ${indexStatusResult.sitemap.length} sitemap(s)`);
+            }
+          }
         }
       } else if (indexingStatus === "error") {
         if (record?.last_error) {

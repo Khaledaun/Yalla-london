@@ -1,0 +1,195 @@
+{
+  "audit_date": "2026-02-19",
+  "audit_type": "static_code_analysis",
+  "site": "yalla-london",
+  "tool": "Claude Code codebase analysis (not a live crawl)",
+  "summary": {
+    "total_page_routes": 106,
+    "public_pages": 28,
+    "admin_pages": 78,
+    "api_routes": 269,
+    "dynamic_page_routes": 9,
+    "dynamic_api_routes": 23,
+    "cron_routes": 22,
+    "cron_scheduled_in_vercel_json": 17,
+    "note": "Counts are from filesystem analysis of page.tsx and route.ts files. Actual public-facing URL count is higher due to dynamic routes (blog slugs, categories, info articles, etc.)."
+  },
+  "pages": {
+    "public_static": [
+      { "path": "/", "template": "homepage", "has_metadata": "inherited_from_root_layout", "in_sitemap": true },
+      { "path": "/about", "template": "static", "has_metadata": "layout_static", "in_sitemap": true },
+      { "path": "/contact", "template": "static", "has_metadata": "layout_static", "in_sitemap": true },
+      { "path": "/privacy", "template": "static", "has_metadata": "layout_static", "in_sitemap": false },
+      { "path": "/terms", "template": "static", "has_metadata": "layout_static", "in_sitemap": false },
+      { "path": "/affiliate-disclosure", "template": "static", "has_metadata": "none", "in_sitemap": false },
+      { "path": "/offline", "template": "static", "has_metadata": "none", "in_sitemap": false },
+      { "path": "/recommendations", "template": "static", "has_metadata": "layout_static", "in_sitemap": true },
+      { "path": "/experiences", "template": "static", "has_metadata": "layout_static", "in_sitemap": false },
+      { "path": "/hotels", "template": "static", "has_metadata": "layout_static", "in_sitemap": false },
+      { "path": "/events", "template": "listing", "has_metadata": "layout_static", "in_sitemap": true },
+      { "path": "/brand-guidelines", "template": "internal_redirected", "has_metadata": "static_page", "in_sitemap": false, "note": "Middleware redirects to /admin" },
+      { "path": "/brand-showcase", "template": "internal_redirected", "has_metadata": "static_page", "in_sitemap": false, "note": "Middleware redirects to /admin" }
+    ],
+    "public_dynamic": [
+      { "path": "/blog", "template": "blog_listing", "has_metadata": "generateMetadata", "in_sitemap": true },
+      { "path": "/blog/[slug]", "template": "blog_detail", "has_metadata": "generateMetadata", "in_sitemap": true },
+      { "path": "/blog/category/[slug]", "template": "category_listing", "has_metadata": "generateMetadata", "in_sitemap": true },
+      { "path": "/information", "template": "info_hub_landing", "has_metadata": "generateMetadata", "in_sitemap": true },
+      { "path": "/information/articles", "template": "info_articles_listing", "has_metadata": "generateMetadata", "in_sitemap": true },
+      { "path": "/information/articles/[slug]", "template": "info_article_detail", "has_metadata": "generateMetadata", "in_sitemap": true },
+      { "path": "/information/[section]", "template": "info_section", "has_metadata": "generateMetadata", "in_sitemap": true },
+      { "path": "/news", "template": "news_listing", "has_metadata": "generateMetadata", "in_sitemap": true },
+      { "path": "/news/[slug]", "template": "news_detail", "has_metadata": "generateMetadata", "in_sitemap": true },
+      { "path": "/london-by-foot/[slug]", "template": "walking_route_detail", "has_metadata": "generateMetadata", "in_sitemap": false },
+      { "path": "/london-by-foot", "template": "walking_routes_listing", "has_metadata": "static_page", "in_sitemap": false },
+      { "path": "/shop", "template": "shop_listing", "has_metadata": "layout_static", "in_sitemap": false },
+      { "path": "/shop/[slug]", "template": "shop_detail", "has_metadata": "none", "in_sitemap": false },
+      { "path": "/shop/download", "template": "shop_download", "has_metadata": "none", "in_sitemap": false },
+      { "path": "/shop/purchases", "template": "shop_purchases", "has_metadata": "none", "in_sitemap": false }
+    ],
+    "admin_pages_count": 78,
+    "admin_pages_note": "All under /admin/* prefix. force-dynamic where set. Correctly excluded from robots.txt and sitemap. No SEO metadata needed."
+  },
+  "internal_links": {
+    "header_navigation": {
+      "link_count_estimate": 7,
+      "links": [
+        { "text": "Home", "href": "/" },
+        { "text": "Blog", "href": "/blog" },
+        { "text": "Recommendations", "href": "/recommendations" },
+        { "text": "Events", "href": "/events" },
+        { "text": "Information", "href": "/information" },
+        { "text": "About", "href": "/about" },
+        { "text": "Contact", "href": "/contact" }
+      ],
+      "note": "Header is rendered by DynamicHeader component. Exact links may vary by site config."
+    },
+    "footer_navigation": {
+      "link_count_estimate": 25,
+      "sections": [
+        "Quick Links (home, blog, events, about, contact)",
+        "Categories (hotel guides, restaurant reviews, shopping, events, culture)",
+        "Resources (privacy, terms, affiliate disclosure)",
+        "Social media links"
+      ],
+      "note": "Footer component renders shared navigation across all pages."
+    },
+    "per_article_links": {
+      "related_articles": "3-6 per blog post (getRelatedArticles function, DB + static merge)",
+      "internal_links_in_content": "Varies. Pre-publication gate requires minimum 3 internal links.",
+      "breadcrumb_links": "Blog detail pages include BreadcrumbList schema (Home > Blog > Category > Post)"
+    }
+  },
+  "redirect_analysis": {
+    "non_www_to_www": {
+      "type": "301",
+      "location": "middleware.ts",
+      "condition": "Production only, when hostname does not start with www. and a www. entry exists in DOMAIN_TO_SITE",
+      "affected_domains": [
+        "yalla-london.com -> www.yalla-london.com",
+        "arabaldives.com -> www.arabaldives.com",
+        "yallariviera.com -> www.yallariviera.com",
+        "yallaistanbul.com -> www.yallaistanbul.com",
+        "yallathailand.com -> www.yallathailand.com"
+      ]
+    },
+    "internal_redirects": [
+      {
+        "from": "/brand-guidelines",
+        "to": "/admin",
+        "type": "302",
+        "location": "middleware.ts",
+        "reason": "Internal-only page blocked from public access"
+      },
+      {
+        "from": "/brand-showcase",
+        "to": "/admin",
+        "type": "302",
+        "location": "middleware.ts",
+        "reason": "Internal-only page blocked from public access"
+      }
+    ],
+    "arabic_route_rewriting": {
+      "pattern": "/ar/* -> /* (rewrite, not redirect)",
+      "location": "middleware.ts",
+      "mechanism": "NextResponse.rewrite with x-locale: ar header. URL stays as /ar/blog/slug but serves English page route with Arabic locale context.",
+      "note": "This is a rewrite, not a redirect. The Arabic URL is the canonical from the user's perspective."
+    },
+    "issues": [
+      {
+        "issue": "brand-guidelines and brand-showcase use 302 (temporary) redirect",
+        "recommendation": "Since these are permanently internal, consider 301 or removing the pages entirely to avoid crawl waste"
+      }
+    ]
+  },
+  "status_code_analysis": {
+    "404_handling": {
+      "blog_slug": "Returns proper HTTP 404 via notFound() when slug not found in DB or static content",
+      "news_slug": "Returns proper HTTP 404 via notFound()",
+      "info_article_slug": "Returns proper HTTP 404 via notFound()",
+      "generic_pages": "Next.js default 404 page for unmatched routes"
+    },
+    "soft_404_risk": [
+      {
+        "page": "/shop/[slug]",
+        "risk": "Unknown -- needs verification that nonexistent product slugs return 404, not 200 with empty content"
+      },
+      {
+        "page": "/london-by-foot/[slug]",
+        "risk": "Unknown -- needs verification"
+      }
+    ]
+  },
+  "orphan_page_analysis": {
+    "potentially_orphaned": [
+      {
+        "path": "/shop/download",
+        "reason": "Only reachable after purchase. No navigation link. Not in sitemap.",
+        "recommendation": "Add noindex or ensure it is not crawled"
+      },
+      {
+        "path": "/shop/purchases",
+        "reason": "Only reachable after purchase. No navigation link. Not in sitemap.",
+        "recommendation": "Add noindex or ensure it is not crawled"
+      },
+      {
+        "path": "/offline",
+        "reason": "PWA offline fallback page. Only shown when network is unavailable. No navigation link.",
+        "recommendation": "Add noindex meta tag"
+      },
+      {
+        "path": "/affiliate-disclosure",
+        "reason": "May only be linked from footer or within article content. Not in sitemap. No metadata.",
+        "recommendation": "Add to sitemap and add proper metadata for transparency/trust signals"
+      }
+    ]
+  },
+  "arabic_route_coverage": {
+    "mechanism": "/ar/* prefix detected by middleware, rewritten to English route with x-locale: ar header",
+    "pages_with_hreflang_in_sitemap": [
+      "/", "/blog", "/blog/[slug]", "/recommendations", "/events",
+      "/about", "/contact", "/blog/category/[slug]",
+      "/information", "/information/articles", "/information/[section]",
+      "/information/articles/[slug]", "/news", "/news/[slug]"
+    ],
+    "pages_without_hreflang_in_sitemap": [
+      "/events/[id] (DB events have no hreflang alternates)",
+      "/shop/*", "/london-by-foot/*", "/experiences", "/hotels",
+      "/privacy", "/terms", "/affiliate-disclosure"
+    ],
+    "html_hreflang": {
+      "component": "hreflang-tags.tsx",
+      "injection_point": "Root layout only (path='/')",
+      "issue": "HreflangTags component is only rendered once in root layout with path='/'. Individual pages do not inject their own hreflang tags in the HTML head. Metadata alternates handle this for pages using generateMetadata, but static-metadata pages rely solely on sitemap hreflang."
+    }
+  },
+  "crawl_budget_considerations": {
+    "admin_blocked": "robots.txt disallows /admin/ and /api/ for all user agents",
+    "api_blocked": "robots.txt disallows /api/ for all user agents",
+    "force_dynamic_pages": ["brand-guidelines (redirected)", "brand-showcase (redirected)", "admin/* pages"],
+    "isr_pages": {
+      "revalidate_600s": ["blog/[slug]", "blog", "blog/category/[slug]", "information/*", "news/*"],
+      "note": "10-minute ISR is appropriate for content that updates via pipeline"
+    }
+  }
+}

@@ -1,0 +1,277 @@
+{
+  "audit_date": "2026-02-19",
+  "site": "yalla-london",
+  "audit_type": "static_code_analysis",
+  "sitemap_route": "app/sitemap.ts",
+  "sitemap_url": "/sitemap.xml",
+  "summary": {
+    "sitemap_type": "dynamic (Next.js MetadataRoute.Sitemap)",
+    "generation": "Server-side per-request, reads x-hostname and x-site-id headers from middleware",
+    "data_sources": ["Static blog posts (blog-content.ts + blog-content-extended.ts)", "Static info articles (information-hub-content.ts + information-hub-articles-extended.ts)", "DB BlogPost (published, per siteId)", "DB Event (published, per siteId or null)", "DB NewsItem (published, per siteId, max 100)", "Static categories array", "Static information sections"],
+    "content_types_included": 8,
+    "content_types_missing": 8,
+    "has_hreflang": true,
+    "has_sitemap_index": false,
+    "edge_cached": true,
+    "cache_duration": "3600s (s-maxage in next.config.js headers)"
+  },
+  "content_types_included": [
+    {
+      "type": "static_pages",
+      "urls": ["/", "/blog", "/recommendations", "/events", "/about", "/contact"],
+      "count": 6,
+      "hreflang": true,
+      "hreflang_codes": ["en", "ar"],
+      "priority": "0.6-1.0",
+      "changeFrequency": "daily to monthly",
+      "lastModified": "currentDate (not actual modification date)"
+    },
+    {
+      "type": "blog_posts_static",
+      "url_pattern": "/blog/{slug}",
+      "condition": "Only for siteId === 'yalla-london'",
+      "source": "blogPosts + extendedBlogPosts arrays",
+      "hreflang": true,
+      "hreflang_codes": ["en", "ar"],
+      "priority": 0.8,
+      "changeFrequency": "weekly",
+      "lastModified": "post.updated_at.toISOString()"
+    },
+    {
+      "type": "blog_posts_db",
+      "url_pattern": "/blog/{slug}",
+      "condition": "Published, not deleted, matching siteId, not already in static posts",
+      "source": "prisma.blogPost.findMany",
+      "hreflang": true,
+      "hreflang_codes": ["en", "ar"],
+      "priority": 0.8,
+      "changeFrequency": "weekly",
+      "lastModified": "post.updated_at or currentDate"
+    },
+    {
+      "type": "events_db",
+      "url_pattern": "/events/{id}",
+      "condition": "Published, matching siteId or siteId null",
+      "source": "prisma.event.findMany",
+      "hreflang": false,
+      "hreflang_issue": "Event pages are the ONLY content type that lacks hreflang alternates in the sitemap",
+      "priority": 0.7,
+      "changeFrequency": "weekly",
+      "lastModified": "event.updated_at or currentDate"
+    },
+    {
+      "type": "blog_categories",
+      "url_pattern": "/blog/category/{slug}",
+      "source": "Static categories array",
+      "hreflang": true,
+      "hreflang_codes": ["en", "ar"],
+      "priority": 0.7,
+      "changeFrequency": "weekly",
+      "lastModified": "currentDate"
+    },
+    {
+      "type": "information_hub",
+      "urls": ["/information", "/information/articles"],
+      "count": 2,
+      "hreflang": true,
+      "hreflang_codes": ["en", "ar"],
+      "priority": "0.8-0.9",
+      "changeFrequency": "weekly",
+      "lastModified": "currentDate"
+    },
+    {
+      "type": "information_sections",
+      "url_pattern": "/information/{section_slug}",
+      "source": "informationSections array (published only)",
+      "hreflang": true,
+      "hreflang_codes": ["en", "ar"],
+      "priority": 0.8,
+      "changeFrequency": "weekly",
+      "lastModified": "currentDate (no actual modification date from static data)"
+    },
+    {
+      "type": "information_articles",
+      "url_pattern": "/information/articles/{slug}",
+      "source": "baseInfoArticles + extendedInformationArticles (published only)",
+      "hreflang": true,
+      "hreflang_codes": ["en", "ar"],
+      "priority": 0.8,
+      "changeFrequency": "weekly",
+      "lastModified": "article.updated_at.toISOString()"
+    },
+    {
+      "type": "news_landing",
+      "urls": ["/news"],
+      "count": 1,
+      "hreflang": true,
+      "hreflang_codes": ["en", "ar"],
+      "priority": 0.8,
+      "changeFrequency": "daily",
+      "lastModified": "currentDate"
+    },
+    {
+      "type": "news_articles",
+      "url_pattern": "/news/{slug}",
+      "source": "prisma.newsItem.findMany (status=published, per siteId)",
+      "max_items": 100,
+      "hreflang": true,
+      "hreflang_codes": ["en", "ar"],
+      "priority": 0.7,
+      "changeFrequency": "daily",
+      "lastModified": "item.updated_at or currentDate"
+    }
+  ],
+  "content_types_missing": [
+    {
+      "type": "shop_listing",
+      "url": "/shop",
+      "reason": "Not included in sitemap.ts at all",
+      "priority_to_add": "MEDIUM (revenue page)"
+    },
+    {
+      "type": "shop_products",
+      "url_pattern": "/shop/{slug}",
+      "reason": "Not included in sitemap.ts at all",
+      "priority_to_add": "MEDIUM (revenue pages)"
+    },
+    {
+      "type": "london_by_foot_listing",
+      "url": "/london-by-foot",
+      "reason": "Not included in sitemap.ts",
+      "priority_to_add": "MEDIUM (unique content type, good for SEO)"
+    },
+    {
+      "type": "london_by_foot_routes",
+      "url_pattern": "/london-by-foot/{slug}",
+      "reason": "Not included in sitemap.ts",
+      "priority_to_add": "MEDIUM (unique content)"
+    },
+    {
+      "type": "experiences",
+      "url": "/experiences",
+      "reason": "Not included in sitemap.ts",
+      "priority_to_add": "LOW-MEDIUM"
+    },
+    {
+      "type": "hotels",
+      "url": "/hotels",
+      "reason": "Not included in sitemap.ts",
+      "priority_to_add": "LOW-MEDIUM"
+    },
+    {
+      "type": "privacy_policy",
+      "url": "/privacy",
+      "reason": "Not included in sitemap.ts",
+      "priority_to_add": "LOW (standard legal page but aids trust signals)"
+    },
+    {
+      "type": "terms_of_service",
+      "url": "/terms",
+      "reason": "Not included in sitemap.ts",
+      "priority_to_add": "LOW"
+    },
+    {
+      "type": "affiliate_disclosure",
+      "url": "/affiliate-disclosure",
+      "reason": "Not included in sitemap.ts",
+      "priority_to_add": "LOW (but aids trust/transparency for E-E-A-T)"
+    }
+  ],
+  "hreflang_analysis": {
+    "sitemap_language_codes": {
+      "english": "en",
+      "arabic": "ar",
+      "note": "Uses ISO 639-1 language-only codes. HTML metadata uses BCP 47 region-specific codes (en-GB, ar-SA). Both are valid but inconsistent."
+    },
+    "html_language_codes": {
+      "english": "en-GB",
+      "arabic": "ar-SA",
+      "x_default": "present in root layout HreflangTags and generateMetadata alternates"
+    },
+    "x_default_in_sitemap": false,
+    "x_default_issue": "Sitemap hreflang alternates do not include x-default. Best practice is to include x-default pointing to the primary language version. standards.ts TECHNICAL_SEO.hreflangIncludeXDefault is set to true, but sitemap does not comply.",
+    "coverage": {
+      "pages_with_hreflang": "All except events from DB",
+      "pages_without_hreflang": "Events from DB (event.id-based URLs)",
+      "missing_content_types": "All content types not in sitemap (shop, london-by-foot, etc.)"
+    },
+    "recommendation": "Upgrade sitemap language codes to en-GB/ar-SA to match HTML metadata. Add x-default alternates. Add hreflang to event entries."
+  },
+  "multi_site_behavior": {
+    "site_scoping": "sitemap.ts reads x-site-id header from middleware to scope content",
+    "static_blog_posts": "Only included when siteId === 'yalla-london' (hardcoded check at line 108)",
+    "db_blog_posts": "Filtered by siteId in Prisma where clause",
+    "events": "Filtered by siteId OR siteId null (shared events)",
+    "news": "Filtered by siteId",
+    "static_content": "informationSections, informationArticles, categories are shared across all sites (not site-scoped)",
+    "issue": "Static content data files (blog-content.ts, information-hub-content.ts) are Yalla London specific but served to all sites. Other sites would incorrectly include London-specific info hub and category content in their sitemaps."
+  },
+  "technical_details": {
+    "error_handling": "DB queries wrapped in try/catch. On DB failure, static content still included. Empty catch blocks (acceptable -- DB unavailable is expected during build).",
+    "deduplication": "DB blog posts are deduplicated against static posts via staticSlugs Set to prevent duplicate URLs",
+    "url_construction": "baseUrl derived from x-hostname header with localhost fallback. All URLs use HTTPS in production.",
+    "caching": "next.config.js sets s-maxage: 3600 on /sitemap.xml (1 hour edge cache)"
+  },
+  "issues": [
+    {
+      "id": "SM-001",
+      "severity": "HIGH",
+      "title": "8 public page types missing from sitemap",
+      "detail": "shop, shop/[slug], london-by-foot, london-by-foot/[slug], experiences, hotels, privacy, terms, affiliate-disclosure are all public indexable pages not present in sitemap.ts",
+      "impact": "These pages may be discovered slowly or not at all by search engines, especially if poorly interlinked",
+      "fix": "Add entries to sitemap.ts for each missing page type"
+    },
+    {
+      "id": "SM-002",
+      "severity": "HIGH",
+      "title": "Events lack hreflang alternates",
+      "detail": "Event entries (lines 155-173) are the only content type without hreflang alternates in sitemap. Blog, info, news, categories all have en/ar alternates.",
+      "impact": "Arabic versions of event pages not signaled to search engines via sitemap",
+      "fix": "Add alternates: { languages: { en, ar } } to event entries"
+    },
+    {
+      "id": "SM-003",
+      "severity": "HIGH",
+      "title": "Hreflang codes inconsistent between sitemap and HTML",
+      "detail": "Sitemap uses 'en'/'ar' (language only). HTML metadata uses 'en-GB'/'ar-SA' (language + region). Google recommends consistency.",
+      "fix": "Change sitemap hreflang to 'en-GB'/'ar-SA' to match HTML"
+    },
+    {
+      "id": "SM-004",
+      "severity": "MEDIUM",
+      "title": "No x-default in sitemap hreflang",
+      "detail": "HTML hreflang includes x-default but sitemap hreflang does not. Best practice is to include x-default in both.",
+      "fix": "Add 'x-default' key to alternates.languages objects"
+    },
+    {
+      "id": "SM-005",
+      "severity": "MEDIUM",
+      "title": "No sitemap index splitting strategy",
+      "detail": "Single flat sitemap.ts generates all URLs. No SitemapIndex with per-type or per-language sub-sitemaps. Current URL count is low, but as content scales across 5 sites, will exceed Google's 50,000 URL limit.",
+      "fix": "Implement sitemap index with sub-sitemaps per content type or per language when approaching 10,000+ URLs"
+    },
+    {
+      "id": "SM-006",
+      "severity": "MEDIUM",
+      "title": "Static content not site-scoped in sitemap",
+      "detail": "Information sections, information articles, and blog categories from static data files are always included regardless of siteId. These contain London-specific content. Non-London sites would include London info hub articles in their sitemaps.",
+      "fix": "Add site-scoping logic to static content inclusion, or create per-site static data files"
+    },
+    {
+      "id": "SM-007",
+      "severity": "LOW",
+      "title": "currentDate used as lastModified for static pages",
+      "detail": "Static pages (homepage, about, contact, etc.) and static data without DB timestamps use new Date().toISOString() as lastModified. This changes on every request, potentially causing excessive re-crawling.",
+      "impact": "Search engines may waste crawl budget re-crawling unchanged pages",
+      "fix": "Use a fixed date (last deploy or last known content change) for static pages"
+    },
+    {
+      "id": "SM-008",
+      "severity": "LOW",
+      "title": "News items capped at 100",
+      "detail": "NewsItem query uses take: 100. As news volume grows, older news items will silently drop from sitemap without warning.",
+      "impact": "Older news articles may become de-indexed over time",
+      "fix": "Add pagination or increase limit with monitoring. Log when count approaches limit."
+    }
+  ]
+}

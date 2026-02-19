@@ -1,33 +1,44 @@
 
 import { brandConfig } from '@/config/brand-config';
+import { getSiteConfig, getDefaultSiteId, getSiteDomain } from '@/config/sites';
 
 interface StructuredDataProps {
   type?: 'website' | 'article' | 'event' | 'restaurant' | 'organization' | 'place' | 'review' | 'faq' | 'breadcrumb'
   data?: any
   language?: 'en' | 'ar'
+  siteId?: string
 }
 
-export function StructuredData({ type = 'website', data, language = 'en' }: StructuredDataProps) {
+export function StructuredData({ type = 'website', data, language = 'en', siteId }: StructuredDataProps) {
+
+  // Resolve site identity — use siteId if provided, fall back to default
+  const resolvedSiteId = siteId || getDefaultSiteId();
+  const siteConfig = getSiteConfig(resolvedSiteId);
+  const siteName = siteConfig?.name || brandConfig.siteName;
+  const siteSlug = siteConfig?.slug || 'yalla-london';
+  const siteDomain = getSiteDomain(resolvedSiteId);
+  const siteCountry = siteConfig?.country || 'UK';
+  const siteDestination = siteConfig?.destination || 'London';
 
   const getBaseStructuredData = () => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://yalla-london.com')
-    
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+
     const organizationData = {
       "@context": "https://schema.org",
       "@type": "Organization",
-      "name": language === 'en' ? brandConfig.siteName : brandConfig.siteNameAr,
+      "name": language === 'en' ? siteName : (brandConfig.siteNameAr || siteName),
       "url": baseUrl,
-      "logo": `${baseUrl}/images/yalla-london-logo.svg`,
+      "logo": `${baseUrl}/images/${siteSlug}-logo.svg`,
       "description": language === 'en' ? brandConfig.description : brandConfig.descriptionAr,
       "address": brandConfig.contact.address ? {
         "@type": "PostalAddress",
-        "addressCountry": "GB",
-        "addressLocality": "London",
+        "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry,
+        "addressLocality": siteDestination,
         "streetAddress": language === 'en' ? brandConfig.contact.address.en : brandConfig.contact.address.ar
       } : {
         "@type": "PostalAddress",
-        "addressCountry": "GB",
-        "addressLocality": "London"
+        "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry,
+        "addressLocality": siteDestination
       },
       "contactPoint": {
         "@type": "ContactPoint",
@@ -41,14 +52,14 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
     const websiteData = {
       "@context": "https://schema.org",
       "@type": "WebSite",
-      "name": language === 'en' ? brandConfig.siteName : brandConfig.siteNameAr,
+      "name": language === 'en' ? siteName : (brandConfig.siteNameAr || siteName),
       "url": baseUrl,
       "description": language === 'en' ? brandConfig.description : brandConfig.descriptionAr,
       "inLanguage": [language],
       "publisher": {
         "@type": "Organization",
-        "name": brandConfig.seo.author,
-        "logo": `${baseUrl}/images/yalla-london-logo.svg`
+        "name": siteName,
+        "logo": `${baseUrl}/images/${siteSlug}-logo.svg`
       }
     }
 
@@ -78,28 +89,31 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
     }
   })
 
-  const getArticleStructuredData = (articleData: any) => ({
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": articleData.title,
-    "description": articleData.description,
-    "author": {
-      "@type": "Organization",
-      "name": "Yalla London"
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "Yalla London",
-      "logo": {
-        "@type": "ImageObject",
-        "url": "https://i.pinimg.com/736x/fc/41/c5/fc41c56045c5b08eb352453e0b891d97.jpg"
-      }
-    },
-    "datePublished": articleData.publishDate,
-    "dateModified": articleData.modifiedDate || articleData.publishDate,
-    "mainEntityOfPage": articleData.url,
-    "image": articleData.image
-  })
+  const getArticleStructuredData = (articleData: any) => {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": articleData.title,
+      "description": articleData.description,
+      "author": {
+        "@type": "Organization",
+        "name": siteName
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": siteName,
+        "logo": {
+          "@type": "ImageObject",
+          "url": `${baseUrl}/images/${siteSlug}-logo.svg`
+        }
+      },
+      "datePublished": articleData.publishDate,
+      "dateModified": articleData.modifiedDate || articleData.publishDate,
+      "mainEntityOfPage": articleData.url,
+      "image": articleData.image
+    };
+  }
 
   const getRestaurantStructuredData = (restaurantData: any) => ({
     "@context": "https://schema.org",
@@ -186,18 +200,23 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
     }
   })
 
-  const getFAQStructuredData = (faqData: any) => ({
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": faqData.questions.map((qa: any) => ({
-      "@type": "Question",
-      "name": qa.question,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": qa.answer
-      }
-    }))
-  })
+  // FAQPage schema deprecated Aug 2023 — restricted to gov/health sites only.
+  // Render FAQ content as Article schema with Q&A formatting instead.
+  const getFAQStructuredData = (faqData: any) => {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": faqData.title || "Frequently Asked Questions",
+      "description": faqData.description || "Common questions and answers",
+      "author": { "@type": "Organization", "name": siteName },
+      "publisher": {
+        "@type": "Organization",
+        "name": siteName,
+        "logo": { "@type": "ImageObject", "url": `${baseUrl}/images/${siteSlug}-logo.svg` }
+      },
+    };
+  }
 
   const getBreadcrumbStructuredData = (breadcrumbData: any) => ({
     "@context": "https://schema.org",
@@ -256,46 +275,49 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
   })
 
   // Enhanced article schema for better AEO
-  const getEnhancedArticleStructuredData = (articleData: any) => ({
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": articleData.title,
-    "description": articleData.description || articleData.excerpt,
-    "author": {
-      "@type": "Organization",
-      "name": brandConfig.seo.author,
-      "url": process.env.NEXT_PUBLIC_SITE_URL
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": brandConfig.seo.author,
-      "logo": {
+  const getEnhancedArticleStructuredData = (articleData: any) => {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": articleData.title,
+      "description": articleData.description || articleData.excerpt,
+      "author": {
+        "@type": "Organization",
+        "name": siteName,
+        "url": baseUrl
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": siteName,
+        "logo": {
+          "@type": "ImageObject",
+          "url": `${baseUrl}/images/${siteSlug}-logo.svg`
+        }
+      },
+      "datePublished": articleData.publishDate || articleData.datePublished,
+      "dateModified": articleData.modifiedDate || articleData.publishDate,
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": articleData.url
+      },
+      "image": articleData.image ? {
         "@type": "ImageObject",
-        "url": `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com'}/images/yalla-london-logo.svg`
-      }
-    },
-    "datePublished": articleData.publishDate || articleData.datePublished,
-    "dateModified": articleData.modifiedDate || articleData.publishDate,
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": articleData.url
-    },
-    "image": articleData.image ? {
-      "@type": "ImageObject",
-      "url": articleData.image,
-      "width": articleData.imageWidth || 1200,
-      "height": articleData.imageHeight || 630
-    } : undefined,
-    "articleSection": articleData.category,
-    "keywords": articleData.tags ? articleData.tags.join(', ') : undefined,
-    "wordCount": articleData.wordCount,
-    "articleBody": articleData.content,
-    "inLanguage": language,
-    "about": articleData.topics ? articleData.topics.map((topic: string) => ({
-      "@type": "Thing",
-      "name": topic
-    })) : undefined
-  })
+        "url": articleData.image,
+        "width": articleData.imageWidth || 1200,
+        "height": articleData.imageHeight || 630
+      } : undefined,
+      "articleSection": articleData.category,
+      "keywords": articleData.tags ? articleData.tags.join(', ') : undefined,
+      "wordCount": articleData.wordCount,
+      "articleBody": articleData.content,
+      "inLanguage": language,
+      "about": articleData.topics ? articleData.topics.map((topic: string) => ({
+        "@type": "Thing",
+        "name": topic
+      })) : undefined
+    };
+  }
 
   const generateStructuredData = () => {
     const { organizationData, websiteData } = getBaseStructuredData()

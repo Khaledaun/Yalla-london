@@ -90,7 +90,10 @@ export default function AdminShopPage() {
               Manage digital products and track revenue
             </p>
           </div>
-          <Button className="bg-[#1C1917] hover:bg-[#3D3835]">
+          <Button
+            className="bg-[#1C1917] hover:bg-[#3D3835]"
+            onClick={() => { window.location.href = '/admin/command-center/products/pdf'; }}
+          >
             <Plus className="w-4 h-4 mr-2" /> Add Product
           </Button>
         </div>
@@ -249,10 +252,14 @@ export default function AdminShopPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem><Eye className="w-4 h-4 mr-2" /> View</DropdownMenuItem>
-                            <DropdownMenuItem><Edit className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
-                            <DropdownMenuItem><Download className="w-4 h-4 mr-2" /> Download</DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => window.open(`/${product.slug}`, '_blank')}><Eye className="w-4 h-4 mr-2" /> View</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { window.location.href = `/admin/command-center/products/pdf?id=${product.id}`; }}><Edit className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => window.open(`/api/admin/shop/download?id=${product.id}`, '_blank')}><Download className="w-4 h-4 mr-2" /> Download</DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={async () => {
+                              if (!confirm(`Delete "${product.name}"?`)) return;
+                              const res = await fetch(`/api/admin/shop?id=${product.id}`, { method: 'DELETE' });
+                              if (res.ok) setProducts(prev => prev.filter(p => p.id !== product.id));
+                            }}><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>

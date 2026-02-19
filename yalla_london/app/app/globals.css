@@ -549,6 +549,262 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   HQ ADMIN DASHBOARD — NEUMORPHIC DESIGN SYSTEM
+   Soft UI on cream surface. Built on yalla-tokens.css foundation.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── Neumorphic Surface ─── */
+  --neu-bg:           #EDE9E1;  /* Slightly deeper than cream — shadow range needs this */
+  --neu-shadow-light: #FAF8F4;  /* Brand cream = light shadow highlight */
+  --neu-shadow-dark:  #CAC5BC;  /* Warm gray = dark shadow depth */
+
+  /* ─── Neumorphic Shadow Levels ─── */
+  --neu-raised:  6px 6px 14px var(--neu-shadow-dark), -6px -6px 14px var(--neu-shadow-light);
+  --neu-pressed: 3px 3px 7px var(--neu-shadow-dark),  -3px -3px 7px var(--neu-shadow-light);
+  --neu-inset:   inset 4px 4px 9px var(--neu-shadow-dark), inset -4px -4px 9px var(--neu-shadow-light);
+  --neu-flat:    1px 1px 3px var(--neu-shadow-dark),  -1px -1px 3px var(--neu-shadow-light);
+
+  /* ─── Glow rings for focus states ─── */
+  --neu-glow-red:   0 0 0 3px rgba(200,50,43,0.15);
+  --neu-glow-gold:  0 0 0 3px rgba(196,154,42,0.18);
+  --neu-glow-stamp: 0 0 0 3px rgba(74,123,168,0.15);
+}
+
+/* ─── Admin body uses neumorphic background ─── */
+.admin-neu-body {
+  background-color: var(--neu-bg);
+  color: var(--yalla-charcoal, #1C1917);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* ─── RTL mirror ─── */
+[dir="rtl"] {
+  --neu-raised: -6px 6px 14px var(--neu-shadow-dark), 6px -6px 14px var(--neu-shadow-light);
+  --neu-inset:  inset -4px 4px 9px var(--neu-shadow-dark), inset 4px -4px 9px var(--neu-shadow-light);
+}
+
+/* ─── Neumorphic Utility Classes ─── */
+.neu-surface   { background-color: var(--neu-bg); }
+.neu-raised    { background-color: var(--neu-bg); box-shadow: var(--neu-raised); }
+.neu-pressed   { background-color: var(--neu-bg); box-shadow: var(--neu-pressed); }
+.neu-inset     { background-color: var(--neu-bg); box-shadow: var(--neu-inset); }
+.neu-flat      { background-color: var(--neu-bg); box-shadow: var(--neu-flat); }
+
+/* ─── Neumorphic Card ─── */
+.neu-card {
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-raised);
+  border-radius: 16px;
+  padding: 24px;
+  transition: box-shadow 200ms var(--yalla-ease, cubic-bezier(0.4,0,0.2,1));
+}
+.neu-card:hover { box-shadow: var(--neu-pressed); }
+
+/* ─── Neumorphic Icon Container ─── */
+.neu-icon-circle {
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-inset);
+  border-radius: 9999px;
+  width: 50px; height: 50px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ─── Neumorphic Input ─── */
+.neu-input {
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-inset);
+  border: none; outline: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: #1C1917;
+  width: 100%;
+  transition: box-shadow 200ms;
+}
+.neu-input:focus {
+  box-shadow: var(--neu-inset), var(--neu-glow-gold);
+}
+.neu-input::placeholder { color: #78716C; }
+
+/* ─── Neumorphic Buttons ─── */
+.neu-btn-primary {
+  background-color: #C8322B;
+  box-shadow: 4px 4px 10px var(--neu-shadow-dark), -2px -2px 6px rgba(200,50,43,0.2);
+  color: #FAF8F4;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border-radius: 10px;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: all 200ms var(--yalla-ease, cubic-bezier(0.4,0,0.2,1));
+}
+.neu-btn-primary:hover  { background-color: #B82D26; box-shadow: var(--neu-pressed); }
+.neu-btn-primary:active { box-shadow: inset 3px 3px 8px rgba(0,0,0,0.25); }
+
+.neu-btn-secondary {
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-raised);
+  color: #1C1917;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border-radius: 10px;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: all 200ms var(--yalla-ease, cubic-bezier(0.4,0,0.2,1));
+}
+.neu-btn-secondary:active { box-shadow: var(--neu-inset); }
+
+.neu-btn-gold {
+  background-color: #C49A2A;
+  box-shadow: 4px 4px 10px var(--neu-shadow-dark), -2px -2px 6px rgba(196,154,42,0.25);
+  color: #FAF8F4;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border-radius: 10px;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: all 200ms var(--yalla-ease, cubic-bezier(0.4,0,0.2,1));
+}
+.neu-btn-gold:active { box-shadow: inset 3px 3px 8px rgba(0,0,0,0.2); }
+
+/* ─── Neumorphic Nav Item States ─── */
+.neu-nav-item {
+  transition: all 200ms var(--yalla-ease, cubic-bezier(0.4,0,0.2,1));
+  border-radius: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #78716C;
+}
+.neu-nav-item:hover {
+  box-shadow: var(--neu-flat);
+  color: #1C1917;
+}
+.neu-nav-item.active {
+  box-shadow: var(--neu-inset);
+  color: #1C1917;
+  font-weight: 600;
+}
+.neu-nav-item.active .neu-nav-icon { color: #C8322B; }
+
+/* ─── Tri-color Bar ─── */
+.neu-tricolor {
+  display: flex;
+  height: 3px;
+  width: 100%;
+}
+.neu-tricolor-red   { flex: 1; background: #C8322B; }
+.neu-tricolor-gold  { flex: 1; background: #C49A2A; }
+.neu-tricolor-stamp { flex: 1; background: #4A7BA8; }
+
+/* ─── Status Badges ─── */
+.neu-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.neu-badge-green  { background: rgba(45,90,61,0.1);   color: #2D5A3D; border: 1px solid rgba(45,90,61,0.25); }
+.neu-badge-red    { background: rgba(200,50,43,0.1);  color: #C8322B; border: 1px solid rgba(200,50,43,0.25); }
+.neu-badge-gold   { background: rgba(196,154,42,0.1); color: #C49A2A; border: 1px solid rgba(196,154,42,0.25); }
+.neu-badge-stamp  { background: rgba(74,123,168,0.1); color: #4A7BA8; border: 1px solid rgba(74,123,168,0.25); }
+.neu-badge-stone  { background: rgba(120,113,108,0.1); color: #78716C; border: 1px solid rgba(120,113,108,0.2); }
+
+/* ─── Health Indicators ─── */
+.neu-health-green  { color: #2D5A3D; }
+.neu-health-yellow { color: #C49A2A; }
+.neu-health-red    { color: #C8322B; }
+.neu-health-gray   { color: #78716C; }
+
+/* ─── Section Label ─── */
+.neu-section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #78716C;
+}
+
+/* ─── KPI Number ─── */
+.neu-kpi-number {
+  font-family: 'Anybody', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  color: #1C1917;
+  line-height: 1;
+}
+
+/* ─── Form card top accent ─── */
+.neu-card-accented {
+  position: relative;
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-raised);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.neu-card-accented::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #C8322B 33.3%, #C49A2A 33.3% 66.6%, #4A7BA8 66.6%);
+}
+
+/* ─── Toggle Switch ─── */
+.neu-toggle-track {
+  box-shadow: var(--neu-inset);
+  border-radius: 9999px;
+  width: 52px; height: 28px;
+  background-color: var(--neu-bg);
+  position: relative; cursor: pointer;
+  transition: all 300ms var(--yalla-ease-bounce, cubic-bezier(0.34,1.56,0.64,1));
+}
+.neu-toggle-thumb {
+  position: absolute;
+  top: 4px; left: 4px;
+  width: 20px; height: 20px;
+  border-radius: 9999px;
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-raised);
+  transition: all 300ms var(--yalla-ease-bounce, cubic-bezier(0.34,1.56,0.64,1));
+}
+.neu-toggle-track.on .neu-toggle-thumb {
+  left: calc(100% - 24px);
+  background-color: #C8322B;
+  box-shadow: var(--neu-glow-red);
+}
+
+/* ─── Pipeline Step Dot ─── */
+.neu-pipeline-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-flat);
+}
+.neu-pipeline-dot.active  { background-color: #2D5A3D; box-shadow: 0 0 0 3px rgba(45,90,61,0.2); }
+.neu-pipeline-dot.warning { background-color: #C49A2A; box-shadow: 0 0 0 3px rgba(196,154,42,0.2); }
+.neu-pipeline-dot.error   { background-color: #C8322B; box-shadow: 0 0 0 3px rgba(200,50,43,0.2); }
+
+/* ═══════════════════════════════════════════════════════════════════
    ARTICLE CONTENT TYPOGRAPHY — .yalla-article-content
    Rich editorial styling for blog post HTML content.
    Used by BlogPostClient for dangerouslySetInnerHTML output.

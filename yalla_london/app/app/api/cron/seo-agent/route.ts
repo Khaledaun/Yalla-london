@@ -764,7 +764,8 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
       `Found ${urls.length} new URLs for indexing (submission handled by seo/cron)`,
     );
 
-    // Track URLs as pending in URLIndexingStatus so seo/cron picks them up
+    // Track URLs as discovered in URLIndexingStatus so seo/cron and verify-indexing pick them up
+    // Status lifecycle: discovered → submitted → indexed/not_indexed
     if (siteId) {
       try {
         await Promise.allSettled(
@@ -775,13 +776,12 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
                 site_id: siteId,
                 url,
                 slug: url.split("/blog/")[1] || null,
-                status: "pending",
+                status: "discovered",
                 submitted_indexnow: false,
                 last_submitted_at: null,
               },
               update: {
-                // Only update if not already submitted — don't overwrite a successful submission
-                status: "pending",
+                // Don't overwrite submitted/indexed — only update if still in initial state
               },
             }),
           ),

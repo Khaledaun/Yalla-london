@@ -742,12 +742,13 @@ export async function runFullPipeline(
 
           indexed = resp.ok || resp.status === 202;
 
-          // Update URLIndexingStatus if it exists
+          // Update URLIndexingStatus if it exists (scoped by site_id to prevent cross-site contamination)
           try {
             await prisma.uRLIndexingStatus.updateMany({
-              where: { url: blogPostUrl },
+              where: { site_id: siteId, url: blogPostUrl },
               data: {
                 status: indexed ? "submitted" : "failed",
+                submitted_indexnow: indexed,
                 last_submitted_at: new Date(),
               },
             });

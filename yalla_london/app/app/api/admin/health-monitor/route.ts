@@ -414,9 +414,13 @@ async function fetchRecentErrors(): Promise<RecentError[]> {
 
 async function fetchIndexingStatus(): Promise<IndexingStatus> {
   const { prisma } = await import("@/lib/db");
+  const { getDefaultSiteId } = await import("@/config/sites");
+  const siteId = getDefaultSiteId();
 
+  // Scope by site_id to match content-indexing API counts
   const counts = await (prisma as any).uRLIndexingStatus.groupBy({
     by: ["status"],
+    where: { site_id: siteId },
     _count: true,
   });
 
@@ -432,13 +436,13 @@ async function fetchIndexingStatus(): Promise<IndexingStatus> {
 
   // Get most recent submission and inspection timestamps
   const lastSubmission = await (prisma as any).uRLIndexingStatus.findFirst({
-    where: { last_submitted_at: { not: null } },
+    where: { site_id: siteId, last_submitted_at: { not: null } },
     orderBy: { last_submitted_at: "desc" },
     select: { last_submitted_at: true },
   });
 
   const lastInspection = await (prisma as any).uRLIndexingStatus.findFirst({
-    where: { last_inspected_at: { not: null } },
+    where: { site_id: siteId, last_inspected_at: { not: null } },
     orderBy: { last_inspected_at: "desc" },
     select: { last_inspected_at: true },
   });

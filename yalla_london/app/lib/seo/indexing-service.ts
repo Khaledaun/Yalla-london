@@ -205,11 +205,27 @@ interface GSCCredentials {
 
 interface IndexingStatus {
   url: string;
+  // Core indexing fields
   coverageState?: string;
   lastCrawlTime?: string;
   pageFetchState?: string;
   indexingState?: string;
   robotsTxtState?: string;
+  // Extended fields from GSC URL Inspection API
+  verdict?: string;
+  crawledAs?: string;
+  indexingAllowed?: string;
+  crawlAllowed?: string;
+  userCanonical?: string;
+  googleCanonical?: string;
+  sitemap?: string[];
+  referringUrls?: string[];
+  mobileUsabilityVerdict?: string;
+  mobileUsabilityIssues?: string[];
+  richResultsVerdict?: string;
+  richResultsItems?: Array<{ type: string; issues?: string[] }>;
+  // Full raw response for deep inspection
+  rawInspectionResult?: Record<string, unknown>;
 }
 
 export class GoogleSearchConsoleAPI {
@@ -399,18 +415,61 @@ export class GoogleSearchConsoleAPI {
 
       if (response.ok) {
         const data = await response.json();
+        const indexStatus = data.inspectionResult?.indexStatusResult || {};
+        const mobileUsability = data.inspectionResult?.mobileUsabilityResult || {};
+        const richResults = data.inspectionResult?.richResultsResult || {};
+
+        // Extract mobile usability issues
+        const mobileIssues: string[] = [];
+        if (mobileUsability.issues && Array.isArray(mobileUsability.issues)) {
+          for (const issue of mobileUsability.issues) {
+            mobileIssues.push(issue.issueMessage || issue.severity || String(issue));
+          }
+        }
+
+        // Extract rich results items and their issues
+        const richItems: Array<{ type: string; issues?: string[] }> = [];
+        if (richResults.detectedItems && Array.isArray(richResults.detectedItems)) {
+          for (const item of richResults.detectedItems) {
+            const itemIssues: string[] = [];
+            if (item.items && Array.isArray(item.items)) {
+              for (const subItem of item.items) {
+                if (subItem.issues && Array.isArray(subItem.issues)) {
+                  for (const issue of subItem.issues) {
+                    itemIssues.push(issue.issueMessage || String(issue));
+                  }
+                }
+              }
+            }
+            richItems.push({ type: item.richResultType || "unknown", issues: itemIssues.length > 0 ? itemIssues : undefined });
+          }
+        }
+
         return {
           url,
-          coverageState:
-            data.inspectionResult?.indexStatusResult?.coverageState,
-          lastCrawlTime:
-            data.inspectionResult?.indexStatusResult?.lastCrawlTime,
-          pageFetchState:
-            data.inspectionResult?.indexStatusResult?.pageFetchState,
-          indexingState:
-            data.inspectionResult?.indexStatusResult?.indexingState,
-          robotsTxtState:
-            data.inspectionResult?.indexStatusResult?.robotsTxtState,
+          // Core fields
+          coverageState: indexStatus.coverageState,
+          lastCrawlTime: indexStatus.lastCrawlTime,
+          pageFetchState: indexStatus.pageFetchState,
+          indexingState: indexStatus.indexingState,
+          robotsTxtState: indexStatus.robotsTxtState,
+          // Extended fields
+          verdict: indexStatus.verdict,
+          crawledAs: indexStatus.crawledAs,
+          indexingAllowed: indexStatus.indexingAllowed,
+          crawlAllowed: indexStatus.crawlAllowed,
+          userCanonical: indexStatus.userCanonical,
+          googleCanonical: indexStatus.googleCanonical,
+          sitemap: indexStatus.sitemap ? [].concat(indexStatus.sitemap) : undefined,
+          referringUrls: indexStatus.referringUrls ? [].concat(indexStatus.referringUrls) : undefined,
+          // Mobile usability
+          mobileUsabilityVerdict: mobileUsability.verdict,
+          mobileUsabilityIssues: mobileIssues.length > 0 ? mobileIssues : undefined,
+          // Rich results
+          richResultsVerdict: richResults.verdict,
+          richResultsItems: richItems.length > 0 ? richItems : undefined,
+          // Full raw response for deep inspection on dashboard
+          rawInspectionResult: data.inspectionResult,
         };
       }
     } catch (error) {

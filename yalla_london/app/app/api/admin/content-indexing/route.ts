@@ -82,17 +82,31 @@ export async function GET(request: NextRequest) {
     });
 
     // 2. Get indexing status for all article URLs
+    //    Match by BOTH exact URL and slug to handle URL format mismatches
+    //    (e.g., www vs non-www, http vs https, trailing slash differences)
+    const articleSlugs = posts.map((p) => p.slug);
     const articleUrls = posts.map((p) => `${baseUrl}/blog/${p.slug}`);
     let indexingRecords: Record<string, any> = {};
     try {
       const records = await prisma.uRLIndexingStatus.findMany({
         where: {
           site_id: siteId,
-          url: { in: articleUrls },
+          OR: [
+            { url: { in: articleUrls } },
+            { slug: { in: articleSlugs } },
+          ],
         },
       });
+      // Index by slug for resilient matching (URL format may vary)
       for (const r of records) {
-        indexingRecords[r.url] = r;
+        const slug = r.slug || r.url.split("/blog/")[1]?.replace(/\/$/, "") || null;
+        if (slug) {
+          // Prefer the record with the most recent activity
+          const existing = indexingRecords[slug];
+          if (!existing || (r.last_submitted_at && (!existing.last_submitted_at || r.last_submitted_at > existing.last_submitted_at))) {
+            indexingRecords[slug] = r;
+          }
+        }
       }
     } catch {
       // Table may not exist yet
@@ -106,7 +120,7 @@ export async function GET(request: NextRequest) {
     // 4. Build per-article indexing info with diagnostics
     const articles: ArticleIndexingInfo[] = posts.map((post) => {
       const url = `${baseUrl}/blog/${post.slug}`;
-      const record = indexingRecords[url];
+      const record = indexingRecords[post.slug];
       const wordCount = post.content_en
         ? post.content_en.split(/\s+/).filter(Boolean).length
         : 0;

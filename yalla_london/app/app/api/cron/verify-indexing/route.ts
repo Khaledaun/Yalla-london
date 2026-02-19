@@ -83,7 +83,7 @@ async function handleVerifyIndexing(request: NextRequest) {
         urlsToCheck = await prisma.uRLIndexingStatus.findMany({
           where: {
             site_id: siteId,
-            status: { in: ["submitted", "discovered"] },
+            status: { in: ["submitted", "discovered", "pending"] },
             OR: [
               { last_inspected_at: null },
               { last_inspected_at: { lt: sixHoursAgo } },

@@ -195,7 +195,7 @@ export default function ArticlePerformancePage() {
     ) : null;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 p-6 space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">

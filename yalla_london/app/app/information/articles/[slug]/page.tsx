@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   informationArticles as baseArticles,
@@ -7,6 +8,7 @@ import {
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import { markdownToHtml } from "@/lib/markdown";
 import { getRelatedArticles } from "@/lib/related-content";
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import ArticleClient from "./ArticleClient";
 
 // Combine all information articles
@@ -32,8 +34,13 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const slug = resolvedParams.slug;
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
 
   // Find the article
   const article = informationArticles.find(
@@ -42,7 +49,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!article) {
     return {
-      title: "Article Not Found | Yalla London",
+      title: `Article Not Found | ${siteName} Information Hub`,
       description:
         "The article you are looking for could not be found.",
     };
@@ -57,27 +64,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: article.meta_title_en || article.title_en,
     description: article.meta_description_en || article.excerpt_en,
     keywords: article.keywords.join(", "),
-    authors: [{ name: "Yalla London Editorial" }],
-    creator: "Yalla London",
-    publisher: "Yalla London",
+    authors: [{ name: `${siteName} Editorial` }],
+    creator: siteName,
+    publisher: siteName,
     alternates: {
       canonical: canonicalUrl,
       languages: {
         "en-GB": canonicalUrl,
         "ar-SA": `${baseUrl}/ar/information/articles/${slug}`,
+        "x-default": canonicalUrl,
       },
     },
     openGraph: {
       title: article.meta_title_en || article.title_en,
       description: article.meta_description_en || article.excerpt_en,
       url: canonicalUrl,
-      siteName: "Yalla London",
+      siteName,
       locale: "en_GB",
       alternateLocale: "ar_SA",
       type: "article",
       publishedTime: article.created_at.toISOString(),
       modifiedTime: article.updated_at.toISOString(),
-      authors: ["Yalla London Editorial"],
+      authors: [`${siteName} Editorial`],
       section: category?.name_en || "Travel",
       tags: article.tags,
       images: [
@@ -91,7 +99,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      site: "@yallalondon",
+      site: `@${siteSlug}`,
       title: article.meta_title_en || article.title_en,
       description: article.meta_description_en || article.excerpt_en,
       images: [article.featured_image],
@@ -110,7 +118,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     other: {
       "article:published_time": article.created_at.toISOString(),
       "article:modified_time": article.updated_at.toISOString(),
-      "article:author": "Yalla London Editorial",
+      "article:author": `${siteName} Editorial`,
       "article:section": category?.name_en || "Travel",
       "article:tag": article.tags.join(","),
     },
@@ -120,9 +128,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // Generate JSON-LD structured data
 function generateStructuredData(
   article: (typeof informationArticles)[0],
+  siteInfo: { siteName: string; siteSlug: string; baseUrl: string },
 ) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  const { siteName, siteSlug, baseUrl } = siteInfo;
   const category = informationCategories.find(
     (c) => c.id === article.category_id,
   );
@@ -136,18 +144,17 @@ function generateStructuredData(
     datePublished: article.created_at.toISOString(),
     dateModified: article.updated_at.toISOString(),
     author: {
-      "@type": "Organization",
-      name: "Yalla London",
+      "@type": "Person",
+      name: `${siteName} Editorial`,
       url: baseUrl,
-      logo: `${baseUrl}/images/yalla-london-logo.svg`,
     },
     publisher: {
       "@type": "Organization",
-      name: "Yalla London",
+      name: siteName,
       url: baseUrl,
       logo: {
         "@type": "ImageObject",
-        url: `${baseUrl}/images/yalla-london-logo.svg`,
+        url: `${baseUrl}/images/${siteSlug}-logo.svg`,
       },
     },
     mainEntityOfPage: {
@@ -191,24 +198,8 @@ function generateStructuredData(
     ],
   };
 
-  // FAQ schema if the article has FAQ questions
-  const faqSchema =
-    article.faq_questions && article.faq_questions.length > 0
-      ? {
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          mainEntity: article.faq_questions.map((faq) => ({
-            "@type": "Question",
-            name: faq.question_en,
-            acceptedAnswer: {
-              "@type": "Answer",
-              text: faq.answer_en,
-            },
-          })),
-        }
-      : null;
-
-  return { articleSchema, breadcrumbSchema, faqSchema };
+  // FAQPage schema deprecated by Google (Aug 2023) — omitted
+  return { articleSchema, breadcrumbSchema };
 }
 
 // Transform article for client component (serialize dates and convert markdown to HTML)
@@ -264,8 +255,16 @@ export default async function ArticleDetailPage({ params }: Props) {
     notFound();
   }
 
+  // Resolve site identity for schema generation
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
+
   // Generate structured data
-  const structuredData = generateStructuredData(article);
+  const structuredData = generateStructuredData(article, { siteName, siteSlug, baseUrl });
 
   // Transform article for client (serialize Date objects to strings)
   const clientArticle = transformArticleForClient(article);
@@ -287,14 +286,6 @@ export default async function ArticleDetailPage({ params }: Props) {
           __html: JSON.stringify(structuredData.breadcrumbSchema),
         }}
       />
-      {structuredData.faqSchema && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(structuredData.faqSchema),
-          }}
-        />
-      )}
       <ArticleClient article={clientArticle} relatedArticles={relatedArticles} />
     </>
   );

@@ -1,207 +1,289 @@
-# Performance Baseline Notes
+# SEO Baseline -- Performance Notes
 
-**Date:** 2026-02-19
-**Site:** Yalla London (yalla-london.com)
-**Stack:** Next.js 14 App Router, Vercel Pro, Supabase PostgreSQL
-**Audit Type:** Static code analysis (no live Lighthouse scores yet)
-**Standards Reference:** lib/seo/standards.ts -- LCP <= 2.5s, INP <= 200ms, CLS <= 0.1
-
----
-
-## 1. Image Optimization
-
-**Status:** GOOD
-
-- Next.js Image optimization is ENABLED (`images.unoptimized: false` in next.config.js)
-- Format negotiation: AVIF preferred, WebP fallback (`formats: ['image/avif', 'image/webp']`)
-- Device sizes configured: 640, 750, 828, 1080, 1200, 1920, 2048
-- Image sizes configured: 16, 32, 48, 64, 96, 128, 256, 384
-- Cache TTL: 30 days (`minimumCacheTTL: 60 * 60 * 24 * 30`)
-- Remote patterns configured for: Supabase storage, Vercel, Cloudflare, Unsplash, Pexels, and all 5 site domains
-
-**Potential Issues:**
-- No explicit `loading="lazy"` verification on below-fold images (Next.js Image handles this by default, but custom `<img>` tags in content may not)
-- Featured images in blog posts may not have explicit width/height, which could cause CLS
+**Generated:** 2026-02-19
+**Site:** yalla-london.com
+**Framework:** Next.js 14 App Router on Vercel Pro
+**Config File:** next.config.js
+**Standards Reference:** lib/seo/standards.ts v2026-02-18
 
 ---
 
-## 2. Caching Strategy
+## Core Web Vitals Targets (from standards.ts)
 
-**Status:** GOOD
+| Metric | Target | March 2024 Update |
+|--------|--------|-------------------|
+| LCP    | <= 2.5s | Unchanged |
+| INP    | <= 200ms | Replaced FID as of March 2024 |
+| CLS    | <= 0.1  | Unchanged |
+| TTFB   | <= 600ms | Not an official CWV but monitored |
 
-### Edge Caching (CDN / Cloudflare + Vercel)
-| Route Pattern            | Cache-Control                                          | CDN-Cache-Control | Effective |
-|--------------------------|--------------------------------------------------------|-------------------|-----------|
-| Homepage `/`             | `public, max-age=0, s-maxage=300, stale-while-revalidate=600` | `max-age=300` | 5 min edge |
-| Blog `/blog/*`           | `public, max-age=0, s-maxage=600, stale-while-revalidate=3600` | `max-age=600` | 10 min edge |
-| Events `/events/*`       | `public, max-age=0, s-maxage=600, stale-while-revalidate=3600` | `max-age=600` | 10 min edge |
-| Recommendations          | `public, max-age=0, s-maxage=600, stale-while-revalidate=3600` | `max-age=600` | 10 min edge |
-| Static (about, contact)  | `public, max-age=60, s-maxage=3600, stale-while-revalidate=86400` | `max-age=3600` | 1 hr edge |
-| Sitemap `/sitemap.xml`   | `public, max-age=0, s-maxage=3600, stale-while-revalidate=86400` | `max-age=3600` | 1 hr edge |
-| Robots `/robots.txt`     | `public, max-age=0, s-maxage=3600, stale-while-revalidate=86400` | `max-age=3600` | 1 hr edge |
-| Static assets            | `public, max-age=31536000, immutable`                  | --                | 1 year    |
-| Next.js static `/_next/` | `public, max-age=31536000, immutable`                  | --                | 1 year    |
-| Admin `/admin/*`         | `no-store, no-cache, must-revalidate`                  | --                | No cache  |
-| Admin API `/api/admin/*` | `no-store, no-cache, must-revalidate`                  | --                | No cache  |
-| Public API `/api/blog/*` | `public, max-age=0, s-maxage=300, stale-while-revalidate=600` | `max-age=300` | 5 min edge |
-
-### ISR (Incremental Static Regeneration)
-| Page Type                | Revalidate | Effect                                    |
-|--------------------------|------------|-------------------------------------------|
-| Blog posts `/blog/[slug]` | 600s      | Regenerated every 10 minutes on request   |
-| Blog listing `/blog`     | 600s      | Regenerated every 10 minutes              |
-| Category listing         | 600s      | Regenerated every 10 minutes              |
-| Information hub pages    | 600s      | Regenerated every 10 minutes              |
-| News pages               | 600s      | Regenerated every 10 minutes              |
-| Brand guidelines         | 0         | force-dynamic (redirected to admin anyway)|
-
-### Vary Header
-- `Vary: Accept-Encoding, x-site-id` set on public pages and public API routes
-- This ensures Cloudflare serves correct cached version per-site in multi-tenant setup
-- Not set on admin or API admin routes (correctly excluded)
-
-**Potential Issues:**
-- `Vary: x-site-id` on public pages could reduce cache hit rate since the header value varies by tenant. For single-site (yalla-london only), this is fine. When multi-site goes live, each site gets its own cache partition (correct behavior).
-- No `stale-if-error` directive -- if origin goes down, CDN cannot serve stale content.
+> **Note:** FID was replaced by INP (Interaction to Next Paint) as a Core Web Vital in March 2024. INP measures all interactions, not just the first one. The inline CWV tracking script in the root layout still references `first-input` events, which corresponds to the deprecated FID metric.
 
 ---
 
-## 3. JavaScript Loading
+## Image Optimization
 
-**Status:** MIXED
+### Configuration (next.config.js)
 
-### Analytics (GA4)
-- Google Tag Manager loaded with `strategy="afterInteractive"` (non-blocking, correct)
-- GA4 configuration script also `afterInteractive`
-- Conditional: only loads if `NEXT_PUBLIC_GA_MEASUREMENT_ID` env var is set and non-empty
+| Setting | Value | Assessment |
+|---------|-------|------------|
+| Formats | AVIF + WebP | GOOD -- AVIF provides ~30-50% better compression than WebP |
+| Min cache TTL | 2,592,000s (30 days) | GOOD -- appropriate for content images |
+| Device sizes | 640, 750, 828, 1080, 1200, 1920, 2048 | GOOD -- covers mobile through 2K |
+| Image sizes | 16, 32, 48, 64, 96, 128, 256, 384 | GOOD -- covers icons through thumbnails |
+| Unoptimized | false | GOOD -- optimization enabled |
+| Remote patterns | Supabase, Vercel, Cloudflare, Unsplash, Pexels, all 5 site domains | GOOD -- comprehensive |
 
-### Inline Performance Monitoring Script
-- **Location:** Root layout.tsx, lines 172-218
-- **Method:** `dangerouslySetInnerHTML` with raw `<script>` tag
-- **Content:** ~45 lines of JavaScript for:
-  - Core Web Vitals tracking (sendToAnalytics function)
-  - Page load timing (performance.getEntriesByType)
-  - Scroll depth tracking (25% increment events)
-- **Problem:** This script is inlined directly in the HTML body, not using Next.js `<Script>` component. It cannot be deferred or loaded `afterInteractive`. It runs synchronously on every page load.
-- **Size estimate:** ~1.5KB unminified
-- **Recommendation:** Extract to a separate file and load with `<Script strategy="afterInteractive">`. Alternatively, use the `web-vitals` library which is tree-shakeable and handles CWV collection more efficiently.
+### Usage Assessment
 
-### Cookie Consent Banner
-- CookieConsentBanner component loaded in root layout
-- Presumably client-side rendered (consent UI)
-- Impact on performance depends on component implementation
+- `next/image` component is used for blog post images, homepage hero, and content images.
+- No raw `<img>` tags detected on major public page templates (blog, news, information hub).
+- No `placeholder="blur"` or `blurDataURL` usage detected in page files. Adding blur placeholders would improve perceived LCP by showing an immediate low-resolution preview.
+- No explicit `priority` prop detected on hero/banner images. Above-the-fold images default to lazy loading, which delays LCP.
 
----
+### Risks
 
-## 4. Font Loading
+| Risk | Impact | Severity |
+|------|--------|----------|
+| Hero images without `priority` prop | LCP delayed by lazy loading on above-fold images | HIGH |
+| No blur placeholder on content images | Empty space visible until image loads, poor perceived performance | MEDIUM |
+| Blog featured images from DB may lack width/height | Layout shift (CLS) as image dimensions unknown at render time | MEDIUM |
+| Missing 3840px device size for 4K displays | Upscaled 2048px images on 4K screens | LOW |
 
-**Status:** GOOD
+### Recommendations
 
-- `preconnect` to `fonts.googleapis.com` present in root layout head
-- `preconnect` to `fonts.gstatic.com` with `crossOrigin=""` present
-- Font strategy appears to be Google Fonts via external stylesheet
-- `font-editorial` class applied to body (`className="font-editorial antialiased"`)
-
-**Potential Issues:**
-- No `font-display: swap` explicitly visible in code (may be set in the Google Fonts URL or CSS)
-- External Google Fonts request adds network round trip. Consider self-hosting fonts for better LCP.
-- No preload of the actual font files (only preconnect to the domain)
+1. Add `priority` prop to hero/featured images on homepage, blog post pages, and any above-the-fold image components.
+2. Add `placeholder="blur"` with `blurDataURL` (10px base64 thumbnail) to content images.
+3. Verify blog post featured images from DB include width and height fields, or use `fill` mode with a sized container to prevent CLS.
 
 ---
 
-## 5. CSS Optimization
+## Font Strategy
 
-**Status:** GOOD
+### Configuration (app/layout.tsx)
 
-- `experimental.optimizeCss: true` enabled in next.config.js
-- Tailwind CSS used for utility classes (tree-shaken in production)
-- `compress: true` enabled in next.config.js
+| Setting | Value | Assessment |
+|---------|-------|------------|
+| Preconnect | fonts.googleapis.com | GOOD -- reduces DNS/TCP overhead |
+| Preconnect | fonts.gstatic.com (crossOrigin="") | GOOD -- for font file delivery |
+| font-display | Not explicitly set | NEEDS IMPROVEMENT |
+| Font loading method | Google Fonts external `<link>` | ACCEPTABLE -- not self-hosted |
 
----
+### Font Stack (from destination-themes.ts)
 
-## 6. Security Headers (Performance-Relevant)
+| Role | Font Family | Source |
+|------|-------------|--------|
+| Heading | Anybody | Google Fonts |
+| Body | Source Serif 4 | Google Fonts |
+| Arabic | IBM Plex Sans Arabic | Google Fonts |
+| Code | N/A | System stack |
 
-**Status:** GOOD
+### Body CSS Class
 
-- `poweredByHeader: false` -- removes X-Powered-By header (minor security + smaller response)
-- HSTS with `max-age=63072000; includeSubDomains; preload` (2 years)
-- CSP header present with specific directives (prevents unauthorized script/resource loading)
-- X-DNS-Prefetch-Control: on (allows browser DNS prefetching)
+The `<body>` tag uses `className="font-editorial"` which maps to a custom font family defined in the Tailwind configuration.
 
----
+### Risks
 
-## 7. PWA / Service Worker
+| Risk | Impact | Severity |
+|------|--------|----------|
+| No explicit `font-display: swap` | Flash of invisible text (FOIT) on slow connections | HIGH |
+| External Google Fonts requests | ~100-200ms added to initial render per font file | HIGH |
+| Not using `next/font` | Missing automatic self-hosting, font-display swap, and size-adjust | MEDIUM |
+| Multiple font families loaded | Heading + body + Arabic = 3+ font file requests | MEDIUM |
 
-**Status:** PRESENT
+### Recommendations
 
-- `manifest.json` linked in root layout head
-- `theme-color` meta tag set to `#C8322B`
-- `apple-mobile-web-app-capable: yes` set
-- `apple-touch-icon` linked to `/icons/icon-192x192.png`
-- `/offline` page exists as PWA fallback
-- Service worker registration not visible in layout (may be in manifest or separate script)
-
-**Potential Issues:**
-- `apple-mobile-web-app-title` hardcoded to "Yalla London" (not multi-site)
-- `theme-color` hardcoded to `#C8322B` (Yalla London red, not per-site)
-
----
-
-## 8. Accessibility (Performance-Adjacent)
-
-**Status:** GOOD
-
-- Skip-to-content link present: `<a href="#main-content" className="sr-only focus:not-sr-only ...">Skip to content</a>`
-- Main content has `id="main-content"` target
-- `html` tag has dynamic `lang` and `dir` attributes based on locale (supports LTR/RTL)
-- `suppressHydrationWarning` on html and body (for theme provider SSR mismatch, acceptable)
+1. **Migrate to `next/font`** for automatic self-hosting. This eliminates the external Google Fonts dependency entirely, provides automatic `font-display: swap`, and enables `size-adjust` to prevent CLS from font swapping.
+2. If keeping Google Fonts, add `&display=swap` to the font CSS URL parameter.
+3. Consider `<link rel="preload">` for the critical font files (body font used above-fold).
+4. Audit how many font weights are loaded. Each weight is a separate file. Minimize to weights actually used.
 
 ---
 
-## 9. Third-Party Script Impact
+## Script Loading
 
-| Script                        | Loading Strategy    | Blocking? | Estimated Impact |
-|-------------------------------|---------------------|-----------|------------------|
-| Google Tag Manager            | afterInteractive    | No        | ~50ms TBT        |
-| GA4 config                    | afterInteractive    | No        | ~20ms TBT        |
-| Inline performance tracking   | Synchronous (inline)| YES       | ~10-30ms TBT     |
-| Cookie consent banner         | Client component    | Partial   | Unknown          |
+### Google Analytics 4 (app/layout.tsx L146-169)
 
-**Total estimated third-party impact:** 80-100ms Total Blocking Time
+| Property | Value | Assessment |
+|----------|-------|------------|
+| Script strategy | `afterInteractive` | GOOD -- loads after hydration |
+| Conditional | Only when `NEXT_PUBLIC_GA_MEASUREMENT_ID` is set and non-empty | GOOD -- no production penalty when unset |
+| Cookie config | `SameSite=None;Secure` | GOOD -- cross-site compatibility |
+| Scripts | 2: external gtag.js loader + inline config | ACCEPTABLE |
+
+**Assessment:** Correct implementation. `afterInteractive` ensures GA4 does not block LCP or INP. Conditional loading prevents unnecessary script in development.
+
+### Core Web Vitals Tracking (app/layout.tsx L172-218)
+
+| Property | Value | Assessment |
+|----------|-------|------------|
+| Script type | Raw `<script>` via `dangerouslySetInnerHTML` | NEEDS IMPROVEMENT |
+| Loading | Synchronous -- executes during HTML parsing | CONCERN |
+| Size | ~45 lines of inline JavaScript | CONCERN |
+| Content | CWV reporting, page load timing, scroll depth tracking | DOCUMENTED |
+
+**Detailed Analysis:**
+
+The inline script performs three functions:
+
+1. **Performance event listener** (lines ~175-190): Listens for `first-input` PerformanceObserver events and sends them to GA4 via `sendToAnalytics()`. Note: `first-input` measures FID which was deprecated and replaced by INP in March 2024.
+
+2. **Page load timing** (lines ~192-210): Uses `setTimeout(fn, 0)` to defer `performance.getEntriesByType('navigation')` to the next tick. Calculates TTFB, DOM content loaded, page load, and DNS lookup times. Sends to GA4.
+
+3. **Scroll depth tracking** (lines ~212-218): Adds a `scroll` event listener that tracks 25% depth increments (25%, 50%, 75%, 100%). Fires GA4 events at each threshold.
+
+**Risks:**
+
+| Risk | Impact | Severity |
+|------|--------|----------|
+| ~45 lines of synchronous inline JS | Contributes to Total Blocking Time (TBT), affects INP | MEDIUM |
+| Scroll event listener without `passive: true` | May block scrolling on mobile, increasing INP | MEDIUM |
+| FID measurement instead of INP | Outdated metric since March 2024 | LOW |
+| `sendToAnalytics` may never fire | `web-vitals` library is not imported -- the function definition exists but the observer pattern may be incomplete | LOW |
+
+### Recommendations
+
+1. **Extract to external script file** loaded with `strategy="afterInteractive"` or `strategy="lazyOnload"`.
+2. **Add `{ passive: true }` to the scroll event listener** to prevent blocking scroll on mobile.
+3. **Replace `first-input` observer with INP measurement** using the `web-vitals` npm package (v4+).
+4. **Move scroll depth tracking to `strategy="lazyOnload"`** since it is not critical for any page functionality.
 
 ---
 
-## 10. Build Configuration
+## ISR Strategy
 
-**Status:** GOOD
+### Pages with ISR (Incremental Static Regeneration)
 
-- `reactStrictMode: true` (catches potential issues in development)
-- `typescript.ignoreBuildErrors: false` (enforces type safety)
-- `distDir` configurable via env var
-- `serverExternalPackages: ['@prisma/client', 'prisma']` (correct for Prisma server-side usage)
+| Page Type | Path Pattern | Revalidate | Assessment |
+|-----------|-------------|------------|------------|
+| Blog listing | /blog | 600s (10 min) | GOOD |
+| Blog post | /blog/[slug] | 600s | GOOD |
+| Blog category | /blog/category/[slug] | 600s | GOOD |
+| News listing | /news | 600s | GOOD |
+| News detail | /news/[slug] | 600s | GOOD |
+| Information hub | /information | 600s | GOOD |
+| Information section | /information/[section] | 600s | GOOD |
+| Information articles | /information/articles | 600s | GOOD |
+| Information article | /information/articles/[slug] | 600s | GOOD |
+
+### Pages with revalidate = 0 (no cache)
+
+| Page | Reason |
+|------|--------|
+| /brand-guidelines | Internal page, revalidate=0 |
+| /brand-showcase | Internal page, revalidate=0 |
+| Admin pages (78) | Correct -- admin should never cache |
+
+### Pages with NO explicit revalidate
+
+All other public pages (homepage, about, contact, events, experiences, hotels, shop, etc.) use default Next.js behavior -- static generation at build time with no automatic revalidation.
+
+**Risks:**
+
+- **Homepage has no ISR revalidation.** If the homepage includes dynamic content (latest articles, featured posts), it will only update on redeployment.
+- **Events page has no ISR revalidation.** DB events will only appear after redeployment unless ISR is added.
+- **Shop pages have no ISR revalidation.** Product changes only visible after redeployment.
+
+### Recommendations
+
+1. Add `revalidate = 600` to homepage, events, and shop pages.
+2. London-by-foot pages should have ISR if content is DB-driven.
 
 ---
 
-## Summary of Performance Concerns
+## CDN Cache Headers (next.config.js)
 
-| # | Issue                                    | Severity | Impact Area | Recommendation                              |
-|---|------------------------------------------|----------|-------------|---------------------------------------------|
-| 1 | Inline performance script (45 lines)     | MEDIUM   | TBT, FCP    | Extract to afterInteractive Script component |
-| 2 | CWV tracking via custom code             | LOW      | TBT         | Replace with web-vitals library              |
-| 3 | External Google Fonts                    | LOW      | LCP         | Consider self-hosting fonts                  |
-| 4 | No font-display:swap visible             | LOW      | FCP, CLS    | Verify font-display strategy                 |
-| 5 | No stale-if-error caching                | LOW      | Availability| Add stale-if-error to cache headers          |
-| 6 | No dynamic import for non-critical       | LOW      | Bundle size | Lazy-load CookieConsentBanner, AnalyticsTracker |
-| 7 | Blog featured images may lack dimensions | LOW      | CLS         | Ensure width/height on all images            |
+| Path Pattern | Browser Cache | CDN Cache (s-maxage) | Stale-While-Revalidate | Vary |
+|-------------|---------------|---------------------|------------------------|------|
+| /blog/* | 0 | 600s (10 min) | 3600s (1 hour) | Accept-Encoding, x-site-id |
+| /events/* | 0 | 600s | 3600s | Accept-Encoding, x-site-id |
+| /recommendations/* | 0 | 600s | 3600s | Accept-Encoding, x-site-id |
+| /about | 60s | 3600s (1 hour) | 86400s (24 hours) | Accept-Encoding |
+| /contact | 60s | 3600s | 86400s | Accept-Encoding |
+| /sitemap.xml | 0 | 3600s | 86400s | -- |
+| /robots.txt | 0 | 3600s | 86400s | -- |
+| /_next/static/* | 31536000s (1 year, immutable) | -- | -- | -- |
+| Static assets (.ico, .svg, .jpg, etc.) | 31536000s (1 year, immutable) | -- | -- | -- |
+| /admin/* | no-store, no-cache, must-revalidate | -- | -- | -- |
+| /api/admin/* | no-store, no-cache, must-revalidate | -- | -- | -- |
+| /api/blog/* | 0 | 300s (5 min) | 600s | -- |
+| /api/events/* | 0 | 300s | 600s | -- |
+
+### Assessment
+
+- Content pages: Aggressive CDN caching (600s) with generous stale-while-revalidate (1 hour). Users see cached content while Vercel regenerates in background. Good for performance.
+- Static pages: 1-hour CDN cache with 24-hour stale-while-revalidate. Appropriate for rarely-changing pages.
+- Static assets: 1-year immutable cache. Correct for hashed Next.js bundles.
+- Admin: No-store is correct for authenticated pages.
+- `Vary: x-site-id` on content pages ensures multi-site responses are cached separately per site.
 
 ---
 
-## Next Steps for Live Performance Audit
+## Security Headers Relevant to Performance and SEO
 
-1. Run Lighthouse on deployed site (mobile + desktop) to get actual scores
-2. Check CrUX data in PageSpeed Insights for field data (LCP, INP, CLS)
-3. Verify font loading waterfall in Chrome DevTools Network tab
-4. Measure actual TBT contribution of inline performance script
-5. Check if `optimizeCss: true` is effectively reducing CSS bundle size
-6. Validate that Vercel edge caching is working (check response headers for cf-cache-status or x-vercel-cache)
-7. Run WebPageTest for detailed waterfall analysis
+| Header | Value | Impact |
+|--------|-------|--------|
+| HSTS | max-age=63072000; includeSubDomains; preload | Ensures HTTPS (positive ranking signal). Eliminates HTTP-to-HTTPS redirect latency after first visit. |
+| CSP | self + Google Analytics + Supabase + fonts.googleapis.com + fonts.gstatic.com | May block future third-party scripts if not updated. |
+| X-Frame-Options | DENY | Prevents embedding. No SEO/perf impact. |
+| X-Content-Type-Options | nosniff | Security. No SEO/perf impact. |
+| Referrer-Policy | strict-origin-when-cross-origin | May limit referrer data to analytics. |
+
+---
+
+## General Performance Configuration
+
+| Setting | Value | Assessment |
+|---------|-------|------------|
+| compress | true | GOOD -- gzip/brotli compression enabled |
+| poweredByHeader | false | GOOD -- removes X-Powered-By header |
+| reactStrictMode | true | GOOD -- dev only, no production impact |
+| optimizeCss | true (experimental) | GOOD -- CSS optimization enabled |
+| serverExternalPackages | @prisma/client, prisma | GOOD -- prevents Prisma bundling into serverless functions |
+
+---
+
+## Known CWV Risks Summary
+
+### LCP Risks (Largest Contentful Paint)
+
+| # | Risk | Source | Estimated Impact | Fix Difficulty |
+|---|------|--------|-----------------|----------------|
+| 1 | External Google Fonts render-blocking | app/layout.tsx preconnect | +100-200ms | MEDIUM (migrate to next/font) |
+| 2 | Hero images without `priority` prop | Blog, homepage | +200-500ms | LOW (add priority prop) |
+| 3 | No blur placeholder on images | Content images | Perceived +200ms | LOW (add blurDataURL) |
+
+### INP Risks (Interaction to Next Paint)
+
+| # | Risk | Source | Estimated Impact | Fix Difficulty |
+|---|------|--------|-----------------|----------------|
+| 1 | Inline synchronous CWV script | app/layout.tsx L172-218 | +10-20ms TBT | LOW (extract to external) |
+| 2 | Scroll listener without passive:true | app/layout.tsx ~L212 | Up to +50ms on mobile | LOW (add passive) |
+| 3 | React hydration of client components | LanguageProvider, ThemeProvider, etc. | Varies | N/A (inherent to framework) |
+
+### CLS Risks (Cumulative Layout Shift)
+
+| # | Risk | Source | Estimated Impact | Fix Difficulty |
+|---|------|--------|-----------------|----------------|
+| 1 | Font swap without size-adjust | Google Fonts loading | +0.05-0.1 CLS | MEDIUM (migrate to next/font) |
+| 2 | DynamicHeader component | Client-side render after hydration | +0.05 CLS if height changes | MEDIUM |
+| 3 | Images without dimensions | Blog featured images from DB | +0.1+ CLS per image | LOW (use fill mode or DB dimensions) |
+| 4 | Cookie consent banner | CookieConsentBanner component | +0.05 CLS if pushes content | LOW (use fixed positioning) |
+| 5 | Fixed pt-20 padding assumption | Main content padding for header | CLS if header != 5rem | LOW |
+
+---
+
+## Action Items (Priority Order)
+
+| # | Priority | Item | Expected Impact | Effort |
+|---|----------|------|-----------------|--------|
+| 1 | HIGH | Migrate from Google Fonts to `next/font` | Eliminate render-blocking font request. Improve LCP by 100-200ms. Automatic font-display:swap prevents CLS from font swap. | 2-4 hours |
+| 2 | HIGH | Add `priority` prop to above-fold hero/featured images | Improve LCP by 200-500ms on key landing pages. | 30 min |
+| 3 | HIGH | Extract inline CWV script to external file with afterInteractive | Reduce TBT by 10-20ms. Improve INP. | 1 hour |
+| 4 | MEDIUM | Add `placeholder="blur"` to content images | Reduce perceived LCP. Better user experience. | 1-2 hours |
+| 5 | MEDIUM | Add `{ passive: true }` to scroll event listener | Improve INP on mobile by preventing scroll blocking. | 5 min |
+| 6 | MEDIUM | Replace FID measurement with INP using web-vitals v4+ | Measure the actual CWV metric (INP replaced FID March 2024). | 1 hour |
+| 7 | MEDIUM | Add ISR revalidation to homepage and events page | Ensure fresh content without redeployment. | 30 min |
+| 8 | LOW | Add blur data URLs to blog post featured images | Smoother image loading experience. | 2 hours |
+| 9 | LOW | Verify no raw `<img>` tags on public pages | Ensure all images use next/image optimization. | 30 min |
+| 10 | LOW | Add width/height to DB blog post featured images or use fill mode | Prevent CLS from images without dimensions. | 1-2 hours |

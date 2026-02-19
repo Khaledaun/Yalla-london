@@ -163,8 +163,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
         alternates: hreflang(`/blog/${post.slug}`),
       }));
-  } catch {
-    // Database not available - use static content only
+  } catch (error) {
+    console.warn(`[sitemap] Blog post DB query failed for ${siteId}:`, error instanceof Error ? error.message : String(error));
   }
 
   // Events from database (scoped by site)
@@ -184,8 +184,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
       alternates: hreflang(`/events/${event.id}`),
     }));
-  } catch {
-    // Database not available
+  } catch (error) {
+    console.warn(`[sitemap] Events DB query failed for ${siteId}:`, error instanceof Error ? error.message : String(error));
   }
 
   // Category pages
@@ -255,8 +255,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
       alternates: hreflang(`/news/${item.slug}`),
     }));
-  } catch {
-    // Database not available - skip news pages
+  } catch (error) {
+    console.warn(`[sitemap] News DB query failed for ${siteId}:`, error instanceof Error ? error.message : String(error));
   }
 
   // News landing page

@@ -1,8 +1,9 @@
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getBaseUrl } from "@/lib/url-utils";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { getSiteDomain, getSiteConfig, getDefaultSiteId } from "@/config/sites";
 import { getRelatedArticles } from "@/lib/related-content";
 import NewsDetailClient from "./NewsDetailClient";
 
@@ -242,12 +243,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const slug = resolvedParams.slug;
   const baseUrl = await getBaseUrl();
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
 
   const item = await getNewsItem(slug);
 
   if (!item) {
     return {
-      title: "News Not Found | Yalla London",
+      title: `News Not Found | ${siteName}`,
       description: "The news article you are looking for could not be found.",
     };
   }
@@ -258,24 +264,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     item.summary_en.slice(0, 160);
 
   return {
-    title: item.meta_title_en || `${item.headline_en} | Yalla London`,
+    title: item.meta_title_en || `${item.headline_en} | ${siteName}`,
     description,
     keywords: item.keywords.join(", "),
-    authors: [{ name: "Yalla London Editorial" }],
-    creator: "Yalla London",
-    publisher: "Yalla London",
+    authors: [{ name: `${siteName} Editorial` }],
+    creator: siteName,
+    publisher: siteName,
     alternates: {
       canonical: canonicalUrl,
       languages: {
         "en-GB": canonicalUrl,
         "ar-SA": `${baseUrl}/ar/news/${slug}`,
+        "x-default": canonicalUrl,
       },
     },
     openGraph: {
       title: item.meta_title_en || item.headline_en,
       description,
       url: canonicalUrl,
-      siteName: "Yalla London",
+      siteName,
       locale: "en_GB",
       alternateLocale: "ar_SA",
       type: "article",
@@ -296,7 +303,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      site: "@yallalondon",
+      site: `@${siteSlug}`,
       title: item.meta_title_en || item.headline_en,
       description,
       images: item.featured_image ? [item.featured_image] : [],
@@ -325,9 +332,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // JSON-LD Structured Data
 // ---------------------------------------------------------------------------
 
-function generateStructuredData(item: SeedItem) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || `https://www.${getSiteDomain(getDefaultSiteId())}`;
+function generateStructuredData(item: SeedItem, siteInfo: { siteName: string; siteSlug: string; baseUrl: string }) {
+  const { siteName, siteSlug, baseUrl } = siteInfo;
 
   const newsArticleSchema = {
     "@context": "https://schema.org",
@@ -343,11 +349,11 @@ function generateStructuredData(item: SeedItem) {
     },
     publisher: {
       "@type": "Organization",
-      name: "Yalla London",
+      name: siteName,
       url: baseUrl,
       logo: {
         "@type": "ImageObject",
-        url: `${baseUrl}/images/yalla-london-logo.svg`,
+        url: `${baseUrl}/images/${siteSlug}-logo.svg`,
       },
     },
     mainEntityOfPage: {
@@ -442,7 +448,14 @@ export default async function NewsDetailPage({ params }: Props) {
     notFound();
   }
 
-  const structuredData = generateStructuredData(item);
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const baseUrl = await getBaseUrl();
+
+  const structuredData = generateStructuredData(item, { siteName, siteSlug, baseUrl });
   const relatedArticles = await resolveRelatedArticles(item);
 
   return (

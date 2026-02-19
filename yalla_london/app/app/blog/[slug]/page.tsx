@@ -101,7 +101,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const siteSlug = siteConfig?.slug || "yallalondon";
 
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || `https://www.${siteDomain}`;
+    process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
   const canonicalUrl = `${baseUrl}/blog/${slug}`;
 
   const result = await findPost(slug, siteId);
@@ -152,6 +152,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       languages: {
         "en-GB": canonicalUrl,
         "ar-SA": `${baseUrl}/ar/blog/${slug}`,
+        "x-default": canonicalUrl,
       },
     },
     openGraph: {
@@ -208,7 +209,7 @@ function generateStructuredData(
 ) {
   const { siteName, siteDomain, siteSlug } = siteInfo;
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || `https://www.${siteDomain}`;
+    process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
 
   let categoryName = "Travel";
   let keywords: string[] = [];
@@ -246,10 +247,9 @@ function generateStructuredData(
     datePublished: createdAt,
     dateModified: updatedAt,
     author: {
-      "@type": "Organization",
-      name: siteName,
+      "@type": "Person",
+      name: `${siteName} Editorial`,
       url: baseUrl,
-      logo: logoPath,
     },
     publisher: {
       "@type": "Organization",

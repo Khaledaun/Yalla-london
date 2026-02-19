@@ -77,15 +77,20 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
       "name": eventData.venue,
       "address": {
         "@type": "PostalAddress",
-        "addressLocality": "London",
-        "addressCountry": "GB"
+        "addressLocality": eventData.city || siteDestination,
+        "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry
       }
     },
     "offers": {
       "@type": "Offer",
       "price": eventData.price,
-      "priceCurrency": "GBP",
+      "priceCurrency": eventData.currency || (siteCountry === 'UK' ? 'GBP' : 'USD'),
       "availability": "https://schema.org/InStock"
+    },
+    "organizer": {
+      "@type": "Organization",
+      "name": siteName,
+      "url": process.env.NEXT_PUBLIC_SITE_URL || siteDomain
     }
   })
 
@@ -123,8 +128,8 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
     "address": {
       "@type": "PostalAddress",
       "streetAddress": restaurantData.address,
-      "addressLocality": "London",
-      "addressCountry": "GB"
+      "addressLocality": restaurantData.city || siteDestination,
+      "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry
     },
     "telephone": restaurantData.phone,
     "priceRange": restaurantData.priceRange,
@@ -146,8 +151,8 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
     "address": {
       "@type": "PostalAddress",
       "streetAddress": placeData.address,
-      "addressLocality": "London",
-      "addressCountry": "GB",
+      "addressLocality": placeData.city || siteDestination,
+      "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry,
       "postalCode": placeData.postalCode
     },
     "geo": placeData.coordinates ? {
@@ -245,8 +250,8 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
       "address": {
         "@type": "PostalAddress",
         "streetAddress": eventData.location?.address,
-        "addressLocality": "London",
-        "addressCountry": "GB"
+        "addressLocality": eventData.location?.city || siteDestination,
+        "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry
       },
       "geo": eventData.location?.coordinates ? {
         "@type": "GeoCoordinates",
@@ -257,13 +262,13 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
     "image": eventData.image ? [eventData.image] : undefined,
     "organizer": {
       "@type": "Organization",
-      "name": eventData.organizer || brandConfig.siteName,
-      "url": process.env.NEXT_PUBLIC_SITE_URL
+      "name": eventData.organizer || siteName,
+      "url": process.env.NEXT_PUBLIC_SITE_URL || siteDomain
     },
     "offers": eventData.price ? {
       "@type": "Offer",
       "price": eventData.price.toString(),
-      "priceCurrency": eventData.currency || "GBP",
+      "priceCurrency": eventData.currency || (siteCountry === 'UK' ? 'GBP' : 'USD'),
       "availability": eventData.availability || "https://schema.org/InStock",
       "url": eventData.ticketUrl,
       "validFrom": eventData.salesStart

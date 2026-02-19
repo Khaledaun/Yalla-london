@@ -32,6 +32,7 @@ import {
   ChevronUp,
   Search,
   Filter,
+  MapPin,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -342,6 +343,9 @@ export function WorkflowControlDashboard() {
         case 'seo_report':
           endpoint = '/api/admin/pipeline';
           break;
+        case 'seed_walks':
+          endpoint = '/api/admin/seed-walks';
+          break;
       }
 
       const body: Record<string, string> = {};
@@ -352,6 +356,9 @@ export function WorkflowControlDashboard() {
       if (action === 'seo_report') {
         endpoint = '/api/admin/pipeline';
         Object.assign(body, { operation: 'seo_audit', parameters: { scope: 'all_published_content' } });
+      }
+      if (action === 'seed_walks') {
+        body.action = 'seed_walks';
       }
 
       const res = await fetch(endpoint, { method, headers, body: JSON.stringify(body) });
@@ -1093,6 +1100,20 @@ export function WorkflowControlDashboard() {
                       <BarChart3 className="h-4 w-4 mr-2" />
                     )}
                     Generate SEO Health Report
+                  </Button>
+
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    disabled={!!actionRunning}
+                    onClick={() => runQuickAction('seed_walks', 'Seed Walking Guides')}
+                  >
+                    {actionRunning === 'seed_walks' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <MapPin className="h-4 w-4 mr-2" />
+                    )}
+                    Seed Walking Guides to Pipeline
                   </Button>
                 </div>
               </CardContent>

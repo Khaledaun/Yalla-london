@@ -75,7 +75,25 @@ export default function MediaLibraryPage() {
       const res = await fetch("/api/admin/media");
       if (res.ok) {
         const data = await res.json();
-        setMediaFiles(data.files || data.data || []);
+        const raw = data.files || data.data || [];
+        // Map API response to MediaFile interface
+        const mapped: MediaFile[] = raw.map((f: Record<string, unknown>) => ({
+          id: String(f.id || ""),
+          name: (f.filename || f.name || "") as string,
+          type: ((f.mimeType || f.mime_type || "") as string).startsWith("image/")
+            ? "image"
+            : ((f.mimeType || f.mime_type || "") as string).startsWith("video/")
+              ? "video"
+              : "document",
+          url: (f.url || "") as string,
+          thumbnail: (f.thumbnailUrl || f.thumbnail || f.url || "") as string,
+          size: (f.size || 0) as number,
+          uploadedAt: (f.createdAt || f.created_at || f.uploadedAt || "") as string,
+          alt: (f.altText || f.alt_text || f.alt || "") as string,
+          tags: (f.tags || []) as string[],
+          folder: (f.folder || "uploads") as string,
+        }));
+        setMediaFiles(mapped);
       } else {
         setMediaFiles([]);
       }
@@ -142,17 +160,32 @@ export default function MediaLibraryPage() {
     }
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (selectedFiles.length === 0) {
       toast.error("No files selected");
       return;
     }
 
-    setMediaFiles((prev) =>
-      prev.filter((file) => !selectedFiles.includes(file.id)),
-    );
+    try {
+      const res = await fetch("/api/admin/media", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedFiles }),
+      });
+
+      if (res.ok) {
+        setMediaFiles((prev) =>
+          prev.filter((file) => !selectedFiles.includes(file.id)),
+        );
+        toast.success(`${selectedFiles.length} file(s) deleted`);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Failed to delete files");
+      }
+    } catch {
+      toast.error("Failed to delete files");
+    }
     setSelectedFiles([]);
-    toast.success(`${selectedFiles.length} file(s) deleted`);
   };
 
   const handleFileUpload = async (files: FileList) => {
@@ -160,38 +193,67 @@ export default function MediaLibraryPage() {
     setUploadProgress(0);
     setShowUploadModal(false);
 
+    let successCount = 0;
+    let failCount = 0;
+
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const progress = ((i + 1) / files.length) * 100;
-        setUploadProgress(progress);
+        setUploadProgress(((i + 0.5) / files.length) * 100);
 
-        // Simulate upload
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        try {
+          // Upload file to real S3 API
+          const formData = new FormData();
+          formData.append("file", file);
 
-        const newFile: MediaFile = {
-          id: Date.now().toString() + i,
-          name: file.name,
-          type: file.type.startsWith("image/")
-            ? "image"
-            : file.type.startsWith("video/")
-              ? "video"
-              : "document",
-          url: URL.createObjectURL(file),
-          thumbnail: file.type.startsWith("image/")
-            ? URL.createObjectURL(file)
-            : undefined,
-          size: file.size,
-          uploadedAt: new Date().toISOString(),
-          tags: [],
-          folder: selectedFolder === "All Files" ? "uploads" : selectedFolder,
-        };
+          const res = await fetch("/api/media/upload", {
+            method: "POST",
+            body: formData,
+          });
 
-        setMediaFiles((prev) => [newFile, ...prev]);
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({ error: "Upload failed" }));
+            throw new Error(errData.error || `Upload failed (${res.status})`);
+          }
+
+          const data = await res.json();
+
+          // Add uploaded file to the library view
+          const newFile: MediaFile = {
+            id: data.id?.toString() || Date.now().toString() + i,
+            name: data.original_name || file.name,
+            type: file.type.startsWith("image/")
+              ? "image"
+              : file.type.startsWith("video/")
+                ? "video"
+                : "document",
+            url: data.url,
+            thumbnail: file.type.startsWith("image/") ? data.url : undefined,
+            size: data.file_size || file.size,
+            uploadedAt: data.created_at || new Date().toISOString(),
+            tags: data.tags || [],
+            folder: selectedFolder === "All Files" ? "uploads" : selectedFolder,
+          };
+
+          setMediaFiles((prev) => [newFile, ...prev]);
+          successCount++;
+        } catch (fileErr) {
+          console.warn(`[media-upload] Failed to upload ${file.name}:`, fileErr);
+          failCount++;
+        }
+
+        setUploadProgress(((i + 1) / files.length) * 100);
       }
 
-      toast.success(`${files.length} file(s) uploaded successfully`);
+      if (successCount > 0 && failCount === 0) {
+        toast.success(`${successCount} file(s) uploaded successfully`);
+      } else if (successCount > 0 && failCount > 0) {
+        toast.warning(`${successCount} uploaded, ${failCount} failed`);
+      } else {
+        toast.error("All uploads failed — check that AWS S3 is configured");
+      }
     } catch (error) {
+      console.warn("[media-upload] Upload error:", error);
       toast.error("Failed to upload files");
     } finally {
       setIsUploading(false);

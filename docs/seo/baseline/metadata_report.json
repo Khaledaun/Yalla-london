@@ -1,7 +1,7 @@
 {
-  "audit_date": "2026-02-19",
+  "generated": "2026-02-19",
+  "tool": "static-analysis (grep for generateMetadata, export const metadata, layout metadata)",
   "site": "yalla-london",
-  "audit_type": "static_code_analysis",
   "summary": {
     "pages_with_generateMetadata": 10,
     "pages_with_static_metadata": 12,
@@ -11,137 +11,26 @@
     "note": "Pages with generateMetadata produce dynamic, per-request metadata including canonical URLs, OG tags, and hreflang. Static metadata is defined in layout.tsx files and cannot vary per request or per site."
   },
   "pages_by_metadata_type": {
-    "generateMetadata": [
-      "app/layout.tsx (root -- inherited by all pages)",
-      "app/blog/page.tsx",
-      "app/blog/[slug]/page.tsx",
-      "app/blog/category/[slug]/page.tsx",
-      "app/information/page.tsx",
-      "app/information/articles/page.tsx",
-      "app/information/articles/[slug]/page.tsx",
-      "app/information/[section]/page.tsx",
-      "app/news/page.tsx",
-      "app/news/[slug]/page.tsx",
-      "app/london-by-foot/[slug]/page.tsx"
-    ],
-    "static_metadata_in_layout": [
-      "app/about/layout.tsx",
-      "app/contact/layout.tsx",
-      "app/events/layout.tsx",
-      "app/experiences/layout.tsx",
-      "app/hotels/layout.tsx",
-      "app/privacy/layout.tsx",
-      "app/terms/layout.tsx",
-      "app/recommendations/layout.tsx",
-      "app/shop/layout.tsx"
-    ],
-    "static_metadata_in_page": [
-      "app/brand-guidelines/page.tsx (redirected to /admin -- moot)",
-      "app/london-by-foot/page.tsx",
-      "app/brand-showcase/page.tsx (redirected to /admin -- moot)"
-    ],
-    "no_metadata": [
-      "app/page.tsx (homepage -- inherits root layout only)",
-      "app/offline/page.tsx",
-      "app/affiliate-disclosure/page.tsx",
-      "app/shop/[slug]/page.tsx",
-      "app/shop/download/page.tsx",
-      "app/shop/purchases/page.tsx"
-    ]
-  },
-  "findings": [
-    {
-      "id": "META-001",
-      "category": "title",
-      "status": "PARTIAL",
-      "details": "Pages with generateMetadata produce dynamic titles from DB content or site config. Static-metadata pages hardcode 'Yalla London' in titles (e.g., 'About Yalla London - Your Luxury London Guide | Yalla London'). This works for yalla-london.com but is incorrect for other sites. Root layout title uses brandConfig which is Yalla London-specific.",
-      "affected_pages": ["about", "contact", "events", "experiences", "hotels", "privacy", "terms", "recommendations", "shop"],
-      "recommendation": "Convert static metadata layouts to generateMetadata() that reads site config dynamically."
-    },
-    {
-      "id": "META-002",
-      "category": "meta_description",
-      "status": "PARTIAL",
-      "details": "Static-metadata pages have hardcoded descriptions referencing London specifically (e.g., 'connecting Arab travellers with London's most exclusive hotels'). Blog/news pages dynamically pull description from post.meta_description_en or post.excerpt_en. Homepage inherits root layout description from brandConfig. 6 pages have no description at all.",
-      "affected_pages_no_description": ["homepage (inherits brandConfig)", "offline", "affiliate-disclosure", "shop/[slug]", "shop/download", "shop/purchases"],
-      "recommendation": "Add generateMetadata to all public pages. Ensure every page has a unique description between 120-160 characters."
-    },
-    {
-      "id": "META-003",
-      "category": "canonical",
-      "status": "PARTIAL",
-      "details": "Root layout sets canonical to baseUrl (via getBaseUrl()). Blog/news/info pages set per-page canonicals via generateMetadata alternates.canonical. Static-metadata layouts set canonical via alternates.canonical using siteUrl variable (getDefaultSiteId-based). However, siteUrl is computed at module load time, not per-request, so it will always resolve to the default site. Pages without metadata have no canonical at all.",
-      "pages_with_canonical": ["root layout", "about", "contact", "events", "experiences", "hotels", "privacy", "terms", "recommendations", "shop", "all generateMetadata pages"],
-      "pages_without_canonical": ["homepage (only root layout canonical)", "offline", "affiliate-disclosure", "shop/[slug]", "shop/download", "shop/purchases"],
-      "issue": "Static layout canonicals use module-level siteUrl which cannot vary by request/site. This is a multi-site problem."
-    },
-    {
-      "id": "META-004",
-      "category": "hreflang",
-      "status": "PARTIAL",
-      "details": "Three hreflang mechanisms exist: (1) HreflangTags component in root layout head (en-GB, ar-SA, x-default) for path='/' only, (2) metadata.alternates.languages in generateMetadata pages (en-GB, ar-SA), (3) sitemap hreflang alternates (en, ar -- different code format). The HreflangTags component hardcodes fallback to yalla-london.com. Static-metadata layouts include alternates.languages. Most pages correctly emit en-GB and ar-SA.",
-      "consistency_issue": "Sitemap uses 'en'/'ar' while HTML uses 'en-GB'/'ar-SA'. Both are valid but inconsistent.",
-      "coverage_issue": "HreflangTags component in root layout only covers path='/'. Other pages rely on metadata.alternates which is absent for 6 pages.",
-      "multi_site_issue": "HreflangTags fallback is hardcoded to yalla-london.com. Static layouts compute siteUrl at module load time."
-    },
-    {
-      "id": "META-005",
-      "category": "og_tags",
-      "status": "GOOD_FOR_CONTENT_PAGES",
-      "details": "Root layout provides og:type=website, og:locale=en_GB, og:alternateLocale=ar_SA, og:siteName, og:title, og:description, og:image. Blog posts provide og:type=article with publishedTime, modifiedTime, authors, section, tags. Static-metadata layouts provide og:title, og:description, og:url, og:type=website, og:locale, og:alternateLocale, og:siteName, og:images. Pages without metadata inherit only root layout OG tags.",
-      "og_image": "Root layout and static layouts reference /og-image.jpg. Blog posts use featured_image from DB. No fallback OG image generation for posts without featured images.",
-      "issue": "Static layout OG tags hardcode 'Yalla London' as siteName. Alt text for OG image in root layout hardcodes 'Yalla London - Luxury London Guide'."
-    },
-    {
-      "id": "META-006",
-      "category": "twitter_cards",
-      "status": "GOOD_FOR_CONTENT_PAGES",
-      "details": "Root layout: card=summary_large_image, site from brandConfig.seo.twitterHandle (falls back to @example). Blog posts: card=summary_large_image, site=@{siteSlug}, per-post title/description/image. Static layouts: card=summary_large_image with hardcoded titles.",
-      "issues": [
-        "Root layout twitter:site falls back to '@example' if twitterHandle not configured -- would show @example in Twitter cards",
-        "Blog posts use siteSlug for twitter:site (e.g., @yallalondon) which may not be the actual Twitter handle",
-        "Pages without metadata have no twitter card tags (inherit root layout only)"
+    "generateMetadata": {
+      "count": 10,
+      "description": "Dynamic metadata generated per-request. Supports per-page titles, descriptions, canonicals, and OG tags.",
+      "files": [
+        { "path": "app/layout.tsx", "note": "Root layout generateMetadata() -- inherited by all pages. Uses getBaseUrl() for canonical. Includes alternates with en-GB/ar-SA/x-default." },
+        { "path": "app/blog/page.tsx", "note": "Blog listing. ISR 600s." },
+        { "path": "app/blog/[slug]/page.tsx", "note": "Blog post detail. Uses getSiteDomain() for multi-site. Has Article + BreadcrumbList schema. ISR 600s." },
+        { "path": "app/blog/category/[slug]/page.tsx", "note": "Blog category. Uses NEXT_PUBLIC_SITE_URL with yalla-london.com fallback. Hardcodes 'Yalla London Blog' in title. ISR 600s." },
+        { "path": "app/information/page.tsx", "note": "Information hub listing. ISR 600s." },
+        { "path": "app/information/[section]/page.tsx", "note": "Information section. ISR 600s." },
+        { "path": "app/information/articles/page.tsx", "note": "Information articles listing. ISR 600s." },
+        { "path": "app/information/articles/[slug]/page.tsx", "note": "Information article detail. ISR 600s." },
+        { "path": "app/news/page.tsx", "note": "News listing. ISR 600s." },
+        { "path": "app/news/[slug]/page.tsx", "note": "News detail. ISR 600s." }
       ]
     },
-    {
-      "id": "META-007",
-      "category": "robots_directives",
-      "status": "GOOD",
-      "details": "Root layout sets robots: index=true, follow=true, with googleBot max-video-preview=-1, max-image-preview=large, max-snippet=-1 (maximally permissive for rich results). Blog 404 pages correctly set index=false, follow=false. Admin pages are excluded from robots.txt. No individual page-level noindex found on pages that should have it (offline, shop/download, shop/purchases).",
-      "issues": [
-        "/offline page should have noindex -- it is a PWA fallback not meant for search",
-        "/shop/download and /shop/purchases should have noindex -- post-purchase utility pages",
-        "No robots directive on /brand-guidelines or /brand-showcase (middleware redirects to /admin, but if crawled directly...)"
-      ]
-    },
-    {
-      "id": "META-008",
-      "category": "keywords_meta",
-      "status": "PRESENT_BUT_LOW_VALUE",
-      "details": "Root layout does not set keywords. Static-metadata layouts for about and some pages include keywords arrays. Blog posts dynamically set keywords from post.keywords_json or post.tags. The meta keywords tag has been ignored by Google since 2009 and provides no SEO value.",
-      "recommendation": "Keywords meta tag is harmless but provides no ranking benefit. Focus effort on title and description optimization instead."
-    },
-    {
-      "id": "META-009",
-      "category": "viewport_and_mobile",
-      "status": "GOOD",
-      "details": "Next.js automatically adds viewport meta tag. Root layout includes apple-mobile-web-app-capable, apple-mobile-web-app-status-bar-style, theme-color, and manifest link. Mobile-first indexing is fully supported by the responsive layout.",
-      "issue": "apple-mobile-web-app-title hardcodes 'Yalla London' -- not multi-site aware."
-    },
-    {
-      "id": "META-010",
-      "category": "google_verification",
-      "status": "CONDITIONAL",
-      "details": "Root layout conditionally renders google-site-verification meta tag if NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION env var is set. This is single-site -- no per-site GSC verification support.",
-      "recommendation": "For multi-site, need per-site env vars (e.g., GOOGLE_SITE_VERIFICATION_ARABALDIVES) or DNS-based verification."
-    }
-  ],
-  "issues": [
-    {
-      "id": "MI-001",
-      "severity": "HIGH",
-      "title": "9 static-metadata layouts hardcode 'Yalla London' in titles and descriptions",
-      "affected_files": [
+    "static_metadata_in_layout": {
+      "count": 9,
+      "description": "Static metadata objects in layout.tsx files. Cannot vary per request or site. All hardcode 'Yalla London' in titles and descriptions.",
+      "files": [
         "app/about/layout.tsx",
         "app/contact/layout.tsx",
         "app/events/layout.tsx",
@@ -151,63 +40,152 @@
         "app/terms/layout.tsx",
         "app/recommendations/layout.tsx",
         "app/shop/layout.tsx"
-      ],
-      "impact": "Non-London sites will display incorrect brand name in SERP titles, descriptions, and social cards",
-      "fix": "Convert to generateMetadata() using site config from headers"
+      ]
     },
+    "static_metadata_in_page": {
+      "count": 3,
+      "description": "Static metadata objects exported from page.tsx files.",
+      "files": [
+        { "path": "app/brand-guidelines/page.tsx", "note": "revalidate=0" },
+        { "path": "app/brand-showcase/page.tsx", "note": "revalidate=0" },
+        { "path": "app/london-by-foot/page.tsx", "note": "Walking routes hub" }
+      ]
+    },
+    "no_metadata": {
+      "count": 6,
+      "description": "Public pages with no page-level or layout-level metadata. Inherit only from root layout generateMetadata().",
+      "files": [
+        { "path": "app/page.tsx", "note": "Homepage -- relies entirely on root layout metadata. No page-specific title, description, or OG." },
+        { "path": "app/offline/page.tsx", "note": "PWA offline fallback. Should have noindex." },
+        { "path": "app/affiliate-disclosure/page.tsx", "note": "Legal page. Should at least have a title." },
+        { "path": "app/shop/[slug]/page.tsx", "note": "Product detail page. Should have Product-specific metadata." },
+        { "path": "app/shop/download/page.tsx", "note": "Post-purchase download. Should have noindex." },
+        { "path": "app/shop/purchases/page.tsx", "note": "Purchase history. Should have noindex." }
+      ]
+    }
+  },
+  "canonical_coverage": {
+    "pages_with_explicit_canonical": 10,
+    "pages_with_layout_canonical": 9,
+    "pages_with_no_canonical": 6,
+    "canonical_format": "Absolute URLs using getBaseUrl() or NEXT_PUBLIC_SITE_URL",
+    "issues": [
+      "Root layout canonical points to baseUrl (site root). Child pages without their own canonical inherit this, which means they claim to be the homepage.",
+      "blog/category/[slug] uses NEXT_PUBLIC_SITE_URL with hardcoded yalla-london.com fallback instead of getBaseUrl().",
+      "Layout-level static metadata computes siteUrl at module load time, not per-request. In multi-site deployment, all sites would emit the default site's canonical."
+    ]
+  },
+  "hreflang_coverage": {
+    "html_head": {
+      "root_layout_component": "HreflangTags covers path='/' only (en-GB, ar-SA, x-default)",
+      "generateMetadata_alternates": "10 pages include alternates.languages with en-GB/ar-SA keys",
+      "static_metadata_layouts": "Some layouts include alternates.languages, needs per-file verification",
+      "estimated_coverage_percent": 40
+    },
+    "sitemap": {
+      "format": "en/ar keys (not en-GB/ar-SA)",
+      "x_default_included": false,
+      "events_missing": true,
+      "estimated_coverage_percent": 80
+    },
+    "issues": [
+      "HTML uses en-GB/ar-SA, sitemap uses en/ar -- inconsistent",
+      "Sitemap missing x-default",
+      "Events in sitemap have no hreflang",
+      "Many static pages lack per-page hreflang in HTML head"
+    ]
+  },
+  "og_coverage": {
+    "root_layout": {
+      "type": "website",
+      "locale": "en_GB",
+      "alternateLocale": "ar_SA",
+      "image": "/og-image.jpg",
+      "image_alt": "Yalla London - Luxury London Guide (hardcoded)"
+    },
+    "pages_with_custom_og": 10,
+    "pages_with_layout_og": 9,
+    "pages_with_no_og": 6,
+    "issues": [
+      "OG image is static '/og-image.jpg' for all pages",
+      "OG image alt hardcodes 'Yalla London'",
+      "blog/category/[slug] hardcodes siteName 'Yalla London' in OG",
+      "Layout-level OG uses hardcoded 'Yalla London' descriptions"
+    ]
+  },
+  "twitter_coverage": {
+    "card_type": "summary_large_image",
+    "site_handle": "brandConfig.seo.twitterHandle || '@example'",
+    "issues": [
+      "Fallback twitter:site is '@example' if twitterHandle not configured",
+      "Blog posts use siteSlug for twitter:site which may not match actual handle"
+    ]
+  },
+  "robots_directives": {
+    "root_layout": "index: true, follow: true, googleBot max-image-preview: large, max-snippet: -1, max-video-preview: -1",
+    "pages_with_noindex": "None (should be on /offline, /shop/download, /shop/purchases)",
+    "admin_exclusion": "robots.txt disallows /admin/ and /api/"
+  },
+  "findings": [
     {
-      "id": "MI-002",
+      "id": "META-001",
       "severity": "HIGH",
-      "title": "6 public pages have no metadata at all",
-      "affected_pages": [
-        "/ (homepage -- relies solely on root layout)",
-        "/offline",
-        "/affiliate-disclosure",
-        "/shop/[slug]",
-        "/shop/download",
-        "/shop/purchases"
-      ],
-      "impact": "No unique titles, descriptions, or canonicals. Search engines may generate their own snippets or treat as thin content.",
-      "fix": "Add generateMetadata or at minimum static metadata to each page"
+      "description": "Only 10 of 28 public pages use generateMetadata(). 12 use static layout metadata with hardcoded 'Yalla London'. 6 have no metadata at all.",
+      "recommendation": "Convert all static metadata layouts to generateMetadata() using site config. Add metadata to pages with none."
     },
     {
-      "id": "MI-003",
+      "id": "META-002",
+      "severity": "HIGH",
+      "description": "All 9 static metadata layouts hardcode 'Yalla London' in titles, descriptions, and OG tags. Multi-site deployment will show wrong brand name.",
+      "recommendation": "Replace with dynamic site config values."
+    },
+    {
+      "id": "META-003",
       "severity": "MEDIUM",
-      "title": "Static layout metadata computed at module load, not per-request",
-      "detail": "siteUrl in static layouts is computed as `process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId())` at module level. In a multi-site deployment, this resolves once and serves the same URL to all sites.",
-      "affected_files": ["All 9 static layout.tsx files"],
-      "impact": "Canonical URLs and OG URLs will point to wrong domain for non-default sites",
-      "fix": "Convert to generateMetadata() which runs per-request and can read x-site-id header"
+      "description": "Homepage (app/page.tsx) has no page-level metadata. Inherits root layout only. Homepage is the most important page for SEO.",
+      "recommendation": "Add generateMetadata() to homepage with explicit title, description, canonical, and OG."
     },
     {
-      "id": "MI-004",
+      "id": "META-004",
       "severity": "MEDIUM",
-      "title": "HreflangTags component only injected for root path",
-      "detail": "Root layout renders <HreflangTags path='/' /> which only produces hreflang for the homepage. Other pages rely on metadata.alternates (if present) or have no HTML-level hreflang.",
-      "impact": "Pages without generateMetadata have no hreflang in HTML head. While sitemap hreflang exists, on-page hreflang is the stronger signal.",
-      "fix": "Either inject HreflangTags per-page with correct path, or ensure all pages have generateMetadata with alternates.languages"
+      "description": "blog/category/[slug] generateMetadata() uses NEXT_PUBLIC_SITE_URL with fallback 'https://www.yalla-london.com' instead of getBaseUrl(). Hardcodes 'Yalla London Blog' in title and OG.",
+      "recommendation": "Use getBaseUrl() and site config for brand name."
     },
     {
-      "id": "MI-005",
-      "severity": "LOW",
-      "title": "Twitter handle fallback is '@example'",
-      "detail": "Root layout uses brandConfig.seo.twitterHandle || '@example'. If twitterHandle is not configured, Twitter cards will show @example as the site account.",
-      "fix": "Ensure twitterHandle is configured in brandConfig, or remove the fallback"
+      "id": "META-005",
+      "severity": "MEDIUM",
+      "description": "Static layout metadata computed at module load time, not per-request. siteUrl resolves once and cannot vary per site in multi-site deployment.",
+      "recommendation": "Convert to generateMetadata() which runs per-request and can read x-site-id header."
     },
     {
-      "id": "MI-006",
-      "severity": "LOW",
-      "title": "No noindex on utility pages",
-      "detail": "/offline, /shop/download, /shop/purchases are utility pages not intended for search indexing but have no robots noindex directive.",
-      "fix": "Add robots: { index: false, follow: false } to these pages"
+      "id": "META-006",
+      "severity": "MEDIUM",
+      "description": "HreflangTags component in root layout only covers path='/'. Other pages rely on metadata.alternates which is absent for 6 pages.",
+      "recommendation": "Inject HreflangTags per-page or ensure all pages have generateMetadata with alternates.languages."
     },
     {
-      "id": "MI-007",
+      "id": "META-007",
       "severity": "LOW",
-      "title": "Root layout geo meta tags are London-specific",
-      "detail": "geo.region=GB-LND, geo.placename=London, geo.position=51.5074;-0.1278, ICBM=51.5074,-0.1278 in root layout. These apply to all sites regardless of destination.",
-      "impact": "Non-London sites emit London geo-targeting signals. While geo meta tags have limited SEO impact, they are technically incorrect.",
-      "fix": "Make geo tags dynamic per site, or remove them (limited SEO value)"
+      "description": "Transactional pages (/shop/download, /shop/purchases) and /offline have no metadata and no noindex directive.",
+      "recommendation": "Add noindex robots directive to these pages."
+    },
+    {
+      "id": "META-008",
+      "severity": "LOW",
+      "description": "Twitter handle fallback is '@example'. Will display in Twitter cards if twitterHandle not configured.",
+      "recommendation": "Ensure twitterHandle is configured or remove the fallback."
+    },
+    {
+      "id": "META-009",
+      "severity": "LOW",
+      "description": "Root layout geo meta tags (geo.region=GB-LND, geo.placename=London, geo.position) are London-specific but apply to all sites.",
+      "recommendation": "Make geo tags dynamic per site, or remove them (limited SEO value)."
+    },
+    {
+      "id": "META-010",
+      "severity": "LOW",
+      "description": "Google site verification is single-site only (one env var). Multi-site needs per-site env vars or DNS-based verification.",
+      "recommendation": "Plan per-site GSC verification strategy before activating site #2."
     }
   ]
 }

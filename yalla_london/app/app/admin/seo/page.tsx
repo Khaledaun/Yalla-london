@@ -113,6 +113,24 @@ export default function IndexingCenter() {
   const doAction = async (action: string, payload?: Record<string, unknown>) => {
     setActionLoading(action);
     try {
+      // refresh_stats just re-fetches without hitting the API
+      if (action === "refresh_stats") {
+        await fetchData();
+        await fetchStats();
+        toast.success("Stats refreshed");
+        setActionLoading(null);
+        return;
+      }
+      // run_seo_cron calls the cron endpoint directly
+      if (action === "run_seo_cron") {
+        const res = await fetch("/api/admin/run-all-crons", { method: "POST" });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Cron failed");
+        toast.success(json.message || "SEO Agent triggered");
+        await fetchData();
+        setActionLoading(null);
+        return;
+      }
       const res = await fetch("/api/admin/content-indexing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -479,11 +497,11 @@ export default function IndexingCenter() {
                               {sc.label}
                             </span>
                             {article.indexingStatus !== "indexed" && (
-                              <button onClick={() => doAction("submit", { articleId: article.id })}
+                              <button onClick={() => doAction("submit", { slugs: [article.slug] })}
                                       disabled={!!actionLoading}
                                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg"
                                       style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-raised)", fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:0.8, color:"#C8322B", cursor: actionLoading?"not-allowed":"pointer" }}>
-                                {actionLoading === `submit-${article.id}` ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
+                                {actionLoading === "submit" ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
                                 {article.submissionAttempts > 0 ? "Resubmit" : "Submit"}
                               </button>
                             )}

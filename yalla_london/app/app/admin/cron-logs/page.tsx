@@ -3,435 +3,344 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  Activity,
-  AlertTriangle,
-  ArrowLeft,
-  CheckCircle,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Filter,
-  Loader2,
-  RefreshCw,
-  Server,
-  Timer,
-  XCircle,
+  Activity, AlertTriangle, CheckCircle, ChevronDown, ChevronLeft,
+  ChevronRight, Clock, Filter, Loader2, RefreshCw, Server, Timer, XCircle,
 } from 'lucide-react';
 
 interface CronLog {
-  id: string;
-  jobName: string;
-  jobType: string;
-  status: string;
-  startedAt: string;
-  completedAt: string | null;
-  durationMs: number | null;
-  itemsProcessed: number;
-  itemsSucceeded: number;
-  itemsFailed: number;
-  errorMessage: string | null;
-  sitesProcessed: string[];
-  sitesSkipped: string[];
-  timedOut: boolean;
-  resultSummary: Record<string, unknown> | null;
-  siteId: string | null;
+  id: string; jobName: string; jobType: string; status: string;
+  startedAt: string; completedAt: string | null; durationMs: number | null;
+  itemsProcessed: number; itemsSucceeded: number; itemsFailed: number;
+  errorMessage: string | null; sitesProcessed: string[]; sitesSkipped: string[];
+  timedOut: boolean; resultSummary: Record<string, unknown> | null; siteId: string | null;
 }
 
 interface CronLogsResponse {
   logs: CronLog[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
-  filters: {
-    availableJobs: string[];
-    timeRange: string;
-    since: string;
-  };
-  summary: {
-    total: number;
-    completed: number;
-    failed: number;
-    timedOut: number;
-    running: number;
-    partial: number;
-  };
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+  filters: { availableJobs: string[]; timeRange: string; since: string };
+  summary: { total: number; completed: number; failed: number; timedOut: number; running: number; partial: number };
   error?: string;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string; icon: typeof CheckCircle }> = {
-  completed: { label: 'Completed', color: 'text-green-400', bgColor: 'bg-green-500/10 border-green-500/20', icon: CheckCircle },
-  failed: { label: 'Failed', color: 'text-red-400', bgColor: 'bg-red-500/10 border-red-500/20', icon: XCircle },
-  timed_out: { label: 'Timed Out', color: 'text-amber-400', bgColor: 'bg-amber-500/10 border-amber-500/20', icon: Timer },
-  running: { label: 'Running', color: 'text-blue-400', bgColor: 'bg-blue-500/10 border-blue-500/20', icon: Loader2 },
-  partial: { label: 'Partial', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10 border-yellow-500/20', icon: AlertTriangle },
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: typeof CheckCircle }> = {
+  completed: { label: 'Completed', color: '#2D5A3D', bg: 'rgba(45,90,61,0.1)',   icon: CheckCircle },
+  failed:    { label: 'Failed',    color: '#C8322B', bg: 'rgba(200,50,43,0.1)',  icon: XCircle },
+  timed_out: { label: 'Timed Out', color: '#C49A2A', bg: 'rgba(196,154,42,0.1)', icon: Timer },
+  running:   { label: 'Running',   color: '#4A7BA8', bg: 'rgba(74,123,168,0.1)', icon: Loader2 },
+  partial:   { label: 'Partial',   color: '#C49A2A', bg: 'rgba(196,154,42,0.1)', icon: AlertTriangle },
 };
 
 const TIME_RANGES = [
   { label: '24h', hours: 24 },
-  { label: '3 days', hours: 72 },
-  { label: '7 days', hours: 168 },
-  { label: '30 days', hours: 720 },
+  { label: '3d',  hours: 72 },
+  { label: '7d',  hours: 168 },
+  { label: '30d', hours: 720 },
 ];
 
 export default function CronLogsPage() {
   const [data, setData] = useState<CronLogsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [jobFilter, setJobFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [jobFilter, setJobFilter] = useState('');
   const [hours, setHours] = useState(168);
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        limit: '50',
-        hours: String(hours),
-      });
+      const params = new URLSearchParams({ page: String(page), limit: '50', hours: String(hours) });
       if (statusFilter) params.set('status', statusFilter);
       if (jobFilter) params.set('job', jobFilter);
-
       const res = await fetch(`/api/admin/cron-logs?${params}`);
-      if (res.ok) {
-        setData(await res.json());
-      } else {
-        setData(null);
-      }
-    } catch {
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
+      setData(res.ok ? await res.json() : null);
+    } catch { setData(null); }
+    finally { setLoading(false); }
   }, [page, statusFilter, jobFilter, hours]);
 
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  useEffect(() => { setPage(1); }, [statusFilter, jobFilter, hours]);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [statusFilter, jobFilter, hours]);
-
-  const formatDuration = (ms: number | null) => {
-    if (ms === null) return '-';
+  const fmt = (ms: number | null) => {
+    if (ms === null) return '—';
     if (ms < 1000) return `${ms}ms`;
     return `${(ms / 1000).toFixed(1)}s`;
   };
-
-  const formatTime = (iso: string) => {
-    const d = new Date(iso);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffMin = Math.floor(diffMs / 60000);
-    const diffHr = Math.floor(diffMs / 3600000);
-
-    if (diffMin < 1) return 'Just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
-    if (diffHr < 24) return `${diffHr}h ago`;
-
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const ago = (iso: string) => {
+    const d = new Date(iso); const now = Date.now();
+    const m = Math.floor((now - d.getTime()) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
   };
 
   const summary = data?.summary;
+  const SUMCARDS = summary ? [
+    { label:'Total',      val: summary.total,     color:'#1C1917' },
+    { label:'Completed',  val: summary.completed, color:'#2D5A3D' },
+    { label:'Failed',     val: summary.failed,    color:'#C8322B' },
+    { label:'Timed Out',  val: summary.timedOut,  color:'#C49A2A' },
+    { label:'Running',    val: summary.running,   color:'#4A7BA8' },
+    { label:'Rate', val: summary.total > 0 ? `${Math.round((summary.completed/summary.total)*100)}%` : '—',
+      color: summary.total > 0 && summary.completed/summary.total >= 0.9 ? '#2D5A3D' : '#C49A2A' },
+  ] : [];
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <header className="border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/admin/health-monitoring" className="p-2 hover:bg-gray-800 rounded-lg transition-colors">
-              <ArrowLeft className="h-5 w-5 text-gray-400" />
-            </Link>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
-                <Server className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold">Cron Job Logs</h1>
-                <p className="text-xs text-gray-400">Execution history and error tracking</p>
-              </div>
+    <div className="max-w-7xl mx-auto space-y-4">
+
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/admin/health-monitoring"
+                className="p-2 rounded-xl transition-all"
+                style={{ backgroundColor:'var(--neu-bg)', boxShadow:'var(--neu-flat)', color:'#78716C' }}>
+            <ChevronLeft size={16} />
+          </Link>
+          <div>
+            <h1 style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:24, color:'#1C1917', letterSpacing:-0.5 }}>
+              Cron Logs
+            </h1>
+            <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:12, color:'#78716C', letterSpacing:0, marginTop:2 }}>
+              سجلات المهام المجدولة
             </div>
           </div>
-          <button
-            onClick={fetchLogs}
-            disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
         </div>
-      </header>
+        <button onClick={fetchLogs} disabled={loading}
+                className="p-2.5 rounded-xl transition-all"
+                style={{ backgroundColor:'var(--neu-bg)', boxShadow: loading?'var(--neu-inset)':'var(--neu-flat)', color:'#78716C' }}>
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+        </button>
+      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Summary Cards */}
-        {summary && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <SummaryCard label="Total Runs" value={summary.total} color="text-white" />
-            <SummaryCard label="Completed" value={summary.completed} color="text-green-400" />
-            <SummaryCard label="Failed" value={summary.failed} color="text-red-400" />
-            <SummaryCard label="Timed Out" value={summary.timedOut} color="text-amber-400" />
-            <SummaryCard label="Running" value={summary.running} color="text-blue-400" />
-            <SummaryCard
-              label="Success Rate"
-              value={summary.total > 0 ? `${Math.round((summary.completed / summary.total) * 100)}%` : '-'}
-              color={summary.total > 0 && summary.completed / summary.total >= 0.9 ? 'text-green-400' : 'text-amber-400'}
-            />
-          </div>
-        )}
+      {/* ── KPI Summary ─────────────────────────────────────────────── */}
+      {summary && (
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          {SUMCARDS.map(({ label, val, color }) => (
+            <div key={label} className="text-center p-3 rounded-xl"
+                 style={{ backgroundColor:'var(--neu-bg)', boxShadow:'var(--neu-flat)' }}>
+              <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:20, color }}>
+                {typeof val === 'number' ? val.toLocaleString() : val}
+              </div>
+              <div className="neu-section-label mt-0.5">{label}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 bg-gray-900 border border-gray-800 rounded-xl p-3 sm:p-4">
-          <Filter className="h-4 w-4 text-gray-400 flex-shrink-0" />
+      {/* ── Filters ─────────────────────────────────────────────────── */}
+      <div className="neu-card p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter size={13} style={{ color:'#78716C', flexShrink:0 }} />
 
-          {/* Time Range */}
-          <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-0.5">
-            {TIME_RANGES.map((range) => (
-              <button
-                key={range.hours}
-                onClick={() => setHours(range.hours)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  hours === range.hours
-                    ? 'bg-cyan-600 text-white'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                {range.label}
+          {/* Time range */}
+          <div className="flex gap-1">
+            {TIME_RANGES.map((r) => (
+              <button key={r.hours} onClick={() => setHours(r.hours)}
+                      className="px-3 py-1.5 rounded-lg transition-all"
+                      style={{ backgroundColor:'var(--neu-bg)', boxShadow: hours===r.hours?'var(--neu-inset)':'var(--neu-flat)',
+                        fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight: hours===r.hours?600:400,
+                        textTransform:'uppercase', letterSpacing:0.8, color: hours===r.hours?'#C8322B':'#78716C' }}>
+                {r.label}
               </button>
             ))}
           </div>
 
-          {/* Status Filter */}
-          <div className="relative">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 pr-8 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-            >
-              <option value="">All statuses</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-              <option value="timed_out">Timed Out</option>
-              <option value="running">Running</option>
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500 pointer-events-none" />
-          </div>
+          {/* Status select */}
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                  className="neu-input"
+                  style={{ fontSize:10, paddingTop:6, paddingBottom:6, width:'auto' }}>
+            <option value="">All statuses</option>
+            <option value="completed">Completed</option>
+            <option value="failed">Failed</option>
+            <option value="timed_out">Timed Out</option>
+            <option value="running">Running</option>
+          </select>
 
-          {/* Job Filter */}
-          <div className="relative">
-            <select
-              value={jobFilter}
-              onChange={(e) => setJobFilter(e.target.value)}
-              className="appearance-none bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 pr-8 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-            >
-              <option value="">All jobs</option>
-              {data?.filters?.availableJobs?.map((job) => (
-                <option key={job} value={job}>{job}</option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500 pointer-events-none" />
-          </div>
+          {/* Job select */}
+          <select value={jobFilter} onChange={e => setJobFilter(e.target.value)}
+                  className="neu-input"
+                  style={{ fontSize:10, paddingTop:6, paddingBottom:6, width:'auto' }}>
+            <option value="">All jobs</option>
+            {data?.filters?.availableJobs?.map(j => <option key={j} value={j}>{j}</option>)}
+          </select>
 
           {(statusFilter || jobFilter) && (
-            <button
-              onClick={() => { setStatusFilter(''); setJobFilter(''); }}
-              className="text-xs text-gray-400 hover:text-white transition-colors"
-            >
-              Clear filters
+            <button onClick={() => { setStatusFilter(''); setJobFilter(''); }}
+                    style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:'#C8322B', textTransform:'uppercase', letterSpacing:1 }}>
+              Clear
             </button>
           )}
         </div>
+      </div>
 
-        {/* Logs Table */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <RefreshCw className="h-6 w-6 text-cyan-400 animate-spin" />
-          </div>
-        ) : !data || data.logs.length === 0 ? (
-          <div className="text-center py-20">
-            <Server className="h-10 w-10 text-gray-600 mx-auto mb-3" />
-            <p className="text-gray-400 text-sm">No cron job logs found for this period</p>
-          </div>
-        ) : (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-            {/* Table Header */}
-            <div className="hidden sm:grid sm:grid-cols-[1fr_100px_80px_80px_120px] gap-3 px-4 py-3 border-b border-gray-800 text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div>Job</div>
-              <div>Status</div>
-              <div>Duration</div>
-              <div>Items</div>
-              <div>Time</div>
+      {/* ── Logs List ───────────────────────────────────────────────── */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="text-center">
+            <div className="w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center"
+                 style={{ backgroundColor:'var(--neu-bg)', boxShadow:'var(--neu-raised)' }}>
+              <RefreshCw size={20} className="animate-spin" style={{ color:'#C8322B' }} />
             </div>
+            <p className="neu-section-label">Loading logs…</p>
+          </div>
+        </div>
+      ) : !data || data.logs.length === 0 ? (
+        <div className="neu-card text-center py-16">
+          <Server size={28} className="mx-auto mb-3 opacity-20" style={{ color:'#78716C' }} />
+          <p className="neu-section-label">No cron logs for this period</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {data.logs.map((log) => {
+            const cfg = STATUS_CONFIG[log.status] ?? STATUS_CONFIG.failed;
+            const Icon = cfg.icon;
+            const isExp = expandedLog === log.id;
 
-            {/* Log Entries */}
-            <div className="divide-y divide-gray-800/50">
-              {data.logs.map((log) => {
-                const cfg = STATUS_CONFIG[log.status] ?? STATUS_CONFIG.failed;
-                const Icon = cfg.icon;
-                const isExpanded = expandedLog === log.id;
+            return (
+              <div key={log.id} className="neu-card" style={{ padding:'0' }}>
+                <button onClick={() => setExpandedLog(isExp ? null : log.id)}
+                        className="w-full text-left px-4 py-3 rounded-xl transition-all">
 
-                return (
-                  <div key={log.id}>
-                    <button
-                      onClick={() => setExpandedLog(isExpanded ? null : log.id)}
-                      className="w-full text-left px-4 py-3 hover:bg-gray-800/50 transition-colors"
-                    >
-                      {/* Mobile Layout */}
-                      <div className="sm:hidden space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Icon className={`h-4 w-4 ${cfg.color} flex-shrink-0 ${log.status === 'running' ? 'animate-spin' : ''}`} />
-                            <span className="text-sm font-medium text-white">{log.jobName}</span>
-                          </div>
-                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${cfg.bgColor} ${cfg.color}`}>
-                            {cfg.label}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 text-[11px] text-gray-500">
-                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(log.startedAt)}</span>
-                          <span className="flex items-center gap-1"><Timer className="h-3 w-3" />{formatDuration(log.durationMs)}</span>
-                          {log.itemsProcessed > 0 && (
-                            <span className="flex items-center gap-1">
-                              <Activity className="h-3 w-3" />
-                              {log.itemsSucceeded}/{log.itemsProcessed}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Desktop Layout */}
-                      <div className="hidden sm:grid sm:grid-cols-[1fr_100px_80px_80px_120px] gap-3 items-center">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Icon className={`h-4 w-4 ${cfg.color} flex-shrink-0 ${log.status === 'running' ? 'animate-spin' : ''}`} />
-                          <span className="text-sm font-medium text-white truncate">{log.jobName}</span>
-                          {log.sitesProcessed.length > 0 && (
-                            <span className="text-[10px] text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded flex-shrink-0">
-                              {log.sitesProcessed.length} site{log.sitesProcessed.length > 1 ? 's' : ''}
-                            </span>
-                          )}
-                          {log.errorMessage && (
-                            <ChevronRight className={`h-3.5 w-3.5 text-gray-600 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`} />
-                          )}
-                        </div>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full border inline-flex items-center w-fit ${cfg.bgColor} ${cfg.color}`}>
-                          {cfg.label}
+                  {/* Mobile */}
+                  <div className="sm:hidden space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Icon size={14} style={{ color: cfg.color, flexShrink:0 }}
+                              className={log.status==='running'?'animate-spin':''} />
+                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:'#1C1917', textTransform:'uppercase', letterSpacing:0.5 }}>
+                          {log.jobName}
                         </span>
-                        <span className="text-xs text-gray-400">{formatDuration(log.durationMs)}</span>
-                        <span className="text-xs text-gray-400">
-                          {log.itemsProcessed > 0 ? (
-                            <span>
-                              <span className="text-green-400">{log.itemsSucceeded}</span>
-                              {log.itemsFailed > 0 && <span className="text-red-400">/{log.itemsFailed}</span>}
-                              <span className="text-gray-600">/{log.itemsProcessed}</span>
-                            </span>
-                          ) : '-'}
-                        </span>
-                        <span className="text-xs text-gray-500">{formatTime(log.startedAt)}</span>
                       </div>
-                    </button>
+                      <span className="neu-badge" style={{ backgroundColor: cfg.bg, color: cfg.color, fontSize:8 }}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:'#78716C' }}>{ago(log.startedAt)}</span>
+                      <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:'#78716C' }}>{fmt(log.durationMs)}</span>
+                      {log.itemsProcessed > 0 && <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:'#78716C' }}>{log.itemsSucceeded}/{log.itemsProcessed}</span>}
+                    </div>
+                  </div>
 
-                    {/* Expanded Details */}
-                    {isExpanded && (
-                      <div className="px-4 pb-4 pt-1 bg-gray-800/30 border-t border-gray-800/50">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                          <div className="space-y-2">
-                            <DetailRow label="Job Type" value={log.jobType} />
-                            <DetailRow label="Started" value={new Date(log.startedAt).toLocaleString('en-GB')} />
-                            {log.completedAt && (
-                              <DetailRow label="Completed" value={new Date(log.completedAt).toLocaleString('en-GB')} />
-                            )}
-                            <DetailRow label="Duration" value={formatDuration(log.durationMs)} />
-                            {log.siteId && <DetailRow label="Site ID" value={log.siteId} />}
+                  {/* Desktop */}
+                  <div className="hidden sm:grid sm:grid-cols-[1fr_100px_80px_80px_120px_20px] gap-3 items-center">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon size={14} style={{ color: cfg.color, flexShrink:0 }}
+                            className={log.status==='running'?'animate-spin':''} />
+                      <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:'#1C1917', textTransform:'uppercase', letterSpacing:0.5 }} className="truncate">
+                        {log.jobName}
+                      </span>
+                      {log.sitesProcessed.length > 0 && (
+                        <span className="neu-badge neu-badge-stamp" style={{ fontSize:8 }}>
+                          {log.sitesProcessed.length}s
+                        </span>
+                      )}
+                    </div>
+                    <span className="neu-badge" style={{ backgroundColor: cfg.bg, color: cfg.color, fontSize:8, width:'fit-content' }}>
+                      {cfg.label}
+                    </span>
+                    <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:'#78716C' }}>{fmt(log.durationMs)}</span>
+                    <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9 }}>
+                      {log.itemsProcessed > 0 ? (
+                        <span>
+                          <span style={{ color:'#2D5A3D' }}>{log.itemsSucceeded}</span>
+                          {log.itemsFailed > 0 && <span style={{ color:'#C8322B' }}>/{log.itemsFailed}</span>}
+                          <span style={{ color:'#78716C' }}>/{log.itemsProcessed}</span>
+                        </span>
+                      ) : <span style={{ color:'#78716C' }}>—</span>}
+                    </span>
+                    <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:'#78716C' }}>{ago(log.startedAt)}</span>
+                    <ChevronDown size={12} style={{ color:'#78716C', transform: isExp?'rotate(180deg)':undefined, transition:'transform 200ms', flexShrink:0 }} />
+                  </div>
+                </button>
+
+                {/* Expanded */}
+                {isExp && (
+                  <div className="px-4 pb-4 pt-2" style={{ borderTop:'1px solid rgba(120,113,108,0.12)' }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        {[
+                          ['Job Type', log.jobType],
+                          ['Started', new Date(log.startedAt).toLocaleString('en-GB')],
+                          log.completedAt ? ['Completed', new Date(log.completedAt).toLocaleString('en-GB')] : null,
+                          ['Duration', fmt(log.durationMs)],
+                          log.siteId ? ['Site ID', log.siteId] : null,
+                        ].filter(Boolean).map(([l, v]) => (
+                          <div key={String(l)} className="flex items-start gap-2">
+                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:'#78716C', minWidth:90, flexShrink:0 }}>{l}:</span>
+                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:'#1C1917' }}>{v}</span>
                           </div>
-                          <div className="space-y-2">
-                            <DetailRow label="Items Processed" value={String(log.itemsProcessed)} />
-                            <DetailRow label="Items Succeeded" value={String(log.itemsSucceeded)} />
-                            <DetailRow label="Items Failed" value={String(log.itemsFailed)} highlight={log.itemsFailed > 0} />
-                            {log.sitesProcessed.length > 0 && (
-                              <DetailRow label="Sites Processed" value={log.sitesProcessed.join(', ')} />
-                            )}
-                            {log.sitesSkipped.length > 0 && (
-                              <DetailRow label="Sites Skipped" value={log.sitesSkipped.join(', ')} highlight />
-                            )}
-                            {log.timedOut && <DetailRow label="Timed Out" value="Yes" highlight />}
+                        ))}
+                      </div>
+                      <div className="space-y-1.5">
+                        {[
+                          ['Processed', String(log.itemsProcessed)],
+                          ['Succeeded', String(log.itemsSucceeded)],
+                          ['Failed', String(log.itemsFailed)],
+                          log.sitesProcessed.length > 0 ? ['Sites', log.sitesProcessed.join(', ')] : null,
+                          log.timedOut ? ['Timed Out', 'Yes'] : null,
+                        ].filter(Boolean).map(([l, v]) => (
+                          <div key={String(l)} className="flex items-start gap-2">
+                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:'#78716C', minWidth:90, flexShrink:0 }}>{l}:</span>
+                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8,
+                              color: l==='Failed' && Number(v)>0 ? '#C8322B' : l==='Timed Out'?'#C49A2A' : '#1C1917' }}>
+                              {v}
+                            </span>
                           </div>
+                        ))}
+                      </div>
+                    </div>
+                    {log.errorMessage && (
+                      <div className="mt-3 p-3 rounded-xl" style={{ backgroundColor:'rgba(200,50,43,0.05)', border:'1px solid rgba(200,50,43,0.15)' }}>
+                        <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, color:'#C8322B', textTransform:'uppercase', letterSpacing:1, marginBottom:4 }}>
+                          Error
                         </div>
-                        {log.errorMessage && (
-                          <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                            <p className="text-[11px] font-medium text-red-400 mb-1">Error Message:</p>
-                            <p className="text-[11px] text-red-300/80 font-mono whitespace-pre-wrap break-all">
-                              {log.errorMessage}
-                            </p>
-                          </div>
-                        )}
-                        {log.resultSummary && Object.keys(log.resultSummary).length > 0 && (
-                          <div className="mt-3 p-3 bg-gray-800/50 border border-gray-700 rounded-lg">
-                            <p className="text-[11px] font-medium text-gray-400 mb-1">Result Summary:</p>
-                            <pre className="text-[11px] text-gray-300 font-mono whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
-                              {JSON.stringify(log.resultSummary, null, 2)}
-                            </pre>
-                          </div>
-                        )}
+                        <pre style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:'#C8322B', whiteSpace:'pre-wrap', wordBreak:'break-all' }}>
+                          {log.errorMessage}
+                        </pre>
+                      </div>
+                    )}
+                    {log.resultSummary && Object.keys(log.resultSummary).length > 0 && (
+                      <div className="mt-2 p-3 rounded-xl" style={{ backgroundColor:'rgba(120,113,108,0.06)', border:'1px solid rgba(120,113,108,0.12)' }}>
+                        <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, color:'#78716C', textTransform:'uppercase', letterSpacing:1, marginBottom:4 }}>
+                          Result Summary
+                        </div>
+                        <pre style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:'#78716C', whiteSpace:'pre-wrap', wordBreak:'break-all', maxHeight:120, overflow:'auto' }}>
+                          {JSON.stringify(log.resultSummary, null, 2)}
+                        </pre>
                       </div>
                     )}
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Pagination */}
-            {data.pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800">
-                <span className="text-xs text-gray-500">
-                  Page {data.pagination.page} of {data.pagination.totalPages} ({data.pagination.total} total)
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setPage(Math.max(1, page - 1))}
-                    disabled={page <= 1}
-                    className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    <ChevronLeft className="h-4 w-4 text-gray-400" />
-                  </button>
-                  <button
-                    onClick={() => setPage(Math.min(data.pagination.totalPages, page + 1))}
-                    disabled={page >= data.pagination.totalPages}
-                    className="p-1.5 hover:bg-gray-800 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    <ChevronRight className="h-4 w-4 text-gray-400" />
-                  </button>
-                </div>
+                )}
               </div>
-            )}
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Pagination ──────────────────────────────────────────────── */}
+      {data && data.pagination.totalPages > 1 && (
+        <div className="neu-card flex items-center justify-between p-3">
+          <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:'#78716C' }}>
+            Page {data.pagination.page} of {data.pagination.totalPages} · {data.pagination.total} total
+          </span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage(Math.max(1, page-1))} disabled={page<=1}
+                    className="p-2 rounded-lg transition-all"
+                    style={{ backgroundColor:'var(--neu-bg)', boxShadow: page<=1?'var(--neu-inset)':'var(--neu-flat)', color:'#78716C', opacity: page<=1?0.4:1 }}>
+              <ChevronLeft size={14} />
+            </button>
+            <button onClick={() => setPage(Math.min(data.pagination.totalPages, page+1))} disabled={page>=data.pagination.totalPages}
+                    className="p-2 rounded-lg transition-all"
+                    style={{ backgroundColor:'var(--neu-bg)', boxShadow: page>=data.pagination.totalPages?'var(--neu-inset)':'var(--neu-flat)', color:'#78716C', opacity: page>=data.pagination.totalPages?0.4:1 }}>
+              <ChevronRight size={14} />
+            </button>
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SummaryCard({ label, value, color }: { label: string; value: number | string; color: string }) {
-  return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-3">
-      <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">{label}</p>
-      <p className={`text-lg sm:text-2xl font-bold mt-0.5 ${color}`}>{value}</p>
-    </div>
-  );
-}
-
-function DetailRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="flex items-start gap-2">
-      <span className="text-gray-500 min-w-[100px] sm:min-w-[120px] flex-shrink-0">{label}:</span>
-      <span className={highlight ? 'text-red-400 font-medium' : 'text-gray-300'}>{value}</span>
+        </div>
+      )}
     </div>
   );
 }

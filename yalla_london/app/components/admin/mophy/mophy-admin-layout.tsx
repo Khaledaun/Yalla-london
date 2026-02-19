@@ -154,8 +154,9 @@ const mainNavigation = [
     href: '/admin/seo',
     badge: 'AI',
     children: [
-      { label: 'SEO Dashboard', href: '/admin/seo' },
+      { label: 'Indexing Center', href: '/admin/seo' },
       { label: 'Keywords & GSC', href: '/admin/seo/report' },
+      { label: 'Content Hub Indexing', href: '/admin/content?tab=indexing' },
       { label: 'Affiliates', href: '/admin/affiliate-marketing' },
       { label: 'Affiliate Pool', href: '/admin/affiliate-pool' },
     ]

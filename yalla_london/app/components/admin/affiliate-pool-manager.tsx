@@ -346,8 +346,8 @@ export function AffiliatePoolManager() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const csv = ['Name,URL,Type,Commission,Site,Active', ...affiliates.map(a =>
-                    `"${a.name}","${a.url}","${a.type}","${a.commission_rate}","${a.site_id}",${a.is_active}`
+                  const csv = ['Name,URL,Type,Commission,Active', ...affiliates.map(a =>
+                    `"${a.name}","${a.affiliate_url}","${a.partner_type}","${a.commission_rate ?? ''}",${a.is_active}`
                   )].join('\n');
                   const blob = new Blob([csv], { type: 'text/csv' });
                   const url = URL.createObjectURL(blob);

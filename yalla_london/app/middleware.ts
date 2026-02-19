@@ -148,10 +148,6 @@ const ALLOWED_ORIGINS = new Set([
   "https://www.yallaistanbul.com",
   "https://yallathailand.com",
   "https://www.yallathailand.com",
-  // Legacy domains
-  "https://gulfmaldives.com",
-  "https://arabbali.com",
-  "https://luxuryescapes.me",
   "http://localhost:3000",
 ]);
 

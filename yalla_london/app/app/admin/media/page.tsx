@@ -47,6 +47,7 @@ export default function MediaLibraryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFolder, setSelectedFolder] = useState("All Files");
+  const [filterType, setFilterType] = useState<"all" | "image" | "video" | "document">("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -111,6 +112,11 @@ export default function MediaLibraryPage() {
       filtered = filtered.filter((file) => file.folder === selectedFolder);
     }
 
+    // Filter by file type
+    if (filterType !== "all") {
+      filtered = filtered.filter((file) => file.type === filterType);
+    }
+
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(
@@ -124,7 +130,7 @@ export default function MediaLibraryPage() {
     }
 
     setFilteredFiles(filtered);
-  }, [mediaFiles, selectedFolder, searchTerm]);
+  }, [mediaFiles, selectedFolder, searchTerm, filterType]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
@@ -364,9 +370,17 @@ export default function MediaLibraryPage() {
                       className="pl-10"
                     />
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant={filterType !== "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      const types: Array<"all" | "image" | "video" | "document"> = ["all", "image", "video", "document"];
+                      const idx = types.indexOf(filterType);
+                      setFilterType(types[(idx + 1) % types.length]);
+                    }}
+                  >
                     <Filter className="h-4 w-4 mr-2" />
-                    Filter
+                    {filterType === "all" ? "Filter" : filterType.charAt(0).toUpperCase() + filterType.slice(1) + "s"}
                   </Button>
                 </div>
 
@@ -397,7 +411,20 @@ export default function MediaLibraryPage() {
                       {selectedFiles.length} file(s) selected
                     </span>
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const toDownload = mediaFiles.filter((f) => selectedFiles.includes(f.id));
+                          toDownload.forEach((f) => {
+                            const a = document.createElement('a');
+                            a.href = f.url;
+                            a.download = f.name || 'media';
+                            a.target = '_blank';
+                            a.click();
+                          });
+                        }}
+                      >
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </Button>

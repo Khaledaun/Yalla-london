@@ -116,11 +116,11 @@ interface PoolStats {
 // ─── Constants ───────────────────────────────────────────────────
 
 const SITES = [
-  { id: "yalla-london", name: "Yalla London" },
-  { id: "arabaldives", name: "Arabaldives" },
-  { id: "gulf-maldives", name: "Gulf Maldives" },
-  { id: "arab-bali", name: "Arab Bali" },
-  { id: "luxury-escapes-me", name: "Luxury Escapes ME" },
+  { id: "yalla-london",   name: "Yalla London" },
+  { id: "arabaldives",    name: "Arabaldives" },
+  { id: "french-riviera", name: "Yalla Riviera" },
+  { id: "istanbul",       name: "Yalla Istanbul" },
+  { id: "thailand",       name: "Yalla Thailand" },
 ];
 
 const CATEGORIES = [

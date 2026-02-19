@@ -207,7 +207,7 @@ export default function ContentHubPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-6">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -606,18 +606,27 @@ export default function ContentHubPage() {
                           <button
                             className="p-1 hover:bg-gray-100 rounded"
                             title="Edit"
+                            onClick={() => { window.location.href = `/admin/editor?id=${item.id}`; }}
                           >
                             <Edit className="h-4 w-4 text-gray-500" />
                           </button>
                           <button
                             className="p-1 hover:bg-gray-100 rounded"
                             title="Preview"
+                            onClick={() => { window.open(`/admin/editor?id=${item.id}&preview=true`, '_blank'); }}
                           >
                             <Eye className="h-4 w-4 text-gray-500" />
                           </button>
                           <button
                             className="p-1 hover:bg-gray-100 rounded"
                             title="Delete"
+                            onClick={async () => {
+                              if (!confirm(`Delete "${item.title}"?`)) return;
+                              const res = await fetch(`/api/admin/command-center/content?id=${item.id}`, { method: 'DELETE' });
+                              if (res.ok) {
+                                setContent(prev => prev.filter(c => c.id !== item.id));
+                              }
+                            }}
                           >
                             <Trash2 className="h-4 w-4 text-gray-500" />
                           </button>

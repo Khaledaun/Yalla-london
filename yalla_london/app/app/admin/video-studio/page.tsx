@@ -44,11 +44,11 @@ const VideoPlayer = dynamic(
 );
 
 const SITES = [
-  { id: "yalla-london", name: "Yalla London", destination: "London" },
-  { id: "arabaldives", name: "Arabaldives", destination: "Maldives" },
-  { id: "gulf-maldives", name: "Gulf Maldives", destination: "Maldives" },
-  { id: "arab-bali", name: "Arab Bali", destination: "Bali" },
-  { id: "luxury-escapes-me", name: "Luxury Escapes ME", destination: "Middle East" },
+  { id: "yalla-london",   name: "Yalla London",   destination: "London" },
+  { id: "arabaldives",    name: "Arabaldives",    destination: "Maldives" },
+  { id: "french-riviera", name: "Yalla Riviera",  destination: "French Riviera" },
+  { id: "istanbul",       name: "Yalla Istanbul", destination: "Istanbul" },
+  { id: "thailand",       name: "Yalla Thailand", destination: "Thailand" },
 ];
 
 const CATEGORIES: Array<{ value: VideoCategory; label: string; icon: React.ReactNode; description: string }> = [

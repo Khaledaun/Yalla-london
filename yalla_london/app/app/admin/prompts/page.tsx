@@ -164,6 +164,10 @@ export default function PromptsPage() {
         })
       })
 
+      if (!response.ok) {
+        console.warn('[prompts] Create failed:', response.status);
+        return;
+      }
       const data = await response.json()
 
       if (data.success) {

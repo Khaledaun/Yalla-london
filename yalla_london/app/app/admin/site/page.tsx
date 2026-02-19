@@ -284,7 +284,7 @@ export default function SiteControl() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-6">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -297,7 +297,7 @@ export default function SiteControl() {
               <p className="text-gray-600 mt-1">Homepage, theme, pop-ups, and automation settings</p>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => window.open('https://yalla-london.com', '_blank')}>
                 <Eye className="h-4 w-4 mr-2" />
                 Preview Site
               </Button>
@@ -475,7 +475,14 @@ export default function SiteControl() {
                         ) : (
                           <ToggleLeft className="h-6 w-6 text-gray-400" />
                         )}
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setHomepageConfig(prev => ({
+                            ...prev,
+                            modules: prev.modules.map(m => m.id === module.id ? { ...m, enabled: !m.enabled } : m)
+                          }))}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                       </div>
@@ -764,11 +771,19 @@ export default function SiteControl() {
                         >
                           {selectedPopup.status === 'active' ? 'Deactivate' : 'Activate'}
                         </Button>
-                        <Button variant="outline" className="flex-1">
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => { window.location.href = '/admin/workflow?tab=automation'; }}
+                        >
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </Button>
-                        <Button variant="outline" className="flex-1">
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => { window.location.href = '/admin/seo'; }}
+                        >
                           <BarChart3 className="h-4 w-4 mr-2" />
                           Analytics
                         </Button>

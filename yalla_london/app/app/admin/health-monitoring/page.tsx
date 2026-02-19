@@ -568,10 +568,15 @@ export default function HealthMonitoringPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <RefreshCw className="h-8 w-8 text-cyan-400 animate-spin mx-auto mb-3" />
-          <p className="text-gray-400 text-sm">Loading health data...</p>
+          <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+               style={{ backgroundColor:'var(--neu-bg,#EDE9E1)', boxShadow:'var(--neu-raised)' }}>
+            <RefreshCw size={24} className="animate-spin" style={{ color:'#C8322B' }} />
+          </div>
+          <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:'#78716C', textTransform:'uppercase', letterSpacing:2 }}>
+            Loading health data…
+          </p>
         </div>
       </div>
     );
@@ -588,75 +593,62 @@ export default function HealthMonitoringPage() {
         : 'healthy';
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <header className="border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/admin/command-center"
-              className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5 text-gray-400" />
-            </Link>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center">
-                <Shield className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h1 className="font-bold text-lg">Health Monitoring</h1>
-                <p className="text-xs text-gray-500">
-                  Last updated: {health?.timestamp ? timeAgo(health.timestamp) : 'never'}
-                </p>
-              </div>
+    <div className="max-w-7xl mx-auto space-y-4">
+      {/* ── Neumorphic Header ─────────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/admin"
+                className="p-2 rounded-xl transition-all"
+                style={{ backgroundColor:'var(--neu-bg)', boxShadow:'var(--neu-flat)', color:'#78716C' }}>
+            <ArrowLeft size={16} />
+          </Link>
+          <div>
+            <h1 style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:24, color:'#1C1917', letterSpacing:-0.5 }}>
+              Health Monitor
+            </h1>
+            <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:12, color:'#78716C', letterSpacing:0, marginTop:2 }}>
+              مراقبة الصحة · {health?.timestamp ? `Updated ${timeAgo(health.timestamp)}` : 'Loading…'}
             </div>
           </div>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/admin/cron-logs"
-              className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-xs font-medium text-gray-300 transition-colors"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Cron Logs</span>
-            </Link>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/cron-logs"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
+                style={{ backgroundColor:'var(--neu-bg)', boxShadow:'var(--neu-flat)', fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:'uppercase', letterSpacing:1, color:'#4A7BA8' }}>
+            <FileText size={12} />
+            <span className="hidden sm:inline">Cron Logs</span>
+          </Link>
             <button
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                autoRefresh
-                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
-                  : 'bg-gray-800 text-gray-500 border border-gray-700'
-              }`}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
+              style={{ backgroundColor:'var(--neu-bg)', boxShadow: autoRefresh?'var(--neu-inset)':'var(--neu-flat)', fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:'uppercase', letterSpacing:1, color: autoRefresh?'#2D5A3D':'#78716C' }}
             >
-              <Activity className="h-3.5 w-3.5" />
+              <Activity size={12} />
               {autoRefresh ? 'Live' : 'Paused'}
             </button>
 
             <button
               onClick={() => fetchData(true)}
               disabled={refreshing}
-              className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              className="p-2.5 rounded-xl transition-all"
+              style={{ backgroundColor:'var(--neu-bg)', boxShadow: refreshing?'var(--neu-inset)':'var(--neu-flat)', color:'#78716C' }}
             >
-              <RefreshCw className={`h-5 w-5 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
             </button>
 
             <button
               onClick={triggerAlertCheck}
               disabled={sendingAlert}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all"
+              style={{ backgroundColor:'#C8322B', color:'#FAF8F4', fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:'uppercase', letterSpacing:1, boxShadow:'4px 4px 10px rgba(200,50,43,0.3)', opacity: sendingAlert?0.7:1 }}
             >
-              {sendingAlert ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-              Run Alert Check
+              {sendingAlert ? <RefreshCw size={12} className="animate-spin" /> : <Send size={12} />}
+              <span className="hidden sm:inline">Alert Check</span>
             </button>
           </div>
         </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      {/* ── Content ─────────────────────────────────────────────────── */}
+      <div className="space-y-4">
         {/* Alert sent feedback */}
         {alertSent && (
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-center justify-between">
@@ -1128,7 +1120,7 @@ export default function HealthMonitoringPage() {
           onMigrate={runMigration}
           onDismissMigrate={() => setMigrateResult(null)}
         />
-      </main>
+      </div>
     </div>
   );
 }

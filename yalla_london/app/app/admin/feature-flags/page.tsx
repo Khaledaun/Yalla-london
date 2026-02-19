@@ -71,6 +71,28 @@ export default function FeatureFlagsHealth() {
   const [isLoading, setIsLoading] = useState(true)
   const [showAddFlag, setShowAddFlag] = useState(false)
 
+  const handleCreateFlag = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const name = (data.get('name') as string)?.trim();
+    const description = (data.get('description') as string)?.trim();
+    const rolloutPercentage = parseInt(data.get('rollout') as string || '0', 10);
+    if (!name) return;
+    try {
+      const res = await fetch('/api/admin/feature-flags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create', name, description, rolloutPercentage }),
+      });
+      if (res.ok) {
+        form.reset();
+        setShowAddFlag(false);
+        await loadFeatureData();
+      }
+    } catch { /* ignore */ }
+  };
+
   useEffect(() => {
     loadFeatureData()
   }, [])
@@ -355,13 +377,15 @@ export default function FeatureFlagsHealth() {
           {showAddFlag && (
             <div className="bg-white p-6 rounded-lg border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Feature Flag</h3>
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={handleCreateFlag}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
                     <input
                       type="text"
+                      name="name"
                       placeholder="e.g., New Dashboard UI"
+                      required
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     />
                   </div>
@@ -369,6 +393,7 @@ export default function FeatureFlagsHealth() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Rollout Percentage</label>
                     <input
                       type="number"
+                      name="rollout"
                       min="0"
                       max="100"
                       defaultValue="0"
@@ -379,6 +404,7 @@ export default function FeatureFlagsHealth() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                   <textarea
+                    name="description"
                     rows={3}
                     placeholder="Describe what this feature flag enables..."
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"

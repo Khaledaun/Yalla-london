@@ -14,7 +14,7 @@ interface SiteInfo {
 const SITE_LIST: SiteInfo[] = [
   { id: "yalla-london", name: "Yalla London", domain: "yalla-london.com", destination: "London", primaryColor: "#C8322B" },
   { id: "arabaldives", name: "ArabAlDives", domain: "arabaldives.com", destination: "Maldives", primaryColor: "#06B6D4" },
-  { id: "dubai", name: "Yalla Dubai", domain: "yalladubai.com", destination: "Dubai", primaryColor: "#F59E0B" },
+  { id: "french-riviera", name: "Yalla Riviera", domain: "yallariviera.com", destination: "French Riviera", primaryColor: "#C9A961" },
   { id: "istanbul", name: "Yalla Istanbul", domain: "yallaistanbul.com", destination: "Istanbul", primaryColor: "#F97316" },
   { id: "thailand", name: "Yalla Thailand", domain: "yallathailand.com", destination: "Thailand", primaryColor: "#A78BFA" },
 ];

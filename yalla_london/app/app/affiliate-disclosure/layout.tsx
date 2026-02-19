@@ -11,22 +11,22 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const siteSlug = siteConfig?.slug || "yallalondon";
   const destination = siteConfig?.destination || "London";
-  const canonicalUrl = `${baseUrl}/contact`;
+  const canonicalUrl = `${baseUrl}/affiliate-disclosure`;
 
   return {
-    title: `Contact Us | ${siteName}`,
-    description: `Get in touch with the ${siteName} team. Questions about ${destination} travel, partnership inquiries, or feedback — we're here to help plan your perfect trip.`,
+    title: `Affiliate Disclosure | ${siteName}`,
+    description: `${siteName} affiliate disclosure. Transparency about our affiliate partnerships, how we earn commissions, and our editorial independence policy.`,
     alternates: {
       canonical: canonicalUrl,
       languages: {
         "en-GB": canonicalUrl,
-        "ar-SA": `${baseUrl}/ar/contact`,
+        "ar-SA": `${baseUrl}/ar/affiliate-disclosure`,
         "x-default": canonicalUrl,
       },
     },
     openGraph: {
-      title: `Contact Us | ${siteName}`,
-      description: `Get in touch with the ${siteName} team. Questions about ${destination} travel, partnership inquiries, or feedback — we're here to help plan your perfect trip.`,
+      title: `Affiliate Disclosure | ${siteName}`,
+      description: `${siteName} affiliate disclosure. Transparency about our affiliate partnerships, how we earn commissions, and our editorial independence policy.`,
       url: canonicalUrl,
       siteName,
       locale: "en_GB",
@@ -36,8 +36,8 @@ export async function generateMetadata(): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       site: `@${siteSlug}`,
-      title: `Contact Us | ${siteName}`,
-      description: `Get in touch with the ${siteName} team. Questions about ${destination} travel, partnership inquiries, or feedback — we're here to help plan your perfect trip.`,
+      title: `Affiliate Disclosure | ${siteName}`,
+      description: `${siteName} affiliate disclosure. Transparency about our affiliate partnerships, how we earn commissions, and our editorial independence policy.`,
     },
     robots: {
       index: true,

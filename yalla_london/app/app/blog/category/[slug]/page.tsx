@@ -8,7 +8,8 @@ import BlogListClient from "../../BlogListClient";
 
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 
-export const revalidate = 600;
+// ISR: Revalidate category pages every hour for multi-site scale
+export const revalidate = 3600;
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;

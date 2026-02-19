@@ -13,8 +13,8 @@ import SectionClient from "./SectionClient";
 // Combine all information articles
 const informationArticles = [...baseArticles, ...extendedInformationArticles];
 
-// ISR: Revalidate section pages every 10 minutes for Cloudflare edge caching
-export const revalidate = 600;
+// ISR: Revalidate section pages every hour for multi-site scale
+export const revalidate = 3600;
 
 type Props = {
   params: Promise<{ section: string }>;
@@ -183,27 +183,10 @@ function generateStructuredData(
     ],
   };
 
-  // For sections with FAQ-like content (dos-and-donts, practical-info, emergency-healthcare),
-  // add FAQPage schema using the subsections as Q&A pairs
-  const faqSlugs = ["dos-and-donts", "practical-info", "emergency-healthcare"];
-  let faqSchema = null;
+  // FAQPage schema deprecated by Google (Aug 2023) — restricted to gov/health sites only.
+  // Omitted entirely; subsection content is already represented in the WebPage schema.
 
-  if (faqSlugs.includes(section.slug) && section.subsections.length > 0) {
-    faqSchema = {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: section.subsections.map((sub) => ({
-        "@type": "Question",
-        name: sub.title_en,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: sub.content_en.replace(/[#*_`\[\]]/g, "").substring(0, 500),
-        },
-      })),
-    };
-  }
-
-  return { webPageSchema, breadcrumbSchema, faqSchema };
+  return { webPageSchema, breadcrumbSchema };
 }
 
 // Transform section data for the client component (convert markdown to HTML)
@@ -313,15 +296,6 @@ export default async function SectionPage({ params }: Props) {
           __html: JSON.stringify(structuredData.breadcrumbSchema),
         }}
       />
-      {structuredData.faqSchema && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(structuredData.faqSchema),
-          }}
-        />
-      )}
-
       <SectionClient
         section={clientSection}
         relatedArticles={relatedArticles}

@@ -11,8 +11,8 @@ import BlogPostClient from "./BlogPostClient";
 // Combine all static blog posts (legacy content)
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 
-// ISR: Revalidate blog posts every 10 minutes for Cloudflare edge caching
-export const revalidate = 600;
+// ISR: Revalidate blog posts every hour for multi-site scale
+export const revalidate = 3600;
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -114,8 +114,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const { source, post } = result;
-  const title = post.meta_title_en || post.title_en;
-  const description = post.meta_description_en || post.excerpt_en || "";
+  // Arabic SSR: serve locale-appropriate metadata so crawlers on /ar/ routes
+  // see Arabic title/description in the HTML head (not just after hydration).
+  const locale = headersList.get("x-locale") || "en";
+  const title = locale === "ar"
+    ? ((post as any).meta_title_ar || post.title_ar || post.title_en)
+    : (post.meta_title_en || post.title_en);
+  const description = locale === "ar"
+    ? ((post as any).meta_description_ar || post.excerpt_ar || post.excerpt_en || "")
+    : (post.meta_description_en || post.excerpt_en || "");
   const image = post.featured_image || "";
   const createdAt =
     post.created_at instanceof Date
@@ -205,9 +212,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function generateStructuredData(
   post: any,
   source: "db" | "static",
-  siteInfo: { siteName: string; siteDomain: string; siteSlug: string },
+  siteInfo: { siteName: string; siteDomain: string; siteSlug: string; locale: string },
 ) {
-  const { siteName, siteDomain, siteSlug } = siteInfo;
+  const { siteName, siteDomain, siteSlug, locale } = siteInfo;
   const baseUrl =
     process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
 
@@ -267,7 +274,7 @@ function generateStructuredData(
     articleSection: categoryName,
     keywords: keywords.join(", "),
     wordCount: contentText.split(" ").length,
-    inLanguage: "en-GB",
+    inLanguage: locale === "ar" ? "ar" : "en-GB",
   };
 
   const breadcrumbSchema = {
@@ -372,7 +379,8 @@ export default async function BlogPostPage({ params }: Props) {
     notFound();
   }
 
-  const structuredData = generateStructuredData(result.post, result.source, { siteName, siteDomain, siteSlug });
+  const locale = headersList.get("x-locale") || "en";
+  const structuredData = generateStructuredData(result.post, result.source, { siteName, siteDomain, siteSlug, locale });
   const clientPost = transformForClient(result.post, result.source);
   const relatedArticles = await getRelatedArticles(slug, "blog", 3);
 

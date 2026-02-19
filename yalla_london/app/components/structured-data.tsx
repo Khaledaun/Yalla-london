@@ -102,8 +102,8 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
       "headline": articleData.title,
       "description": articleData.description,
       "author": {
-        "@type": "Organization",
-        "name": siteName
+        "@type": "Person",
+        "name": `${siteName} Editorial`
       },
       "publisher": {
         "@type": "Organization",
@@ -214,7 +214,7 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
       "@type": "Article",
       "headline": faqData.title || "Frequently Asked Questions",
       "description": faqData.description || "Common questions and answers",
-      "author": { "@type": "Organization", "name": siteName },
+      "author": { "@type": "Person", "name": `${siteName} Editorial` },
       "publisher": {
         "@type": "Organization",
         "name": siteName,

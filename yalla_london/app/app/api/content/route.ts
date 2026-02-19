@@ -10,6 +10,7 @@ import { prisma } from "@/lib/db";
 import { z } from "zod";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
+import { getDefaultSiteId, getSiteDomain } from "@/config/sites";
 
 // Combine all static blog posts
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
@@ -76,7 +77,7 @@ function transformStaticPost(
       name: locale === "en" ? "Yalla London Editorial" : "فريق يلا لندن",
       image: null,
     },
-    url: `https://yalla-london.com/blog/${post.slug}`,
+    url: `${getSiteDomain(getDefaultSiteId())}/blog/${post.slug}`,
   };
 }
 
@@ -200,7 +201,7 @@ export async function GET(request: NextRequest) {
           category: post.category,
           place: null,
           author: post.author,
-          url: `https://yalla-london.com/blog/${post.slug}`,
+          url: `${getSiteDomain(getDefaultSiteId())}/blog/${post.slug}`,
         }));
         totalCount = dbCount;
       } else {

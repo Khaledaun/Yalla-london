@@ -14,8 +14,8 @@ import ArticleClient from "./ArticleClient";
 // Combine all information articles
 const informationArticles = [...baseArticles, ...extendedInformationArticles];
 
-// ISR: Revalidate articles every 10 minutes for Cloudflare edge caching
-export const revalidate = 600;
+// ISR: Revalidate articles every hour for multi-site scale
+export const revalidate = 3600;
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -59,10 +59,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     (c) => c.id === article.category_id,
   );
   const canonicalUrl = `${baseUrl}/information/articles/${slug}`;
+  // Arabic SSR: serve locale-appropriate metadata for /ar/ routes
+  const locale = headersList.get("x-locale") || "en";
+  const metaTitle = locale === "ar"
+    ? (article.meta_title_ar || article.title_ar || article.title_en)
+    : (article.meta_title_en || article.title_en);
+  const metaDescription = locale === "ar"
+    ? (article.meta_description_ar || article.excerpt_ar || article.excerpt_en)
+    : (article.meta_description_en || article.excerpt_en);
 
   return {
-    title: article.meta_title_en || article.title_en,
-    description: article.meta_description_en || article.excerpt_en,
+    title: metaTitle,
+    description: metaDescription,
     keywords: article.keywords.join(", "),
     authors: [{ name: `${siteName} Editorial` }],
     creator: siteName,
@@ -76,12 +84,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
     },
     openGraph: {
-      title: article.meta_title_en || article.title_en,
-      description: article.meta_description_en || article.excerpt_en,
+      title: metaTitle,
+      description: metaDescription,
       url: canonicalUrl,
       siteName,
-      locale: "en_GB",
-      alternateLocale: "ar_SA",
+      locale: locale === "ar" ? "ar_SA" : "en_GB",
+      alternateLocale: locale === "ar" ? "en_GB" : "ar_SA",
       type: "article",
       publishedTime: article.created_at.toISOString(),
       modifiedTime: article.updated_at.toISOString(),
@@ -93,15 +101,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           url: article.featured_image,
           width: 1200,
           height: 630,
-          alt: article.title_en,
+          alt: locale === "ar" ? (article.title_ar || article.title_en) : article.title_en,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
       site: `@${siteSlug}`,
-      title: article.meta_title_en || article.title_en,
-      description: article.meta_description_en || article.excerpt_en,
+      title: metaTitle,
+      description: metaDescription,
       images: [article.featured_image],
     },
     robots: {

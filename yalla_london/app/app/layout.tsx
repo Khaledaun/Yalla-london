@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || brandConfig.siteName;
 
   return {
-    title: `${brandConfig.siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
+    title: `${siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
     description: brandConfig.description,
     authors: [{ name: siteName }],
     creator: siteName,
@@ -35,7 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
       alternateLocale: "ar_SA",
       url: baseUrl,
       siteName,
-      title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
+      title: `${siteName} - ${brandConfig.tagline}`,
       description: brandConfig.description,
       images: [
         {
@@ -48,8 +48,8 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      site: brandConfig.seo.twitterHandle || "@example",
-      title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
+      site: `@${siteConfig?.slug || 'yallalondon'}`,
+      title: `${siteName} - ${brandConfig.tagline}`,
       description: brandConfig.description,
       images: ["/og-image.jpg"],
     },
@@ -123,12 +123,17 @@ export default async function RootLayout({
         <meta name="geo.placename" content={geo.placename} />
         <meta name="geo.position" content={geo.position} />
         <meta name="ICBM" content={geo.icbm} />
-        {process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION && (
-          <meta
-            name="google-site-verification"
-            content={process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION}
-          />
-        )}
+        {/* Google Site Verification — per-site via GOOGLE_SITE_VERIFICATION_{SITE_KEY} */}
+        {(() => {
+          const envKey = siteId.toUpperCase().replace(/-/g, "_");
+          const verificationCode =
+            process.env[`GOOGLE_SITE_VERIFICATION_${envKey}`] ||
+            process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ||
+            "";
+          return verificationCode ? (
+            <meta name="google-site-verification" content={verificationCode} />
+          ) : null;
+        })()}
       </head>
       <body className="font-editorial antialiased" suppressHydrationWarning>
         <NextAuthSessionProvider>
@@ -157,9 +162,14 @@ export default async function RootLayout({
           </BrandThemeProvider>
         </NextAuthSessionProvider>
 
-        {/* Google Analytics */}
-        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (() => {
-          const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID.trim();
+        {/* Google Analytics — per-site via GA4_MEASUREMENT_ID_{SITE_KEY} */}
+        {(() => {
+          const envKey = siteId.toUpperCase().replace(/-/g, "_");
+          const gaId = (
+            process.env[`GA4_MEASUREMENT_ID_${envKey}`] ||
+            process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
+            ""
+          ).trim();
           return gaId ? (
             <>
               <Script

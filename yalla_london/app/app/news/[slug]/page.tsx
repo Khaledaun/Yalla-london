@@ -7,8 +7,8 @@ import { getSiteDomain, getSiteConfig, getDefaultSiteId } from "@/config/sites";
 import { getRelatedArticles } from "@/lib/related-content";
 import NewsDetailClient from "./NewsDetailClient";
 
-// ISR: Revalidate news detail pages every 10 minutes
-export const revalidate = 600;
+// ISR: Revalidate news detail pages every hour for multi-site scale
+export const revalidate = 3600;
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -259,12 +259,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const canonicalUrl = `${baseUrl}/news/${slug}`;
-  const description =
-    item.meta_description_en ||
-    item.summary_en.slice(0, 160);
+  // Arabic SSR: serve locale-appropriate metadata for /ar/ routes
+  const locale = headersList.get("x-locale") || "en";
+  const title = locale === "ar"
+    ? (item.meta_title_ar || `${item.headline_ar} | ${siteName}`)
+    : (item.meta_title_en || `${item.headline_en} | ${siteName}`);
+  const description = locale === "ar"
+    ? (item.meta_description_ar || item.summary_ar.slice(0, 160))
+    : (item.meta_description_en || item.summary_en.slice(0, 160));
 
   return {
-    title: item.meta_title_en || `${item.headline_en} | ${siteName}`,
+    title,
     description,
     keywords: item.keywords.join(", "),
     authors: [{ name: `${siteName} Editorial` }],
@@ -279,7 +284,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
     },
     openGraph: {
-      title: item.meta_title_en || item.headline_en,
+      title,
       description,
       url: canonicalUrl,
       siteName,
@@ -343,9 +348,9 @@ function generateStructuredData(item: SeedItem, siteInfo: { siteName: string; si
     image: item.featured_image || undefined,
     datePublished: item.published_at,
     author: {
-      "@type": "Organization",
-      name: item.source_name,
-      url: item.source_url,
+      "@type": "Person",
+      name: `${siteName} Editorial`,
+      url: baseUrl,
     },
     publisher: {
       "@type": "Organization",

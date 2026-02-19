@@ -644,7 +644,7 @@ Return JSON:
     "@type": "${(outline.schemaType as string) || "Article"}",
     "headline": "Article title",
     "description": "Brief description",
-    "author": {"@type": "Organization", "name": "${site.name}"},
+    "author": {"@type": "Person", "name": "${site.name} Editorial"},
     "publisher": {"@type": "Organization", "name": "${site.name}"}${featured ? ',\n    "image": "' + (featured.url || "") + '"' : ""}
   },
   "ogImage": {

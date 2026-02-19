@@ -7,6 +7,7 @@ import { ChevronRight, Home } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
 import { internalLinking } from '@/lib/seo/internal-linking';
 import { SchemaGenerator } from '@/lib/seo/schema-generator';
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites';
 
 interface BreadcrumbProps {
   items?: Array<{
@@ -27,9 +28,11 @@ export function Breadcrumbs({ items }: BreadcrumbProps) {
   // Generate structured data for breadcrumbs
   React.useEffect(() => {
     if (breadcrumbItems.length > 1) {
+      const defaultSiteConfig = getSiteConfig(getDefaultSiteId());
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
       const generator = new SchemaGenerator(
-        process.env.NEXT_PUBLIC_SITE_URL || 'https://example.com',
-        { siteName: 'Yalla London', description: 'Your Guide to London' }
+        siteUrl,
+        { siteName: defaultSiteConfig?.name || 'Yalla London', description: `Your Guide to ${defaultSiteConfig?.destination || 'London'}` }
       );
       const breadcrumbSchema = generator.generateBreadcrumbs(breadcrumbItems);
       

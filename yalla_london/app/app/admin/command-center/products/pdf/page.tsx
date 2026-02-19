@@ -491,9 +491,11 @@ export default function PDFGeneratorPage() {
                           onChange={(e) => setSelectedSite(e.target.value)}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                         >
-                          <option value="arabaldives">Arabaldives</option>
                           <option value="yalla-london">Yalla London</option>
-                          <option value="gulf-maldives">Gulf Maldives</option>
+                          <option value="arabaldives">Arabaldives</option>
+                          <option value="french-riviera">Yalla Riviera</option>
+                          <option value="istanbul">Yalla Istanbul</option>
+                          <option value="thailand">Yalla Thailand</option>
                         </select>
                       </div>
                       <div>
@@ -754,7 +756,7 @@ const mockGuides: PDFGuide[] = [
     id: '3',
     title: 'Premium Honeymoon Planning Guide',
     description: 'Expert tips for planning the perfect Maldives honeymoon',
-    site: 'Gulf Maldives',
+    site: 'Arabaldives',
     locale: 'en',
     status: 'published',
     template: 'maldives-guide',

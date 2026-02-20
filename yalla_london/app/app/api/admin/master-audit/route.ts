@@ -1,11 +1,11 @@
 /**
  * Master Audit API Route
  *
- * Dashboard-triggered SEO compliance audit.
- * Runs a quick version of the CLI master audit within Vercel's 53s budget.
+ * Dashboard-triggered SEO compliance audit with full data enrichment.
+ * Runs within Vercel's 53s budget.
  *
  * GET  — Returns latest audit results from CronJobLog
- * POST — Runs a quick audit against static routes and returns results
+ * POST — Runs audit with: static pages + blog articles + GA4 + GSC + indexing data
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -44,7 +44,6 @@ export const GET = withAdminOrCronAuth(async (request: NextRequest) => {
       try {
         latestResult = JSON.parse(recentRuns[0].result_summary);
       } catch {
-        // result_summary might not be JSON
         latestResult = { summary: recentRuns[0].result_summary };
       }
     }
@@ -75,7 +74,7 @@ export const GET = withAdminOrCronAuth(async (request: NextRequest) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST — Run a quick audit
+// POST — Run enriched audit
 // ---------------------------------------------------------------------------
 
 export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
@@ -83,7 +82,7 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
 
   try {
     const { prisma } = await import("@/lib/db");
-    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const { getDefaultSiteId, getSiteDomain, getSiteConfig } = await import("@/config/sites");
     const { loadAuditConfig } = await import("@/lib/master-audit/config-loader");
     const { crawlBatch } = await import("@/lib/master-audit/crawler");
     const { extractSignals } = await import("@/lib/master-audit/extractor");
@@ -99,44 +98,99 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
     const siteId = body.siteId || request.headers.get("x-site-id") || getDefaultSiteId();
     const rawDomain = getSiteDomain(siteId);
     // getSiteDomain() already returns full URL like "https://www.yalla-london.com"
-    const baseUrl = rawDomain.startsWith('http') ? rawDomain : `https://${rawDomain}`;
+    const baseUrl = rawDomain.startsWith("http") ? rawDomain : `https://${rawDomain}`;
+    const siteConfig = getSiteConfig(siteId);
 
     // Load config — pass baseUrl as override so validation passes
     const config = loadAuditConfig(siteId, { baseUrl } as Partial<import("@/lib/master-audit/types").AuditConfig>);
 
-    // Build inventory from static routes only (skip sitemap to save time)
+    // -----------------------------------------------------------------------
+    // Phase 1: Build URL inventory (static routes + blog articles from DB)
+    // -----------------------------------------------------------------------
     const urls: string[] = [];
+    const urlSources: Record<string, "static" | "blog"> = {};
+
+    // Static routes
     for (const route of config.staticRoutes) {
-      urls.push(`${baseUrl}${route}`);
+      const fullUrl = `${baseUrl}${route}`;
+      urls.push(fullUrl);
+      urlSources[fullUrl] = "static";
     }
 
+    // Blog articles from database
+    let blogArticles: Array<{ slug: string; seo_score: number | null; title_en: string; meta_title_en: string | null; meta_description_en: string | null; published: boolean; created_at: Date }> = [];
+    try {
+      blogArticles = await prisma.blogPost.findMany({
+        where: { siteId, published: true, deletedAt: null },
+        select: {
+          slug: true,
+          seo_score: true,
+          title_en: true,
+          meta_title_en: true,
+          meta_description_en: true,
+          published: true,
+          created_at: true,
+        },
+        orderBy: { created_at: "desc" },
+        take: 200, // Limit to prevent OOM
+      });
+
+      for (const article of blogArticles) {
+        const articleUrl = `${baseUrl}/blog/${article.slug}`;
+        if (!urls.includes(articleUrl)) {
+          urls.push(articleUrl);
+          urlSources[articleUrl] = "blog";
+        }
+      }
+    } catch (err) {
+      console.warn("[master-audit] Failed to fetch blog articles:", err);
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase 2: Parallel data fetch — GSC, GA4, Indexing, DB SEO data
+    // -----------------------------------------------------------------------
+    const remainingBudget = () => BUDGET_MS - (Date.now() - startTime);
+
+    // Start all data queries in parallel
+    const [gscData, ga4Data, indexingData, seoMetrics] = await Promise.all([
+      fetchGSCData(siteId, remainingBudget),
+      fetchGA4Data(remainingBudget),
+      fetchIndexingData(prisma, siteId),
+      fetchSeoMetrics(prisma, siteId),
+    ]);
+
     // Budget check before crawling
-    if (Date.now() - startTime > BUDGET_MS) {
+    if (remainingBudget() < 5000) {
       return NextResponse.json(
         { error: "Budget exhausted before crawling" },
         { status: 504 }
       );
     }
 
-    // Crawl with reduced timeout for quick mode
+    // -----------------------------------------------------------------------
+    // Phase 3: Crawl pages
+    // -----------------------------------------------------------------------
     const quickCrawlSettings = {
       ...config.crawl,
       timeoutMs: 8000,
       maxRetries: 1,
-      concurrency: 4,
+      concurrency: 6,
     };
 
     const crawlResults = await crawlBatch(urls, quickCrawlSettings);
     const crawlMap = new Map(crawlResults.map((r) => [r.url, r]));
 
     // Budget check after crawling
-    if (Date.now() - startTime > BUDGET_MS) {
+    if (remainingBudget() < 3000) {
       return respondWithPartialResults(
-        siteId, startTime, crawlResults, "Budget exhausted after crawling"
+        siteId, startTime, crawlResults, "Budget exhausted after crawling",
+        { gscData, ga4Data, indexingData, seoMetrics, blogArticles, siteConfig }
       );
     }
 
-    // Extract signals
+    // -----------------------------------------------------------------------
+    // Phase 4: Extract signals + validate
+    // -----------------------------------------------------------------------
     const allSignals = new Map<string, Awaited<ReturnType<typeof extractSignals>>>();
     for (const result of crawlResults) {
       if (result.status === 200 && result.html) {
@@ -149,38 +203,33 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
       }
     }
 
-    // Run validators
+    // Run all validators
     type AuditIssue = Awaited<ReturnType<typeof validateHttp>>[number];
     const allIssues: AuditIssue[] = [];
 
-    // HTTP
     for (const result of crawlResults) {
       allIssues.push(...validateHttp(result, config));
     }
-    // Canonical
     for (const [url, signals] of allSignals) {
       allIssues.push(...validateCanonical(signals, url, config));
     }
-    // Hreflang
     for (const [url, signals] of allSignals) {
       allIssues.push(...validateHreflang(signals, url, allSignals, config));
     }
-    // Schema
     for (const [url, signals] of allSignals) {
       allIssues.push(...validateSchema(signals, url, config));
     }
-    // Links
     allIssues.push(...validateLinks(allSignals, crawlMap, config));
-    // Metadata
     for (const [url, signals] of allSignals) {
       allIssues.push(...validateMetadata(signals, url, allSignals, config));
     }
-    // Robots
     for (const [url, signals] of allSignals) {
       allIssues.push(...validateRobots(signals, url, new Set(), config));
     }
 
-    // Evaluate hard gates
+    // -----------------------------------------------------------------------
+    // Phase 5: Evaluate gates
+    // -----------------------------------------------------------------------
     const hardGates = config.hardGates.map((gate) => {
       const catIssues = allIssues.filter((i) => i.category === gate.category);
       const p0Count = catIssues.filter((i) => i.severity === "P0").length;
@@ -201,16 +250,6 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
 
     // Soft gates
     const softGates: Array<{ name: string; count: number; description: string }> = [];
-    const noDescPages = [...allSignals.entries()]
-      .filter(([, s]) => !s.metaDescription)
-      .map(([url]) => url);
-    if (noDescPages.length > 0) {
-      softGates.push({
-        name: "missing-meta-description",
-        count: noDescPages.length,
-        description: `${noDescPages.length} page(s) missing meta description`,
-      });
-    }
     const thinPages = [...allSignals.entries()]
       .filter(([, s]) => s.wordCount > 0 && s.wordCount < config.riskScanners.minWordCount)
       .map(([url]) => url);
@@ -219,6 +258,16 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
         name: "thin-content",
         count: thinPages.length,
         description: `${thinPages.length} page(s) below ${config.riskScanners.minWordCount} words`,
+      });
+    }
+    const noDescPages = [...allSignals.entries()]
+      .filter(([, s]) => !s.metaDescription)
+      .map(([url]) => url);
+    if (noDescPages.length > 0) {
+      softGates.push({
+        name: "missing-meta-description",
+        count: noDescPages.length,
+        description: `${noDescPages.length} page(s) missing meta description`,
       });
     }
     const noSchemaPages = [...allSignals.entries()]
@@ -232,27 +281,74 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
       });
     }
 
-    // Build issue summary
+    // -----------------------------------------------------------------------
+    // Phase 6: Build enriched response
+    // -----------------------------------------------------------------------
     const p0 = allIssues.filter((i) => i.severity === "P0").length;
     const p1 = allIssues.filter((i) => i.severity === "P1").length;
     const p2 = allIssues.filter((i) => i.severity === "P2").length;
     const allPassed = hardGates.every((g) => g.passed);
     const durationMs = Date.now() - startTime;
 
-    // Per-page results
+    // Website parameters
+    const responseTimesMs = crawlResults
+      .filter((r) => r.timing && r.status === 200)
+      .map((r) => r.timing.durationMs);
+    const avgResponseMs = responseTimesMs.length > 0
+      ? Math.round(responseTimesMs.reduce((a, b) => a + b, 0) / responseTimesMs.length)
+      : 0;
+    const slowestPage = crawlResults
+      .filter((r) => r.status === 200 && r.timing)
+      .sort((a, b) => b.timing.durationMs - a.timing.durationMs)[0];
+
+    const siteParameters = {
+      siteName: siteConfig?.name || siteId,
+      domain: baseUrl,
+      totalStaticPages: config.staticRoutes.length,
+      totalPublishedArticles: blogArticles.length,
+      totalUrlsAudited: urls.length,
+      averageResponseMs,
+      slowestPageMs: slowestPage?.timing.durationMs || 0,
+      slowestPageUrl: slowestPage ? slowestPage.url.replace(baseUrl, "") : null,
+      pagesWithJsonLd: [...allSignals.values()].filter((s) => s.jsonLd.length > 0).length,
+      pagesWithCanonical: [...allSignals.values()].filter((s) => s.canonical).length,
+      pagesWithHreflang: [...allSignals.values()].filter((s) => s.hreflangAlternates.length > 0).length,
+      averageWordCount: Math.round(
+        [...allSignals.values()].reduce((a, s) => a + s.wordCount, 0) / Math.max(allSignals.size, 1)
+      ),
+    };
+
+    // Per-page results (enriched with source, DB SEO score, indexing status)
+    const indexMap = new Map(
+      (indexingData?.pages || []).map((p: { url: string }) => [p.url, p])
+    );
+    const blogMap = new Map(
+      blogArticles.map((a) => [`/blog/${a.slug}`, a])
+    );
+
     const pageResults = urls.map((url) => {
       const crawl = crawlMap.get(url);
       const signals = allSignals.get(url);
       const pageIssues = allIssues.filter((i) => i.url === url);
+      const path = url.replace(baseUrl, "") || "/";
+      const blogData = blogMap.get(path);
+      const indexStatus = indexMap.get(url) || indexMap.get(path);
+
       return {
-        url: url.replace(baseUrl, ""),
+        url: path,
+        source: urlSources[url] || "static",
         status: crawl?.status ?? 0,
+        responseMs: crawl?.timing?.durationMs ?? 0,
         hasCanonical: !!signals?.canonical,
         hasHreflang: (signals?.hreflangAlternates?.length ?? 0) > 0,
         hasJsonLd: (signals?.jsonLd?.length ?? 0) > 0,
         wordCount: signals?.wordCount ?? 0,
         title: signals?.title ?? null,
         metaDescription: signals?.metaDescription ?? null,
+        // DB enrichment
+        seoScore: blogData?.seo_score ?? null,
+        indexingStatus: (indexStatus as Record<string, unknown>)?.status ?? null,
+        lastCrawled: (indexStatus as Record<string, unknown>)?.lastCrawled ?? null,
         issueCount: pageIssues.length,
         issues: pageIssues.map((i) => ({
           severity: i.severity,
@@ -262,20 +358,58 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
       };
     });
 
+    // SEO issues summary — grouped by category for visibility
+    const issuesByCategory: Record<string, { count: number; p0: number; p1: number; p2: number; samples: string[] }> = {};
+    for (const issue of allIssues) {
+      if (!issuesByCategory[issue.category]) {
+        issuesByCategory[issue.category] = { count: 0, p0: 0, p1: 0, p2: 0, samples: [] };
+      }
+      const cat = issuesByCategory[issue.category];
+      cat.count++;
+      if (issue.severity === "P0") cat.p0++;
+      if (issue.severity === "P1") cat.p1++;
+      if (issue.severity === "P2") cat.p2++;
+      if (cat.samples.length < 3) {
+        cat.samples.push(issue.message);
+      }
+    }
+
     const result = {
       success: true,
       siteId,
       baseUrl,
       mode: "quick",
       durationMs,
+
+      // Website parameters
+      siteParameters,
+
+      // Crawl summary
       totalUrls: urls.length,
       crawledOk: crawlResults.filter((r) => r.status === 200).length,
       crawledFailed: crawlResults.filter((r) => r.status !== 200).length,
       signalsExtracted: allSignals.size,
+
+      // Issues
       issues: { total: allIssues.length, p0, p1, p2 },
+      issuesByCategory,
       hardGates,
       softGates,
       allPassed,
+
+      // GA4 data
+      ga4: ga4Data,
+
+      // GSC data
+      gsc: gscData,
+
+      // Indexing data
+      indexing: indexingData,
+
+      // DB SEO metrics
+      seoMetrics,
+
+      // Per-page results
       pages: pageResults,
     };
 
@@ -304,6 +438,14 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
               totalCount: g.totalCount,
             })),
             softGates,
+            siteParameters: {
+              totalPublishedArticles: blogArticles.length,
+              averageResponseMs,
+              averageWordCount: siteParameters.averageWordCount,
+            },
+            ga4Configured: ga4Data.configured,
+            gscConfigured: gscData.configured,
+            indexedCount: indexingData?.indexed ?? 0,
           }),
           error_message: allPassed
             ? null
@@ -337,7 +479,7 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
         },
       });
     } catch {
-      // Can't even log — nothing more to do
+      // Can't even log
     }
 
     return NextResponse.json(
@@ -348,6 +490,264 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
 });
 
 // ---------------------------------------------------------------------------
+// Data fetchers — run in parallel with crawling
+// ---------------------------------------------------------------------------
+
+async function fetchGSCData(siteId: string, remainingBudget: () => number) {
+  try {
+    if (remainingBudget() < 5000) return { configured: false, reason: "budget" };
+
+    const { GoogleSearchConsole } = await import("@/lib/integrations/google-search-console");
+    const gsc = new GoogleSearchConsole();
+
+    if (!gsc.isConfigured()) {
+      return { configured: false, reason: "missing_credentials" };
+    }
+
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const startDate = thirtyDaysAgo.toISOString().split("T")[0];
+    const endDate = today.toISOString().split("T")[0];
+
+    // Fetch top pages and keywords in parallel
+    const [topPages, topKeywords, sitemaps] = await Promise.all([
+      gsc.getTopPages(startDate, endDate, 20).catch(() => []),
+      gsc.getTopKeywords(startDate, endDate, 20).catch(() => []),
+      gsc.getSitemaps().catch(() => []),
+    ]);
+
+    // Calculate totals
+    let totalClicks = 0;
+    let totalImpressions = 0;
+    for (const page of topPages) {
+      totalClicks += page.clicks;
+      totalImpressions += page.impressions;
+    }
+    const averageCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+    const avgPosition = topPages.length > 0
+      ? topPages.reduce((a, p) => a + p.position, 0) / topPages.length
+      : 0;
+
+    return {
+      configured: true,
+      dateRange: { start: startDate, end: endDate },
+      totalClicks,
+      totalImpressions,
+      averageCtr: Math.round(averageCtr * 100) / 100,
+      averagePosition: Math.round(avgPosition * 10) / 10,
+      topPages: topPages.slice(0, 10).map((p) => ({
+        page: p.keys[0] || "",
+        clicks: p.clicks,
+        impressions: p.impressions,
+        ctr: Math.round(p.ctr * 10000) / 100,
+        position: Math.round(p.position * 10) / 10,
+      })),
+      topKeywords: topKeywords.slice(0, 10).map((k) => ({
+        keyword: k.keys[0] || "",
+        clicks: k.clicks,
+        impressions: k.impressions,
+        ctr: Math.round(k.ctr * 10000) / 100,
+        position: Math.round(k.position * 10) / 10,
+      })),
+      sitemaps: sitemaps.map((s) => ({
+        path: s.path,
+        lastSubmitted: s.lastSubmitted || null,
+        errors: s.errors || 0,
+        warnings: s.warnings || 0,
+      })),
+    };
+  } catch (err) {
+    console.warn("[master-audit] GSC fetch error:", err);
+    return { configured: false, reason: "error", error: "GSC data fetch failed" };
+  }
+}
+
+async function fetchGA4Data(remainingBudget: () => number) {
+  try {
+    if (remainingBudget() < 5000) return { configured: false, reason: "budget" };
+
+    const { isGA4Configured, fetchGA4Metrics } = await import("@/lib/seo/ga4-data-api");
+
+    if (!isGA4Configured()) {
+      return { configured: false, reason: "missing_credentials" };
+    }
+
+    const report = await fetchGA4Metrics("30daysAgo", "today");
+    if (!report) {
+      return { configured: true, reason: "no_data", error: "GA4 returned no data" };
+    }
+
+    return {
+      configured: true,
+      dateRange: report.dateRange,
+      metrics: {
+        sessions: report.metrics.sessions,
+        totalUsers: report.metrics.totalUsers,
+        newUsers: report.metrics.newUsers,
+        pageViews: report.metrics.pageViews,
+        bounceRate: Math.round(report.metrics.bounceRate * 100) / 100,
+        avgSessionDuration: Math.round(report.metrics.avgSessionDuration),
+        engagementRate: Math.round(report.metrics.engagementRate * 100) / 100,
+      },
+      topPages: report.topPages.slice(0, 10).map((p) => ({
+        path: p.path,
+        pageViews: p.pageViews,
+        sessions: p.sessions,
+      })),
+      topSources: report.topSources.slice(0, 10),
+    };
+  } catch (err) {
+    console.warn("[master-audit] GA4 fetch error:", err);
+    return { configured: false, reason: "error", error: "GA4 data fetch failed" };
+  }
+}
+
+interface PrismaClient {
+  uRLIndexingStatus: {
+    findMany: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
+    count: (args: Record<string, unknown>) => Promise<number>;
+    groupBy: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
+  };
+  seoPageMetric: {
+    findMany: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
+  };
+  seoAuditResult: {
+    findMany: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
+  };
+  blogPost: {
+    findMany: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
+    count: (args: Record<string, unknown>) => Promise<number>;
+  };
+  cronJobLog: {
+    create: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    findMany: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
+  };
+}
+
+async function fetchIndexingData(prisma: PrismaClient, siteId: string) {
+  try {
+    // Get all indexing statuses
+    const statuses = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId },
+      select: {
+        url: true,
+        status: true,
+        coverage_state: true,
+        indexing_state: true,
+        submitted_indexnow: true,
+        submitted_google_api: true,
+        submitted_sitemap: true,
+        last_submitted_at: true,
+        last_crawled_at: true,
+        last_error: true,
+      },
+      take: 300,
+    });
+
+    // Count by status
+    const indexed = statuses.filter((s) => s.status === "indexed").length;
+    const submitted = statuses.filter((s) => s.status === "submitted").length;
+    const discovered = statuses.filter((s) => s.status === "discovered").length;
+    const notIndexed = statuses.filter((s) => s.status === "not_indexed" || s.status === "deindexed").length;
+    const errors = statuses.filter((s) => s.status === "error").length;
+
+    // Submission methods
+    const submittedIndexNow = statuses.filter((s) => s.submitted_indexnow).length;
+    const submittedGoogleApi = statuses.filter((s) => s.submitted_google_api).length;
+    const submittedSitemap = statuses.filter((s) => s.submitted_sitemap).length;
+
+    return {
+      totalTracked: statuses.length,
+      indexed,
+      submitted,
+      discovered,
+      notIndexed,
+      errors,
+      submissionMethods: {
+        indexNow: submittedIndexNow,
+        googleApi: submittedGoogleApi,
+        sitemap: submittedSitemap,
+      },
+      pages: statuses.map((s) => ({
+        url: s.url,
+        status: s.status,
+        coverageState: s.coverage_state,
+        lastSubmitted: s.last_submitted_at,
+        lastCrawled: s.last_crawled_at,
+        error: s.last_error,
+      })),
+    };
+  } catch (err) {
+    console.warn("[master-audit] Indexing data fetch error:", err);
+    return {
+      totalTracked: 0,
+      indexed: 0,
+      submitted: 0,
+      discovered: 0,
+      notIndexed: 0,
+      errors: 0,
+      submissionMethods: { indexNow: 0, googleApi: 0, sitemap: 0 },
+      pages: [],
+    };
+  }
+}
+
+async function fetchSeoMetrics(prisma: PrismaClient, siteId: string) {
+  try {
+    // Blog post SEO scores
+    const blogPosts = await prisma.blogPost.findMany({
+      where: { siteId, published: true, deletedAt: null },
+      select: { slug: true, seo_score: true, page_type: true },
+      take: 300,
+    });
+
+    const scores = blogPosts.filter((p) => p.seo_score !== null).map((p) => p.seo_score as number);
+    const avgSeoScore = scores.length > 0
+      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+      : 0;
+    const belowThreshold = scores.filter((s) => s < 70).length;
+    const above80 = scores.filter((s) => s >= 80).length;
+
+    // Page type breakdown
+    const pageTypes: Record<string, number> = {};
+    for (const p of blogPosts) {
+      const type = (p.page_type as string) || "unknown";
+      pageTypes[type] = (pageTypes[type] || 0) + 1;
+    }
+
+    // Total content counts
+    const totalPublished = await prisma.blogPost.count({
+      where: { siteId, published: true, deletedAt: null },
+    });
+    const totalDrafts = await prisma.blogPost.count({
+      where: { siteId, published: false, deletedAt: null },
+    });
+
+    return {
+      totalPublished,
+      totalDrafts,
+      averageSeoScore: avgSeoScore,
+      articlesBelow70: belowThreshold,
+      articlesAbove80: above80,
+      totalWithScore: scores.length,
+      pageTypeBreakdown: pageTypes,
+    };
+  } catch (err) {
+    console.warn("[master-audit] SEO metrics fetch error:", err);
+    return {
+      totalPublished: 0,
+      totalDrafts: 0,
+      averageSeoScore: 0,
+      articlesBelow70: 0,
+      articlesAbove80: 0,
+      totalWithScore: 0,
+      pageTypeBreakdown: {},
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Helper: respond with partial results when budget is hit
 // ---------------------------------------------------------------------------
 
@@ -355,7 +755,15 @@ async function respondWithPartialResults(
   siteId: string,
   startTime: number,
   crawlResults: Array<{ status: number; url: string }>,
-  reason: string
+  reason: string,
+  enrichment?: {
+    gscData?: Record<string, unknown>;
+    ga4Data?: Record<string, unknown>;
+    indexingData?: Record<string, unknown>;
+    seoMetrics?: Record<string, unknown>;
+    blogArticles?: Array<Record<string, unknown>>;
+    siteConfig?: Record<string, unknown> | null;
+  }
 ) {
   const durationMs = Date.now() - startTime;
 
@@ -390,5 +798,10 @@ async function respondWithPartialResults(
     issues: { total: 0, p0: 0, p1: 0, p2: 0 },
     hardGates: [],
     softGates: [],
+    // Still include enrichment data even if crawl was partial
+    ga4: enrichment?.ga4Data || { configured: false },
+    gsc: enrichment?.gscData || { configured: false },
+    indexing: enrichment?.indexingData || null,
+    seoMetrics: enrichment?.seoMetrics || null,
   });
 }

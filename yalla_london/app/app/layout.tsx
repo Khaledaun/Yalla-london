@@ -13,7 +13,8 @@ import { AnalyticsTracker } from "@/components/analytics-tracker";
 import { NextAuthSessionProvider } from "@/components/session-provider";
 import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { brandConfig } from "@/config/brand-config";
-import { HreflangTags } from "@/components/hreflang-tags";
+// HreflangTags component removed — hreflang is handled by generateMetadata().alternates.languages
+// in each layout/page file. The component was causing duplicate hreflang tags on every page.
 import { getBaseUrl } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 import type { Language } from "@/lib/types";
@@ -101,7 +102,7 @@ export default async function RootLayout({
     <html lang={locale} dir={dir} suppressHydrationWarning>
       <head>
         <StructuredData siteId={siteId} />
-        <HreflangTags path="/" />
+        {/* Hreflang handled by generateMetadata().alternates.languages per page — no component needed */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"

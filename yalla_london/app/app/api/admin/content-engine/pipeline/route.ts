@@ -106,10 +106,12 @@ export async function POST(request: NextRequest) {
       site,
       topic,
       language,
+      action,
     } = body as {
       site?: string;
       topic?: string;
       language?: string;
+      action?: string;
     };
 
     const resolvedSite =
@@ -124,11 +126,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Map quick-action types to meaningful pipeline defaults
+    let resolvedTopic = topic || null;
+    let resolvedStatus = "researching";
+    if (action && !topic) {
+      switch (action) {
+        case "quick-post":
+          resolvedTopic = "Quick social post";
+          resolvedStatus = "researching";
+          break;
+        case "quick-article":
+          resolvedTopic = "Quick blog article";
+          resolvedStatus = "researching";
+          break;
+        case "quick-video":
+          resolvedTopic = "Quick video script";
+          resolvedStatus = "researching";
+          break;
+        default:
+          resolvedTopic = action;
+          break;
+      }
+    }
+
     const pipeline = await prisma.contentPipeline.create({
       data: {
         site: resolvedSite,
-        status: "researching",
-        topic: topic || null,
+        status: resolvedStatus,
+        topic: resolvedTopic,
         language: language || "en",
       },
     });

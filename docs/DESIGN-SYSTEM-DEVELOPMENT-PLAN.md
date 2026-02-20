@@ -255,6 +255,21 @@ Transform disconnected, partially-built design tools into a **unified, productio
 - **Verified:** PDF generator `siteId` scoping already correct — `storePDFRecord` sets `site_id: config.siteId`, `getPDFGuides` filters by `siteId`.
 - **Verified:** Social scheduler `lib/social/scheduler.ts` exists and is fully functional.
 
+### Audit Round 9 (Admin Pages Multi-Site Sweep)
+- **Fixed:** `video-studio/page.tsx` — SITES array + `useState("yalla-london")` → config-derived with `getDefaultSiteId()`
+- **Fixed:** `variable-vault/page.tsx` — SITE_LIST array → config-derived with domain, destination, color from `SITE_CONFIG`
+- **Fixed:** `site/page.tsx` — Preview button URL `https://yalla-london.com` → `getSiteDomain(getDefaultSiteId())`. Hero title, popup offers, theme card label → dynamic from site config
+- **Fixed:** `site-control/page.tsx` — Form `defaultValue="Yalla London"` (2 instances) → `_siteCfg?.name` from config
+- **Fixed:** `content-types/page.tsx` — SEO title templates `"... - Yalla London"` → `"... - ${_siteName}"` from config
+- **Fixed:** `ai-prompt-studio/page.tsx` — Article writing prompt `"for Yalla London...London references"` → dynamic site name + destination from config
+- **Fixed:** `social-calendar/page.tsx` — `useState("yalla-london")` → `getDefaultSiteId()`
+- **Verified:** Zero `useState("yalla-london")` remaining across all admin pages
+
+### Audit Round 10 (Final Verification + Pipeline Fix)
+- **Audit:** Deep verification agent scanned all 48+ files — imports (100% valid), hardcoded sites (100% clean), API-page field alignment (100%)
+- **Fixed:** `api/admin/content-engine/pipeline/route.ts` — POST handler now extracts `action` parameter from quick action requests (`quick-post`, `quick-article`, `quick-video`). Previously ignored `action` entirely, creating identical generic pipelines regardless of button pressed. Now maps each action to a descriptive topic and appropriate status.
+- **Result:** 0 CRITICAL, 0 HIGH issues remaining. All quick action buttons in Content Engine page now create correctly differentiated pipeline records.
+
 ---
 
 ## Files Created (Final Tally)

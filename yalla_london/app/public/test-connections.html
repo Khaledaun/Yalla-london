@@ -2539,6 +2539,146 @@ function renderAuditResults(data) {
     </div>`;
   }
 
+  // ── Website Parameters ──
+  if (data.siteParameters) {
+    const sp = data.siteParameters;
+    html += '<div class="section"><h2>Website Parameters</h2>';
+    html += '<div class="audit-cards">';
+    html += auditCard('Static Pages', sp.totalStaticPages, 'blue');
+    html += auditCard('Published Articles', sp.totalPublishedArticles, 'blue');
+    html += auditCard('Total Audited', sp.totalUrlsAudited, 'blue');
+    html += auditCard('Avg Response', sp.averageResponseMs + 'ms', sp.averageResponseMs < 500 ? 'green' : sp.averageResponseMs < 1500 ? 'amber' : 'red');
+    html += auditCard('Slowest Page', sp.slowestPageMs + 'ms', sp.slowestPageMs < 1000 ? 'green' : 'amber');
+    html += auditCard('Avg Words', sp.averageWordCount, sp.averageWordCount >= 1000 ? 'green' : 'amber');
+    html += auditCard('Has Canonical', sp.pagesWithCanonical + '/' + sp.totalUrlsAudited, 'blue');
+    html += auditCard('Has Schema', sp.pagesWithJsonLd + '/' + sp.totalUrlsAudited, 'blue');
+    html += '</div>';
+    if (sp.slowestPageUrl) {
+      html += `<p style="color:#666;font-size:0.75rem;margin-top:6px;">Slowest: ${escapeHtml(sp.slowestPageUrl)}</p>`;
+    }
+    html += '</div>';
+  }
+
+  // ── Google Search Console ──
+  if (data.gsc) {
+    html += '<div class="section"><h2>Google Search Console (30 days)</h2>';
+    if (!data.gsc.configured) {
+      html += `<p style="color:#fbbf24;font-size:0.85rem;">GSC not configured — ${escapeHtml(data.gsc.reason || 'missing credentials')}. Set GSC_CLIENT_EMAIL + GSC_PRIVATE_KEY + GSC_SITE_URL in Vercel.</p>`;
+    } else {
+      html += '<div class="audit-cards">';
+      html += auditCard('Clicks', data.gsc.totalClicks?.toLocaleString() ?? 0, data.gsc.totalClicks > 0 ? 'green' : 'amber');
+      html += auditCard('Impressions', data.gsc.totalImpressions?.toLocaleString() ?? 0, 'blue');
+      html += auditCard('CTR', (data.gsc.averageCtr ?? 0) + '%', data.gsc.averageCtr >= 3 ? 'green' : 'amber');
+      html += auditCard('Avg Position', data.gsc.averagePosition ?? 'N/A', data.gsc.averagePosition <= 20 ? 'green' : 'amber');
+      html += '</div>';
+      if (data.gsc.topKeywords && data.gsc.topKeywords.length > 0) {
+        html += '<h3 style="color:#c9d1d9;font-size:0.85rem;margin:12px 0 6px;">Top Keywords</h3>';
+        html += '<div style="overflow-x:auto;"><table style="width:100%;font-size:0.75rem;border-collapse:collapse;">';
+        html += '<tr style="color:#8b949e;border-bottom:1px solid #30363d;"><th style="text-align:left;padding:4px;">Keyword</th><th>Clicks</th><th>Impressions</th><th>CTR</th><th>Pos</th></tr>';
+        for (const kw of data.gsc.topKeywords) {
+          html += `<tr style="border-bottom:1px solid #21262d;"><td style="padding:4px;color:#c9d1d9;">${escapeHtml(kw.keyword)}</td><td style="text-align:center;">${kw.clicks}</td><td style="text-align:center;">${kw.impressions}</td><td style="text-align:center;">${kw.ctr}%</td><td style="text-align:center;">${kw.position}</td></tr>`;
+        }
+        html += '</table></div>';
+      }
+      if (data.gsc.topPages && data.gsc.topPages.length > 0) {
+        html += '<h3 style="color:#c9d1d9;font-size:0.85rem;margin:12px 0 6px;">Top Pages by Clicks</h3>';
+        html += '<div style="overflow-x:auto;"><table style="width:100%;font-size:0.75rem;border-collapse:collapse;">';
+        html += '<tr style="color:#8b949e;border-bottom:1px solid #30363d;"><th style="text-align:left;padding:4px;">Page</th><th>Clicks</th><th>Impressions</th><th>CTR</th><th>Pos</th></tr>';
+        for (const pg of data.gsc.topPages) {
+          const shortUrl = pg.page.length > 60 ? '...' + pg.page.slice(-57) : pg.page;
+          html += `<tr style="border-bottom:1px solid #21262d;"><td style="padding:4px;color:#c9d1d9;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(pg.page)}">${escapeHtml(shortUrl)}</td><td style="text-align:center;">${pg.clicks}</td><td style="text-align:center;">${pg.impressions}</td><td style="text-align:center;">${pg.ctr}%</td><td style="text-align:center;">${pg.position}</td></tr>`;
+        }
+        html += '</table></div>';
+      }
+    }
+    html += '</div>';
+  }
+
+  // ── Google Analytics ──
+  if (data.ga4) {
+    html += '<div class="section"><h2>Google Analytics (30 days)</h2>';
+    if (!data.ga4.configured) {
+      html += `<p style="color:#fbbf24;font-size:0.85rem;">GA4 not configured — ${escapeHtml(data.ga4.reason || 'missing credentials')}. Set GA4_PROPERTY_ID + service account credentials in Vercel.</p>`;
+    } else {
+      const m = data.ga4.metrics || {};
+      html += '<div class="audit-cards">';
+      html += auditCard('Sessions', (m.sessions || 0).toLocaleString(), m.sessions > 0 ? 'green' : 'amber');
+      html += auditCard('Users', (m.totalUsers || 0).toLocaleString(), 'blue');
+      html += auditCard('Page Views', (m.pageViews || 0).toLocaleString(), 'blue');
+      html += auditCard('Bounce Rate', (m.bounceRate || 0) + '%', m.bounceRate < 50 ? 'green' : 'amber');
+      html += auditCard('Engagement', (m.engagementRate || 0) + '%', m.engagementRate > 50 ? 'green' : 'amber');
+      html += auditCard('Avg Duration', (m.avgSessionDuration || 0) + 's', 'gray');
+      html += '</div>';
+      if (data.ga4.topPages && data.ga4.topPages.length > 0) {
+        html += '<h3 style="color:#c9d1d9;font-size:0.85rem;margin:12px 0 6px;">Top Pages by Views</h3>';
+        for (const pg of data.ga4.topPages.slice(0, 5)) {
+          html += `<div style="display:flex;justify-content:space-between;font-size:0.78rem;padding:3px 0;border-bottom:1px solid #21262d;"><span style="color:#c9d1d9;">${escapeHtml(pg.path)}</span><span style="color:#8b949e;">${pg.pageViews} views</span></div>`;
+        }
+      }
+    }
+    html += '</div>';
+  }
+
+  // ── Indexing Status ──
+  if (data.indexing) {
+    const ix = data.indexing;
+    html += '<div class="section"><h2>Indexing Status</h2>';
+    html += '<div class="audit-cards">';
+    html += auditCard('Total Tracked', ix.totalTracked, 'blue');
+    html += auditCard('Indexed', ix.indexed, ix.indexed > 0 ? 'green' : 'amber');
+    html += auditCard('Submitted', ix.submitted, 'blue');
+    html += auditCard('Discovered', ix.discovered, 'gray');
+    html += auditCard('Not Indexed', ix.notIndexed, ix.notIndexed > 0 ? 'red' : 'green');
+    html += auditCard('Errors', ix.errors, ix.errors > 0 ? 'red' : 'green');
+    html += '</div>';
+    if (ix.submissionMethods) {
+      html += `<div style="font-size:0.78rem;color:#8b949e;margin-top:6px;">Submissions: IndexNow <b>${ix.submissionMethods.indexNow}</b> | Google API <b>${ix.submissionMethods.googleApi}</b> | Sitemap <b>${ix.submissionMethods.sitemap}</b></div>`;
+    }
+    html += '</div>';
+  }
+
+  // ── SEO Metrics (DB) ──
+  if (data.seoMetrics) {
+    const sm = data.seoMetrics;
+    html += '<div class="section"><h2>SEO Content Metrics</h2>';
+    html += '<div class="audit-cards">';
+    html += auditCard('Published', sm.totalPublished, 'green');
+    html += auditCard('Drafts', sm.totalDrafts, 'gray');
+    html += auditCard('Avg SEO Score', sm.averageSeoScore, sm.averageSeoScore >= 70 ? 'green' : sm.averageSeoScore >= 50 ? 'amber' : 'red');
+    html += auditCard('Below 70', sm.articlesBelow70, sm.articlesBelow70 > 0 ? 'amber' : 'green');
+    html += auditCard('Above 80', sm.articlesAbove80, 'green');
+    html += '</div>';
+    if (sm.pageTypeBreakdown && Object.keys(sm.pageTypeBreakdown).length > 0) {
+      html += '<div style="font-size:0.78rem;color:#8b949e;margin-top:6px;">Content types: ';
+      html += Object.entries(sm.pageTypeBreakdown).map(function(e) { return e[0] + ' <b>' + e[1] + '</b>'; }).join(' | ');
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  // ── Issues by Category ──
+  if (data.issuesByCategory && Object.keys(data.issuesByCategory).length > 0) {
+    html += '<div class="section"><h2>Issues by Category</h2>';
+    for (const [cat, info] of Object.entries(data.issuesByCategory)) {
+      const ci = info;
+      const barWidth = Math.min(100, Math.round((ci.count / Math.max(data.issues?.total || 1, 1)) * 100));
+      const barColor = ci.p0 > 0 ? '#f87171' : ci.p1 > 0 ? '#fbbf24' : '#8b949e';
+      html += `<div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:3px;">
+          <span style="color:#c9d1d9;text-transform:capitalize;font-weight:600;">${escapeHtml(cat)}</span>
+          <span style="color:#8b949e;">${ci.count} issues (P0:${ci.p0} P1:${ci.p1} P2:${ci.p2})</span>
+        </div>
+        <div style="background:#21262d;border-radius:4px;height:6px;overflow:hidden;">
+          <div style="background:${barColor};width:${barWidth}%;height:100%;border-radius:4px;"></div>
+        </div>`;
+      if (ci.samples && ci.samples.length > 0) {
+        html += '<div style="font-size:0.7rem;color:#6e7681;margin-top:2px;">' + ci.samples.map(function(s) { return escapeHtml(s); }).join(' | ') + '</div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
   // ── Hard Gates ──
   if (data.hardGates && data.hardGates.length > 0) {
     html += '<div class="section"><h2>Hard Gates' +
@@ -2583,12 +2723,16 @@ function renderAuditResults(data) {
         : '<span style="color:#fbbf24;">⚠</span>';
       const issuesBadge = pg.issueCount > 0
         ? `<span class="severity-badge severity-p0">${pg.issueCount}</span>` : '';
+      const sourceBadge = pg.source === 'blog'
+        ? '<span style="font-size:0.65rem;background:#1f6feb;color:#fff;padding:1px 5px;border-radius:3px;">blog</span>' : '';
+      const seoScoreBadge = pg.seoScore != null
+        ? `<span style="font-size:0.65rem;background:${pg.seoScore >= 70 ? '#16a34a' : pg.seoScore >= 50 ? '#d97706' : '#dc2626'};color:#fff;padding:1px 5px;border-radius:3px;">SEO:${pg.seoScore}</span>` : '';
 
       html += `<div class="page-row" onclick="toggleAuditPage(${i})">
         <div class="page-header">
           ${icon}
           <span style="font-size:0.85rem;flex:1;">${escapeHtml(pg.url)}</span>
-          ${issuesBadge}
+          ${sourceBadge} ${seoScoreBadge} ${issuesBadge}
           <span style="font-size:0.7rem;" class="${pg.hasCanonical ? 'signal-ok' : 'signal-bad'}">Canon</span>
           <span style="font-size:0.7rem;" class="${pg.hasJsonLd ? 'signal-ok' : 'signal-bad'}">Schema</span>
           <span style="font-size:0.7rem;" class="${pg.hasHreflang ? 'signal-ok' : 'signal-bad'}">Hreflang</span>
@@ -2597,12 +2741,15 @@ function renderAuditResults(data) {
         <div class="page-detail" id="audit-page-${i}">
           <div class="page-signals">
             <span>HTTP: <b>${pg.status || 'N/A'}</b></span>
-            <span>Canonical: <b class="${pg.hasCanonical ? 'signal-ok' : 'signal-bad'}">${pg.hasCanonical ? 'Yes' : 'Missing'}</b></span>
-            <span>Hreflang: <b class="${pg.hasHreflang ? 'signal-ok' : 'signal-bad'}">${pg.hasHreflang ? 'Yes' : 'Missing'}</b></span>
-            <span>JSON-LD: <b class="${pg.hasJsonLd ? 'signal-ok' : 'signal-bad'}">${pg.hasJsonLd ? 'Yes' : 'Missing'}</b></span>
+            <span>Response: <b>${pg.responseMs || 0}ms</b></span>
             <span>Words: <b>${pg.wordCount}</b></span>
-            <span>Title: <b>${pg.title ? escapeHtml(pg.title).substring(0, 50) : 'N/A'}</b></span>
+            <span>Canonical: <b class="${pg.hasCanonical ? 'signal-ok' : 'signal-bad'}">${pg.hasCanonical ? 'Yes' : 'No'}</b></span>
+            <span>JSON-LD: <b class="${pg.hasJsonLd ? 'signal-ok' : 'signal-bad'}">${pg.hasJsonLd ? 'Yes' : 'No'}</b></span>
+            <span>Hreflang: <b class="${pg.hasHreflang ? 'signal-ok' : 'signal-bad'}">${pg.hasHreflang ? 'Yes' : 'No'}</b></span>
+            ${pg.seoScore != null ? '<span>SEO Score: <b>' + pg.seoScore + '</b></span>' : ''}
+            ${pg.indexingStatus ? '<span>Indexed: <b>' + escapeHtml(pg.indexingStatus) + '</b></span>' : ''}
           </div>
+          <div style="font-size:0.75rem;color:#8b949e;margin-top:4px;">Title: ${pg.title ? escapeHtml(pg.title) : '<i>Missing</i>'}</div>
           ${pg.issues && pg.issues.length > 0 ? renderPageIssues(pg.issues) : '<div style="color:#4ade80;font-size:0.8rem;margin-top:6px;">No issues found</div>'}
         </div>
       </div>`;

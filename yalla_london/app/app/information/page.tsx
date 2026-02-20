@@ -28,9 +28,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const canonicalUrl = `${baseUrl}/information`;
 
   return {
-    title: `Information Hub | ${siteName} \u2013 Your Complete ${destination} Travel Guide`,
+    title: `${destination} Travel Guide | ${siteName} Info Hub`,
     description:
-      `Your complete ${destination} travel guide for Arab visitors. Plan your trip with halal dining guides, transportation tips, neighbourhood guides, family activities, and insider advice.`,
+      `Plan your ${destination} trip: halal dining, transport tips, neighbourhood guides, and family activities for Arab visitors.`,
     keywords:
       `${destination.toLowerCase()} travel guide, arab visitors ${destination.toLowerCase()}, ${destination.toLowerCase()} information, halal ${destination.toLowerCase()} guide, ${destination.toLowerCase()} trip planner`,
     alternates: {

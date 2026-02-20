@@ -23,9 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteSlug = siteConfig?.slug || "yallalondon";
 
   return {
-    title: `Blog | ${siteName} - Travel Guides & Stories for Arab Visitors`,
+    title: `Blog | ${siteName} — Travel Guides & Tips`,
     description:
-      `Explore our collection of travel guides, restaurant reviews, hotel comparisons, and insider tips for Arab visitors to ${destination}. Find halal dining, luxury hotels, and cultural experiences.`,
+      `Travel guides, restaurant reviews, and insider tips for Arab visitors to ${destination}. Halal dining, luxury hotels, and more.`,
     keywords:
       `${destination.toLowerCase()} blog, halal travel ${destination.toLowerCase()}, arab visitors ${destination.toLowerCase()}, ${destination.toLowerCase()} guides`,
     alternates: {

@@ -198,18 +198,33 @@ export default function ArticlesPage() {
   const handleBulkAudit = async () => {
     setBulkAuditing(true)
     setBulkAuditResult(null)
+    const BATCH_SIZE = 10
+    let allResults: Array<{ compliancePercent: number }> = []
+    let currentOffset = 0
+    let totalArticles = 0
     try {
-      const res = await fetch('/api/admin/seo/article-compliance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'audit_all' }),
-      })
-      const data = await res.json()
-      if (data.success) {
+      // Batched audit to avoid Vercel timeouts
+      let hasMore = true
+      while (hasMore) {
+        const res = await fetch('/api/admin/seo/article-compliance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'audit_all', offset: currentOffset, limit: BATCH_SIZE }),
+        })
+        const data = await res.json()
+        if (!data.success) break
+        totalArticles = data.totalArticles || totalArticles
+        allResults = [...allResults, ...data.results]
+        hasMore = !!data.hasMore
+        currentOffset = data.nextOffset ?? totalArticles
+      }
+      if (allResults.length > 0) {
+        const avg = Math.round(allResults.reduce((s, r) => s + r.compliancePercent, 0) / allResults.length)
+        const full = allResults.filter(r => r.compliancePercent === 100).length
         setBulkAuditResult({
-          averageCompliance: data.averageCompliance,
-          articlesAudited: data.articlesAudited,
-          fullComplianceCount: data.fullComplianceCount,
+          averageCompliance: avg,
+          articlesAudited: allResults.length,
+          fullComplianceCount: full,
         })
       }
     } catch (err) {

@@ -83,16 +83,20 @@ export default function IndexingCenter() {
   const [auditResult, setAuditResult] = useState<null|{ passed: number; failed: number; avgScore: number; autoFixed: number; issues: Array<{ url: string; issues: string[] }> }>(null);
   const [auditLoading, setAuditLoading] = useState(false);
   const [complianceOpen, setComplianceOpen] = useState(false);
-  // Comprehensive compliance audit state
+  // Comprehensive compliance audit state (batched)
   const [complianceResult, setComplianceResult] = useState<null|{
     averageCompliance: number;
     articlesAudited: number;
     fullComplianceCount: number;
     standardsVersion: string;
+    totalArticles: number;
     results: Array<{ slug: string; title: string; compliancePercent: number; passed: number; total: number; blockers: number; warnings: number }>;
   }>(null);
   const [complianceAuditLoading, setComplianceAuditLoading] = useState(false);
+  const [auditProgress, setAuditProgress] = useState<{ audited: number; total: number; batch: number; totalBatches: number } | null>(null);
   const [fixingAll, setFixingAll] = useState(false);
+  const [fixProgress, setFixProgress] = useState<{ fixed: number; total: number } | null>(null);
+  const abortRef = useRef(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -703,23 +707,65 @@ export default function IndexingCenter() {
             <div className="flex gap-3 flex-wrap">
               <button onClick={async () => {
                         setComplianceAuditLoading(true);
+                        setComplianceResult(null);
+                        abortRef.current = false;
+                        const BATCH_SIZE = 10;
+                        let allResults: Array<{ slug: string; title: string; compliancePercent: number; passed: number; total: number; blockers: number; warnings: number }> = [];
+                        let currentOffset = 0;
+                        let totalArticles = 0;
+                        let standardsVersion = "";
+                        let batchNum = 0;
                         try {
-                          const res = await fetch("/api/admin/seo/article-compliance", {
+                          // First batch to discover total
+                          const firstRes = await fetch("/api/admin/seo/article-compliance", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ action: "audit_all" }),
+                            body: JSON.stringify({ action: "audit_all", offset: 0, limit: BATCH_SIZE }),
                           });
-                          const json = await res.json();
-                          if (json.success) {
-                            setComplianceResult(json);
-                            toast.success(`Audit complete: ${json.averageCompliance}% average compliance`);
-                          } else {
-                            toast.error(json.error || "Audit failed");
+                          const firstJson = await firstRes.json();
+                          if (!firstJson.success) { toast.error(firstJson.error || "Audit failed"); setComplianceAuditLoading(false); return; }
+                          totalArticles = firstJson.totalArticles || firstJson.articlesAudited;
+                          standardsVersion = firstJson.standardsVersion;
+                          allResults = [...firstJson.results];
+                          currentOffset = firstJson.nextOffset ?? totalArticles;
+                          batchNum = 1;
+                          const totalBatches = Math.ceil(totalArticles / BATCH_SIZE);
+                          setAuditProgress({ audited: allResults.length, total: totalArticles, batch: batchNum, totalBatches });
+
+                          // Subsequent batches
+                          while (currentOffset < totalArticles && !abortRef.current) {
+                            batchNum++;
+                            const res = await fetch("/api/admin/seo/article-compliance", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ action: "audit_all", offset: currentOffset, limit: BATCH_SIZE }),
+                            });
+                            const json = await res.json();
+                            if (!json.success) { toast.error(`Batch ${batchNum} failed: ${json.error}`); break; }
+                            allResults = [...allResults, ...json.results];
+                            currentOffset = json.nextOffset ?? totalArticles;
+                            setAuditProgress({ audited: allResults.length, total: totalArticles, batch: batchNum, totalBatches });
                           }
+
+                          // Calculate aggregate
+                          const avgCompliance = allResults.length > 0
+                            ? Math.round(allResults.reduce((s, r) => s + r.compliancePercent, 0) / allResults.length) : 0;
+                          const fullComplianceCount = allResults.filter(r => r.compliancePercent === 100).length;
+                          const result = {
+                            averageCompliance: avgCompliance,
+                            articlesAudited: allResults.length,
+                            fullComplianceCount,
+                            standardsVersion,
+                            totalArticles,
+                            results: allResults.sort((a, b) => a.compliancePercent - b.compliancePercent),
+                          };
+                          setComplianceResult(result);
+                          toast.success(`Audit complete: ${avgCompliance}% average across ${allResults.length} articles`);
                         } catch (e: any) {
                           toast.error(e.message || "Audit failed");
                         } finally {
                           setComplianceAuditLoading(false);
+                          setAuditProgress(null);
                         }
                       }}
                       disabled={complianceAuditLoading}
@@ -728,12 +774,21 @@ export default function IndexingCenter() {
                 {complianceAuditLoading ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
                 {complianceAuditLoading ? "Auditing All Pages…" : "Run Full Compliance Audit"}
               </button>
+              {complianceAuditLoading && (
+                <button onClick={() => { abortRef.current = true; }}
+                        className="flex items-center gap-1.5 px-4 py-3 rounded-xl"
+                        style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)", fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1, color:"#C8322B" }}>
+                  <XCircle size={14} /> Cancel
+                </button>
+              )}
               {complianceResult && complianceResult.results.some(r => r.compliancePercent < 100) && (
                 <button onClick={async () => {
                           setFixingAll(true);
                           const failingArticles = complianceResult.results.filter(r => r.compliancePercent < 100);
                           let fixCount = 0;
-                          for (const article of failingArticles.slice(0, 20)) {
+                          setFixProgress({ fixed: 0, total: failingArticles.length });
+                          for (let i = 0; i < failingArticles.length; i++) {
+                            const article = failingArticles[i];
                             try {
                               // Get article ID first
                               const checkRes = await fetch(`/api/admin/seo/article-compliance?slug=${encodeURIComponent(article.slug)}`);
@@ -746,10 +801,14 @@ export default function IndexingCenter() {
                               });
                               const result = await res.json();
                               if (result.fixesApplied > 0) fixCount += result.fixesApplied;
-                            } catch { /* continue fixing others */ }
+                            } catch (fixErr) {
+                              console.warn(`[seo-dashboard] auto_fix failed for ${article.slug}:`, fixErr instanceof Error ? fixErr.message : fixErr);
+                            }
+                            setFixProgress({ fixed: i + 1, total: failingArticles.length });
                           }
                           toast.success(`Applied ${fixCount} auto-fixes across ${failingArticles.length} articles`);
                           setFixingAll(false);
+                          setFixProgress(null);
                         }}
                         disabled={fixingAll}
                         className="flex items-center gap-2 px-5 py-3 rounded-xl transition-all"
@@ -760,6 +819,47 @@ export default function IndexingCenter() {
               )}
             </div>
           </div>
+
+          {/* Batched Audit Progress */}
+          {auditProgress && (
+            <div className="neu-card">
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:1 }}>
+                  Auditing batch {auditProgress.batch} of {auditProgress.totalBatches}
+                </span>
+                <span style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:16, color:"#C49A2A" }}>
+                  {auditProgress.audited}/{auditProgress.total}
+                </span>
+              </div>
+              <div className="relative rounded-full overflow-hidden"
+                   style={{ height:10, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                <div className="h-full rounded-full transition-all duration-500"
+                     style={{ width:`${auditProgress.total > 0 ? Math.round((auditProgress.audited / auditProgress.total) * 100) : 0}%`, backgroundColor:"#C49A2A" }} />
+              </div>
+              <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#78716C", marginTop:6 }}>
+                {Math.round((auditProgress.audited / Math.max(1, auditProgress.total)) * 100)}% complete — processing {Math.min(10, auditProgress.total - auditProgress.audited)} articles in current batch…
+              </p>
+            </div>
+          )}
+
+          {/* Fix All Progress */}
+          {fixProgress && (
+            <div className="neu-card">
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:1 }}>
+                  Fixing article {fixProgress.fixed} of {fixProgress.total}
+                </span>
+                <span style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:16, color:"#C8322B" }}>
+                  {fixProgress.fixed}/{fixProgress.total}
+                </span>
+              </div>
+              <div className="relative rounded-full overflow-hidden"
+                   style={{ height:10, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                <div className="h-full rounded-full transition-all duration-500"
+                     style={{ width:`${fixProgress.total > 0 ? Math.round((fixProgress.fixed / fixProgress.total) * 100) : 0}%`, backgroundColor:"#C8322B" }} />
+              </div>
+            </div>
+          )}
 
           {/* Compliance Results */}
           {complianceResult && (

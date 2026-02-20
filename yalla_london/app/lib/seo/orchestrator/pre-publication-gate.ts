@@ -45,7 +45,11 @@ export async function runPrePublicationGate(
     author_id?: string;
     keywords_json?: unknown;
   },
-  siteUrl?: string
+  siteUrl?: string,
+  options?: {
+    /** Skip HTTP route-existence checks (checks 1 & 2) for faster bulk audits */
+    skipRouteCheck?: boolean;
+  },
 ): Promise<GateResult> {
   const checks: GateCheck[] = [];
   const blockers: string[] = [];
@@ -82,7 +86,8 @@ export async function runPrePublicationGate(
 
   // ── 1. Route existence check ────────────────────────────────────────
   // Verify the target URL will actually resolve (not return 404)
-  try {
+  // Skipped during bulk audits (skipRouteCheck) to avoid slow HTTP calls
+  if (!options?.skipRouteCheck) try {
     const fullUrl = targetUrl.startsWith("http")
       ? targetUrl
       : `${baseUrl}${targetUrl}`;
@@ -125,7 +130,8 @@ export async function runPrePublicationGate(
 
   // ── 2. Arabic route check ───────────────────────────────────────────
   // If publishing Arabic content, verify /ar/ routes work
-  if (content.locale === "ar" || targetUrl.startsWith("/ar/")) {
+  // Skipped during bulk audits (skipRouteCheck)
+  if (!options?.skipRouteCheck && (content.locale === "ar" || targetUrl.startsWith("/ar/"))) {
     try {
       const arTestUrl = `${baseUrl}/ar`;
       const res = await fetch(arTestUrl, {

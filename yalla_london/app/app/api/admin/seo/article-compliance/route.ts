@@ -302,12 +302,23 @@ export async function POST(request: NextRequest) {
     request.headers.get("x-site-id") || getDefaultSiteId();
 
   if (action === "audit_all") {
+    // Batched auditing: accepts offset & limit for pagination.
+    // Frontend calls in batches (e.g., 10 articles per request) to avoid
+    // Vercel 60s timeout on large article sets.
+    const offset = typeof body.offset === "number" ? Math.max(0, body.offset) : 0;
+    const limit = typeof body.limit === "number" ? Math.min(Math.max(1, body.limit), 50) : 50;
+
     try {
       const { prisma } = await import("@/lib/db");
       const { runPrePublicationGate } = await import(
         "@/lib/seo/orchestrator/pre-publication-gate"
       );
       const { STANDARDS_VERSION } = await import("@/lib/seo/standards");
+
+      // Count total articles for pagination metadata
+      const totalArticles = await prisma.blogPost.count({
+        where: { published: true, siteId, deletedAt: null },
+      });
 
       const articles = await prisma.blogPost.findMany({
         where: { published: true, siteId, deletedAt: null },
@@ -325,7 +336,9 @@ export async function POST(request: NextRequest) {
           keywords_json: true,
           tags: true,
         },
-        take: 100,
+        orderBy: { created_at: "asc" },
+        skip: offset,
+        take: limit,
       });
 
       const siteUrl = getSiteDomain(siteId);
@@ -343,6 +356,7 @@ export async function POST(request: NextRequest) {
       for (const article of articles) {
         if (Date.now() - budgetStart > 50_000) break; // 50s budget
 
+        // Skip HTTP route-existence checks during bulk audits to save ~5s per article
         const gate = await runPrePublicationGate(
           `/blog/${article.slug}`,
           {
@@ -358,6 +372,7 @@ export async function POST(request: NextRequest) {
             tags: Array.isArray(article.tags) ? article.tags as string[] : undefined,
           },
           siteUrl,
+          { skipRouteCheck: true },
         );
 
         const total = gate.checks.length;
@@ -387,7 +402,9 @@ export async function POST(request: NextRequest) {
               suggestions: gate.warnings,
             },
           });
-        } catch { /* non-fatal */ }
+        } catch (auditSaveErr) {
+          console.warn("[article-compliance] Failed to save audit:", auditSaveErr instanceof Error ? auditSaveErr.message : auditSaveErr);
+        }
       }
 
       const avgCompliance = results.length > 0
@@ -395,9 +412,17 @@ export async function POST(request: NextRequest) {
         : 0;
 
       const fullCompliance = results.filter((r) => r.compliancePercent === 100).length;
+      const hasMore = offset + articles.length < totalArticles;
 
       return NextResponse.json({
         success: true,
+        // Pagination metadata
+        totalArticles,
+        offset,
+        limit,
+        hasMore,
+        nextOffset: hasMore ? offset + articles.length : null,
+        // Batch results
         articlesAudited: results.length,
         averageCompliance: avgCompliance,
         fullComplianceCount: fullCompliance,

@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: `About ${siteName} | ${destination} Travel Guide for Arab Visitors`,
-    description: `About ${siteName} — your premium ${destination} travel guide for Arab visitors. Our story, mission, and team.`,
+    description: `About ${siteName} — your premium ${destination} travel guide for Arab visitors. Discover our story, mission, team, and commitment to luxury travel.`,
     alternates: {
       canonical: canonicalUrl,
       languages: {
@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       title: `About ${siteName} | ${destination} Travel Guide for Arab Visitors`,
-      description: `About ${siteName} — your premium ${destination} travel guide for Arab visitors. Our story, mission, and team.`,
+      description: `About ${siteName} — your premium ${destination} travel guide for Arab visitors. Discover our story, mission, team, and commitment to luxury travel.`,
       url: canonicalUrl,
       siteName,
       locale: "en_GB",
@@ -38,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       site: `@${siteSlug}`,
       title: `About ${siteName} | ${destination} Travel Guide for Arab Visitors`,
-      description: `About ${siteName} — your premium ${destination} travel guide for Arab visitors. Our story, mission, and team.`,
+      description: `About ${siteName} — your premium ${destination} travel guide for Arab visitors. Discover our story, mission, team, and commitment to luxury travel.`,
     },
     robots: {
       index: true,

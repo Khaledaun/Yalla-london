@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: `Contact Us — Get in Touch | ${siteName}`,
-    description: `Reach the ${siteName} team for ${destination} travel questions, partnerships, or feedback. We're here to help.`,
+    description: `Reach the ${siteName} team for ${destination} travel questions, partnerships, advertising, or feedback. We'd love to hear from you.`,
     alternates: {
       canonical: canonicalUrl,
       languages: {
@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       title: `Contact Us | ${siteName}`,
-      description: `Reach the ${siteName} team for ${destination} travel questions, partnerships, or feedback. We're here to help.`,
+      description: `Reach the ${siteName} team for ${destination} travel questions, partnerships, advertising, or feedback. We'd love to hear from you.`,
       url: canonicalUrl,
       siteName,
       locale: "en_GB",
@@ -38,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       site: `@${siteSlug}`,
       title: `Contact Us | ${siteName}`,
-      description: `Reach the ${siteName} team for ${destination} travel questions, partnerships, or feedback. We're here to help.`,
+      description: `Reach the ${siteName} team for ${destination} travel questions, partnerships, advertising, or feedback. We'd love to hear from you.`,
     },
     robots: {
       index: true,

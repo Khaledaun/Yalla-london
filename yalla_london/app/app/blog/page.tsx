@@ -25,7 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `Blog | ${siteName} — Travel Guides & Tips`,
     description:
-      `Travel guides, restaurant reviews, and insider tips for Arab visitors to ${destination}. Halal dining, luxury hotels, and more.`,
+      `Travel guides, restaurant reviews, and insider tips for Arab visitors to ${destination}. Halal dining, luxury hotels, and exclusive experiences.`,
     keywords:
       `${destination.toLowerCase()} blog, halal travel ${destination.toLowerCase()}, arab visitors ${destination.toLowerCase()}, ${destination.toLowerCase()} guides`,
     alternates: {

@@ -307,7 +307,7 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
       totalStaticPages: config.staticRoutes.length,
       totalPublishedArticles: blogArticles.length,
       totalUrlsAudited: urls.length,
-      averageResponseMs,
+      averageResponseMs: avgResponseMs,
       slowestPageMs: slowestPage?.timing.durationMs || 0,
       slowestPageUrl: slowestPage ? slowestPage.url.replace(baseUrl, "") : null,
       pagesWithJsonLd: [...allSignals.values()].filter((s) => s.jsonLd.length > 0).length,
@@ -440,7 +440,7 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
             softGates,
             siteParameters: {
               totalPublishedArticles: blogArticles.length,
-              averageResponseMs,
+              averageResponseMs: avgResponseMs,
               averageWordCount: siteParameters.averageWordCount,
             },
             ga4Configured: ga4Data.configured,

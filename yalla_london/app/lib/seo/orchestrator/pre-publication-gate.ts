@@ -175,18 +175,18 @@ export async function runPrePublicationGate(
     warnings.push(`Meta title is ${content.meta_title_en.length} chars — will be truncated in search results`);
   }
 
-  // Meta description: Google displays 120-160 chars. Min 70 for useful snippet.
+  // Meta description: Google displays 120-160 chars. Min 120 per standards.ts.
   if (
     !content.meta_description_en ||
-    content.meta_description_en.length < 70
+    content.meta_description_en.length < 120
   ) {
     checks.push({
       name: "Meta Description",
       passed: false,
-      message: `Meta description missing or too short (${content.meta_description_en?.length || 0} chars, min 70, optimal 120-160)`,
+      message: `Meta description missing or too short (${content.meta_description_en?.length || 0} chars, min 120, optimal 120-160)`,
       severity: "warning",
     });
-    warnings.push("Meta description should be 70-160 characters for optimal SERP display");
+    warnings.push("Meta description should be 120-160 characters for optimal SERP display");
   } else if (content.meta_description_en.length > 160) {
     checks.push({
       name: "Meta Description (Max Length)",

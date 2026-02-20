@@ -2,7 +2,7 @@
  * Master Audit API Route
  *
  * Dashboard-triggered SEO compliance audit with full data enrichment.
- * Runs within Vercel's 53s budget.
+ * Vercel Pro allows up to 300s — we use 120s with 110s budget.
  *
  * GET  — Returns latest audit results from CronJobLog
  * POST — Runs audit with: static pages + blog articles + GA4 + GSC + indexing data
@@ -12,9 +12,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAdminOrCronAuth } from "@/lib/admin-middleware";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
-const BUDGET_MS = 53_000;
+const BUDGET_MS = 110_000;
 const JOB_NAME = "master-audit";
 
 // ---------------------------------------------------------------------------
@@ -147,40 +147,33 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
     }
 
     // -----------------------------------------------------------------------
-    // Phase 2: Parallel data fetch — GSC, GA4, Indexing, DB SEO data
+    // Phase 2 + 3: Parallel — data fetches + page crawling at the same time
     // -----------------------------------------------------------------------
     const remainingBudget = () => BUDGET_MS - (Date.now() - startTime);
 
-    // Start all data queries in parallel
-    const [gscData, ga4Data, indexingData, seoMetrics] = await Promise.all([
-      fetchGSCData(siteId, remainingBudget),
-      fetchGA4Data(remainingBudget),
-      fetchIndexingData(prisma, siteId),
-      fetchSeoMetrics(prisma, siteId),
-    ]);
-
-    // Budget check before crawling
-    if (remainingBudget() < 5000) {
-      return NextResponse.json(
-        { error: "Budget exhausted before crawling" },
-        { status: 504 }
-      );
-    }
-
-    // -----------------------------------------------------------------------
-    // Phase 3: Crawl pages
-    // -----------------------------------------------------------------------
     const quickCrawlSettings = {
       ...config.crawl,
-      timeoutMs: 8000,
+      timeoutMs: 5000,       // 5s per page (SSR should respond within this)
       maxRetries: 1,
-      concurrency: 6,
+      concurrency: 10,       // Higher concurrency — it's our own site
+      rateDelayMs: 50,       // Minimal delay — self-crawling
     };
 
-    const crawlResults = await crawlBatch(urls, quickCrawlSettings);
+    // Run data fetches and page crawling concurrently
+    const [dataResults, crawlResults] = await Promise.all([
+      Promise.all([
+        fetchGSCData(siteId, remainingBudget),
+        fetchGA4Data(remainingBudget),
+        fetchIndexingData(prisma, siteId),
+        fetchSeoMetrics(prisma, siteId),
+      ]),
+      crawlBatch(urls, quickCrawlSettings),
+    ]);
+
+    const [gscData, ga4Data, indexingData, seoMetrics] = dataResults;
     const crawlMap = new Map(crawlResults.map((r) => [r.url, r]));
 
-    // Budget check after crawling
+    // Budget check after parallel phase
     if (remainingBudget() < 3000) {
       return respondWithPartialResults(
         siteId, startTime, crawlResults, "Budget exhausted after crawling",

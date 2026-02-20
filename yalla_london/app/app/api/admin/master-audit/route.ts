@@ -184,7 +184,7 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
     if (remainingBudget() < 3000) {
       return respondWithPartialResults(
         siteId, startTime, crawlResults, "Budget exhausted after crawling",
-        { gscData, ga4Data, indexingData, seoMetrics, blogArticles, siteConfig }
+        { gscData, ga4Data, indexingData, seoMetrics }
       );
     }
 
@@ -742,8 +742,6 @@ async function respondWithPartialResults(
     ga4Data?: Record<string, unknown>;
     indexingData?: Record<string, unknown>;
     seoMetrics?: Record<string, unknown>;
-    blogArticles?: Array<Record<string, unknown>>;
-    siteConfig?: Record<string, unknown> | null;
   }
 ) {
   const durationMs = Date.now() - startTime;

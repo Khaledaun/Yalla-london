@@ -54,11 +54,9 @@ export async function GET(request: NextRequest) {
     const { getSiteConfig, getSiteDomain } = await import("@/config/sites");
 
     const siteConfig = getSiteConfig(siteId);
-    const baseUrl = siteConfig?.domain
-      ? `https://${siteConfig.domain}`
-      : getSiteDomain(siteId);
-
-    // Import SEO thresholds from centralized standards — single source of truth
+    // CRITICAL: Always use getSiteDomain() — returns "https://www.{domain}"
+    // siteConfig.domain is bare ("yalla-london.com") and must NOT be used for URLs
+    const baseUrl = getSiteDomain(siteId);
     let thinContentThreshold = 300;
     let targetWordCount = 1200;
     let lowSeoScoreThreshold = 50;
@@ -648,9 +646,8 @@ export async function POST(request: NextRequest) {
     const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
 
     const siteConfig = getSiteConfig(siteId);
-    const baseUrl = siteConfig?.domain
-      ? `https://${siteConfig.domain}`
-      : getSiteDomain(siteId);
+    // CRITICAL: Always use getSiteDomain() — returns "https://www.{domain}"
+    const baseUrl = getSiteDomain(siteId);
 
     // ── Compliance Audit: check all published pages against SEO standards ──
     if (action === "compliance_audit") {

@@ -47,6 +47,7 @@ const navigation = [
       { label: 'Generation Monitor',  href: '/admin/content?tab=generation' },
       { label: 'Topics Pipeline',     href: '/admin/topics' },
       { label: 'Content Pipeline',    href: '/admin/pipeline' },
+      { label: 'Content Engine',     href: '/admin/content-engine' },
       { label: 'Categories',          href: '/admin/content-types' },
       { label: 'Information Hub',     href: '/admin/information' },
       { label: 'London News',         href: '/admin/news' },
@@ -94,6 +95,7 @@ const navigation = [
       { label: 'Add New Site',   href: '/admin/command-center/sites/new' },
       { label: 'Autopilot',      href: '/admin/command-center/autopilot' },
       { label: 'Social Media',   href: '/admin/command-center/social' },
+      { label: 'Social Calendar', href: '/admin/social-calendar' },
     ],
   },
   {
@@ -103,6 +105,7 @@ const navigation = [
     icon: Palette,
     href: '/admin/design-studio',
     items: [
+      { label: 'Design Hub',       href: '/admin/design' },
       { label: 'Design Studio',    href: '/admin/design-studio' },
       { label: 'Media Library',    href: '/admin/media' },
       { label: 'Photo Pool',       href: '/admin/photo-pool' },
@@ -110,6 +113,7 @@ const navigation = [
       { label: 'Video Studio',     href: '/admin/video-studio' },
       { label: 'PDF Generator',    href: '/admin/pdf-generator' },
       { label: 'Brand Assets',     href: '/admin/brand-assets' },
+      { label: 'Email Campaigns', href: '/admin/email-campaigns' },
     ],
   },
   {

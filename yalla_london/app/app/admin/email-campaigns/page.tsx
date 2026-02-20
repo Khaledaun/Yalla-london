@@ -326,6 +326,12 @@ export default function EmailCampaignsPage() {
                         </Link>
                         <Button variant="outline" size="sm" onClick={async () => {
                           try {
+                            // Fetch the full source template to get htmlContent
+                            const srcRes = await fetch(`/api/admin/email-templates?search=${encodeURIComponent(template.name)}&site=${template.siteId}`);
+                            const srcData = srcRes.ok ? await srcRes.json() : null;
+                            const srcTemplate = srcData?.templates?.find((t: Record<string, unknown>) => t.id === template.id);
+                            const htmlContent = srcTemplate?.htmlContent || "<div>Duplicated template</div>";
+
                             const res = await fetch("/api/admin/email-templates", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
@@ -333,8 +339,9 @@ export default function EmailCampaignsPage() {
                                 name: `${template.name} (Copy)`,
                                 subject: template.subject,
                                 type: template.type,
-                                siteId: template.siteId,
-                                duplicate: true,
+                                site: template.siteId,
+                                htmlContent,
+                                jsonContent: srcTemplate?.jsonContent || null,
                               }),
                             });
                             if (res.ok) {

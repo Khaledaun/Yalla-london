@@ -2727,3 +2727,206 @@ model ArticleDraft {
   @@index([paired_draft_id])
   @@map("article_drafts")
 }
+
+// ══════════════════════════════════════════════════════════════════
+// Design System Models
+// ══════════════════════════════════════════════════════════════════
+
+/// Design — Canvas designs created in the Design Studio (social graphics, headers, covers, etc.)
+model Design {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  type          String   // canvas, social-post, email-header, pdf-cover, logo, banner
+  category      String?  // travel-guide, social-post, flyer, menu, itinerary, infographic, poster, brochure
+  site          String   // yalla-london, arabaldives, etc.
+  canvasData    Json     // Full Konva stage JSON for re-editing
+  thumbnail     String?  // S3 URL of auto-generated preview thumbnail
+  exportedUrls  Json?    // { png: "...", svg: "...", pdf: "..." }
+  width         Int
+  height        Int
+  tags          String[]
+  isTemplate    Boolean  @default(false)
+  templateId    String?  // If created from a template, reference it
+  status        String   @default("draft") // draft, published, archived
+  createdBy     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([site, type])
+  @@index([status])
+  @@index([isTemplate])
+  @@index([createdAt])
+  @@map("designs")
+}
+
+/// PdfGuide — Generated travel PDF guides with AI content
+model PdfGuide {
+  id              String   @id @default(cuid())
+  title           String
+  slug            String   @unique
+  description     String?
+  site            String
+  style           String   // luxury, budget, family, adventure, honeymoon
+  language        String   @default("en")
+  contentSections Json     // Array of generated content sections
+  htmlContent     String?  @db.Text // Rendered HTML
+  pdfUrl          String?  // S3 URL of generated PDF binary
+  coverDesignId   String?  // Link to Design for the cover
+  status          String   @default("draft") // draft, generating, generated, published, failed
+  price           Float?   @default(0)
+  isGated         Boolean  @default(false) // Require email to download
+  downloads       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  pdfDownloads    PdfDownload[]
+
+  @@index([site])
+  @@index([status])
+  @@index([slug])
+  @@map("pdf_guides")
+}
+
+/// PdfDownload — Track PDF guide downloads for analytics and lead capture
+model PdfDownload {
+  id           String   @id @default(cuid())
+  pdfGuideId   String
+  pdfGuide     PdfGuide @relation(fields: [pdfGuideId], references: [id])
+  leadId       String?
+  email        String?
+  ip           String?
+  userAgent    String?
+  downloadedAt DateTime @default(now())
+
+  @@index([pdfGuideId])
+  @@index([email])
+  @@map("pdf_downloads")
+}
+
+/// EmailTemplate — Reusable email templates for campaigns and notifications
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  site        String
+  type        String   // notification, campaign, welcome, transactional, newsletter
+  subject     String?
+  htmlContent String   @db.Text
+  jsonContent Json?    // Structured block data for re-editing
+  thumbnail   String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([site, type])
+  @@index([isDefault])
+  @@map("email_templates")
+}
+
+/// EmailCampaign — Email campaigns sent to subscribers
+model EmailCampaign {
+  id             String    @id @default(cuid())
+  name           String
+  site           String
+  templateId     String?
+  subject        String
+  htmlContent    String    @db.Text
+  recipientCount Int       @default(0)
+  sentCount      Int       @default(0)
+  openCount      Int       @default(0)
+  clickCount     Int       @default(0)
+  status         String    @default("draft") // draft, scheduled, sending, sent, failed
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([site])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("email_campaigns")
+}
+
+/// VideoProject — Video compositions created in the Video Studio
+model VideoProject {
+  id              String   @id @default(cuid())
+  title           String
+  site            String
+  category        String   // destination-highlight, blog-promo, hotel-showcase, etc.
+  format          String   // instagram-reel, youtube-short, etc.
+  language        String   @default("en")
+  scenes          Json     // Array of scene configurations (for template-based)
+  compositionCode String?  @db.Text // AI-generated Remotion React component code
+  prompt          String?  @db.Text // Original user prompt that generated this video
+  duration        Int      // Total duration in seconds
+  fps             Int      @default(30)
+  width           Int
+  height          Int
+  thumbnail       String?  // S3 URL
+  exportedUrl     String?  // S3 URL of rendered MP4
+  status          String   @default("draft") // draft, rendering, rendered, failed, queued
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([site])
+  @@index([status])
+  @@index([category])
+  @@map("video_projects")
+}
+
+/// ContentPipeline — AI content engine pipeline runs (Researcher → Ideator → Scripter → Analyst)
+model ContentPipeline {
+  id                 String   @id @default(cuid())
+  site               String
+  status             String   @default("researching") // researching, ideating, scripting, analyzing, complete, paused
+  topic              String?
+  language           String   @default("en")
+  researchData       Json?    // Researcher output: trends, audience, keywords, competitors
+  contentAngles      Json?    // Ideator output: angles with cross-platform maps
+  scripts            Json?    // Scripter output: platform-specific scripts + asset links
+  analysisData       Json?    // Analyst output: grades, patterns, recommendations
+  generatedPosts     Json?    // Array of { platform, text, designId, videoId, scheduledContentId }
+  generatedArticleId String?
+  generatedEmailId   String?
+  generatedVideoIds  Json?
+  generatedDesignIds Json?
+  feedForwardApplied Json?    // Recommendations from previous pipeline that were applied
+  createdBy          String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  performance        ContentPerformance[]
+
+  @@index([site])
+  @@index([status])
+  @@index([createdAt])
+  @@map("content_pipelines")
+}
+
+/// ContentPerformance — Performance tracking for content pipeline outputs
+model ContentPerformance {
+  id             String    @id @default(cuid())
+  pipelineId     String
+  pipeline       ContentPipeline @relation(fields: [pipelineId], references: [id])
+  platform       String    // twitter, instagram, linkedin, blog, email, tiktok, youtube
+  contentType    String    // post, reel, story, article, newsletter, video
+  postUrl        String?   // URL of the published post
+  publishedAt    DateTime?
+  impressions    Int       @default(0)
+  engagements    Int       @default(0)
+  clicks         Int       @default(0)
+  shares         Int       @default(0)
+  saves          Int       @default(0)
+  comments       Int       @default(0)
+  conversionRate Float?
+  grade          String?   // A, B, C, D, F — set by Analyst
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([pipelineId])
+  @@index([platform])
+  @@index([grade])
+  @@map("content_performance")
+}

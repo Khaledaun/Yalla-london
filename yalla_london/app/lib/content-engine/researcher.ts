@@ -752,7 +752,7 @@ async function persistToPipeline(
           updatedAt: new Date(),
         },
       });
-      console.log(
+      console.debug(
         `${LOG_PREFIX} Updated ContentPipeline ${pipelineId} with research data`
       );
       return pipelineId;
@@ -772,7 +772,7 @@ async function persistToPipeline(
           : undefined,
       },
     });
-    console.log(
+    console.debug(
       `${LOG_PREFIX} Created ContentPipeline ${created.id} with research data`
     );
     return created.id;
@@ -807,7 +807,7 @@ export async function runResearcher(
   const { site, niche, feedForward, pipelineId } = input;
   const lookbackDays = input.lookbackDays ?? 7;
 
-  console.log(
+  console.debug(
     `${LOG_PREFIX} Starting research for site="${site}" niche="${niche ?? "general"}" lookback=${lookbackDays}d`
   );
 
@@ -827,7 +827,7 @@ export async function runResearcher(
     getRecentPerformance(site, lookbackDays),
   ]);
 
-  console.log(
+  console.debug(
     `${LOG_PREFIX} Internal data: ${topPosts.length} top posts, ${existingTopics.length} existing topics, ${performance.length} performance records`
   );
 
@@ -846,7 +846,7 @@ export async function runResearcher(
       niche,
       feedForward
     );
-    console.log(
+    console.debug(
       `${LOG_PREFIX} Fallback research saved to pipeline ${savedId}`
     );
     return fallbackOutput;
@@ -865,7 +865,7 @@ export async function runResearcher(
   let researchOutput: ResearchOutput;
 
   try {
-    console.log(`${LOG_PREFIX} Calling AI for research...`);
+    console.debug(`${LOG_PREFIX} Calling AI for research...`);
 
     const rawResponse = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a content research AI specializing in luxury travel markets. You provide data-driven research in structured JSON. Always respond with the exact JSON schema requested. Do not include markdown formatting, explanations, or commentary outside the JSON structure.`,
@@ -875,7 +875,7 @@ export async function runResearcher(
 
     researchOutput = validateAndNormalize(rawResponse, siteConfig);
 
-    console.log(
+    console.debug(
       `${LOG_PREFIX} AI research complete: ${researchOutput.trendingTopics.length} trending topics, ${researchOutput.recommendedTopics.length} recommended topics`
     );
   } catch (error) {
@@ -895,7 +895,7 @@ export async function runResearcher(
     feedForward
   );
 
-  console.log(
+  console.debug(
     `${LOG_PREFIX} Research complete for "${site}". Pipeline: ${savedId}. Topics: ${researchOutput.recommendedTopics.join("; ")}`
   );
 

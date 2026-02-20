@@ -3,7 +3,12 @@
  *
  * Each template is an array of EmailBlock objects with realistic
  * travel-site content and brand-aware default styling.
+ *
+ * Brand colours and site details are pulled from config/sites.ts
+ * so templates adapt automatically to any active site.
  */
+
+import { getSiteConfig, getSiteDomain, getDefaultSiteId } from '@/config/sites'
 
 export interface EmailBlock {
   id: string
@@ -27,23 +32,31 @@ function uid(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Brand defaults - reference primary/secondary from config/sites.ts
+// Brand defaults — derived from site config at import time
 // ---------------------------------------------------------------------------
-const BRAND = {
-  primaryColor: '#1C1917',
-  secondaryColor: '#C8322B',
-  accentGold: '#D4AF37',
-  white: '#FFFFFF',
-  lightGray: '#F5F5F5',
-  darkGray: '#374151',
-  textColor: '#1F2937',
-  mutedText: '#6B7280',
-  logoUrl: '/images/yalla-london-logo.png',
-  siteName: 'Yalla London',
-  siteUrl: 'https://yalla-london.com',
-  supportEmail: 'hello@yalla-london.com',
-  companyAddress: 'Zenitha.Luxury LLC, Delaware, United States',
-} as const
+function buildBrandDefaults() {
+  const siteId = getDefaultSiteId()
+  const cfg = getSiteConfig(siteId)
+  const domain = cfg?.domain ?? 'yalla-london.com'
+  const siteUrl = getSiteDomain(siteId)
+  return {
+    primaryColor: cfg?.primaryColor ?? '#1C1917',
+    secondaryColor: cfg?.secondaryColor ?? '#C8322B',
+    accentGold: '#D4AF37',
+    white: '#FFFFFF',
+    lightGray: '#F5F5F5',
+    darkGray: '#374151',
+    textColor: '#1F2937',
+    mutedText: '#6B7280',
+    logoUrl: `/images/${cfg?.slug ?? 'yalla-london'}-logo.png`,
+    siteName: cfg?.name ?? 'Yalla London',
+    siteUrl,
+    supportEmail: `hello@${domain}`,
+    companyAddress: 'Zenitha.Luxury LLC, Delaware, United States',
+  }
+}
+
+const BRAND = buildBrandDefaults()
 
 // ---------------------------------------------------------------------------
 // Newsletter template
@@ -53,8 +66,8 @@ const newsletter: EmailBlock[] = [
     id: uid(),
     type: 'header',
     content: {
-      title: 'Yalla London Weekly',
-      subtitle: 'Your curated guide to luxury London experiences',
+      title: `${BRAND.siteName} Weekly`,
+      subtitle: 'Your curated guide to luxury travel experiences',
       logoUrl: BRAND.logoUrl,
     },
     styles: {
@@ -81,7 +94,7 @@ const newsletter: EmailBlock[] = [
     content: {
       src: '/images/newsletter/london-skyline.jpg',
       alt: 'London skyline at sunset viewed from the Thames',
-      linkUrl: 'https://yalla-london.com/blog/london-skyline-guide',
+      linkUrl: `${BRAND.siteUrl}/blog/london-skyline-guide`,
       width: '100%',
     },
     styles: {
@@ -97,14 +110,14 @@ const newsletter: EmailBlock[] = [
         {
           heading: 'Halal Fine Dining in Mayfair',
           text: 'Discover 5 newly reviewed restaurants serving exceptional halal cuisine in one of London\'s most prestigious neighbourhoods.',
-          linkUrl: 'https://yalla-london.com/blog/halal-mayfair',
+          linkUrl: `${BRAND.siteUrl}/blog/halal-mayfair`,
           linkText: 'Read More',
           imageUrl: '/images/newsletter/mayfair-dining.jpg',
         },
         {
           heading: 'Harrods Shopping Guide 2026',
           text: 'Your complete guide to navigating Harrods like a VIP -- personal shoppers, prayer rooms, and exclusive Arab-friendly services.',
-          linkUrl: 'https://yalla-london.com/blog/harrods-guide',
+          linkUrl: `${BRAND.siteUrl}/blog/harrods-guide`,
           linkText: 'Read More',
           imageUrl: '/images/newsletter/harrods-guide.jpg',
         },
@@ -141,7 +154,7 @@ const newsletter: EmailBlock[] = [
     type: 'button',
     content: {
       text: 'Book The Shard Experience',
-      url: 'https://yalla-london.com/go/shard-ramadan',
+      url: `${BRAND.siteUrl}/go/shard-ramadan`,
     },
     styles: {
       backgroundColor: BRAND.secondaryColor,
@@ -158,10 +171,10 @@ const newsletter: EmailBlock[] = [
     type: 'social-links',
     content: {
       links: [
-        { platform: 'instagram', url: 'https://instagram.com/yallalondon' },
-        { platform: 'twitter', url: 'https://x.com/yallalondon' },
-        { platform: 'facebook', url: 'https://facebook.com/yallalondon' },
-        { platform: 'tiktok', url: 'https://tiktok.com/@yallalondon' },
+        { platform: 'instagram', url: `https://instagram.com/${BRAND.siteName.toLowerCase().replace(/\s+/g, '')}` },
+        { platform: 'twitter', url: `https://x.com/${BRAND.siteName.toLowerCase().replace(/\s+/g, '')}` },
+        { platform: 'facebook', url: `https://facebook.com/${BRAND.siteName.toLowerCase().replace(/\s+/g, '')}` },
+        { platform: 'tiktok', url: `https://tiktok.com/@${BRAND.siteName.toLowerCase().replace(/\s+/g, '')}` },
       ],
     },
     styles: {
@@ -197,7 +210,7 @@ const welcome: EmailBlock[] = [
     id: uid(),
     type: 'header',
     content: {
-      title: 'Welcome to Yalla London',
+      title: `Welcome to ${BRAND.siteName}`,
       subtitle: '',
       logoUrl: BRAND.logoUrl,
     },
@@ -212,7 +225,7 @@ const welcome: EmailBlock[] = [
     id: uid(),
     type: 'text',
     content: {
-      html: '<h1 style="font-size:28px;font-weight:700;color:#1C1917;text-align:center;margin-bottom:16px;">Marhaba! Welcome aboard.</h1><p style="font-size:16px;line-height:1.7;color:#374151;text-align:center;">You have joined thousands of Arab travellers who trust Yalla London for authentic, halal-friendly travel advice in the heart of the UK capital.</p>',
+      html: `<h1 style="font-size:28px;font-weight:700;color:#1C1917;text-align:center;margin-bottom:16px;">Marhaba! Welcome aboard.</h1><p style="font-size:16px;line-height:1.7;color:#374151;text-align:center;">You have joined thousands of Arab travellers who trust ${BRAND.siteName} for authentic, halal-friendly travel advice.</p>`,
     },
     styles: {
       padding: '32px 24px',
@@ -248,7 +261,7 @@ const welcome: EmailBlock[] = [
     type: 'button',
     content: {
       text: 'Explore Our Latest Guides',
-      url: 'https://yalla-london.com/blog',
+      url: `${BRAND.siteUrl}/blog`,
     },
     styles: {
       backgroundColor: BRAND.secondaryColor,
@@ -297,7 +310,7 @@ const dealAlert: EmailBlock[] = [
     type: 'header',
     content: {
       title: 'Exclusive Deal Alert',
-      subtitle: 'Limited time offer for Yalla London subscribers',
+      subtitle: `Limited time offer for ${BRAND.siteName} subscribers`,
       logoUrl: BRAND.logoUrl,
     },
     styles: {
@@ -313,7 +326,7 @@ const dealAlert: EmailBlock[] = [
     content: {
       src: '/images/newsletter/hotel-deal.jpg',
       alt: 'Luxury hotel suite with London cityscape view',
-      linkUrl: 'https://yalla-london.com/go/hotel-deal',
+      linkUrl: `${BRAND.siteUrl}/go/hotel-deal`,
       width: '100%',
     },
     styles: {
@@ -337,7 +350,7 @@ const dealAlert: EmailBlock[] = [
     type: 'button',
     content: {
       text: 'Book Now -- Save 30%',
-      url: 'https://yalla-london.com/go/shangri-la-deal',
+      url: `${BRAND.siteUrl}/go/shangri-la-deal`,
     },
     styles: {
       backgroundColor: BRAND.accentGold,
@@ -353,7 +366,7 @@ const dealAlert: EmailBlock[] = [
     id: uid(),
     type: 'text',
     content: {
-      html: '<p style="font-size:13px;color:#6B7280;text-align:center;margin-top:8px;">This is an affiliate offer. Yalla London may earn a commission at no extra cost to you.</p>',
+      html: `<p style="font-size:13px;color:#6B7280;text-align:center;margin-top:8px;">This is an affiliate offer. ${BRAND.siteName} may earn a commission at no extra cost to you.</p>`,
     },
     styles: {
       padding: '0 24px 16px',
@@ -387,7 +400,7 @@ const articleNotification: EmailBlock[] = [
     id: uid(),
     type: 'header',
     content: {
-      title: 'New on Yalla London',
+      title: `New on ${BRAND.siteName}`,
       subtitle: '',
       logoUrl: BRAND.logoUrl,
     },
@@ -404,7 +417,7 @@ const articleNotification: EmailBlock[] = [
     content: {
       src: '/images/newsletter/article-hero.jpg',
       alt: 'Article featured image',
-      linkUrl: 'https://yalla-london.com/blog/latest-article',
+      linkUrl: `${BRAND.siteUrl}/blog/latest-article`,
       width: '100%',
     },
     styles: {
@@ -428,7 +441,7 @@ const articleNotification: EmailBlock[] = [
     type: 'button',
     content: {
       text: 'Read the Full Article',
-      url: 'https://yalla-london.com/blog/halal-restaurants-knightsbridge',
+      url: `${BRAND.siteUrl}/blog/halal-restaurants-knightsbridge`,
     },
     styles: {
       backgroundColor: BRAND.primaryColor,
@@ -453,7 +466,7 @@ const articleNotification: EmailBlock[] = [
     id: uid(),
     type: 'text',
     content: {
-      html: '<p style="font-size:14px;color:#6B7280;text-align:center;">You are receiving this because you subscribed to new article notifications on Yalla London.</p>',
+      html: `<p style="font-size:14px;color:#6B7280;text-align:center;">You are receiving this because you subscribed to new article notifications on ${BRAND.siteName}.</p>`,
     },
     styles: {
       padding: '8px 24px',
@@ -502,7 +515,7 @@ const transactional: EmailBlock[] = [
     id: uid(),
     type: 'text',
     content: {
-      html: '<p style="font-size:16px;line-height:1.6;color:#1F2937;">Dear {{customer_name}},</p><p style="font-size:16px;line-height:1.6;color:#1F2937;">Thank you for booking through Yalla London. Here are your confirmation details:</p>',
+      html: `<p style="font-size:16px;line-height:1.6;color:#1F2937;">Dear {{customer_name}},</p><p style="font-size:16px;line-height:1.6;color:#1F2937;">Thank you for booking through ${BRAND.siteName}. Here are your confirmation details:</p>`,
     },
     styles: {
       padding: '24px 24px 8px',
@@ -533,7 +546,7 @@ const transactional: EmailBlock[] = [
     id: uid(),
     type: 'text',
     content: {
-      html: '<p style="font-size:15px;line-height:1.6;color:#374151;">Need to make changes? Contact us at <a href="mailto:hello@yalla-london.com" style="color:#C8322B;">hello@yalla-london.com</a> or reply directly to this email.</p>',
+      html: `<p style="font-size:15px;line-height:1.6;color:#374151;">Need to make changes? Contact us at <a href="mailto:${BRAND.supportEmail}" style="color:${BRAND.secondaryColor};">${BRAND.supportEmail}</a> or reply directly to this email.</p>`,
     },
     styles: {
       padding: '24px',

@@ -176,7 +176,7 @@ export async function generatePdfAndUpload(
 
   const buffer = await generatePdfFromHtml(html, options);
 
-  console.log(
+  console.debug(
     `[html-to-pdf] Generated PDF "${filename}" — ${buffer.length} bytes`,
   );
 

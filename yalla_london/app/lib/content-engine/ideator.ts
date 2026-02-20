@@ -624,7 +624,7 @@ export async function runIdeator(input: IdeatorInput): Promise<IdeatorOutput> {
     throw new Error(`${LOG_TAG} Unknown site: "${siteId}". Check config/sites.ts.`);
   }
 
-  console.log(`${LOG_TAG} Starting ideation for topic="${topic}" site=${siteId}`);
+  console.debug(`${LOG_TAG} Starting ideation for topic="${topic}" site=${siteId}`);
 
   // 2. Fetch existing titles from DB (merge with any provided titles)
   let existingTitles: string[];
@@ -641,7 +641,7 @@ export async function runIdeator(input: IdeatorInput): Promise<IdeatorOutput> {
     existingTitles = providedTitles || [];
   }
 
-  console.log(
+  console.debug(
     `${LOG_TAG} Found ${existingTitles.length} existing titles to avoid`
   );
 
@@ -675,7 +675,7 @@ export async function runIdeator(input: IdeatorInput): Promise<IdeatorOutput> {
     // 5. Validate and normalize the AI response
     const output = validateAndNormalize(rawResponse);
 
-    console.log(
+    console.debug(
       `${LOG_TAG} Ideation complete: ${output.angles.length} angles, ` +
         `${output.contentCalendar.length} calendar days, ` +
         `${output.pillarContent.length} pillar pieces`

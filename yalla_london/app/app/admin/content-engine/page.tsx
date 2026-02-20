@@ -22,6 +22,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { SITES, getDefaultSiteId } from "@/config/sites";
 import {
   Search,
   Sparkles,
@@ -71,13 +72,7 @@ interface Pipeline {
 
 // ─── Constants ───────────────────────────────────────────────────
 
-const SITE_OPTIONS = [
-  { id: "yalla-london", name: "Yalla London" },
-  { id: "arabaldives", name: "Arabaldives" },
-  { id: "french-riviera", name: "Yalla Riviera" },
-  { id: "istanbul", name: "Yalla Istanbul" },
-  { id: "thailand", name: "Yalla Thailand" },
-];
+const SITE_OPTIONS = Object.values(SITES).map((s) => ({ id: s.id, name: s.name }));
 
 const STAGE_ICONS: Record<string, React.ElementType> = {
   researcher: Search,
@@ -137,7 +132,7 @@ export default function ContentEnginePage() {
   const [isCreating, setIsCreating] = useState(false);
 
   // New pipeline form state
-  const [newSiteId, setNewSiteId] = useState("yalla-london");
+  const [newSiteId, setNewSiteId] = useState(getDefaultSiteId());
   const [newTopic, setNewTopic] = useState("");
   const [newLanguage, setNewLanguage] = useState("en");
 
@@ -151,7 +146,7 @@ export default function ContentEnginePage() {
           items.map((p: Record<string, unknown>) => ({
             id: String(p.id || ""),
             topic: String(p.topic || p.title || "Untitled"),
-            siteId: String(p.siteId || p.site_id || "yalla-london"),
+            siteId: String(p.siteId || p.site_id || getDefaultSiteId()),
             siteName: String(p.siteName || p.site_name || ""),
             language: String(p.language || p.locale || "en"),
             status: String(p.status || "queued") as Pipeline["status"],

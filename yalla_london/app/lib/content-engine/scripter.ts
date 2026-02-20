@@ -555,7 +555,7 @@ export async function runScripter(input: ScripterInput): Promise<ScripterOutput>
     return { socialPosts: [], videoProjects: [] };
   }
 
-  console.log(`${TAG} Processing ${angles.length} angle(s) for site="${site}" language="${language}" ai=${aiAvailable}`);
+  console.debug(`${TAG} Processing ${angles.length} angle(s) for site="${site}" language="${language}" ai=${aiAvailable}`);
 
   const output: ScripterOutput = {
     socialPosts: [],
@@ -635,7 +635,7 @@ export async function runScripter(input: ScripterInput): Promise<ScripterOutput>
     }
   }
 
-  console.log(
+  console.debug(
     `${TAG} Scripting complete: ${output.socialPosts.length} social posts, ` +
     `blog=${!!output.blogArticle}, email=${!!output.emailCampaign}, ` +
     `videos=${output.videoProjects?.length || 0}`,
@@ -1067,7 +1067,7 @@ export async function publishPipeline(
     console.error(`${TAG} Failed to update ContentPipeline ${pipelineId} with generated IDs:`, err instanceof Error ? err.message : err);
   }
 
-  console.log(
+  console.debug(
     `${TAG} Published pipeline ${pipelineId}: ` +
     `${result.socialPostIds.length} social, ` +
     `article=${result.articleId || 'none'}, ` +

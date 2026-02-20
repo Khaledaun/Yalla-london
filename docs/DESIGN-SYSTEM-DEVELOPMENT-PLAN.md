@@ -246,6 +246,15 @@ Transform disconnected, partially-built design tools into a **unified, productio
 - **Fixed:** Video hero `autoPlay` attribute added
 - **Fixed:** `video-studio/route.ts` — 3 hardcoded `"yalla-london"` fallbacks → `getDefaultSiteId()`
 
+### Audit Round 8 (Email Templates + Multi-Site Config + Logging)
+- **Fixed:** `email-templates.ts` — Replaced hardcoded BRAND constant with `buildBrandDefaults()` that reads from `config/sites.ts`. All 9 hardcoded `yalla-london.com` URLs now dynamic via `BRAND.siteUrl`. All 8 "Yalla London" site name references now use `BRAND.siteName`. Social media URLs derive from site name. Hardcoded `hello@yalla-london.com` now uses `BRAND.supportEmail`. Added import for `getSiteConfig, getSiteDomain, getDefaultSiteId`.
+- **Fixed:** `content-engine/page.tsx` — Imported `SITES, getDefaultSiteId` from config. Hardcoded `SITE_OPTIONS` array → config-derived. Default `newSiteId` state → `getDefaultSiteId()`. Pipeline mapping fallback `"yalla-london"` → `getDefaultSiteId()`.
+- **Fixed:** `design-studio/page.tsx` — Imported `SITES, getDefaultSiteId` from config. Hardcoded `SITES` array → config-derived. Default `activeSite` state → `getDefaultSiteId()`.
+- **Fixed:** `design/page.tsx` — Imported `SITES, getDefaultSiteId` from config. Hardcoded `SITE_LIST` with inline colors → config-derived with `primaryColor`, `secondaryColor` from site config.
+- **Fixed:** 18 `console.log()` statements → `console.debug()` across 5 production files: `html-to-pdf.ts` (1), `analyst.ts` (3), `researcher.ts` (8), `ideator.ts` (3), `scripter.ts` (3).
+- **Verified:** PDF generator `siteId` scoping already correct — `storePDFRecord` sets `site_id: config.siteId`, `getPDFGuides` filters by `siteId`.
+- **Verified:** Social scheduler `lib/social/scheduler.ts` exists and is fully functional.
+
 ---
 
 ## Files Created (Final Tally)

@@ -24,6 +24,7 @@ import {
   Layers,
 } from "lucide-react";
 import { toast } from "sonner";
+import { SITES as SITE_CONFIG, getDefaultSiteId } from "@/config/sites";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -52,15 +53,14 @@ interface AssetStats {
   emailsSent: number;
 }
 
-// ─── Site config (client-side, matches server config) ────────────
+// ─── Site config (derived from central config/sites.ts) ──────────
 
-const SITE_LIST: { id: string; name: string; primaryColor: string; secondaryColor: string }[] = [
-  { id: "yalla-london", name: "Yalla London", primaryColor: "#1C1917", secondaryColor: "#C8322B" },
-  { id: "arabaldives", name: "Arabaldives", primaryColor: "#0891B2", secondaryColor: "#06B6D4" },
-  { id: "french-riviera", name: "Yalla Riviera", primaryColor: "#1E3A5F", secondaryColor: "#D4AF37" },
-  { id: "istanbul", name: "Yalla Istanbul", primaryColor: "#DC2626", secondaryColor: "#DC2626" },
-  { id: "thailand", name: "Yalla Thailand", primaryColor: "#059669", secondaryColor: "#059669" },
-];
+const SITE_LIST = Object.values(SITE_CONFIG).map((s) => ({
+  id: s.id,
+  name: s.name,
+  primaryColor: s.primaryColor,
+  secondaryColor: s.secondaryColor,
+}));
 
 // ─── Quick Create items ──────────────────────────────────────────
 

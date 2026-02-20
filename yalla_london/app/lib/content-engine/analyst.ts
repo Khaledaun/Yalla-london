@@ -441,7 +441,7 @@ Rules:
 
 export async function runAnalyst(input: AnalystInput): Promise<AnalystOutput> {
   const { pipelineId, site } = input;
-  console.log(`${LOG_PREFIX} Starting analysis for pipeline=${pipelineId} site=${site}`);
+  console.debug(`${LOG_PREFIX} Starting analysis for pipeline=${pipelineId} site=${site}`);
 
   // 1. Load the ContentPipeline record
   const pipeline = await prisma.contentPipeline.findUnique({
@@ -637,7 +637,7 @@ export async function runAnalyst(input: AnalystInput): Promise<AnalystOutput> {
         status: 'complete',
       },
     });
-    console.log(`${LOG_PREFIX} Analysis saved to pipeline=${pipelineId}, status set to "complete"`);
+    console.debug(`${LOG_PREFIX} Analysis saved to pipeline=${pipelineId}, status set to "complete"`);
   } catch (error) {
     console.error(
       `${LOG_PREFIX} Failed to save analysis to pipeline=${pipelineId}:`,
@@ -673,7 +673,7 @@ export async function getLatestFeedForward(
     });
 
     if (!pipeline?.analysisData) {
-      console.log(`${LOG_PREFIX} No completed pipeline with analysisData found for site=${site}`);
+      console.debug(`${LOG_PREFIX} No completed pipeline with analysisData found for site=${site}`);
       return null;
     }
 

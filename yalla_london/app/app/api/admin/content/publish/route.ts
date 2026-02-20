@@ -115,23 +115,34 @@ export async function POST(request: NextRequest) {
         qualityIssues.push("No category assigned");
       }
 
-      // Gate 3: Minimum SEO score threshold
-      const minSeoScore = parseInt(process.env.MIN_PUBLISH_SEO_SCORE || "40");
+      // Gate 3: Minimum SEO score — threshold from centralized standards.ts
+      let minSeoScore = 70; // fallback
+      let metaTitleMin = 30;
+      let metaTitleMax = 60;
+      try {
+        const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
+        minSeoScore = CONTENT_QUALITY.qualityGateScore;
+        metaTitleMin = CONTENT_QUALITY.metaTitleMin;
+        metaTitleMax = CONTENT_QUALITY.metaTitleOptimal.max;
+      } catch { /* use fallbacks */ }
+      // Allow env override, but default to standards.ts value
+      const envOverride = process.env.MIN_PUBLISH_SEO_SCORE;
+      if (envOverride) minSeoScore = parseInt(envOverride);
       if (content.seo_score !== null && content.seo_score < minSeoScore) {
         qualityIssues.push(
           `SEO score ${content.seo_score} below minimum ${minSeoScore}`,
         );
       }
 
-      // Gate 4: Title length check
-      if (content.title_en && content.title_en.length < 20) {
+      // Gate 4: Title length check — thresholds from standards.ts
+      if (content.title_en && content.title_en.length < metaTitleMin) {
         qualityIssues.push(
-          `Title too short: ${content.title_en.length} chars (min 20)`,
+          `Title too short: ${content.title_en.length} chars (min ${metaTitleMin})`,
         );
       }
-      if (content.title_en && content.title_en.length > 70) {
+      if (content.title_en && content.title_en.length > metaTitleMax) {
         qualityIssues.push(
-          `Title too long: ${content.title_en.length} chars (max 70)`,
+          `Title too long: ${content.title_en.length} chars (max ${metaTitleMax})`,
         );
       }
 

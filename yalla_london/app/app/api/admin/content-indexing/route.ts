@@ -58,6 +58,17 @@ export async function GET(request: NextRequest) {
       ? `https://${siteConfig.domain}`
       : getSiteDomain(siteId);
 
+    // Import SEO thresholds from centralized standards — single source of truth
+    let thinContentThreshold = 300;
+    let targetWordCount = 1200;
+    let lowSeoScoreThreshold = 50;
+    try {
+      const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
+      thinContentThreshold = CONTENT_QUALITY.thinContentThreshold;
+      targetWordCount = CONTENT_QUALITY.targetWords;
+      lowSeoScoreThreshold = Math.round(CONTENT_QUALITY.qualityGateScore * 0.7);
+    } catch { /* use fallbacks */ }
+
     // 1. Get all published blog posts
     const posts = await prisma.blogPost.findMany({
       where: {
@@ -270,13 +281,13 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // SEO quality issues that could prevent indexing
-      if (wordCount < 300) {
-        reasons.push(`Very thin content (${wordCount} words) — Google rarely indexes pages under 300 words`);
-      } else if (wordCount < 1200) {
-        reasons.push(`Content below target length (${wordCount}/1,200 words) — may affect indexing priority`);
+      // SEO quality issues that could prevent indexing — thresholds from standards.ts
+      if (wordCount < thinContentThreshold) {
+        reasons.push(`Very thin content (${wordCount} words) — Google rarely indexes pages under ${thinContentThreshold} words`);
+      } else if (wordCount < targetWordCount) {
+        reasons.push(`Content below target length (${wordCount}/${targetWordCount.toLocaleString()} words) — may affect indexing priority`);
       }
-      if ((post.seo_score || 0) < 50) {
+      if ((post.seo_score || 0) < lowSeoScoreThreshold) {
         reasons.push(`Low SEO score (${post.seo_score || 0}/100) — improve meta tags, headings, and content structure`);
       }
       if (!post.meta_title_en) {
@@ -451,23 +462,23 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Content quality issues affecting indexing
-    const thinContentCount = articles.filter((a) => a.wordCount < 300).length;
+    // Content quality issues affecting indexing — thresholds from standards.ts
+    const thinContentCount = articles.filter((a) => a.wordCount < thinContentThreshold).length;
     if (thinContentCount > 0) {
       systemIssues.push({
         severity: "warning",
         category: "Content Quality",
-        message: `${thinContentCount} article(s) have very thin content (<300 words)`,
+        message: `${thinContentCount} article(s) have very thin content (<${thinContentThreshold} words)`,
         detail: "Google typically won't index pages with very little content. These articles need more depth.",
       });
     }
 
-    const lowSeoCount = articles.filter((a) => a.seoScore < 50).length;
+    const lowSeoCount = articles.filter((a) => a.seoScore < lowSeoScoreThreshold).length;
     if (lowSeoCount > 0) {
       systemIssues.push({
         severity: "info",
         category: "SEO Quality",
-        message: `${lowSeoCount} article(s) have low SEO scores (<50)`,
+        message: `${lowSeoCount} article(s) have low SEO scores (<${lowSeoScoreThreshold})`,
         detail: "Low SEO scores indicate missing meta tags, poor heading structure, or other SEO issues that reduce indexing likelihood.",
       });
     }

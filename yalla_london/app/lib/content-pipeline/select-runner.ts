@@ -14,7 +14,6 @@ import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
-const MIN_QUALITY_SCORE = 70; // Aligned with CONTENT_QUALITY.qualityGateScore from lib/seo/standards.ts
 const MAX_ARTICLES_PER_RUN = 2;
 
 export interface SelectRunnerResult {
@@ -38,6 +37,10 @@ export async function runContentSelector(
   try {
     const { prisma } = await import("@/lib/db");
     const { getActiveSiteIds, SITES, getSiteDomain } = await import("@/config/sites");
+    // Import quality gate threshold from centralized SEO standards — single source of truth.
+    // When standards.ts is updated (e.g., after algorithm changes), this threshold updates automatically.
+    const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
+    const MIN_QUALITY_SCORE = CONTENT_QUALITY.qualityGateScore;
 
     const activeSites = getActiveSiteIds();
     if (activeSites.length === 0) {

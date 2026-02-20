@@ -469,7 +469,7 @@ export async function POST(request: NextRequest) {
       try {
         const { getSiteConfig } = await import("@/config/sites");
         const cfg = getSiteConfig(article.siteId || siteId);
-        if (cfg?.siteName) siteName = cfg.siteName;
+        if (cfg?.name) siteName = cfg.name;
       } catch { /* use fallback */ }
 
       // ── Fix 1: Missing or short meta title ──

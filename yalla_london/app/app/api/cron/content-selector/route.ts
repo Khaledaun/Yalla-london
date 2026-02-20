@@ -37,7 +37,7 @@ async function handleContentSelector(request: NextRequest) {
         endpoint: "content-selector",
         reservoirCount,
         publishedCount,
-        minQualityScore: 50,
+        minQualityScore: 70,
         maxPerRun: 2,
         timestamp: new Date().toISOString(),
       });

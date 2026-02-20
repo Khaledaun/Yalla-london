@@ -290,7 +290,7 @@ export async function runPrePublicationGate(
 
   // ── 7. Internal links check — threshold from standards.ts ─────────
   if (content.content_en) {
-    const internalLinkCount = countInternalLinks(content.content_en);
+    const internalLinkCount = await countInternalLinks(content.content_en);
     if (internalLinkCount < minInternalLinks) {
       checks.push({
         name: "Internal Links",
@@ -527,10 +527,10 @@ function countWords(html: string): number {
  * Count internal links in HTML content.
  * Dynamically builds regex from configured sites — no hardcoded domains.
  */
-function countInternalLinks(html: string): number {
+async function countInternalLinks(html: string): Promise<number> {
   let domainPattern = "yalla-london|arabaldives|yallariviera|yallaistanbul|yallathailand";
   try {
-    const { SITES } = require("@/config/sites");
+    const { SITES } = await import("@/config/sites");
     const domains = Object.values(SITES)
       .map((s: any) => s.domain?.replace(/\./g, "\\."))
       .filter(Boolean);

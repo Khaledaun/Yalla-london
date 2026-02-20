@@ -194,11 +194,12 @@ test("Pipeline", "build-runner uses 'generating' status", () => {
 
 // ==================== CATEGORY 4: Quality Gate ====================
 
-test("Quality Gate", "SEO score threshold is 60 in phases.ts", () => {
+test("Quality Gate", "SEO score threshold is 70 in phases.ts (from standards.ts)", () => {
   if (!fileExists("lib/content-pipeline/phases.ts")) return { status: FAIL, details: "Missing" };
-  return fileContains("lib/content-pipeline/phases.ts", ">= 60")
-    ? { status: PASS, details: "Threshold 60 found" }
-    : { status: FAIL, details: "Threshold 60 not found" };
+  // phases.ts imports qualityGateScore from standards.ts (value = 70) with fallback 70
+  return fileContains("lib/content-pipeline/phases.ts", "qualityGateScore")
+    ? { status: PASS, details: "Uses standards.ts qualityGateScore (70)" }
+    : { status: FAIL, details: "Not referencing standards.ts qualityGateScore" };
 });
 
 test("Quality Gate", "Pre-pub gate is fail-closed (blockers.length === 0)", () => {

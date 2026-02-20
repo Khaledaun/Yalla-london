@@ -118,6 +118,9 @@
       Full-site crawl with 8 validators (HTTP, canonical, hreflang, JSON-LD schema, internal links, metadata, robots, sitemap) and 6 hard gates.
       Quick mode scans static routes (~20s). Full mode includes all blog posts from sitemap (~40-50s).
     </p>
+    <div style="margin-bottom:12px;">
+      <input type="password" id="auditSecret" class="cron-input" placeholder="Enter your CRON_SECRET to authenticate..." oninput="syncSecrets(this.value)">
+    </div>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:12px;">
       <button id="auditQuickBtn" onclick="runMasterAudit('quick')" style="background:#d97706;">Run Quick Audit (static pages)</button>
       <button id="auditFullBtn" onclick="runMasterAudit('full')" style="background:#2563eb;">Run Full Audit (all pages)</button>
@@ -2399,10 +2402,24 @@ function copyJsonResult(evt) {
 
 let auditRunning = false;
 
+// Keep both secret inputs in sync
+function syncSecrets(value) {
+  const main = document.getElementById('cronSecret');
+  const audit = document.getElementById('auditSecret');
+  if (main && main.value !== value) main.value = value;
+  if (audit && audit.value !== value) audit.value = value;
+}
+
+function getAuditSecret() {
+  return document.getElementById('auditSecret')?.value
+    || document.getElementById('cronSecret')?.value
+    || '';
+}
+
 function getAuthHeaders() {
-  const cronSecret = getCronSecret();
+  const secret = getAuditSecret();
   const headers = { 'Content-Type': 'application/json' };
-  if (cronSecret) headers['Authorization'] = 'Bearer ' + cronSecret;
+  if (secret) headers['Authorization'] = 'Bearer ' + secret;
   return headers;
 }
 
@@ -2420,6 +2437,22 @@ function setAuditProgress(pct) {
 
 async function runMasterAudit(mode) {
   if (auditRunning) return;
+
+  const secret = getAuditSecret();
+  if (!secret) {
+    document.getElementById('auditResults').innerHTML = `
+      <div class="section" style="border-color:#92400e;">
+        <h2 style="color:#fbbf24;">Authentication Required</h2>
+        <p style="color:#fde68a;font-size:0.85rem;">Enter your <code>CRON_SECRET</code> in the field above to authenticate.</p>
+        <div class="diag diag-warn" style="margin-top:8px;">
+          <strong>Where to find it:</strong> Vercel Dashboard → Settings → Environment Variables → <code>CRON_SECRET</code>.
+          This is the same secret used for cron jobs.
+        </div>
+      </div>`;
+    document.getElementById('auditSecret').focus();
+    return;
+  }
+
   auditRunning = true;
 
   const quickBtn = document.getElementById('auditQuickBtn');
@@ -2447,8 +2480,13 @@ async function runMasterAudit(mode) {
     setAuditProgress(90);
 
     if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ error: 'HTTP ' + resp.status }));
-      throw new Error(err.error || 'Audit failed with HTTP ' + resp.status);
+      const errBody = await resp.text().catch(() => '');
+      let errMsg = 'HTTP ' + resp.status;
+      try { const j = JSON.parse(errBody); errMsg = j.error || errMsg; } catch {}
+      if (resp.status === 401) errMsg = 'Authentication failed — check your CRON_SECRET';
+      if (resp.status === 403) errMsg = 'Access denied — CRON_SECRET is incorrect';
+      if (resp.status === 404) errMsg = 'Endpoint not found — redeploy to enable /api/admin/master-audit';
+      throw new Error(errMsg);
     }
 
     const data = await resp.json();

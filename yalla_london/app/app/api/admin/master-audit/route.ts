@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { withAdminAuth } from "@/lib/admin-middleware";
+import { withAdminOrCronAuth } from "@/lib/admin-middleware";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -21,7 +21,7 @@ const JOB_NAME = "master-audit";
 // GET — Retrieve latest audit results
 // ---------------------------------------------------------------------------
 
-export const GET = withAdminAuth(async (request: NextRequest) => {
+export const GET = withAdminOrCronAuth(async (request: NextRequest) => {
   try {
     const { prisma } = await import("@/lib/db");
     const { getDefaultSiteId } = await import("@/config/sites");
@@ -78,7 +78,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 // POST — Run a quick audit
 // ---------------------------------------------------------------------------
 
-export const POST = withAdminAuth(async (request: NextRequest) => {
+export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
   const startTime = Date.now();
 
   try {

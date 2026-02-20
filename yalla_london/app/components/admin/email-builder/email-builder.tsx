@@ -41,6 +41,9 @@ import {
   Redo2,
   Palette,
   Mail,
+  PanelLeftOpen,
+  PanelRightOpen,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -152,6 +155,8 @@ export default function EmailBuilder({ initialBlocks, templateId, site, onSave }
   )
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop')
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [showBlocks, setShowBlocks] = useState(false) // mobile sidebar toggle
+  const [showProps, setShowProps] = useState(false) // mobile sidebar toggle
 
   // Undo / redo
   const historyRef = useRef<EmailBlock[][]>([])
@@ -315,10 +320,23 @@ export default function EmailBuilder({ initialBlocks, templateId, site, onSave }
         </Button>
       </div>
 
+      {/* Mobile toolbar */}
+      <div className="flex md:hidden items-center gap-2 px-3 py-1.5 border-b border-gray-200 bg-gray-50">
+        <Button variant="outline" size="sm" onClick={() => { setShowBlocks(!showBlocks); setShowProps(false) }}>
+          <PanelLeftOpen className="h-3.5 w-3.5 mr-1" /> Blocks
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => { setShowProps(!showProps); setShowBlocks(false) }}>
+          <PanelRightOpen className="h-3.5 w-3.5 mr-1" /> Properties
+        </Button>
+      </div>
+
       {/* Three-panel layout */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Left sidebar: Block palette */}
-        <div className="w-[200px] flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto p-3">
+        <div className={`${showBlocks ? 'absolute inset-0 z-30 w-[260px]' : 'hidden'} md:relative md:block md:w-[200px] flex-shrink-0 bg-white border-r border-gray-200 overflow-y-auto p-3`}>
+          <button type="button" className="md:hidden absolute top-2 right-2 p-1 rounded hover:bg-gray-100" onClick={() => setShowBlocks(false)} aria-label="Close blocks panel">
+            <X className="h-4 w-4" />
+          </button>
           <div className="flex items-center gap-1.5 mb-3">
             <Palette className="h-4 w-4 text-gray-500" />
             <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Blocks</span>
@@ -389,7 +407,10 @@ export default function EmailBuilder({ initialBlocks, templateId, site, onSave }
         </div>
 
         {/* Right sidebar: Properties */}
-        <div className="w-[250px] flex-shrink-0 bg-white border-l border-gray-200 overflow-y-auto p-3">
+        <div className={`${showProps ? 'absolute inset-0 z-30 w-[280px] right-0 left-auto' : 'hidden'} md:relative md:block md:w-[250px] flex-shrink-0 bg-white border-l border-gray-200 overflow-y-auto p-3`}>
+          <button type="button" className="md:hidden absolute top-2 right-2 p-1 rounded hover:bg-gray-100" onClick={() => setShowProps(false)} aria-label="Close properties panel">
+            <X className="h-4 w-4" />
+          </button>
           {selectedBlock ? (
             <PropertiesPanel block={selectedBlock} onChange={updateBlock} />
           ) : (

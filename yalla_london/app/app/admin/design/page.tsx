@@ -126,7 +126,7 @@ export default function DesignHubPage() {
             id: String(d.id || ""),
             title: String(d.title || d.name || "Untitled"),
             type: String(d.type || d.category || "design"),
-            siteId: String(d.siteId || d.site_id || "yalla-london"),
+            siteId: String(d.siteId || d.site_id || ""),
             siteName: String(d.siteName || d.site_name || ""),
             thumbnail: (d.thumbnail || d.thumbnailUrl || d.preview_url || null) as string | null,
             updatedAt: String(d.updatedAt || d.updated_at || d.createdAt || d.created_at || ""),

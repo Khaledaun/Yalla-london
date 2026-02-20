@@ -53,7 +53,7 @@ export function BrandProvider({
       console.warn("[BrandContext] Failed to load brand profile for", siteId, err);
       // Fall back to default site brand
       try {
-        const fallback = getBrandProfile("yalla-london");
+        const fallback = getBrandProfile(getDefaultSiteId());
         setBrand(fallback);
       } catch {
         console.warn("[BrandContext] Fallback brand profile also failed");

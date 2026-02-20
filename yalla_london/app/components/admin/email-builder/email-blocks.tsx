@@ -91,7 +91,7 @@ export const BLOCK_TYPES: BlockTypeMeta[] = [
     label: 'Footer',
     icon: <Mail className="h-4 w-4" />,
     defaultContent: {
-      companyName: 'Yalla London',
+      companyName: 'Zenitha.Luxury',
       address: 'Zenitha.Luxury LLC, Delaware, United States',
       unsubscribeUrl: '{{unsubscribe_url}}',
       preferencesUrl: '{{preferences_url}}',

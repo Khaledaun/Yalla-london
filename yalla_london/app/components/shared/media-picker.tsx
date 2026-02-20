@@ -883,7 +883,7 @@ function UnsplashTab({
                   {/* Attribution overlay (required by Unsplash TOS) */}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <a
-                      href={`${photo.user.links.html}?utm_source=yalla_london&utm_medium=referral`}
+                      href={`${photo.user.links.html}?utm_source=zenitha_luxury&utm_medium=referral`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-white text-[10px] leading-tight hover:underline"
@@ -905,7 +905,7 @@ function UnsplashTab({
             <p className="text-center text-[10px] text-muted-foreground pb-1">
               Photos provided by{" "}
               <a
-                href="https://unsplash.com/?utm_source=yalla_london&utm_medium=referral"
+                href="https://unsplash.com/?utm_source=zenitha_luxury&utm_medium=referral"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline hover:text-gray-700"

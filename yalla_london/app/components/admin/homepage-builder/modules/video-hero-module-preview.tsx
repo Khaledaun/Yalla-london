@@ -28,6 +28,7 @@ export function VideoHeroModulePreview({ module }: VideoHeroModulePreviewProps) 
           className="absolute inset-0 w-full h-full object-cover"
           src={videoUrl}
           aria-label="Hero background video"
+          autoPlay
           muted
           loop
           playsInline

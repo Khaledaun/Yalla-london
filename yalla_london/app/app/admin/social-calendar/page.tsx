@@ -127,6 +127,7 @@ export default function SocialCalendarPage() {
 
   // New post form
   const [newPlatform, setNewPlatform] = useState("twitter");
+  const [newSite, setNewSite] = useState("yalla-london");
   const [newContent, setNewContent] = useState("");
   const [newDate, setNewDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [newTime, setNewTime] = useState("09:00");
@@ -181,7 +182,7 @@ export default function SocialCalendarPage() {
         body: JSON.stringify({
           content: newContent,
           platforms: [newPlatform],
-          site: "yalla-london",
+          site: newSite,
           scheduledFor,
           status: "scheduled",
         }),

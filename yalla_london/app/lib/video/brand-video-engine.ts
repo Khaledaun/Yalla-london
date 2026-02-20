@@ -6,7 +6,7 @@
  * templates for social media, promotional, showcase, and story formats.
  */
 
-import { SITES, type SiteConfig } from "@/config/sites";
+import { SITES, type SiteConfig, getSiteDomain } from "@/config/sites";
 import type { DesignBrandProfile } from "@/lib/pdf/brand-design-system";
 import { getBrandProfile } from "@/lib/pdf/brand-design-system";
 
@@ -447,7 +447,7 @@ function destinationHighlightScenes(
           id: "cta-url", type: "text", x: 15, y: 58, width: 70, height: 6,
           animation: { enter: { type: "fade", durationFrames: fps, delay: Math.floor(fps * 0.5), easing: "ease-out" } },
           text: {
-            content: `www.${brand.siteId}.com`,
+            content: getSiteDomain(brand.siteId),
             fontSize: 18,
             fontFamily: brand.fonts.body,
             fontWeight: 400,

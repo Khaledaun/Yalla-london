@@ -377,3 +377,29 @@ Transform disconnected, partially-built design tools into a **unified, productio
 | `prisma/migrations/20260220170000_*/migration.sql` | Migration SQL | Done |
 
 **Total: 48+ new files created, audited, and connected.**
+
+---
+
+## Audit Round 12 — Deep Runtime Verification (4 fixes)
+
+Verified findings from deep audit agent against actual current code. 4 real issues confirmed and fixed:
+
+### CRITICAL-001: Email Column Renderer Mismatch
+- **File:** `lib/email/renderer.ts` → `renderColumns()` (line 360)
+- **Issue:** Renderer expected `block.content.left` / `block.content.right` but email builder creates columns as `block.content.columns` array
+- **Fix:** Added fallback — when `left`/`right` are empty but `columns` array exists, maps builder-format columns into EmailBlock arrays for rendering
+
+### CRITICAL-003: Pipeline Status Display Mismatch
+- **File:** `app/admin/content-engine/page.tsx`
+- **Issue:** Frontend Pipeline interface used `"running"|"completed"|"failed"|"queued"` but DB actually stores `"researching"|"ideating"|"scripting"|"analyzing"|"complete"|"paused"|"failed"`
+- **Fix:** Updated Pipeline type, STATUS_COLORS map (7 real statuses with distinct colors), count variables, icon conditionals, and stage filter logic. Moved ACTIVE_STATUSES to module constant.
+
+### HIGH-004: Missing force-dynamic on Designs Route
+- **File:** `app/api/admin/designs/route.ts`
+- **Issue:** Missing `export const dynamic = "force-dynamic"` — could cause Next.js to cache admin API responses
+- **Fix:** Added the export at top of file
+
+### MEDIUM-005: Video CTA URL Hardcoded
+- **File:** `lib/video/brand-video-engine.ts` (line 450)
+- **Issue:** Used `www.${brand.siteId}.com` string concatenation — produces wrong URLs for multi-word site IDs (e.g., `www.french-riviera.com` instead of `yallariviera.com`)
+- **Fix:** Replaced with `getSiteDomain(brand.siteId)` which returns the correct domain from config

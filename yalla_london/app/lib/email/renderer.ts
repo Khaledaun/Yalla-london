@@ -364,9 +364,34 @@ function renderColumns(
 ): string {
   const bgColor = s.backgroundColor || "#ffffff";
   const padding = s.padding || "20px 40px";
-  const leftBlocks: EmailBlock[] = block.content.left || [];
-  const rightBlocks: EmailBlock[] = block.content.right || [];
   const gutter: number = block.content.gutter || 20;
+
+  // Support both formats: legacy left/right or builder's columns array
+  let leftBlocks: EmailBlock[] = block.content.left || [];
+  let rightBlocks: EmailBlock[] = block.content.right || [];
+
+  if ((!leftBlocks.length && !rightBlocks.length) && Array.isArray(block.content.columns)) {
+    // Map builder-format columns into email blocks for rendering
+    const cols = block.content.columns as Array<{ heading?: string; text?: string; imageUrl?: string; linkText?: string; linkUrl?: string }>;
+    const toBlocks = (col: typeof cols[number]): EmailBlock[] => {
+      const blocks: EmailBlock[] = [];
+      if (col.imageUrl) {
+        blocks.push({ id: "", type: "image", content: { src: col.imageUrl, alt: col.heading || "" }, styles: {} });
+      }
+      if (col.heading) {
+        blocks.push({ id: "", type: "heading", content: { text: col.heading, level: 3 }, styles: {} });
+      }
+      if (col.text) {
+        blocks.push({ id: "", type: "text", content: { text: col.text }, styles: {} });
+      }
+      if (col.linkText && col.linkUrl) {
+        blocks.push({ id: "", type: "button", content: { text: col.linkText, url: col.linkUrl }, styles: {} });
+      }
+      return blocks;
+    };
+    leftBlocks = cols[0] ? toBlocks(cols[0]) : [];
+    rightBlocks = cols[1] ? toBlocks(cols[1]) : [];
+  }
 
   // Render nested blocks for each column (no outer wrapper)
   const leftHtml = leftBlocks

@@ -63,7 +63,7 @@ interface Pipeline {
   siteId: string;
   siteName: string;
   language: string;
-  status: "running" | "completed" | "failed" | "queued";
+  status: "researching" | "ideating" | "scripting" | "analyzing" | "complete" | "paused" | "failed";
   createdAt: string;
   updatedAt: string;
   stages: PipelineStage[];
@@ -88,11 +88,16 @@ const STAGE_LABELS: Record<string, string> = {
   analyst: "Analyst",
 };
 
+const ACTIVE_STATUSES = ["researching", "ideating", "scripting", "analyzing"];
+
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  running: { bg: "bg-blue-50 dark:bg-blue-950", text: "text-blue-700 dark:text-blue-300", dot: "bg-blue-500" },
-  completed: { bg: "bg-green-50 dark:bg-green-950", text: "text-green-700 dark:text-green-300", dot: "bg-green-500" },
+  researching: { bg: "bg-blue-50 dark:bg-blue-950", text: "text-blue-700 dark:text-blue-300", dot: "bg-blue-500" },
+  ideating: { bg: "bg-indigo-50 dark:bg-indigo-950", text: "text-indigo-700 dark:text-indigo-300", dot: "bg-indigo-500" },
+  scripting: { bg: "bg-purple-50 dark:bg-purple-950", text: "text-purple-700 dark:text-purple-300", dot: "bg-purple-500" },
+  analyzing: { bg: "bg-cyan-50 dark:bg-cyan-950", text: "text-cyan-700 dark:text-cyan-300", dot: "bg-cyan-500" },
+  complete: { bg: "bg-green-50 dark:bg-green-950", text: "text-green-700 dark:text-green-300", dot: "bg-green-500" },
+  paused: { bg: "bg-amber-50 dark:bg-amber-950", text: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500" },
   failed: { bg: "bg-red-50 dark:bg-red-950", text: "text-red-700 dark:text-red-300", dot: "bg-red-500" },
-  queued: { bg: "bg-amber-50 dark:bg-amber-950", text: "text-amber-700 dark:text-amber-300", dot: "bg-amber-500" },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────
@@ -228,11 +233,11 @@ export default function ContentEnginePage() {
     setExpandedStages((prev) => ({ ...prev, [stageKey]: !prev[stageKey] }));
   };
 
-  // Summary counts
-  const runningCount = pipelines.filter((p) => p.status === "running").length;
-  const completedCount = pipelines.filter((p) => p.status === "completed").length;
+  // Summary counts — active = any in-progress stage status
+  const runningCount = pipelines.filter((p) => ACTIVE_STATUSES.includes(p.status)).length;
+  const completedCount = pipelines.filter((p) => p.status === "complete").length;
   const failedCount = pipelines.filter((p) => p.status === "failed").length;
-  const queuedCount = pipelines.filter((p) => p.status === "queued").length;
+  const pausedCount = pipelines.filter((p) => p.status === "paused").length;
 
   // ─── Render ──────────────────────────────────────────────────
 
@@ -273,7 +278,7 @@ export default function ContentEnginePage() {
                 const StageIcon = STAGE_ICONS[stage];
                 // Count active pipelines at each stage
                 const activeAtStage = pipelines.filter(
-                  (p) => p.status === "running" && getStageStatus(p.stages, stage) === "in_progress"
+                  (p) => ACTIVE_STATUSES.includes(p.status) && getStageStatus(p.stages, stage) === "in_progress"
                 ).length;
                 const completedAtStage = pipelines.filter(
                   (p) => getStageStatus(p.stages, stage) === "completed"
@@ -319,9 +324,9 @@ export default function ContentEnginePage() {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <MiniStat label="Running" value={runningCount} color="text-blue-600 dark:text-blue-400" icon={Loader2} />
-          <MiniStat label="Queued" value={queuedCount} color="text-amber-600 dark:text-amber-400" icon={Clock} />
-          <MiniStat label="Completed" value={completedCount} color="text-green-600 dark:text-green-400" icon={CheckCircle} />
+          <MiniStat label="Active" value={runningCount} color="text-blue-600 dark:text-blue-400" icon={Loader2} />
+          <MiniStat label="Paused" value={pausedCount} color="text-amber-600 dark:text-amber-400" icon={Clock} />
+          <MiniStat label="Complete" value={completedCount} color="text-green-600 dark:text-green-400" icon={CheckCircle} />
           <MiniStat label="Failed" value={failedCount} color="text-red-600 dark:text-red-400" icon={AlertCircle} />
         </div>
 
@@ -368,7 +373,7 @@ export default function ContentEnginePage() {
             <div className="space-y-3">
               {pipelines.map((pipeline) => {
                 const isSelected = selectedPipeline?.id === pipeline.id;
-                const colors = STATUS_COLORS[pipeline.status] || STATUS_COLORS.queued;
+                const colors = STATUS_COLORS[pipeline.status] || STATUS_COLORS.paused;
 
                 return (
                   <Card
@@ -380,9 +385,9 @@ export default function ContentEnginePage() {
                       {/* Pipeline summary row */}
                       <div className="flex items-center gap-3">
                         <div className="shrink-0">
-                          {pipeline.status === "running" ? (
+                          {ACTIVE_STATUSES.includes(pipeline.status) ? (
                             <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
-                          ) : pipeline.status === "completed" ? (
+                          ) : pipeline.status === "complete" ? (
                             <CheckCircle className="h-5 w-5 text-green-500" />
                           ) : pipeline.status === "failed" ? (
                             <AlertCircle className="h-5 w-5 text-red-500" />

@@ -63,8 +63,7 @@ function computeReadingTime(html: string): number {
 
 type PostResult =
   | { source: "db"; post: NonNullable<Awaited<ReturnType<typeof getDbPost>>> }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  | { source: "static"; post: any };
+  | { source: "static"; post: Record<string, any> };
 
 async function findPost(slug: string, siteId?: string): Promise<PostResult | null> {
   // Database first — this is where pipeline-generated articles live

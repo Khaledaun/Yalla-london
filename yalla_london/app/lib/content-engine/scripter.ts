@@ -462,7 +462,7 @@ function generatePlaceholderEmailCampaign(
       { type: 'hero', heading: angleTitle, body: '', ctaText: null, ctaUrl: null, imageQuery: `${destination} luxury scenic` },
       { type: 'text', heading: 'The Inside Story', body: `Placeholder email body about ${angleTitle}. Will be replaced with AI-generated content.`, ctaText: null, ctaUrl: null, imageQuery: null },
       { type: 'cta', heading: null, body: 'Ready to explore?', ctaText: 'Read the Full Guide', ctaUrl: `https://www.${siteConfig?.domain || getSiteDomain(getDefaultSiteId())}/blog`, imageQuery: null },
-      { type: 'footer', heading: null, body: `${siteConfig?.name || 'Yalla London'} — Your luxury travel companion`, ctaText: null, ctaUrl: null, imageQuery: null },
+      { type: 'footer', heading: null, body: `${siteConfig?.name || getSiteConfig(getDefaultSiteId())?.name || 'Your Site'} — Your luxury travel companion`, ctaText: null, ctaUrl: null, imageQuery: null },
     ],
   };
 }
@@ -967,7 +967,7 @@ export async function publishPipeline(
   if (scripterOutput.emailCampaign) {
     try {
       const email = scripterOutput.emailCampaign;
-      const siteName = siteConfig?.name || 'Yalla London';
+      const siteName = siteConfig?.name || getSiteConfig(getDefaultSiteId())?.name || 'Your Site';
 
       // Build HTML from blocks
       const htmlBlocks = (email.blocks || []).map((block: any) => {

@@ -69,11 +69,11 @@ async function handleIndexing(request: NextRequest) {
       }
 
       try {
-        const siteConfig = getSiteConfig(siteId);
         const { getSiteDomain: getDomain } = await import("@/config/sites");
-        const siteUrl = siteConfig?.domain
-            ? `https://${siteConfig.domain}`
-            : getDomain(siteId);
+        // CRITICAL: Always use getSiteDomain() which returns "https://www.{domain}".
+        // siteConfig.domain is bare (e.g. "yalla-london.com") — using it directly
+        // creates non-www URLs that GSC doesn't recognize as the verified property.
+        const siteUrl = getDomain(siteId);
 
         // Discover new URLs from the last 3 days
         const newUrls = await getNewUrls(3, siteId, siteUrl);

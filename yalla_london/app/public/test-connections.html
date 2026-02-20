@@ -2634,6 +2634,12 @@ function renderAuditResults(data) {
     if (ix.submissionMethods) {
       html += `<div style="font-size:0.78rem;color:#8b949e;margin-top:6px;">Submissions: IndexNow <b>${ix.submissionMethods.indexNow}</b> | Google API <b>${ix.submissionMethods.googleApi}</b> | Sitemap <b>${ix.submissionMethods.sitemap}</b></div>`;
     }
+    // Cleanup button for non-www duplicates
+    html += '<div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">';
+    html += '<button onclick="previewIndexingCleanup()" id="previewCleanupBtn" style="margin:0;padding:8px 16px;font-size:0.82rem;background:#7c3aed;">Preview Cleanup</button>';
+    html += '<button onclick="applyIndexingCleanup()" id="applyCleanupBtn" style="margin:0;padding:8px 16px;font-size:0.82rem;background:#dc2626;">Clean Up Duplicates</button>';
+    html += '</div>';
+    html += '<div id="cleanupStatus" style="font-size:0.8rem;margin-top:6px;"></div>';
     html += '</div>';
   }
 
@@ -2834,6 +2840,81 @@ function copyAuditJson(evt) {
       setTimeout(() => { btn.textContent = 'Copy JSON'; btn.style.background = '#7c3aed'; }, 2000);
     }
   }).catch(() => { document.execCommand('copy'); });
+}
+
+// ─── Indexing Duplicate Cleanup ──────────────────────────────────────
+async function previewIndexingCleanup() {
+  const btn = document.getElementById('previewCleanupBtn');
+  const statusEl = document.getElementById('cleanupStatus');
+  if (!btn || !statusEl) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Analyzing...';
+  statusEl.innerHTML = '<span style="color:#fbbf24;">Scanning for non-www duplicate URLs...</span>';
+
+  try {
+    const resp = await fetch('/api/admin/cleanup-indexing', {
+      headers: getAuthHeaders(),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    if (data.totalToFix === 0) {
+      statusEl.innerHTML = '<span style="color:#4ade80;">No duplicates found — all URLs use correct www format.</span>';
+    } else {
+      let h = '<span style="color:#fbbf24;font-weight:600;">Found ' + data.nonWwwEntries + ' non-www entries (' + data.duplicatePairs + ' duplicates + ' + data.orphansToConvert + ' orphans to convert)</span>';
+      h += '<div style="max-height:200px;overflow-y:auto;margin-top:6px;">';
+      if (data.duplicates) {
+        for (const d of data.duplicates) {
+          h += '<div style="font-size:0.7rem;padding:2px 0;border-bottom:1px solid #21262d;color:#fca5a5;">Delete: ' + escapeHtml(d.nonWwwUrl.replace('https://', '')) + ' (www version exists)</div>';
+        }
+      }
+      if (data.orphans) {
+        for (const o of data.orphans) {
+          h += '<div style="font-size:0.7rem;padding:2px 0;border-bottom:1px solid #21262d;color:#fde68a;">Convert: ' + escapeHtml(o.url.replace('https://', '')) + ' → www</div>';
+        }
+      }
+      h += '</div>';
+      statusEl.innerHTML = h;
+    }
+  } catch (e) {
+    statusEl.innerHTML = '<span style="color:#f87171;">Preview failed: ' + escapeHtml(e.message) + '</span>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Preview Cleanup';
+  }
+}
+
+async function applyIndexingCleanup() {
+  const btn = document.getElementById('applyCleanupBtn');
+  const statusEl = document.getElementById('cleanupStatus');
+  if (!btn || !statusEl) return;
+
+  if (!confirm('This will delete duplicate non-www URL entries and convert orphans to www format. Continue?')) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Cleaning...';
+  statusEl.innerHTML = '<span style="color:#fbbf24;">Cleaning up indexing database...</span>';
+
+  try {
+    const resp = await fetch('/api/admin/cleanup-indexing', {
+      method: 'POST',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    statusEl.innerHTML = '<span style="color:#4ade80;font-weight:600;">' + escapeHtml(data.message) + '</span>' +
+      '<div style="font-size:0.78rem;color:#fbbf24;margin-top:4px;">Re-run the audit to see updated indexing numbers. The verify-indexing cron will re-check converted URLs within 6 hours.</div>';
+  } catch (e) {
+    statusEl.innerHTML = '<span style="color:#f87171;">Cleanup failed: ' + escapeHtml(e.message) + '</span>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Clean Up Duplicates';
+  }
 }
 
 // ─── Metadata Auto-Fix ──────────────────────────────────────────────

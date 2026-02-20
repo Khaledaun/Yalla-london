@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
       siteId: campaign.site,
       siteName: getSiteConfig(campaign.site)?.name || campaign.site,
       scheduledFor: campaign.scheduledAt,
+      sentAt: campaign.sentAt,
     }));
 
     return NextResponse.json({

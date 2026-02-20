@@ -5,6 +5,7 @@
  * PUT /api/admin/team/[id]/expertise - Update or bulk assign skills
  * DELETE /api/admin/team/[id]/expertise - Remove skill from team member
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ExpertiseService, TeamService } from '@/lib/domains/team';

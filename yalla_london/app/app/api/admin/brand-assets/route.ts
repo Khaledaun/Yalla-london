@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       assets,
+      siteCounts: assets,
       stats: {
         totalDesigns,
         pdfsGenerated,

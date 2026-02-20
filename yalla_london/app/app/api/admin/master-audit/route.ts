@@ -369,6 +369,38 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
       }
     }
 
+    // Blog metadata validation from DB (catches issues on all articles, not just crawled ones)
+    const blogMetadataIssues: Array<{ slug: string; title: string; issues: string[] }> = [];
+    for (const article of blogArticles) {
+      const articleIssues: string[] = [];
+      const metaTitle = article.meta_title_en || article.title_en || "";
+      const metaDesc = article.meta_description_en || "";
+
+      if (metaTitle.length > 60) {
+        articleIssues.push(`Title too long: ${metaTitle.length} chars (max 60)`);
+      }
+      if (metaTitle.length > 0 && metaTitle.length < 30) {
+        articleIssues.push(`Title too short: ${metaTitle.length} chars (min 30)`);
+      }
+      if (metaDesc.length > 160) {
+        articleIssues.push(`Description too long: ${metaDesc.length} chars (max 160)`);
+      }
+      if (metaDesc.length > 0 && metaDesc.length < 120) {
+        articleIssues.push(`Description too short: ${metaDesc.length} chars (min 120)`);
+      }
+      if (!metaDesc) {
+        articleIssues.push("Missing meta description");
+      }
+
+      if (articleIssues.length > 0) {
+        blogMetadataIssues.push({
+          slug: article.slug,
+          title: metaTitle.slice(0, 60),
+          issues: articleIssues,
+        });
+      }
+    }
+
     const result = {
       success: true,
       siteId,
@@ -406,6 +438,9 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
 
       // Per-page results
       pages: pageResults,
+
+      // Blog metadata from DB (validates all articles without crawling)
+      blogMetadataIssues,
     };
 
     // Save to CronJobLog

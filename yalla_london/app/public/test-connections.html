@@ -2656,6 +2656,28 @@ function renderAuditResults(data) {
     html += '</div>';
   }
 
+  // ── Blog Metadata Issues (from DB — all articles, not just crawled) ──
+  if (data.blogMetadataIssues && data.blogMetadataIssues.length > 0) {
+    html += '<div class="section"><h2>Blog Metadata Issues (from DB — ' + data.blogMetadataIssues.length + ' articles)</h2>';
+    html += '<div style="font-size:0.75rem;color:#8b949e;margin-bottom:8px;">These are title/description length issues detected from the database across all ' + (data.siteParameters?.totalPublishedArticles || '?') + ' published articles — no crawling needed.</div>';
+    // Auto-fix buttons
+    html += '<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">';
+    html += '<button onclick="previewMetadataFixes()" id="previewFixBtn" style="margin:0;padding:8px 16px;font-size:0.82rem;background:#7c3aed;">Preview Fixes</button>';
+    html += '<button onclick="applyMetadataFixes()" id="applyFixBtn" style="margin:0;padding:8px 16px;font-size:0.82rem;background:#dc2626;">Auto-Fix All (' + data.blogMetadataIssues.length + ' articles)</button>';
+    html += '</div>';
+    html += '<div id="metadataFixStatus" style="font-size:0.8rem;margin-bottom:8px;"></div>';
+    html += '<div id="metadataFixPreview"></div>';
+    for (const item of data.blogMetadataIssues) {
+      html += '<div style="margin-bottom:6px;padding:6px 8px;background:#21262d;border-radius:4px;border-left:3px solid #fbbf24;">';
+      html += '<div style="font-size:0.78rem;color:#c9d1d9;font-weight:600;">/blog/' + escapeHtml(item.slug) + '</div>';
+      for (const iss of item.issues) {
+        html += '<div style="font-size:0.72rem;color:#fbbf24;margin-top:2px;">⚠ ' + escapeHtml(iss) + '</div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
   // ── Issues by Category ──
   if (data.issuesByCategory && Object.keys(data.issuesByCategory).length > 0) {
     html += '<div class="section"><h2>Issues by Category</h2>';
@@ -2812,6 +2834,112 @@ function copyAuditJson(evt) {
       setTimeout(() => { btn.textContent = 'Copy JSON'; btn.style.background = '#7c3aed'; }, 2000);
     }
   }).catch(() => { document.execCommand('copy'); });
+}
+
+// ─── Metadata Auto-Fix ──────────────────────────────────────────────
+async function previewMetadataFixes() {
+  const btn = document.getElementById('previewFixBtn');
+  const statusEl = document.getElementById('metadataFixStatus');
+  const previewEl = document.getElementById('metadataFixPreview');
+  if (!btn || !statusEl || !previewEl) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Loading preview...';
+  statusEl.innerHTML = '<span style="color:#fbbf24;">Analyzing metadata issues...</span>';
+
+  try {
+    const resp = await fetch('/api/admin/fix-blog-metadata', {
+      headers: getAuthHeaders(),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!resp.ok) {
+      const errBody = await resp.text().catch(() => '');
+      let errMsg = 'HTTP ' + resp.status;
+      try { const j = JSON.parse(errBody); errMsg = j.error || errMsg; } catch {}
+      throw new Error(errMsg);
+    }
+
+    const data = await resp.json();
+    statusEl.innerHTML = '<span style="color:#4ade80;">Preview ready: ' + data.totalFixes + ' fixes across ' + data.articlesWithIssues + ' articles</span>';
+
+    if (data.fixes && data.fixes.length > 0) {
+      let phtml = '<div style="max-height:300px;overflow-y:auto;margin-bottom:8px;">';
+      for (const fix of data.fixes) {
+        const fieldLabel = fix.field === 'meta_title_en' ? 'Title' : 'Description';
+        phtml += '<div style="margin-bottom:6px;padding:6px 8px;background:#0d1117;border-radius:4px;border-left:3px solid #7c3aed;">';
+        phtml += '<div style="font-size:0.75rem;color:#c9d1d9;font-weight:600;">/blog/' + escapeHtml(fix.slug) + ' — ' + fieldLabel + '</div>';
+        phtml += '<div style="font-size:0.7rem;color:#f87171;margin-top:2px;">Before (' + fix.oldLength + ' chars): ' + escapeHtml(fix.oldPreview) + '</div>';
+        phtml += '<div style="font-size:0.7rem;color:#4ade80;margin-top:1px;">After (' + fix.newLength + ' chars): ' + escapeHtml(fix.newPreview) + '</div>';
+        phtml += '<div style="font-size:0.65rem;color:#8b949e;margin-top:1px;">' + escapeHtml(fix.reason) + '</div>';
+        phtml += '</div>';
+      }
+      phtml += '</div>';
+      previewEl.innerHTML = phtml;
+    } else {
+      previewEl.innerHTML = '<div style="color:#4ade80;font-size:0.82rem;padding:8px;">No fixes needed — all metadata is compliant!</div>';
+    }
+  } catch (e) {
+    statusEl.innerHTML = '<span style="color:#f87171;">Preview failed: ' + escapeHtml(e.message) + '</span>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Preview Fixes';
+  }
+}
+
+async function applyMetadataFixes() {
+  const btn = document.getElementById('applyFixBtn');
+  const statusEl = document.getElementById('metadataFixStatus');
+  if (!btn || !statusEl) return;
+
+  if (!confirm('This will auto-fix metadata (titles > 60 chars, descriptions outside 120-160 chars) on all flagged articles. Continue?')) {
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Fixing...';
+  statusEl.innerHTML = '<span style="color:#fbbf24;">Applying metadata fixes to database...</span>';
+
+  try {
+    const resp = await fetch('/api/admin/fix-blog-metadata', {
+      method: 'POST',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(60000),
+    });
+
+    if (!resp.ok) {
+      const errBody = await resp.text().catch(() => '');
+      let errMsg = 'HTTP ' + resp.status;
+      try { const j = JSON.parse(errBody); errMsg = j.error || errMsg; } catch {}
+      throw new Error(errMsg);
+    }
+
+    const data = await resp.json();
+
+    if (data.fixesApplied === 0) {
+      statusEl.innerHTML = '<span style="color:#4ade80;">No fixes needed — all metadata is already compliant!</span>';
+    } else {
+      let resultHtml = '<span style="color:#4ade80;font-weight:600;">' + escapeHtml(data.message) + '</span>';
+      if (data.results && data.results.length > 0) {
+        resultHtml += '<div style="max-height:200px;overflow-y:auto;margin-top:6px;">';
+        for (const r of data.results) {
+          const icon = r.status === 'ok' ? '<span style="color:#4ade80;">✓</span>' : '<span style="color:#f87171;">✗</span>';
+          resultHtml += '<div style="font-size:0.75rem;padding:3px 0;border-bottom:1px solid #21262d;">' +
+            icon + ' <b>/blog/' + escapeHtml(r.slug) + '</b> — ' + r.fixes.map(function(f) { return escapeHtml(f); }).join(', ') +
+            (r.error ? ' <span style="color:#f87171;">(' + escapeHtml(r.error) + ')</span>' : '') + '</div>';
+        }
+        resultHtml += '</div>';
+      }
+      resultHtml += '<div style="margin-top:8px;font-size:0.78rem;color:#fbbf24;">Re-run the audit to verify the fixes.</div>';
+      statusEl.innerHTML = resultHtml;
+    }
+  } catch (e) {
+    statusEl.innerHTML = '<span style="color:#f87171;">Fix failed: ' + escapeHtml(e.message) + '</span>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Auto-Fix All';
+  }
 }
 
 async function loadAuditHistory() {

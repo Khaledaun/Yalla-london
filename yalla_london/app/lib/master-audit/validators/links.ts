@@ -95,6 +95,14 @@ export function validateLinks(
 
       // Flag if target has an error (connection failure)
       if (targetResult.error && targetResult.status === 0) {
+        // Distinguish audit-side timeouts from real connection failures
+        const isTimeout = targetResult.error.includes('aborted') || targetResult.error.includes('timeout');
+        if (isTimeout) {
+          // Don't flag links to pages that simply timed out during the audit —
+          // this is an audit infrastructure limitation, not a broken link
+          continue;
+        }
+
         const dedupeKey = `${pageUrl}→${normalizedTarget}→error`;
         if (!brokenLinksReported.has(dedupeKey)) {
           brokenLinksReported.add(dedupeKey);

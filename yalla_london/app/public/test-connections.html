@@ -2656,6 +2656,21 @@ function renderAuditResults(data) {
     html += '</div>';
   }
 
+  // ── Blog Metadata Issues (from DB — all articles, not just crawled) ──
+  if (data.blogMetadataIssues && data.blogMetadataIssues.length > 0) {
+    html += '<div class="section"><h2>Blog Metadata Issues (from DB — ' + data.blogMetadataIssues.length + ' articles)</h2>';
+    html += '<div style="font-size:0.75rem;color:#8b949e;margin-bottom:8px;">These are title/description length issues detected from the database across all ' + (data.siteParameters?.totalPublishedArticles || '?') + ' published articles — no crawling needed.</div>';
+    for (const item of data.blogMetadataIssues) {
+      html += '<div style="margin-bottom:6px;padding:6px 8px;background:#21262d;border-radius:4px;border-left:3px solid #fbbf24;">';
+      html += '<div style="font-size:0.78rem;color:#c9d1d9;font-weight:600;">/blog/' + escapeHtml(item.slug) + '</div>';
+      for (const iss of item.issues) {
+        html += '<div style="font-size:0.72rem;color:#fbbf24;margin-top:2px;">⚠ ' + escapeHtml(iss) + '</div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
   // ── Issues by Category ──
   if (data.issuesByCategory && Object.keys(data.issuesByCategory).length > 0) {
     html += '<div class="section"><h2>Issues by Category</h2>';

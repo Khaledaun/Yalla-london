@@ -295,6 +295,12 @@ Transform disconnected, partially-built design tools into a **unified, productio
   - Admin page defaults: all use `getDefaultSiteId()` from config, not hardcoded
 - **Result:** Design system fully audited — 0 CRITICAL, 0 HIGH issues remaining across all 48+ files
 
+### Audit Round 11c (Hardcoded Fallback Strings)
+- **Fixed:** `homepage/page.tsx` — Hero section placeholder `"Welcome to Yalla London"` → dynamic `getSiteConfig(getDefaultSiteId())?.name`
+- **Fixed:** `scripter.ts` line 465 — Email footer template fallback `"Yalla London"` → config-driven
+- **Fixed:** `scripter.ts` line 970 — Email campaign HTML fallback `"Yalla London"` → config-driven
+- **Verified (acceptable):** `email-templates.ts` fallback values at lines 40, 51, 52 — safety nets after existing config lookup, only trigger on config corruption
+
 ---
 
 ## Files Created (Final Tally)

@@ -67,8 +67,8 @@ export async function GET(request: NextRequest) {
       lowSeoScoreThreshold = Math.round(CONTENT_QUALITY.qualityGateScore * 0.7);
     } catch { /* use fallbacks */ }
 
-    // 1. Get all published blog posts
-    const posts = await prisma.blogPost.findMany({
+    // 1. Get all published blog posts (DB + static content)
+    const dbPosts = await prisma.blogPost.findMany({
       where: {
         published: true,
         siteId: siteId,
@@ -89,6 +89,35 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { created_at: "desc" },
     });
+
+    // Also include static blog articles (legacy content that's live and indexed by Google)
+    const dbSlugs = new Set(dbPosts.map((p) => p.slug));
+    let staticPosts: typeof dbPosts = [];
+    if (siteId === "yalla-london") {
+      try {
+        const { blogPosts: staticBlogPosts } = await import("@/data/blog-content");
+        const { extendedBlogPosts } = await import("@/data/blog-content-extended");
+        const allStatic = [...staticBlogPosts, ...extendedBlogPosts].filter(
+          (p) => p.published && !dbSlugs.has(p.slug)
+        );
+        staticPosts = allStatic.map((p) => ({
+          id: p.id,
+          title_en: p.title_en,
+          title_ar: p.title_ar,
+          slug: p.slug,
+          seo_score: p.seo_score ?? null,
+          content_en: p.content_en,
+          created_at: p.created_at ?? new Date(),
+          updated_at: p.updated_at ?? new Date(),
+          meta_title_en: p.meta_title_en ?? null,
+          meta_description_en: p.meta_description_en ?? null,
+          keywords_json: p.keywords ? JSON.stringify(p.keywords) : null,
+        }));
+      } catch (err) {
+        console.warn("[content-indexing] Failed to load static articles:", err);
+      }
+    }
+    const posts = [...dbPosts, ...staticPosts];
 
     // 2. Get indexing status for all article URLs
     //    Match by BOTH exact URL and slug to handle URL format mismatches
@@ -790,17 +819,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine which articles to submit
-    let postsToSubmit;
+    let postsToSubmit: Array<{ slug: string }>;
     if (action === "submit_all") {
-      // Submit all published articles that aren't indexed
-      postsToSubmit = await prisma.blogPost.findMany({
-        where: {
-          published: true,
-          siteId,
-          deletedAt: null,
-        },
+      // Submit all published articles (DB + static) that aren't indexed
+      const dbArticles = await prisma.blogPost.findMany({
+        where: { published: true, siteId, deletedAt: null },
         select: { slug: true },
       });
+      const dbSlugSet = new Set(dbArticles.map((p) => p.slug));
+
+      // Include static articles for yalla-london
+      let staticArticles: Array<{ slug: string }> = [];
+      if (siteId === "yalla-london") {
+        try {
+          const { blogPosts: staticBlogPosts } = await import("@/data/blog-content");
+          const { extendedBlogPosts } = await import("@/data/blog-content-extended");
+          staticArticles = [...staticBlogPosts, ...extendedBlogPosts]
+            .filter((p) => p.published && !dbSlugSet.has(p.slug))
+            .map((p) => ({ slug: p.slug }));
+        } catch { /* static content unavailable */ }
+      }
+
+      postsToSubmit = [...dbArticles, ...staticArticles];
     } else if (slugs && slugs.length > 0) {
       postsToSubmit = slugs.map((slug) => ({ slug }));
     } else {

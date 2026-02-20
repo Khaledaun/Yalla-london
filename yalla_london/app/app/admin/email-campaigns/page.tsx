@@ -324,7 +324,29 @@ export default function EmailCampaignsPage() {
                             Edit
                           </Button>
                         </Link>
-                        <Button variant="outline" size="sm" onClick={() => toast.info("Template duplicated")}>
+                        <Button variant="outline" size="sm" onClick={async () => {
+                          try {
+                            const res = await fetch("/api/admin/email-templates", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                name: `${template.name} (Copy)`,
+                                subject: template.subject,
+                                type: template.type,
+                                siteId: template.siteId,
+                                duplicate: true,
+                              }),
+                            });
+                            if (res.ok) {
+                              toast.success("Template duplicated");
+                              loadData();
+                            } else {
+                              toast.error("Failed to duplicate template");
+                            }
+                          } catch {
+                            toast.error("Failed to duplicate template");
+                          }
+                        }}>
                           <Copy className="h-3.5 w-3.5" />
                         </Button>
                       </div>

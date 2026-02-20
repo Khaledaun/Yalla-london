@@ -10,6 +10,23 @@ import {
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-middleware";
 
+const VALID_CATEGORIES: VideoCategory[] = [
+  "destination-highlight", "blog-promo", "hotel-showcase", "restaurant-feature",
+  "experience-promo", "seasonal-campaign", "listicle-countdown", "travel-tip",
+  "before-after", "testimonial",
+];
+const VALID_FORMATS: VideoFormat[] = [
+  "instagram-reel", "instagram-post", "instagram-story", "youtube-short",
+  "youtube-video", "tiktok", "facebook-post", "twitter-post", "landscape-wide", "square",
+];
+
+function validateCategory(val: string): val is VideoCategory {
+  return VALID_CATEGORIES.includes(val as VideoCategory);
+}
+function validateFormat(val: string): val is VideoFormat {
+  return VALID_FORMATS.includes(val as VideoFormat);
+}
+
 /**
  * GET /api/admin/video-studio
  *
@@ -81,8 +98,16 @@ export async function GET(request: NextRequest) {
 
       case "generate": {
         const siteId = sp.get("siteId") || "yalla-london";
-        const category = (sp.get("category") || "destination-highlight") as VideoCategory;
-        const format = (sp.get("format") || "instagram-reel") as VideoFormat;
+        const rawCategory = sp.get("category") || "destination-highlight";
+        const rawFormat = sp.get("format") || "instagram-reel";
+        if (!validateCategory(rawCategory)) {
+          return NextResponse.json({ error: "Invalid video category" }, { status: 400 });
+        }
+        if (!validateFormat(rawFormat)) {
+          return NextResponse.json({ error: "Invalid video format" }, { status: 400 });
+        }
+        const category = rawCategory;
+        const format = rawFormat;
         const locale = (sp.get("locale") || "en") as "en" | "ar";
         const title = sp.get("title") || undefined;
         const subtitle = sp.get("subtitle") || undefined;
@@ -108,8 +133,9 @@ export async function GET(request: NextRequest) {
         );
     }
   } catch (error) {
+    console.error("[video-studio-api] GET error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Video template generation failed" },
+      { error: "Video studio request failed" },
       { status: 500 },
     );
   }
@@ -223,8 +249,9 @@ export async function POST(request: NextRequest) {
         );
     }
   } catch (error) {
+    console.error("[video-studio-api] POST error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Video studio operation failed" },
+      { error: "Video studio operation failed" },
       { status: 500 },
     );
   }

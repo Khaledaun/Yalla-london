@@ -88,8 +88,8 @@ export async function POST(request: NextRequest) {
           data: { status: "researching" },
         });
       }
-    } catch {
-      // non-fatal: pipeline status update on error
+    } catch (statusErr) {
+      console.warn("[content-engine/research] Non-fatal: failed to update pipeline status on error:", statusErr);
     }
 
     return NextResponse.json(

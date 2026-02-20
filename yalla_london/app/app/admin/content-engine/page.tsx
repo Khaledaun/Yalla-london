@@ -189,7 +189,7 @@ export default function ContentEnginePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          siteId: newSiteId,
+          site: newSiteId,
           topic: newTopic || undefined,
           language: newLanguage,
         }),
@@ -215,7 +215,7 @@ export default function ContentEnginePage() {
       const res = await fetch("/api/admin/content-engine/pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, siteId: "yalla-london" }),
+        body: JSON.stringify({ action, site: "yalla-london" }),
       });
       if (res.ok) {
         toast.success(`${action} pipeline started`);

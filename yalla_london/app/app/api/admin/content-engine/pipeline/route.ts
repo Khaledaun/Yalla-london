@@ -67,10 +67,10 @@ export async function GET(request: NextRequest) {
       siteId: pipeline.site,
       siteName: getSiteConfig(pipeline.site)?.name || pipeline.site,
       stages: [
-        { name: "Research", status: researchData ? "completed" : pipeline.status === "researching" ? "active" : "pending" },
-        { name: "Ideate", status: contentAngles ? "completed" : pipeline.status === "ideating" ? "active" : "pending" },
-        { name: "Script", status: scripts ? "completed" : pipeline.status === "scripting" ? "active" : "pending" },
-        { name: "Analyze", status: analysisData ? "completed" : pipeline.status === "analyzing" ? "active" : "pending" },
+        { name: "Researcher", status: researchData ? "completed" : pipeline.status === "researching" ? "in_progress" : "waiting", startedAt: null, completedAt: null, data: null },
+        { name: "Ideator", status: contentAngles ? "completed" : pipeline.status === "ideating" ? "in_progress" : "waiting", startedAt: null, completedAt: null, data: null },
+        { name: "Scripter", status: scripts ? "completed" : pipeline.status === "scripting" ? "in_progress" : "waiting", startedAt: null, completedAt: null, data: null },
+        { name: "Analyst", status: analysisData ? "completed" : pipeline.status === "analyzing" ? "in_progress" : "waiting", startedAt: null, completedAt: null, data: null },
       ],
     }));
 

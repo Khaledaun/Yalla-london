@@ -181,6 +181,7 @@ export default function SocialCalendarPage() {
         body: JSON.stringify({
           content: newContent,
           platforms: [newPlatform],
+          site: "yalla-london",
           scheduledFor,
           status: "scheduled",
         }),
@@ -426,7 +427,16 @@ export default function SocialCalendarPage() {
                             Copy
                           </Button>
                           {post.media.length > 0 && (
-                            <Button variant="outline" size="sm" title="Download media">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              title="Download media"
+                              onClick={() => {
+                                // Open the first media URL in a new tab for download
+                                const url = post.media[0];
+                                if (url) window.open(url, "_blank");
+                              }}
+                            >
                               <Download className="h-3.5 w-3.5 mr-1" />
                               Media
                             </Button>

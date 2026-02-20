@@ -132,27 +132,33 @@ export default function DesignHubPage() {
             updatedAt: String(d.updatedAt || d.updated_at || d.createdAt || d.created_at || ""),
           }))
         );
+      } else {
+        setDesigns([]);
+      }
+
+      // Brand assets per site + stats (stats come from brand-assets API, not designs API)
+      if (brandRes.status === "fulfilled" && brandRes.value.ok) {
+        const data = await brandRes.value.json();
+
+        // Read aggregate stats from brand-assets response
         if (data.stats) {
           setStats({
-            totalDesigns: data.stats.totalDesigns || items.length || 0,
+            totalDesigns: data.stats.totalDesigns || 0,
             pdfsGenerated: data.stats.pdfsGenerated || 0,
             videosRendered: data.stats.videosRendered || 0,
             emailsSent: data.stats.emailsSent || 0,
           });
         }
-      } else {
-        setDesigns([]);
-      }
 
-      // Brand assets per site
-      if (brandRes.status === "fulfilled" && brandRes.value.ok) {
-        const data = await brandRes.value.json();
-        const assets = data.assets || data.data || [];
-        // Build brand status from assets grouped by site
+        // Build brand status from per-site design counts
+        const siteCounts = data.siteCounts || [];
         const siteAssetCounts: Record<string, number> = {};
-        for (const asset of assets) {
-          const sid = String(asset.siteId || asset.site_id || "yalla-london");
-          siteAssetCounts[sid] = (siteAssetCounts[sid] || 0) + 1;
+        if (Array.isArray(siteCounts)) {
+          for (const item of siteCounts) {
+            const sid = String(item.site || item.siteId || "");
+            const count = Number(item._count?.id || item.count || 1);
+            if (sid) siteAssetCounts[sid] = (siteAssetCounts[sid] || 0) + count;
+          }
         }
         setBrandStatuses(
           SITE_LIST.map((s) => ({

@@ -242,10 +242,10 @@ async function generateDailyContentForSite(site: SiteConfig, prisma: any, deadli
     }
   }
 
-  // Generate AR article if needed
+  // Generate AR article if needed — require at least 20s remaining (AR generation needs its own AI call)
   if (todayAR === 0) {
-    if (deadline?.isExpired()) {
-      results.push({ language: "ar", status: "skipped", error: "timeout_approaching" });
+    if (deadline?.isExpired() || (deadline && deadline.remainingMs() < 20_000)) {
+      results.push({ language: "ar", status: "skipped", error: "timeout_approaching — insufficient time for AR generation" });
     } else {
       try {
         const article = await generateArticle("ar", site, prisma, deadline);
@@ -500,6 +500,28 @@ async function generateArticle(
     }
   }
 
+  // Track URL in URLIndexingStatus so google-indexing cron picks it up
+  // Without this, posts can slip through if IndexNow submission fails
+  if (blogPost.published) {
+    try {
+      const siteUrl = getSiteDomain(site.id);
+      const fullUrl = `${siteUrl}/blog/${slug}`;
+      await prisma.uRLIndexingStatus.upsert({
+        where: { site_id_url: { site_id: site.id, url: fullUrl } },
+        create: {
+          site_id: site.id,
+          url: fullUrl,
+          slug,
+          status: "discovered",
+          last_submitted_at: null,
+        },
+        update: {}, // Don't overwrite if already tracked
+      });
+    } catch (trackErr) {
+      console.warn(`[${site.name}] URL tracking failed (non-fatal):`, trackErr instanceof Error ? trackErr.message : trackErr);
+    }
+  }
+
   console.log(`[${site.name}] Generated ${primaryLanguage} article: ${slug}`);
   return blogPost;
 }
@@ -678,15 +700,15 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
   "seoScore": 90
 }`;
 
-    // Dynamic timeout: use remaining deadline time (capped at 35s per call, min 15s)
-    // The AI provider fetch calls already have a 30s AbortSignal — this is a safety net
+    // Dynamic timeout: use remaining deadline time (capped at 25s per call, min 15s)
+    // Reduced from 35s to 25s — a single article + overhead was exceeding 53s budget
     const aiTimeoutMs = deadline
-      ? Math.max(15_000, Math.min(35_000, deadline.remainingMs() - 5_000))
-      : 35_000;
+      ? Math.max(15_000, Math.min(25_000, deadline.remainingMs() - 8_000))
+      : 25_000;
     const aiResult = await Promise.race([
       generateJSON<any>(prompt, {
         systemPrompt,
-        maxTokens: 4096,
+        maxTokens: 3000,
         temperature: 0.7,
       }),
       new Promise<never>((_, reject) =>
@@ -713,7 +735,7 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
             "Content-Type": "application/json",
             Authorization: `Bearer ${apiKey}`,
           },
-          signal: AbortSignal.timeout(deadline ? Math.max(10_000, Math.min(30_000, deadline.remainingMs() - 5_000)) : 30_000),
+          signal: AbortSignal.timeout(deadline ? Math.max(10_000, Math.min(20_000, deadline.remainingMs() - 8_000)) : 20_000),
           body: JSON.stringify({
             model: "gpt-4o-mini",
             messages: [

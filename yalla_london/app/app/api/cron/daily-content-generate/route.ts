@@ -242,9 +242,12 @@ async function generateDailyContentForSite(site: SiteConfig, prisma: any, deadli
     }
   }
 
-  // Generate AR article if needed — require at least 20s remaining (AR generation needs its own AI call)
+  // Generate AR article if needed — require at least 28s remaining
+  // (AR generation needs AI call ~22s + overhead ~5s = ~27s minimum)
+  // Previous threshold of 20s caused timeouts: EN(25s) + overhead(5s) = 30s elapsed,
+  // leaving 23s > 20s, so AR started and pushed total to 55s → Vercel kill.
   if (todayAR === 0) {
-    if (deadline?.isExpired() || (deadline && deadline.remainingMs() < 20_000)) {
+    if (deadline?.isExpired() || (deadline && deadline.remainingMs() < 28_000)) {
       results.push({ language: "ar", status: "skipped", error: "timeout_approaching — insufficient time for AR generation" });
     } else {
       try {
@@ -700,11 +703,13 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
   "seoScore": 90
 }`;
 
-    // Dynamic timeout: use remaining deadline time (capped at 25s per call, min 15s)
-    // Reduced from 35s to 25s — a single article + overhead was exceeding 53s budget
+    // Dynamic timeout: use remaining deadline time (capped at 22s per call, min 12s)
+    // Reduced from 25s to 22s — EN(25s) + overhead(5s) was leaving only 23s for AR,
+    // which triggered a second 25s AI call → 55s total → Vercel timeout.
+    // At 22s cap: EN(22s) + overhead(5s) = 27s, leaving 26s < 28s threshold → AR skipped safely.
     const aiTimeoutMs = deadline
-      ? Math.max(15_000, Math.min(25_000, deadline.remainingMs() - 8_000))
-      : 25_000;
+      ? Math.max(12_000, Math.min(22_000, deadline.remainingMs() - 8_000))
+      : 22_000;
     const aiResult = await Promise.race([
       generateJSON<any>(prompt, {
         systemPrompt,
@@ -735,7 +740,7 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
             "Content-Type": "application/json",
             Authorization: `Bearer ${apiKey}`,
           },
-          signal: AbortSignal.timeout(deadline ? Math.max(10_000, Math.min(20_000, deadline.remainingMs() - 8_000)) : 20_000),
+          signal: AbortSignal.timeout(deadline ? Math.max(10_000, Math.min(18_000, deadline.remainingMs() - 8_000)) : 18_000),
           body: JSON.stringify({
             model: "gpt-4o-mini",
             messages: [

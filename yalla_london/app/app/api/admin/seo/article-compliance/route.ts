@@ -465,13 +465,12 @@ export async function POST(request: NextRequest) {
 
       const fixes: string[] = [];
       const updateData: Record<string, unknown> = {};
-      const siteName = (() => {
-        try {
-          const { getSiteConfig } = require("@/config/sites");
-          const cfg = getSiteConfig(article.siteId || siteId);
-          return cfg?.siteName || "Yalla London";
-        } catch { return "Yalla London"; }
-      })();
+      let siteName = "Yalla London";
+      try {
+        const { getSiteConfig } = await import("@/config/sites");
+        const cfg = getSiteConfig(article.siteId || siteId);
+        if (cfg?.siteName) siteName = cfg.siteName;
+      } catch { /* use fallback */ }
 
       // ── Fix 1: Missing or short meta title ──
       if (!article.meta_title_en && article.title_en) {

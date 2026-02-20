@@ -2,6 +2,8 @@
  * Admin Pipeline API
  * Provides automation pipeline status, cron jobs, and scheduling information
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
 import { prisma } from '@/lib/db';

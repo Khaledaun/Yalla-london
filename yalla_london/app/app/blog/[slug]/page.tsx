@@ -232,14 +232,14 @@ async function generateStructuredData(
   let categoryName = "Travel";
   let keywords: string[] = [];
 
-  if (source === "static") {
+  if (source === "db") {
+    categoryName = post.category?.name_en || "Travel";
+    keywords = Array.isArray(post.keywords_json) ? post.keywords_json : [];
+  } else {
     const { categories: cats } = await getStaticPosts();
     const cat = cats.find((c: any) => c.id === post.category_id);
     categoryName = cat?.name_en || "Travel";
     keywords = post.keywords || [];
-  } else {
-    categoryName = post.category?.name_en || "Travel";
-    keywords = Array.isArray(post.keywords_json) ? post.keywords_json : [];
   }
 
   const contentText =
@@ -317,7 +317,14 @@ async function generateStructuredData(
 async function transformForClient(post: any, source: "db" | "static") {
   let category = null;
 
-  if (source === "static") {
+  if (source === "db" && post.category) {
+    category = {
+      id: post.category.id,
+      name_en: post.category.name_en,
+      name_ar: post.category.name_ar,
+      slug: post.category.slug,
+    };
+  } else if (source === "static") {
     const { categories: cats } = await getStaticPosts();
     const cat = cats.find((c: any) => c.id === post.category_id);
     category = cat
@@ -328,13 +335,6 @@ async function transformForClient(post: any, source: "db" | "static") {
           slug: cat.slug,
         }
       : null;
-  } else if (post.category) {
-    category = {
-      id: post.category.id,
-      name_en: post.category.name_en,
-      name_ar: post.category.name_ar,
-      slug: post.category.slug,
-    };
   }
 
   // Static content is markdown → convert to HTML (lazy-loaded)
@@ -396,10 +396,18 @@ export default async function BlogPostPage({ params }: Props) {
   }
 
   const locale = headersList.get("x-locale") || "en";
+
+  // For DB posts, use dbOnly mode to skip importing 385KB of static content
+  const isDb = result.source === "db";
+  const categoryHint = isDb ? (result.post as any).category?.name_en : undefined;
+
   const [structuredData, clientPost, relatedArticles] = await Promise.all([
     generateStructuredData(result.post, result.source, { siteName, siteDomain, siteSlug, locale }),
     transformForClient(result.post, result.source),
-    getRelatedArticles(slug, "blog", 3),
+    getRelatedArticles(slug, "blog", 3, {
+      dbOnly: isDb,
+      categoryHint,
+    }),
   ]);
 
   return (

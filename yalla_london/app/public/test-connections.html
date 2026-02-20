@@ -1535,7 +1535,10 @@ async function runAllTests() {
       if (contentResp.ok && contentResp.json) {
         const j = contentResp.json;
         addResult('pipeline', 'Daily Content Generate', 'pass', j.status === 'healthy' ? 'Healthy' : (j.message || 'OK'));
-        if (j.lastRun) addResult('pipeline', 'Last Run', 'pass', j.lastRun.status + ' — ' + new Date(j.lastRun.started_at).toLocaleString());
+        if (j.lastRun) {
+          const runCls = j.lastRun.status === 'completed' ? 'pass' : j.lastRun.status === 'timed_out' ? 'warn' : 'fail';
+          addResult('pipeline', 'Last Run', runCls, j.lastRun.status + ' — ' + new Date(j.lastRun.started_at).toLocaleString());
+        }
         if (j.sites !== undefined) addResult('pipeline', 'Active Sites', 'pass', j.sites + ' sites configured');
         addJsonBlock('pipeline', j);
       } else if (contentResp.status === 401) {
@@ -1560,7 +1563,8 @@ async function runAllTests() {
       if (publishResp.ok && publishResp.json) {
         const j = publishResp.json;
         addResult('publish', 'Scheduled Publish', 'pass', j.message || 'OK');
-        if (j.published !== undefined) addResult('publish', 'Posts Published', 'pass', j.published + ' posts published this run');
+        const pubCount = j.published_count !== undefined ? j.published_count : (Array.isArray(j.published) ? j.published.length : j.published);
+        if (pubCount !== undefined) addResult('publish', 'Posts Published', 'pass', pubCount + ' posts published this run');
         if (j.pending !== undefined) addResult('publish', 'Pending Schedule', 'pass', j.pending + ' posts pending');
         if (Array.isArray(j.nextScheduled) && j.nextScheduled.length) addResult('publish', 'Next Scheduled', 'pass', j.nextScheduled.map(p => (p.title || '').substring(0,40) + ' @ ' + (p.scheduled_at || '')).join('; '));
         addJsonBlock('publish', j);

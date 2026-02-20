@@ -4,16 +4,11 @@
  * Computes related articles for blog posts and information hub articles
  * using a tag/category/keyword-based relevance scoring algorithm.
  * Encourages cross-linking between blog and information content.
+ *
+ * PERFORMANCE NOTE: Static content (~385KB) is lazy-loaded only when needed.
+ * For DB-sourced blog posts, we use DB-only related articles to avoid
+ * importing the static content pool during SSR.
  */
-
-import { blogPosts, categories } from '@/data/blog-content';
-import { extendedBlogPosts } from '@/data/blog-content-extended';
-import {
-  informationArticles as baseInfoArticles,
-  informationSections,
-  informationCategories,
-} from '@/data/information-hub-content';
-import { extendedInformationArticles } from '@/data/information-hub-articles-extended';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,62 +47,78 @@ interface NormalisedItem {
 }
 
 // ---------------------------------------------------------------------------
-// Unified content pool (built once at module level)
+// Lazy-loaded static content pool (avoids 385KB import at module level)
 // ---------------------------------------------------------------------------
 
-const allBlogPosts = [...blogPosts, ...extendedBlogPosts];
-const allInfoArticles = [...baseInfoArticles, ...extendedInformationArticles];
+let _staticPoolCache: NormalisedItem[] | null = null;
 
-function normaliseBlogPost(post: (typeof allBlogPosts)[number]): NormalisedItem {
-  const category = categories.find((c) => c.id === post.category_id);
-  return {
-    slug: post.slug,
-    title_en: post.title_en,
-    title_ar: post.title_ar,
-    excerpt_en: post.excerpt_en,
-    excerpt_ar: post.excerpt_ar,
-    featured_image: post.featured_image,
-    type: 'blog',
-    category_id: post.category_id,
-    category_name_en: category?.name_en ?? '',
-    category_name_ar: category?.name_ar ?? '',
-    tags: post.tags ?? [],
-    keywords: post.keywords ?? [],
-    page_type: post.page_type ?? '',
-    reading_time: post.reading_time ?? 0,
-    published: post.published,
-  };
+async function getStaticPool(): Promise<NormalisedItem[]> {
+  if (_staticPoolCache) return _staticPoolCache;
+
+  const { blogPosts, categories } = await import('@/data/blog-content');
+  const { extendedBlogPosts } = await import('@/data/blog-content-extended');
+  const {
+    informationArticles: baseInfoArticles,
+    informationSections,
+    informationCategories,
+  } = await import('@/data/information-hub-content');
+  const { extendedInformationArticles } = await import('@/data/information-hub-articles-extended');
+
+  const allBlogPosts = [...blogPosts, ...extendedBlogPosts];
+  const allInfoArticles = [...baseInfoArticles, ...extendedInformationArticles];
+
+  function normaliseBlogPost(post: (typeof allBlogPosts)[number]): NormalisedItem {
+    const category = categories.find((c) => c.id === post.category_id);
+    return {
+      slug: post.slug,
+      title_en: post.title_en,
+      title_ar: post.title_ar,
+      excerpt_en: post.excerpt_en,
+      excerpt_ar: post.excerpt_ar,
+      featured_image: post.featured_image,
+      type: 'blog',
+      category_id: post.category_id,
+      category_name_en: category?.name_en ?? '',
+      category_name_ar: category?.name_ar ?? '',
+      tags: post.tags ?? [],
+      keywords: post.keywords ?? [],
+      page_type: post.page_type ?? '',
+      reading_time: post.reading_time ?? 0,
+      published: post.published,
+    };
+  }
+
+  function normaliseInfoArticle(
+    article: (typeof allInfoArticles)[number],
+  ): NormalisedItem {
+    const category = informationCategories.find((c) => c.id === article.category_id);
+    const section = informationSections.find((s) => s.id === article.section_id);
+    return {
+      slug: article.slug,
+      title_en: article.title_en,
+      title_ar: article.title_ar,
+      excerpt_en: article.excerpt_en,
+      excerpt_ar: article.excerpt_ar,
+      featured_image: article.featured_image,
+      type: 'information',
+      category_id: article.category_id,
+      category_name_en: category?.name_en ?? section?.name_en ?? '',
+      category_name_ar: category?.name_ar ?? section?.name_ar ?? '',
+      tags: article.tags ?? [],
+      keywords: article.keywords ?? [],
+      page_type: article.page_type ?? '',
+      reading_time: article.reading_time ?? 0,
+      published: article.published,
+    };
+  }
+
+  _staticPoolCache = [
+    ...allBlogPosts.map(normaliseBlogPost),
+    ...allInfoArticles.map(normaliseInfoArticle),
+  ];
+
+  return _staticPoolCache;
 }
-
-function normaliseInfoArticle(
-  article: (typeof allInfoArticles)[number],
-): NormalisedItem {
-  const category = informationCategories.find((c) => c.id === article.category_id);
-  // Also resolve section to provide a secondary category signal
-  const section = informationSections.find((s) => s.id === article.section_id);
-  return {
-    slug: article.slug,
-    title_en: article.title_en,
-    title_ar: article.title_ar,
-    excerpt_en: article.excerpt_en,
-    excerpt_ar: article.excerpt_ar,
-    featured_image: article.featured_image,
-    type: 'information',
-    category_id: article.category_id,
-    category_name_en: category?.name_en ?? section?.name_en ?? '',
-    category_name_ar: category?.name_ar ?? section?.name_ar ?? '',
-    tags: article.tags ?? [],
-    keywords: article.keywords ?? [],
-    page_type: article.page_type ?? '',
-    reading_time: article.reading_time ?? 0,
-    published: article.published,
-  };
-}
-
-const allItems: NormalisedItem[] = [
-  ...allBlogPosts.map(normaliseBlogPost),
-  ...allInfoArticles.map(normaliseInfoArticle),
-];
 
 // ---------------------------------------------------------------------------
 // Scoring helpers
@@ -262,34 +273,43 @@ async function fetchDbRelatedArticles(
 /**
  * Returns related articles for a given piece of content.
  *
- * The function first queries the database for published BlogPosts (pipeline-
- * generated content) and then supplements with static content scored by shared
- * categories, tags, keywords, and page type.  DB results appear first so that
- * freshly generated articles always surface as related content.
+ * For DB-sourced posts, uses DB-only results to avoid importing 385KB of
+ * static content during SSR (critical for page load performance).
  *
- * A cross-type bonus encourages links between blog and information content.
- * The result set guarantees at least one cross-type entry when possible,
- * aiming for roughly 2 same-type + 1 cross-type in the default case (count=3).
+ * For static posts, lazy-loads the static pool and scores by shared
+ * categories, tags, keywords, and page type.  DB results appear first.
  *
- * If fewer than `count` scored results exist, the remainder is filled with
- * random published articles from the opposite type.
+ * @param options.dbOnly - When true, skip static content entirely (use for DB posts)
+ * @param options.categoryHint - Category name for filtering DB results
  */
 export async function getRelatedArticles(
   currentSlug: string,
   currentType: 'blog' | 'information',
   count: number = 3,
+  options?: { dbOnly?: boolean; categoryHint?: string },
 ): Promise<RelatedArticleData[]> {
+  const { dbOnly = false, categoryHint: explicitCategoryHint } = options || {};
+
   // ── 1. Fetch DB-generated articles (BlogPosts) ──────────────────────────
-  // Determine a category hint from the static content pool (if source found)
+  const dbResults = await fetchDbRelatedArticles(
+    currentSlug,
+    explicitCategoryHint,
+    dbOnly ? count : count * 2,
+  );
+
+  // For DB-sourced posts, return DB results only — avoids importing 385KB
+  // of static content files during SSR
+  if (dbOnly) {
+    return dbResults.slice(0, count);
+  }
+
+  // ── 2. Compute static content results (lazy-loaded) ────────────────────
+  const allItems = await getStaticPool();
+  let staticResults: RelatedArticleData[] = [];
+
   const source = allItems.find(
     (item) => item.slug === currentSlug && item.type === currentType,
   );
-  const categoryHint = source?.category_name_en || undefined;
-
-  const dbResults = await fetchDbRelatedArticles(currentSlug, categoryHint, count * 2);
-
-  // ── 2. Compute static content results ───────────────────────────────────
-  let staticResults: RelatedArticleData[] = [];
 
   if (!source) {
     // Source not in static pool — return random published static items

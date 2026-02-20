@@ -179,11 +179,27 @@ export async function POST(request: NextRequest) {
         try {
           const keyword = t.slug || t.title || '';
           if (!keyword) continue;
-          // Skip duplicates per site
+          // Skip duplicates per site (check both topic proposals and published articles)
           const exists = await prisma.topicProposal.findFirst({
             where: { primary_keyword: keyword, locale: t.locale, site_id: targetSiteId },
           });
           if (exists) continue;
+
+          // Skip if a published BlogPost already covers this keyword
+          const keywordSlug = keyword.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 40);
+          const publishedExists = await prisma.blogPost.findFirst({
+            where: {
+              siteId: targetSiteId,
+              published: true,
+              deletedAt: null,
+              slug: { contains: keywordSlug },
+            },
+            select: { id: true },
+          });
+          if (publishedExists) {
+            console.log(`[weekly-topics] Skipping "${keyword}" — published article already exists`);
+            continue;
+          }
 
           await prisma.topicProposal.create({
             data: {

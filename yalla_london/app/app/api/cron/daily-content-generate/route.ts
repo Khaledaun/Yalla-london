@@ -303,7 +303,33 @@ async function generateArticle(
   }
   const category = await getOrCreateCategory(site, prisma);
   const systemUser = await getOrCreateSystemUser(site, prisma);
-  const slug = generateSlug(content.title, primaryLanguage);
+  const rawSlug = generateSlug(content.title, primaryLanguage);
+
+  // Dedup: check if a published article already covers this topic/keyword
+  const existingByKeyword = await prisma.blogPost.findFirst({
+    where: {
+      siteId: site.id,
+      published: true,
+      deletedAt: null,
+      slug: { contains: rawSlug.slice(0, 40) },
+    },
+    select: { id: true, slug: true },
+  });
+  if (existingByKeyword) {
+    console.warn(
+      `[daily-content-generate] Skipping duplicate — existing article "${existingByKeyword.slug}" already covers topic "${topic.keyword}"`,
+    );
+    // Mark topic as published so it's not picked again
+    if (topic.id) {
+      await prisma.topicProposal.update({
+        where: { id: topic.id },
+        data: { status: "published" },
+      }).catch(() => {});
+    }
+    return { slug: existingByKeyword.slug, deduplicated: true };
+  }
+
+  const slug = await ensureUniqueSlug(rawSlug, prisma);
 
   // Pre-publication gate — verify route exists, content quality, and SEO minimums
   const targetUrl = `/blog/${slug}`;
@@ -730,22 +756,38 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
 }
 
 function generateSlug(title: string, language: string): string {
-  const date = new Date().toISOString().slice(0, 10);
   const cleanTitle = title
     .toLowerCase()
     .replace(/[^\w\s-]/g, "")
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
+    .slice(0, 80);
 
-  // Guard: never produce a slug with empty title portion (e.g. "-2026-02-14")
   if (!cleanTitle) {
     const fallback = `untitled-${language}-${Date.now().toString(36)}`;
-    console.warn(`[daily-content-generate] Empty title produced empty slug — using fallback: ${fallback}-${date}`);
-    return `${fallback}-${date}`;
+    console.warn(`[daily-content-generate] Empty title produced empty slug — using fallback: ${fallback}`);
+    return fallback;
   }
 
-  return `${cleanTitle}-${date}`;
+  return cleanTitle;
+}
+
+/**
+ * Check if a slug already exists in BlogPost. If so, return a unique variant.
+ * Only appends a short random suffix on actual collision — never a date.
+ */
+async function ensureUniqueSlug(slug: string, prisma: any): Promise<string> {
+  const existing = await prisma.blogPost.findFirst({
+    where: { slug },
+    select: { id: true },
+  });
+  if (!existing) return slug;
+
+  // Slug taken — append short random suffix
+  const suffix = Date.now().toString(36).slice(-4);
+  const uniqueSlug = `${slug}-${suffix}`;
+  console.warn(`[daily-content-generate] Slug "${slug}" already exists — using "${uniqueSlug}"`);
+  return uniqueSlug;
 }
 
 async function getOrCreateCategory(site: SiteConfig, prisma: any) {

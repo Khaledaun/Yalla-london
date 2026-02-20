@@ -328,12 +328,14 @@ async function promoteToBlogPost(
     }
   }
 
-  const dateStr = new Date().toISOString().slice(0, 10);
-  slug = `${slug}-${dateStr}`;
-
-  const existingSlug = await prisma.blogPost.findFirst({ where: { slug } });
+  // Check for slug collision — only append random suffix if needed (never a date)
+  const existingSlug = await prisma.blogPost.findFirst({
+    where: { slug },
+    select: { id: true },
+  });
   if (existingSlug) {
     slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
+    console.warn(`[content-selector] Slug collision — using "${slug}"`);
   }
 
   // Get or create category and system user

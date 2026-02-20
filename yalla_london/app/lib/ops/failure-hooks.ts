@@ -340,13 +340,15 @@ export async function onPromotionFailure(ctx: PromotionFailureContext): Promise<
 async function wasRecentlyRecovered(draftId: string): Promise<boolean> {
   try {
     const { prisma } = await import("@/lib/db");
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    // 30-minute cooldown (reduced from 2h — content-builder runs every 15m,
+    // so a 2h window meant drafts stayed dead for 8+ builder runs)
+    const cooldownAgo = new Date(Date.now() - 30 * 60 * 1000);
 
     const recentRecovery = await prisma.cronJobLog.findFirst({
       where: {
         job_name: { in: ["failure-hook", "sweeper-agent"] },
         status: "completed",
-        started_at: { gte: twoHoursAgo },
+        started_at: { gte: cooldownAgo },
         result_summary: {
           path: ["target"],
           equals: draftId,
@@ -410,12 +412,12 @@ async function runTargetedSweep(siteId?: string): Promise<number> {
     // Read recent recovery logs to avoid double-recovery
     const recentlyRecoveredIds = new Set<string>();
     try {
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      const cooldownAgo = new Date(Date.now() - 30 * 60 * 1000);
       const recentLogs = await prisma.cronJobLog.findMany({
         where: {
           job_name: { in: ["failure-hook", "sweeper-agent"] },
           status: "completed",
-          started_at: { gte: twoHoursAgo },
+          started_at: { gte: cooldownAgo },
         },
         select: { result_summary: true },
         take: 50,

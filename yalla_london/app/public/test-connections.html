@@ -2032,11 +2032,17 @@ async function runAllTests() {
             j.seo.indexed_pages + '/' + j.seo.total_pages + ' pages indexed (' + (j.seo.indexing_rate || 0) + '%)');
         }
         addJsonBlock('multisite', j);
+      } else if (siteResp.status === 401 || siteResp.status === 403) {
+        addResult('multisite', 'Yalla London', 'warn', 'HTTP ' + siteResp.status + ' — authentication required',
+          'The <code>/api/admin/sites/yalla-london/health</code> endpoint requires admin session or CRON_SECRET. Verify your CRON_SECRET is correct. This endpoint uses <code>requireAdminOrCron</code>.');
       } else if (siteResp.status === 404) {
-        addResult('multisite', 'Yalla London', 'warn', 'HTTP 404 — site health endpoint not found',
-          'The <code>/api/admin/sites/yalla-london/health</code> route returned 404. This endpoint may not be deployed yet. Ensure the route exists at <code>app/api/admin/sites/[siteId]/health/route.ts</code> and redeploy.');
+        const errBody = siteResp.json?.error || '';
+        addResult('multisite', 'Yalla London', 'warn', 'HTTP 404 — ' + (errBody || 'site health endpoint not found'),
+          errBody.includes('Unknown site')
+            ? 'The site ID "yalla-london" was not found in config. Check <code>config/sites.ts</code>.'
+            : 'The <code>/api/admin/sites/yalla-london/health</code> route returned 404. Ensure the route is deployed. It exists at <code>app/api/admin/sites/[siteId]/health/route.ts</code>.');
       } else {
-        addResult('multisite', 'Yalla London', 'warn', 'HTTP ' + siteResp.status + ' — ' + (siteResp.errorDetail || ''));
+        addResult('multisite', 'Yalla London', 'warn', 'HTTP ' + siteResp.status + ' — ' + (siteResp.json?.error || siteResp.errorDetail || ''));
       }
     } catch (e) { log('  ERROR in section 20: ' + e.message); addResult('multisite', 'Site Health', 'fail', 'JS Error: ' + e.message); }
 

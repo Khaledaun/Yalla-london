@@ -27,6 +27,7 @@ export function VideoHeroModulePreview({ module }: VideoHeroModulePreviewProps) 
         <video
           className="absolute inset-0 w-full h-full object-cover"
           src={videoUrl}
+          aria-label="Hero background video"
           muted
           loop
           playsInline
@@ -51,6 +52,7 @@ export function VideoHeroModulePreview({ module }: VideoHeroModulePreviewProps) 
         {/* Play button */}
         <button
           type="button"
+          aria-label="Play video"
           className="mb-8 h-20 w-20 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/40 flex items-center justify-center hover:bg-white/30 transition-colors"
         >
           <Play className="h-8 w-8 text-white ml-1" />

@@ -10,7 +10,7 @@
  * without reaching into two separate configs.
  */
 
-import { SITES, getSiteConfig, getAllSiteIds } from "@/config/sites";
+import { SITES, getSiteConfig, getAllSiteIds, getSiteDomain, getDefaultSiteId } from "@/config/sites";
 import {
   getDestinationTheme,
   type DestinationTheme,
@@ -138,7 +138,7 @@ function mergeBrandProfile(siteId: string): BrandProfile {
   // If the site is completely unknown, build a minimal fallback
   // using the default theme (yallaLondonTheme, per getDestinationTheme).
   const name = siteConfig?.name ?? theme.name;
-  const domain = siteConfig?.domain ?? "yalla-london.com";
+  const domain = siteConfig?.domain ?? getSiteDomain(getDefaultSiteId());
   const slug = siteConfig?.slug ?? siteId;
 
   // Colors: theme is the authority for detailed palette; site config

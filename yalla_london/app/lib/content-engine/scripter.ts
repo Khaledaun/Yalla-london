@@ -217,7 +217,7 @@ function buildBlogArticlePrompt(
   language: string,
 ): string {
   const destination = siteConfig?.destination || 'luxury travel';
-  const domain = siteConfig?.domain || 'yalla-london.com';
+  const domain = siteConfig?.domain || getSiteDomain(getDefaultSiteId());
   const affiliatePartners = siteConfig?.affiliateCategories?.join(', ') || 'Booking.com, HalalBooking, GetYourGuide';
   const primaryKeywords = language === 'ar'
     ? (siteConfig?.primaryKeywordsAR?.slice(0, 5)?.join(', ') || '')
@@ -408,7 +408,7 @@ function generatePlaceholderBlogArticle(
   siteConfig: any,
 ): NonNullable<ScripterOutput['blogArticle']> {
   const destination = siteConfig?.destination || 'luxury travel';
-  const domain = siteConfig?.domain || 'yalla-london.com';
+  const domain = siteConfig?.domain || getSiteDomain(getDefaultSiteId());
   const angleTitle = angle.title || angle.hook || 'Untitled Article';
   const angleId = angle.id || angle.angleId || `angle-${Date.now()}`;
   const slug = generateSlug(angleTitle);
@@ -461,7 +461,7 @@ function generatePlaceholderEmailCampaign(
     blocks: [
       { type: 'hero', heading: angleTitle, body: '', ctaText: null, ctaUrl: null, imageQuery: `${destination} luxury scenic` },
       { type: 'text', heading: 'The Inside Story', body: `Placeholder email body about ${angleTitle}. Will be replaced with AI-generated content.`, ctaText: null, ctaUrl: null, imageQuery: null },
-      { type: 'cta', heading: null, body: 'Ready to explore?', ctaText: 'Read the Full Guide', ctaUrl: `https://www.${siteConfig?.domain || 'yalla-london.com'}/blog`, imageQuery: null },
+      { type: 'cta', heading: null, body: 'Ready to explore?', ctaText: 'Read the Full Guide', ctaUrl: `https://www.${siteConfig?.domain || getSiteDomain(getDefaultSiteId())}/blog`, imageQuery: null },
       { type: 'footer', heading: null, body: `${siteConfig?.name || 'Yalla London'} — Your luxury travel companion`, ctaText: null, ctaUrl: null, imageQuery: null },
     ],
   };
@@ -564,7 +564,7 @@ export async function runScripter(input: ScripterInput): Promise<ScripterOutput>
 
   // --- Process each angle ---------------------------------------------------
   for (const angle of angles) {
-    const angleId = angle.id || angle.angleId || `angle-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const angleId = angle.id || angle.angleId || `angle-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
 
     // 1. Social Posts — one per target social platform
     const socialPlatforms = getSocialPlatforms(angle);
@@ -851,7 +851,7 @@ export async function publishPipeline(
   }
 
   const siteConfig = getSiteConfig(pipelineSite);
-  const domain = siteConfig?.domain || 'yalla-london.com';
+  const domain = siteConfig?.domain || getSiteDomain(getDefaultSiteId());
 
   // ---- 1. Social Posts -> ScheduledContent records --------------------------
   for (const post of scripterOutput.socialPosts) {

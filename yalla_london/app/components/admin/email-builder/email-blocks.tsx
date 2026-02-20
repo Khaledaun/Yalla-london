@@ -343,15 +343,25 @@ export function renderBlockPreview(
 // HTML export — email-safe inline-styled output
 // ---------------------------------------------------------------------------
 
+/** Escape HTML entities in text/attribute values to prevent XSS */
+function esc(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export function blockToHtml(block: EmailBlock): string {
   const s = block.styles ?? {}
 
   switch (block.type) {
     case 'header': {
       const { title, subtitle, logoUrl } = block.content as { title?: string; subtitle?: string; logoUrl?: string }
-      const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="Logo" style="max-height:40px;margin-bottom:12px;" />` : ''
-      const subtitleHtml = subtitle ? `<div style="font-size:14px;opacity:0.85;margin-top:4px;">${subtitle}</div>` : ''
-      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:${s.backgroundColor ?? '#1C1917'};color:${s.color ?? '#fff'};padding:${s.padding ?? '32px 24px'};text-align:${s.textAlign ?? 'center'};">${logoHtml}<div style="font-size:22px;font-weight:700;">${title || 'Email Title'}</div>${subtitleHtml}</td></tr></table>`
+      const logoHtml = logoUrl ? `<img src="${esc(logoUrl)}" alt="Logo" style="max-height:40px;margin-bottom:12px;" />` : ''
+      const subtitleHtml = subtitle ? `<div style="font-size:14px;opacity:0.85;margin-top:4px;">${esc(subtitle)}</div>` : ''
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:${s.backgroundColor ?? '#1C1917'};color:${s.color ?? '#fff'};padding:${s.padding ?? '32px 24px'};text-align:${s.textAlign ?? 'center'};">${logoHtml}<div style="font-size:22px;font-weight:700;">${esc(title || 'Email Title')}</div>${subtitleHtml}</td></tr></table>`
     }
     case 'text': {
       const { html } = block.content as { html?: string }
@@ -359,13 +369,13 @@ export function blockToHtml(block: EmailBlock): string {
     }
     case 'image': {
       const { src, alt, linkUrl, width } = block.content as { src?: string; alt?: string; linkUrl?: string; width?: string }
-      const imgTag = `<img src="${src || ''}" alt="${alt || ''}" width="${width ?? '100%'}" style="display:block;max-width:100%;border-radius:4px;" />`
-      const inner = linkUrl ? `<a href="${linkUrl}" style="text-decoration:none;">${imgTag}</a>` : imgTag
+      const imgTag = `<img src="${esc(src || '')}" alt="${esc(alt || '')}" width="${esc(width ?? '100%')}" style="display:block;max-width:100%;border-radius:4px;" />`
+      const inner = linkUrl ? `<a href="${esc(linkUrl)}" style="text-decoration:none;">${imgTag}</a>` : imgTag
       return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:${s.padding ?? '0 24px'};background-color:${s.backgroundColor ?? '#fff'};">${inner}</td></tr></table>`
     }
     case 'button': {
       const { text, url } = block.content as { text?: string; url?: string }
-      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:16px 24px;text-align:center;background-color:#FFFFFF;"><a href="${url || '#'}" style="display:inline-block;background-color:${s.backgroundColor ?? '#C8322B'};color:${s.color ?? '#fff'};padding:${s.padding ?? '14px 32px'};border-radius:${s.borderRadius ?? '8px'};font-weight:${s.fontWeight ?? '600'};font-size:${s.fontSize ?? '16px'};text-decoration:none;">${text || 'Button'}</a></td></tr></table>`
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:16px 24px;text-align:center;background-color:#FFFFFF;"><a href="${esc(url || '#')}" style="display:inline-block;background-color:${s.backgroundColor ?? '#C8322B'};color:${s.color ?? '#fff'};padding:${s.padding ?? '14px 32px'};border-radius:${s.borderRadius ?? '8px'};font-weight:${s.fontWeight ?? '600'};font-size:${s.fontSize ?? '16px'};text-decoration:none;">${esc(text || 'Button')}</a></td></tr></table>`
     }
     case 'divider':
       return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:${s.padding ?? '8px 24px'};"><hr style="border:none;border-top:1px solid ${s.borderColor ?? '#E5E7EB'};margin:0;" /></td></tr></table>`
@@ -374,21 +384,21 @@ export function blockToHtml(block: EmailBlock): string {
       const cols = columns ?? []
       const cellWidth = Math.floor(100 / Math.max(cols.length, 1))
       const cellsHtml = cols.map((col) => {
-        const imgHtml = col.imageUrl ? `<img src="${col.imageUrl}" alt="${col.heading ?? ''}" style="width:100%;border-radius:4px;margin-bottom:8px;" />` : ''
-        const linkHtml = col.linkText && col.linkUrl ? `<div style="margin-top:8px;"><a href="${col.linkUrl}" style="color:#C8322B;font-size:13px;font-weight:500;text-decoration:none;">${col.linkText} &rarr;</a></div>` : ''
-        return `<td style="width:${cellWidth}%;vertical-align:top;padding:0 8px;" valign="top">${imgHtml}<div style="font-size:16px;font-weight:600;color:#1C1917;margin-bottom:4px;">${col.heading || ''}</div><div style="font-size:14px;color:#374151;line-height:1.5;">${col.text || ''}</div>${linkHtml}</td>`
+        const imgHtml = col.imageUrl ? `<img src="${esc(col.imageUrl)}" alt="${esc(col.heading ?? '')}" style="width:100%;border-radius:4px;margin-bottom:8px;" />` : ''
+        const linkHtml = col.linkText && col.linkUrl ? `<div style="margin-top:8px;"><a href="${esc(col.linkUrl)}" style="color:#C8322B;font-size:13px;font-weight:500;text-decoration:none;">${esc(col.linkText)} &rarr;</a></div>` : ''
+        return `<td style="width:${cellWidth}%;vertical-align:top;padding:0 8px;" valign="top">${imgHtml}<div style="font-size:16px;font-weight:600;color:#1C1917;margin-bottom:4px;">${esc(col.heading || '')}</div><div style="font-size:14px;color:#374151;line-height:1.5;">${esc(col.text || '')}</div>${linkHtml}</td>`
       }).join('')
       return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:${s.padding ?? '24px'};background-color:${s.backgroundColor ?? '#fff'};"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>${cellsHtml}</tr></table></td></tr></table>`
     }
     case 'footer': {
       const { companyName, address, unsubscribeUrl, preferencesUrl } = block.content as { companyName?: string; address?: string; unsubscribeUrl?: string; preferencesUrl?: string }
-      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:${s.padding ?? '24px'};background-color:${s.backgroundColor ?? '#F5F5F5'};text-align:${s.textAlign ?? 'center'};color:${s.color ?? '#6B7280'};font-size:${s.fontSize ?? '12px'};">&copy; ${new Date().getFullYear()} ${companyName || 'Company'}<br/>${address || ''}<br/><a href="${unsubscribeUrl || '#'}" style="color:${s.color ?? '#6B7280'};text-decoration:underline;">Unsubscribe</a> &middot; <a href="${preferencesUrl || '#'}" style="color:${s.color ?? '#6B7280'};text-decoration:underline;">Email Preferences</a></td></tr></table>`
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:${s.padding ?? '24px'};background-color:${s.backgroundColor ?? '#F5F5F5'};text-align:${s.textAlign ?? 'center'};color:${s.color ?? '#6B7280'};font-size:${s.fontSize ?? '12px'};">&copy; ${new Date().getFullYear()} ${esc(companyName || 'Company')}<br/>${esc(address || '')}<br/><a href="${esc(unsubscribeUrl || '#')}" style="color:${s.color ?? '#6B7280'};text-decoration:underline;">Unsubscribe</a> &middot; <a href="${esc(preferencesUrl || '#')}" style="color:${s.color ?? '#6B7280'};text-decoration:underline;">Email Preferences</a></td></tr></table>`
     }
     case 'social-links': {
       const { links } = block.content as { links?: Array<{ platform: string; url: string }> }
       const iconsHtml = (links ?? []).map((link) => {
         const label = SOCIAL_ICONS[link.platform] ?? link.platform.slice(0, 2).toUpperCase()
-        return `<a href="${link.url}" style="display:inline-block;width:36px;height:36px;line-height:36px;border-radius:50%;background-color:#374151;color:#fff;font-size:12px;font-weight:700;text-decoration:none;text-align:center;margin:0 6px;" title="${link.platform}">${label}</a>`
+        return `<a href="${esc(link.url)}" style="display:inline-block;width:36px;height:36px;line-height:36px;border-radius:50%;background-color:#374151;color:#fff;font-size:12px;font-weight:700;text-decoration:none;text-align:center;margin:0 6px;" title="${esc(link.platform)}">${esc(label)}</a>`
       }).join('')
       return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:${s.padding ?? '16px 24px'};text-align:${s.textAlign ?? 'center'};background-color:${s.backgroundColor ?? '#F5F5F5'};">${iconsHtml}</td></tr></table>`
     }
@@ -409,7 +419,7 @@ export function blocksToFullHtml(blocks: EmailBlock[], title?: string): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>${title || 'Email'}</title>
+  <title>${esc(title || 'Email')}</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->

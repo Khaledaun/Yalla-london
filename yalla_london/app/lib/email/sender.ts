@@ -71,7 +71,8 @@ function getDefaultFrom(): string {
     const { getDefaultSiteId, getSiteDomain } = require("@/config/sites");
     const domain = getSiteDomain(getDefaultSiteId());
     return `notifications@${domain}`;
-  } catch {
+  } catch (err) {
+    console.warn("[email:sender] Could not resolve default site domain for FROM address:", err instanceof Error ? err.message : err);
     return "notifications@zenitha.luxury";
   }
 }
@@ -268,7 +269,8 @@ async function sendViaSmtp(payload: ProviderPayload): Promise<SendEmailResult> {
   let nodemailer: any;
   try {
     nodemailer = await import(/* webpackIgnore: true */ "nodemailer");
-  } catch {
+  } catch (err) {
+    console.warn("[email:sender] Failed to import nodemailer:", err instanceof Error ? err.message : err);
     return {
       success: false,
       error:

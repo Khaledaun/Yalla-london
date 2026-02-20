@@ -1,118 +1,128 @@
 {
-  "version": "1.0.0",
   "crawl": {
-    "batchSize": 200,
     "concurrency": 6,
-    "rateLimit": {
-      "minDelayMs": 200,
-      "maxDelayMs": 1000
-    },
-    "retries": {
-      "max": 3,
-      "backoffMs": 1000
-    },
-    "timeout": {
-      "requestMs": 15000,
-      "batchMs": 120000
-    },
-    "userAgent": "MasterAudit/1.0 (SEO Compliance; +https://zenitha.luxury)"
-  },
-  "inventory": {
-    "sources": ["sitemap", "static_routes"],
-    "sitemapUrl": "/sitemap.xml",
-    "excludePatterns": ["/admin/*", "/api/*", "/shop/download", "/shop/purchases"],
-    "includeArVariants": true
+    "batchSize": 200,
+    "rateDelayMs": 200,
+    "timeoutMs": 15000,
+    "maxRetries": 3,
+    "retryBaseDelayMs": 1000,
+    "maxRedirects": 5,
+    "userAgent": "MasterAudit/1.0 (SEO Compliance; +https://zenitha.luxury)",
+    "allowedStatuses": [200, 301, 302, 304]
   },
   "validators": {
-    "http": {
-      "allowedStatuses": [200],
-      "followRedirects": true,
-      "maxRedirects": 5
+    "enabled": {
+      "http": true,
+      "canonical": true,
+      "hreflang": true,
+      "sitemap": true,
+      "schema": true,
+      "links": true,
+      "metadata": true,
+      "robots": true
     },
-    "canonical": {
-      "required": true,
-      "mustMatchRequestUrl": false,
-      "allowQueryParams": false
+    "titleLength": { "min": 30, "max": 60 },
+    "descriptionLength": { "min": 120, "max": 160 },
+    "expectedHreflangLangs": ["en-GB", "ar-SA", "x-default"],
+    "maxRedirectChain": 3,
+    "excludePatterns": [
+      "*/api/*",
+      "*/_next/*",
+      "*/admin/*",
+      "*/favicon.ico",
+      "*/robots.txt",
+      "*/shop/download",
+      "*/shop/purchases"
+    ],
+    "maxSitemapUrls": 50000,
+    "requiredSchemaByRoute": {
+      "/": ["Organization", "WebSite"],
+      "/blog/*": ["Article"]
     },
-    "hreflang": {
-      "required": true,
-      "expectedLanguages": ["en-GB", "ar-SA", "x-default"],
-      "validateReciprocity": true,
-      "exceptions": []
-    },
-    "sitemap": {
-      "maxUrls": 50000,
-      "requireLastmod": false,
-      "requireChangefreq": false
-    },
-    "schema": {
-      "required": true,
-      "requiredTypes": {
-        "/": ["Organization", "WebSite"],
-        "/blog/*": ["Article"]
-      },
-      "deprecatedTypes": [
-        "FAQPage",
-        "HowTo",
-        "CourseInfo",
-        "ClaimReview",
-        "EstimatedSalary",
-        "LearningVideo",
-        "SpecialAnnouncement",
-        "VehicleListing",
-        "PracticeProblems",
-        "SitelinksSearchBox"
-      ]
-    },
-    "links": {
-      "checkInternal": true,
-      "checkExternal": false,
-      "timeout": 10000
-    },
-    "metadata": {
-      "title": {
-        "minLength": 20,
-        "maxLength": 70,
-        "requireUnique": true
-      },
-      "description": {
-        "minLength": 70,
-        "maxLength": 170,
-        "requireUnique": true
-      }
-    },
-    "robots": {
-      "respectNoindex": true,
-      "respectNofollow": true
-    }
+    "deprecatedSchemaTypes": [
+      "FAQPage",
+      "HowTo",
+      "CourseInfo",
+      "ClaimReview",
+      "EstimatedSalary",
+      "LearningVideo",
+      "SpecialAnnouncement",
+      "VehicleListing",
+      "PracticeProblems",
+      "SitelinksSearchBox"
+    ],
+    "allowedCanonicalParams": []
   },
   "riskScanners": {
-    "scaledContent": {
-      "enabled": true,
-      "nearDuplicateThreshold": 0.85,
-      "thinContentWordCount": 300,
-      "minUniqueSectionsPerPage": 2
+    "enabled": {
+      "thinContent": true,
+      "duplicateContent": true,
+      "orphanPages": true
     },
-    "siteReputation": {
-      "enabled": true,
-      "outboundDominanceThreshold": 0.6,
-      "requiredEditorialSignals": ["author", "datePublished"]
+    "minWordCount": 1000
+  },
+  "hardGates": [
+    {
+      "name": "no-p0-http-errors",
+      "category": "http",
+      "maxP0": 0,
+      "maxTotal": -1,
+      "description": "No critical HTTP errors (5xx on important pages)"
     },
-    "expiredDomain": {
-      "enabled": false
+    {
+      "name": "no-missing-canonical",
+      "category": "canonical",
+      "maxP0": 0,
+      "maxTotal": -1,
+      "description": "All indexable pages must have canonical tags"
+    },
+    {
+      "name": "no-broken-schema",
+      "category": "schema",
+      "maxP0": 0,
+      "maxTotal": -1,
+      "description": "All JSON-LD must be valid and non-deprecated"
+    },
+    {
+      "name": "no-hreflang-failures",
+      "category": "hreflang",
+      "maxP0": 0,
+      "maxTotal": -1,
+      "description": "All hreflang tags must have valid reciprocal links"
+    },
+    {
+      "name": "no-broken-internal-links",
+      "category": "links",
+      "maxP0": 0,
+      "maxTotal": -1,
+      "description": "No broken internal links across the site"
+    },
+    {
+      "name": "sitemap-valid",
+      "category": "sitemap",
+      "maxP0": 0,
+      "maxTotal": 0,
+      "description": "Sitemap must parse successfully with no critical errors"
     }
-  },
-  "output": {
-    "dir": "docs/master-audit",
-    "formats": ["json", "markdown"],
-    "archiveRuns": true
-  },
-  "hardGates": {
-    "brokenInternalLinks": 0,
-    "nonTwoHundredIndexable": 0,
-    "missingCanonical": 0,
-    "malformedJsonLd": 0,
-    "hreflangReciprocityFailures": 0,
-    "sitemapParseFailure": false
-  }
+  ],
+  "staticRoutes": [
+    "/",
+    "/blog",
+    "/information",
+    "/information/articles",
+    "/news",
+    "/events",
+    "/experiences",
+    "/hotels",
+    "/recommendations",
+    "/london-by-foot",
+    "/shop",
+    "/about",
+    "/contact",
+    "/privacy",
+    "/terms",
+    "/affiliate-disclosure"
+  ],
+  "includeArVariants": true,
+  "outputDir": "docs/master-audit"
 }

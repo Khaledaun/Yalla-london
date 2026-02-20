@@ -1,50 +1,35 @@
 {
-  "extends": "_default",
   "siteId": "yalla-london",
-  "domain": "yalla-london.com",
   "baseUrl": "https://www.yalla-london.com",
-  "inventory": {
-    "sources": ["sitemap", "static_routes", "database"],
-    "staticRoutes": [
-      "/",
-      "/blog",
-      "/information",
-      "/information/articles",
-      "/news",
-      "/events",
-      "/experiences",
-      "/hotels",
-      "/recommendations",
-      "/london-by-foot",
-      "/shop",
-      "/about",
-      "/contact",
-      "/privacy",
-      "/terms",
-      "/affiliate-disclosure"
-    ]
-  },
+  "staticRoutes": [
+    "/",
+    "/blog",
+    "/information",
+    "/information/articles",
+    "/news",
+    "/events",
+    "/experiences",
+    "/hotels",
+    "/recommendations",
+    "/london-by-foot",
+    "/shop",
+    "/about",
+    "/contact",
+    "/privacy",
+    "/terms",
+    "/affiliate-disclosure"
+  ],
   "validators": {
-    "schema": {
-      "requiredTypes": {
-        "/": ["Organization", "WebSite"],
-        "/blog": ["CollectionPage"],
-        "/blog/*": ["Article", "BreadcrumbList"],
-        "/news/*": ["NewsArticle"],
-        "/events": ["Event"],
-        "/hotels": ["Hotel"],
-        "/shop/*": ["Product"],
-        "/about": ["Organization"]
-      }
+    "requiredSchemaByRoute": {
+      "/": ["Organization", "WebSite"],
+      "/blog": ["CollectionPage"],
+      "/blog/*": ["Article", "BreadcrumbList"],
+      "/news/*": ["NewsArticle"],
+      "/events": ["Event"],
+      "/hotels": ["Hotel"],
+      "/shop/*": ["Product"],
+      "/about": ["Organization"]
     },
-    "hreflang": {
-      "expectedLanguages": ["en-GB", "ar-SA", "x-default"],
-      "exceptions": []
-    }
-  },
-  "riskScanners": {
-    "expiredDomain": {
-      "enabled": false
-    }
+    "expectedHreflangLangs": ["en-GB", "ar-SA", "x-default"]
   }
 }

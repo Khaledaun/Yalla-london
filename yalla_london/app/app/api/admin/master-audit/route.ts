@@ -97,8 +97,9 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
 
     const body = await request.json().catch(() => ({}));
     const siteId = body.siteId || request.headers.get("x-site-id") || getDefaultSiteId();
-    const domain = getSiteDomain(siteId);
-    const baseUrl = `https://${domain}`;
+    const rawDomain = getSiteDomain(siteId);
+    // getSiteDomain() already returns full URL like "https://www.yalla-london.com"
+    const baseUrl = rawDomain.startsWith('http') ? rawDomain : `https://${rawDomain}`;
 
     // Load config — pass baseUrl as override so validation passes
     const config = loadAuditConfig(siteId, { baseUrl } as Partial<import("@/lib/master-audit/types").AuditConfig>);

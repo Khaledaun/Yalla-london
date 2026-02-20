@@ -603,29 +603,10 @@ async function fetchGA4Data(remainingBudget: () => number) {
   }
 }
 
-interface PrismaClient {
-  uRLIndexingStatus: {
-    findMany: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
-    count: (args: Record<string, unknown>) => Promise<number>;
-    groupBy: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
-  };
-  seoPageMetric: {
-    findMany: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
-  };
-  seoAuditResult: {
-    findMany: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
-  };
-  blogPost: {
-    findMany: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
-    count: (args: Record<string, unknown>) => Promise<number>;
-  };
-  cronJobLog: {
-    create: (args: Record<string, unknown>) => Promise<Record<string, unknown>>;
-    findMany: (args: Record<string, unknown>) => Promise<Array<Record<string, unknown>>>;
-  };
-}
+// Use actual Prisma client type from imports
+type PrismaInstance = Awaited<typeof import("@/lib/db")>["prisma"];
 
-async function fetchIndexingData(prisma: PrismaClient, siteId: string) {
+async function fetchIndexingData(prisma: PrismaInstance, siteId: string) {
   try {
     // Get all indexing statuses
     const statuses = await prisma.uRLIndexingStatus.findMany({
@@ -693,7 +674,7 @@ async function fetchIndexingData(prisma: PrismaClient, siteId: string) {
   }
 }
 
-async function fetchSeoMetrics(prisma: PrismaClient, siteId: string) {
+async function fetchSeoMetrics(prisma: PrismaInstance, siteId: string) {
   try {
     // Blog post SEO scores
     const blogPosts = await prisma.blogPost.findMany({

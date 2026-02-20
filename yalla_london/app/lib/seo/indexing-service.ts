@@ -24,8 +24,9 @@ const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || (() => {
   const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
   return getSiteDomain(getDefaultSiteId());
 })();
-// GSC property URL - may differ from BASE_URL (e.g., no www)
-const GSC_SITE_URL = process.env.GSC_SITE_URL || BASE_URL.replace("www.", "");
+// GSC property URL — must match the property registered in Google Search Console.
+// CRITICAL: Do NOT strip "www." — GSC treats www and non-www as separate properties.
+const GSC_SITE_URL = process.env.GSC_SITE_URL || BASE_URL;
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY || "";
 
 // Rate limiting: max requests per minute for external APIs

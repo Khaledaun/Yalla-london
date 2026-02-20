@@ -443,9 +443,20 @@ export async function POST(request: NextRequest) {
 
     try {
       const { prisma } = await import("@/lib/db");
+      const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
+
       const article = await prisma.blogPost.findUnique({
         where: { id: articleId },
-        select: { title_en: true, content_en: true, meta_title_en: true, meta_description_en: true },
+        select: {
+          title_en: true,
+          slug: true,
+          content_en: true,
+          meta_title_en: true,
+          meta_description_en: true,
+          author_id: true,
+          seo_score: true,
+          siteId: true,
+        },
       });
 
       if (!article) {
@@ -453,25 +464,144 @@ export async function POST(request: NextRequest) {
       }
 
       const fixes: string[] = [];
-      const updateData: Record<string, string> = {};
+      const updateData: Record<string, unknown> = {};
+      const siteName = (() => {
+        try {
+          const { getSiteConfig } = require("@/config/sites");
+          const cfg = getSiteConfig(article.siteId || siteId);
+          return cfg?.siteName || "Yalla London";
+        } catch { return "Yalla London"; }
+      })();
 
-      // Auto-fix: Generate meta title from article title
+      // ── Fix 1: Missing or short meta title ──
       if (!article.meta_title_en && article.title_en) {
-        const metaTitle = article.title_en.length > 60
-          ? article.title_en.slice(0, 57) + "..."
-          : article.title_en;
+        let metaTitle = article.title_en;
+        // Ensure within 30-60 char range
+        if (metaTitle.length < CONTENT_QUALITY.metaTitleMin && siteName) {
+          metaTitle = `${metaTitle} | ${siteName}`;
+        }
+        if (metaTitle.length > CONTENT_QUALITY.metaTitleOptimal.max) {
+          metaTitle = metaTitle.slice(0, CONTENT_QUALITY.metaTitleOptimal.max - 3) + "...";
+        }
         updateData.meta_title_en = metaTitle;
-        fixes.push(`Generated meta title: "${metaTitle}"`);
+        fixes.push(`Generated meta title (${metaTitle.length} chars): "${metaTitle}"`);
+      } else if (article.meta_title_en) {
+        // Fix: title too long
+        if (article.meta_title_en.length > CONTENT_QUALITY.metaTitleOptimal.max) {
+          const trimmed = article.meta_title_en.slice(0, CONTENT_QUALITY.metaTitleOptimal.max - 3) + "...";
+          updateData.meta_title_en = trimmed;
+          fixes.push(`Trimmed meta title from ${article.meta_title_en.length} to ${trimmed.length} chars`);
+        }
+        // Fix: title too short
+        if (article.meta_title_en.length < CONTENT_QUALITY.metaTitleMin && !article.meta_title_en.includes("|")) {
+          const padded = `${article.meta_title_en} | ${siteName}`;
+          if (padded.length <= CONTENT_QUALITY.metaTitleOptimal.max) {
+            updateData.meta_title_en = padded;
+            fixes.push(`Padded meta title with site name (${padded.length} chars)`);
+          }
+        }
       }
 
-      // Auto-fix: Generate meta description from content
+      // ── Fix 2: Missing or short meta description ──
       if (!article.meta_description_en && article.content_en) {
         const text = article.content_en.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-        const metaDesc = text.length > 160
-          ? text.slice(0, 157) + "..."
-          : text.slice(0, 160);
+        // Try to grab first full sentence(s) within 120-160 chars
+        let metaDesc = "";
+        const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+        for (const sentence of sentences) {
+          if ((metaDesc + sentence.trim()).length <= 160) {
+            metaDesc += (metaDesc ? " " : "") + sentence.trim();
+          } else break;
+        }
+        if (metaDesc.length < 120) {
+          metaDesc = text.length > 157 ? text.slice(0, 157) + "..." : text.slice(0, 160);
+        }
         updateData.meta_description_en = metaDesc;
         fixes.push(`Generated meta description (${metaDesc.length} chars)`);
+      } else if (article.meta_description_en) {
+        // Fix: description too long
+        if (article.meta_description_en.length > CONTENT_QUALITY.metaDescriptionOptimal.max) {
+          const trimmed = article.meta_description_en.slice(0, CONTENT_QUALITY.metaDescriptionOptimal.max - 3) + "...";
+          updateData.meta_description_en = trimmed;
+          fixes.push(`Trimmed meta description from ${article.meta_description_en.length} to ${trimmed.length} chars`);
+        }
+      }
+
+      // ── Fix 3: Missing author (E-E-A-T requirement) ──
+      if (!article.author_id) {
+        try {
+          const defaultAuthor = await prisma.user.findFirst({
+            where: { role: "admin" },
+            select: { id: true },
+            orderBy: { createdAt: "asc" },
+          });
+          if (defaultAuthor) {
+            updateData.author_id = defaultAuthor.id;
+            fixes.push("Assigned default admin author (E-E-A-T compliance)");
+          }
+        } catch { /* author table may differ */ }
+      }
+
+      // ── Fix 4: Inject internal links if content has fewer than 3 ──
+      if (article.content_en) {
+        const siteUrl = getSiteDomain(article.siteId || siteId);
+        const internalLinkRegex = new RegExp(
+          `href=["']((?:${siteUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})?/(?:blog|hotels|experiences|recommendations|information|news|london-by-foot)[^"']*)["']`,
+          "gi"
+        );
+        const internalLinkCount = (article.content_en.match(internalLinkRegex) || []).length;
+
+        if (internalLinkCount < CONTENT_QUALITY.minInternalLinks) {
+          // Fetch 3 recent published articles from same site to link to
+          const relatedArticles = await prisma.blogPost.findMany({
+            where: {
+              published: true,
+              siteId: article.siteId || siteId,
+              deletedAt: null,
+              slug: { not: article.slug },
+            },
+            select: { title_en: true, slug: true },
+            orderBy: { created_at: "desc" },
+            take: 3,
+          });
+
+          if (relatedArticles.length > 0) {
+            const linksHtml = relatedArticles.map(
+              (a) => `<li><a href="/blog/${a.slug}">${a.title_en || a.slug}</a></li>`
+            ).join("\n");
+            const relatedSection = `\n<h2>Related Articles</h2>\n<ul>\n${linksHtml}\n</ul>`;
+            updateData.content_en = article.content_en + relatedSection;
+            fixes.push(`Injected ${relatedArticles.length} internal links (Related Articles section)`);
+          }
+        }
+      }
+
+      // ── Fix 5: Inject affiliate links if none present ──
+      const contentToCheck = (updateData.content_en as string) || article.content_en || "";
+      if (contentToCheck) {
+        const affiliatePatterns = [
+          /booking\.com/gi, /halalbooking\.com/gi, /agoda\.com/gi,
+          /getyourguide\.com/gi, /viator\.com/gi, /klook\.com/gi,
+          /boatbookings\.com/gi, /tripadvisor\.com/gi,
+        ];
+        const hasAffiliate = affiliatePatterns.some((p) => p.test(contentToCheck));
+        if (!hasAffiliate) {
+          // Add a tasteful booking CTA at the end of content
+          const bookingCta = `\n<div class="booking-cta">\n<h3>Book Your Experience</h3>\n<p>Ready to explore? Find the best deals on accommodation and experiences:</p>\n<ul>\n<li><a href="https://www.booking.com" target="_blank" rel="noopener sponsored">Search hotels on Booking.com</a></li>\n<li><a href="https://www.halalbooking.com" target="_blank" rel="noopener sponsored">Find halal-friendly stays on HalalBooking</a></li>\n<li><a href="https://www.getyourguide.com" target="_blank" rel="noopener sponsored">Browse tours on GetYourGuide</a></li>\n</ul>\n</div>`;
+          updateData.content_en = contentToCheck + bookingCta;
+          fixes.push("Injected affiliate booking CTA section (3 links)");
+        }
+      }
+
+      // ── Fix 6: Initialize SEO score if missing ──
+      if (article.seo_score === null || article.seo_score === undefined) {
+        // Set a baseline score based on content completeness
+        let baseScore = 50;
+        if (article.meta_title_en || updateData.meta_title_en) baseScore += 10;
+        if (article.meta_description_en || updateData.meta_description_en) baseScore += 10;
+        if (article.content_en && article.content_en.length > 5000) baseScore += 10;
+        updateData.seo_score = Math.min(baseScore, 80); // Cap at 80 — full score requires manual review
+        fixes.push(`Initialized SEO score to ${updateData.seo_score}`);
       }
 
       if (Object.keys(updateData).length > 0) {

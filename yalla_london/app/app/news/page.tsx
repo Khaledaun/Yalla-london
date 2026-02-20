@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `${destination} Today — News & Updates | ${siteName}`,
     description:
-      `Latest ${destination} news, transport updates, events, and travel tips curated for Arab visitors. Your daily briefing.`,
+      `Latest ${destination} news, transport updates, events, and travel tips curated for Arab visitors. Stay informed with your daily briefing.`,
     keywords:
       `${destination.toLowerCase()} news, ${destination.toLowerCase()} today, ${destination.toLowerCase()} transport updates, ${destination.toLowerCase()} events, arab visitors`,
     alternates: {

@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: `Privacy Policy — Data Protection | ${siteName}`,
-    description: `How ${siteName} collects, uses, and protects your personal data. UK GDPR compliant.`,
+    description: `How ${siteName} collects, uses, and protects your personal data under UK GDPR. Read our full privacy policy covering cookies, analytics, and your rights.`,
     alternates: {
       canonical: canonicalUrl,
       languages: {
@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       title: `Privacy Policy | ${siteName}`,
-      description: `How ${siteName} collects, uses, and protects your personal data. UK GDPR compliant.`,
+      description: `How ${siteName} collects, uses, and protects your personal data under UK GDPR. Read our full privacy policy covering cookies, analytics, and your rights.`,
       url: canonicalUrl,
       siteName,
       locale: "en_GB",
@@ -38,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       site: `@${siteSlug}`,
       title: `Privacy Policy | ${siteName}`,
-      description: `How ${siteName} collects, uses, and protects your personal data. UK GDPR compliant.`,
+      description: `How ${siteName} collects, uses, and protects your personal data under UK GDPR. Read our full privacy policy covering cookies, analytics, and your rights.`,
     },
     robots: {
       index: true,

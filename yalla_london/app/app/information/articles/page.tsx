@@ -29,7 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `Travel Articles | ${siteName} Information Hub`,
     description:
-      `Travel articles for Arab visitors to ${destination}: planning guides, transport, halal dining, attractions, and practical tips.`,
+      `In-depth travel articles for Arab visitors to ${destination}: trip planning, transport, halal dining, top attractions, and practical insider tips.`,
     keywords:
       `${destination.toLowerCase()} travel articles, arab visitors ${destination.toLowerCase()}, ${destination.toLowerCase()} guide, halal travel ${destination.toLowerCase()}, information hub`,
     alternates: {

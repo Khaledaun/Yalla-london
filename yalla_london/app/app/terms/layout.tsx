@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: `Terms of Use — Legal Information | ${siteName}`,
-    description: `${siteName} terms and conditions covering content usage, affiliate relationships, and digital products.`,
+    description: `${siteName} terms and conditions covering website content usage, affiliate relationships, digital product purchases, and user responsibilities.`,
     alternates: {
       canonical: canonicalUrl,
       languages: {
@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     openGraph: {
       title: `Terms of Use | ${siteName}`,
-      description: `${siteName} terms and conditions covering content usage, affiliate relationships, and digital products.`,
+      description: `${siteName} terms and conditions covering website content usage, affiliate relationships, digital product purchases, and user responsibilities.`,
       url: canonicalUrl,
       siteName,
       locale: "en_GB",
@@ -38,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       site: `@${siteSlug}`,
       title: `Terms of Use | ${siteName}`,
-      description: `${siteName} terms and conditions covering content usage, affiliate relationships, and digital products.`,
+      description: `${siteName} terms and conditions covering website content usage, affiliate relationships, digital product purchases, and user responsibilities.`,
     },
     robots: {
       index: true,

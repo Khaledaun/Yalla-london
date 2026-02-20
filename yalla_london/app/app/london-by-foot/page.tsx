@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: `${destination} by Foot — Self-Guided Walking Tours | ${siteName}`,
-    description: `Free self-guided walking routes through ${destination}: royal palaces, hidden markets, street art, and secret gardens.`,
+    description: `Free self-guided walking routes through ${destination}: royal palaces, hidden markets, street art, secret gardens, and cultural landmarks with maps.`,
     keywords: [`${destination} walking tours`, `self guided walks ${destination}`, `${destination} walking routes`, `free ${destination} walks`, `${destination} by foot`, `${destination} walking guide`],
     openGraph: {
       title: `${destination} by Foot — 5 Self-Guided Walking Tours`,

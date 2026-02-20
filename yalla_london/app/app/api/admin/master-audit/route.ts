@@ -117,7 +117,7 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
       urlSources[fullUrl] = "static";
     }
 
-    // Blog articles from database
+    // Blog articles from database (cap to 15 newest to prevent SSR overload on Vercel)
     let blogArticles: Array<{ slug: string; seo_score: number | null; title_en: string; meta_title_en: string | null; meta_description_en: string | null; published: boolean; created_at: Date }> = [];
     try {
       blogArticles = await prisma.blogPost.findMany({
@@ -132,10 +132,12 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
           created_at: true,
         },
         orderBy: { created_at: "desc" },
-        take: 200, // Limit to prevent OOM
+        take: 200, // Fetch all for metrics, but only crawl newest 15
       });
 
-      for (const article of blogArticles) {
+      // Only crawl the 15 newest articles — Vercel SSR can't handle 45+ concurrent renders
+      const articlesToCrawl = blogArticles.slice(0, 15);
+      for (const article of articlesToCrawl) {
         const articleUrl = `${baseUrl}/blog/${article.slug}`;
         if (!urls.includes(articleUrl)) {
           urls.push(articleUrl);
@@ -155,8 +157,8 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
       ...config.crawl,
       timeoutMs: 5000,       // 5s per page (SSR should respond within this)
       maxRetries: 1,
-      concurrency: 10,       // Higher concurrency — it's our own site
-      rateDelayMs: 50,       // Minimal delay — self-crawling
+      concurrency: 5,        // Conservative — Vercel SSR can't handle too many concurrent renders
+      rateDelayMs: 100,      // Small delay to avoid overwhelming serverless functions
     };
 
     // Run data fetches and page crawling concurrently

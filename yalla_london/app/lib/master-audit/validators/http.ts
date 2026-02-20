@@ -19,16 +19,22 @@ export function validateHttp(
 
   // ---- Connection errors ----
   if (result.error && result.status === 0) {
+    // Distinguish audit-side timeouts (P2) from real connection failures (P0)
+    const isTimeout = result.error.includes('aborted') || result.error.includes('timeout');
     issues.push({
-      severity: 'P0',
+      severity: isTimeout ? 'P2' : 'P0',
       category: 'http',
       url: result.url,
-      message: `Connection failed: ${result.error}`,
+      message: isTimeout
+        ? `Audit timeout: page didn't respond within crawl window (${Math.round(result.timing.durationMs / 1000)}s)`
+        : `Connection failed: ${result.error}`,
       evidence: { snippet: result.error },
       suggestedFix: {
         scope: 'page-level',
         target: result.url,
-        notes: 'Check if the page is accessible. Verify DNS, SSL, and server health.',
+        notes: isTimeout
+          ? 'Page may be slow to render (SSR). Check server-side performance. Page is likely accessible to users.'
+          : 'Check if the page is accessible. Verify DNS, SSL, and server health.',
       },
     });
     return issues; // No further checks possible

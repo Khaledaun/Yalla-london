@@ -115,11 +115,11 @@ const nextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
-      // Public pages - CDN edge caching for Cloudflare (s-maxage)
+      // Public pages - browser + CDN caching for blog articles
       {
         source: '/blog/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=600, stale-while-revalidate=3600' },
+          { key: 'Cache-Control', value: 'public, max-age=300, s-maxage=600, stale-while-revalidate=3600' },
           { key: 'CDN-Cache-Control', value: 'max-age=600' },
           { key: 'Vary', value: 'Accept-Encoding, x-site-id' },
         ],

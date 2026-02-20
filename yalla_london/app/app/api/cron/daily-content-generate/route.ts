@@ -737,6 +737,14 @@ function generateSlug(title: string, language: string): string {
     .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
+
+  // Guard: never produce a slug with empty title portion (e.g. "-2026-02-14")
+  if (!cleanTitle) {
+    const fallback = `untitled-${language}-${Date.now().toString(36)}`;
+    console.warn(`[daily-content-generate] Empty title produced empty slug — using fallback: ${fallback}-${date}`);
+    return `${fallback}-${date}`;
+  }
+
   return `${cleanTitle}-${date}`;
 }
 

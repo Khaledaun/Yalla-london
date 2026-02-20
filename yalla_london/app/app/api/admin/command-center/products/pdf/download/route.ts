@@ -5,7 +5,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
 import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function POST(request: NextRequest) {
@@ -13,6 +12,7 @@ export async function POST(request: NextRequest) {
   if (authError) return authError;
 
   try {
+    const { prisma } = await import("@/lib/db");
     const { guideId, email, name, source } = await request.json();
 
     if (!guideId) {
@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         title: true,
-        file_url: true,
-        site_id: true,
+        pdfUrl: true,
+        site: true,
       },
     });
 
@@ -43,13 +43,10 @@ export async function POST(request: NextRequest) {
     // Track download
     await prisma.pdfDownload.create({
       data: {
-        guide_id: guideId,
-        lead_email: email || null,
-        metadata: {
-          name,
-          source,
-          downloadedAt: new Date().toISOString(),
-        },
+        pdfGuideId: guideId,
+        email: email || null,
+        ip: request.headers.get("x-forwarded-for") || null,
+        userAgent: request.headers.get("user-agent") || null,
       },
     });
 
@@ -57,61 +54,48 @@ export async function POST(request: NextRequest) {
     await prisma.pdfGuide.update({
       where: { id: guideId },
       data: {
-        download_count: { increment: 1 },
+        downloads: { increment: 1 },
       },
     });
 
-    // If email provided, create/update lead
+    // If email provided, create/update lead (if Lead model exists)
     if (email) {
-      const existingLead = await prisma.lead.findFirst({
-        where: {
-          email,
-          site_id: guide.site_id,
-        },
-      });
+      try {
+        const existingLead = await (prisma as any).lead?.findFirst({
+          where: { email, site_id: guide.site },
+        });
 
-      if (existingLead) {
-        // Update existing lead
-        await prisma.lead.update({
-          where: { id: existingLead.id },
-          data: {
-            last_interaction: new Date(),
-            interaction_count: { increment: 1 },
-            metadata: {
-              ...(existingLead.metadata as any || {}),
-              lastDownload: guideId,
-              downloads: [
-                ...((existingLead.metadata as any)?.downloads || []),
-                { guideId, title: guide.title, date: new Date().toISOString() },
-              ],
+        if (existingLead) {
+          await (prisma as any).lead.update({
+            where: { id: existingLead.id },
+            data: {
+              last_interaction: new Date(),
+              interaction_count: { increment: 1 },
             },
-          },
-        });
-      } else {
-        // Create new lead
-        await prisma.lead.create({
-          data: {
-            email,
-            name: name || null,
-            site_id: guide.site_id,
-            source: 'pdf_download',
-            status: 'new',
-            metadata: {
-              firstDownload: guideId,
-              downloads: [{ guideId, title: guide.title, date: new Date().toISOString() }],
+          });
+        } else if ((prisma as any).lead) {
+          await (prisma as any).lead.create({
+            data: {
+              email,
+              name: name || null,
+              site_id: guide.site,
+              source: source || 'pdf_download',
+              status: 'new',
             },
-          },
-        });
+          });
+        }
+      } catch (leadErr) {
+        console.warn('[pdf-download] Lead tracking skipped (model may not exist):', leadErr);
       }
     }
 
     return NextResponse.json({
       success: true,
-      downloadUrl: guide.file_url,
+      downloadUrl: guide.pdfUrl,
       message: 'Download tracked successfully',
     });
   } catch (error) {
-    console.error('Failed to track download:', error);
+    console.error('[pdf-download] POST error:', error);
     return NextResponse.json(
       { error: 'Failed to track download' },
       { status: 500 }
@@ -124,45 +108,46 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   try {
+    const { prisma } = await import("@/lib/db");
     const { searchParams } = new URL(request.url);
     const guideId = searchParams.get('guideId');
-    const siteId = searchParams.get('siteId');
     const days = parseInt(searchParams.get('days') || '30');
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    // Get downloads
+    // Build where clause with correct schema fields
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const whereClause: any = {
-      downloaded_at: { gte: startDate },
+      downloadedAt: { gte: startDate },
     };
 
     if (guideId) {
-      whereClause.guide_id = guideId;
+      whereClause.pdfGuideId = guideId;
     }
 
     const downloads = await prisma.pdfDownload.findMany({
       where: whereClause,
-      orderBy: { downloaded_at: 'desc' },
+      orderBy: { downloadedAt: 'desc' },
       take: 100,
     });
 
     // Group by date
     const byDate: Record<string, number> = {};
     downloads.forEach((d) => {
-      const date = d.downloaded_at.toISOString().split('T')[0];
+      const date = d.downloadedAt.toISOString().split('T')[0];
       byDate[date] = (byDate[date] || 0) + 1;
     });
 
-    // Count leads
-    const leadsCount = downloads.filter((d) => d.lead_email).length;
+    // Count leads (downloads with email)
+    const leadsCount = downloads.filter((d) => d.email).length;
 
     return NextResponse.json({
       downloads: downloads.map((d) => ({
         id: d.id,
-        guideId: d.guide_id,
-        email: d.lead_email,
-        downloadedAt: d.downloaded_at.toISOString(),
+        guideId: d.pdfGuideId,
+        email: d.email,
+        downloadedAt: d.downloadedAt.toISOString(),
       })),
       stats: {
         total: downloads.length,
@@ -172,7 +157,7 @@ export async function GET(request: NextRequest) {
       byDate,
     });
   } catch (error) {
-    console.error('Failed to get download stats:', error);
+    console.error('[pdf-download] GET error:', error);
     return NextResponse.json(
       { error: 'Failed to get stats' },
       { status: 500 }

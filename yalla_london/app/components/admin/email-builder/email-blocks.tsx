@@ -8,6 +8,7 @@
  */
 
 import React from 'react'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 import {
   Type,
   ImageIcon,
@@ -146,7 +147,7 @@ function TextPreview({ block }: { block: EmailBlock }) {
   return (
     <div
       style={{ padding: s.padding ?? '16px 24px', backgroundColor: s.backgroundColor ?? '#fff' }}
-      dangerouslySetInnerHTML={{ __html: html || '<p>Text block</p>' }}
+      dangerouslySetInnerHTML={{ __html: sanitizeHtml(html || '<p>Text block</p>') }}
     />
   )
 }
@@ -354,7 +355,7 @@ export function blockToHtml(block: EmailBlock): string {
     }
     case 'text': {
       const { html } = block.content as { html?: string }
-      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:${s.padding ?? '16px 24px'};background-color:${s.backgroundColor ?? '#fff'};">${html || ''}</td></tr></table>`
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:${s.padding ?? '16px 24px'};background-color:${s.backgroundColor ?? '#fff'};">${sanitizeHtml(html || '')}</td></tr></table>`
     }
     case 'image': {
       const { src, alt, linkUrl, width } = block.content as { src?: string; alt?: string; linkUrl?: string; width?: string }

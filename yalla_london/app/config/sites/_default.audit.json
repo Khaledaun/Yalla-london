@@ -1,0 +1,118 @@
+{
+  "version": "1.0.0",
+  "crawl": {
+    "batchSize": 200,
+    "concurrency": 6,
+    "rateLimit": {
+      "minDelayMs": 200,
+      "maxDelayMs": 1000
+    },
+    "retries": {
+      "max": 3,
+      "backoffMs": 1000
+    },
+    "timeout": {
+      "requestMs": 15000,
+      "batchMs": 120000
+    },
+    "userAgent": "MasterAudit/1.0 (SEO Compliance; +https://zenitha.luxury)"
+  },
+  "inventory": {
+    "sources": ["sitemap", "static_routes"],
+    "sitemapUrl": "/sitemap.xml",
+    "excludePatterns": ["/admin/*", "/api/*", "/shop/download", "/shop/purchases"],
+    "includeArVariants": true
+  },
+  "validators": {
+    "http": {
+      "allowedStatuses": [200],
+      "followRedirects": true,
+      "maxRedirects": 5
+    },
+    "canonical": {
+      "required": true,
+      "mustMatchRequestUrl": false,
+      "allowQueryParams": false
+    },
+    "hreflang": {
+      "required": true,
+      "expectedLanguages": ["en-GB", "ar-SA", "x-default"],
+      "validateReciprocity": true,
+      "exceptions": []
+    },
+    "sitemap": {
+      "maxUrls": 50000,
+      "requireLastmod": false,
+      "requireChangefreq": false
+    },
+    "schema": {
+      "required": true,
+      "requiredTypes": {
+        "/": ["Organization", "WebSite"],
+        "/blog/*": ["Article"]
+      },
+      "deprecatedTypes": [
+        "FAQPage",
+        "HowTo",
+        "CourseInfo",
+        "ClaimReview",
+        "EstimatedSalary",
+        "LearningVideo",
+        "SpecialAnnouncement",
+        "VehicleListing",
+        "PracticeProblems",
+        "SitelinksSearchBox"
+      ]
+    },
+    "links": {
+      "checkInternal": true,
+      "checkExternal": false,
+      "timeout": 10000
+    },
+    "metadata": {
+      "title": {
+        "minLength": 20,
+        "maxLength": 70,
+        "requireUnique": true
+      },
+      "description": {
+        "minLength": 70,
+        "maxLength": 170,
+        "requireUnique": true
+      }
+    },
+    "robots": {
+      "respectNoindex": true,
+      "respectNofollow": true
+    }
+  },
+  "riskScanners": {
+    "scaledContent": {
+      "enabled": true,
+      "nearDuplicateThreshold": 0.85,
+      "thinContentWordCount": 300,
+      "minUniqueSectionsPerPage": 2
+    },
+    "siteReputation": {
+      "enabled": true,
+      "outboundDominanceThreshold": 0.6,
+      "requiredEditorialSignals": ["author", "datePublished"]
+    },
+    "expiredDomain": {
+      "enabled": false
+    }
+  },
+  "output": {
+    "dir": "docs/master-audit",
+    "formats": ["json", "markdown"],
+    "archiveRuns": true
+  },
+  "hardGates": {
+    "brokenInternalLinks": 0,
+    "nonTwoHundredIndexable": 0,
+    "missingCanonical": 0,
+    "malformedJsonLd": 0,
+    "hreflangReciprocityFailures": 0,
+    "sitemapParseFailure": false
+  }
+}

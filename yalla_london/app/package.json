@@ -46,6 +46,8 @@
     "seo:crawl": "node scripts/seo-audit-playwright.mjs crawl",
     "seo:screenshot": "node scripts/seo-audit-playwright.mjs screenshot",
     "seo:index": "node scripts/auto-index-all.mjs",
+    "audit:master": "tsx scripts/master-audit.ts",
+    "audit:weekly-policy-monitor": "tsx scripts/weekly-policy-monitor.ts",
     "backup": "tsx scripts/backup-restore.ts",
     "backup:schedule": "tsx scripts/backup-scheduler.ts",
     "postinstall": "node scripts/prepare-build.js",

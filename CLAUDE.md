@@ -961,3 +961,76 @@ Deep research into Google's January 2026 Core Update (dubbed "Authenticity Updat
 | `docs/AUDIT-LOG.md` | Persistent audit findings tracking |
 | `docs/FUNCTIONING-ROADMAP.md` | 8-phase path to 100% healthy platform |
 | `lib/seo/standards.ts` | Centralized SEO thresholds — single source of truth |
+
+### Session: February 20, 2026 — Master Audit Engine Implementation
+
+**Master Audit System (16 new files + 4 test files + 2 configs + 2 CLI scripts + 1 spec doc):**
+
+Complete batch-safe, resumable, multi-site SEO audit engine built from scratch. READ-ONLY — never mutates production data. Designed to be run via CLI with `npm run audit:master` and `npm run audit:weekly-policy-monitor`.
+
+**Architecture:**
+- **Config-loader** (`lib/master-audit/config-loader.ts`): 3-layer merge — `_default.audit.json` → `<siteId>.audit.json` → runtime overrides. Deep-merge utility exported for testing.
+- **State-manager** (`lib/master-audit/state-manager.ts`): Run ID generation, batch state persistence to `docs/master-audit/<runId>/state.json`, resume support via `--resume=<runId>`.
+- **Inventory-builder** (`lib/master-audit/inventory-builder.ts`): Builds URL list from sitemap XML + static routes + Arabic `/ar/` variants. Respects exclude patterns.
+- **Crawler** (`lib/master-audit/crawler.ts`): Semaphore-based concurrency, rate limiting, exponential backoff retries, manual redirect chain capture.
+- **Extractor** (`lib/master-audit/extractor.ts`): Regex-based HTML signal extraction (no external DOM library). Extracts: title, meta description, canonical, hreflang, headings, JSON-LD, links, word count, lang/dir attributes.
+- **8 Validators**: http, canonical, hreflang, sitemap, schema, links, metadata, robots — each returns typed `AuditIssue[]` with P0/P1/P2 severity.
+- **Reporter** (`lib/master-audit/reporter.ts`): Generates `EXEC_SUMMARY.md` and `FIX_PLAN.md` from audit results.
+- **Orchestrator** (`lib/master-audit/index.ts`): Wires all modules into a single `runMasterAudit()` pipeline.
+
+**Hard Gates (must be 0 violations):**
+- Broken internal links, non-200 indexable pages, missing canonical, malformed JSON-LD, hreflang reciprocity failures, sitemap parse success
+
+**Multi-Site Support:**
+- User-Agent uses parent entity URL (`zenitha.luxury`), not site-specific
+- Config accepts any `--site=<siteId>` parameter
+- Site-specific JSON override files in `config/sites/`
+- All 15 static routes from actual site architecture
+
+**Test Coverage:**
+- 55 unit tests across 4 spec files: extractor (16), validators (19), config-loader (9), state-manager (11)
+- All passing, zero TypeScript errors
+
+**Weekly Policy Monitor** (`scripts/weekly-policy-monitor.ts`):
+- Checks 4 Google policy sources (Search Status Dashboard, Search Central Blog/Docs, Schema.org Changelog)
+- Generates `WEEKLY_POLICY_MONITOR.md` report + `policy-snapshot.json`
+- Multi-site: accepts `--site=<siteId>` parameter
+
+**Key Files:**
+
+| File | Purpose |
+|------|---------|
+| `lib/master-audit/index.ts` | Main orchestrator — `runMasterAudit()` |
+| `lib/master-audit/types.ts` | All TypeScript interfaces and types |
+| `lib/master-audit/config-loader.ts` | 3-layer config merge with validation |
+| `lib/master-audit/crawler.ts` | Concurrent batch crawler with retry |
+| `lib/master-audit/extractor.ts` | HTML signal extraction (regex-based) |
+| `lib/master-audit/validators/*.ts` | 8 validators (http, canonical, hreflang, sitemap, schema, links, metadata, robots) |
+| `lib/master-audit/reporter.ts` | Markdown report generator |
+| `lib/master-audit/state-manager.ts` | Resume/batch state persistence |
+| `lib/master-audit/inventory-builder.ts` | URL inventory from sitemap + static routes |
+| `config/sites/_default.audit.json` | Default audit config (all sites) |
+| `config/sites/yalla-london.audit.json` | Yalla London-specific overrides |
+| `scripts/master-audit.ts` | CLI entry point |
+| `scripts/weekly-policy-monitor.ts` | Weekly policy check CLI |
+| `docs/seo/MAX_SEO_AIO_SPEC.md` | Comprehensive SEO/AIO specification |
+| `docs/master-audit/SYSTEM_MAP.md` | System map of all routes and SEO signals |
+| `test/master-audit/*.spec.ts` | 55 unit tests (4 files) |
+
+**CLI Usage:**
+```bash
+# Full audit
+npm run audit:master -- --site=yalla-london
+
+# Quick mode with custom settings
+npm run audit:master -- --site=yalla-london --mode=quick --batchSize=50
+
+# Resume interrupted run
+npm run audit:master -- --resume=yalla-london-20260220-143000-a1b2
+
+# Local dev
+npm run audit:master -- --site=yalla-london --baseUrl=http://localhost:3000
+
+# Weekly policy monitor
+npm run audit:weekly-policy-monitor -- --site=yalla-london
+```

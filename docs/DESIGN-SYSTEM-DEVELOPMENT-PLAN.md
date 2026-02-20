@@ -403,3 +403,35 @@ Verified findings from deep audit agent against actual current code. 4 real issu
 - **File:** `lib/video/brand-video-engine.ts` (line 450)
 - **Issue:** Used `www.${brand.siteId}.com` string concatenation — produces wrong URLs for multi-word site IDs (e.g., `www.french-riviera.com` instead of `yallariviera.com`)
 - **Fix:** Replaced with `getSiteDomain(brand.siteId)` which returns the correct domain from config
+
+---
+
+## Audit Round 13 — API Contracts, Schema, Force-Dynamic (53 fixes)
+
+Three parallel audit agents + one batch fix agent:
+
+### Prisma Schema Alignment: 100% PASS
+- Audited all 10 design system API routes against Prisma schema
+- Zero field name mismatches found across all create/update/findMany calls
+- All required fields provided, all field names valid
+
+### API-Frontend Contract Fixes (2 issues)
+
+**HIGH: Brand Assets API `siteCounts` mismatch**
+- **File:** `app/api/admin/brand-assets/route.ts`
+- **Issue:** API returned `assets` but design hub page expected `siteCounts` — all brand status cards showed 0
+- **Fix:** Added `siteCounts: assets` alias to response JSON
+
+**MEDIUM: Email Campaigns API missing `sentAt`**
+- **File:** `app/api/admin/email-campaigns/route.ts`
+- **Issue:** Mapped response didn't include `sentAt` — sent campaigns showed no timestamp
+- **Fix:** Added `sentAt: campaign.sentAt` to mapped campaign response
+
+### Force-Dynamic Coverage (49 routes fixed)
+- Found 49 admin API routes missing `export const dynamic = "force-dynamic"`
+- All 49 added across 4 batch commits — total admin API routes with force-dynamic: ~155/155 (100%)
+- Prevents Next.js from caching admin API responses that must return fresh DB data
+
+### Component Connectivity Audit (no action needed)
+- MediaPicker, TiptapEditor, EmailBuilder components are built but not yet imported by any admin page
+- These are "ready to wire" components — documented as known gap, not a regression

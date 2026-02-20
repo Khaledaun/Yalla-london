@@ -7,7 +7,23 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./test/setup.ts"],
     include: ["test/**/*.spec.ts", "tests/**/*.spec.ts", "tests/**/*.test.ts"],
-    exclude: ["node_modules/**", "e2e/**", "**/*.d.ts"],
+    exclude: [
+      "node_modules/**",
+      "e2e/**",
+      "**/*.d.ts",
+      // Playwright e2e tests — run with `npx playwright test`, not vitest
+      "tests/admin-workflow-e2e.test.ts",
+      "tests/api-endpoint-validation.test.ts",
+      "tests/api-staging.spec.ts",
+      "tests/comprehensive-integration.test.ts",
+      "tests/e2e-staging.spec.ts",
+      "tests/feature-flags-api.spec.ts",
+      "tests/json-ld.spec.ts",
+      // Integration tests requiring live database
+      "test/integration/ai-content-generation.spec.ts",
+      "test/integration/dashboard-functionality.spec.ts",
+      "test/integration/dashboard-public-connection.spec.ts",
+    ],
     testTimeout: 30000,
     coverage: {
       provider: "v8",

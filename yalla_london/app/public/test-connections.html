@@ -2474,7 +2474,7 @@ async function runMasterAudit(mode) {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(58000),
+      signal: AbortSignal.timeout(125000),  // 125s — server has 120s maxDuration
     });
 
     setAuditProgress(90);

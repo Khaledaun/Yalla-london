@@ -133,7 +133,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     // Budget check after crawling
     if (Date.now() - startTime > BUDGET_MS) {
       return respondWithPartialResults(
-        prisma, siteId, startTime, crawlResults, [], [], [], "Budget exhausted after crawling"
+        siteId, startTime, crawlResults, "Budget exhausted after crawling"
       );
     }
 
@@ -352,23 +352,16 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 // Helper: respond with partial results when budget is hit
 // ---------------------------------------------------------------------------
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function respondWithPartialResults(
-  prisma: any,
   siteId: string,
   startTime: number,
   crawlResults: Array<{ status: number; url: string }>,
-  allIssues: Array<{ severity: string }>,
-  hardGates: Array<{ passed: boolean; name: string }>,
-  softGates: Array<{ name: string; count: number; description: string }>,
   reason: string
 ) {
   const durationMs = Date.now() - startTime;
-  const p0 = allIssues.filter((i) => i.severity === "P0").length;
-  const p1 = allIssues.filter((i) => i.severity === "P1").length;
-  const p2 = allIssues.filter((i) => i.severity === "P2").length;
 
   try {
+    const { prisma } = await import("@/lib/db");
     await prisma.cronJobLog.create({
       data: {
         site_id: siteId,
@@ -395,8 +388,8 @@ async function respondWithPartialResults(
     durationMs,
     totalUrls: crawlResults.length,
     crawledOk: crawlResults.filter((r) => r.status === 200).length,
-    issues: { total: allIssues.length, p0, p1, p2 },
-    hardGates,
-    softGates,
+    issues: { total: 0, p0: 0, p1: 0, p2: 0 },
+    hardGates: [],
+    softGates: [],
   });
 }

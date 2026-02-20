@@ -312,6 +312,22 @@ async function promoteToBlogPost(
       .replace(/-+/g, "-")
       .substring(0, 80);
   }
+
+  // Guard: never produce a slug with empty keyword (e.g. "-2026-02-14")
+  if (!slug) {
+    const title = enTitle || arTitle || "";
+    slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .substring(0, 80);
+    if (!slug) {
+      slug = `untitled-${siteId}-${Date.now().toString(36)}`;
+      console.warn(`[content-selector] Empty keyword and title for draft ${draft.id} — using fallback slug: ${slug}`);
+    }
+  }
+
   const dateStr = new Date().toISOString().slice(0, 10);
   slug = `${slug}-${dateStr}`;
 

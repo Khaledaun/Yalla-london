@@ -2,6 +2,7 @@
  * Indexing Database Cleanup API
  *
  * Fixes the non-www / www URL duplication caused by a bug in google-indexing cron.
+ * Also removes entries with malformed slugs (empty slugs like "/blog/-2026-02-14").
  *
  * GET  — Dry run: shows what would be cleaned up
  * POST — Applies cleanup: merges non-www entries into www equivalents, deletes orphans
@@ -13,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAdminOrCronAuth } from "@/lib/admin-middleware";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 // ---------------------------------------------------------------------------
 // GET — Preview cleanup
@@ -140,83 +142,125 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
     const nonWwwEntries = allEntries.filter((e) => !e.url.includes("://www."));
     const wwwUrlMap = new Map<string, IndexEntry>(wwwEntries.map((e) => [e.url, e]));
 
+    // Also find entries with malformed slugs (empty slug like "/blog/-2026-02-14")
+    const malformedEntries = allEntries.filter((e) => {
+      const path = e.url.replace(/^https?:\/\/[^/]+/, "");
+      return /\/blog\/-\d{4}-\d{2}-\d{2}/.test(path);
+    });
+
     let deleted = 0;
     let converted = 0;
     let merged = 0;
+    let malformedDeleted = 0;
     let errors = 0;
 
+    // Phase 1: Batch-delete malformed entries
+    if (malformedEntries.length > 0) {
+      try {
+        const result = await prisma.uRLIndexingStatus.deleteMany({
+          where: { id: { in: malformedEntries.map((e) => e.id) } },
+        });
+        malformedDeleted = result.count;
+      } catch (err) {
+        console.warn("[cleanup-indexing] Failed to delete malformed entries:", err);
+      }
+    }
+
+    // Phase 2: Separate duplicates (have www equivalent) from orphans (no www equivalent)
+    const duplicates: Array<{ entry: IndexEntry; wwwEntry: IndexEntry }> = [];
+    const orphans: IndexEntry[] = [];
+
     for (const entry of nonWwwEntries) {
+      // Skip if already deleted as malformed
+      if (malformedEntries.some((m) => m.id === entry.id)) continue;
+
       const wwwEquivalent = entry.url.replace("://", "://www.");
       const existingWww = wwwUrlMap.get(wwwEquivalent);
+      if (existingWww) {
+        duplicates.push({ entry, wwwEntry: existingWww });
+      } else {
+        orphans.push(entry);
+      }
+    }
 
-      try {
-        if (existingWww) {
-          // Duplicate — merge useful data into www entry, then delete non-www
+    // Phase 3: Merge data from duplicates into www entries, then batch-delete
+    // Process merges in parallel batches of 10
+    const BATCH_SIZE = 10;
+    const mergeNeeded = duplicates.filter((d) => {
+      const e = d.entry;
+      const w = d.wwwEntry;
+      return (
+        (e.submitted_indexnow && !w.submitted_indexnow) ||
+        (e.submitted_sitemap && !w.submitted_sitemap) ||
+        (e.last_submitted_at && (!w.last_submitted_at || e.last_submitted_at > w.last_submitted_at))
+      );
+    });
+
+    for (let i = 0; i < mergeNeeded.length; i += BATCH_SIZE) {
+      const batch = mergeNeeded.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map(({ entry, wwwEntry }) => {
           const mergeData: Record<string, unknown> = {};
-
-          // Keep the best submission data
-          if (entry.submitted_indexnow && !existingWww.submitted_indexnow) {
-            mergeData.submitted_indexnow = true;
-          }
-          if (entry.submitted_sitemap && !existingWww.submitted_sitemap) {
-            mergeData.submitted_sitemap = true;
-          }
-          // Keep latest submission timestamp
-          if (
-            entry.last_submitted_at &&
-            (!existingWww.last_submitted_at || entry.last_submitted_at > existingWww.last_submitted_at)
-          ) {
+          if (entry.submitted_indexnow && !wwwEntry.submitted_indexnow) mergeData.submitted_indexnow = true;
+          if (entry.submitted_sitemap && !wwwEntry.submitted_sitemap) mergeData.submitted_sitemap = true;
+          if (entry.last_submitted_at && (!wwwEntry.last_submitted_at || entry.last_submitted_at > wwwEntry.last_submitted_at)) {
             mergeData.last_submitted_at = entry.last_submitted_at;
           }
+          return prisma.uRLIndexingStatus.update({ where: { id: wwwEntry.id }, data: mergeData });
+        }),
+      );
+      merged += results.filter((r) => r.status === "fulfilled").length;
+      errors += results.filter((r) => r.status === "rejected").length;
+    }
 
-          if (Object.keys(mergeData).length > 0) {
-            await prisma.uRLIndexingStatus.update({
-              where: { id: existingWww.id },
-              data: mergeData,
-            });
-            merged++;
-          }
+    // Batch-delete all duplicate non-www entries
+    if (duplicates.length > 0) {
+      try {
+        const result = await prisma.uRLIndexingStatus.deleteMany({
+          where: { id: { in: duplicates.map((d) => d.entry.id) } },
+        });
+        deleted = result.count;
+      } catch (err) {
+        console.warn("[cleanup-indexing] Failed to batch-delete duplicates:", err);
+        errors += duplicates.length;
+      }
+    }
 
-          // Delete the non-www duplicate
-          await prisma.uRLIndexingStatus.delete({
-            where: { id: entry.id },
-          });
-          deleted++;
-        } else {
-          // Orphan — convert URL to www version
-          // Use upsert in case a www version was created between our read and write
-          await prisma.uRLIndexingStatus.update({
+    // Phase 4: Convert orphans to www in parallel batches
+    for (let i = 0; i < orphans.length; i += BATCH_SIZE) {
+      const batch = orphans.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map((entry) =>
+          prisma.uRLIndexingStatus.update({
             where: { id: entry.id },
             data: {
-              url: wwwEquivalent,
-              // Reset inspection data since it was for the wrong URL
+              url: entry.url.replace("://", "://www."),
               last_inspected_at: null,
               coverage_state: null,
               indexing_state: null,
               inspection_result: null,
               last_error: null,
-              // Reset status to "submitted" so verify-indexing re-checks it
               status: "submitted",
             },
-          });
-          converted++;
-        }
-      } catch (err) {
-        console.warn(`[cleanup-indexing] Failed to process ${entry.url}:`, err);
-        errors++;
-      }
+          }),
+        ),
+      );
+      converted += results.filter((r) => r.status === "fulfilled").length;
+      errors += results.filter((r) => r.status === "rejected").length;
     }
 
+    const totalCleaned = deleted + converted + malformedDeleted;
     return NextResponse.json({
       success: true,
       siteId,
       correctBaseUrl,
-      totalProcessed: nonWwwEntries.length,
+      totalProcessed: nonWwwEntries.length + malformedEntries.length,
       deleted,
       converted,
       merged,
+      malformedDeleted,
       errors,
-      message: `Cleaned up ${deleted + converted} non-www entries: ${deleted} duplicates deleted, ${converted} orphans converted to www, ${merged} entries had data merged`,
+      message: `Cleaned up ${totalCleaned} entries: ${deleted} duplicates deleted, ${converted} orphans converted to www, ${merged} entries had data merged, ${malformedDeleted} malformed URLs removed`,
     });
   } catch (error) {
     console.error("[cleanup-indexing] POST error:", error);

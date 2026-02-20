@@ -117,12 +117,30 @@ async function handleVerifyIndexing(request: NextRequest) {
           const inspection = await gsc.getIndexingStatus(url);
 
           if (inspection) {
-            const isIndexed = inspection.indexingState === "INDEXED" || inspection.indexingState === "PARTIALLY_INDEXED";
+            // Check both indexingState and coverageState — GSC can report indexing
+            // through either field depending on the URL's lifecycle stage
+            const indexingStateMatch = inspection.indexingState === "INDEXED" || inspection.indexingState === "PARTIALLY_INDEXED";
+            const coverageStateMatch = typeof inspection.coverageState === "string" &&
+              inspection.coverageState.toLowerCase().includes("indexed");
+            const isIndexed = indexingStateMatch || coverageStateMatch;
+
+            // Determine detailed status for URLs not yet indexed
+            let status = "submitted";
+            if (isIndexed) {
+              status = "indexed";
+            } else if (inspection.coverageState) {
+              // Map GSC coverage states to our status values
+              const cs = inspection.coverageState.toLowerCase();
+              if (cs.includes("crawled") || cs.includes("discovered")) {
+                status = "discovered";
+              }
+              // "submitted" stays as default for everything else
+            }
 
             await prisma.uRLIndexingStatus.update({
               where: { id: urlRecord.id as string },
               data: {
-                status: isIndexed ? "indexed" : "submitted", // Keep "submitted" if not indexed yet
+                status,
                 indexing_state: inspection.indexingState,
                 coverage_state: inspection.coverageState,
                 last_inspected_at: new Date(),

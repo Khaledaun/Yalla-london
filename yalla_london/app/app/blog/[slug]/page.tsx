@@ -1,15 +1,23 @@
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { blogPosts, categories } from "@/data/blog-content";
-import { extendedBlogPosts } from "@/data/blog-content-extended";
-import { markdownToHtml } from "@/lib/markdown";
 import { getRelatedArticles } from "@/lib/related-content";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import BlogPostClient from "./BlogPostClient";
 
-// Combine all static blog posts (legacy content)
-const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
+// Lazy-load static content only when DB lookup fails (saves ~224KB per request)
+let _staticPostsCache: any[] | null = null;
+let _categoriesCache: any[] | null = null;
+
+async function getStaticPosts() {
+  if (!_staticPostsCache) {
+    const { blogPosts, categories } = await import("@/data/blog-content");
+    const { extendedBlogPosts } = await import("@/data/blog-content-extended");
+    _staticPostsCache = [...blogPosts, ...extendedBlogPosts];
+    _categoriesCache = categories;
+  }
+  return { allStaticPosts: _staticPostsCache!, categories: _categoriesCache! };
+}
 
 // ISR: Revalidate blog posts every hour for multi-site scale
 export const revalidate = 3600;
@@ -55,14 +63,15 @@ function computeReadingTime(html: string): number {
 
 type PostResult =
   | { source: "db"; post: NonNullable<Awaited<ReturnType<typeof getDbPost>>> }
-  | { source: "static"; post: (typeof allStaticPosts)[0] };
+  | { source: "static"; post: Record<string, any> };
 
 async function findPost(slug: string, siteId?: string): Promise<PostResult | null> {
   // Database first — this is where pipeline-generated articles live
   const dbPost = await getDbPost(slug, siteId);
   if (dbPost) return { source: "db", post: dbPost };
 
-  // Fall back to static content (legacy hardcoded articles)
+  // Fall back to static content (legacy hardcoded articles) — lazy-loaded
+  const { allStaticPosts } = await getStaticPosts();
   const staticPost = allStaticPosts.find((p) => p.slug === slug && p.published);
   if (staticPost) return { source: "static", post: staticPost };
 
@@ -72,6 +81,7 @@ async function findPost(slug: string, siteId?: string): Promise<PostResult | nul
 // ─── Static params (build + ISR) ───────────────────────────────────────────
 
 export async function generateStaticParams() {
+  const { allStaticPosts } = await getStaticPosts();
   const staticSlugs = allStaticPosts
     .filter((post) => post.published)
     .map((post) => ({ slug: post.slug }));
@@ -138,7 +148,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   let keywordStr = "";
 
   if (source === "static") {
-    const cat = categories.find((c) => c.id === post.category_id);
+    const { categories: cats } = await getStaticPosts();
+    const cat = cats.find((c: any) => c.id === post.category_id);
     categoryName = cat?.name_en || "Travel";
     keywordStr = (post as any).keywords?.join(", ") || tags.join(", ");
   } else {
@@ -209,7 +220,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // ─── Structured Data (JSON-LD) ─────────────────────────────────────────────
 
-function generateStructuredData(
+async function generateStructuredData(
   post: any,
   source: "db" | "static",
   siteInfo: { siteName: string; siteDomain: string; siteSlug: string; locale: string },
@@ -222,7 +233,8 @@ function generateStructuredData(
   let keywords: string[] = [];
 
   if (source === "static") {
-    const cat = categories.find((c: any) => c.id === post.category_id);
+    const { categories: cats } = await getStaticPosts();
+    const cat = cats.find((c: any) => c.id === post.category_id);
     categoryName = cat?.name_en || "Travel";
     keywords = post.keywords || [];
   } else {
@@ -302,11 +314,12 @@ function generateStructuredData(
 
 // ─── Transform for client component ────────────────────────────────────────
 
-function transformForClient(post: any, source: "db" | "static") {
+async function transformForClient(post: any, source: "db" | "static") {
   let category = null;
 
   if (source === "static") {
-    const cat = categories.find((c: any) => c.id === post.category_id);
+    const { categories: cats } = await getStaticPosts();
+    const cat = cats.find((c: any) => c.id === post.category_id);
     category = cat
       ? {
           id: cat.id,
@@ -324,12 +337,15 @@ function transformForClient(post: any, source: "db" | "static") {
     };
   }
 
-  // Static content is markdown → convert to HTML
+  // Static content is markdown → convert to HTML (lazy-loaded)
   // Database content is already HTML from the content pipeline
+  const markdownToHtml = source === "static"
+    ? (await import("@/lib/markdown")).markdownToHtml
+    : null;
   const contentEn =
-    source === "static" ? markdownToHtml(post.content_en) : post.content_en;
+    source === "static" && markdownToHtml ? markdownToHtml(post.content_en) : post.content_en;
   const contentAr =
-    source === "static" ? markdownToHtml(post.content_ar) : post.content_ar;
+    source === "static" && markdownToHtml ? markdownToHtml(post.content_ar) : post.content_ar;
   const readingTime =
     source === "static"
       ? post.reading_time
@@ -380,9 +396,11 @@ export default async function BlogPostPage({ params }: Props) {
   }
 
   const locale = headersList.get("x-locale") || "en";
-  const structuredData = generateStructuredData(result.post, result.source, { siteName, siteDomain, siteSlug, locale });
-  const clientPost = transformForClient(result.post, result.source);
-  const relatedArticles = await getRelatedArticles(slug, "blog", 3);
+  const [structuredData, clientPost, relatedArticles] = await Promise.all([
+    generateStructuredData(result.post, result.source, { siteName, siteDomain, siteSlug, locale }),
+    transformForClient(result.post, result.source),
+    getRelatedArticles(slug, "blog", 3),
+  ]);
 
   return (
     <>

@@ -2855,7 +2855,7 @@ async function previewIndexingCleanup() {
   try {
     const resp = await fetch('/api/admin/cleanup-indexing', {
       headers: getAuthHeaders(),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(60000),
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
@@ -2902,7 +2902,7 @@ async function applyIndexingCleanup() {
       method: 'POST',
       headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({}),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(120000),
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();

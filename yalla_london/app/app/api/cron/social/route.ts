@@ -54,15 +54,34 @@ async function handleSocialCron(request: NextRequest) {
     const now = new Date();
 
     // Get posts scheduled for now or earlier that haven't been published
-    const duePosts = await prisma.scheduledContent.findMany({
-      where: {
-        scheduled_time: { lte: now },
-        status: 'pending',
-        published: false,
-        platform: { not: 'blog' },
-      },
-      take: 20,
-    });
+    // Retry with backoff to handle PgBouncer MaxClientsInSessionMode errors
+    // when multiple crons fire simultaneously
+    let duePosts: any[];
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        duePosts = await prisma.scheduledContent.findMany({
+          where: {
+            scheduled_time: { lte: now },
+            status: 'pending',
+            published: false,
+            platform: { not: 'blog' },
+          },
+          take: 20,
+        });
+        break; // success
+      } catch (dbErr) {
+        const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+        if (attempt < maxRetries && (msg.includes('MaxClients') || msg.includes('FATAL') || msg.includes('connection'))) {
+          const delayMs = attempt * 2000; // 2s, 4s
+          console.warn(`[social-cron] DB connection failed (attempt ${attempt}/${maxRetries}), retrying in ${delayMs}ms: ${msg}`);
+          await new Promise(r => setTimeout(r, delayMs));
+        } else {
+          throw dbErr; // exhausted retries or non-retryable error
+        }
+      }
+    }
+    duePosts = duePosts!;
 
     const results = [];
 

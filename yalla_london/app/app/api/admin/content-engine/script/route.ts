@@ -84,10 +84,12 @@ export async function POST(request: NextRequest) {
       data: { status: "scripting" },
     });
 
-    // Run the scripter
+    // Run the scripter with correct input shape
     const scripts = await runScripter({
-      pipeline,
-      angles: anglesToScript,
+      contentAngles: anglesToScript,
+      researchData: pipeline.researchData,
+      site: pipeline.site,
+      language: (pipeline.language as "en" | "ar") || "en",
     });
 
     // Save scripter output and advance status

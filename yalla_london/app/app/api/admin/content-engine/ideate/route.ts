@@ -74,10 +74,12 @@ export async function POST(request: NextRequest) {
       data: { status: "ideating" },
     });
 
-    // Run the ideator
+    // Run the ideator with correct input shape
     const contentAngles = await runIdeator({
-      pipeline,
-      selectedTopics: selectedTopics || [],
+      topic: pipeline.topic || "general",
+      researchData: pipeline.researchData,
+      site: pipeline.site,
+      existingTitles: selectedTopics || [],
     });
 
     // Save ideator output and advance status

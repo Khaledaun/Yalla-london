@@ -75,7 +75,8 @@ async function loadRemotionModules(): Promise<RemotionModules | null> {
       renderMedia: renderer.renderMedia as unknown as RemotionModules["renderMedia"],
       selectComposition: renderer.selectComposition as unknown as RemotionModules["selectComposition"],
     };
-  } catch {
+  } catch (err) {
+    console.warn("[render-engine] Remotion modules not available:", err);
     return null;
   }
 }

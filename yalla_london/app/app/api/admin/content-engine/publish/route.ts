@@ -157,9 +157,12 @@ export async function POST(request: NextRequest) {
           const sc = await prisma.scheduledContent.create({
             data: {
               title: post.title || post.platform || "Social Post",
-              content_type: "social",
-              content_body: post.body || post.text || post.content || "",
+              content_type: "social_post",
+              content: post.body || post.text || post.content || "",
+              language: "en",
+              scheduled_time: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
               status: "draft",
+              platform: post.platform || "twitter",
               category: post.platform || "social",
               tags: post.hashtags ? [post.hashtags] : [],
               site_id: siteId,
@@ -180,7 +183,9 @@ export async function POST(request: NextRequest) {
           data: {
             title: emailScript.subject || "Newsletter",
             content_type: "email",
-            content_body: emailScript.body || emailScript.content || "",
+            content: emailScript.body || emailScript.content || "",
+            language: "en",
+            scheduled_time: new Date(Date.now() + 24 * 60 * 60 * 1000),
             status: "draft",
             category: "email",
             tags: [],
@@ -205,12 +210,15 @@ export async function POST(request: NextRequest) {
             data: {
               title: video.title || "Video",
               content_type: "video",
-              content_body: JSON.stringify({
+              content: JSON.stringify({
                 script: video.script || video.body || "",
                 platform: video.platform || "youtube",
                 duration: video.duration || "",
               }),
+              language: "en",
+              scheduled_time: new Date(Date.now() + 48 * 60 * 60 * 1000),
               status: "draft",
+              platform: video.platform || "youtube",
               category: "video",
               tags: [],
               site_id: siteId,

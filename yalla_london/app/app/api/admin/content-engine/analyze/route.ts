@@ -70,8 +70,11 @@ export async function POST(request: NextRequest) {
       data: { status: "analyzing" },
     });
 
-    // Run the analyst
-    const analysisData = await runAnalyst({ pipeline });
+    // Run the analyst with correct input shape
+    const analysisData = await runAnalyst({
+      pipelineId: pipeline.id,
+      site: pipeline.site,
+    });
 
     // Save analysis output and advance status
     const updated = await prisma.contentPipeline.update({

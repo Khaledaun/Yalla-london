@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getSiteConfig } from "@/config/sites";
 
 export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
@@ -47,8 +48,15 @@ export async function GET(request: NextRequest) {
       prisma.emailCampaign.count({ where }),
     ]);
 
+    const mappedCampaigns = campaigns.map((campaign) => ({
+      ...campaign,
+      siteId: campaign.site,
+      siteName: getSiteConfig(campaign.site)?.name || campaign.site,
+      scheduledFor: campaign.scheduledAt,
+    }));
+
     return NextResponse.json({
-      campaigns,
+      campaigns: mappedCampaigns,
       total,
       page,
       limit,

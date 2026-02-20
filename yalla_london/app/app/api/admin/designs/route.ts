@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getSiteConfig } from "@/config/sites";
 
 export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
@@ -47,8 +48,14 @@ export async function GET(request: NextRequest) {
       prisma.design.count({ where }),
     ]);
 
+    const mappedDesigns = designs.map((design) => ({
+      ...design,
+      siteId: design.site,
+      siteName: getSiteConfig(design.site)?.name || design.site,
+    }));
+
     return NextResponse.json({
-      designs,
+      designs: mappedDesigns,
       total,
       page,
       limit,

@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getSiteConfig } from "@/config/sites";
 
 export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
@@ -47,8 +48,14 @@ export async function GET(request: NextRequest) {
       prisma.emailTemplate.count({ where }),
     ]);
 
+    const mappedTemplates = templates.map((template) => ({
+      ...template,
+      siteId: template.site,
+      siteName: getSiteConfig(template.site)?.name || template.site,
+    }));
+
     return NextResponse.json({
-      templates,
+      templates: mappedTemplates,
       total,
       page,
       limit,

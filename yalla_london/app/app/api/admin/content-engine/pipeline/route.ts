@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
+    const { getSiteConfig } = await import("@/config/sites");
+
     const [pipelines, total] = await Promise.all([
       prisma.contentPipeline.findMany({
         where,
@@ -48,17 +50,33 @@ export async function GET(request: NextRequest) {
           createdBy: true,
           createdAt: true,
           updatedAt: true,
-          // Omit large JSON blobs for list view
           generatedArticleId: true,
           generatedEmailId: true,
+          // Needed to determine stage status (not returned in response)
+          researchData: true,
+          contentAngles: true,
+          scripts: true,
+          analysisData: true,
         },
       }),
       prisma.contentPipeline.count({ where }),
     ]);
 
+    const mappedPipelines = pipelines.map(({ researchData, contentAngles, scripts, analysisData, ...pipeline }) => ({
+      ...pipeline,
+      siteId: pipeline.site,
+      siteName: getSiteConfig(pipeline.site)?.name || pipeline.site,
+      stages: [
+        { name: "Research", status: researchData ? "completed" : pipeline.status === "researching" ? "active" : "pending" },
+        { name: "Ideate", status: contentAngles ? "completed" : pipeline.status === "ideating" ? "active" : "pending" },
+        { name: "Script", status: scripts ? "completed" : pipeline.status === "scripting" ? "active" : "pending" },
+        { name: "Analyze", status: analysisData ? "completed" : pipeline.status === "analyzing" ? "active" : "pending" },
+      ],
+    }));
+
     return NextResponse.json({
       success: true,
-      data: pipelines,
+      data: mappedPipelines,
       pagination: {
         page,
         limit,

@@ -214,6 +214,38 @@ Transform disconnected, partially-built design tools into a **unified, productio
 - All 7 Prisma model references: VALID
 - Data flow pipeline chain: FULLY CONNECTED
 
+### Audit Round 5 (Security + Admin Page Completeness)
+- **78 Prisma calls audited** — ZERO field name mismatches
+- **47/47 route handlers** verified with `requireAdmin` auth
+- **Fixed:** `video-studio/route.ts` — stopped leaking `error.message`, added category/format validation
+- **Fixed:** `content-engine/page.tsx` — CRITICAL field mismatch (`siteId` → `site` in POST body)
+- **Fixed:** `pipeline/route.ts` — stage statuses (`active/pending` → `in_progress/waiting`)
+- **Fixed:** `design/page.tsx` — stats now read from brand-assets API
+- **Fixed:** `email-campaigns/page.tsx` — wired template duplicate button
+- **Fixed:** `social-calendar/page.tsx` — added site field, wired download button
+- **Fixed:** `premium-admin-nav.tsx` — added 4 new sidebar navigation items
+- **Fixed:** `research/route.ts` — added logging to empty catch block
+
+### Audit Round 6 (Library + Component Deep Audit)
+- **Fixed:** 5 hardcoded `'yalla-london.com'` fallbacks replaced with `getSiteDomain()` in scripter.ts (4) and brand-provider.ts (1)
+- **Fixed:** XSS in `blockToHtml()` — added `esc()` helper for all user-controlled HTML interpolations
+- **Fixed:** `Math.random()` ID generation → `crypto.randomUUID()` in scripter.ts
+- **Fixed:** 2 silent catch blocks in sender.ts — added contextual `console.warn` logging
+- **Fixed:** Removed unused `Badge` import from media-picker.tsx
+- **Fixed:** Added `aria-label` to video-hero play button and video element
+
+### Audit Round 7 (BrandProfile Unification + Multi-Site + Mobile)
+- **CRITICAL:** Renamed `BrandProfile` → `DesignBrandProfile` in `brand-design-system.ts` to eliminate type name collision with canonical `BrandProfile` in `brand-provider.ts`
+- **Fixed:** `brand-context.tsx` hardcoded `"yalla-london"` fallback → `getDefaultSiteId()`
+- **Fixed:** `content-engine/page.tsx` quick actions now use selected site (was hardcoded)
+- **Fixed:** `social-calendar/page.tsx` post creation uses selected site (was hardcoded)
+- **Fixed:** `design/page.tsx` removed hardcoded siteId fallback
+- **Fixed:** Email builder mobile responsiveness (sidebar toggles for <768px screens)
+- **Fixed:** Email footer default company → `Zenitha.Luxury` (not `Yalla London`)
+- **Fixed:** Unsplash UTM source → `zenitha_luxury` (parent entity)
+- **Fixed:** Video hero `autoPlay` attribute added
+- **Fixed:** `video-studio/route.ts` — 3 hardcoded `"yalla-london"` fallbacks → `getDefaultSiteId()`
+
 ---
 
 ## Files Created (Final Tally)

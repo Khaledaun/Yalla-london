@@ -4,14 +4,15 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { getBaseUrl } from '@/lib/url-utils';
 
 
 // Generate comprehensive sitemaps
 export async function POST(request: NextRequest) {
   try {
     const { type } = await request.json();
-    
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+
+    const baseUrl = await getBaseUrl();
     
     let sitemap: string;
     

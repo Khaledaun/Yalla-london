@@ -5,7 +5,7 @@ import { getTranslation } from '@/lib/i18n'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SITES, getDefaultSiteId } from '@/config/sites'
 
-const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || 'yalla-london.com'
+const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'yalla-london.com'
 const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
 
 const content = {

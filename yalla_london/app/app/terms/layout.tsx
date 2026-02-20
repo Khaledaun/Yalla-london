@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getBaseUrl } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
+import { StructuredData } from "@/components/structured-data";
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
@@ -53,6 +54,24 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const baseUrl = await getBaseUrl();
+
+  return (
+    <>
+      <StructuredData
+        type="breadcrumb"
+        siteId={siteId}
+        data={{
+          items: [
+            { name: "Home", url: baseUrl },
+            { name: "Terms of Use", url: `${baseUrl}/terms` },
+          ],
+        }}
+      />
+      {children}
+    </>
+  );
 }

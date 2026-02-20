@@ -410,7 +410,7 @@ export class ContentScheduler {
     const systemUser = await this.db.user.findFirst() ||
       await this.db.user.create({
         data: {
-          email: "system@yallalondon.com",
+          email: `system@${getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\/(www\.)?/, '')}`,
           name: "System",
         }
       });

@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { blogPosts, categories } from '@/data/blog-content';
 import { extendedBlogPosts } from '@/data/blog-content-extended';
-import { getDefaultSiteId } from '@/config/sites';
+import { getDefaultSiteId, getSiteConfig } from '@/config/sites';
 
 // Force dynamic rendering to avoid build-time database access
 export const dynamic = 'force-dynamic';
@@ -111,7 +111,7 @@ export async function GET(
           author: {
             id: 'author-yalla',
             name: 'Yalla London Editorial',
-            email: 'editorial@yalla-london.com',
+            email: `editorial@${getSiteConfig(siteId)?.domain || 'example.com'}`,
             image: null
           },
           place: null

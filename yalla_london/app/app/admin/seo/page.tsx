@@ -83,6 +83,20 @@ export default function IndexingCenter() {
   const [auditResult, setAuditResult] = useState<null|{ passed: number; failed: number; avgScore: number; autoFixed: number; issues: Array<{ url: string; issues: string[] }> }>(null);
   const [auditLoading, setAuditLoading] = useState(false);
   const [complianceOpen, setComplianceOpen] = useState(false);
+  // Comprehensive compliance audit state (batched)
+  const [complianceResult, setComplianceResult] = useState<null|{
+    averageCompliance: number;
+    articlesAudited: number;
+    fullComplianceCount: number;
+    standardsVersion: string;
+    totalArticles: number;
+    results: Array<{ slug: string; title: string; compliancePercent: number; passed: number; total: number; blockers: number; warnings: number }>;
+  }>(null);
+  const [complianceAuditLoading, setComplianceAuditLoading] = useState(false);
+  const [auditProgress, setAuditProgress] = useState<{ audited: number; total: number; batch: number; totalBatches: number } | null>(null);
+  const [fixingAll, setFixingAll] = useState(false);
+  const [fixProgress, setFixProgress] = useState<{ fixed: number; total: number } | null>(null);
+  const abortRef = useRef(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -673,31 +687,268 @@ export default function IndexingCenter() {
       )}
 
       {/* ════════════════════════════════════════════════════════════════
-          TAB: SEO AUDIT
+          TAB: SEO AUDIT — Comprehensive 13-Check Compliance
           ════════════════════════════════════════════════════════════════ */}
       {tab === "audit" && (
         <div className="space-y-4">
           <div className="neu-card">
             <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:16, color:"#1C1917" }} className="mb-1">
-              SEO Compliance Audit
+              SEO Compliance Audit (13 Checks)
             </div>
             <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:11, color:"#78716C", letterSpacing:0 }} className="mb-4">
-              تدقيق امتثال تحسين محركات البحث
+              تدقيق امتثال تحسين محركات البحث — ١٣ فحص
             </div>
             <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", lineHeight:1.7, marginBottom:16 }}>
-              Audits all published articles against SEO standards: title length, meta description, word count, heading hierarchy, E-E-A-T signals, and structured data. Auto-fixes where possible.
+              Runs all 13 pre-publication gate checks on every published article: route existence, meta title &amp; description,
+              word count, heading hierarchy, internal links, readability, image alt text, author attribution (E-E-A-T),
+              structured data, authenticity signals (Jan 2026 Update), and affiliate links. Reports blockers, warnings,
+              and compliance percentage. Click any article to see its detailed checklist with GSC data.
             </p>
-            <button onClick={runAudit} disabled={auditLoading}
-                    className="flex items-center gap-2 px-5 py-3 rounded-xl transition-all"
-                    style={{ backgroundColor:"#C49A2A", color:"#FAF8F4", fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, boxShadow:"4px 4px 10px rgba(196,154,42,0.3)", opacity: auditLoading?0.7:1, cursor: auditLoading?"not-allowed":"pointer" }}>
-              {auditLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckSquare size={16} />}
-              {auditLoading ? "Running Audit…" : "Run Full SEO Audit"}
-            </button>
+            <div className="flex gap-3 flex-wrap">
+              <button onClick={async () => {
+                        setComplianceAuditLoading(true);
+                        setComplianceResult(null);
+                        abortRef.current = false;
+                        const BATCH_SIZE = 10;
+                        let allResults: Array<{ slug: string; title: string; compliancePercent: number; passed: number; total: number; blockers: number; warnings: number }> = [];
+                        let currentOffset = 0;
+                        let totalArticles = 0;
+                        let standardsVersion = "";
+                        let batchNum = 0;
+                        try {
+                          // First batch to discover total
+                          const firstRes = await fetch("/api/admin/seo/article-compliance", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "audit_all", offset: 0, limit: BATCH_SIZE }),
+                          });
+                          const firstJson = await firstRes.json();
+                          if (!firstJson.success) { toast.error(firstJson.error || "Audit failed"); setComplianceAuditLoading(false); return; }
+                          totalArticles = firstJson.totalArticles || firstJson.articlesAudited;
+                          standardsVersion = firstJson.standardsVersion;
+                          allResults = [...firstJson.results];
+                          currentOffset = firstJson.nextOffset ?? totalArticles;
+                          batchNum = 1;
+                          const totalBatches = Math.ceil(totalArticles / BATCH_SIZE);
+                          setAuditProgress({ audited: allResults.length, total: totalArticles, batch: batchNum, totalBatches });
+
+                          // Subsequent batches
+                          while (currentOffset < totalArticles && !abortRef.current) {
+                            batchNum++;
+                            const res = await fetch("/api/admin/seo/article-compliance", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ action: "audit_all", offset: currentOffset, limit: BATCH_SIZE }),
+                            });
+                            const json = await res.json();
+                            if (!json.success) { toast.error(`Batch ${batchNum} failed: ${json.error}`); break; }
+                            allResults = [...allResults, ...json.results];
+                            currentOffset = json.nextOffset ?? totalArticles;
+                            setAuditProgress({ audited: allResults.length, total: totalArticles, batch: batchNum, totalBatches });
+                          }
+
+                          // Calculate aggregate
+                          const avgCompliance = allResults.length > 0
+                            ? Math.round(allResults.reduce((s, r) => s + r.compliancePercent, 0) / allResults.length) : 0;
+                          const fullComplianceCount = allResults.filter(r => r.compliancePercent === 100).length;
+                          const result = {
+                            averageCompliance: avgCompliance,
+                            articlesAudited: allResults.length,
+                            fullComplianceCount,
+                            standardsVersion,
+                            totalArticles,
+                            results: allResults.sort((a, b) => a.compliancePercent - b.compliancePercent),
+                          };
+                          setComplianceResult(result);
+                          toast.success(`Audit complete: ${avgCompliance}% average across ${allResults.length} articles`);
+                        } catch (e: any) {
+                          toast.error(e.message || "Audit failed");
+                        } finally {
+                          setComplianceAuditLoading(false);
+                          setAuditProgress(null);
+                        }
+                      }}
+                      disabled={complianceAuditLoading}
+                      className="flex items-center gap-2 px-5 py-3 rounded-xl transition-all"
+                      style={{ backgroundColor:"#C49A2A", color:"#FAF8F4", fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, boxShadow:"4px 4px 10px rgba(196,154,42,0.3)", opacity: complianceAuditLoading?0.7:1, cursor: complianceAuditLoading?"not-allowed":"pointer" }}>
+                {complianceAuditLoading ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
+                {complianceAuditLoading ? "Auditing All Pages…" : "Run Full Compliance Audit"}
+              </button>
+              {complianceAuditLoading && (
+                <button onClick={() => { abortRef.current = true; }}
+                        className="flex items-center gap-1.5 px-4 py-3 rounded-xl"
+                        style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)", fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1, color:"#C8322B" }}>
+                  <XCircle size={14} /> Cancel
+                </button>
+              )}
+              {complianceResult && complianceResult.results.some(r => r.compliancePercent < 100) && (
+                <button onClick={async () => {
+                          setFixingAll(true);
+                          const failingArticles = complianceResult.results.filter(r => r.compliancePercent < 100);
+                          let fixCount = 0;
+                          setFixProgress({ fixed: 0, total: failingArticles.length });
+                          for (let i = 0; i < failingArticles.length; i++) {
+                            const article = failingArticles[i];
+                            try {
+                              // Get article ID first
+                              const checkRes = await fetch(`/api/admin/seo/article-compliance?slug=${encodeURIComponent(article.slug)}`);
+                              if (!checkRes.ok) continue;
+                              const checkData = await checkRes.json();
+                              const res = await fetch("/api/admin/seo/article-compliance", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ action: "auto_fix", articleId: checkData.article.id }),
+                              });
+                              const result = await res.json();
+                              if (result.fixesApplied > 0) fixCount += result.fixesApplied;
+                            } catch (fixErr) {
+                              console.warn(`[seo-dashboard] auto_fix failed for ${article.slug}:`, fixErr instanceof Error ? fixErr.message : fixErr);
+                            }
+                            setFixProgress({ fixed: i + 1, total: failingArticles.length });
+                          }
+                          toast.success(`Applied ${fixCount} auto-fixes across ${failingArticles.length} articles`);
+                          setFixingAll(false);
+                          setFixProgress(null);
+                        }}
+                        disabled={fixingAll}
+                        className="flex items-center gap-2 px-5 py-3 rounded-xl transition-all"
+                        style={{ backgroundColor:"#C8322B", color:"#FAF8F4", fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, boxShadow:"4px 4px 10px rgba(200,50,43,0.3)", opacity: fixingAll?0.7:1, cursor: fixingAll?"not-allowed":"pointer" }}>
+                  {fixingAll ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+                  {fixingAll ? "Fixing Issues…" : "Fix All Issues"}
+                </button>
+              )}
+            </div>
           </div>
 
-          {auditResult && (
+          {/* Batched Audit Progress */}
+          {auditProgress && (
+            <div className="neu-card">
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:1 }}>
+                  Auditing batch {auditProgress.batch} of {auditProgress.totalBatches}
+                </span>
+                <span style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:16, color:"#C49A2A" }}>
+                  {auditProgress.audited}/{auditProgress.total}
+                </span>
+              </div>
+              <div className="relative rounded-full overflow-hidden"
+                   style={{ height:10, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                <div className="h-full rounded-full transition-all duration-500"
+                     style={{ width:`${auditProgress.total > 0 ? Math.round((auditProgress.audited / auditProgress.total) * 100) : 0}%`, backgroundColor:"#C49A2A" }} />
+              </div>
+              <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#78716C", marginTop:6 }}>
+                {Math.round((auditProgress.audited / Math.max(1, auditProgress.total)) * 100)}% complete — processing {Math.min(10, auditProgress.total - auditProgress.audited)} articles in current batch…
+              </p>
+            </div>
+          )}
+
+          {/* Fix All Progress */}
+          {fixProgress && (
+            <div className="neu-card">
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:1 }}>
+                  Fixing article {fixProgress.fixed} of {fixProgress.total}
+                </span>
+                <span style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:16, color:"#C8322B" }}>
+                  {fixProgress.fixed}/{fixProgress.total}
+                </span>
+              </div>
+              <div className="relative rounded-full overflow-hidden"
+                   style={{ height:10, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                <div className="h-full rounded-full transition-all duration-500"
+                     style={{ width:`${fixProgress.total > 0 ? Math.round((fixProgress.fixed / fixProgress.total) * 100) : 0}%`, backgroundColor:"#C8322B" }} />
+              </div>
+            </div>
+          )}
+
+          {/* Compliance Results */}
+          {complianceResult && (
             <div className="space-y-3">
-              {/* Audit summary */}
+              {/* Summary KPIs */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label:"Articles Audited", val: complianceResult.articlesAudited, color:"#1C1917" },
+                  { label:"Avg Compliance",   val: `${complianceResult.averageCompliance}%`, color: complianceResult.averageCompliance>=90?"#2D5A3D":complianceResult.averageCompliance>=70?"#C49A2A":"#C8322B" },
+                  { label:"100% Compliant",   val: complianceResult.fullComplianceCount, color:"#2D5A3D" },
+                  { label:"Need Fixes",       val: complianceResult.articlesAudited - complianceResult.fullComplianceCount, color:"#C8322B" },
+                ].map(({ label, val, color }) => (
+                  <div key={label} className="text-center p-4 rounded-xl"
+                       style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
+                    <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:24, color }}>{val}</div>
+                    <div className="neu-section-label mt-1">{label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Standards version */}
+              <div className="p-3 rounded-xl" style={{ backgroundColor:"rgba(74,123,168,0.06)", border:"1px solid rgba(74,123,168,0.15)" }}>
+                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#4A7BA8" }}>
+                  Standards v{complianceResult.standardsVersion} · 13-check gate · Jan 2026 Authenticity Update active
+                </span>
+              </div>
+
+              {/* Per-article results */}
+              <div className="neu-card">
+                <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:14, color:"#1C1917" }} className="mb-3">
+                  Per-Article Compliance ({complianceResult.results.length} articles)
+                </div>
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                  {complianceResult.results.map((article, i) => {
+                    const pctColor = article.compliancePercent >= 90 ? "#2D5A3D" : article.compliancePercent >= 70 ? "#C49A2A" : "#C8322B";
+                    const pctBg = article.compliancePercent >= 90 ? "rgba(45,90,61,0.08)" : article.compliancePercent >= 70 ? "rgba(196,154,42,0.08)" : "rgba(200,50,43,0.08)";
+                    return (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl"
+                           style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
+                        {/* Compliance bar */}
+                        <div style={{ width:48, textAlign:"center", flexShrink:0 }}>
+                          <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:16, color: pctColor }}>
+                            {article.compliancePercent}%
+                          </div>
+                        </div>
+                        {/* Article info */}
+                        <div className="flex-1 min-w-0">
+                          <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917" }} className="truncate">
+                            {article.title}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>
+                              {article.passed}/{article.total} checks
+                            </span>
+                            {article.blockers > 0 && (
+                              <span className="neu-badge" style={{ backgroundColor:"rgba(200,50,43,0.1)", color:"#C8322B", border:"1px solid rgba(200,50,43,0.25)", fontSize:7 }}>
+                                {article.blockers} blocker{article.blockers !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                            {article.warnings > 0 && (
+                              <span className="neu-badge" style={{ backgroundColor:"rgba(196,154,42,0.1)", color:"#C49A2A", border:"1px solid rgba(196,154,42,0.25)", fontSize:7 }}>
+                                {article.warnings} warning{article.warnings !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                          </div>
+                          {/* Progress bar */}
+                          <div className="mt-2 relative rounded-full overflow-hidden"
+                               style={{ height:4, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                            <div className="h-full rounded-full transition-all duration-500"
+                                 style={{ width:`${article.compliancePercent}%`, backgroundColor: pctColor }} />
+                          </div>
+                        </div>
+                        {/* Checklist link */}
+                        <Link href={`/admin/articles/${article.slug}/seo-checklist`}
+                              className="flex items-center gap-1 px-3 py-2 rounded-lg flex-shrink-0"
+                              style={{ backgroundColor: pctBg, fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, color: pctColor, textDecoration:"none", textTransform:"uppercase", letterSpacing:0.8 }}>
+                          <Eye size={11} /> Checklist
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Legacy audit results (from content-indexing API) */}
+          {auditResult && !complianceResult && (
+            <div className="space-y-3">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
                   { label:"Passing",    val: auditResult.passed,    color:"#2D5A3D" },
@@ -712,8 +963,6 @@ export default function IndexingCenter() {
                   </div>
                 ))}
               </div>
-
-              {/* Failing articles */}
               {auditResult.issues && auditResult.issues.length > 0 && (
                 <div className="neu-card">
                   <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:14, color:"#1C1917" }} className="mb-3">

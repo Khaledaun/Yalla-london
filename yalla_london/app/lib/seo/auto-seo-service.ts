@@ -9,6 +9,7 @@ import { enhancedSchemaInjector } from './enhanced-schema-injector';
 import { dynamicInternalLinking } from './dynamic-internal-linking';
 import { aiSEOAudit } from './ai-seo-audit';
 import { enhancedSitemapGenerator } from './enhanced-sitemap-generator';
+import { getSiteDomain, getSiteConfig, getDefaultSiteId } from '@/config/sites';
 
 export interface ContentData {
   id: string;
@@ -30,36 +31,22 @@ export class AutoSEOService {
   private baseUrl: string;
 
   constructor(baseUrl?: string, siteId?: string) {
-    let resolvedSiteId = siteId;
+    const resolvedSiteId = siteId || getDefaultSiteId();
     if (!baseUrl) {
-      try {
-        const { getSiteDomain, getSiteConfig, getDefaultSiteId } = require("@/config/sites");
-        resolvedSiteId = resolvedSiteId || getDefaultSiteId();
-        baseUrl = getSiteDomain(resolvedSiteId);
-      } catch {
-        baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
-      }
+      baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(resolvedSiteId);
     }
     this.baseUrl = baseUrl;
 
-    let siteName = 'Yalla London';
-    let siteDesc = 'Luxury London travel guide';
-    if (resolvedSiteId) {
-      try {
-        const { getSiteConfig } = require("@/config/sites");
-        const config = getSiteConfig(resolvedSiteId);
-        if (config) {
-          siteName = config.name;
-          siteDesc = config.description || siteDesc;
-        }
-      } catch { /* use defaults */ }
-    }
+    const config = getSiteConfig(resolvedSiteId);
+    const siteName = config?.name || 'Yalla London';
+    const siteDesc = config?.destination ? `Luxury ${config.destination} travel guide` : 'Luxury travel guide';
+    const domain = config?.domain || 'zenitha.luxury';
 
     this.schemaGenerator = new SchemaGenerator(baseUrl, {
       siteName,
       description: siteDesc,
       contact: {
-        email: `hello@zenitha.luxury`,
+        email: `hello@${domain}`,
         social: {
           twitter: 'https://twitter.com/zenithaluxury',
           instagram: 'https://instagram.com/zenithaluxury'

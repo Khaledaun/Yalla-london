@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getBaseUrl } from "@/lib/url-utils";
 
 /**
  * Customer Purchases API
@@ -39,8 +40,7 @@ export async function GET(request: NextRequest) {
       orderBy: { created_at: "desc" },
     });
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    const baseUrl = await getBaseUrl();
 
     const formatted = purchases.map((p) => ({
       id: p.id,

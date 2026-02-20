@@ -465,8 +465,9 @@ export async function handleDigitalProductPurchase(
       const { sendPurchaseDeliveryEmail } = await import(
         "@/lib/email-notifications"
       );
+      const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
       const baseUrl =
-        process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+        process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
       await sendPurchaseDeliveryEmail({
         to: customerEmail || purchase.customer_email,
         customerName: purchase.customer_name || undefined,

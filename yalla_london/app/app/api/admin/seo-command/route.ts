@@ -32,6 +32,19 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 })
 
 async function getOverview(siteId: string) {
+  // Import SEO thresholds from centralized standards — single source of truth
+  let qualityGateScore = 70;
+  let minWords = 1000;
+  let metaTitleRange = "30-60";
+  let metaDescRange = "120-160";
+  try {
+    const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
+    qualityGateScore = CONTENT_QUALITY.qualityGateScore;
+    minWords = CONTENT_QUALITY.minWords;
+    metaTitleRange = `${CONTENT_QUALITY.metaTitleMin}-${CONTENT_QUALITY.metaTitleOptimal.max}`;
+    metaDescRange = `${CONTENT_QUALITY.metaDescriptionOptimal.min}-${CONTENT_QUALITY.metaDescriptionOptimal.max}`;
+  } catch { /* use fallbacks */ }
+
   const siteFilter = { siteId, deletedAt: null }
 
   // Real article counts
@@ -54,9 +67,9 @@ async function getOverview(siteId: string) {
     })
   } catch { /* table may not exist */ }
 
-  // Issues: articles with low SEO scores
+  // Issues: articles below quality gate score (from standards.ts)
   const issuesCount = await prisma.blogPost.count({
-    where: { seo_score: { lt: 70 }, published: true, ...siteFilter },
+    where: { seo_score: { lt: qualityGateScore }, published: true, ...siteFilter },
   })
 
   // Recent cron activity related to SEO
@@ -92,6 +105,19 @@ async function getOverview(siteId: string) {
 }
 
 async function getIssues(siteId: string) {
+  // Import thresholds from centralized standards
+  let issueQualityGateScore = 70;
+  let issueMinWords = 1000;
+  let issueMetaTitleRange = "30-60";
+  let issueMetaDescRange = "120-160";
+  try {
+    const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
+    issueQualityGateScore = CONTENT_QUALITY.qualityGateScore;
+    issueMinWords = CONTENT_QUALITY.minWords;
+    issueMetaTitleRange = `${CONTENT_QUALITY.metaTitleMin}-${CONTENT_QUALITY.metaTitleOptimal.max}`;
+    issueMetaDescRange = `${CONTENT_QUALITY.metaDescriptionOptimal.min}-${CONTENT_QUALITY.metaDescriptionOptimal.max}`;
+  } catch { /* use fallbacks */ }
+
   // Find real articles with SEO issues
   const articlesWithIssues = await prisma.blogPost.findMany({
     where: {
@@ -102,7 +128,7 @@ async function getIssues(siteId: string) {
         { meta_title_en: null },
         { meta_description_en: null },
         { featured_image: null },
-        { seo_score: { lt: 60 } },
+        { seo_score: { lt: issueQualityGateScore } },
       ],
     },
     select: {
@@ -141,7 +167,7 @@ async function getIssues(siteId: string) {
         title: 'Missing Meta Title',
         description: `"${article.title_en}" has no meta title set`,
         pageUrl: `/blog/${article.slug}`,
-        suggestions: ['Add a meta title between 30-60 characters', 'Include primary keyword naturally'],
+        suggestions: [`Add a meta title between ${issueMetaTitleRange} characters`, 'Include primary keyword naturally'],
         quickFix: { action: 'Generate meta title from article title', automated: true },
         status: 'pending',
         detectedAt: new Date().toISOString(),
@@ -156,7 +182,7 @@ async function getIssues(siteId: string) {
         title: 'Missing Meta Description',
         description: `"${article.title_en}" has no meta description`,
         pageUrl: `/blog/${article.slug}`,
-        suggestions: ['Add a meta description between 120-160 characters', 'Include a call to action'],
+        suggestions: [`Add a meta description between ${issueMetaDescRange} characters`, 'Include a call to action'],
         quickFix: { action: 'Generate meta description from excerpt', automated: true },
         status: 'pending',
         detectedAt: new Date().toISOString(),
@@ -178,15 +204,15 @@ async function getIssues(siteId: string) {
     }
 
     const wordCount = (article.content_en || '').split(/\s+/).filter(Boolean).length
-    if (wordCount < 800) {
+    if (wordCount < issueMinWords) {
       articleIssues.push({
         id: `${article.id}-thin`,
         type: 'thin_content',
         severity: wordCount < 300 ? 'high' : 'medium',
         title: 'Thin Content',
-        description: `"${article.title_en}" has only ${wordCount} words (minimum: 800)`,
+        description: `"${article.title_en}" has only ${wordCount} words (minimum: ${issueMinWords.toLocaleString()})`,
         pageUrl: `/blog/${article.slug}`,
-        suggestions: ['Expand content to at least 800 words', 'Add more detailed sections and subheadings'],
+        suggestions: [`Expand content to at least ${issueMinWords.toLocaleString()} words`, 'Add more detailed sections and subheadings'],
         status: 'pending',
         detectedAt: new Date().toISOString(),
       })

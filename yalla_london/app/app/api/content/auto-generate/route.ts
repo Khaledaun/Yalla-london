@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Auto-generation error:', error);
     return NextResponse.json(
-      { error: `Failed to generate content: ${error instanceof Error ? error.message : 'Unknown error'}` },
+      { error: 'Failed to generate content' },
       { status: 500 }
     );
   }

@@ -63,6 +63,19 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 });
 
 async function getSEOOverview(siteId: string) {
+  // Import SEO thresholds from centralized standards — single source of truth
+  let qualityGateScore = 70;
+  let autoPublishThreshold = 85;
+  let criticalThreshold = 50;
+  try {
+    const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
+    qualityGateScore = CONTENT_QUALITY.qualityGateScore;
+    // Auto-publish: 15 points above quality gate (excellent content)
+    autoPublishThreshold = Math.min(100, qualityGateScore + 15);
+    // Critical: below the blocking threshold
+    criticalThreshold = Math.round(qualityGateScore * 0.7);
+  } catch { /* use fallbacks */ }
+
   const siteFilter = { siteId, deletedAt: null };
 
   const avgScoreResult = await prisma.blogPost.aggregate({
@@ -73,7 +86,7 @@ async function getSEOOverview(siteId: string) {
   const averageScore = Math.round(avgScoreResult._avg.seo_score || 0);
 
   const autoPublishCount = await prisma.blogPost.count({
-    where: { seo_score: { gte: 85 }, published: true, ...siteFilter },
+    where: { seo_score: { gte: autoPublishThreshold }, published: true, ...siteFilter },
   });
 
   const totalPublished = await prisma.blogPost.count({
@@ -86,11 +99,11 @@ async function getSEOOverview(siteId: string) {
       : 0;
 
   const reviewQueue = await prisma.blogPost.count({
-    where: { seo_score: { gte: 70, lt: 85 }, published: false, ...siteFilter },
+    where: { seo_score: { gte: qualityGateScore, lt: autoPublishThreshold }, published: false, ...siteFilter },
   });
 
   const criticalIssues = await prisma.blogPost.count({
-    where: { seo_score: { lt: 50 }, ...siteFilter },
+    where: { seo_score: { lt: criticalThreshold }, ...siteFilter },
   });
 
   const analyticsSnapshot = await prisma.analyticsSnapshot.findFirst({
@@ -106,6 +119,23 @@ async function getSEOOverview(siteId: string) {
     });
   } catch { /* table may not exist yet */ }
 
+  // Check SEO standards freshness — alert dashboard if stale
+  let standardsHealth: { version: string; ageInDays: number; isStale: boolean; message: string } | null = null;
+  try {
+    const { STANDARDS_VERSION } = await import("@/lib/seo/standards");
+    const ageMs = Date.now() - new Date(STANDARDS_VERSION).getTime();
+    const ageInDays = Math.round(ageMs / (1000 * 60 * 60 * 24));
+    const isStale = ageInDays > 30;
+    standardsHealth = {
+      version: STANDARDS_VERSION,
+      ageInDays,
+      isStale,
+      message: isStale
+        ? `SEO standards last updated ${ageInDays} days ago — review Google Search Central changelog for algorithm updates`
+        : `SEO standards current (updated ${ageInDays} day${ageInDays === 1 ? "" : "s"} ago)`,
+    };
+  } catch { /* standards module not available */ }
+
   return NextResponse.json({
     averageScore,
     autoPublishRate,
@@ -114,6 +144,7 @@ async function getSEOOverview(siteId: string) {
     indexedPages: indexedUrlCount || indexedPages,
     totalPublished,
     canShowInternalLinks: indexedPages >= 40,
+    standardsHealth,
   });
 }
 

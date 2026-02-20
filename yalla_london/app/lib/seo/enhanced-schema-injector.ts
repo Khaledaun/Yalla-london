@@ -44,34 +44,22 @@ export class EnhancedSchemaInjector {
   constructor(baseUrl?: string, siteId?: string) {
     // Dynamic multi-site config — avoids hardcoding any single site's branding
     let resolvedBaseUrl = baseUrl || process.env.NEXT_PUBLIC_SITE_URL;
-    // Fallback defaults — overridden by site config below when available
-    const fallbackDomain = 'yalla-london.com';
-    let brandConfig = {
-      siteName: 'Yalla London',
-      description: 'Luxury London travel guide',
-      contact: { email: `hello@${fallbackDomain}`, social: {} as Record<string, string> }
+    const { getSiteConfig, getSiteDomain, getDefaultSiteId } = require('@/config/sites');
+    const effectiveSiteId = siteId || getDefaultSiteId();
+    const config = getSiteConfig(effectiveSiteId);
+    resolvedBaseUrl = resolvedBaseUrl || getSiteDomain(effectiveSiteId);
+    // config should always exist for a valid effectiveSiteId from getDefaultSiteId()
+    const domain = config?.domain || getSiteDomain(effectiveSiteId).replace('https://www.', '');
+    const brandConfig = {
+      siteName: config?.name || effectiveSiteId,
+      description: config ? `Luxury ${config.destination} travel guide` : 'Luxury travel guide',
+      contact: {
+        email: `hello@${domain}`,
+        social: {} as Record<string, string>,
+      }
     };
 
-    try {
-      const { getSiteConfig, getSiteDomain, getDefaultSiteId } = require('@/config/sites');
-      const effectiveSiteId = siteId || getDefaultSiteId();
-      const config = getSiteConfig(effectiveSiteId);
-      if (config) {
-        resolvedBaseUrl = resolvedBaseUrl || getSiteDomain(effectiveSiteId);
-        brandConfig = {
-          siteName: config.name,
-          description: `Luxury ${config.destination} travel guide`,
-          contact: {
-            email: `hello@${config.domain}`,
-            social: {} as Record<string, string>,
-          }
-        };
-      }
-    } catch {
-      // Config import may fail in test environments — fall back to defaults
-    }
-
-    this.baseUrl = resolvedBaseUrl || 'https://www.yalla-london.com';
+    this.baseUrl = resolvedBaseUrl || getSiteDomain(effectiveSiteId);
     this.schemaGenerator = new SchemaGenerator(this.baseUrl, brandConfig);
   }
 

@@ -585,13 +585,13 @@ export async function submitUnindexedPages(
   fixes: string[],
   siteId?: string
 ): Promise<{ indexNow: number; gscApi: number; urls: string[] }> {
+  const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
   let siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId || getDefaultSiteId());
   let indexNowKey = process.env.INDEXNOW_KEY;
   // Per-site URL and IndexNow key (multi-tenant)
   if (siteId) {
     try {
-      const { getSiteDomain } = await import("@/config/sites");
       const { getSiteSeoConfigFromVault } = await import("@/lib/seo/config-vault");
       siteUrl = getSiteDomain(siteId) || siteUrl;
       const seoConfig = await getSiteSeoConfigFromVault(siteId);

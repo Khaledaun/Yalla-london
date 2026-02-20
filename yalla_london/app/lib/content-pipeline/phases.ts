@@ -756,8 +756,16 @@ export async function phaseScoring(
   // Content depth
   const contentDepthScore = Math.min(100, h2Count * 10 + h3Count * 5 + (wordCount / 30));
 
-  // Quality gate: 70+ → reservoir, else rejected (aligned with CONTENT_QUALITY.qualityGateScore)
-  const nextPhase = qualityScore >= 70 ? "reservoir" : "rejected";
+  // Quality gate — threshold from centralized SEO standards (single source of truth).
+  // When standards.ts is updated after algorithm changes, this threshold updates automatically.
+  let qualityGateThreshold = 70; // fallback
+  try {
+    const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
+    qualityGateThreshold = CONTENT_QUALITY.qualityGateScore;
+  } catch (e) {
+    console.warn("[phases] Failed to import standards.ts, using fallback threshold:", e instanceof Error ? e.message : e);
+  }
+  const nextPhase = qualityScore >= qualityGateThreshold ? "reservoir" : "rejected";
 
   return {
     success: true,

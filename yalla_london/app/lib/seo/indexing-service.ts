@@ -19,12 +19,10 @@ import { extendedBlogPosts } from "@/data/blog-content-extended";
 import { informationSections, informationArticles } from "@/data/information-hub-content";
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 
-// Dynamic base URL — falls back to config-driven default instead of hardcoding
+// Dynamic base URL — config-driven, no hardcoded domain
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || (() => {
-  try {
-    const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
-    return getSiteDomain(getDefaultSiteId());
-  } catch { return "https://www.yalla-london.com"; }
+  const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
+  return getSiteDomain(getDefaultSiteId());
 })();
 // GSC property URL - may differ from BASE_URL (e.g., no www)
 const GSC_SITE_URL = process.env.GSC_SITE_URL || BASE_URL.replace("www.", "");

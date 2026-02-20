@@ -2,7 +2,7 @@
 type LogObj = Record<string, unknown>;
 
 export function rid(): string {
-  return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+  return crypto.randomUUID().replace(/-/g, '').slice(0, 16);
 }
 
 export function logj(obj: LogObj) {

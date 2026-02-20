@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { headers } from "next/headers";
+import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
 
 /**
  * Robots.txt configuration
@@ -11,7 +12,7 @@ import { headers } from "next/headers";
  */
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const headersList = await headers();
-  const hostname = headersList.get("x-hostname") || "www.yalla-london.com";
+  const hostname = headersList.get("x-hostname") || getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\//, '');
   const baseUrl =
     hostname === "localhost:3000"
       ? "http://localhost:3000"

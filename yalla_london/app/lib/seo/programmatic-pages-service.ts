@@ -57,12 +57,8 @@ export class ProgrammaticPagesService {
 
   constructor(baseUrl?: string) {
     if (!baseUrl) {
-      try {
-        const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
-        baseUrl = getSiteDomain(getDefaultSiteId());
-      } catch {
-        baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
-      }
+      const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
+      baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
     }
     this.baseUrl = baseUrl;
   }
@@ -120,7 +116,7 @@ export class ProgrammaticPagesService {
     cluster: KeywordCluster,
     autoPublish: boolean = false
   ): Promise<ProgrammaticPageData> {
-    const pageId = `programmatic_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const pageId = `programmatic_${Date.now()}_${crypto.randomUUID().slice(0, 9)}`;
     const slug = this.generateSlug(cluster.primary, cluster.locale);
     
     // Generate title
@@ -271,7 +267,7 @@ export class ProgrammaticPagesService {
       `تجربة ${cluster.primary} لندن المثالية`
     ];
 
-    return templates[Math.floor(Math.random() * templates.length)];
+    return templates[Date.now() % templates.length];
   }
 
   /**
@@ -288,7 +284,7 @@ export class ProgrammaticPagesService {
       `استكشف أفضل ${cluster.primary} في لندن. من الخيارات الفاخرة إلى الميزانية، اعثر على تجربتك المثالية.`
     ];
 
-    return templates[Math.floor(Math.random() * templates.length)];
+    return templates[Date.now() % templates.length];
   }
 
   /**
@@ -350,7 +346,7 @@ export class ProgrammaticPagesService {
       `اكتشف سحر لندن من خلال ${cluster.primary} المذهلة. من المعالم التاريخية إلى العجائب الحديثة، يغطي هذا الدليل كل ما تحتاج لمعرفته لتجربة لا تُنسى.`
     ];
 
-    return templates[Math.floor(Math.random() * templates.length)];
+    return templates[Date.now() % templates.length];
   }
 
   /**
@@ -367,7 +363,7 @@ export class ProgrammaticPagesService {
       `مشهد ${cluster.primary} في لندن يتطور باستمرار، مع فتح تجارب ومعالم جديدة بانتظام. ابق متقدماً على المنحنى مع نصائحنا الداخلية وتوصياتنا.`
     ];
 
-    return templates[Math.floor(Math.random() * templates.length)];
+    return templates[Date.now() % templates.length];
   }
 
   /**
@@ -384,7 +380,7 @@ export class ProgrammaticPagesService {
       `كل ما تحتاج لمعرفته حول ${cluster.primary} في لندن`
     ];
 
-    return templates[Math.floor(Math.random() * templates.length)];
+    return templates[Date.now() % templates.length];
   }
 
   /**
@@ -436,7 +432,7 @@ export class ProgrammaticPagesService {
       `توصيات إضافية لـ ${cluster.primary}`
     ];
 
-    return templates[Math.floor(Math.random() * templates.length)];
+    return templates[Date.now() % templates.length];
   }
 
   /**
@@ -466,7 +462,7 @@ export class ProgrammaticPagesService {
       `حول زيارتك إلى لندن مع تجارب ${cluster.primary} المختارة بعناية. ابدأ اليوم.`
     ];
 
-    return templates[Math.floor(Math.random() * templates.length)];
+    return templates[Date.now() % templates.length];
   }
 
   /**

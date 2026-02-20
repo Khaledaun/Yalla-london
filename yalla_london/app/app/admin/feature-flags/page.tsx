@@ -149,15 +149,40 @@ export default function FeatureFlagsHealth() {
   }
 
   const handleToggleFlag = async (flagId: string) => {
-    setFeatureFlags(prev => prev.map(flag => 
-      flag.id === flagId ? { ...flag, enabled: !flag.enabled } : flag
-    ))
+    const flag = featureFlags.find(f => f.id === flagId);
+    if (!flag) return;
+    const newEnabled = !flag.enabled;
+    setFeatureFlags(prev => prev.map(f =>
+      f.id === flagId ? { ...f, enabled: newEnabled } : f
+    ));
+    try {
+      await fetch('/api/admin/feature-flags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'toggle', id: flagId, enabled: newEnabled }),
+      });
+    } catch (err) {
+      console.error('[feature-flags] Failed to persist toggle:', err);
+      // Revert on failure
+      setFeatureFlags(prev => prev.map(f =>
+        f.id === flagId ? { ...f, enabled: !newEnabled } : f
+      ));
+    }
   }
 
   const handleUpdateRollout = async (flagId: string, percentage: number) => {
-    setFeatureFlags(prev => prev.map(flag => 
-      flag.id === flagId ? { ...flag, rolloutPercentage: percentage } : flag
-    ))
+    setFeatureFlags(prev => prev.map(f =>
+      f.id === flagId ? { ...f, rolloutPercentage: percentage } : f
+    ));
+    try {
+      await fetch('/api/admin/feature-flags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', id: flagId, rolloutPercentage: percentage }),
+      });
+    } catch (err) {
+      console.error('[feature-flags] Failed to persist rollout:', err);
+    }
   }
 
   const getStatusColor = (status: string) => {

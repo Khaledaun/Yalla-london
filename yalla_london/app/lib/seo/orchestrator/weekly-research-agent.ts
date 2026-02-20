@@ -384,7 +384,7 @@ function analyzeSourceContent(
     const affected = determineAffectedAgents(category, insights);
 
     findings.push({
-      id: `${source.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: `${source.id}-${Date.now()}-${crypto.randomUUID().slice(0, 4)}`,
       source: source.name,
       sourceUrl: article.url || source.url,
       category,

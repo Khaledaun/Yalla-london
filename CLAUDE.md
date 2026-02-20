@@ -120,6 +120,47 @@ yalla_london/app/                    # Main Next.js application
 └── next.config.js                   # Image optimization, caching, security headers
 ```
 
+## CC Workflow Studio (Visual AI Workflow Editor)
+
+All 7 AI agent pipelines are visualized using [CC Workflow Studio](https://github.com/breaking-brake/cc-wf-studio), a VS Code extension for interactive node-based workflow diagrams.
+
+**Setup:** Install the "CC Workflow Studio" VS Code extension → open any `.json` file in `.vscode/workflows/` → click "Open in Workflow Studio".
+
+**Full documentation:** `docs/CC-WORKFLOW-STUDIO.md` — includes JSON schema reference, node types, and conventions for creating new workflows.
+
+### Workflow Files
+
+```
+.vscode/workflows/                              # Primary (VS Code extension reads from here)
+docs/workflows/                                  # Git-tracked backup copy
+├── yalla-content-to-revenue-pipeline.json       # Pipeline 1: Daily content lifecycle (16 nodes)
+├── yalla-seo-audit-fix-pipeline.json            # Pipeline 2: Weekly SEO health (11 nodes)
+├── yalla-analytics-intelligence-pipeline.json   # Pipeline 3: Daily analytics (9 nodes)
+├── yalla-frontend-excellence-pipeline.json      # Pipeline 4: On-demand perf/a11y (10 nodes)
+├── yalla-growth-social-pipeline.json            # Pipeline 5: Weekly social media (9 nodes)
+├── yalla-conversion-optimization-pipeline.json  # Pipeline 6: Bi-weekly CRO (9 nodes)
+├── yalla-competitive-research-pipeline.json     # Pipeline 7: Monthly competitive intel (10 nodes)
+└── yalla-master-orchestration.json              # Cross-pipeline overview (9 pipeline nodes)
+```
+
+### Cross-Pipeline Data Flows (visible in Master Orchestration)
+```
+Content → SEO:        Every article passes pre-publication gate
+SEO → Content:        Low CTR (<1% after 30d) triggers auto-rewrite
+Analytics → CRO:      Drop-off data feeds conversion priorities
+CRO → Frontend:       A/B test winners trigger component updates
+Frontend → SEO:       Performance improvements feed Core Web Vitals
+Research → Content:    Discovered topics feed content calendar
+Content → Growth:     Published articles repurposed for social
+All → Dashboard:      Every pipeline reports to admin dashboard
+```
+
+### Conventions for New Workflows
+- **File naming:** `yalla-{pipeline-name}-pipeline.json`
+- **Node IDs:** `{type}-{descriptive-name}` (e.g., `agent-topic-research`, `switch-severity`)
+- **Flow direction:** Left → right, parallel branches stacked vertically
+- **Node types:** `start`, `end`, `subAgent`, `ifElse`, `switch`, `skill`, `mcp`, `prompt`, `human`, `loop`, `parallel`, `transform`
+
 ## Architecture Rules
 
 1. **Database access**: Always `const { prisma } = await import("@/lib/db")`
@@ -844,3 +885,79 @@ Deep research into Google's January 2026 Core Update (dubbed "Authenticity Updat
 11. Structured data presence
 12. Authenticity signals (Jan 2026 — experience markers, anti-generic)
 13. Affiliate links (revenue requirement)
+
+### Session: February 20, 2026 — CC Workflow Studio & SEO Page Compliance Audit
+
+**CC Workflow Studio Integration:**
+- Created 8 visual AI workflow files for all pipelines using [CC Workflow Studio](https://github.com/breaking-brake/cc-wf-studio) VS Code extension
+- Workflows stored in `.vscode/workflows/` (extension reads from here) and `docs/workflows/` (git-tracked backup)
+- Updated `.gitignore` to track `.vscode/workflows/` while keeping rest of `.vscode/` ignored
+- Full documentation: `docs/CC-WORKFLOW-STUDIO.md` — JSON schema reference, node types, conventions
+
+| # | Workflow File | Pipeline | Schedule | Nodes |
+|---|------|----------|----------|-------|
+| 1 | `yalla-content-to-revenue-pipeline.json` | Content-to-Revenue | Daily 5am | 16 |
+| 2 | `yalla-seo-audit-fix-pipeline.json` | SEO Audit & Fix | Weekly Sun 5am | 11 |
+| 3 | `yalla-analytics-intelligence-pipeline.json` | Analytics Intelligence | Daily 3am | 9 |
+| 4 | `yalla-frontend-excellence-pipeline.json` | Frontend Excellence | On-demand | 10 |
+| 5 | `yalla-growth-social-pipeline.json` | Growth & Social | Weekly Mon 10am | 9 |
+| 6 | `yalla-conversion-optimization-pipeline.json` | Conversion Optimization | Bi-weekly | 9 |
+| 7 | `yalla-competitive-research-pipeline.json` | Competitive Research | Monthly 1st | 10 |
+| 8 | `yalla-master-orchestration.json` | Master Orchestration | Overview | 9 pipelines |
+
+**Full SEO Page Compliance Audit (2 parallel agents):**
+
+*Agent 1: Public Pages Audit (28 pages scanned)*
+- All 9 critical page layouts (hotels, experiences, recommendations, about, contact, events, shop, privacy, terms) already had proper `generateMetadata()` with: dynamic `getBaseUrl()`, canonical tags, hreflang (en-GB, ar-SA, x-default), Open Graph, Twitter cards, robots directives
+- Root layout already included `<StructuredData siteId={siteId} />` (Organization + WebSite schema)
+- Gap found: No BreadcrumbList structured data on any page layout
+- Gap found: OG image hardcoded as `/og-image.jpg` (same for all sites)
+
+*Agent 2: SEO Enforcement Pipeline Audit (96% compliant)*
+- 13/13 pre-publication checks active and wired
+- 3/3 production pipelines gated (select-runner, daily-content-generate, scheduled-publish) — all fail-closed
+- All quality gate thresholds aligned: phases.ts (70), select-runner.ts (70), standards.ts (70)
+- Jan 2026 Authenticity Update: all 8 flags + 5 E-E-A-T requirements present
+- Deprecated schema types (FAQPage, HowTo): properly blocked, Article fallback works
+- Multi-site: dynamic config throughout, no hardcoding
+- 78/78 smoke tests passing (100%)
+- 1 threshold mismatch found: meta description minimum was 70 in gate vs 120 in standards.ts
+
+**Fixes Applied:**
+
+1. **Pre-publication gate meta description threshold (KG-052):** Changed min from 70 to 120 chars, aligning `pre-publication-gate.ts` with `standards.ts` (`metaDescriptionMin: 120`)
+
+2. **BreadcrumbList structured data (9 layouts):** Added `<StructuredData type="breadcrumb">` to: hotels, experiences, recommendations, about, contact, events, shop, privacy, terms — all with dynamic `siteId` and `getBaseUrl()`
+
+3. **Organization schema on About page:** Added `<StructuredData type="organization">` to about/layout.tsx for enhanced E-E-A-T signals
+
+4. **OG image multi-site:** Root layout OG image changed from `/og-image.jpg` to `${baseUrl}/images/${siteConfig.slug}-og.jpg` — each site can now have its own branded OG image
+
+**Known Gaps (Not Fixed — Future Work):**
+
+| Area | Issue | Severity | Notes |
+|------|-------|----------|-------|
+| OG Images | Per-site OG image files don't exist yet (need design) | MEDIUM | Code references `{slug}-og.jpg` but files need creation |
+| Legacy Route | `/api/generate-content` doesn't call pre-publication gate | LOW | Intentional for development/testing use |
+| Content Pages | Hotels/experiences/recommendations have static hardcoded data | MEDIUM | Not DB-driven yet; no affiliate tracking on these pages |
+| Author Attribution | Generic "Editorial" author on all articles | MEDIUM | Need specific author profiles for stronger E-E-A-T |
+
+### Session: February 20, 2026 — Development Standards Documentation
+
+**Comprehensive Development Standards (`docs/DEVELOPMENT-STANDARDS.md` — New File):**
+- 16-section reference document for all new website development and Claude Code validation
+- Covers: SEO Standards (13-check pre-publication gate), AIO Optimization, Content Quality, Technical SEO, Structured Data, E-E-A-T Compliance, Page Architecture, Multi-Site Rules, Content Pipeline, Affiliate Integration, Performance, Accessibility, Dashboard Standards, Standards Maintenance, Pre-Launch Checklist, Anti-Patterns Registry
+- All thresholds reference `lib/seo/standards.ts` as single source of truth
+- Includes code examples for correct patterns and explicit anti-patterns to avoid
+- Google Jan 2026 Authenticity Update compliance built-in
+- Cross-references NEW-WEBSITE-WORKFLOW.md for operational launch procedures
+
+**Key Reference Files for Development:**
+
+| File | Purpose |
+|------|---------|
+| `docs/DEVELOPMENT-STANDARDS.md` | SEO/AIO/E-E-A-T development standards for all new websites |
+| `docs/NEW-WEBSITE-WORKFLOW.md` | Operational workflow for launching new websites |
+| `docs/AUDIT-LOG.md` | Persistent audit findings tracking |
+| `docs/FUNCTIONING-ROADMAP.md` | 8-phase path to 100% healthy platform |
+| `lib/seo/standards.ts` | Centralized SEO thresholds — single source of truth |

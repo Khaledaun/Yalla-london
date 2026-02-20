@@ -45,24 +45,45 @@ export async function runPrePublicationGate(
     author_id?: string;
     keywords_json?: unknown;
   },
-  siteUrl?: string
+  siteUrl?: string,
+  options?: {
+    /** Skip HTTP route-existence checks (checks 1 & 2) for faster bulk audits */
+    skipRouteCheck?: boolean;
+  },
 ): Promise<GateResult> {
   const checks: GateCheck[] = [];
   const blockers: string[] = [];
   const warnings: string[] = [];
+
+  // ── Import SEO standards dynamically — single source of truth ──
+  // When standards.ts is updated (e.g., after algorithm changes),
+  // all enforcement thresholds in this gate update automatically.
+  const { CONTENT_QUALITY, EEAT_REQUIREMENTS } = await import("@/lib/seo/standards");
+  const {
+    metaTitleMin,
+    metaTitleOptimal,
+    metaDescriptionMin,
+    metaDescriptionOptimal,
+    qualityGateScore,
+    minWords,
+    targetWords,
+    thinContentThreshold,
+    readabilityMax,
+    minInternalLinks,
+    maxH1Count,
+    minH2Count,
+  } = CONTENT_QUALITY;
+
   let baseUrl = siteUrl || process.env.NEXT_PUBLIC_SITE_URL;
   if (!baseUrl) {
-    try {
-      const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
-      baseUrl = getSiteDomain(getDefaultSiteId());
-    } catch {
-      baseUrl = "https://www.yalla-london.com";
-    }
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+    baseUrl = getSiteDomain(getDefaultSiteId());
   }
 
   // ── 1. Route existence check ────────────────────────────────────────
   // Verify the target URL will actually resolve (not return 404)
-  try {
+  // Skipped during bulk audits (skipRouteCheck) to avoid slow HTTP calls
+  if (!options?.skipRouteCheck) try {
     const fullUrl = targetUrl.startsWith("http")
       ? targetUrl
       : `${baseUrl}${targetUrl}`;
@@ -105,7 +126,8 @@ export async function runPrePublicationGate(
 
   // ── 2. Arabic route check ───────────────────────────────────────────
   // If publishing Arabic content, verify /ar/ routes work
-  if (content.locale === "ar" || targetUrl.startsWith("/ar/")) {
+  // Skipped during bulk audits (skipRouteCheck)
+  if (!options?.skipRouteCheck && (content.locale === "ar" || targetUrl.startsWith("/ar/"))) {
     try {
       const arTestUrl = `${baseUrl}/ar`;
       const res = await fetch(arTestUrl, {
@@ -156,76 +178,76 @@ export async function runPrePublicationGate(
     });
   }
 
-  // Meta title: Google displays ~60 chars. Min 30 for meaningful title.
-  if (!content.meta_title_en || content.meta_title_en.length < 30) {
+  // Meta title: Google displays ~60 chars. Thresholds from standards.ts.
+  if (!content.meta_title_en || content.meta_title_en.length < metaTitleMin) {
     checks.push({
       name: "Meta Title",
       passed: false,
-      message: `Meta title missing or too short (${content.meta_title_en?.length || 0} chars, min 30, optimal 50-60)`,
+      message: `Meta title missing or too short (${content.meta_title_en?.length || 0} chars, min ${metaTitleMin}, optimal ${metaTitleOptimal.min}-${metaTitleOptimal.max})`,
       severity: "warning",
     });
-    warnings.push("Meta title should be 30-60 characters for optimal SERP display");
+    warnings.push(`Meta title should be ${metaTitleMin}-${metaTitleOptimal.max} characters for optimal SERP display`);
   } else if (content.meta_title_en.length > 160) {
     checks.push({
       name: "Meta Title (Max Length)",
       passed: false,
-      message: `Meta title too long (${content.meta_title_en.length} chars, max 160). Google truncates titles beyond ~60 chars in SERPs.`,
+      message: `Meta title too long (${content.meta_title_en.length} chars, max 160). Google truncates titles beyond ~${metaTitleOptimal.max} chars in SERPs.`,
       severity: "warning",
     });
     warnings.push(`Meta title is ${content.meta_title_en.length} chars — will be truncated in search results`);
   }
 
-  // Meta description: Google displays 120-160 chars. Min 70 for useful snippet.
+  // Meta description: Google displays 120-160 chars. Thresholds from standards.ts.
   if (
     !content.meta_description_en ||
-    content.meta_description_en.length < 70
+    content.meta_description_en.length < metaDescriptionMin
   ) {
     checks.push({
       name: "Meta Description",
       passed: false,
-      message: `Meta description missing or too short (${content.meta_description_en?.length || 0} chars, min 70, optimal 120-160)`,
+      message: `Meta description missing or too short (${content.meta_description_en?.length || 0} chars, min ${metaDescriptionMin}, optimal ${metaDescriptionOptimal.min}-${metaDescriptionOptimal.max})`,
       severity: "warning",
     });
-    warnings.push("Meta description should be 70-160 characters for optimal SERP display");
-  } else if (content.meta_description_en.length > 160) {
+    warnings.push(`Meta description should be ${metaDescriptionMin}-${metaDescriptionOptimal.max} characters for optimal SERP display`);
+  } else if (content.meta_description_en.length > metaDescriptionOptimal.max) {
     checks.push({
       name: "Meta Description (Max Length)",
       passed: false,
-      message: `Meta description too long (${content.meta_description_en.length} chars, max 160). Google truncates descriptions beyond 160 chars in SERPs.`,
+      message: `Meta description too long (${content.meta_description_en.length} chars, max ${metaDescriptionOptimal.max}). Google truncates descriptions beyond ${metaDescriptionOptimal.max} chars in SERPs.`,
       severity: "warning",
     });
     warnings.push(`Meta description is ${content.meta_description_en.length} chars — will be truncated in search results`);
   }
 
-  if (!content.content_en || content.content_en.length < 300) {
+  if (!content.content_en || content.content_en.length < thinContentThreshold) {
     checks.push({
       name: "Content Length",
       passed: false,
-      message: `English content too short (${content.content_en?.length || 0} chars, min 300)`,
+      message: `English content too short (${content.content_en?.length || 0} chars, min ${thinContentThreshold})`,
       severity: "blocker",
     });
     blockers.push("Content is too short for indexing");
   }
 
-  // ── 4. SEO score check (2026 standards: 70+ for quality content) ───
-  if (content.seo_score !== undefined && content.seo_score < 70) {
+  // ── 4. SEO score check — threshold from standards.ts ───
+  if (content.seo_score !== undefined && content.seo_score < qualityGateScore) {
     const seoCheck: GateCheck = {
       name: "SEO Score",
       passed: false,
-      message: `SEO score ${content.seo_score} is below minimum threshold (70)`,
+      message: `SEO score ${content.seo_score} is below minimum threshold (${qualityGateScore})`,
       severity: content.seo_score < 50 ? "blocker" : "warning",
     };
     checks.push(seoCheck);
     if (content.seo_score < 50) {
       blockers.push(`SEO score critically low: ${content.seo_score}/100`);
     } else {
-      warnings.push(`Low SEO score: ${content.seo_score}/100 (target: 70+)`);
+      warnings.push(`Low SEO score: ${content.seo_score}/100 (target: ${qualityGateScore}+)`);
     }
   }
 
-  // ── 5. Heading hierarchy check (AIO optimization) ─────────────────
+  // ── 5. Heading hierarchy check — thresholds from standards.ts ─────
   if (content.content_en && content.content_en.length > 300) {
-    const headingResult = validateHeadingHierarchy(content.content_en);
+    const headingResult = validateHeadingHierarchy(content.content_en, maxH1Count, minH2Count);
     checks.push(headingResult.check);
     if (!headingResult.check.passed) {
       if (headingResult.check.severity === "blocker") {
@@ -236,18 +258,18 @@ export async function runPrePublicationGate(
     }
   }
 
-  // ── 6. Word count check (2026 standards: 1000+ blocker, 1200+ target) ──
+  // ── 6. Word count check — thresholds from standards.ts ──
   if (content.content_en) {
     const wordCount = countWords(content.content_en);
-    if (wordCount < 1200) {
+    if (wordCount < targetWords) {
       const check: GateCheck = {
         name: "Word Count",
         passed: false,
-        message: `Content has ${wordCount} words (target 1,200+ for indexing quality, ${wordCount < 1000 ? "below 1,000 minimum — blocked" : "close to target"})`,
-        severity: wordCount < 1000 ? "blocker" : "warning",
+        message: `Content has ${wordCount} words (target ${targetWords.toLocaleString()}+ for indexing quality, ${wordCount < minWords ? `below ${minWords.toLocaleString()} minimum — blocked` : "close to target"})`,
+        severity: wordCount < minWords ? "blocker" : "warning",
       };
       checks.push(check);
-      if (wordCount < 1000) {
+      if (wordCount < minWords) {
         blockers.push(check.message);
       } else {
         warnings.push(check.message);
@@ -256,23 +278,23 @@ export async function runPrePublicationGate(
       checks.push({
         name: "Word Count",
         passed: true,
-        message: `Content has ${wordCount} words (meets 1,200 target)`,
+        message: `Content has ${wordCount} words (meets ${targetWords.toLocaleString()} target)`,
         severity: "info",
       });
     }
   }
 
-  // ── 7. Internal links check ───────────────────────────────────────
+  // ── 7. Internal links check — threshold from standards.ts ─────────
   if (content.content_en) {
-    const internalLinkCount = countInternalLinks(content.content_en);
-    if (internalLinkCount < 3) {
+    const internalLinkCount = await countInternalLinks(content.content_en);
+    if (internalLinkCount < minInternalLinks) {
       checks.push({
         name: "Internal Links",
         passed: false,
-        message: `Content has ${internalLinkCount} internal links (minimum 3 required)`,
+        message: `Content has ${internalLinkCount} internal links (minimum ${minInternalLinks} required)`,
         severity: "warning",
       });
-      warnings.push(`Only ${internalLinkCount} internal links (need at least 3)`);
+      warnings.push(`Only ${internalLinkCount} internal links (need at least ${minInternalLinks})`);
     } else {
       checks.push({
         name: "Internal Links",
@@ -283,14 +305,14 @@ export async function runPrePublicationGate(
     }
   }
 
-  // ── 8. Readability check (Flesch-Kincaid approximation) ───────────
+  // ── 8. Readability check — threshold from standards.ts ────────────
   if (content.content_en && content.content_en.length > 500) {
     const readability = estimateReadability(content.content_en);
-    if (readability.gradeLevel > 12) {
+    if (readability.gradeLevel > readabilityMax) {
       checks.push({
         name: "Readability",
         passed: false,
-        message: `Reading level too high (grade ${readability.gradeLevel.toFixed(1)}, target ≤12). Simplify sentences for better AI extraction.`,
+        message: `Reading level too high (grade ${readability.gradeLevel.toFixed(1)}, target ≤${readabilityMax}). Simplify sentences for better AI extraction.`,
         severity: "warning",
       });
       warnings.push(`High reading level: grade ${readability.gradeLevel.toFixed(1)}`);
@@ -407,12 +429,16 @@ export async function runPrePublicationGate(
 
 /**
  * Validate HTML heading hierarchy for SEO and AI readability.
- * Rules:
- * - Must have exactly one H1 (or none if it's in the page template)
+ * Rules (thresholds from standards.ts):
+ * - Must have at most maxH1 H1 tags (default 1)
  * - Headings must not skip levels (h2 → h4 without h3)
- * - Should have at least 2 H2s for structured content
+ * - Should have at least minH2 H2s for structured content (default 2)
  */
-function validateHeadingHierarchy(html: string): { check: GateCheck } {
+function validateHeadingHierarchy(
+  html: string,
+  maxH1: number = 1,
+  minH2: number = 2,
+): { check: GateCheck } {
   const headingRegex = /<h([1-6])[^>]*>/gi;
   const headings: number[] = [];
   let match;
@@ -434,12 +460,12 @@ function validateHeadingHierarchy(html: string): { check: GateCheck } {
   const h1Count = headings.filter((h) => h === 1).length;
   const h2Count = headings.filter((h) => h === 2).length;
 
-  if (h1Count > 1) {
+  if (h1Count > maxH1) {
     return {
       check: {
         name: "Heading Hierarchy",
         passed: false,
-        message: `Multiple H1 tags found (${h1Count}). Only one H1 per page for SEO.`,
+        message: `Multiple H1 tags found (${h1Count}, max ${maxH1}). Only one H1 per page for SEO.`,
         severity: "warning",
       },
     };
@@ -464,12 +490,12 @@ function validateHeadingHierarchy(html: string): { check: GateCheck } {
     };
   }
 
-  if (h2Count < 2) {
+  if (h2Count < minH2) {
     return {
       check: {
         name: "Heading Hierarchy",
         passed: false,
-        message: `Only ${h2Count} H2 heading(s). Add more H2 sections for better structure.`,
+        message: `Only ${h2Count} H2 heading(s) (need ${minH2}+). Add more H2 sections for better structure.`,
         severity: "warning",
       },
     };
@@ -497,10 +523,10 @@ function countWords(html: string): number {
  * Count internal links in HTML content.
  * Dynamically builds regex from configured sites — no hardcoded domains.
  */
-function countInternalLinks(html: string): number {
+async function countInternalLinks(html: string): Promise<number> {
   let domainPattern = "yalla-london|arabaldives|yallariviera|yallaistanbul|yallathailand";
   try {
-    const { SITES } = require("@/config/sites");
+    const { SITES } = await import("@/config/sites");
     const domains = Object.values(SITES)
       .map((s: any) => s.domain?.replace(/\./g, "\\."))
       .filter(Boolean);

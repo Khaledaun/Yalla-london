@@ -1,6 +1,7 @@
 
 import { prisma } from '@/lib/db';
 import { contentScheduler } from '@/lib/integrations/content-scheduler';
+import { getSiteDomain, getDefaultSiteId } from '@/config/sites';
 
 interface AutoGenerationRule {
   id: string;
@@ -377,7 +378,7 @@ export class AutoContentScheduler {
       const systemUser = await prisma.user.findFirst() ||
         await prisma.user.create({
           data: {
-            email: 'system@yallalondon.com',
+            email: `system@${getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\/(www\.)?/, '')}`,
             name: 'System'
           }
         });

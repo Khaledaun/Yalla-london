@@ -761,9 +761,9 @@ async function getOrCreateSystemUser(site: SiteConfig, prisma: any) {
   const existing = await prisma.user.findFirst({ where: { email } });
   if (existing) return existing;
 
-  // Try the global system user first
+  // Try any existing system user as fallback
   const globalUser = await prisma.user.findFirst({
-    where: { email: "system@yallalondon.com" },
+    where: { email: { startsWith: "system@" } },
   });
   if (globalUser) return globalUser;
 

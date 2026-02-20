@@ -39,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: brandConfig.description,
       images: [
         {
-          url: "/og-image.jpg",
+          url: `${baseUrl}/images/${siteConfig?.slug || 'yalla-london'}-og.jpg`,
           width: 1200,
           height: 630,
           alt: `${siteName} - ${brandConfig.tagline}`,
@@ -51,7 +51,7 @@ export async function generateMetadata(): Promise<Metadata> {
       site: `@${siteConfig?.slug || 'yallalondon'}`,
       title: `${siteName} - ${brandConfig.tagline}`,
       description: brandConfig.description,
-      images: ["/og-image.jpg"],
+      images: [`${baseUrl}/images/${siteConfig?.slug || 'yalla-london'}-og.jpg`],
     },
     robots: {
       index: true,

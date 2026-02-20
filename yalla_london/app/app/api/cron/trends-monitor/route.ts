@@ -50,14 +50,11 @@ interface TrendingTopic {
 }
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret for security
-  const authHeader = request.headers.get("authorization");
-  if (
-    authHeader !== `Bearer ${process.env.CRON_SECRET}` &&
-    process.env.NODE_ENV === "production"
-  ) {
-    // Allow without auth in development or if CRON_SECRET not set
-    if (process.env.CRON_SECRET) {
+  // Standard cron auth: reject only if CRON_SECRET is set and doesn't match
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }

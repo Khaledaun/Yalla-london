@@ -79,7 +79,7 @@ export class GoogleSearchConsole {
       privateKey: process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY?.replace(/\\n/g, '\n') || '',
       // GSC_SITE_URL takes priority — must match EXACTLY what's in GSC
       // (e.g. "sc-domain:yalla-london.com" or "https://yalla-london.com")
-      siteUrl: process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || (() => { try { const { getSiteDomain, getDefaultSiteId } = require("@/config/sites"); return getSiteDomain(getDefaultSiteId()); } catch { return 'https://www.yalla-london.com'; } })(),
+      siteUrl: process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || (() => { try { const { getSiteDomain, getDefaultSiteId } = require("@/config/sites"); return getSiteDomain(getDefaultSiteId()); } catch (e) { console.warn("[gsc] Failed to load site config for siteUrl fallback:", e); return 'https://www.yalla-london.com'; } })(),
     };
   }
 

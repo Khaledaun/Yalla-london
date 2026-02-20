@@ -116,6 +116,15 @@ export const adminNavigation: NavItem[] = [
     description: 'Scoring, fixes, preview, history'
   },
   {
+    id: 'master-audit',
+    label: 'Master Audit',
+    icon: Shield,
+    href: '/admin/master-audit',
+    badgeText: 'Full Site',
+    badgeVariant: 'outline',
+    description: '8 validators, 6 hard gates, per-page results'
+  },
+  {
     id: 'topics-pipeline',
     label: 'Topics & Pipeline',
     icon: TrendingUp,

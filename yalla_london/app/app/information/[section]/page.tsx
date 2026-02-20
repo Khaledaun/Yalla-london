@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import {
   informationSections,
@@ -6,13 +7,14 @@ import {
 } from "@/data/information-hub-content";
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import { markdownToHtml } from "@/lib/markdown";
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import SectionClient from "./SectionClient";
 
 // Combine all information articles
 const informationArticles = [...baseArticles, ...extendedInformationArticles];
 
-// ISR: Revalidate section pages every 10 minutes for Cloudflare edge caching
-export const revalidate = 600;
+// ISR: Revalidate section pages every hour for multi-site scale
+export const revalidate = 3600;
 
 type Props = {
   params: Promise<{ section: string }>;
@@ -46,14 +48,18 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const slug = resolvedParams.section;
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
 
   const section = informationSections.find((s) => s.slug === slug);
 
   if (!section) {
     return {
-      title: "Section Not Found | Yalla London Information Hub",
+      title: `Section Not Found | ${siteName} Information Hub`,
       description:
         "The information section you are looking for could not be found.",
     };
@@ -61,25 +67,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const canonicalUrl = `${baseUrl}/information/${slug}`;
 
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const destination = siteConfig?.destination || "London";
+
   return {
-    title: `${section.name_en} | Yalla London Information Hub`,
+    title: `${section.name_en} | ${siteName} Information Hub`,
     description: section.description_en,
-    keywords: `${section.name_en.toLowerCase()}, london travel, arab visitors london, ${slug.replace(/-/g, " ")}, yalla london information`,
-    authors: [{ name: "Yalla London Editorial" }],
-    creator: "Yalla London",
-    publisher: "Yalla London",
+    keywords: `${section.name_en.toLowerCase()}, ${destination.toLowerCase()} travel, arab visitors ${destination.toLowerCase()}, ${slug.replace(/-/g, " ")}`,
+    authors: [{ name: `${siteName} Editorial` }],
+    creator: siteName,
+    publisher: siteName,
     alternates: {
       canonical: canonicalUrl,
       languages: {
         "en-GB": canonicalUrl,
         "ar-SA": `${baseUrl}/ar/information/${slug}`,
+        "x-default": canonicalUrl,
       },
     },
     openGraph: {
-      title: `${section.name_en} | Yalla London Information Hub`,
+      title: `${section.name_en} | ${siteName} Information Hub`,
       description: section.description_en,
       url: canonicalUrl,
-      siteName: "Yalla London",
+      siteName,
       locale: "en_GB",
       alternateLocale: "ar_SA",
       type: "article",
@@ -88,14 +98,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           url: section.featured_image,
           width: 1200,
           height: 630,
-          alt: `${section.name_en} - Yalla London Information Hub`,
+          alt: `${section.name_en} - ${siteName} Information Hub`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      site: "@yallalondon",
-      title: `${section.name_en} | Yalla London Information Hub`,
+      site: `@${siteSlug}`,
+      title: `${section.name_en} | ${siteName} Information Hub`,
       description: section.description_en,
       images: [section.featured_image],
     },
@@ -117,9 +127,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function generateStructuredData(
   section: (typeof informationSections)[0],
   sectionIndex: number,
+  siteInfo: { siteName: string; siteSlug: string; baseUrl: string },
 ) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  const { siteName: schemaName, siteSlug: schemaSlug, baseUrl } = siteInfo;
 
   const webPageSchema = {
     "@context": "https://schema.org",
@@ -129,16 +139,16 @@ function generateStructuredData(
     url: `${baseUrl}/information/${section.slug}`,
     isPartOf: {
       "@type": "WebSite",
-      name: "Yalla London",
+      name: schemaName,
       url: baseUrl,
     },
     publisher: {
       "@type": "Organization",
-      name: "Yalla London",
+      name: schemaName,
       url: baseUrl,
       logo: {
         "@type": "ImageObject",
-        url: `${baseUrl}/images/yalla-london-logo.svg`,
+        url: `${baseUrl}/images/${schemaSlug}-logo.svg`,
       },
     },
     primaryImageOfPage: {
@@ -173,27 +183,10 @@ function generateStructuredData(
     ],
   };
 
-  // For sections with FAQ-like content (dos-and-donts, practical-info, emergency-healthcare),
-  // add FAQPage schema using the subsections as Q&A pairs
-  const faqSlugs = ["dos-and-donts", "practical-info", "emergency-healthcare"];
-  let faqSchema = null;
+  // FAQPage schema deprecated by Google (Aug 2023) — restricted to gov/health sites only.
+  // Omitted entirely; subsection content is already represented in the WebPage schema.
 
-  if (faqSlugs.includes(section.slug) && section.subsections.length > 0) {
-    faqSchema = {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: section.subsections.map((sub) => ({
-        "@type": "Question",
-        name: sub.title_en,
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: sub.content_en.replace(/[#*_`\[\]]/g, "").substring(0, 500),
-        },
-      })),
-    };
-  }
-
-  return { webPageSchema, breadcrumbSchema, faqSchema };
+  return { webPageSchema, breadcrumbSchema };
 }
 
 // Transform section data for the client component (convert markdown to HTML)
@@ -274,8 +267,16 @@ export default async function SectionPage({ params }: Props) {
     notFound();
   }
 
+  // Resolve site identity for schema
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
+
   const sectionIndex = sectionSlugs.indexOf(slug);
-  const structuredData = generateStructuredData(section, sectionIndex);
+  const structuredData = generateStructuredData(section, sectionIndex, { siteName, siteSlug, baseUrl });
   const clientSection = transformSectionForClient(section);
   const relatedArticles = transformArticlesForClient(section.id);
   const navigation = getSectionNavigation(slug);
@@ -295,15 +296,6 @@ export default async function SectionPage({ params }: Props) {
           __html: JSON.stringify(structuredData.breadcrumbSchema),
         }}
       />
-      {structuredData.faqSchema && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(structuredData.faqSchema),
-          }}
-        />
-      )}
-
       <SectionClient
         section={clientSection}
         relatedArticles={relatedArticles}

@@ -116,24 +116,12 @@ export function StructuredHowTo({
   className = ''
 }: StructuredHowToProps) {
   React.useEffect(() => {
+    // HowTo schema deprecated by Google (Sept 2023) — render as Article instead
     const howToSchema = {
       "@context": "https://schema.org",
-      "@type": "HowTo",
-      "name": title,
+      "@type": "Article",
+      "headline": title,
       "description": description,
-      ...(totalTime && { "totalTime": totalTime }),
-      "step": steps.map((step, index) => ({
-        "@type": "HowToStep",
-        "position": index + 1,
-        "name": step.name,
-        "text": step.text,
-        ...(step.image && {
-          "image": {
-            "@type": "ImageObject",
-            "url": step.image
-          }
-        })
-      }))
     };
     
     const script = document.createElement('script');
@@ -161,7 +149,7 @@ export function StructuredHowTo({
     <section 
       className={`space-y-6 ${className}`}
       itemScope 
-      itemType="https://schema.org/HowTo"
+      itemType="https://schema.org/Article"
     >
       <div>
         <h2 className="text-2xl font-bold text-charcoal mb-2" itemProp="name">

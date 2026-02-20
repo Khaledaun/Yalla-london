@@ -3,25 +3,58 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { MapPin, Clock, ArrowRight, Footprints, Download } from 'lucide-react'
 import { walks } from './walks-data'
-import { getSiteDomain, getDefaultSiteId } from '@/config/sites'
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
+import { getBaseUrl } from '@/lib/url-utils'
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${getSiteDomain(getDefaultSiteId())}`
+// ISR: Revalidate walking guides every hour
+export const revalidate = 3600;
 
-export const metadata: Metadata = {
-  title: 'London by Foot — Self-Guided Walking Tours | Yalla London',
-  description: 'Discover London\'s best walking routes with our free guides. Royal palaces, hidden markets, street art, and secret gardens — 5 curated walks with maps, photos, and insider tips.',
-  keywords: ['London walking tours', 'self guided walks London', 'London walking routes', 'free London walks', 'London by foot', 'London walking guide'],
-  openGraph: {
-    title: 'London by Foot — 5 Self-Guided Walking Tours',
-    description: 'Discover London\'s best walking routes. Royal palaces, hidden markets, street art, and secret gardens.',
-    url: `${siteUrl}/london-by-foot`,
-    type: 'website',
-    locale: 'en_GB',
-    siteName: 'Yalla London',
-  },
-  alternates: {
-    canonical: `${siteUrl}/london-by-foot`,
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = await getBaseUrl();
+  const siteConfig = getSiteConfig(getDefaultSiteId());
+  const siteName = siteConfig?.name || 'Yalla London';
+  const destination = siteConfig?.destination || 'London';
+  const canonicalUrl = `${baseUrl}/london-by-foot`;
+
+  return {
+    title: `${destination} by Foot — Self-Guided Walking Tours | ${siteName}`,
+    description: `Discover ${destination}'s best walking routes with our free guides. Royal palaces, hidden markets, street art, and secret gardens — 5 curated walks with maps, photos, and insider tips.`,
+    keywords: [`${destination} walking tours`, `self guided walks ${destination}`, `${destination} walking routes`, `free ${destination} walks`, `${destination} by foot`, `${destination} walking guide`],
+    openGraph: {
+      title: `${destination} by Foot — 5 Self-Guided Walking Tours`,
+      description: `Discover ${destination}'s best walking routes. Royal palaces, hidden markets, street art, and secret gardens.`,
+      url: canonicalUrl,
+      type: 'website',
+      locale: 'en_GB',
+      alternateLocale: 'ar_SA',
+      siteName,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      site: `@${siteConfig?.slug || 'yallalondon'}`,
+      title: `${destination} by Foot | ${siteName}`,
+      description: `5 curated walking routes through ${destination} with maps, photos, and insider tips`,
+    },
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        'en-GB': canonicalUrl,
+        'ar-SA': `${baseUrl}/ar/london-by-foot`,
+        'x-default': canonicalUrl,
+      },
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
+    },
+  }
 }
 
 const difficultyColor: Record<string, string> = {

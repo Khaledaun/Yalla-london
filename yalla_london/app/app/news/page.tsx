@@ -1,44 +1,54 @@
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { getBaseUrl } from "@/lib/url-utils";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import NewsListClient from "./NewsListClient";
 
-export const revalidate = 600;
+// ISR: Revalidate news listing every hour for multi-site scale
+export const revalidate = 3600;
 
-// Dynamic metadata for SEO — resolves base URL from request context
+// Dynamic metadata for SEO — resolves base URL and site identity from request context
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const destination = siteConfig?.destination || "London";
+  const canonicalUrl = `${baseUrl}/news`;
 
   return {
-    title: "London Today — News & Updates | Yalla London",
+    title: `${destination} Today — News & Updates | ${siteName}`,
     description:
-      "Stay up to date with the latest London news, transport updates, events, and travel tips curated for Arab visitors. Your daily briefing on what's happening in London.",
+      `Stay up to date with the latest ${destination} news, transport updates, events, and travel tips curated for Arab visitors. Your daily briefing on what's happening in ${destination}.`,
     keywords:
-      "london news, london today, london transport updates, london events, arab visitors london, tfl updates, london travel tips",
+      `${destination.toLowerCase()} news, ${destination.toLowerCase()} today, ${destination.toLowerCase()} transport updates, ${destination.toLowerCase()} events, arab visitors`,
     alternates: {
-      canonical: `${baseUrl}/news`,
+      canonical: canonicalUrl,
       languages: {
-        "en-GB": `${baseUrl}/news`,
+        "en-GB": canonicalUrl,
         "ar-SA": `${baseUrl}/ar/news`,
+        "x-default": canonicalUrl,
       },
     },
     openGraph: {
-      title: "London Today — News & Updates | Yalla London",
+      title: `${destination} Today — News & Updates | ${siteName}`,
       description:
-        "Stay up to date with the latest London news, transport updates, and events curated for Arab visitors.",
-      url: `${baseUrl}/news`,
-      siteName: "Yalla London",
+        `Stay up to date with the latest ${destination} news, transport updates, and events curated for Arab visitors.`,
+      url: canonicalUrl,
+      siteName,
       locale: "en_GB",
       alternateLocale: "ar_SA",
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
-      site: "@yallalondon",
-      title: "London Today | Yalla London",
+      site: `@${siteSlug}`,
+      title: `${destination} Today | ${siteName}`,
       description:
-        "Daily London news, transport updates, and events for Arab visitors",
+        `Daily ${destination} news, transport updates, and events for Arab visitors`,
     },
     robots: {
       index: true,
@@ -175,20 +185,19 @@ async function getAllNews(): Promise<NewsItem[]> {
 // Structured data
 // ---------------------------------------------------------------------------
 
-function generateStructuredData(items: NewsItem[]) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+function generateStructuredData(items: NewsItem[], siteInfo: { siteName: string; baseUrl: string; destination: string }) {
+  const { siteName, baseUrl, destination } = siteInfo;
 
   return {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: "London Today — News & Updates",
+    name: `${destination} Today — News & Updates`,
     description:
-      "Latest London news, transport updates, and events for Arab visitors",
+      `Latest ${destination} news, transport updates, and events for Arab visitors`,
     url: `${baseUrl}/news`,
     publisher: {
       "@type": "Organization",
-      name: "Yalla London",
+      name: siteName,
       url: baseUrl,
     },
     mainEntity: {
@@ -208,8 +217,15 @@ function generateStructuredData(items: NewsItem[]) {
 // ---------------------------------------------------------------------------
 
 export default async function NewsPage() {
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const destination = siteConfig?.destination || "London";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
+
   const items = await getAllNews();
-  const structuredData = generateStructuredData(items);
+  const structuredData = generateStructuredData(items, { siteName, baseUrl, destination });
 
   const serialized = items.map((item) => ({
     ...item,

@@ -1,43 +1,51 @@
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import {
   informationArticles as baseArticles,
   informationCategories,
 } from "@/data/information-hub-content";
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import { getBaseUrl } from "@/lib/url-utils";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import ArticleListClient from "./ArticleListClient";
 
 // Combine all information articles
 const informationArticles = [...baseArticles, ...extendedInformationArticles];
 
-// ISR: Revalidate article listing every 10 minutes for Cloudflare edge caching
-export const revalidate = 600;
+// ISR: Revalidate article listing every hour for multi-site scale
+export const revalidate = 3600;
 
-// Dynamic metadata for SEO — resolves base URL from request context
+// Dynamic metadata for SEO — resolves base URL and site identity from request context
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const destination = siteConfig?.destination || "London";
+  const canonicalUrl = `${baseUrl}/information/articles`;
 
   return {
-    title:
-      "Travel Articles | Yalla London Information Hub",
+    title: `Travel Articles | ${siteName} Information Hub`,
     description:
-      "Browse our comprehensive collection of travel articles for Arab visitors to London. Find guides on planning, transport, dining, attractions, family activities, and practical tips for your London trip.",
+      `Browse our comprehensive collection of travel articles for Arab visitors to ${destination}. Find guides on planning, transport, dining, attractions, family activities, and practical tips.`,
     keywords:
-      "london travel articles, arab visitors london, london guide, halal travel london, london information hub, london planning tips, london attractions, london transport guide",
+      `${destination.toLowerCase()} travel articles, arab visitors ${destination.toLowerCase()}, ${destination.toLowerCase()} guide, halal travel ${destination.toLowerCase()}, information hub`,
     alternates: {
-      canonical: `${baseUrl}/information/articles`,
+      canonical: canonicalUrl,
       languages: {
-        "en-GB": `${baseUrl}/information/articles`,
+        "en-GB": canonicalUrl,
         "ar-SA": `${baseUrl}/ar/information/articles`,
+        "x-default": canonicalUrl,
       },
     },
     openGraph: {
-      title: "Travel Articles | Yalla London Information Hub",
+      title: `Travel Articles | ${siteName} Information Hub`,
       description:
-        "Comprehensive travel articles and guides for Arab visitors to London. Planning tips, transport guides, dining recommendations, and insider knowledge.",
-      url: `${baseUrl}/information/articles`,
-      siteName: "Yalla London",
+        `Comprehensive travel articles and guides for Arab visitors to ${destination}. Planning tips, transport guides, dining recommendations, and insider knowledge.`,
+      url: canonicalUrl,
+      siteName,
       locale: "en_GB",
       alternateLocale: "ar_SA",
       type: "website",
@@ -46,16 +54,16 @@ export async function generateMetadata(): Promise<Metadata> {
           url: `${baseUrl}/images/information-hub-og.jpg`,
           width: 1200,
           height: 630,
-          alt: "Yalla London Information Hub - Travel Articles for Arab Visitors",
+          alt: `${siteName} Information Hub - Travel Articles for Arab Visitors`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      site: "@yallalondon",
-      title: "Travel Articles | Yalla London Information Hub",
+      site: `@${siteSlug}`,
+      title: `Travel Articles | ${siteName} Information Hub`,
       description:
-        "Comprehensive travel articles and guides for Arab visitors to London",
+        `Comprehensive travel articles and guides for Arab visitors to ${destination}`,
     },
     robots: {
       index: true,
@@ -72,29 +80,28 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // Generate structured data for the article listing
-function generateStructuredData() {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+function generateStructuredData(siteInfo: { siteName: string; siteSlug: string; baseUrl: string; destination: string }) {
+  const { siteName, siteSlug, baseUrl, destination } = siteInfo;
 
   const blogSchema = {
     "@context": "https://schema.org",
     "@type": "Blog",
-    name: "Yalla London Information Hub - Travel Articles",
+    name: `${siteName} Information Hub - Travel Articles`,
     description:
-      "Comprehensive travel articles and guides for Arab visitors to London",
+      `Comprehensive travel articles and guides for Arab visitors to ${destination}`,
     url: `${baseUrl}/information/articles`,
     publisher: {
       "@type": "Organization",
-      name: "Yalla London",
+      name: siteName,
       url: baseUrl,
       logo: {
         "@type": "ImageObject",
-        url: `${baseUrl}/images/yalla-london-logo.svg`,
+        url: `${baseUrl}/images/${siteSlug}-logo.svg`,
       },
     },
     blogPost: informationArticles
       .filter((article) => article.published)
-      .slice(0, 10) // Include first 10 articles in structured data
+      .slice(0, 10)
       .map((article) => ({
         "@type": "BlogPosting",
         headline: article.title_en,
@@ -104,8 +111,8 @@ function generateStructuredData() {
         datePublished: article.created_at.toISOString(),
         dateModified: article.updated_at.toISOString(),
         author: {
-          "@type": "Organization",
-          name: "Yalla London",
+          "@type": "Person",
+          name: `${siteName} Editorial`,
         },
       })),
   };
@@ -172,8 +179,16 @@ function transformArticlesForClient() {
     });
 }
 
-export default function ArticlesPage() {
-  const structuredData = generateStructuredData();
+export default async function ArticlesPage() {
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const destination = siteConfig?.destination || "London";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
+
+  const structuredData = generateStructuredData({ siteName, siteSlug, baseUrl, destination });
   const articles = transformArticlesForClient();
 
   return (

@@ -1,63 +1,58 @@
 import type { Metadata } from "next";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { headers } from "next/headers";
+import { getBaseUrl } from "@/lib/url-utils";
+import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = await getBaseUrl();
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const destination = siteConfig?.destination || "London";
+  const canonicalUrl = `${baseUrl}/events`;
 
-export const metadata: Metadata = {
-  title:
-    "London Events & Tickets - Football, Theatre, Festivals | Yalla London",
-  description:
-    "Book premium tickets for London's best events. Premier League football, West End theatre, festivals, and exclusive experiences curated for Arab travellers.",
-  keywords: [
-    "London events",
-    "London tickets",
-    "Premier League tickets",
-    "West End theatre",
-    "London festivals",
-    "London experiences",
-    "Arab travellers London events",
-    "luxury London entertainment",
-  ],
-  openGraph: {
-    title:
-      "London Events & Tickets - Football, Theatre, Festivals | Yalla London",
-    description:
-      "Book premium tickets for London's best events. Football, theatre, festivals, and exclusive experiences.",
-    url: `${siteUrl}/events`,
-    type: "website",
-    locale: "en_GB",
-    alternateLocale: "ar_SA",
-    siteName: "Yalla London",
-    images: [
-      {
-        url: `${siteUrl}/og-image.jpg`,
-        width: 1200,
-        height: 630,
-        alt: "Yalla London - London Events & Tickets",
+  return {
+    title: `${destination} Events & Shows | ${siteName}`,
+    description: `Discover the best events, shows, exhibitions, and experiences in ${destination}. Book tickets for theatre, football, festivals, and exclusive VIP experiences.`,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        "en-GB": canonicalUrl,
+        "ar-SA": `${baseUrl}/ar/events`,
+        "x-default": canonicalUrl,
       },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "London Events & Tickets | Yalla London",
-    description:
-      "Book premium tickets for London's best events. Football, theatre, festivals, and exclusive experiences.",
-    images: [`${siteUrl}/og-image.jpg`],
-  },
-  alternates: {
-    canonical: `${siteUrl}/events`,
-    languages: {
-      "en-GB": `${siteUrl}/events`,
-      "ar-SA": `${siteUrl}/ar/events`,
     },
-  },
-};
+    openGraph: {
+      title: `${destination} Events & Shows | ${siteName}`,
+      description: `Discover the best events, shows, exhibitions, and experiences in ${destination}. Book tickets for theatre, football, festivals, and exclusive VIP experiences.`,
+      url: canonicalUrl,
+      siteName,
+      locale: "en_GB",
+      alternateLocale: "ar_SA",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: `@${siteSlug}`,
+      title: `${destination} Events & Shows | ${siteName}`,
+      description: `Discover the best events, shows, exhibitions, and experiences in ${destination}. Book tickets for theatre, football, festivals, and exclusive VIP experiences.`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+  };
+}
 
-export default function EventsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return children;
 }

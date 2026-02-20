@@ -60,7 +60,8 @@ npm-debug.log*
 .prisma-generation-attempt
 
 # IDE configuration directories (comprehensive)
-.vscode/
+.vscode/*
+!.vscode/workflows/
 .idea/
 .vs/
 *.iml

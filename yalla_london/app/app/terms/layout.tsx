@@ -1,23 +1,58 @@
 import type { Metadata } from "next";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { headers } from "next/headers";
+import { getBaseUrl } from "@/lib/url-utils";
+import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = await getBaseUrl();
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const destination = siteConfig?.destination || "London";
+  const canonicalUrl = `${baseUrl}/terms`;
 
-export const metadata: Metadata = {
-  title: "Terms of Use | Yalla London",
-  description:
-    "Yalla London terms of use. Review our terms and conditions governing the use of our website and services.",
-  robots: { index: true, follow: true },
-  alternates: {
-    canonical: `${siteUrl}/terms`,
-  },
-};
+  return {
+    title: `Terms of Use | ${siteName}`,
+    description: `${siteName} terms of use. Read our terms and conditions covering content usage, affiliate relationships, digital products, and intellectual property.`,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        "en-GB": canonicalUrl,
+        "ar-SA": `${baseUrl}/ar/terms`,
+        "x-default": canonicalUrl,
+      },
+    },
+    openGraph: {
+      title: `Terms of Use | ${siteName}`,
+      description: `${siteName} terms of use. Read our terms and conditions covering content usage, affiliate relationships, digital products, and intellectual property.`,
+      url: canonicalUrl,
+      siteName,
+      locale: "en_GB",
+      alternateLocale: "ar_SA",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: `@${siteSlug}`,
+      title: `Terms of Use | ${siteName}`,
+      description: `${siteName} terms of use. Read our terms and conditions covering content usage, affiliate relationships, digital products, and intellectual property.`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+  };
+}
 
-export default function TermsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return children;
 }

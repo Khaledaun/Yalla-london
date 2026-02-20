@@ -644,7 +644,7 @@ Return JSON:
     "@type": "${(outline.schemaType as string) || "Article"}",
     "headline": "Article title",
     "description": "Brief description",
-    "author": {"@type": "Organization", "name": "${site.name}"},
+    "author": {"@type": "Person", "name": "${site.name} Editorial"},
     "publisher": {"@type": "Organization", "name": "${site.name}"}${featured ? ',\n    "image": "' + (featured.url || "") + '"' : ""}
   },
   "ogImage": {
@@ -756,8 +756,8 @@ export async function phaseScoring(
   // Content depth
   const contentDepthScore = Math.min(100, h2Count * 10 + h3Count * 5 + (wordCount / 30));
 
-  // Quality gate: 60+ → reservoir, else rejected (aligned with CONTENT_QUALITY.qualityGateScore)
-  const nextPhase = qualityScore >= 60 ? "reservoir" : "rejected";
+  // Quality gate: 70+ → reservoir, else rejected (aligned with CONTENT_QUALITY.qualityGateScore)
+  const nextPhase = qualityScore >= 70 ? "reservoir" : "rejected";
 
   return {
     success: true,

@@ -1,13 +1,14 @@
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getBaseUrl } from "@/lib/url-utils";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { getSiteDomain, getSiteConfig, getDefaultSiteId } from "@/config/sites";
 import { getRelatedArticles } from "@/lib/related-content";
 import NewsDetailClient from "./NewsDetailClient";
 
-// ISR: Revalidate news detail pages every 10 minutes
-export const revalidate = 600;
+// ISR: Revalidate news detail pages every hour for multi-site scale
+export const revalidate = 3600;
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -242,40 +243,51 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const resolvedParams = await params;
   const slug = resolvedParams.slug;
   const baseUrl = await getBaseUrl();
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
 
   const item = await getNewsItem(slug);
 
   if (!item) {
     return {
-      title: "News Not Found | Yalla London",
+      title: `News Not Found | ${siteName}`,
       description: "The news article you are looking for could not be found.",
     };
   }
 
   const canonicalUrl = `${baseUrl}/news/${slug}`;
-  const description =
-    item.meta_description_en ||
-    item.summary_en.slice(0, 160);
+  // Arabic SSR: serve locale-appropriate metadata for /ar/ routes
+  const locale = headersList.get("x-locale") || "en";
+  const title = locale === "ar"
+    ? (item.meta_title_ar || `${item.headline_ar} | ${siteName}`)
+    : (item.meta_title_en || `${item.headline_en} | ${siteName}`);
+  const description = locale === "ar"
+    ? (item.meta_description_ar || item.summary_ar.slice(0, 160))
+    : (item.meta_description_en || item.summary_en.slice(0, 160));
 
   return {
-    title: item.meta_title_en || `${item.headline_en} | Yalla London`,
+    title,
     description,
     keywords: item.keywords.join(", "),
-    authors: [{ name: "Yalla London Editorial" }],
-    creator: "Yalla London",
-    publisher: "Yalla London",
+    authors: [{ name: `${siteName} Editorial` }],
+    creator: siteName,
+    publisher: siteName,
     alternates: {
       canonical: canonicalUrl,
       languages: {
         "en-GB": canonicalUrl,
         "ar-SA": `${baseUrl}/ar/news/${slug}`,
+        "x-default": canonicalUrl,
       },
     },
     openGraph: {
-      title: item.meta_title_en || item.headline_en,
+      title,
       description,
       url: canonicalUrl,
-      siteName: "Yalla London",
+      siteName,
       locale: "en_GB",
       alternateLocale: "ar_SA",
       type: "article",
@@ -296,7 +308,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      site: "@yallalondon",
+      site: `@${siteSlug}`,
       title: item.meta_title_en || item.headline_en,
       description,
       images: item.featured_image ? [item.featured_image] : [],
@@ -325,9 +337,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // JSON-LD Structured Data
 // ---------------------------------------------------------------------------
 
-function generateStructuredData(item: SeedItem) {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || `https://www.${getSiteDomain(getDefaultSiteId())}`;
+function generateStructuredData(item: SeedItem, siteInfo: { siteName: string; siteSlug: string; baseUrl: string }) {
+  const { siteName, siteSlug, baseUrl } = siteInfo;
 
   const newsArticleSchema = {
     "@context": "https://schema.org",
@@ -337,17 +348,17 @@ function generateStructuredData(item: SeedItem) {
     image: item.featured_image || undefined,
     datePublished: item.published_at,
     author: {
-      "@type": "Organization",
-      name: item.source_name,
-      url: item.source_url,
+      "@type": "Person",
+      name: `${siteName} Editorial`,
+      url: baseUrl,
     },
     publisher: {
       "@type": "Organization",
-      name: "Yalla London",
+      name: siteName,
       url: baseUrl,
       logo: {
         "@type": "ImageObject",
-        url: `${baseUrl}/images/yalla-london-logo.svg`,
+        url: `${baseUrl}/images/${siteSlug}-logo.svg`,
       },
     },
     mainEntityOfPage: {
@@ -442,7 +453,14 @@ export default async function NewsDetailPage({ params }: Props) {
     notFound();
   }
 
-  const structuredData = generateStructuredData(item);
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const baseUrl = await getBaseUrl();
+
+  const structuredData = generateStructuredData(item, { siteName, siteSlug, baseUrl });
   const relatedArticles = await resolveRelatedArticles(item);
 
   return (

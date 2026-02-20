@@ -1,12 +1,15 @@
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { blogPosts, categories } from "@/data/blog-content";
 import { extendedBlogPosts } from "@/data/blog-content-extended";
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import BlogListClient from "../../BlogListClient";
 
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 
-export const revalidate = 600;
+// ISR: Revalidate category pages every hour for multi-site scale
+export const revalidate = 3600;
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
@@ -23,11 +26,15 @@ export async function generateMetadata({
   const category = categories.find((c) => c.slug === slug);
   if (!category) return {};
 
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
 
   return {
-    title: `${category.name_en} | Yalla London Blog`,
+    title: `${category.name_en} | ${siteName} Blog`,
     description: category.description_en,
     keywords: (category as any).keywords?.join(", "),
     alternates: {
@@ -35,13 +42,14 @@ export async function generateMetadata({
       languages: {
         "en-GB": `${baseUrl}/blog/category/${slug}`,
         "ar-SA": `${baseUrl}/ar/blog/category/${slug}`,
+        "x-default": `${baseUrl}/blog/category/${slug}`,
       },
     },
     openGraph: {
-      title: `${category.name_en} | Yalla London Blog`,
+      title: `${category.name_en} | ${siteName} Blog`,
       description: category.description_en,
       url: `${baseUrl}/blog/category/${slug}`,
-      siteName: "Yalla London",
+      siteName,
       locale: "en_GB",
       alternateLocale: "ar_SA",
       type: "website",
@@ -65,8 +73,13 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const category = categories.find((c) => c.slug === slug);
   if (!category) notFound();
 
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
   const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
 
   // Filter posts by this category and transform for client component
   const posts = allStaticPosts
@@ -166,14 +179,14 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const collectionSchema = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: `${category.name_en} - Yalla London Blog`,
+    name: `${category.name_en} - ${siteName} Blog`,
     description: category.description_en,
     url: `${baseUrl}/blog/category/${slug}`,
-    isPartOf: { "@type": "Blog", url: `${baseUrl}/blog`, name: "Yalla London Blog" },
+    isPartOf: { "@type": "WebPage", url: `${baseUrl}/blog`, name: `${siteName} Blog` },
     publisher: {
       "@type": "Organization",
-      name: "Yalla London",
-      logo: { "@type": "ImageObject", url: `${baseUrl}/images/yalla-london-logo.svg` },
+      name: siteName,
+      logo: { "@type": "ImageObject", url: `${baseUrl}/images/${siteSlug}-logo.svg` },
     },
   };
 

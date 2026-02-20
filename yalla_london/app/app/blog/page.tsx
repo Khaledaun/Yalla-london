@@ -9,8 +9,8 @@ import BlogListClient from "./BlogListClient";
 // Combine all static blog posts (legacy content)
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 
-// ISR: Revalidate blog listing every 10 minutes for Cloudflare edge caching
-export const revalidate = 600;
+// ISR: Revalidate blog listing every hour for multi-site scale
+export const revalidate = 3600;
 
 // Dynamic metadata for SEO — resolves site identity + base URL from request context
 export async function generateMetadata(): Promise<Metadata> {

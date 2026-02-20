@@ -1,43 +1,58 @@
 import type { Metadata } from "next";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { headers } from "next/headers";
+import { getBaseUrl } from "@/lib/url-utils";
+import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = await getBaseUrl();
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const destination = siteConfig?.destination || "London";
+  const canonicalUrl = `${baseUrl}/hotels`;
 
-export const metadata: Metadata = {
-  title: "Best London Hotels for Arab Travellers | Yalla London",
-  description:
-    "Curated luxury hotel recommendations in London. Find halal-friendly hotels with Arabic-speaking staff, prayer facilities, and premium amenities.",
-  keywords: [
-    "London hotels",
-    "luxury hotels London",
-    "halal friendly hotels London",
-    "Arab travellers London hotels",
-    "five star hotels London",
-  ],
-  openGraph: {
-    title: "Best London Hotels for Arab Travellers | Yalla London",
-    description:
-      "Curated luxury hotel recommendations with halal-friendly amenities.",
-    url: `${siteUrl}/hotels`,
-    type: "website",
-    locale: "en_GB",
-    alternateLocale: "ar_SA",
-    siteName: "Yalla London",
-  },
-  alternates: {
-    canonical: `${siteUrl}/hotels`,
-    languages: {
-      "en-GB": `${siteUrl}/hotels`,
-      "ar-SA": `${siteUrl}/ar/hotels`,
+  return {
+    title: `Luxury Hotels in ${destination} | ${siteName}`,
+    description: `Discover the finest luxury hotels in ${destination} for Arab visitors. 5-star accommodations with Arabic-speaking staff, halal dining, and prime locations.`,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        "en-GB": canonicalUrl,
+        "ar-SA": `${baseUrl}/ar/hotels`,
+        "x-default": canonicalUrl,
+      },
     },
-  },
-};
+    openGraph: {
+      title: `Luxury Hotels in ${destination} | ${siteName}`,
+      description: `Discover the finest luxury hotels in ${destination} for Arab visitors. 5-star accommodations with Arabic-speaking staff, halal dining, and prime locations.`,
+      url: canonicalUrl,
+      siteName,
+      locale: "en_GB",
+      alternateLocale: "ar_SA",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: `@${siteSlug}`,
+      title: `Luxury Hotels in ${destination} | ${siteName}`,
+      description: `Discover the finest luxury hotels in ${destination} for Arab visitors. 5-star accommodations with Arabic-speaking staff, halal dining, and prime locations.`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+  };
+}
 
-export default function HotelsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return children;
 }

@@ -13,8 +13,8 @@
  */
 
 // ─── Last verified against Google docs ──────────────────────────────────────
-export const STANDARDS_VERSION = "2026-02-18";
-export const STANDARDS_SOURCE = "Google Search Central + Quality Rater Guidelines Sept 2025";
+export const STANDARDS_VERSION = "2026-02-19";
+export const STANDARDS_SOURCE = "Google Search Central + Quality Rater Guidelines Sept 2025 + January 2026 Core Update";
 
 // ─── Algorithm Context ──────────────────────────────────────────────────────
 export const ALGORITHM_CONTEXT = {
@@ -36,6 +36,24 @@ export const ALGORITHM_CONTEXT = {
   freshnessImproved: true,
   /** Mobile-first indexing 100% complete since July 5, 2024 */
   mobileFirstComplete: true,
+
+  // ── January 2026 "Authenticity Update" (Core Update, rolled out Jan 4 2026) ──
+  /** First-hand Experience is now the dominant E-E-A-T signal — content must prove lived experience */
+  authenticityUpdateActive: true,
+  /** AI content not banned but mass-produced unedited AI content demoted. Human oversight required. */
+  aiContentRequiresHumanOversight: true,
+  /** Stock photography penalized — original media signals authenticity */
+  originalMediaPreferred: true,
+  /** Anonymous content penalized — every article needs author byline with digital footprint */
+  authorBylineRequired: true,
+  /** Topical depth > publishing frequency — content clusters and internal linking weighted higher */
+  topicalDepthOverFrequency: true,
+  /** "Second-hand knowledge" demoted — summarized/repackaged content without original insights loses rank */
+  secondHandKnowledgeDemoted: true,
+  /** Scaled content abuse manual actions active since June 2025 */
+  scaledContentAbuseActions: true,
+  /** 60%+ of searches now feature AI Overviews — cited content must demonstrate genuine expertise */
+  aiOverviewCitationExpertiseRequired: true,
 } as const;
 
 // ─── Core Web Vitals Thresholds (75th percentile CrUX) ─────────────────────
@@ -52,12 +70,12 @@ export const CORE_WEB_VITALS = {
 
 // ─── Content Quality Thresholds ─────────────────────────────────────────────
 export const CONTENT_QUALITY = {
-  /** Minimum words for a publishable article */
-  minWords: 800,
+  /** Minimum words for a publishable article (blocker threshold) */
+  minWords: 1000,
   /** Minimum words before content is considered "thin" by Google */
   thinContentThreshold: 300,
   /** Target word count for topical authority */
-  targetWords: 1500,
+  targetWords: 1800,
   /** Ideal word count for deep-dive content */
   idealWords: 2000,
   /** Minimum meta title length (chars) */
@@ -65,7 +83,7 @@ export const CONTENT_QUALITY = {
   /** Optimal meta title length (chars) */
   metaTitleOptimal: { min: 50, max: 60 },
   /** Minimum meta description length (chars) */
-  metaDescriptionMin: 70,
+  metaDescriptionMin: 120,
   /** Optimal meta description length (chars) */
   metaDescriptionOptimal: { min: 120, max: 160 },
   /** Maximum keyword density (percentage) — 2025: favor semantic variation */
@@ -85,10 +103,10 @@ export const CONTENT_QUALITY = {
   /** Maximum one H1 per page */
   maxH1Count: 1,
   /** Minimum SEO score to pass quality gate (out of 100) */
-  qualityGateScore: 60,
+  qualityGateScore: 70,
 } as const;
 
-// ─── E-E-A-T Requirements ───────────────────────────────────────────────────
+// ─── E-E-A-T Requirements (Updated for Jan 2026 Authenticity Update) ────────
 export const EEAT_REQUIREMENTS = {
   /** Articles should have identifiable author attribution */
   requireAuthorAttribution: true,
@@ -100,10 +118,22 @@ export const EEAT_REQUIREMENTS = {
   requireHttps: true,
   /** Editorial/privacy policy should be linked */
   requireEditorialPolicy: true,
-  /** Original photography/first-hand content preferred */
+  /** Original photography/first-hand content preferred — stock photos penalized */
   preferOriginalContent: true,
   /** Trust is the most important E-E-A-T component */
   trustIsPrimary: true,
+
+  // ── Jan 2026 Authenticity Update additions ──
+  /** Experience (first "E") is now the dominant signal — content must prove author lived it */
+  experienceIsDominant: true,
+  /** Content must contain first-hand experience signals: sensory details, specific observations, insider knowledge */
+  requireFirstHandSignals: true,
+  /** Content must offer unique information not found elsewhere (not repackaged summaries) */
+  requireOriginalInsights: true,
+  /** Author byline with verifiable digital footprint required — anonymous content penalized */
+  requireAuthorDigitalFootprint: true,
+  /** Content should demonstrate understanding through explanation, not assertion */
+  demonstrateThroughExplanation: true,
 } as const;
 
 // ─── Schema Markup — Supported Types (2025-2026) ────────────────────────────

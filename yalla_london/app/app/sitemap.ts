@@ -8,6 +8,7 @@ import {
   informationCategories,
 } from "@/data/information-hub-content";
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
+import { walks } from "@/app/london-by-foot/walks-data";
 import { prisma } from "@/lib/db";
 
 // Combine all static blog posts
@@ -25,6 +26,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     hostname === "localhost:3000"
       ? "http://localhost:3000"
       : `https://${hostname}`;
+  // Use a stable date for static pages (last known content update) instead of
+  // new Date() which misleads crawlers into thinking pages change on every request.
+  const staticDate = "2026-02-19T00:00:00.000Z";
   const currentDate = new Date().toISOString();
 
   // Helper: generate hreflang alternates with correct language-region codes
@@ -40,11 +44,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
   }
 
-  // Static pages (common to all sites)
+  // Static pages (common to all sites) — use staticDate for content that doesn't
+  // change on every request, so crawlers get accurate last-modified signals.
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
-      lastModified: currentDate,
+      lastModified: staticDate,
       changeFrequency: "daily",
       priority: 1,
       alternates: hreflang(""),
@@ -58,7 +63,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     {
       url: `${baseUrl}/recommendations`,
-      lastModified: currentDate,
+      lastModified: staticDate,
       changeFrequency: "weekly",
       priority: 0.9,
       alternates: hreflang("/recommendations"),
@@ -72,49 +77,49 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     {
       url: `${baseUrl}/experiences`,
-      lastModified: currentDate,
+      lastModified: staticDate,
       changeFrequency: "weekly",
       priority: 0.8,
       alternates: hreflang("/experiences"),
     },
     {
       url: `${baseUrl}/hotels`,
-      lastModified: currentDate,
+      lastModified: staticDate,
       changeFrequency: "weekly",
       priority: 0.8,
       alternates: hreflang("/hotels"),
     },
     {
       url: `${baseUrl}/about`,
-      lastModified: currentDate,
+      lastModified: staticDate,
       changeFrequency: "monthly",
       priority: 0.7,
       alternates: hreflang("/about"),
     },
     {
       url: `${baseUrl}/contact`,
-      lastModified: currentDate,
+      lastModified: staticDate,
       changeFrequency: "monthly",
       priority: 0.6,
       alternates: hreflang("/contact"),
     },
     {
       url: `${baseUrl}/privacy`,
-      lastModified: currentDate,
+      lastModified: staticDate,
       changeFrequency: "yearly",
       priority: 0.3,
       alternates: hreflang("/privacy"),
     },
     {
       url: `${baseUrl}/terms`,
-      lastModified: currentDate,
+      lastModified: staticDate,
       changeFrequency: "yearly",
       priority: 0.3,
       alternates: hreflang("/terms"),
     },
     {
       url: `${baseUrl}/affiliate-disclosure`,
-      lastModified: currentDate,
+      lastModified: staticDate,
       changeFrequency: "yearly",
       priority: 0.3,
       alternates: hreflang("/affiliate-disclosure"),
@@ -163,17 +168,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
         alternates: hreflang(`/blog/${post.slug}`),
       }));
-  } catch {
-    // Database not available - use static content only
+  } catch (error) {
+    console.warn(`[sitemap] Blog post DB query failed for ${siteId}:`, error instanceof Error ? error.message : String(error));
   }
 
-  // Events from database (scoped by site)
+  // Events from database (scoped strictly by site — exclude siteId: null to
+  // prevent cross-site contamination in multi-tenant sitemaps)
   let eventPages: MetadataRoute.Sitemap = [];
   try {
     const events = await prisma.event.findMany({
       where: {
         published: true,
-        OR: [{ siteId }, { siteId: null }],
+        siteId,
       },
       select: { id: true, updated_at: true },
     });
@@ -184,14 +190,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
       alternates: hreflang(`/events/${event.id}`),
     }));
-  } catch {
-    // Database not available
+  } catch (error) {
+    console.warn(`[sitemap] Events DB query failed for ${siteId}:`, error instanceof Error ? error.message : String(error));
   }
 
   // Category pages
   const categoryPages: MetadataRoute.Sitemap = categories.map((category) => ({
     url: `${baseUrl}/blog/category/${category.slug}`,
-    lastModified: currentDate,
+    lastModified: staticDate,
     changeFrequency: "weekly" as const,
     priority: 0.7,
     alternates: hreflang(`/blog/category/${category.slug}`),
@@ -202,7 +208,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Main information hub page
     {
       url: `${baseUrl}/information`,
-      lastModified: currentDate,
+      lastModified: staticDate,
       changeFrequency: "weekly" as const,
       priority: 0.9,
       alternates: hreflang("/information"),
@@ -210,7 +216,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Information articles listing page
     {
       url: `${baseUrl}/information/articles`,
-      lastModified: currentDate,
+      lastModified: staticDate,
       changeFrequency: "weekly" as const,
       priority: 0.8,
       alternates: hreflang("/information/articles"),
@@ -222,7 +228,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .filter((section) => section.published)
     .map((section) => ({
       url: `${baseUrl}/information/${section.slug}`,
-      lastModified: currentDate,
+      lastModified: staticDate,
       changeFrequency: "weekly" as const,
       priority: 0.8,
       alternates: hreflang(`/information/${section.slug}`),
@@ -255,8 +261,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
       alternates: hreflang(`/news/${item.slug}`),
     }));
-  } catch {
-    // Database not available - skip news pages
+  } catch (error) {
+    console.warn(`[sitemap] News DB query failed for ${siteId}:`, error instanceof Error ? error.message : String(error));
   }
 
   // News landing page
@@ -270,18 +276,46 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  // London by Foot pages (only for yalla-london)
+  // London by Foot pages (only for yalla-london) — landing + individual walks
   let londonByFootPages: MetadataRoute.Sitemap = [];
   if (siteId === "yalla-london") {
     londonByFootPages = [
       {
         url: `${baseUrl}/london-by-foot`,
-        lastModified: currentDate,
+        lastModified: staticDate,
         changeFrequency: "weekly" as const,
         priority: 0.8,
         alternates: hreflang("/london-by-foot"),
       },
+      ...walks.map((walk) => ({
+        url: `${baseUrl}/london-by-foot/${walk.slug}`,
+        lastModified: staticDate,
+        changeFrequency: "monthly" as const,
+        priority: 0.75,
+        alternates: hreflang(`/london-by-foot/${walk.slug}`),
+      })),
     ];
+  }
+
+  // Shop product pages from database
+  let shopProductPages: MetadataRoute.Sitemap = [];
+  try {
+    const products = await prisma.digitalProduct.findMany({
+      where: {
+        is_active: true,
+        OR: [{ site_id: siteId }, { site_id: null }],
+      },
+      select: { slug: true, updated_at: true },
+    });
+    shopProductPages = products.map((product) => ({
+      url: `${baseUrl}/shop/${product.slug}`,
+      lastModified: product.updated_at?.toISOString() || staticDate,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+      alternates: hreflang(`/shop/${product.slug}`),
+    }));
+  } catch (error) {
+    console.warn(`[sitemap] Shop products DB query failed for ${siteId}:`, error instanceof Error ? error.message : String(error));
   }
 
   return [
@@ -296,5 +330,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...newsLandingPages,
     ...newsPages,
     ...londonByFootPages,
+    ...shopProductPages,
   ];
 }

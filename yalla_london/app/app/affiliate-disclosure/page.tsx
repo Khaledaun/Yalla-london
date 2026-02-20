@@ -12,12 +12,12 @@ const content = {
   en: {
     title: 'Affiliate Disclosure',
     lastUpdated: 'Last updated',
-    intro: 'Zenitha.Luxury LLC, operating as Yalla London, believes in full transparency. This page explains how we earn revenue through affiliate partnerships and how this relates to the content you read on our Website.',
+    intro: `Zenitha.Luxury LLC, operating as ${SITES[getDefaultSiteId()]?.name || 'Yalla London'}, believes in full transparency. This page explains how we earn revenue through affiliate partnerships and how this relates to the content you read on our Website.`,
 
     whatTitle: 'What Are Affiliate Links?',
     whatItems: [
-      'Some of the links on yallalondon.com are affiliate links. This means that if you click on the link and make a purchase or booking, we may receive a small commission from the partner at no additional cost to you.',
-      'Affiliate links are our primary source of revenue and help us keep Yalla London free to use for all visitors.',
+      `Some of the links on ${SITE_DOMAIN} are affiliate links. This means that if you click on the link and make a purchase or booking, we may receive a small commission from the partner at no additional cost to you.`,
+      `Affiliate links are our primary source of revenue and help us keep ${SITES[getDefaultSiteId()]?.name || 'Yalla London'} free to use for all visitors.`,
       'You will never pay more by using our affiliate links. In some cases, our partnerships may provide you with exclusive discounts or deals.',
     ],
 
@@ -63,12 +63,12 @@ const content = {
   ar: {
     title: 'إفصاح الإحالة',
     lastUpdated: 'آخر تحديث',
-    intro: 'تؤمن شركة Zenitha.Luxury LLC، التي تعمل باسم يلا لندن، بالشفافية الكاملة. توضح هذه الصفحة كيف نحقق الإيرادات من خلال شراكات الإحالة وكيف يرتبط ذلك بالمحتوى الذي تقرأه على موقعنا.',
+    intro: `تؤمن شركة Zenitha.Luxury LLC، التي تعمل باسم ${(SITES[getDefaultSiteId()] as any)?.name_ar || 'يلا لندن'}، بالشفافية الكاملة. توضح هذه الصفحة كيف نحقق الإيرادات من خلال شراكات الإحالة وكيف يرتبط ذلك بالمحتوى الذي تقرأه على موقعنا.`,
 
     whatTitle: 'ما هي روابط الإحالة؟',
     whatItems: [
-      'بعض الروابط على yallalondon.com هي روابط إحالة. هذا يعني أنه إذا نقرت على الرابط وأجريت عملية شراء أو حجز، فقد نتلقى عمولة صغيرة من الشريك دون أي تكلفة إضافية عليك.',
-      'روابط الإحالة هي مصدر إيراداتنا الرئيسي وتساعدنا في الحفاظ على يلا لندن مجانياً لجميع الزوار.',
+      `بعض الروابط على ${SITE_DOMAIN} هي روابط إحالة. هذا يعني أنه إذا نقرت على الرابط وأجريت عملية شراء أو حجز، فقد نتلقى عمولة صغيرة من الشريك دون أي تكلفة إضافية عليك.`,
+      `روابط الإحالة هي مصدر إيراداتنا الرئيسي وتساعدنا في الحفاظ على ${(SITES[getDefaultSiteId()] as any)?.name_ar || 'يلا لندن'} مجانياً لجميع الزوار.`,
       'لن تدفع أبداً أكثر باستخدام روابط الإحالة لدينا. في بعض الحالات، قد توفر لك شراكاتنا خصومات أو عروض حصرية.',
     ],
 

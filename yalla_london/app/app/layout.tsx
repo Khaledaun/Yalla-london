@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || brandConfig.siteName;
 
   return {
-    title: `${brandConfig.siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
+    title: `${siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
     description: brandConfig.description,
     authors: [{ name: siteName }],
     creator: siteName,
@@ -35,7 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
       alternateLocale: "ar_SA",
       url: baseUrl,
       siteName,
-      title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
+      title: `${siteName} - ${brandConfig.tagline}`,
       description: brandConfig.description,
       images: [
         {
@@ -48,8 +48,8 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      site: brandConfig.seo.twitterHandle || "@example",
-      title: `${brandConfig.siteName} - ${brandConfig.tagline}`,
+      site: `@${siteConfig?.slug || 'yallalondon'}`,
+      title: `${siteName} - ${brandConfig.tagline}`,
       description: brandConfig.description,
       images: ["/og-image.jpg"],
     },
@@ -80,15 +80,27 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Read locale from middleware headers (set by /ar/ prefix detection)
+  // Read locale and site identity from middleware headers
   const headersList = await headers();
   const locale = (headersList.get("x-locale") || "en") as Language;
   const dir = locale === "ar" ? "rtl" : "ltr";
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const currentSiteConfig = getSiteConfig(siteId);
+
+  // Geo-targeting coordinates per destination
+  const geoData: Record<string, { region: string; placename: string; position: string; icbm: string }> = {
+    "London": { region: "GB-LND", placename: "London", position: "51.5074;-0.1278", icbm: "51.5074, -0.1278" },
+    "Maldives": { region: "MV", placename: "Malé", position: "4.1755;73.5093", icbm: "4.1755, 73.5093" },
+    "French Riviera": { region: "FR-PAC", placename: "Nice", position: "43.7102;7.2620", icbm: "43.7102, 7.2620" },
+    "Istanbul": { region: "TR-34", placename: "Istanbul", position: "41.0082;28.9784", icbm: "41.0082, 28.9784" },
+    "Thailand": { region: "TH-10", placename: "Bangkok", position: "13.7563;100.5018", icbm: "13.7563, 100.5018" },
+  };
+  const geo = geoData[currentSiteConfig?.destination || "London"] || geoData["London"];
 
   return (
     <html lang={locale} dir={dir} suppressHydrationWarning>
       <head>
-        <StructuredData />
+        <StructuredData siteId={siteId} />
         <HreflangTags path="/" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -99,24 +111,29 @@ export default async function RootLayout({
 
         {/* PWA Meta Tags — theme-color and title from site config */}
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content={getSiteConfig(getDefaultSiteId())?.primaryColor || "#C8322B"} />
+        <meta name="theme-color" content={currentSiteConfig?.primaryColor || "#C8322B"} />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content={getSiteConfig(getDefaultSiteId())?.name || "Yalla London"} />
+        <meta name="apple-mobile-web-app-title" content={currentSiteConfig?.name || "Yalla London"} />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
 
-        {/* Other Meta Tags */}
-        <meta name="geo.region" content="GB-LND" />
-        <meta name="geo.placename" content="London" />
-        <meta name="geo.position" content="51.5074;-0.1278" />
-        <meta name="ICBM" content="51.5074, -0.1278" />
-        {process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION && (
-          <meta
-            name="google-site-verification"
-            content={process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION}
-          />
-        )}
+        {/* Geo-targeting Meta Tags — per-site destination */}
+        <meta name="geo.region" content={geo.region} />
+        <meta name="geo.placename" content={geo.placename} />
+        <meta name="geo.position" content={geo.position} />
+        <meta name="ICBM" content={geo.icbm} />
+        {/* Google Site Verification — per-site via GOOGLE_SITE_VERIFICATION_{SITE_KEY} */}
+        {(() => {
+          const envKey = siteId.toUpperCase().replace(/-/g, "_");
+          const verificationCode =
+            process.env[`GOOGLE_SITE_VERIFICATION_${envKey}`] ||
+            process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ||
+            "";
+          return verificationCode ? (
+            <meta name="google-site-verification" content={verificationCode} />
+          ) : null;
+        })()}
       </head>
       <body className="font-editorial antialiased" suppressHydrationWarning>
         <NextAuthSessionProvider>
@@ -145,9 +162,14 @@ export default async function RootLayout({
           </BrandThemeProvider>
         </NextAuthSessionProvider>
 
-        {/* Google Analytics */}
-        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (() => {
-          const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID.trim();
+        {/* Google Analytics — per-site via GA4_MEASUREMENT_ID_{SITE_KEY} */}
+        {(() => {
+          const envKey = siteId.toUpperCase().replace(/-/g, "_");
+          const gaId = (
+            process.env[`GA4_MEASUREMENT_ID_${envKey}`] ||
+            process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID ||
+            ""
+          ).trim();
           return gaId ? (
             <>
               <Script

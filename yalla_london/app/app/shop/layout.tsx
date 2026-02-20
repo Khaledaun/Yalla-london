@@ -1,59 +1,58 @@
 import type { Metadata } from "next";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { headers } from "next/headers";
+import { getBaseUrl } from "@/lib/url-utils";
+import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = await getBaseUrl();
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const destination = siteConfig?.destination || "London";
+  const canonicalUrl = `${baseUrl}/shop`;
 
-export const metadata: Metadata = {
-  title: "London Travel Guides & Digital Products | Yalla London Shop",
-  description:
-    "Premium digital London travel guides, curated itineraries, and insider tips. Beautifully designed PDF guides for Arab travellers exploring London.",
-  keywords: [
-    "London travel guide",
-    "London shopping guide",
-    "digital travel guide",
-    "Arab travellers London",
-    "London itinerary",
-    "Yalla London shop",
-  ],
-  openGraph: {
-    title: "London Travel Guides & Digital Products | Yalla London Shop",
-    description:
-      "Premium digital London travel guides and curated itineraries for Arab travellers.",
-    url: `${siteUrl}/shop`,
-    type: "website",
-    locale: "en_GB",
-    alternateLocale: "ar_SA",
-    siteName: "Yalla London",
-    images: [
-      {
-        url: `${siteUrl}/og-image.jpg`,
-        width: 1200,
-        height: 630,
-        alt: "Yalla London Shop - Digital Travel Guides",
+  return {
+    title: `${destination} Travel Guides & Digital Products | ${siteName} Shop`,
+    description: `Download premium ${destination} travel guides, maps, and planning tools. Expert-curated content for Arab visitors — instant digital delivery.`,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        "en-GB": canonicalUrl,
+        "ar-SA": `${baseUrl}/ar/shop`,
+        "x-default": canonicalUrl,
       },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "London Travel Guides | Yalla London Shop",
-    description:
-      "Premium digital London travel guides and curated itineraries.",
-    images: [`${siteUrl}/og-image.jpg`],
-  },
-  alternates: {
-    canonical: `${siteUrl}/shop`,
-    languages: {
-      "en-GB": `${siteUrl}/shop`,
-      "ar-SA": `${siteUrl}/ar/shop`,
     },
-  },
-};
+    openGraph: {
+      title: `${destination} Travel Guides & Digital Products | ${siteName} Shop`,
+      description: `Download premium ${destination} travel guides, maps, and planning tools. Expert-curated content for Arab visitors — instant digital delivery.`,
+      url: canonicalUrl,
+      siteName,
+      locale: "en_GB",
+      alternateLocale: "ar_SA",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: `@${siteSlug}`,
+      title: `${destination} Travel Guides & Digital Products | ${siteName} Shop`,
+      description: `Download premium ${destination} travel guides, maps, and planning tools. Expert-curated content for Arab visitors — instant digital delivery.`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+  };
+}
 
-export default function ShopLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return children;
 }

@@ -582,57 +582,71 @@ ${getHumanizationDirectives(writingStyle, site)}${arabicDirectives}`;
 
 ${aioDirectives}
 
-Requirements:
-- 1500-2000 words
+Content Requirements (all mandatory — articles failing these will be rejected by the quality gate):
+- 1,500–2,000 words minimum (articles under 1,000 words are blocked from publishing)
 - Target Arab travelers visiting ${site.destination}
 - Include practical tips, insider advice, luxury recommendations
-- Natural keyword integration: ${topic.longtails?.join(", ") || topic.keyword}
+- Natural keyword integration: "${topic.keyword}" must appear in the title, first paragraph, and at least one H2
+- Secondary keywords to weave in naturally: ${topic.longtails?.join(", ") || ""}
 - Write in a ${writingStyle.tone} tone with ${writingStyle.perspective} perspective
 - Include at least one personal insight or "insider tip" that shows real expertise
 - Vary sentence lengths: mix short punchy sentences with longer descriptive ones
-${topic.questions?.length ? `\nAnswer these questions within the article:\n${topic.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
+
+Structure Requirements:
+- Use 4–6 H2 headings and H3 subheadings where appropriate. Never skip heading levels (no H1→H3).
+- Include 3+ internal links to other ${site.name} pages using descriptive anchor text (link to /blog/*, /hotels, /experiences, /restaurants, etc.)
+- Include 2+ affiliate/booking links (HalalBooking, Booking.com, GetYourGuide, Viator) with natural anchor text — never "click here"
+- End with a "Key Takeaways" section (3–5 bullet points) and a clear call-to-action
+${topic.questions?.length ? `\nAnswer these questions within the article (use as H2 or H3 headings):\n${topic.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
 
 Return JSON with these exact fields:
 {
-  "title": "Compelling article title (50-60 chars)",
+  "title": "Compelling article title with focus keyword (50-60 chars)",
   "titleTranslation": "Arabic translation of the title",
-  "body": "Full HTML article content with h2, h3, p, ul/ol tags",
+  "body": "Full HTML article content with h2, h3, p, ul/ol, a[href] tags. Must include internal links and affiliate links.",
   "bodyTranslation": "Brief Arabic summary (200-300 words)",
-  "excerpt": "Engaging excerpt (150-160 chars)",
+  "excerpt": "Engaging excerpt (120-160 chars)",
   "excerptTranslation": "Arabic excerpt",
-  "metaTitle": "SEO meta title (50-60 chars)",
+  "metaTitle": "SEO meta title with keyword near start (50-60 chars)",
   "metaTitleTranslation": "Arabic meta title",
-  "metaDescription": "SEO meta description (150-155 chars)",
+  "metaDescription": "SEO meta description with CTA (120-160 chars)",
   "metaDescriptionTranslation": "Arabic meta description",
   "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
-  "keywords": ["keyword1", "keyword2", "keyword3"],
+  "keywords": ["primary keyword", "secondary1", "secondary2"],
   "questions": ["Q1?", "Q2?", "Q3?"],
   "pageType": "${topic.pageType || "guide"}",
   "seoScore": 90
 }`
         : `اكتب مقالة مدونة شاملة ومحسّنة لمحركات البحث عن "${topic.keyword}" لمنصة ${site.name}.
 
-المتطلبات:
-- 1500-2000 كلمة
+المتطلبات (إلزامية — المقالات التي لا تستوفيها سيتم رفضها):
+- 1,500–2,000 كلمة كحد أدنى (المقالات أقل من 1,000 كلمة ستُحظر من النشر)
 - استهداف المسافرين العرب الذين يزورون ${site.destination}
 - تضمين نصائح عملية، معلومات داخلية، توصيات فاخرة
-- دمج الكلمات المفتاحية بشكل طبيعي: ${topic.longtails?.join("، ") || topic.keyword}
-${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقال:\n${topic.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
+- الكلمة المفتاحية "${topic.keyword}" يجب أن تظهر في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل
+- دمج الكلمات المفتاحية الثانوية بشكل طبيعي: ${topic.longtails?.join("، ") || ""}
+
+متطلبات الهيكل:
+- استخدم 4–6 عناوين H2 وعناوين H3 فرعية حسب الحاجة
+- أضف 3+ روابط داخلية لصفحات ${site.name} الأخرى بنص وصفي
+- أضف 2+ روابط حجز/شراكة (HalalBooking، Booking.com، GetYourGuide) بنص طبيعي
+- اختم بقسم "النقاط الرئيسية" (3–5 نقاط) ودعوة واضحة للعمل
+${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقال (استخدمها كعناوين H2 أو H3):\n${topic.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
 
 أرجع JSON بهذه الحقول:
 {
-  "title": "عنوان جذاب (50-60 حرف)",
+  "title": "عنوان جذاب مع الكلمة المفتاحية (50-60 حرف)",
   "titleTranslation": "English translation of the title",
-  "body": "محتوى المقال الكامل بتنسيق HTML مع h2, h3, p, ul/ol",
+  "body": "محتوى المقال الكامل بتنسيق HTML مع h2, h3, p, ul/ol, a[href]. يجب أن يتضمن روابط داخلية وروابط شراكة.",
   "bodyTranslation": "Brief English summary (200-300 words)",
-  "excerpt": "مقتطف جذاب (150-160 حرف)",
+  "excerpt": "مقتطف جذاب (120-160 حرف)",
   "excerptTranslation": "English excerpt",
-  "metaTitle": "عنوان SEO (50-60 حرف)",
+  "metaTitle": "عنوان SEO مع الكلمة المفتاحية في البداية (50-60 حرف)",
   "metaTitleTranslation": "English meta title",
-  "metaDescription": "وصف SEO (150-155 حرف)",
+  "metaDescription": "وصف SEO مع دعوة للعمل (120-160 حرف)",
   "metaDescriptionTranslation": "English meta description",
   "tags": ["وسم1", "وسم2", "وسم3", "وسم4", "وسم5"],
-  "keywords": ["كلمة1", "كلمة2", "كلمة3"],
+  "keywords": ["الكلمة المفتاحية الرئيسية", "ثانوية1", "ثانوية2"],
   "questions": ["سؤال1؟", "سؤال2؟", "سؤال3؟"],
   "pageType": "guide",
   "seoScore": 90
@@ -781,8 +795,9 @@ Structure:
 - Start with a direct, clear answer to the question in the first paragraph (this is critical for featured snippets and AIO)
 - Then expand with detailed context, practical information, and related details
 - Include a "Quick Facts" section with key takeaways
-- Add related questions and answers (People Also Ask style)
-- End with practical tips for Arab travelers`;
+- Add related questions and answers (People Also Ask style) — use these as H2/H3 headings
+- Include 3+ internal links to related ${site.name} content and 2+ booking/affiliate links
+- End with practical tips for Arab travelers and a call-to-action`;
 
     case "comparison":
       return `Write a detailed comparison article about "${keyword}" for ${site.name}.
@@ -790,46 +805,56 @@ Structure:
 Structure:
 - Opening: Brief overview of what's being compared and why it matters
 - Comparison table in HTML: key criteria (price, quality, location, halal options, atmosphere)
-- Detailed analysis of each option with pros and cons
+- Detailed analysis of each option with pros and cons under H2/H3 headings
 - "Best For" sections: Best for families, Best for couples, Best for luxury, Best value
 - Final verdict with clear recommendation
-- Include real prices and practical booking tips`;
+- Include real prices and practical booking tips with affiliate links (HalalBooking, Booking.com, etc.)
+- Include 3+ internal links to related ${site.name} guides`;
 
     case "deep-dive":
       return `Write an in-depth, comprehensive deep-dive article about "${keyword}" for ${site.name}.
 
 Structure:
 - This is an EXPANSION of existing content — make it the definitive resource on this topic
-- 2000+ words with detailed sections
-- Include expert insights, hidden gems, insider tips
+- 2,000+ words with detailed H2/H3 sections — this is premium long-form content
+- Include expert insights, hidden gems, insider tips that demonstrate first-hand experience
 - Add practical details: addresses, opening hours, price ranges, booking tips
 - Include a "What Most Guides Don't Tell You" section
-- Add structured data opportunities: FAQs, How-To steps, reviews`;
+- Include 4+ internal links to related ${site.name} content and 3+ affiliate/booking links
+- End with "Key Takeaways" and a booking CTA`;
 
     case "listicle":
       return `Write a curated listicle article about "${keyword}" for ${site.name}.
 
 Structure:
-- Numbered list format (Top 10 or similar)
+- Numbered list format (Top 10 or similar) — each item as an H2 heading
 - Each item gets: name, description (2-3 sentences), why it's special, practical info (price, location, hours)
-- Include a "Quick Pick" summary at the top for scanners
-- Add a comparison mini-table
+- Include a "Quick Pick" summary at the top for scanners (AIO-optimized)
+- Add a comparison mini-table in HTML
 - Highlight halal-friendly and Arabic-speaking options
-- Include booking/reservation tips`;
+- Include booking/reservation links (affiliate: HalalBooking, Booking.com, GetYourGuide)
+- Include 3+ internal links to related ${site.name} articles`;
 
     case "seasonal":
       return `Write a timely seasonal guide about "${keyword}" for ${site.name}.
 
 Structure:
-- Lead with dates, times, and essential planning info
+- Lead with dates, times, and essential planning info under clear H2 headings
 - Include a day-by-day or week-by-week breakdown if applicable
 - Practical logistics: transport, accommodation, what to bring
 - Cultural context for Arab travelers
-- Budget breakdown (luxury vs. mid-range vs. budget)
-- Booking deadlines and advance planning tips`;
+- Budget breakdown (luxury vs. mid-range vs. budget) with booking links (affiliate: Booking.com, GetYourGuide)
+- Booking deadlines and advance planning tips
+- Include 3+ internal links to related ${site.name} seasonal content
+- End with a "Plan Your Trip" CTA section`;
 
     default:
-      return `Write a comprehensive, SEO-optimized blog article about "${keyword}" for ${site.name}.`;
+      return `Write a comprehensive, SEO-optimized blog article about "${keyword}" for ${site.name}.
+
+Structure:
+- 1,500–2,000 words with 4–6 H2 sections and H3 subsections
+- Include 3+ internal links to related ${site.name} pages and 2+ affiliate/booking links
+- End with "Key Takeaways" and a CTA`;
   }
 }
 
@@ -843,14 +868,15 @@ Structure:
  * to extract and cite properly.
  */
 function getAIOOptimizationDirectives(contentType: string): string {
-  const base = `AIO & Citation Optimization (CRITICAL for AI search visibility):
+  const base = `AIO & Citation Optimization (CRITICAL — 60%+ of searches now show AI Overviews):
 - Start EVERY section with a direct, concise answer in the first 1-2 sentences before elaborating
 - Use clear, factual statements that AI can extract as snippets (e.g., "The best halal restaurant in Mayfair is X, located at Y")
 - Include specific data points: prices (£), ratings, distances, opening hours, dates
 - Structure FAQ answers as complete standalone paragraphs (AI extracts these for People Also Ask)
 - Use "According to..." or "Based on..." phrasing for verifiable claims
 - End with a "Key Takeaways" or "Quick Summary" section with 3-5 bullet points
-- Format comparison data in HTML tables that AI engines can parse`;
+- Format comparison data in HTML tables that AI engines can parse
+- IMPORTANT: AI Overviews now strongly prefer citing content that demonstrates genuine expertise, not summaries — include original observations and first-hand details to earn citations`;
 
   switch (contentType) {
     case "answer":
@@ -941,7 +967,7 @@ function pickWritingStyle(): WritingStyle {
  * Prevents Google from flagging content as low-quality AI generation.
  */
 function getHumanizationDirectives(style: WritingStyle, site: SiteConfig): string {
-  return `CONTENT QUALITY & E-E-A-T GUIDELINES (mandatory):
+  return `CONTENT QUALITY & E-E-A-T GUIDELINES (mandatory — Google's Jan 2026 Authenticity Update):
 
 Writing Style for this article:
 - Tone: ${style.tone}
@@ -949,32 +975,40 @@ Writing Style for this article:
 - ${style.openingStyle}
 - ${style.signatureElement}
 
-Experience & Expertise Signals:
-- Reference specific, real places by name with accurate details (streets, neighborhoods)
-- Include sensory details: what you see, smell, taste, hear at each location
+FIRST-HAND EXPERIENCE (CRITICAL — #1 ranking signal in Jan 2026 update):
+Google's January 2026 "Authenticity Update" makes first-hand experience THE dominant ranking signal.
+Content that reads like a summary of other sources ("second-hand knowledge") is now actively demoted.
+- Reference specific, real places by name with accurate details (exact streets, neighborhoods, floor numbers)
+- Include sensory details: what you see, smell, taste, hear at each location (e.g., "the scent of cardamom wafts from...")
 - Mention specific dishes, room types, or experiences by name (not generic descriptions)
-- Add "insider tips" that only someone who has visited would know (e.g., "Ask for a table by the window overlooking...")
+- Add 2–3 "insider tips" per article that only someone who has visited would know (e.g., "Ask for a table by the window overlooking...", "The secret menu includes...")
 - Reference time of day, seasons, or specific events that affect the experience
 - Include approximate walking times between locations
+- Share what surprised you or what was different from expectations ("What most guides don't mention is...")
+- Include at least one specific personal observation or anecdote per major section
+- Describe a failed approach or limitation honestly — imperfection signals authenticity
 
 Authoritativeness:
 - Cite verifiable facts: opening hours, price ranges with £ symbols, booking requirements
 - Reference official ratings, awards, or certifications (e.g., "Michelin-starred", "5-star", "halal-certified by HMC")
 - Link concepts to broader context (e.g., "Part of the growing halal luxury dining scene in London")
+- Include specific data points: distances, dates, capacities, ratings out of 5
 
 Trustworthiness:
 - Be transparent about limitations: "Prices as of 2026 — check directly for current rates"
 - Include balanced perspectives: mention both pros and potential drawbacks
 - Add a brief "About ${site.name}" line: "This guide was researched and written by the ${site.name} editorial team, who regularly visit and review these locations"
+- Never claim to have visited a place without providing specific details that prove it
 
-Humanization (CRITICAL — avoid AI detection):
+Humanization & Anti-AI-Detection (CRITICAL):
 - Vary sentence length dramatically: 5-word sentences mixed with 25-word sentences
-- Use occasional colloquial expressions naturally (e.g., "trust me on this one", "here's the thing")
-- Include one specific personal observation or unexpected detail per section
-- Avoid: "In conclusion", "It's worth noting", "In today's world", "Whether you're a... or a..."
+- Use occasional colloquial expressions naturally (e.g., "trust me on this one", "here's the thing", "honestly")
+- NEVER use these AI-generic phrases: "In conclusion", "It's worth noting", "In today's world", "Whether you're a... or a...", "Look no further", "Without further ado", "In this comprehensive guide", "nestled in the heart of"
 - Avoid: generic filler phrases, bullet points that all start the same way, perfectly parallel structures
 - Use contractions naturally (don't, won't, it's) — not every sentence, but regularly
-- Break up long sections with a short parenthetical aside or rhetorical question`;
+- Break up long sections with a short parenthetical aside or rhetorical question
+- Include one unexpected detail, personal aside, or honest caveat per section
+- Write like a knowledgeable friend sharing travel advice, not a marketing brochure`;
 }
 
 async function submitForIndexing(slugs: string[], site: SiteConfig) {

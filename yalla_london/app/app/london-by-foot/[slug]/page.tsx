@@ -4,46 +4,79 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { MapPin, Clock, ArrowLeft, ArrowRight, Download, Footprints, Compass, Camera, Coffee } from 'lucide-react'
 import { walks } from '../walks-data'
-import { getSiteDomain, getDefaultSiteId } from '@/config/sites'
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites'
+import { getBaseUrl } from '@/lib/url-utils'
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${getSiteDomain(getDefaultSiteId())}`
+// ISR: Revalidate walk detail pages every hour
+export const revalidate = 3600;
 
 interface Props {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }
 
 export function generateStaticParams() {
   return walks.map((walk) => ({ slug: walk.slug }))
 }
 
-export function generateMetadata({ params }: Props): Metadata {
-  const walk = walks.find(w => w.slug === params.slug)
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const walk = walks.find(w => w.slug === slug)
   if (!walk) return { title: 'Walk Not Found' }
 
+  const baseUrl = await getBaseUrl();
+  const siteConfig = getSiteConfig(getDefaultSiteId());
+  const siteName = siteConfig?.name || 'Yalla London';
+  const destination = siteConfig?.destination || 'London';
+  const canonicalUrl = `${baseUrl}/london-by-foot/${slug}`;
+
   return {
-    title: `${walk.title} — London Walking Guide | Yalla London`,
+    title: `${walk.title} — ${destination} Walking Guide | ${siteName}`,
     description: `${walk.subtitle}. ${walk.distance}, ${walk.duration}. Free self-guided walking tour with ${walk.stops.length} stops, maps, photos, and insider tips.`,
-    keywords: [walk.title, 'London walking tour', 'self guided walk London', walk.startPoint, walk.endPoint, 'London by foot'],
+    keywords: [walk.title, `${destination} walking tour`, `self guided walk ${destination}`, walk.startPoint, walk.endPoint, `${destination} by foot`],
     openGraph: {
-      title: `${walk.title} — London Walking Guide`,
+      title: `${walk.title} — ${destination} Walking Guide`,
       description: walk.subtitle,
-      url: `${siteUrl}/london-by-foot/${walk.slug}`,
+      url: canonicalUrl,
       type: 'article',
       locale: 'en_GB',
-      siteName: 'Yalla London',
+      alternateLocale: 'ar_SA',
+      siteName,
       images: [{ url: walk.heroImage, width: 1200, height: 630, alt: walk.title }],
     },
+    twitter: {
+      card: 'summary_large_image',
+      site: `@${siteConfig?.slug || 'yallalondon'}`,
+      title: `${walk.title} | ${siteName}`,
+      description: walk.subtitle,
+    },
     alternates: {
-      canonical: `${siteUrl}/london-by-foot/${walk.slug}`,
+      canonical: canonicalUrl,
+      languages: {
+        'en-GB': canonicalUrl,
+        'ar-SA': `${baseUrl}/ar/london-by-foot/${slug}`,
+        'x-default': canonicalUrl,
+      },
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
     },
   }
 }
 
-export default function WalkDetailPage({ params }: Props) {
-  const walk = walks.find(w => w.slug === params.slug)
+export default async function WalkDetailPage({ params }: Props) {
+  const { slug } = await params;
+  const walk = walks.find(w => w.slug === slug)
   if (!walk) notFound()
 
-  const walkIndex = walks.findIndex(w => w.slug === params.slug)
+  const walkIndex = walks.findIndex(w => w.slug === slug)
   const prevWalk = walkIndex > 0 ? walks[walkIndex - 1] : null
   const nextWalk = walkIndex < walks.length - 1 ? walks[walkIndex + 1] : null
 

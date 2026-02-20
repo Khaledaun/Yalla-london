@@ -91,12 +91,12 @@ Format as a numbered list with brief descriptions for each topic.`
 قم بالتنسيق كقائمة مرقمة مع أوصاف موجزة لكل موضوع.`
     } else if (type === 'blog_content') {
       systemPrompt = language === 'en'
-        ? `You are a sophisticated travel writer for "Yalla London". Write a detailed, engaging blog post about luxury London experiences. Your writing should be elegant, informative, and appeal to affluent travelers. Include specific venues, insider tips, practical information, and cultural insights. Structure the content with clear headings and maintain a luxurious, authoritative tone throughout.
+        ? `You are a sophisticated travel writer for "Yalla London". Write a detailed, engaging blog post about luxury London experiences. Your writing should be elegant, informative, and appeal to affluent travelers. Include specific venues, insider tips, practical information, and cultural insights. Structure the content with clear H2/H3 headings and maintain a luxurious, authoritative tone throughout.
 
-Word count: 800-1200 words. Include practical details like addresses, price ranges, and booking tips where relevant.`
-        : `أنت كاتب سفر متطور لـ"يالا لندن". اكتب مقالة مدونة مفصلة وجذابة حول تجارب لندن الفاخرة. يجب أن تكون كتابتك أنيقة ومفيدة وتجذب المسافرين الأثرياء. اشمل أماكن محددة ونصائح من الداخل ومعلومات عملية ورؤى ثقافية. قم بتنظيم المحتوى بعناوين واضحة وحافظ على نبرة فاخرة وموثوقة في جميع أنحاء النص.
+Word count: 1,500–2,000 words. Include practical details like addresses, price ranges, and booking tips. Include 3+ internal links to other Yalla London pages and 2+ affiliate/booking links (HalalBooking, Booking.com, GetYourGuide). End with a "Key Takeaways" summary.`
+        : `أنت كاتب سفر متطور لـ"يالا لندن". اكتب مقالة مدونة مفصلة وجذابة حول تجارب لندن الفاخرة. يجب أن تكون كتابتك أنيقة ومفيدة وتجذب المسافرين الأثرياء. اشمل أماكن محددة ونصائح من الداخل ومعلومات عملية ورؤى ثقافية. قم بتنظيم المحتوى بعناوين H2/H3 واضحة وحافظ على نبرة فاخرة وموثوقة في جميع أنحاء النص.
 
-عدد الكلمات: 800-1200 كلمة. اشمل تفاصيل عملية مثل العناوين ونطاقات الأسعار ونصائح الحجز عند الاقتضاء.`
+عدد الكلمات: 1,500–2,000 كلمة. اشمل تفاصيل عملية مثل العناوين ونطاقات الأسعار ونصائح الحجز. أضف 3+ روابط داخلية و2+ روابط حجز/شراكة. اختم بقسم "النقاط الرئيسية".`
     } else {
       systemPrompt = language === 'en'
         ? `You are a luxury travel consultant for "Yalla London". Generate detailed recommendations for premium London experiences. Include specific venue names, descriptions, unique features, price ranges, contact information, and insider tips. Focus on high-quality establishments that cater to affluent travelers seeking exclusive experiences.

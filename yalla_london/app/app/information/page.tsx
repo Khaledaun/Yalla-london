@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import {
   informationSections,
   informationArticles as baseArticles,
@@ -6,40 +7,46 @@ import {
 } from "@/data/information-hub-content";
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import { getBaseUrl } from "@/lib/url-utils";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import InformationHubClient from "./InformationHubClient";
 
 // Combine all information articles
 const informationArticles = [...baseArticles, ...extendedInformationArticles];
 
-// ISR: Revalidate information hub listing every 10 minutes for Cloudflare edge caching
-export const revalidate = 600;
+// ISR: Revalidate information hub listing every hour for multi-site scale
+export const revalidate = 3600;
 
-// Dynamic metadata for SEO — resolves base URL from request context
+// Dynamic metadata for SEO — resolves base URL and site identity from request context
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const destination = siteConfig?.destination || "London";
+  const canonicalUrl = `${baseUrl}/information`;
 
   return {
-    title:
-      "Information Hub | Yalla London \u2013 Your Complete London Travel Guide",
+    title: `Information Hub | ${siteName} \u2013 Your Complete ${destination} Travel Guide`,
     description:
-      "Your complete London travel guide for Arab visitors. Plan your trip with halal dining guides, transportation tips, neighbourhood guides, family activities, and insider advice for exploring London.",
+      `Your complete ${destination} travel guide for Arab visitors. Plan your trip with halal dining guides, transportation tips, neighbourhood guides, family activities, and insider advice.`,
     keywords:
-      "london travel guide, arab visitors london, london information, halal london guide, london trip planner, london for arab families, london transportation guide, london neighbourhoods, london attractions, london practical tips",
+      `${destination.toLowerCase()} travel guide, arab visitors ${destination.toLowerCase()}, ${destination.toLowerCase()} information, halal ${destination.toLowerCase()} guide, ${destination.toLowerCase()} trip planner`,
     alternates: {
-      canonical: `${baseUrl}/information`,
+      canonical: canonicalUrl,
       languages: {
-        "en-GB": `${baseUrl}/information`,
+        "en-GB": canonicalUrl,
         "ar-SA": `${baseUrl}/ar/information`,
+        "x-default": canonicalUrl,
       },
     },
     openGraph: {
-      title:
-        "Information Hub | Yalla London \u2013 Your Complete London Travel Guide",
+      title: `Information Hub | ${siteName} \u2013 Your Complete ${destination} Travel Guide`,
       description:
-        "Plan your perfect London trip with our comprehensive travel guide for Arab visitors. Halal dining, family activities, transportation, and more.",
-      url: `${baseUrl}/information`,
-      siteName: "Yalla London",
+        `Plan your perfect ${destination} trip with our comprehensive travel guide for Arab visitors. Halal dining, family activities, transportation, and more.`,
+      url: canonicalUrl,
+      siteName,
       locale: "en_GB",
       alternateLocale: "ar_SA",
       type: "website",
@@ -48,16 +55,16 @@ export async function generateMetadata(): Promise<Metadata> {
           url: `${baseUrl}/images/information-hub-og.jpg`,
           width: 1200,
           height: 630,
-          alt: "Yalla London Information Hub - Complete London Travel Guide",
+          alt: `${siteName} Information Hub - Complete ${destination} Travel Guide`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      site: "@yallalondon",
-      title: "Information Hub | Yalla London",
+      site: `@${siteSlug}`,
+      title: `Information Hub | ${siteName}`,
       description:
-        "Your complete London travel guide for Arab visitors \u2013 everything you need to plan the perfect trip",
+        `Your complete ${destination} travel guide for Arab visitors \u2013 everything you need to plan the perfect trip`,
     },
     robots: {
       index: true,
@@ -74,36 +81,35 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // Generate structured data for the information hub
-function generateStructuredData() {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+function generateStructuredData(siteInfo: { siteName: string; siteSlug: string; baseUrl: string; destination: string }) {
+  const { siteName, siteSlug, baseUrl, destination } = siteInfo;
 
   const webPageSchema = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "Information Hub - Yalla London",
+    name: `Information Hub - ${siteName}`,
     description:
-      "Your complete London travel guide for Arab visitors. Plan your trip with halal dining guides, transportation tips, neighbourhood guides, and insider advice.",
+      `Your complete ${destination} travel guide for Arab visitors. Plan your trip with halal dining guides, transportation tips, neighbourhood guides, and insider advice.`,
     url: `${baseUrl}/information`,
     isPartOf: {
       "@type": "WebSite",
-      name: "Yalla London",
+      name: siteName,
       url: baseUrl,
     },
     publisher: {
       "@type": "Organization",
-      name: "Yalla London",
+      name: siteName,
       url: baseUrl,
       logo: {
         "@type": "ImageObject",
-        url: `${baseUrl}/images/yalla-london-logo.svg`,
+        url: `${baseUrl}/images/${siteSlug}-logo.svg`,
       },
     },
     mainEntity: {
       "@type": "CollectionPage",
-      name: "London Travel Information Hub",
+      name: `${destination} Travel Information Hub`,
       description:
-        "A comprehensive collection of travel guides, tips, and resources for Arab visitors planning a trip to London.",
+        `A comprehensive collection of travel guides, tips, and resources for Arab visitors planning a trip to ${destination}.`,
       url: `${baseUrl}/information`,
       hasPart: informationSections
         .filter((section) => section.published)
@@ -135,54 +141,8 @@ function generateStructuredData() {
     ],
   };
 
-  const faqSchema = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "What is the best time to visit London for Arab families?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "The best time to visit London for Arab families is during the summer months (June\u2013August) when the weather is warm and school holidays align. Ramadan and Eid periods also see many Arab-friendly events and special restaurant offers across the city.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Where can I find halal restaurants in London?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "London has hundreds of halal restaurants across all cuisines. Popular areas include Edgware Road, Knightsbridge, Marble Arch, and Whitechapel. Our halal dining guide covers Michelin-starred options, casual eateries, and family-friendly restaurants.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "How do I get around London using public transport?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "London has an extensive public transport network including the Underground (Tube), buses, and the Overground. Get an Oyster card or use contactless payment for the best fares. Our transportation guide covers everything from airport transfers to day trips.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "What are the best London neighbourhoods for Arab visitors?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Popular neighbourhoods for Arab visitors include Edgware Road (known as Little Cairo), Knightsbridge, Mayfair, Kensington, and Bayswater. These areas offer Arabic-speaking services, halal dining, and proximity to luxury shopping.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Do I need a visa to visit London from the Middle East?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Most Middle Eastern passport holders need a Standard Visitor Visa to enter the UK. GCC nationals can apply online and the process typically takes 3\u20134 weeks. Our Plan Your Trip section has detailed visa guidance for each country.",
-        },
-      },
-    ],
-  };
-
-  return { webPageSchema, breadcrumbSchema, faqSchema };
+  // FAQPage schema deprecated by Google (Aug 2023) — omitted
+  return { webPageSchema, breadcrumbSchema };
 }
 
 // Transform sections for client component
@@ -236,8 +196,16 @@ function transformArticlesForClient() {
     });
 }
 
-export default function InformationPage() {
-  const structuredData = generateStructuredData();
+export default async function InformationPage() {
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const destination = siteConfig?.destination || "London";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId);
+
+  const structuredData = generateStructuredData({ siteName, siteSlug, baseUrl, destination });
   const sections = transformSectionsForClient();
   const articles = transformArticlesForClient();
 
@@ -254,12 +222,6 @@ export default function InformationPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(structuredData.breadcrumbSchema),
-        }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(structuredData.faqSchema),
         }}
       />
 

@@ -1,63 +1,58 @@
 import type { Metadata } from "next";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { headers } from "next/headers";
+import { getBaseUrl } from "@/lib/url-utils";
+import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = await getBaseUrl();
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const destination = siteConfig?.destination || "London";
+  const canonicalUrl = `${baseUrl}/recommendations`;
 
-export const metadata: Metadata = {
-  title:
-    "London Recommendations - Hotels, Restaurants & Attractions | Yalla London",
-  description:
-    "Handpicked luxury recommendations for London's finest hotels, restaurants, and attractions. Curated for discerning Arab travelers by Yalla London.",
-  keywords: [
-    "London luxury hotels",
-    "London halal restaurants",
-    "London attractions",
-    "London travel guide",
-    "Arab travellers London",
-    "best hotels London",
-    "luxury dining London",
-    "Yalla London recommendations",
-  ],
-  openGraph: {
-    title:
-      "London Recommendations - Hotels, Restaurants & Attractions | Yalla London",
-    description:
-      "Handpicked luxury recommendations for London's finest hotels, restaurants, and attractions.",
-    url: `${siteUrl}/recommendations`,
-    type: "website",
-    locale: "en_GB",
-    alternateLocale: "ar_SA",
-    siteName: "Yalla London",
-    images: [
-      {
-        url: `${siteUrl}/og-image.jpg`,
-        width: 1200,
-        height: 630,
-        alt: "Yalla London - Luxury London Recommendations",
+  return {
+    title: `Curated ${destination} Recommendations | ${siteName}`,
+    description: `Our hand-picked ${destination} recommendations — luxury hotels, fine dining restaurants, and must-visit attractions curated for discerning Arab travelers.`,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        "en-GB": canonicalUrl,
+        "ar-SA": `${baseUrl}/ar/recommendations`,
+        "x-default": canonicalUrl,
       },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "London Recommendations | Yalla London",
-    description:
-      "Handpicked luxury recommendations for London's finest hotels, restaurants, and attractions.",
-    images: [`${siteUrl}/og-image.jpg`],
-  },
-  alternates: {
-    canonical: `${siteUrl}/recommendations`,
-    languages: {
-      "en-GB": `${siteUrl}/recommendations`,
-      "ar-SA": `${siteUrl}/ar/recommendations`,
     },
-  },
-};
+    openGraph: {
+      title: `Curated ${destination} Recommendations | ${siteName}`,
+      description: `Our hand-picked ${destination} recommendations — luxury hotels, fine dining restaurants, and must-visit attractions curated for discerning Arab travelers.`,
+      url: canonicalUrl,
+      siteName,
+      locale: "en_GB",
+      alternateLocale: "ar_SA",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: `@${siteSlug}`,
+      title: `Curated ${destination} Recommendations | ${siteName}`,
+      description: `Our hand-picked ${destination} recommendations — luxury hotels, fine dining restaurants, and must-visit attractions curated for discerning Arab travelers.`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+  };
+}
 
-export default function RecommendationsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return children;
 }

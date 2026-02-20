@@ -4,6 +4,7 @@
  * GET    /api/admin/domains         - List all domains
  * POST   /api/admin/domains         - Add a new domain
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';

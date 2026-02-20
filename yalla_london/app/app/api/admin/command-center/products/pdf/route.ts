@@ -3,6 +3,7 @@
  *
  * Manage PDF travel guides across all sites.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from "@/lib/admin-middleware";

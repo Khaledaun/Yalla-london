@@ -3,6 +3,7 @@
  *
  * Manage social media posts across all platforms.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';

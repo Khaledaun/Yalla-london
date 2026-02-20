@@ -3,6 +3,7 @@
  *
  * Generate PDF guides using AI content.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import {

@@ -2,6 +2,8 @@
  * Phase 4C CRM Subscription API
  * Double opt-in subscription management with GDPR compliance
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';

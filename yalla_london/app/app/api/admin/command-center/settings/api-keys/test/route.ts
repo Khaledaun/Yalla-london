@@ -3,6 +3,7 @@
  *
  * Test if an API key is valid by making a simple request.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';

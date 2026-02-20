@@ -2,6 +2,8 @@
  * Phase 4C Backlink Inspector API
  * Entity extraction and backlink analysis for published content
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';

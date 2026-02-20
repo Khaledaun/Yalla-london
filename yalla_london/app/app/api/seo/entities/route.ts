@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const _siteConfig = getSiteConfig(_defaultSiteId);
     const _siteDomain = getSiteDomain(_defaultSiteId);
     const _siteName = _siteConfig?.name || 'Yalla London';
-    const _siteRawDomain = _siteConfig?.domain || 'yalla-london.com';
+    const _siteRawDomain = _siteConfig?.domain || 'example.com';
     const mockEntities = [
       {
         id: '1',

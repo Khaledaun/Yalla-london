@@ -130,7 +130,14 @@ export async function processSubscriberNotifications(): Promise<ProcessingSummar
           if (config) siteName = config.name;
         } catch { /* use defaults */ }
       }
-      if (!baseUrl) baseUrl = "https://yalla-london.com";
+      if (!baseUrl) {
+        try {
+          const { getSiteDomain: gsd, getDefaultSiteId: gdsi } = await import("@/config/sites");
+          baseUrl = gsd(gdsi());
+        } catch {
+          baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+        }
+      }
       const fromAddress =
         process.env.EMAIL_FROM || "notifications@zenitha.luxury";
 

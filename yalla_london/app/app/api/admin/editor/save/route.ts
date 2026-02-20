@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/admin-middleware'
+import { getBaseUrl } from '@/lib/url-utils'
 
 export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
@@ -93,7 +94,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       }
     })
 
-    const publicUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com'}/blog/${newArticle.slug}`
+    const publicUrl = `${await getBaseUrl()}/blog/${newArticle.slug}`
 
     return NextResponse.json({
       success: true,

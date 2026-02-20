@@ -76,12 +76,8 @@ export async function runPrePublicationGate(
 
   let baseUrl = siteUrl || process.env.NEXT_PUBLIC_SITE_URL;
   if (!baseUrl) {
-    try {
-      const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
-      baseUrl = getSiteDomain(getDefaultSiteId());
-    } catch {
-      baseUrl = "https://www.yalla-london.com";
-    }
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+    baseUrl = getSiteDomain(getDefaultSiteId());
   }
 
   // ── 1. Route existence check ────────────────────────────────────────

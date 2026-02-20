@@ -10,13 +10,11 @@ import { blogPosts } from '@/data/blog-content';
 import { extendedBlogPosts } from '@/data/blog-content-extended';
 
 function getBaseUrl(siteId?: string): string {
+  const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
   if (siteId) {
-    try {
-      const { getSiteDomain } = require("@/config/sites");
-      return getSiteDomain(siteId);
-    } catch { /* fallthrough */ }
+    return getSiteDomain(siteId);
   }
-  return process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+  return process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
 }
 const BASE_URL = getBaseUrl();
 const allPosts = [...blogPosts, ...extendedBlogPosts];

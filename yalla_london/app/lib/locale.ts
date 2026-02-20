@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import type { Language } from "@/lib/types";
+import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
 
 /**
  * Get the current locale from middleware headers (server-side only).
@@ -16,7 +17,7 @@ export async function getServerLocale(): Promise<Language> {
  */
 export async function getLocalizedBaseUrl(): Promise<string> {
   const headersList = await headers();
-  const hostname = headersList.get("x-hostname") || "www.yalla-london.com";
+  const hostname = headersList.get("x-hostname") || getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\//, '');
   const locale = headersList.get("x-locale") || "en";
   const baseUrl =
     hostname === "localhost:3000"

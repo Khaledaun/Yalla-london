@@ -338,7 +338,8 @@ async function promoteToBlogPost(
   const siteEmail = `system@${site.domain}`;
   let systemUser = await prisma.user.findFirst({ where: { email: siteEmail } });
   if (!systemUser) {
-    systemUser = await prisma.user.findFirst({ where: { email: "system@yallalondon.com" } });
+    // Fallback: try any system user
+    systemUser = await prisma.user.findFirst({ where: { email: { startsWith: "system@" } } });
   }
   if (!systemUser) {
     systemUser = await prisma.user.create({

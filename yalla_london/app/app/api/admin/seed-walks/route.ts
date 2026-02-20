@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDefaultSiteId } from "@/config/sites";
+import { getDefaultSiteId, getSiteDomain } from "@/config/sites";
 
 const walks = [
   {
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // Find or create system author
     let author = await prisma.user.findFirst({
-      where: { email: "system@yalla-london.com" },
+      where: { email: `system@${getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\/(www\.)?/, '')}` },
     });
     if (!author) {
       author = await prisma.user.findFirst({

@@ -5,6 +5,7 @@
 
 import { prisma } from '@/lib/db';
 import { seoMetaService } from './seo-meta-service';
+import { getSiteDomain, getDefaultSiteId } from '@/config/sites';
 
 export interface SEOAuditResult {
   pageId: string;
@@ -84,12 +85,7 @@ export class AISEOAudit {
 
   constructor(baseUrl?: string) {
     if (!baseUrl) {
-      try {
-        const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
-        baseUrl = getSiteDomain(getDefaultSiteId());
-      } catch {
-        baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
-      }
+      baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
     }
     this.baseUrl = baseUrl;
   }
@@ -662,12 +658,13 @@ export class AISEOAudit {
       score += 20; // Multiple schemas
     }
 
-    // Check for specific schema types
+    // Check for specific schema types (only non-deprecated types get bonuses)
     const schemaTypes = this.getSchemaTypes(schemaData);
     if (schemaTypes.includes('Article')) score += 15;
-    if (schemaTypes.includes('FAQPage')) score += 15;
-    if (schemaTypes.includes('HowTo')) score += 15;
+    // FAQPage deprecated Aug 2023, HowTo deprecated Sept 2023 — no bonus
     if (schemaTypes.includes('Review')) score += 15;
+    if (schemaTypes.includes('BreadcrumbList')) score += 10;
+    if (schemaTypes.includes('Organization')) score += 10;
 
     return Math.min(score, 100);
   }

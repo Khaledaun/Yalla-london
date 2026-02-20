@@ -42,7 +42,7 @@ async function sendEmail(data: ContactFormData) {
   // If SendGrid is configured
   if (process.env.SENDGRID_API_KEY) {
     const _siteConfig = getSiteConfig(getDefaultSiteId());
-    const _siteDomain = _siteConfig?.domain || 'yalla-london.com';
+    const _siteDomain = _siteConfig?.domain || 'example.com';
     const _siteName = _siteConfig?.name || 'Yalla London';
     const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',

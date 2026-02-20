@@ -175,7 +175,9 @@ export class NotificationManager {
             break;
           case 'email':
                   // Send to admin email addresses
-            const adminEmails = ['admin@yalla-london.com']; // Configure as needed
+            const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+            const domain = getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\/(www\.)?/, '');
+            const adminEmails = [`admin@${domain}`];
             results.email = await this.email.send(notification, adminEmails);
             break;
         }

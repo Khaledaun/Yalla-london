@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
+import { getBaseUrl } from "@/lib/url-utils";
 
 /**
  * Digital Product Checkout
@@ -79,8 +80,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const baseUrl =
-        process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      const baseUrl = await getBaseUrl();
 
       return NextResponse.json({
         success: true,
@@ -112,8 +112,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+    const baseUrl = await getBaseUrl();
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",

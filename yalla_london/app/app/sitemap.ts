@@ -10,6 +10,7 @@ import {
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import { walks } from "@/app/london-by-foot/walks-data";
 import { prisma } from "@/lib/db";
+import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
 
 // Combine all static blog posts
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
@@ -20,7 +21,7 @@ const allInfoArticles = [...baseInfoArticles, ...extendedInformationArticles];
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Resolve base URL from tenant context (set by middleware)
   const headersList = await headers();
-  const hostname = headersList.get("x-hostname") || "www.yalla-london.com";
+  const hostname = headersList.get("x-hostname") || getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\//, '');
   const siteId = headersList.get("x-site-id") || "yalla-london";
   const baseUrl =
     hostname === "localhost:3000"

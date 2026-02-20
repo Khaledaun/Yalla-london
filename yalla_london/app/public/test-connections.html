@@ -44,6 +44,43 @@
   .tab-bar { display: flex; gap: 8px; margin-bottom: 16px; justify-content: center; flex-wrap: wrap; }
   .tab-btn { background: #1a1a1a; border: 1px solid #333; color: #888; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
   .tab-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+  .tab-btn.audit-tab.active { background: #d97706; border-color: #d97706; }
+  .audit-panel { display: none; }
+  .audit-panel.visible { display: block; }
+  .gate-row { display: flex; align-items: center; padding: 10px 12px; border-bottom: 1px solid #1a1a1a; gap: 12px; }
+  .gate-row:last-child { border-bottom: none; }
+  .gate-icon { font-size: 1.1rem; width: 24px; text-align: center; }
+  .gate-info { flex: 1; }
+  .gate-name { font-size: 0.9rem; }
+  .gate-detail { font-size: 0.75rem; color: #666; margin-top: 2px; }
+  .gate-badge { font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 4px; }
+  .gate-pass { background: #052e16; color: #4ade80; }
+  .gate-fail { background: #450a0a; color: #f87171; }
+  .severity-p0 { background: #450a0a; color: #f87171; }
+  .severity-p1 { background: #422006; color: #fbbf24; }
+  .severity-p2 { background: #0c1a3a; color: #60a5fa; }
+  .severity-badge { font-size: 0.7rem; font-weight: 600; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+  .page-row { padding: 8px 12px; border-bottom: 1px solid #1a1a1a; cursor: pointer; }
+  .page-row:hover { background: #1a1a1a; }
+  .page-header { display: flex; align-items: center; gap: 8px; }
+  .page-detail { display: none; padding: 8px 0 4px 32px; }
+  .page-detail.open { display: block; }
+  .page-signals { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.75rem; color: #888; margin-top: 4px; }
+  .signal-ok { color: #4ade80; }
+  .signal-bad { color: #f87171; }
+  .audit-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .audit-card { border-radius: 8px; padding: 12px; border: 1px solid #2a2a2a; text-align: center; }
+  .audit-card-val { font-size: 1.6rem; font-weight: 700; }
+  .audit-card-label { font-size: 0.7rem; color: #888; text-transform: uppercase; margin-top: 2px; }
+  .audit-card-blue { background: #0c1a3a; border-color: #1e3a5f; color: #60a5fa; }
+  .audit-card-green { background: #052e16; border-color: #166534; color: #4ade80; }
+  .audit-card-amber { background: #422006; border-color: #92400e; color: #fbbf24; }
+  .audit-card-red { background: #450a0a; border-color: #991b1b; color: #f87171; }
+  .audit-card-gray { background: #1a1a1a; border-color: #333; color: #aaa; }
+  .audit-progress { height: 4px; background: #222; border-radius: 2px; overflow: hidden; margin: 12px 0; }
+  .audit-progress-bar { height: 100%; border-radius: 2px; transition: width 0.3s; }
+  .audit-history-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid #1a1a1a; gap: 10px; font-size: 0.85rem; }
+  .audit-history-row:last-child { border-bottom: none; }
 </style>
 </head>
 <body>
@@ -54,6 +91,7 @@
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchMode('quick')">Quick Test</button>
   <button class="tab-btn" onclick="switchMode('full')">Full Pipeline Test (needs CRON_SECRET)</button>
+  <button class="tab-btn audit-tab" onclick="switchMode('audit')">Master SEO Audit</button>
 </div>
 
 <div class="section" id="cronSection" style="display:none">
@@ -61,12 +99,37 @@
   <input type="password" id="cronSecret" class="cron-input" placeholder="Enter your CRON_SECRET to test cron endpoints and content pipeline...">
 </div>
 
-<div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:20px;">
+<!-- Standard test buttons (hidden in audit mode) -->
+<div id="testButtons" style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:20px;">
   <button id="runBtn" onclick="runAllTests()">Run All Tests</button>
   <button id="scanBtn" onclick="scanDatabase()" style="background:#7c3aed;">Scan Missing Tables/Columns</button>
   <button id="migrateBtn" onclick="migrateDatabase()" style="background:#dc2626;">Fix Missing Tables &amp; Columns</button>
   <button id="seedBtn" onclick="seedStaticContent()" style="background:#059669;">Seed Static Articles → DB</button>
   <button id="jobsBtn" onclick="runAllJobs()" style="background:#d97706;">Run All Cron Jobs</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- MASTER AUDIT PANEL                                                      -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="audit-panel" id="auditPanel">
+  <div class="section">
+    <h2>Master SEO Audit</h2>
+    <p style="color:#888;font-size:0.82rem;margin-bottom:12px;">
+      Full-site crawl with 8 validators (HTTP, canonical, hreflang, JSON-LD schema, internal links, metadata, robots, sitemap) and 6 hard gates.
+      Quick mode scans static routes (~20s). Full mode includes all blog posts from sitemap (~40-50s).
+    </p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:12px;">
+      <button id="auditQuickBtn" onclick="runMasterAudit('quick')" style="background:#d97706;">Run Quick Audit (static pages)</button>
+      <button id="auditFullBtn" onclick="runMasterAudit('full')" style="background:#2563eb;">Run Full Audit (all pages)</button>
+      <button id="auditHistoryBtn" onclick="loadAuditHistory()" style="background:#333;color:#aaa;">Load History</button>
+    </div>
+    <div class="audit-progress" id="auditProgress" style="display:none;">
+      <div class="audit-progress-bar" id="auditProgressBar" style="width:0%;background:#d97706;"></div>
+    </div>
+    <div id="auditStatus" style="text-align:center;color:#888;font-size:0.85rem;margin-bottom:8px;"></div>
+  </div>
+  <div id="auditResults"></div>
+  <div id="auditHistory"></div>
 </div>
 
 <div class="summary-bar">
@@ -91,8 +154,19 @@ let allResults = []; // Collect all results for JSON export
 function switchMode(mode) {
   testMode = mode;
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-btn')[mode === 'quick' ? 0 : 1].classList.add('active');
+  const tabIdx = mode === 'quick' ? 0 : mode === 'full' ? 1 : 2;
+  document.querySelectorAll('.tab-btn')[tabIdx].classList.add('active');
   document.getElementById('cronSection').style.display = mode === 'full' ? 'block' : 'none';
+
+  // Toggle between test view and audit view
+  const isAudit = mode === 'audit';
+  document.getElementById('testButtons').style.display = isAudit ? 'none' : 'flex';
+  document.getElementById('auditPanel').classList.toggle('visible', isAudit);
+  // Hide standard results/summary/log when in audit mode
+  document.querySelector('.summary-bar').style.display = isAudit ? 'none' : 'flex';
+  document.getElementById('results').style.display = isAudit ? 'none' : 'block';
+  document.getElementById('statusBanner').style.display = isAudit ? 'none' : 'block';
+  document.querySelector('.section:has(#log)').style.display = isAudit ? 'none' : 'block';
 }
 
 function log(msg) {
@@ -2315,9 +2389,286 @@ function copyJsonResult(evt) {
       setTimeout(() => { btn.textContent = 'Copy JSON to Clipboard'; btn.style.background = '#7c3aed'; }, 2000);
     }
   }).catch(() => {
-    // Fallback for older browsers
     document.execCommand('copy');
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MASTER SEO AUDIT FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+let auditRunning = false;
+
+function getAuthHeaders() {
+  const cronSecret = getCronSecret();
+  const headers = { 'Content-Type': 'application/json' };
+  if (cronSecret) headers['Authorization'] = 'Bearer ' + cronSecret;
+  return headers;
+}
+
+function setAuditStatus(msg) {
+  document.getElementById('auditStatus').textContent = msg;
+}
+
+function setAuditProgress(pct) {
+  const bar = document.getElementById('auditProgressBar');
+  const wrap = document.getElementById('auditProgress');
+  wrap.style.display = 'block';
+  bar.style.width = pct + '%';
+  bar.style.background = pct >= 100 ? '#4ade80' : '#d97706';
+}
+
+async function runMasterAudit(mode) {
+  if (auditRunning) return;
+  auditRunning = true;
+
+  const quickBtn = document.getElementById('auditQuickBtn');
+  const fullBtn = document.getElementById('auditFullBtn');
+  quickBtn.disabled = true;
+  fullBtn.disabled = true;
+  quickBtn.textContent = mode === 'quick' ? 'Running...' : 'Run Quick Audit (static pages)';
+  fullBtn.textContent = mode === 'full' ? 'Running...' : 'Run Full Audit (all pages)';
+
+  document.getElementById('auditResults').innerHTML = '';
+  setAuditStatus('Crawling site and running 8 validators...');
+  setAuditProgress(15);
+
+  try {
+    const body = { mode };
+    setAuditProgress(30);
+
+    const resp = await fetch('/api/admin/master-audit', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(58000),
+    });
+
+    setAuditProgress(90);
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: 'HTTP ' + resp.status }));
+      throw new Error(err.error || 'Audit failed with HTTP ' + resp.status);
+    }
+
+    const data = await resp.json();
+    setAuditProgress(100);
+    setAuditStatus('');
+    renderAuditResults(data);
+  } catch (e) {
+    setAuditProgress(0);
+    document.getElementById('auditProgress').style.display = 'none';
+    setAuditStatus('');
+    document.getElementById('auditResults').innerHTML = `
+      <div class="section" style="border-color:#991b1b;">
+        <h2 style="color:#f87171;">Audit Failed</h2>
+        <p style="color:#fca5a5;font-size:0.85rem;">${escapeHtml(e.message)}</p>
+        <div class="diag" style="margin-top:8px;">
+          <strong>Troubleshooting:</strong> Check that the deployment includes <code>/api/admin/master-audit</code>.
+          If using CRON_SECRET auth, switch to "Full Pipeline Test" tab first and enter it there.
+          The audit needs ~20-50 seconds — Vercel Pro 60s limit applies.
+        </div>
+      </div>`;
+  } finally {
+    auditRunning = false;
+    quickBtn.disabled = false;
+    fullBtn.disabled = false;
+    quickBtn.textContent = 'Run Quick Audit (static pages)';
+    fullBtn.textContent = 'Run Full Audit (all pages)';
+  }
+}
+
+function renderAuditResults(data) {
+  const el = document.getElementById('auditResults');
+  let html = '';
+
+  // ── Summary cards ──
+  html += '<div class="audit-cards">';
+  html += auditCard('Pages Scanned', data.totalUrls, 'blue');
+  html += auditCard('Pages OK', data.crawledOk, 'green');
+  html += auditCard('Total Issues', data.issues?.total ?? 0, (data.issues?.total > 0) ? 'amber' : 'green');
+  html += auditCard('P0 Critical', data.issues?.p0 ?? 0, (data.issues?.p0 > 0) ? 'red' : 'green');
+  html += auditCard('P1 Warning', data.issues?.p1 ?? 0, (data.issues?.p1 > 0) ? 'amber' : 'green');
+  html += auditCard('P2 Info', data.issues?.p2 ?? 0, 'gray');
+  html += auditCard('Duration', ((data.durationMs || 0) / 1000).toFixed(1) + 's', 'gray');
+  html += auditCard('Verdict', data.allPassed ? 'ALL PASS' : 'FAILED', data.allPassed ? 'green' : 'red');
+  html += '</div>';
+
+  // ── Partial warning ──
+  if (data.partial) {
+    html += `<div class="section" style="border-color:#92400e;margin-bottom:12px;">
+      <p style="color:#fbbf24;font-size:0.85rem;">⚠ Partial results — ${escapeHtml(data.reason || 'budget exhausted')}. Run the CLI <code>npm run audit:master</code> for complete results.</p>
+    </div>`;
+  }
+
+  // ── Hard Gates ──
+  if (data.hardGates && data.hardGates.length > 0) {
+    html += '<div class="section"><h2>Hard Gates' +
+      (data.allPassed
+        ? ' <span style="color:#4ade80;font-size:0.85rem;">— All Passed</span>'
+        : ' <span style="color:#f87171;font-size:0.85rem;">— Failed</span>') +
+      '</h2>';
+    for (const gate of data.hardGates) {
+      html += `<div class="gate-row">
+        <div class="gate-icon">${gate.passed ? '✓' : '✗'}</div>
+        <div class="gate-info">
+          <div class="gate-name">${escapeHtml(gate.description || gate.name)}</div>
+          <div class="gate-detail">${escapeHtml(gate.category)} — ${gate.totalCount} issue(s), ${gate.p0Count} critical</div>
+        </div>
+        <div class="gate-badge ${gate.passed ? 'gate-pass' : 'gate-fail'}">${gate.passed ? 'PASS' : 'FAIL'}</div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+
+  // ── Soft Gates / Warnings ──
+  if (data.softGates && data.softGates.length > 0) {
+    html += '<div class="section"><h2>Warnings</h2>';
+    for (const gate of data.softGates) {
+      html += `<div class="gate-row">
+        <div class="gate-icon" style="color:#fbbf24;">⚠</div>
+        <div class="gate-info">
+          <div class="gate-name" style="color:#fbbf24;">${escapeHtml(gate.description)}</div>
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+
+  // ── Per-Page Results ──
+  if (data.pages && data.pages.length > 0) {
+    html += '<div class="section"><h2>Page-by-Page Results (' + data.pages.length + ' pages)</h2>';
+    for (let i = 0; i < data.pages.length; i++) {
+      const pg = data.pages[i];
+      const icon = pg.status === 200 ? '<span style="color:#4ade80;">✓</span>'
+        : pg.status === 0 ? '<span style="color:#f87171;">✗</span>'
+        : '<span style="color:#fbbf24;">⚠</span>';
+      const issuesBadge = pg.issueCount > 0
+        ? `<span class="severity-badge severity-p0">${pg.issueCount}</span>` : '';
+
+      html += `<div class="page-row" onclick="toggleAuditPage(${i})">
+        <div class="page-header">
+          ${icon}
+          <span style="font-size:0.85rem;flex:1;">${escapeHtml(pg.url)}</span>
+          ${issuesBadge}
+          <span style="font-size:0.7rem;" class="${pg.hasCanonical ? 'signal-ok' : 'signal-bad'}">Canon</span>
+          <span style="font-size:0.7rem;" class="${pg.hasJsonLd ? 'signal-ok' : 'signal-bad'}">Schema</span>
+          <span style="font-size:0.7rem;" class="${pg.hasHreflang ? 'signal-ok' : 'signal-bad'}">Hreflang</span>
+          <span style="color:#555;font-size:0.8rem;">▸</span>
+        </div>
+        <div class="page-detail" id="audit-page-${i}">
+          <div class="page-signals">
+            <span>HTTP: <b>${pg.status || 'N/A'}</b></span>
+            <span>Canonical: <b class="${pg.hasCanonical ? 'signal-ok' : 'signal-bad'}">${pg.hasCanonical ? 'Yes' : 'Missing'}</b></span>
+            <span>Hreflang: <b class="${pg.hasHreflang ? 'signal-ok' : 'signal-bad'}">${pg.hasHreflang ? 'Yes' : 'Missing'}</b></span>
+            <span>JSON-LD: <b class="${pg.hasJsonLd ? 'signal-ok' : 'signal-bad'}">${pg.hasJsonLd ? 'Yes' : 'Missing'}</b></span>
+            <span>Words: <b>${pg.wordCount}</b></span>
+            <span>Title: <b>${pg.title ? escapeHtml(pg.title).substring(0, 50) : 'N/A'}</b></span>
+          </div>
+          ${pg.issues && pg.issues.length > 0 ? renderPageIssues(pg.issues) : '<div style="color:#4ade80;font-size:0.8rem;margin-top:6px;">No issues found</div>'}
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+
+  // ── Raw JSON (collapsed) ──
+  html += `<div class="section">
+    <h2 style="cursor:pointer;" onclick="document.getElementById('auditRawJson').style.display=document.getElementById('auditRawJson').style.display==='none'?'block':'none'">
+      Raw JSON Response ▸
+    </h2>
+    <div id="auditRawJson" style="display:none;">
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button onclick="copyAuditJson(event)" style="margin:0;padding:6px 16px;font-size:0.8rem;background:#7c3aed;">Copy JSON</button>
+      </div>
+      <textarea id="auditJsonArea" readonly style="width:100%;height:300px;background:#0d1117;color:#7ee787;border:1px solid #30363d;border-radius:8px;padding:12px;font-family:monospace;font-size:0.7rem;resize:vertical;">${escapeHtml(JSON.stringify(data, null, 2))}</textarea>
+    </div>
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+function auditCard(label, value, color) {
+  return `<div class="audit-card audit-card-${color}">
+    <div class="audit-card-val">${value}</div>
+    <div class="audit-card-label">${escapeHtml(label)}</div>
+  </div>`;
+}
+
+function renderPageIssues(issues) {
+  let html = '<div style="margin-top:6px;">';
+  for (const issue of issues) {
+    const sev = (issue.severity || 'P2').toUpperCase();
+    const cls = sev === 'P0' ? 'severity-p0' : sev === 'P1' ? 'severity-p1' : 'severity-p2';
+    html += `<div style="display:flex;gap:6px;align-items:start;margin-bottom:3px;font-size:0.78rem;">
+      <span class="severity-badge ${cls}">${sev}</span>
+      <span style="color:#aaa;">${escapeHtml(issue.message || '')}</span>
+    </div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function toggleAuditPage(idx) {
+  const el = document.getElementById('audit-page-' + idx);
+  if (el) el.classList.toggle('open');
+}
+
+function copyAuditJson(evt) {
+  const area = document.getElementById('auditJsonArea');
+  if (!area) return;
+  area.select();
+  area.setSelectionRange(0, 99999999);
+  navigator.clipboard.writeText(area.value).then(() => {
+    const btn = evt?.target;
+    if (btn) {
+      btn.textContent = 'Copied!';
+      btn.style.background = '#16a34a';
+      setTimeout(() => { btn.textContent = 'Copy JSON'; btn.style.background = '#7c3aed'; }, 2000);
+    }
+  }).catch(() => { document.execCommand('copy'); });
+}
+
+async function loadAuditHistory() {
+  const histEl = document.getElementById('auditHistory');
+  histEl.innerHTML = '<div class="section"><h2>Loading history...</h2></div>';
+
+  try {
+    const resp = await fetch('/api/admin/master-audit', {
+      headers: getAuthHeaders(),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    if (!data.history || data.history.length === 0) {
+      histEl.innerHTML = '<div class="section"><h2>Audit History</h2><p style="color:#666;font-size:0.85rem;">No previous audit runs found.</p></div>';
+      return;
+    }
+
+    let html = '<div class="section"><h2>Audit History (' + data.history.length + ' runs)</h2>';
+    for (const entry of data.history) {
+      const icon = entry.status === 'success' ? '<span style="color:#4ade80;">✓</span>'
+        : entry.status === 'error' ? '<span style="color:#f87171;">✗</span>'
+        : '<span style="color:#fbbf24;">⚠</span>';
+      const statusCls = entry.status === 'success' ? 'gate-pass' : entry.status === 'error' ? 'gate-fail' : 'severity-p1';
+      const dateStr = entry.startedAt ? new Date(entry.startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Unknown';
+      html += `<div class="audit-history-row">
+        ${icon}
+        <span style="flex:1;">${dateStr}</span>
+        <span style="color:#666;font-size:0.8rem;">${entry.itemsProcessed || 0} pages, ${((entry.durationMs || 0) / 1000).toFixed(1)}s</span>
+        ${entry.errorMessage ? '<span style="color:#fbbf24;font-size:0.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(entry.errorMessage) + '</span>' : ''}
+        <span class="gate-badge ${statusCls}">${escapeHtml(entry.status)}</span>
+      </div>`;
+    }
+    html += '</div>';
+    histEl.innerHTML = html;
+  } catch (e) {
+    histEl.innerHTML = `<div class="section" style="border-color:#991b1b;">
+      <h2 style="color:#f87171;">Failed to load history</h2>
+      <p style="color:#fca5a5;font-size:0.85rem;">${escapeHtml(e.message)}</p>
+    </div>`;
+  }
 }
 </script>
 </body>

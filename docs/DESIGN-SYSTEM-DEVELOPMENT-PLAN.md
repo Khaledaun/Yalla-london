@@ -270,6 +270,17 @@ Transform disconnected, partially-built design tools into a **unified, productio
 - **Fixed:** `api/admin/content-engine/pipeline/route.ts` — POST handler now extracts `action` parameter from quick action requests (`quick-post`, `quick-article`, `quick-video`). Previously ignored `action` entirely, creating identical generic pipelines regardless of button pressed. Now maps each action to a descriptive topic and appropriate status.
 - **Result:** 0 CRITICAL, 0 HIGH issues remaining. All quick action buttons in Content Engine page now create correctly differentiated pipeline records.
 
+### Audit Round 11 (Sidebar Navigation + Admin Page Completeness)
+- **Fixed:** Added 4 missing pages to sidebar navigation in `mophy-admin-layout.tsx`:
+  - `Design Hub` → `/admin/design` (under Design & Media)
+  - `Content Engine` → `/admin/content-engine` (under Content)
+  - `Email Campaigns` → `/admin/email-campaigns` (under Design & Media)
+  - `Social Calendar` → `/admin/social-calendar` (under Multi-Site)
+  - All 4 were previously unreachable from iPhone — Khaled could never find them
+- **Fixed:** Email template duplicate button in `email-campaigns/page.tsx` — was sending `siteId` instead of `site` and missing required `htmlContent`, causing guaranteed 400 errors. Now fetches full source template before duplicating.
+- **Verified (false positives from audit agent):** Content Engine POST field names already correct, stage status values already aligned, design hub stats already reading from correct API, social calendar already sends site + has download handler.
+- **Prisma validation:** 78 Prisma calls across 17 API routes verified — zero schema mismatches.
+
 ---
 
 ## Files Created (Final Tally)

@@ -103,7 +103,33 @@ async function handleIndexing(request: NextRequest) {
           // DB query may fail — proceed with static URLs
         }
 
-        const allUrls = [...new Set([...newUrls, ...dbUrls])];
+        // Also include static articles that have never been tracked in URLIndexingStatus
+        let untrackedStaticUrls: string[] = [];
+        if (siteId === "yalla-london") {
+          try {
+            const { blogPosts: staticBlogPosts } = await import("@/data/blog-content");
+            const { extendedBlogPosts } = await import("@/data/blog-content-extended");
+            const allStaticSlugs = [...staticBlogPosts, ...extendedBlogPosts]
+              .filter((p) => p.published)
+              .map((p) => p.slug);
+
+            // Check which static articles are already tracked
+            const tracked = await prisma.uRLIndexingStatus.findMany({
+              where: { site_id: siteId, slug: { in: allStaticSlugs } },
+              select: { slug: true },
+            });
+            const trackedSlugs = new Set(tracked.map((t) => t.slug).filter(Boolean));
+            const existingUrlSlugs = new Set(
+              [...newUrls, ...dbUrls].map((u) => u.split("/blog/")[1]).filter(Boolean)
+            );
+
+            untrackedStaticUrls = allStaticSlugs
+              .filter((slug) => !trackedSlugs.has(slug) && !existingUrlSlugs.has(slug))
+              .map((slug) => `${siteUrl}/blog/${slug}`);
+          } catch { /* static content unavailable */ }
+        }
+
+        const allUrls = [...new Set([...newUrls, ...dbUrls, ...untrackedStaticUrls])];
 
         if (allUrls.length === 0) {
           results.push({

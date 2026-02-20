@@ -117,10 +117,12 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
       urlSources[fullUrl] = "static";
     }
 
-    // Blog articles from database (cap to 15 newest to prevent SSR overload on Vercel)
-    let blogArticles: Array<{ slug: string; seo_score: number | null; title_en: string; meta_title_en: string | null; meta_description_en: string | null; published: boolean; created_at: Date }> = [];
+    // Blog articles from database + static content files
+    type BlogArticleEntry = { slug: string; seo_score: number | null; title_en: string; meta_title_en: string | null; meta_description_en: string | null; published: boolean; created_at: Date };
+    let blogArticles: BlogArticleEntry[] = [];
     try {
-      blogArticles = await prisma.blogPost.findMany({
+      // DB articles
+      const dbArticles = await prisma.blogPost.findMany({
         where: { siteId, published: true, deletedAt: null },
         select: {
           slug: true,
@@ -132,8 +134,30 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
           created_at: true,
         },
         orderBy: { created_at: "desc" },
-        take: 200, // Fetch all for metrics, but only crawl newest 15
+        take: 200,
       });
+      blogArticles.push(...dbArticles);
+
+      // Static articles (legacy content that's live on the site and indexed by Google)
+      if (siteId === "yalla-london") {
+        const dbSlugs = new Set(dbArticles.map((a) => a.slug));
+        try {
+          const { blogPosts: staticBlogPosts } = await import("@/data/blog-content");
+          const { extendedBlogPosts } = await import("@/data/blog-content-extended");
+          const staticArticles: BlogArticleEntry[] = [...staticBlogPosts, ...extendedBlogPosts]
+            .filter((p) => p.published && !dbSlugs.has(p.slug))
+            .map((p) => ({
+              slug: p.slug,
+              seo_score: p.seo_score ?? null,
+              title_en: p.title_en,
+              meta_title_en: p.meta_title_en ?? null,
+              meta_description_en: p.meta_description_en ?? null,
+              published: true,
+              created_at: p.created_at ?? new Date(),
+            }));
+          blogArticles.push(...staticArticles);
+        } catch { /* static content unavailable */ }
+      }
 
       // Only crawl the 15 newest articles — Vercel SSR can't handle 45+ concurrent renders
       const articlesToCrawl = blogArticles.slice(0, 15);
@@ -706,14 +730,29 @@ async function fetchIndexingData(prisma: PrismaInstance, siteId: string) {
 
 async function fetchSeoMetrics(prisma: PrismaInstance, siteId: string) {
   try {
-    // Blog post SEO scores
-    const blogPosts = await prisma.blogPost.findMany({
+    // Blog post SEO scores (DB)
+    const dbPosts = await prisma.blogPost.findMany({
       where: { siteId, published: true, deletedAt: null },
       select: { slug: true, seo_score: true, page_type: true },
       take: 300,
     });
 
-    const scores = blogPosts.filter((p) => p.seo_score !== null).map((p) => p.seo_score as number);
+    // Include static articles for accurate metrics
+    type MetricEntry = { slug: string; seo_score: number | null; page_type: string | null };
+    const allPosts: MetricEntry[] = [...dbPosts];
+    if (siteId === "yalla-london") {
+      const dbSlugs = new Set(dbPosts.map((p) => p.slug));
+      try {
+        const { blogPosts: staticBlogPosts } = await import("@/data/blog-content");
+        const { extendedBlogPosts } = await import("@/data/blog-content-extended");
+        const staticEntries: MetricEntry[] = [...staticBlogPosts, ...extendedBlogPosts]
+          .filter((p) => p.published && !dbSlugs.has(p.slug))
+          .map((p) => ({ slug: p.slug, seo_score: p.seo_score ?? null, page_type: p.page_type ?? null }));
+        allPosts.push(...staticEntries);
+      } catch { /* static content unavailable */ }
+    }
+
+    const scores = allPosts.filter((p) => p.seo_score !== null).map((p) => p.seo_score as number);
     const avgSeoScore = scores.length > 0
       ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
       : 0;
@@ -722,15 +761,13 @@ async function fetchSeoMetrics(prisma: PrismaInstance, siteId: string) {
 
     // Page type breakdown
     const pageTypes: Record<string, number> = {};
-    for (const p of blogPosts) {
+    for (const p of allPosts) {
       const type = (p.page_type as string) || "unknown";
       pageTypes[type] = (pageTypes[type] || 0) + 1;
     }
 
-    // Total content counts
-    const totalPublished = await prisma.blogPost.count({
-      where: { siteId, published: true, deletedAt: null },
-    });
+    // Total content counts (DB for drafts, allPosts for published)
+    const totalPublished = allPosts.length;
     const totalDrafts = await prisma.blogPost.count({
       where: { siteId, published: false, deletedAt: null },
     });

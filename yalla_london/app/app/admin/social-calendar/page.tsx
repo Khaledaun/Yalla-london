@@ -60,6 +60,7 @@ import {
   setHours,
   setMinutes,
 } from "date-fns";
+import { getDefaultSiteId } from "@/config/sites";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -127,7 +128,7 @@ export default function SocialCalendarPage() {
 
   // New post form
   const [newPlatform, setNewPlatform] = useState("twitter");
-  const [newSite, setNewSite] = useState("yalla-london");
+  const [newSite, setNewSite] = useState(getDefaultSiteId());
   const [newContent, setNewContent] = useState("");
   const [newDate, setNewDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [newTime, setNewTime] = useState("09:00");

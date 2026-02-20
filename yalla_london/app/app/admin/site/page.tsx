@@ -35,6 +35,7 @@ import {
   Search
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { getSiteDomain, getDefaultSiteId, getSiteConfig } from '@/config/sites'
 
 interface HomepageConfig {
   hero: {
@@ -106,11 +107,13 @@ interface AutomationSettings {
   }
 }
 
+const _defaultSite = getSiteConfig(getDefaultSiteId())
+
 export default function SiteControl() {
   const [homepageConfig, setHomepageConfig] = useState<HomepageConfig>({
     hero: {
-      title: 'Discover London with Yalla London',
-      subtitle: 'Your ultimate guide to the best experiences in London',
+      title: `Discover ${_defaultSite?.destination || 'London'} with ${_defaultSite?.name || 'Us'}`,
+      subtitle: `Your ultimate guide to the best experiences in ${_defaultSite?.destination || 'London'}`,
       backgroundImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1200',
       cta1Text: 'Explore Articles',
       cta1Link: '/articles',
@@ -144,7 +147,7 @@ export default function SiteControl() {
     {
       id: '1',
       name: 'Welcome Offer',
-      title: 'Welcome to Yalla London!',
+      title: `Welcome to ${_defaultSite?.name || 'Our Site'}!`,
       description: 'Get 20% off your first booking with our exclusive welcome offer.',
       image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800',
       ctaText: 'Claim Offer',
@@ -297,7 +300,7 @@ export default function SiteControl() {
               <p className="text-gray-600 mt-1">Homepage, theme, pop-ups, and automation settings</p>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={() => window.open('https://yalla-london.com', '_blank')}>
+              <Button variant="outline" onClick={() => window.open(getSiteDomain(getDefaultSiteId()), '_blank')}>
                 <Eye className="h-4 w-4 mr-2" />
                 Preview Site
               </Button>
@@ -625,7 +628,7 @@ export default function SiteControl() {
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/20" />
                     <div className="relative z-10">
-                      <h3 className="text-2xl font-bold mb-2">Yalla London</h3>
+                      <h3 className="text-2xl font-bold mb-2">{_defaultSite?.name || 'Your Site'}</h3>
                       <p className="text-lg mb-4">Your site, your style.</p>
                       <div className="flex gap-2 justify-center">
                         <div

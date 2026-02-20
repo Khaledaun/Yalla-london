@@ -5,7 +5,7 @@
  * then generates a brand-adapted editable design template.
  */
 
-import { getDesignBrandProfile, type DesignTemplate, type DesignElement, type DesignDesignBrandProfile } from "./brand-design-system";
+import { getBrandProfile, type DesignTemplate, type DesignElement, type DesignBrandProfile } from "./brand-design-system";
 
 // ─── Analysis Types ───────────────────────────────────────────────
 
@@ -213,7 +213,7 @@ export function generateDesignFromAnalysis(
   siteId: string,
   locale: "en" | "ar" = "en",
 ): DesignTemplate {
-  const brand = getDesignBrandProfile(siteId);
+  const brand = getBrandProfile(siteId);
   const isRTL = locale === "ar";
 
   // Map analyzed format to template format

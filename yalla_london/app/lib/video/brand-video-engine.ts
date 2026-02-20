@@ -7,8 +7,8 @@
  */
 
 import { SITES, type SiteConfig } from "@/config/sites";
-import type { DesignDesignBrandProfile } from "@/lib/pdf/brand-design-system";
-import { getDesignBrandProfile } from "@/lib/pdf/brand-design-system";
+import type { DesignBrandProfile } from "@/lib/pdf/brand-design-system";
+import { getBrandProfile } from "@/lib/pdf/brand-design-system";
 
 // ─── Video Template Types ─────────────────────────────────────────
 
@@ -187,7 +187,7 @@ export function generateVideoTemplate(
     duration?: number;       // seconds
   } = {},
 ): VideoTemplateConfig {
-  const brand = getDesignBrandProfile(siteId);
+  const brand = getBrandProfile(siteId);
   const { width, height } = FORMAT_DIMENSIONS[format];
   const fps = 30;
   const durationSec = options.duration || getDefaultDuration(category);

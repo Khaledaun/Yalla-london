@@ -112,10 +112,10 @@ export interface DesignBrandProfile {
 /**
  * Get complete brand profile for a site
  */
-export function getDesignBrandProfile(siteId: string): DesignBrandProfile {
+export function getBrandProfile(siteId: string): DesignBrandProfile {
   const site = SITES[siteId];
   if (!site) {
-    return getDefaultDesignBrandProfile(siteId);
+    return getDefaultBrandProfile(siteId);
   }
 
   return {
@@ -145,7 +145,7 @@ export function getDesignBrandProfile(siteId: string): DesignBrandProfile {
   };
 }
 
-function getDefaultDesignBrandProfile(siteId: string): DesignBrandProfile {
+function getDefaultBrandProfile(siteId: string): DesignBrandProfile {
   return {
     siteId,
     siteName: "Yalla",
@@ -183,7 +183,7 @@ export function generateBrandedTemplate(
   category: DesignTemplate["category"],
   locale: "en" | "ar" = "en",
 ): DesignTemplate {
-  const brand = getDesignBrandProfile(siteId);
+  const brand = getBrandProfile(siteId);
   const isRTL = locale === "ar";
 
   const generators: Record<DesignTemplate["category"], () => DesignTemplate> = {

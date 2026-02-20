@@ -9,6 +9,7 @@ import {
 } from "@/lib/video/brand-video-engine";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 const VALID_CATEGORIES: VideoCategory[] = [
   "destination-highlight", "blog-promo", "hotel-showcase", "restaurant-feature",
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
       }
 
       case "generate": {
-        const siteId = sp.get("siteId") || "yalla-london";
+        const siteId = sp.get("siteId") || getDefaultSiteId();
         const rawCategory = sp.get("category") || "destination-highlight";
         const rawFormat = sp.get("format") || "instagram-reel";
         if (!validateCategory(rawCategory)) {
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case "generate": {
         const template = generateVideoTemplate(
-          siteId || "yalla-london",
+          siteId || getDefaultSiteId(),
           category || "destination-highlight",
           format || "instagram-reel",
           { locale: locale || "en", title, subtitle, images, duration },
@@ -229,7 +230,7 @@ export async function POST(request: NextRequest) {
         // Use Remotion Lambda or a dedicated render server for MP4 export.
         // The browser @remotion/player provides real-time preview.
         const template = generateVideoTemplate(
-          siteId || "yalla-london",
+          siteId || getDefaultSiteId(),
           category || "destination-highlight",
           format || "instagram-reel",
           { locale: locale || "en", title, subtitle, images, duration },

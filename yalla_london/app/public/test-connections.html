@@ -2676,7 +2676,10 @@ async function loadAuditHistory() {
       headers: getAuthHeaders(),
       signal: AbortSignal.timeout(15000),
     });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    if (!resp.ok) {
+      if (resp.status === 401 || resp.status === 403) throw new Error('Authentication failed — enter your CRON_SECRET above');
+      throw new Error('HTTP ' + resp.status);
+    }
     const data = await resp.json();
 
     if (!data.history || data.history.length === 0) {

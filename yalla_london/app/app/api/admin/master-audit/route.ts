@@ -100,10 +100,8 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
     const domain = getSiteDomain(siteId);
     const baseUrl = `https://${domain}`;
 
-    // Load config
-    const config = loadAuditConfig(siteId);
-    // Override for quick dashboard mode
-    config.baseUrl = baseUrl;
+    // Load config — pass baseUrl as override so validation passes
+    const config = loadAuditConfig(siteId, { baseUrl } as Partial<import("@/lib/master-audit/types").AuditConfig>);
 
     // Build inventory from static routes only (skip sitemap to save time)
     const urls: string[] = [];

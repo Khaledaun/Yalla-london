@@ -941,3 +941,23 @@ Deep research into Google's January 2026 Core Update (dubbed "Authenticity Updat
 | Legacy Route | `/api/generate-content` doesn't call pre-publication gate | LOW | Intentional for development/testing use |
 | Content Pages | Hotels/experiences/recommendations have static hardcoded data | MEDIUM | Not DB-driven yet; no affiliate tracking on these pages |
 | Author Attribution | Generic "Editorial" author on all articles | MEDIUM | Need specific author profiles for stronger E-E-A-T |
+
+### Session: February 20, 2026 — Development Standards Documentation
+
+**Comprehensive Development Standards (`docs/DEVELOPMENT-STANDARDS.md` — New File):**
+- 16-section reference document for all new website development and Claude Code validation
+- Covers: SEO Standards (13-check pre-publication gate), AIO Optimization, Content Quality, Technical SEO, Structured Data, E-E-A-T Compliance, Page Architecture, Multi-Site Rules, Content Pipeline, Affiliate Integration, Performance, Accessibility, Dashboard Standards, Standards Maintenance, Pre-Launch Checklist, Anti-Patterns Registry
+- All thresholds reference `lib/seo/standards.ts` as single source of truth
+- Includes code examples for correct patterns and explicit anti-patterns to avoid
+- Google Jan 2026 Authenticity Update compliance built-in
+- Cross-references NEW-WEBSITE-WORKFLOW.md for operational launch procedures
+
+**Key Reference Files for Development:**
+
+| File | Purpose |
+|------|---------|
+| `docs/DEVELOPMENT-STANDARDS.md` | SEO/AIO/E-E-A-T development standards for all new websites |
+| `docs/NEW-WEBSITE-WORKFLOW.md` | Operational workflow for launching new websites |
+| `docs/AUDIT-LOG.md` | Persistent audit findings tracking |
+| `docs/FUNCTIONING-ROADMAP.md` | 8-phase path to 100% healthy platform |
+| `lib/seo/standards.ts` | Centralized SEO thresholds — single source of truth |

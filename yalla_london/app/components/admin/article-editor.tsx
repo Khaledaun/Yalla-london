@@ -119,11 +119,32 @@ export function ArticleEditor({
     readingTime: 0
   })
 
-  // Load pre-filled data from URL parameters (when coming from topics)
+  // Load initialData when in edit mode
   useEffect(() => {
+    if (mode === 'edit' && initialData) {
+      setArticle(prev => ({
+        ...prev,
+        id: initialData.id || undefined,
+        title: initialData.title_en || initialData.title || '',
+        slug: initialData.slug || '',
+        excerpt: initialData.excerpt_en || initialData.excerpt || '',
+        content: initialData.content_en || initialData.content || '',
+        language: 'en',
+        status: initialData.published ? 'published' : 'draft',
+        tags: Array.isArray(initialData.tags) ? initialData.tags : [],
+        category: initialData.category?.id || initialData.category_id || '',
+        seoTitle: initialData.meta_title_en || initialData.title_en || '',
+        seoDescription: initialData.meta_description_en || '',
+        authorId: initialData.author?.id || initialData.author_id || 'current-user',
+        featuredImage: initialData.featured_image || undefined,
+      }))
+      return
+    }
+
+    // Load pre-filled data from URL parameters (when coming from topics)
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search)
-      
+
       if (urlParams.get('title')) {
         setArticle(prev => ({
           ...prev,
@@ -137,7 +158,7 @@ export function ArticleEditor({
         }))
       }
     }
-  }, [])
+  }, [mode, initialData])
 
   const [isTopicResearchOpen, setIsTopicResearchOpen] = useState(false)
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false)
@@ -362,27 +383,34 @@ London's charm lies in its diversity and the countless opportunities it offers f
   const saveArticle = async (status: 'draft' | 'published') => {
     try {
       setArticle(prev => ({ ...prev, status }))
-      
-      const response = await fetch('/api/admin/content', {
-        method: article.id ? 'PUT' : 'POST',
+
+      const payload = {
+        title_en: article.title,
+        title_ar: article.title, // TODO: Add proper translation
+        slug: article.slug,
+        excerpt_en: article.excerpt,
+        excerpt_ar: article.excerpt,
+        content_en: article.content,
+        content_ar: article.content,
+        published: status === 'published',
+        category_id: article.category || undefined,
+        author_id: article.authorId || undefined,
+        tags: article.tags,
+        meta_title_en: article.seoTitle,
+        meta_description_en: article.seoDescription,
+        featured_image: article.featuredImage
+      }
+
+      // Use blog-posts API for existing articles, content API for new
+      const url = article.id
+        ? `/api/admin/blog-posts/${article.id}`
+        : '/api/admin/content'
+      const method = article.id ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: article.id,
-          title_en: article.title,
-          title_ar: article.title, // TODO: Add proper translation
-          slug: article.slug,
-          excerpt_en: article.excerpt,
-          excerpt_ar: article.excerpt,
-          content_en: article.content,
-          content_ar: article.content,
-          published: status === 'published',
-          category_id: article.category || 'default-category',
-          author_id: article.authorId || 'system-user',
-          tags: article.tags,
-          meta_title_en: article.seoTitle,
-          meta_description_en: article.seoDescription,
-          featured_image: article.featuredImage
-        })
+        body: JSON.stringify(article.id ? payload : { ...payload, id: article.id })
       })
 
       if (!response.ok) {
@@ -391,15 +419,15 @@ London's charm lies in its diversity and the countless opportunities it offers f
       }
 
       const result = await response.json()
-      
+
       // Update article with the ID from server
       if (result.data?.id) {
         setArticle(prev => ({ ...prev, id: result.data.id }))
       }
-      
+
       toast({
         title: status === 'draft' ? "Draft Saved" : "Article Published",
-        description: status === 'draft' 
+        description: status === 'draft'
           ? "Your article has been saved as a draft."
           : "Your article has been published successfully.",
       })

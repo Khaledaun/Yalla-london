@@ -308,13 +308,15 @@ async function generateArticle(
   const systemUser = await getOrCreateSystemUser(site, prisma);
   const rawSlug = generateSlug(content.title, primaryLanguage);
 
-  // Dedup: check if a published article already covers this topic/keyword
+  // Dedup: check if a published article already covers this topic/keyword.
+  // Uses startsWith with the full slug (not a 40-char substring with `contains`)
+  // to avoid both false positives and false negatives that let near-duplicates through.
   const existingByKeyword = await prisma.blogPost.findFirst({
     where: {
       siteId: site.id,
       published: true,
       deletedAt: null,
-      slug: { contains: rawSlug.slice(0, 40) },
+      slug: { startsWith: rawSlug },
     },
     select: { id: true, slug: true },
   });

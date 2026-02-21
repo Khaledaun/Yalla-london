@@ -589,6 +589,7 @@ export async function submitUnindexedPages(
   let siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(siteId || getDefaultSiteId());
   let indexNowKey = process.env.INDEXNOW_KEY;
+  let gscPropertyUrl: string | undefined;
   // Per-site URL and IndexNow key (multi-tenant)
   if (siteId) {
     try {
@@ -596,6 +597,9 @@ export async function submitUnindexedPages(
       siteUrl = getSiteDomain(siteId) || siteUrl;
       const seoConfig = await getSiteSeoConfigFromVault(siteId);
       indexNowKey = seoConfig.indexNowKey || indexNowKey;
+      // CRITICAL: Use GSC property URL (e.g. "sc-domain:yalla-london.com"),
+      // not site domain URL, for GSC API calls.
+      gscPropertyUrl = seoConfig.gscSiteUrl;
     } catch (error) {
       console.warn(`[SEO Intelligence] Failed to load IndexNow/domain config from vault for site "${siteId}":`, error);
     }
@@ -649,7 +653,7 @@ export async function submitUnindexedPages(
     // sitemap submission is the correct approach for Google discovery.
     try {
       const { GoogleSearchConsoleAPI } = await import("./indexing-service");
-      const gsc = new GoogleSearchConsoleAPI();
+      const gsc = new GoogleSearchConsoleAPI(gscPropertyUrl);
 
       const sitemapResult = await gsc.submitSitemap(`${siteUrl}/sitemap.xml`);
       if (sitemapResult.success) {

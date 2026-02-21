@@ -120,9 +120,11 @@ function getPrismaClient(): PrismaClient {
     if (dbUrl && !dbUrl.includes("pgbouncer=")) {
       dbUrl = `${dbUrl}&pgbouncer=true`;
     }
-    // Reduce pool timeout to fail fast instead of hanging when pool is full
+    // Reduce pool timeout to fail fast instead of hanging when pool is full.
+    // 5s is enough for a healthy connection; 15s caused page renders to hang
+    // when concurrent requests exhausted the pool (audit showed 11s timeouts).
     if (dbUrl && !dbUrl.includes("pool_timeout=")) {
-      dbUrl = `${dbUrl}&pool_timeout=15`;
+      dbUrl = `${dbUrl}&pool_timeout=5`;
     }
 
     const baseClient = new PrismaClient({

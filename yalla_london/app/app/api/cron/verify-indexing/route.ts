@@ -45,7 +45,7 @@ async function handleVerifyIndexing(request: NextRequest) {
 
     const { prisma } = await import("@/lib/db");
     const { GoogleSearchConsole } = await import("@/lib/integrations/google-search-console");
-    const { getActiveSiteIds, getSiteDomain } = await import("@/config/sites");
+    const { getActiveSiteIds, getSiteSeoConfig } = await import("@/config/sites");
 
     const gsc = new GoogleSearchConsole();
     if (!gsc.isConfigured()) {
@@ -72,8 +72,11 @@ async function handleVerifyIndexing(request: NextRequest) {
     for (const siteId of activeSites) {
       if (Date.now() - cronStart > BUDGET_MS) break;
 
-      const siteUrl = getSiteDomain(siteId);
-      gsc.setSiteUrl(siteUrl);
+      // CRITICAL: Use the GSC property URL (e.g. "sc-domain:yalla-london.com"),
+      // NOT getSiteDomain() which returns "https://www.yalla-london.com".
+      // Domain properties in GSC require the sc-domain: prefix.
+      const seoConfig = getSiteSeoConfig(siteId);
+      gsc.setSiteUrl(seoConfig.gscSiteUrl);
 
       // Find URLs that need verification:
       // - status is "submitted" or "discovered" (not yet confirmed indexed)
@@ -90,7 +93,7 @@ async function handleVerifyIndexing(request: NextRequest) {
             ],
           },
           orderBy: { last_submitted_at: "desc" },
-          take: 10, // Rate limit: GSC API has quota of ~600/day
+          take: 20, // Increased from 10 — GSC API quota is 2000/day, 20 per run × 4 runs/day = 80/site/day
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -158,12 +161,19 @@ async function handleVerifyIndexing(request: NextRequest) {
               console.log(`[verify-indexing] ${url} → NOT INDEXED (${inspection.coverageState || inspection.indexingState})`);
             }
           } else {
-            // GSC returned null — API error or not enough permissions
+            // GSC returned null — this is normal for very new URLs that Google
+            // hasn't discovered yet. NOT necessarily an API permission error.
+            const daysSinceSubmit = urlRecord.last_submitted_at
+              ? Math.floor((Date.now() - new Date(urlRecord.last_submitted_at as string).getTime()) / 86400000)
+              : 0;
+            const errorMsg = daysSinceSubmit < 3
+              ? `URL too new for GSC inspection (submitted ${daysSinceSubmit}d ago) — Google needs time to discover it`
+              : "GSC inspection returned no data — URL may not be in Google's index yet";
             await prisma.uRLIndexingStatus.update({
               where: { id: urlRecord.id as string },
               data: {
                 last_inspected_at: new Date(),
-                last_error: "GSC inspection returned no data — check API permissions",
+                last_error: errorMsg,
               },
             });
             siteErrors++;

@@ -328,14 +328,30 @@ async function promoteToBlogPost(
     }
   }
 
-  // Check for slug collision — only append random suffix if needed (never a date)
+  // Check for slug collision within this site — only append random suffix if needed (never a date)
   const existingSlug = await prisma.blogPost.findFirst({
-    where: { slug },
+    where: { slug, siteId },
     select: { id: true },
   });
   if (existingSlug) {
     slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
     console.warn(`[content-selector] Slug collision — using "${slug}"`);
+  }
+
+  // Also check if a near-duplicate slug exists (e.g. same topic with date suffix).
+  // If so, skip creating a duplicate — the existing article should be updated instead.
+  const nearDuplicate = await prisma.blogPost.findFirst({
+    where: {
+      siteId,
+      slug: { startsWith: slug },
+      published: true,
+      deletedAt: null,
+    },
+    select: { id: true, slug: true },
+  });
+  if (nearDuplicate && nearDuplicate.slug !== slug) {
+    console.warn(`[content-selector] Near-duplicate detected — "${slug}" vs existing "${nearDuplicate.slug}" — skipping`);
+    return null;
   }
 
   // Get or create category and system user

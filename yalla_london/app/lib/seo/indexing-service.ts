@@ -200,14 +200,26 @@ export async function submitToIndexNow(
 // SITEMAP PING SERVICE
 // ============================================
 
-export async function pingSitemaps(siteUrl?: string): Promise<Record<string, boolean>> {
+export async function pingSitemaps(siteUrl?: string, siteId?: string): Promise<Record<string, boolean>> {
   const baseUrl = siteUrl || BASE_URL;
   const results: Record<string, boolean> = {};
 
   // Google deprecated their legacy sitemap ping endpoint in 2023.
   // The correct path is GSC API sitemap submission — report actual result.
   try {
-    const gsc = new GoogleSearchConsoleAPI(siteUrl);
+    // CRITICAL: Use GSC property URL (e.g. "sc-domain:yalla-london.com"),
+    // NOT the site domain URL ("https://www.yalla-london.com").
+    // Domain properties require the sc-domain: prefix for API calls.
+    let gscPropertyUrl = GSC_SITE_URL;
+    if (siteId) {
+      try {
+        const { getSiteSeoConfig } = await import("@/config/sites");
+        gscPropertyUrl = getSiteSeoConfig(siteId).gscSiteUrl || GSC_SITE_URL;
+      } catch {
+        // Fall back to global GSC_SITE_URL
+      }
+    }
+    const gsc = new GoogleSearchConsoleAPI(gscPropertyUrl);
     const gscResult = await gsc.submitSitemap(`${baseUrl}/sitemap.xml`);
     results["google_gsc"] = gscResult.success;
     if (!gscResult.success) {
@@ -974,7 +986,17 @@ export async function runAutomatedIndexing(
     report.indexNow = await submitToIndexNow(urls, baseUrl);
 
     // Submit sitemap to Google via GSC API (this is how Google discovers URLs)
-    const gsc = new GoogleSearchConsoleAPI();
+    // CRITICAL: Use GSC property URL (e.g. "sc-domain:yalla-london.com"), not site domain URL.
+    let gscPropertyUrl = GSC_SITE_URL;
+    if (siteId) {
+      try {
+        const { getSiteSeoConfig } = await import("@/config/sites");
+        gscPropertyUrl = getSiteSeoConfig(siteId).gscSiteUrl || GSC_SITE_URL;
+      } catch {
+        // Fall back to global GSC_SITE_URL
+      }
+    }
+    const gsc = new GoogleSearchConsoleAPI(gscPropertyUrl);
     const sitemapResult = await gsc.submitSitemap(`${baseUrl}/sitemap.xml`);
     report.sitemapPings = {
       google_gsc: sitemapResult.success,

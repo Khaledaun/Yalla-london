@@ -45,7 +45,7 @@ async function handleVerifyIndexing(request: NextRequest) {
 
     const { prisma } = await import("@/lib/db");
     const { GoogleSearchConsole } = await import("@/lib/integrations/google-search-console");
-    const { getActiveSiteIds, getSiteDomain } = await import("@/config/sites");
+    const { getActiveSiteIds, getSiteSeoConfig } = await import("@/config/sites");
 
     const gsc = new GoogleSearchConsole();
     if (!gsc.isConfigured()) {
@@ -72,8 +72,11 @@ async function handleVerifyIndexing(request: NextRequest) {
     for (const siteId of activeSites) {
       if (Date.now() - cronStart > BUDGET_MS) break;
 
-      const siteUrl = getSiteDomain(siteId);
-      gsc.setSiteUrl(siteUrl);
+      // CRITICAL: Use the GSC property URL (e.g. "sc-domain:yalla-london.com"),
+      // NOT getSiteDomain() which returns "https://www.yalla-london.com".
+      // Domain properties in GSC require the sc-domain: prefix.
+      const seoConfig = getSiteSeoConfig(siteId);
+      gsc.setSiteUrl(seoConfig.gscSiteUrl);
 
       // Find URLs that need verification:
       // - status is "submitted" or "discovered" (not yet confirmed indexed)

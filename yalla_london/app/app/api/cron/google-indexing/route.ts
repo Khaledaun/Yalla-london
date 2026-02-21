@@ -69,11 +69,11 @@ async function handleIndexing(request: NextRequest) {
       }
 
       try {
-        const { getSiteDomain: getDomain } = await import("@/config/sites");
-        // CRITICAL: Always use getSiteDomain() which returns "https://www.{domain}".
-        // siteConfig.domain is bare (e.g. "yalla-london.com") — using it directly
-        // creates non-www URLs that GSC doesn't recognize as the verified property.
+        const { getSiteDomain: getDomain, getSiteSeoConfig } = await import("@/config/sites");
+        // getSiteDomain() returns the actual website URL: "https://www.yalla-london.com"
+        // getSiteSeoConfig().gscSiteUrl returns the GSC property: "sc-domain:yalla-london.com"
         const siteUrl = getDomain(siteId);
+        const gscPropertyUrl = getSiteSeoConfig(siteId).gscSiteUrl;
 
         // Discover new URLs from the last 3 days
         const newUrls = await getNewUrls(3, siteId, siteUrl);
@@ -163,9 +163,11 @@ async function handleIndexing(request: NextRequest) {
         }
 
         // 2. Submit sitemap to Google via GSC API
+        // CRITICAL: Use GSC property URL (e.g. "sc-domain:yalla-london.com"),
+        // not site domain URL, for API authentication against the property.
         let gscResult: { success: boolean; error?: string } = { success: false, error: "skipped" };
         try {
-          const gsc = new GoogleSearchConsoleAPI();
+          const gsc = new GoogleSearchConsoleAPI(gscPropertyUrl);
           gscResult = await gsc.submitSitemap(`${siteUrl}/sitemap.xml`);
         } catch (e) {
           gscResult = {

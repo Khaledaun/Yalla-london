@@ -24,7 +24,6 @@ import {
    TYPES & CONSTANTS
    ═══════════════════════════════════════════════════════════════════ */
 
-const SITE_ID = "zenitha-yachts-med";
 
 interface StopItem {
   day: number;
@@ -59,7 +58,7 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
   try {
     const { prisma } = await import("@/lib/db");
     const itineraries = await prisma.charterItinerary.findMany({
-      where: { siteId: SITE_ID, status: "active" },
+      where: { siteId: getDefaultSiteId(), status: "active" },
       select: { slug: true },
     });
     return itineraries.map((it) => ({ slug: it.slug }));
@@ -92,7 +91,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   try {
     const { prisma } = await import("@/lib/db");
     const itin = await prisma.charterItinerary.findFirst({
-      where: { slug, siteId: SITE_ID },
+      where: { slug, siteId },
       select: { title_en: true, description_en: true, heroImage: true, duration: true },
     });
     if (itin) {
@@ -224,7 +223,7 @@ export default async function ItineraryDetailPage({ params }: PageProps) {
     const { prisma } = await import("@/lib/db");
 
     itinerary = (await prisma.charterItinerary.findFirst({
-      where: { slug, siteId: SITE_ID, status: "active" },
+      where: { slug, siteId, status: "active" },
       include: {
         destination: {
           select: { id: true, name: true, slug: true, region: true },
@@ -236,7 +235,7 @@ export default async function ItineraryDetailPage({ params }: PageProps) {
       const yachtTypes = parseJson<string[]>(itinerary.recommendedYachtTypes) || [];
 
       const yachtWhere: Record<string, unknown> = {
-        siteId: SITE_ID,
+        siteId,
         status: "active",
         destinationId: itinerary.destinationId,
       };
@@ -270,7 +269,7 @@ export default async function ItineraryDetailPage({ params }: PageProps) {
         }) as Promise<YachtRow[]>,
         prisma.charterItinerary.findMany({
           where: {
-            siteId: SITE_ID,
+            siteId,
             status: "active",
             destinationId: itinerary.destinationId,
             id: { not: itinerary.id },

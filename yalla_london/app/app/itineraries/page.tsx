@@ -20,7 +20,6 @@ import {
    CONSTANTS
    ═══════════════════════════════════════════════════════════════════ */
 
-const SITE_ID = "zenitha-yachts-med";
 
 const DURATION_FILTERS = [
   { label: "All Durations", min: 0, max: 999 },
@@ -79,7 +78,7 @@ export default async function ItinerariesPage() {
 
     [itineraries, destinations] = await Promise.all([
       prisma.charterItinerary.findMany({
-        where: { siteId: SITE_ID, status: "active" },
+        where: { siteId, status: "active" },
         include: {
           destination: {
             select: { id: true, name: true, slug: true, region: true },
@@ -88,7 +87,7 @@ export default async function ItinerariesPage() {
         orderBy: [{ duration: "asc" }, { title_en: "asc" }],
       }) as Promise<ItineraryWithDest[]>,
       prisma.yachtDestination.findMany({
-        where: { siteId: SITE_ID, status: "active" },
+        where: { siteId, status: "active" },
         select: { id: true, name: true, slug: true },
         orderBy: { name: "asc" },
       }),

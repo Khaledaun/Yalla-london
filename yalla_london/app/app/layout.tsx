@@ -16,7 +16,7 @@ import { brandConfig } from "@/config/brand-config";
 // HreflangTags component removed — hreflang is handled by generateMetadata().alternates.languages
 // in each layout/page file. The component was causing duplicate hreflang tags on every page.
 import { getBaseUrl } from "@/lib/url-utils";
-import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, isYachtSite as checkIsYachtSite } from "@/config/sites";
 import type { Language } from "@/lib/types";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -98,7 +98,7 @@ export default async function RootLayout({
     "Mediterranean": { region: "GR", placename: "Athens", position: "37.9838;23.7275", icbm: "37.9838, 23.7275" },
   };
   const geo = geoData[currentSiteConfig?.destination || "London"] || geoData["London"];
-  const isYachtSite = siteId === "zenitha-yachts-med";
+  const isYachtSite = checkIsYachtSite(siteId);
 
   return (
     <html lang={locale} dir={dir} suppressHydrationWarning>

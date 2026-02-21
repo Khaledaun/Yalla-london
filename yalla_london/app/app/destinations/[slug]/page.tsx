@@ -28,7 +28,6 @@ import {
    TYPES
    ═══════════════════════════════════════════════════════════════════ */
 
-const SITE_ID = "zenitha-yachts-med";
 
 interface HighlightItem {
   title: string;
@@ -69,7 +68,7 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
   try {
     const { prisma } = await import("@/lib/db");
     const destinations = await prisma.yachtDestination.findMany({
-      where: { siteId: SITE_ID, status: "active" },
+      where: { siteId: getDefaultSiteId(), status: "active" },
       select: { slug: true },
     });
     return destinations.map((d) => ({ slug: d.slug }));
@@ -102,7 +101,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   try {
     const { prisma } = await import("@/lib/db");
     const dest = await prisma.yachtDestination.findFirst({
-      where: { slug, siteId: SITE_ID },
+      where: { slug, siteId },
       select: { name: true, description_en: true, heroImage: true },
     });
     if (dest) {
@@ -233,18 +232,18 @@ export default async function DestinationDetailPage({ params }: PageProps) {
     const { prisma } = await import("@/lib/db");
 
     destination = (await prisma.yachtDestination.findFirst({
-      where: { slug, siteId: SITE_ID, status: "active" },
+      where: { slug, siteId, status: "active" },
     })) as DestRow | null;
 
     if (destination) {
       [relatedYachts, relatedItineraries] = await Promise.all([
         prisma.yacht.findMany({
-          where: { destinationId: destination.id, siteId: SITE_ID, status: "active" },
+          where: { destinationId: destination.id, siteId, status: "active" },
           orderBy: { rating: "desc" },
           take: 6,
         }) as Promise<YachtRow[]>,
         prisma.charterItinerary.findMany({
-          where: { destinationId: destination.id, siteId: SITE_ID, status: "active" },
+          where: { destinationId: destination.id, siteId, status: "active" },
           orderBy: { duration: "asc" },
           take: 6,
         }) as Promise<ItinRow[]>,

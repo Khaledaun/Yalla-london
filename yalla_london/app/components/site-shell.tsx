@@ -4,6 +4,7 @@ import { DynamicHeader } from '@/components/dynamic-header';
 import { Footer } from '@/components/footer';
 import { ZenithaHeader } from '@/components/zenitha/zenitha-header';
 import { ZenithaFooter } from '@/components/zenitha/zenitha-footer';
+import { isYachtSite as checkYacht } from '@/config/sites';
 
 /**
  * SiteShell — Renders the correct header/footer based on siteId.
@@ -17,7 +18,7 @@ export function SiteShell({
   siteId: string;
   children: React.ReactNode;
 }) {
-  const isYachtSite = siteId === 'zenitha-yachts-med';
+  const isYachtSite = checkYacht(siteId);
 
   if (isYachtSite) {
     return (

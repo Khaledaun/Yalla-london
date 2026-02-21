@@ -190,6 +190,7 @@ async function handleIndexing(request: NextRequest) {
                   last_submitted_at: new Date(),
                 },
                 update: {
+                  status: "submitted",
                   submitted_indexnow: indexNowResult.submitted > 0,
                   submitted_sitemap: gscResult.success || undefined,
                   last_submitted_at: new Date(),

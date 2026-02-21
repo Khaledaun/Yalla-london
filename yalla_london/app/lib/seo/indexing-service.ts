@@ -14,10 +14,37 @@
  *   3. URL Inspection API for status checking (Google)
  */
 
-import { blogPosts } from "@/data/blog-content";
-import { extendedBlogPosts } from "@/data/blog-content-extended";
-import { informationSections, informationArticles } from "@/data/information-hub-content";
-import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
+// Static content is lazy-loaded to avoid ~400KB of blog data on every import.
+// This module is imported by seo/cron, google-indexing, seo-agent etc. —
+// most of which only need DB queries, not static content arrays.
+let _staticPosts: any[] | null = null;
+let _infoSections: any[] | null = null;
+let _infoArticles: any[] | null = null;
+let _extInfoArticles: any[] | null = null;
+
+async function getStaticContent() {
+  if (!_staticPosts) {
+    const { blogPosts } = await import("@/data/blog-content");
+    const { extendedBlogPosts } = await import("@/data/blog-content-extended");
+    _staticPosts = [...blogPosts, ...extendedBlogPosts];
+  }
+  return _staticPosts;
+}
+
+async function getInfoContent() {
+  if (!_infoSections) {
+    const { informationSections, informationArticles } = await import("@/data/information-hub-content");
+    const { extendedInformationArticles } = await import("@/data/information-hub-articles-extended");
+    _infoSections = informationSections;
+    _infoArticles = informationArticles;
+    _extInfoArticles = extendedInformationArticles;
+  }
+  return {
+    informationSections: _infoSections!,
+    informationArticles: _infoArticles!,
+    extendedInformationArticles: _extInfoArticles!,
+  };
+}
 
 // Dynamic base URL — config-driven, no hardcoded domain
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || (() => {
@@ -28,12 +55,6 @@ const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || (() => {
 // CRITICAL: Do NOT strip "www." — GSC treats www and non-www as separate properties.
 const GSC_SITE_URL = process.env.GSC_SITE_URL || BASE_URL;
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY || "";
-
-// Rate limiting: max requests per minute for external APIs
-const RATE_LIMIT_DELAY_MS = 200; // 200ms between requests = ~300/min max
-
-// Combine all posts
-const allPosts = [...blogPosts, ...extendedBlogPosts];
 
 // ============================================
 // UTILITY: Retry with exponential backoff
@@ -725,21 +746,23 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
   // Information hub: sections + articles (static data files — Yalla London only)
   const _defaultSite = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
   if (!siteId || siteId === _defaultSite) {
+    const { informationSections, informationArticles, extendedInformationArticles } = await getInfoContent();
     informationSections
-      .filter((s) => s.published)
-      .forEach((s) => urls.push(`${baseUrl}/information/${s.slug}`));
+      .filter((s: any) => s.published)
+      .forEach((s: any) => urls.push(`${baseUrl}/information/${s.slug}`));
     const allInfoArticles = [...informationArticles, ...extendedInformationArticles];
     allInfoArticles
-      .filter((a) => a.published)
-      .forEach((a) => urls.push(`${baseUrl}/information/articles/${a.slug}`));
+      .filter((a: any) => a.published)
+      .forEach((a: any) => urls.push(`${baseUrl}/information/articles/${a.slug}`));
   }
 
   // Blog posts from static files (only for default site or when no siteId specified)
   const staticSlugs = new Set<string>();
   if (!siteId || siteId === _defaultSite) {
+    const allPosts = await getStaticContent();
     allPosts
-      .filter((post) => post.published)
-      .forEach((post) => {
+      .filter((post: any) => post.published)
+      .forEach((post: any) => {
         urls.push(`${baseUrl}/blog/${post.slug}`);
         staticSlugs.add(post.slug);
       });
@@ -774,9 +797,10 @@ export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUr
   // Static file posts (only for default site)
   const _ds1 = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
   if (!siteId || siteId === _ds1) {
+    const allPosts = await getStaticContent();
     allPosts
-      .filter((post) => post.published && post.created_at >= cutoffDate)
-      .forEach((post) => urls.push(`${baseUrl}/blog/${post.slug}`));
+      .filter((post: any) => post.published && post.created_at >= cutoffDate)
+      .forEach((post: any) => urls.push(`${baseUrl}/blog/${post.slug}`));
   }
 
   // Database posts (new content from AI generation)
@@ -819,9 +843,10 @@ export async function getUpdatedUrls(
   // Static file posts (only for default site)
   const _ds2 = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
   if (!siteId || siteId === _ds2) {
+    const allPosts = await getStaticContent();
     allPosts
-      .filter((post) => post.published && post.updated_at >= cutoffDate)
-      .forEach((post) => urls.push(`${baseUrl}/blog/${post.slug}`));
+      .filter((post: any) => post.published && post.updated_at >= cutoffDate)
+      .forEach((post: any) => urls.push(`${baseUrl}/blog/${post.slug}`));
   }
 
   // Database posts

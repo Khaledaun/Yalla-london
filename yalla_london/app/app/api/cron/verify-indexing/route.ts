@@ -90,7 +90,7 @@ async function handleVerifyIndexing(request: NextRequest) {
             ],
           },
           orderBy: { last_submitted_at: "desc" },
-          take: 10, // Rate limit: GSC API has quota of ~600/day
+          take: 20, // Increased from 10 — GSC API quota is 2000/day, 20 per run × 4 runs/day = 80/site/day
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -158,12 +158,19 @@ async function handleVerifyIndexing(request: NextRequest) {
               console.log(`[verify-indexing] ${url} → NOT INDEXED (${inspection.coverageState || inspection.indexingState})`);
             }
           } else {
-            // GSC returned null — API error or not enough permissions
+            // GSC returned null — this is normal for very new URLs that Google
+            // hasn't discovered yet. NOT necessarily an API permission error.
+            const daysSinceSubmit = urlRecord.last_submitted_at
+              ? Math.floor((Date.now() - new Date(urlRecord.last_submitted_at as string).getTime()) / 86400000)
+              : 0;
+            const errorMsg = daysSinceSubmit < 3
+              ? `URL too new for GSC inspection (submitted ${daysSinceSubmit}d ago) — Google needs time to discover it`
+              : "GSC inspection returned no data — URL may not be in Google's index yet";
             await prisma.uRLIndexingStatus.update({
               where: { id: urlRecord.id as string },
               data: {
                 last_inspected_at: new Date(),
-                last_error: "GSC inspection returned no data — check API permissions",
+                last_error: errorMsg,
               },
             });
             siteErrors++;

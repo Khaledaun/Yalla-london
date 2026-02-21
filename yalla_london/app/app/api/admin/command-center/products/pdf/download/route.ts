@@ -118,7 +118,6 @@ export async function GET(request: NextRequest) {
     startDate.setDate(startDate.getDate() - days);
 
     // Build where clause with correct schema fields
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const whereClause: any = {
       downloadedAt: { gte: startDate },
     };

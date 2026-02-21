@@ -46,7 +46,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Attempt to import the analyst agent
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let runAnalyst: ((args: any) => Promise<any>) | null = null;
 
     try {

@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Attempt to import the ideator agent
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let runIdeator: ((args: any) => Promise<any>) | null = null;
 
     try {

@@ -158,7 +158,6 @@ export async function publishPost(postId: string): Promise<PublishResult> {
     if (apiKey && apiSecret && accessToken && accessSecret) {
       try {
         // Dynamic import — twitter-api-v2 is an optional peer dependency.
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { TwitterApi } = require("twitter-api-v2") as { TwitterApi: new (opts: { appKey: string; appSecret: string; accessToken: string; accessSecret: string }) => { v2: { tweet: (text: string) => Promise<{ data: { id: string } }> } } };
         const client = new TwitterApi({
           appKey: apiKey,

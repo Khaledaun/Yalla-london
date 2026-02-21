@@ -137,7 +137,6 @@ async function getRecentTopPosts(
         where: {
           site_id: siteId,
           content_id: { in: postIds },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
         _count: { id: true },
       })

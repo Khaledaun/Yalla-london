@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Attempt to import the scripter agent
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let runScripter: ((args: any) => Promise<any>) | null = null;
 
     try {

@@ -379,7 +379,7 @@ function renderColumns(
         blocks.push({ id: "", type: "image", content: { src: col.imageUrl, alt: col.heading || "" }, styles: {} });
       }
       if (col.heading) {
-        blocks.push({ id: "", type: "heading", content: { text: col.heading, level: 3 }, styles: {} });
+        blocks.push({ id: "", type: "text", content: { text: `<h3>${col.heading}</h3>` }, styles: {} });
       }
       if (col.text) {
         blocks.push({ id: "", type: "text", content: { text: col.text }, styles: {} });

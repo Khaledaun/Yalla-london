@@ -40,13 +40,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 async function getDbPost(slug: string, siteId?: string) {
   try {
     const { prisma } = await import("@/lib/db");
-    // 8s timeout — fail fast instead of hanging until Vercel's 60s limit
+    // 5s timeout — fail fast so we don't cascade into 11s+ page loads.
+    // The old 8s timeout + static fallback cost up to 11s total.
     return await withTimeout(
       prisma.blogPost.findFirst({
         where: { slug, published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
         include: { category: true },
       }),
-      8000,
+      5000,
     );
   } catch {
     return null;
@@ -427,14 +428,42 @@ export default async function BlogPostPage({ params }: Props) {
   const isDb = result.source === "db";
   const categoryHint = isDb ? (result.post as any).category?.name_en : undefined;
 
-  const [structuredData, clientPost, relatedArticles] = await Promise.all([
+  // Wrap all parallel work in a 4s timeout — if DB is slow, degrade gracefully
+  // rather than letting the page hang for 11+ seconds.
+  const work = Promise.all([
     generateStructuredData(result.post, result.source, { siteName, siteDomain, siteSlug, locale }),
     transformForClient(result.post, result.source),
     getRelatedArticles(slug, "blog", 3, {
       dbOnly: isDb,
       categoryHint,
-    }),
+    }).catch(() => [] as Awaited<ReturnType<typeof getRelatedArticles>>),
   ]);
+  const workResult = await withTimeout(work, 4000);
+
+  // If the work timed out, build minimal data synchronously from the post we already have
+  const [structuredData, clientPost, relatedArticles] = workResult || [
+    await generateStructuredData(result.post, result.source, { siteName, siteDomain, siteSlug, locale }).catch(() => ({
+      articleSchema: { "@context": "https://schema.org", "@type": "Article", headline: result.post.title_en || "" },
+      breadcrumbSchema: { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [] },
+    })),
+    await transformForClient(result.post, result.source).catch(() => ({
+      id: result.post.id,
+      title_en: result.post.title_en || "",
+      title_ar: result.post.title_ar || "",
+      content_en: result.post.content_en || "",
+      content_ar: result.post.content_ar || "",
+      excerpt_en: result.post.excerpt_en || "",
+      excerpt_ar: result.post.excerpt_ar || "",
+      slug: result.post.slug,
+      featured_image: result.post.featured_image || "",
+      created_at: String(result.post.created_at || ""),
+      updated_at: String(result.post.updated_at || ""),
+      reading_time: 5,
+      tags: result.post.tags || [],
+      category: null,
+    })),
+    [],
+  ];
 
   return (
     <>

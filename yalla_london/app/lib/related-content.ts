@@ -228,8 +228,8 @@ async function fetchDbRelatedArticles(
       };
     }
 
-    // 5s timeout — related articles are non-critical; degrade gracefully
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+    // 3s timeout — related articles are non-critical; page has 4s outer timeout
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
     const query = prisma.blogPost.findMany({
       where,
       select: {

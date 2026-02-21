@@ -26,7 +26,7 @@ export type IssueCategory =
   | 'accessibility'
   | 'risk';
 
-export type AuditMode = 'full' | 'quick' | 'resume';
+export type AuditMode = 'full' | 'quick' | 'resume' | 'preview' | 'prod';
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -91,9 +91,24 @@ export interface RiskScannerConfig {
     thinContent: boolean;
     duplicateContent: boolean;
     orphanPages: boolean;
+    scaledContentAbuse: boolean;
+    siteReputationAbuse: boolean;
+    expiredDomainAbuse: boolean;
   };
   /** Minimum word count to avoid thin content flag */
   minWordCount: number;
+  /** Word count below which content is flagged as very thin */
+  thinContentThreshold: number;
+  /** Jaccard similarity threshold (0-1) for duplicate detection */
+  duplicateSimilarityThreshold: number;
+  /** Minimum cluster size to flag as scaled content abuse */
+  scaledContentMinClusterSize: number;
+  /** Minimum entity coverage score (0-1) for content relevance */
+  entityCoverageMinScore: number;
+  /** Outbound link ratio threshold (0-1) for site reputation abuse */
+  outboundDominanceThreshold: number;
+  /** Topic pivot score threshold (0-1) for expired domain abuse */
+  topicPivotScoreThreshold: number;
 }
 
 export interface HardGateConfig {

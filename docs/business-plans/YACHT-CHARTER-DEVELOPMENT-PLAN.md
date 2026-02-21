@@ -4,6 +4,7 @@
 **Prepared for:** Khaled N. Aun, Zenitha.Luxury LLC
 **Based on:** Product Readiness Report + Skippers Business Plan + Platform Architecture
 **Status:** Ready for Implementation
+**Domain:** `zenithayachts.com` (purchased, DNS on Cloudflare)
 
 ---
 
@@ -36,6 +37,113 @@
 | Yacht availability | **No equivalent** | NEW | Build from scratch |
 
 **Score: 15 components reused, 6 new components needed.**
+
+---
+
+## 0. PRE-BUILD CHECKLIST — DOMAIN & GOOGLE PLATFORM SETUP
+
+**What Khaled sets up (from iPhone):**
+
+### 0.1 Domain Purchase & DNS — DONE
+
+| Step | Action | Status |
+|------|--------|--------|
+| 1 | Purchase domain `zenithayachts.com` | **DONE** — Cloudflare registrar |
+| 2 | Point DNS to Vercel: In Cloudflare DNS, add CNAME record `www` → `cname.vercel-dns.com` (proxy OFF / DNS only) | **NEXT** |
+| 3 | Add root (`@`) A record → `76.76.21.21` (Vercel's IP) OR CNAME `@` → `cname.vercel-dns.com` | **NEXT** |
+| 4 | In Vercel project: Settings → Domains → Add `zenithayachts.com` and `www.zenithayachts.com` | **Claude Code does this** |
+
+**Cloudflare DNS note:** Vercel requires the CNAME proxy to be **OFF** (DNS only / grey cloud icon) for SSL certificate provisioning. Cloudflare's orange cloud proxy conflicts with Vercel's edge SSL. After Vercel confirms the domain, you can optionally turn proxy back on.
+
+### 0.2 Google Search Console (per site)
+
+| Step | Action | Time |
+|------|--------|------|
+| 1 | Go to [search.google.com/search-console](https://search.google.com/search-console) | 1 min |
+| 2 | Click "Add property" → choose "Domain" → enter `zenithayachts.com` | 1 min |
+| 3 | Copy the DNS TXT record Google gives you → add it in **Cloudflare DNS** panel (type: TXT, name: `@`) | 3 min |
+| 4 | Wait for verification (usually instant, max 48h) | 0 min |
+| 5 | Add the **existing Google service account email** as a user with "Full" permission | 2 min |
+
+**Same service account** used across all sites — no new Google Cloud project needed.
+
+### 0.3 Google Analytics 4 (per site)
+
+| Step | Action | Time |
+|------|--------|------|
+| 1 | Go to [analytics.google.com](https://analytics.google.com) → Admin | 1 min |
+| 2 | Click "Create" → "Property" → name it "Zenitha Yachts" | 1 min |
+| 3 | Add a "Web" data stream → enter `https://www.zenithayachts.com` | 1 min |
+| 4 | Copy the **Measurement ID** (starts with `G-`) | 0 min |
+| 5 | Copy the **Property ID** (numeric, found in Property Settings) | 0 min |
+| 6 | In GA4 Admin → Property → Property Access Management → add the same service account with "Viewer" role | 2 min |
+
+### 0.4 Vercel Environment Variables (Claude Code does this)
+
+Add 3 env vars per site in Vercel Dashboard → Settings → Environment Variables:
+
+```bash
+# Pattern: {VAR_NAME}_{SITE_ID_UPPER}
+# Site ID "zenitha-yachts-med" → suffix "_ZENITHA_YACHTS_MED"
+
+GSC_SITE_URL_ZENITHA_YACHTS_MED=sc-domain:zenithayachts.com
+GA4_PROPERTY_ID_ZENITHA_YACHTS_MED=123456789
+GA4_MEASUREMENT_ID_ZENITHA_YACHTS_MED=G-XXXXXXX
+```
+
+These are read by `getSiteSeoConfig()` in `config/sites.ts:1352-1381` which does a 3-layer lookup:
+1. **Per-site env var** (e.g., `GSC_SITE_URL_ZENITHA_YACHTS_MED`)
+2. **Global fallback** (e.g., `GSC_SITE_URL` — shared with Yalla London)
+3. **Intelligent default** (e.g., `sc-domain:zenithayachts.com` from site config)
+
+### 0.5 IndexNow Key
+
+Shared across all sites by default. One `INDEXNOW_KEY` env var covers all domains. The verification file is served dynamically by the app at `/{key}.txt`.
+
+### 0.6 What You Do NOT Need Per Site
+
+- No new Supabase project (shared DB, `site_id` column separates data)
+- No new Vercel project (shared deployment, middleware routes by domain)
+- No new Google Cloud project (same service account across all properties)
+- No new cron jobs (they loop all active sites automatically)
+- No new IndexNow key (shared)
+
+### 0.7 Post-Setup: Site Activation (Claude Code, 2 minutes)
+
+```typescript
+// config/sites.ts — change status from "planned" to "active"
+"zenitha-yachts-med": {
+  status: "active",  // ← This single change activates everything
+  // ...
+}
+```
+
+Once active: cron jobs generate content, SEO agent submits to IndexNow, affiliate injection runs, sitemap includes yacht pages — all automatic.
+
+---
+
+## 0.5 PLATFORM UPDATES SINCE PLAN CREATION (Feb 21, 2026)
+
+### Critical Production Bugs Fixed
+
+These fixes on the main platform directly benefit the yacht site from day one:
+
+| Bug | Impact on Yacht Site | Fix |
+|-----|---------------------|-----|
+| **Blog pages timing out** (11+ seconds) | Yacht articles would timeout too | `React.cache()` dedup, `withTimeout()` fallback, Prisma `select` optimization, Suspense for related articles |
+| **robots.txt blocking ALL AI crawlers** | Zero AI Overview citations for yacht content | Explicit `disallow: []` for AI bots (ClaudeBot, ChatGPT-User, etc.) |
+| **Duplicate slugs creating ghost 404s** | Yacht articles could collide with travel articles | `startsWith` slug dedup, per-site scoping, compound `@@index([siteId, slug])` on BlogPost |
+| **Cross-site IndexNow contamination** | Istanbul URLs submitted under yalla-london.com key | SEO cron now loops per-site with correct domain |
+| **Indexing pipeline dead ends** | Submitted yacht URLs never advancing from "discovered" | `trackSubmittedUrls()` writes results to DB, GSC format fixed to `sc-domain:` |
+
+### Analytics Multi-Site Gap (Known, Needs Fix Before Yacht Launch)
+
+The analytics cron (`/api/cron/analytics`) currently syncs GA4/GSC data for the **default site only**. Before the yacht site launches, this cron must be updated to loop through all active sites using `getActiveSiteIds()` — same pattern every other cron already follows. The infrastructure (`getSiteSeoConfig()`, `setSiteUrl()`) is ready; the cron just needs the loop.
+
+### Pre-Publication Gate (13 Checks — All Apply to Yacht Content)
+
+Every yacht article passes through the same 13-check quality gate before publishing:
+1. Route existence, 2. Arabic route, 3. SEO minimums, 4. SEO score (blocks <50), 5. Heading hierarchy, 6. Word count (1,000 blocker), 7. Internal links (3+), 8. Readability (Flesch-Kincaid ≤12), 9. Image alt text, 10. Author attribution (E-E-A-T), 11. Structured data, 12. Authenticity signals (Jan 2026 Google update), 13. Affiliate links (2+)
 
 ---
 
@@ -886,7 +994,7 @@ Add "Yacht Management" section to admin sidebar:
   id: "zenitha-yachts-med",
   name: "Zenitha Yachts",
   slug: "zenitha-yachts-med",
-  domain: "zenithayachts.com",          // TBD — placeholder
+  domain: "zenithayachts.com",          // CONFIRMED — purchased Feb 21, 2026
   locale: "en",
   direction: "ltr",
   status: "active",
@@ -1129,10 +1237,35 @@ Multi-currency: EUR (default), USD, GBP, AED, SAR
 
 ## 12. ENVIRONMENT VARIABLES
 
+### Google Platform Credentials (Per-Site — See Section 0.4)
+
+The platform uses a naming convention for per-site Google credentials. One service account is shared; only the property IDs differ.
+
+| Variable | Purpose | Example Value |
+|----------|---------|---------------|
+| `GSC_SITE_URL_ZENITHA_YACHTS_MED` | GSC property for yacht site | `sc-domain:zenithayachts.com` |
+| `GA4_PROPERTY_ID_ZENITHA_YACHTS_MED` | GA4 property ID for yacht site | `123456789` |
+| `GA4_MEASUREMENT_ID_ZENITHA_YACHTS_MED` | GA4 measurement ID (browser tracking) | `G-XXXXXXX` |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Client-side GA4 (shared or overridden per deployment) | `G-XXXXXXX` |
+
+**Shared credentials (already configured, no action needed):**
+- `GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL` / `GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY` — same service account for all sites
+- `GOOGLE_ANALYTICS_CLIENT_EMAIL` / `GOOGLE_ANALYTICS_PRIVATE_KEY` — same service account for all sites
+- `INDEXNOW_KEY` — shared across all sites (verification file served dynamically)
+
+**Lookup logic** (`config/sites.ts:getSiteSeoConfig()`):
+```
+Per-site env var  →  Global env var  →  Intelligent default
+GSC_SITE_URL_ZENITHA_YACHTS_MED  →  GSC_SITE_URL  →  sc-domain:zenithayachts.com
+```
+
 ### Must Have (Launch Blockers)
 
 | Variable | Purpose |
 |----------|---------|
+| `GSC_SITE_URL_ZENITHA_YACHTS_MED` | Google Search Console property URL |
+| `GA4_PROPERTY_ID_ZENITHA_YACHTS_MED` | Google Analytics 4 property ID |
+| `GA4_MEASUREMENT_ID_ZENITHA_YACHTS_MED` | GA4 measurement ID for browser tracking |
 | `NAUSYS_API_KEY` | NauSYS partner API access |
 | `NAUSYS_PARTNER_ID` | NauSYS partner identifier |
 | `MMK_API_KEY` | MMK Booking Manager API |
@@ -1161,16 +1294,28 @@ Multi-currency: EUR (default), USD, GBP, AED, SAR
 
 ## 13. PHASED IMPLEMENTATION ROADMAP
 
-### Phase 1: Foundation (Weeks 1-4) — MVP Launch
+### Phase 1: Foundation (Weeks 0-4) — MVP Launch
 
-**Week 1: Schema & Config**
+**Week 0: Domain & Google Setup (Khaled — from iPhone, 30 min total)**
+- [x] Purchase domain `zenithayachts.com` — **DONE** (Cloudflare, Feb 21 2026)
+- [ ] Point DNS to Vercel in Cloudflare (CNAME `www` → `cname.vercel-dns.com`, proxy OFF)
+- [ ] Add root A record `@` → `76.76.21.21` in Cloudflare DNS
+- [ ] Add domain as GSC property (domain verification via DNS TXT record in Cloudflare)
+- [ ] Create GA4 property + web data stream, copy Measurement ID + Property ID
+- [ ] Grant existing service account access to both GA4 and GSC
+- [ ] Share GA4 Property ID and GA4 Measurement ID with Claude Code
+- [ ] Apply for NauSYS partner access (can take 1-2 weeks — start early)
+- [ ] Apply for Boatbookings affiliate account (instant-1 week)
+
+**Week 1: Schema & Config (Claude Code — once domain is confirmed)**
+- Add domain to Vercel project
+- Add 3 per-site env vars to Vercel (GSC_SITE_URL, GA4_PROPERTY_ID, GA4_MEASUREMENT_ID)
 - Add 8 Prisma models + run migration
-- Configure first yacht site in config/sites.ts
-- Add destination theme
-- Update middleware.ts with yacht domains
+- Configure yacht site entry in config/sites.ts (with domain)
+- Add destination theme to config/destination-themes.ts
+- Update middleware.ts with yacht domain mappings
 - Create lib/yacht-sync/ directory structure
-- Apply for NauSYS partner access
-- Apply for Boatbookings affiliate account
+- Fix analytics cron to loop all active sites (known gap)
 
 **Week 2: API & Sync**
 - Build NauSYS adapter + sync cron
@@ -1387,6 +1532,25 @@ test/yacht/                             (4 files)
 
 ---
 
+## 17. KNOWN PLATFORM GAPS TO FIX BEFORE YACHT LAUNCH
+
+These exist in the current Yalla London platform and must be resolved before the yacht site goes live. They are not yacht-specific but affect all sites.
+
+| Gap | Impact | Fix Effort | Blocking? |
+|-----|--------|------------|-----------|
+| Analytics cron syncs default site only | No GA4/GSC data for yacht site on dashboard | 1 hour — add `getActiveSiteIds()` loop | Yes |
+| `AnalyticsSnapshot` table missing `site_id` | Can't separate traffic data per site | Migration + 1 query update | Yes |
+| Admin analytics API returns global config only | Dashboard shows wrong credentials status | 2 hours — add siteId param | No (cosmetic) |
+| Per-site OG images don't exist yet | Social shares look broken | Need 1 branded image per site | No (soft launch ok) |
+| Author profiles are generic "Editorial" | Hurts E-E-A-T ranking signal | Create yacht expert persona | No (can add post-launch) |
+| No cookie consent banner | EU legal requirement | Half-day implementation | No (UK/GCC traffic first) |
+| 13+ dead admin buttons | Confusing UX for Khaled | Wire handlers as encountered | No |
+
+**All other multi-site infrastructure is production-ready** — content pipeline, SEO engine, affiliate injection, cron jobs, middleware routing, brand themes, slug dedup, IndexNow per-site submission.
+
+---
+
 *Technical Development Plan prepared February 21, 2026*
+*Updated: February 21, 2026 — Added domain/Google setup process, per-site GA4/GSC credential patterns, platform bug fixes, analytics gap documentation*
 *Platform: Zenitha Yachts — Zenitha.Luxury LLC*
 *Stack: Next.js 14 + Prisma + Supabase + Vercel Pro (reusing Yalla London infrastructure)*

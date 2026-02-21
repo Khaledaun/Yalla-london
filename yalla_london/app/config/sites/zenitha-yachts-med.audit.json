@@ -1,0 +1,33 @@
+{
+  "$schema": "Zenitha Yachts Mediterranean site-specific audit overrides",
+  "baseUrl": "https://www.zenithayachts.com",
+  "validators": {
+    "expectedHreflangLangs": ["en-GB", "ar-SA", "x-default"],
+    "requiredSchemaByRoute": {
+      "/": ["WebSite", "Organization"],
+      "/blog/*": ["Article"],
+      "/yachts": ["ItemList"],
+      "/yachts/*": ["Product"],
+      "/destinations": ["ItemList"],
+      "/destinations/*": ["Place"],
+      "/itineraries/*": ["TravelAction"],
+      "/about": ["Organization"]
+    }
+  },
+  "staticRoutes": [
+    "/",
+    "/blog",
+    "/yachts",
+    "/destinations",
+    "/itineraries",
+    "/charter-planner",
+    "/inquiry",
+    "/about",
+    "/contact",
+    "/privacy",
+    "/terms"
+  ],
+  "riskScanners": {
+    "minWordCount": 1000
+  }
+}

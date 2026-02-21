@@ -151,11 +151,17 @@ export async function POST(request: NextRequest) {
     return response;
   }
 
-  // --- Test suite execution (requires auth) ---
+  // --- All remaining actions require auth ---
   if (!isAuthenticated(request) && !(await isAdminSession(request))) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  // --- Fix issues action ---
+  if (body.action === "fix-issues") {
+    return await handleFixIssues();
+  }
+
+  // --- Test suite execution ---
   const { suite } = body as { suite: string };
 
   if (!suite) {
@@ -233,6 +239,115 @@ export async function POST(request: NextRequest) {
 
   result.duration = Date.now() - startTime;
   return NextResponse.json(result);
+}
+
+// ---------------------------------------------------------------------------
+// Fix Issues Handler — runs migrations and verifies tables
+// ---------------------------------------------------------------------------
+async function handleFixIssues(): Promise<NextResponse> {
+  const steps: Array<{ step: string; status: "pass" | "fail" | "skip"; message: string; duration: number }> = [];
+  const overallStart = Date.now();
+
+  // Step 1: Check which tables are missing
+  const requiredTables = [
+    "designs", "pdf_guides", "pdf_downloads", "email_templates",
+    "email_campaigns", "video_projects", "content_pipelines", "content_performance",
+  ];
+  let missingBefore: string[] = [];
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const t0 = Date.now();
+    const tables: Array<{ tablename: string }> = await prisma.$queryRaw`
+      SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+    `;
+    const existing = tables.map((t) => t.tablename);
+    missingBefore = requiredTables.filter((t) => !existing.includes(t));
+    if (missingBefore.length === 0) {
+      steps.push({ step: "Check missing tables", status: "pass", message: "All 8 design system tables already exist — nothing to fix", duration: Date.now() - t0 });
+      return NextResponse.json({ success: true, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
+    }
+    steps.push({ step: "Check missing tables", status: "fail", message: `Missing ${missingBefore.length} tables: ${missingBefore.join(", ")}`, duration: Date.now() - t0 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "Check missing tables", status: "fail", message: `Cannot query database: ${msg}`, duration: 0 });
+    return NextResponse.json({ success: false, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
+  }
+
+  // Step 2: Run prisma migrate deploy
+  try {
+    const { execSync } = await import("child_process");
+    const t0 = Date.now();
+    const cwd = process.cwd();
+    const output = execSync("npx prisma migrate deploy", {
+      cwd,
+      timeout: 30000,
+      encoding: "utf-8",
+      env: { ...process.env, PRISMA_SCHEMA: `${cwd}/prisma/schema.prisma` },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    steps.push({ step: "prisma migrate deploy", status: "pass", message: output.trim().split("\n").slice(-3).join(" | "), duration: Date.now() - t0 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? (err as Error & { stderr?: string }).stderr || err.message : String(err);
+    steps.push({ step: "prisma migrate deploy", status: "fail", message: msg.trim().split("\n").slice(-5).join(" | "), duration: 0 });
+
+    // Fallback: try prisma db push (works when migration history is out of sync)
+    try {
+      const { execSync } = await import("child_process");
+      const t0 = Date.now();
+      const cwd = process.cwd();
+      const output = execSync("npx prisma db push --accept-data-loss", {
+        cwd,
+        timeout: 30000,
+        encoding: "utf-8",
+        env: { ...process.env, PRISMA_SCHEMA: `${cwd}/prisma/schema.prisma` },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      steps.push({ step: "prisma db push (fallback)", status: "pass", message: output.trim().split("\n").slice(-3).join(" | "), duration: Date.now() - t0 });
+    } catch (err2: unknown) {
+      const msg2 = err2 instanceof Error ? (err2 as Error & { stderr?: string }).stderr || err2.message : String(err2);
+      steps.push({ step: "prisma db push (fallback)", status: "fail", message: msg2.trim().split("\n").slice(-5).join(" | "), duration: 0 });
+      return NextResponse.json({ success: false, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
+    }
+  }
+
+  // Step 3: Generate Prisma client (so runtime picks up new models)
+  try {
+    const { execSync } = await import("child_process");
+    const t0 = Date.now();
+    execSync("npx prisma generate", {
+      cwd: process.cwd(),
+      timeout: 30000,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    steps.push({ step: "prisma generate", status: "pass", message: "Prisma client regenerated", duration: Date.now() - t0 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "prisma generate", status: "skip", message: `Client generation skipped: ${msg.split("\n")[0]}`, duration: 0 });
+  }
+
+  // Step 4: Verify tables now exist
+  try {
+    const { prisma } = await import("@/lib/db");
+    const t0 = Date.now();
+    const tables: Array<{ tablename: string }> = await prisma.$queryRaw`
+      SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+    `;
+    const existing = tables.map((t) => t.tablename);
+    const stillMissing = requiredTables.filter((t) => !existing.includes(t));
+    const fixed = missingBefore.filter((t) => existing.includes(t));
+    if (stillMissing.length === 0) {
+      steps.push({ step: "Verify tables", status: "pass", message: `All 8 tables now exist. Fixed: ${fixed.join(", ")}`, duration: Date.now() - t0 });
+    } else {
+      steps.push({ step: "Verify tables", status: "fail", message: `Still missing: ${stillMissing.join(", ")}. Fixed: ${fixed.join(", ") || "none"}`, duration: Date.now() - t0 });
+    }
+    return NextResponse.json({ success: stillMissing.length === 0, steps, duration: Date.now() - overallStart, tablesFixed: fixed.length, stillMissing });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "Verify tables", status: "fail", message: msg, duration: 0 });
+    return NextResponse.json({ success: false, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1643,6 +1758,88 @@ function buildTestPage(): string {
     animation: spin 0.6s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .btn-fix {
+    background: #1a2e1a;
+    color: var(--pass);
+    border: 1px solid var(--pass);
+  }
+  .btn-fix:hover { background: #2a4a2a; }
+  .btn-fix:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sm {
+    background: var(--card);
+    color: var(--text2);
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .fix-panel {
+    background: var(--card);
+    border: 2px solid var(--pass);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .fix-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .fix-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--pass);
+  }
+  .fix-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .fix-step:last-child { border-bottom: none; }
+  .fix-step-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .fix-step-icon.pending { background: var(--border); color: var(--text2); }
+  .fix-step-icon.running { background: var(--running); color: #fff; }
+  .fix-step-icon.pass { background: var(--pass); color: #fff; }
+  .fix-step-icon.fail { background: var(--fail); color: #fff; }
+  .fix-step-icon.skip { background: var(--warn); color: #fff; }
+  .fix-step-name { font-weight: 600; }
+  .fix-step-msg {
+    color: var(--text2);
+    font-size: 12px;
+    margin-top: 2px;
+    word-break: break-word;
+  }
+  .fix-step-dur {
+    margin-left: auto;
+    color: var(--text2);
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .fix-summary {
+    margin-top: 14px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .fix-summary.success { background: #122612; color: var(--pass); border: 1px solid var(--pass); }
+  .fix-summary.failure { background: #261212; color: var(--fail); border: 1px solid var(--fail); }
 </style>
 </head>
 <body>
@@ -1659,8 +1856,18 @@ function buildTestPage(): string {
 
 <div class="top-bar">
   <button class="btn btn-big" id="runAllBtn" onclick="runAll()">Run All Tests</button>
+  <button class="btn btn-fix" id="fixBtn" onclick="fixIssues()">Fix Issues</button>
   <button class="btn" onclick="clearAll()">Clear Results</button>
   <button class="btn" style="margin-left:auto;border-color:var(--text2);color:var(--text2)" onclick="doLogout()">Logout</button>
+</div>
+
+<div id="fix-panel" class="fix-panel" style="display:none">
+  <div class="fix-header">
+    <span class="fix-title" id="fix-title">Fix Issues</span>
+    <button class="btn btn-sm" onclick="closeFixPanel()">Close</button>
+  </div>
+  <div id="fix-steps"></div>
+  <div id="fix-summary" class="fix-summary" style="display:none"></div>
 </div>
 
 ${suiteBtns}
@@ -1782,6 +1989,74 @@ function clearAll() {
 function escHtml(s) {
   if (typeof s !== 'string') return '';
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function fixIssues() {
+  const btn = document.getElementById('fixBtn');
+  const panel = document.getElementById('fix-panel');
+  const stepsEl = document.getElementById('fix-steps');
+  const summaryEl = document.getElementById('fix-summary');
+  const titleEl = document.getElementById('fix-title');
+
+  btn.disabled = true;
+  btn.textContent = 'Fixing...';
+  panel.style.display = 'block';
+  summaryEl.style.display = 'none';
+  titleEl.textContent = 'Applying fixes...';
+
+  // Show initial spinner state
+  stepsEl.innerHTML = '<div class="fix-step"><div class="fix-step-icon running"><span class="spinner" style="width:12px;height:12px;border-width:2px"></span></div><div><div class="fix-step-name">Running migrations...</div><div class="fix-step-msg">This may take up to 30 seconds</div></div></div>';
+
+  try {
+    const resp = await fetch(BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'fix-issues' }),
+    });
+    const data = await resp.json();
+
+    // Render steps
+    let html = '';
+    if (data.steps) {
+      for (const s of data.steps) {
+        const icon = s.status === 'pass' ? '&#10003;' : s.status === 'fail' ? '&#10007;' : '&#8212;';
+        html += '<div class="fix-step">';
+        html += '<div class="fix-step-icon ' + s.status + '">' + icon + '</div>';
+        html += '<div style="flex:1"><div class="fix-step-name">' + escHtml(s.step) + '</div>';
+        html += '<div class="fix-step-msg">' + escHtml(s.message) + '</div></div>';
+        if (s.duration) html += '<div class="fix-step-dur">' + (s.duration / 1000).toFixed(1) + 's</div>';
+        html += '</div>';
+      }
+    }
+    stepsEl.innerHTML = html;
+
+    // Summary
+    titleEl.textContent = data.success ? 'Fixes Applied' : 'Fix Issues';
+    summaryEl.style.display = 'block';
+    if (data.success) {
+      const fixed = data.tablesFixed || 0;
+      summaryEl.className = 'fix-summary success';
+      summaryEl.innerHTML = fixed > 0
+        ? 'All good! ' + fixed + ' table' + (fixed > 1 ? 's' : '') + ' created. Run tests again to verify.'
+        : 'All tables already exist — nothing to fix.';
+    } else {
+      const still = data.stillMissing ? data.stillMissing.join(', ') : 'unknown';
+      summaryEl.className = 'fix-summary failure';
+      summaryEl.innerHTML = 'Some issues remain. Still missing: ' + escHtml(still);
+    }
+  } catch (err) {
+    stepsEl.innerHTML = '<div class="fix-step"><div class="fix-step-icon fail">&#10007;</div><div><div class="fix-step-name">Network Error</div><div class="fix-step-msg">' + escHtml(err.message) + '</div></div></div>';
+    summaryEl.style.display = 'block';
+    summaryEl.className = 'fix-summary failure';
+    summaryEl.textContent = 'Could not reach the server. Try again.';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Fix Issues';
+}
+
+function closeFixPanel() {
+  document.getElementById('fix-panel').style.display = 'none';
 }
 
 async function doLogout() {

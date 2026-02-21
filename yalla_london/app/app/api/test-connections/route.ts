@@ -1114,10 +1114,39 @@ async function handleFixIndexingUrls(): Promise<NextResponse> {
       duration: Date.now() - t0,
     });
 
+    // Remove orphan blog URLs — entries in indexing table for blog posts that no longer exist
+    t0 = Date.now();
+    const remainingEntries = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId, url: { contains: "/blog/" } },
+      select: { id: true, url: true, slug: true },
+    });
+    const publishedSlugs = new Set(
+      (await prisma.blogPost.findMany({
+        where: { published: true, siteId },
+        select: { slug: true },
+      })).map((p: { slug: string }) => p.slug)
+    );
+    const orphanBlogEntries = remainingEntries.filter((e: { slug: string | null; url: string }) => {
+      // Extract slug from URL if slug field is null
+      const slug = e.slug || e.url.split("/blog/").pop()?.split("?")[0] || "";
+      return slug.length > 0 && !publishedSlugs.has(slug);
+    });
+    if (orphanBlogEntries.length > 0) {
+      await prisma.uRLIndexingStatus.deleteMany({
+        where: { id: { in: orphanBlogEntries.map((e: { id: string }) => e.id) } },
+      });
+    }
+    steps.push({
+      step: "Remove orphan blog URLs",
+      status: "pass",
+      message: `Deleted ${orphanBlogEntries.length} indexing entries for blog posts that no longer exist`,
+      duration: Date.now() - t0,
+    });
+
     return NextResponse.json({
       success: true,
       steps,
-      fixed: malformed.length + nonWww.length,
+      fixed: malformed.length + nonWww.length + orphanBlogEntries.length,
       duration: Date.now() - overallStart,
     });
   } catch (err: unknown) {
@@ -3025,22 +3054,32 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
         const body = await resp.text();
         const lines = body.split("\n").map((l) => l.trim()).filter(Boolean);
         const disallowLines = lines.filter((l) => l.toLowerCase().startsWith("disallow:"));
-        const disallowPaths = disallowLines.map((l) => l.split(":").slice(1).join(":").trim());
+        const disallowPaths = disallowLines
+          .map((l) => l.replace(/^disallow:\s*/i, "").trim())
+          .filter((p) => p.length > 0); // Empty "Disallow:" means "allow all" — skip
 
-        // Check if any disallow blocks /blog or /*
-        const blockedBlog = disallowPaths.some((p) =>
-          p === "/" || p === "/blog" || p === "/blog/" || p.startsWith("/blog/")
+        // Check if any disallow blocks /blog specifically
+        // Note: "Disallow: /" (bare root with no further path) blocks everything
+        // but "Disallow: /admin/" does NOT block /blog — only flag exact blog blocks
+        const blogBlockingPaths = disallowPaths.filter((p) =>
+          p === "/blog" || p === "/blog/" || p.startsWith("/blog/")
         );
+        // "Disallow: /" (exactly "/" with nothing after) blocks all paths including /blog
+        const rootBlocking = disallowPaths.filter((p) => p === "/");
+        const blockedBlog = blogBlockingPaths.length > 0 || rootBlocking.length > 0;
         const hasSitemap = lines.some((l) => l.toLowerCase().startsWith("sitemap:"));
         const sitemapLines = lines.filter((l) => l.toLowerCase().startsWith("sitemap:"));
 
         if (blockedBlog) {
+          const blockingRules = [...blogBlockingPaths, ...rootBlocking.map(() => "/ (blocks everything)")];
           tests.push({
             name: "robots.txt not blocking blog pages",
             passed: false,
-            error: `robots.txt is BLOCKING blog pages! Disallow rules found: ${disallowPaths.filter((p) => p === "/" || p.startsWith("/blog")).join(", ")}`,
-            fix: "Remove the Disallow rule for /blog from robots.txt. This is preventing Google from crawling your blog content.",
-            data: { url: robotsUrl, disallowRules: disallowPaths, sitemapDeclared: hasSitemap },
+            error: `robots.txt is BLOCKING blog pages! Disallow rules found: ${blockingRules.join(", ")}`,
+            fix: rootBlocking.length > 0
+              ? "robots.txt has 'Disallow: /' which blocks ALL pages including blog. Change to 'Disallow: /admin/' and 'Disallow: /api/' to only block non-public paths."
+              : "Remove the Disallow rule for /blog from robots.txt. This is preventing Google from crawling your blog content.",
+            data: { url: robotsUrl, allDisallowRules: disallowPaths, blogBlockingPaths, rootBlocking, sitemapDeclared: hasSitemap },
           });
         } else {
           tests.push({
@@ -3140,7 +3179,7 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
     // Find published blog posts
     const publishedPosts = await prisma.blogPost.findMany({
       where: { published: true, siteId },
-      select: { slug: true, title: true, created_at: true },
+      select: { slug: true, title_en: true, created_at: true },
       orderBy: { created_at: "desc" },
       take: 100,
     });
@@ -3296,7 +3335,7 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
     // Pick a recent published blog post
     const post = await prisma.blogPost.findFirst({
       where: { published: true, siteId },
-      select: { slug: true, title: true },
+      select: { slug: true, title_en: true },
       orderBy: { created_at: "desc" },
     });
 
@@ -3519,7 +3558,7 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
           { seo_score: null },
         ],
       },
-      select: { slug: true, title: true, seo_score: true, word_count: true },
+      select: { slug: true, title_en: true, seo_score: true },
       take: 10,
     });
 
@@ -3541,9 +3580,8 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
           lowQualityPosts: lowQualityPosts.length > 0
             ? lowQualityPosts.map((p) => ({
                 slug: p.slug,
-                title: (p.title as string || "").substring(0, 50),
+                title: (p.title_en || "").substring(0, 50),
                 seoScore: p.seo_score,
-                words: p.word_count,
               }))
             : undefined,
         },
@@ -3614,30 +3652,35 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
       where: {
         published: true,
         siteId,
-        OR: [
-          { content_en: null },
-          { content_en: "" },
-        ],
+        content_en: "",
       },
-      select: { slug: true, title: true, word_count: true, created_at: true },
+      select: { slug: true, title_en: true, created_at: true, content_en: true },
       take: 20,
     });
 
-    // Find published posts with very thin content (<300 words)
-    const thinPosts = await prisma.blogPost.findMany({
+    // Find published posts with very thin content (<1000 words) by checking content length
+    // BlogPost has no word_count field — calculate from content_en
+    const allPublished = await prisma.blogPost.findMany({
       where: {
         published: true,
         siteId,
-        content_en: { not: null },
-        word_count: { lt: 300 },
+        NOT: { content_en: "" },
       },
-      select: { slug: true, title: true, word_count: true },
-      take: 20,
+      select: { slug: true, title_en: true, content_en: true },
+    });
+
+    const thinPosts = allPublished.filter((p) => {
+      const text = (p.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      const wordCount = text.split(" ").filter(Boolean).length;
+      return wordCount < 1000;
+    }).map((p) => {
+      const text = (p.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      return { slug: p.slug, title_en: p.title_en, words: text.split(" ").filter(Boolean).length };
     });
 
     const issues: string[] = [];
     if (emptyPosts.length > 0) issues.push(`${emptyPosts.length} published posts have NO English content`);
-    if (thinPosts.length > 0) issues.push(`${thinPosts.length} published posts have <300 words (thin content)`);
+    if (thinPosts.length > 0) issues.push(`${thinPosts.length} published posts have <1000 words (thin content)`);
 
     tests.push({
       name: "Published posts content health",
@@ -3647,8 +3690,8 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
         ? "Empty or thin content is the #1 reason Google refuses to index a page. Re-generate these articles through the content pipeline with the 1,000+ word minimum, or unpublish them to stop wasting crawl budget."
         : undefined,
       data: {
-        emptyPosts: emptyPosts.length > 0 ? emptyPosts.slice(0, 5).map((p) => ({ slug: p.slug, title: (p.title as string || "").substring(0, 50) })) : undefined,
-        thinPosts: thinPosts.length > 0 ? thinPosts.slice(0, 5).map((p) => ({ slug: p.slug, title: (p.title as string || "").substring(0, 50), words: p.word_count })) : undefined,
+        emptyPosts: emptyPosts.length > 0 ? emptyPosts.slice(0, 5).map((p) => ({ slug: p.slug, title: (p.title_en || "").substring(0, 50) })) : undefined,
+        thinPosts: thinPosts.length > 0 ? thinPosts.slice(0, 5).map((p) => ({ slug: p.slug, title: (p.title_en || "").substring(0, 50), words: p.words })) : undefined,
         totalIssues: emptyPosts.length + thinPosts.length,
       },
     });

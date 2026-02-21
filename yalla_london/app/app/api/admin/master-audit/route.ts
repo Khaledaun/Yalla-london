@@ -425,6 +425,37 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
       }
     }
 
+    // Auto-cleanup: Soft-delete blog posts that returned 404 when crawled
+    // These are ghost posts (in DB as published but not accessible via URL)
+    // that poison the sitemap and create broken internal links
+    const ghost404Slugs: string[] = [];
+    for (const url of urls) {
+      const crawl = crawlMap.get(url);
+      const path = url.replace(baseUrl, "") || "/";
+      if (urlSources[url] === "blog" && crawl?.status === 404) {
+        const slug = path.replace(/^\/blog\//, "");
+        if (slug && slug !== path) {
+          ghost404Slugs.push(slug);
+        }
+      }
+    }
+    if (ghost404Slugs.length > 0) {
+      try {
+        const cleaned = await prisma.blogPost.updateMany({
+          where: { slug: { in: ghost404Slugs }, siteId, published: true },
+          data: { published: false, deletedAt: new Date() },
+        });
+        // Also clean indexing entries for these ghost posts
+        const ghostUrls = ghost404Slugs.map((s) => `${baseUrl}/blog/${s}`);
+        await prisma.uRLIndexingStatus.deleteMany({
+          where: { url: { in: ghostUrls }, site_id: siteId },
+        });
+        console.log(`[master-audit] Auto-cleaned ${cleaned.count} ghost 404 blog posts: ${ghost404Slugs.join(", ")}`);
+      } catch (cleanupErr) {
+        console.warn("[master-audit] Ghost 404 cleanup failed:", cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr));
+      }
+    }
+
     const result = {
       success: true,
       siteId,

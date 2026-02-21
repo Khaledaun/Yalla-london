@@ -78,8 +78,8 @@ export class GoogleSearchConsole {
       clientEmail: process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || '',
       privateKey: process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY?.replace(/\\n/g, '\n') || '',
       // GSC_SITE_URL takes priority — must match EXACTLY what's in GSC
-      // (e.g. "sc-domain:yalla-london.com" or "https://yalla-london.com")
-      siteUrl: process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || (() => { try { const { getSiteDomain, getDefaultSiteId } = require("@/config/sites"); return getSiteDomain(getDefaultSiteId()); } catch (e) { console.warn("[gsc] Failed to load site config for siteUrl fallback:", e); return 'https://www.yalla-london.com'; } })(),
+      // (e.g. "sc-domain:example.com" or "https://example.com")
+      siteUrl: process.env.GSC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || (() => { try { const { getSiteDomain, getDefaultSiteId } = require("@/config/sites"); return getSiteDomain(getDefaultSiteId()); } catch (e) { console.error("[gsc] CRITICAL: GSC_SITE_URL not set and config import failed. Set GSC_SITE_URL env var explicitly.", e); return ''; } })(),
     };
   }
 

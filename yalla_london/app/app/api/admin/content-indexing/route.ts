@@ -385,7 +385,7 @@ export async function GET(request: NextRequest) {
         severity: "warning",
         category: "Configuration",
         message: "GSC_SITE_URL not explicitly set",
-        detail: "The GSC site URL must match exactly what's registered in Google Search Console (e.g., 'sc-domain:yalla-london.com' or 'https://yalla-london.com'). Using a fallback URL that may not match.",
+        detail: "The GSC site URL must match exactly what's registered in Google Search Console (e.g., 'sc-domain:yoursite.com' or 'https://yoursite.com'). Set GSC_SITE_URL env var explicitly.",
         fixAction: "Set GSC_SITE_URL to match your Google Search Console property exactly",
       });
     }

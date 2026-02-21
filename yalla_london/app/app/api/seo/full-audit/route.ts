@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
           required: [
             "GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL - Service account email",
             "GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY - Service account private key (PEM format)",
-            "NEXT_PUBLIC_SITE_URL - Your verified site URL in GSC (e.g. https://www.yalla-london.com)",
+            "NEXT_PUBLIC_SITE_URL - Your verified site URL in GSC (e.g. https://www.yoursite.com)",
           ],
           optional: [
             "GA4_PROPERTY_ID - Numeric GA4 property ID for traffic data",

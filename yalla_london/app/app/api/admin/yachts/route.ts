@@ -72,6 +72,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         prisma.yacht.count({ where: { siteId } }),
         prisma.yacht.count({ where: { siteId, status: 'active' } }),
         prisma.yacht.count({ where: { siteId, featured: true } }),
+        prisma.yacht.count({ where: { siteId, status: 'pending_review' } }),
         prisma.yacht.groupBy({
           by: ['type'],
           where: { siteId },
@@ -80,7 +81,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       ]),
     ])
 
-    const [totalAll, activeCount, featuredCount, byType] = statsAgg
+    const [totalAll, activeCount, featuredCount, pendingReviewCount, byType] = statsAgg
 
     const typeStats: Record<string, number> = {}
     for (const group of byType) {
@@ -94,6 +95,12 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+      },
+      summary: {
+        total: totalAll,
+        active: activeCount,
+        featured: featuredCount,
+        pendingReview: pendingReviewCount,
       },
       stats: {
         total: totalAll,

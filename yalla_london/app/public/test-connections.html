@@ -2364,6 +2364,39 @@ async function runAllTests() {
         addResult('yachts-admin', 'Yacht Analytics (Admin)', analyticsResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + analyticsResp.status + ' — ' + (analyticsResp.errorDetail || ''),
           analyticsResp.status === 500 ? 'Yacht analytics tables may not exist. Ensure all yacht-related Prisma models are migrated.' : '');
       }
+      // GET /api/admin/yachts/destinations — Admin destinations
+      log('  Testing admin yacht destinations...');
+      const destResp = await testFetch('/api/admin/yachts/destinations', { headers: cronHeaders });
+      if (destResp.ok && destResp.json) {
+        addResult('yachts-admin', 'Yacht Destinations (Admin)', 'pass', 'Connected — ' + (destResp.json.destinations?.length ?? 0) + ' destinations');
+      } else if (destResp.status === 401 || destResp.status === 403) {
+        addResult('yachts-admin', 'Yacht Destinations (Admin)', 'warn', 'HTTP ' + destResp.status + ' — Auth rejected (may require session auth)');
+      } else {
+        addResult('yachts-admin', 'Yacht Destinations (Admin)', destResp.status === 404 ? 'warn' : 'fail', 'HTTP ' + destResp.status);
+      }
+
+      // GET /api/admin/yachts/itineraries — Admin itineraries
+      log('  Testing admin yacht itineraries...');
+      const itinResp = await testFetch('/api/admin/yachts/itineraries', { headers: cronHeaders });
+      if (itinResp.ok && itinResp.json) {
+        addResult('yachts-admin', 'Yacht Itineraries (Admin)', 'pass', 'Connected — ' + (itinResp.json.itineraries?.length ?? 0) + ' itineraries');
+      } else if (itinResp.status === 401 || itinResp.status === 403) {
+        addResult('yachts-admin', 'Yacht Itineraries (Admin)', 'warn', 'HTTP ' + itinResp.status + ' — Auth rejected (may require session auth)');
+      } else {
+        addResult('yachts-admin', 'Yacht Itineraries (Admin)', itinResp.status === 404 ? 'warn' : 'fail', 'HTTP ' + itinResp.status);
+      }
+
+      // GET /api/admin/yachts/brokers — Admin brokers
+      log('  Testing admin yacht brokers...');
+      const brokerResp = await testFetch('/api/admin/yachts/brokers', { headers: cronHeaders });
+      if (brokerResp.ok && brokerResp.json) {
+        addResult('yachts-admin', 'Yacht Brokers (Admin)', 'pass', 'Connected — ' + (brokerResp.json.brokers?.length ?? 0) + ' broker partners');
+      } else if (brokerResp.status === 401 || brokerResp.status === 403) {
+        addResult('yachts-admin', 'Yacht Brokers (Admin)', 'warn', 'HTTP ' + brokerResp.status + ' — Auth rejected (may require session auth)');
+      } else {
+        addResult('yachts-admin', 'Yacht Brokers (Admin)', brokerResp.status === 404 ? 'warn' : 'fail', 'HTTP ' + brokerResp.status);
+      }
+
     } catch (e) { log('  ERROR in section 23: ' + e.message); addResult('yachts-admin', 'Yacht Admin APIs', 'fail', 'JS Error: ' + e.message); }
 
   } else if (testMode === 'full' && !cronSecret) {

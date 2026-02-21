@@ -60,7 +60,7 @@ interface YachtSummary {
 interface YachtResponse {
   yachts: Yacht[]
   summary: YachtSummary
-  pagination: { page: number; pageSize: number; total: number; totalPages: number }
+  pagination: { page: number; limit: number; total: number; totalPages: number }
 }
 
 // ---------------------------------------------------------------------------

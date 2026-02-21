@@ -63,7 +63,7 @@ async function getDbSlugs(siteId?: string): Promise<string[]> {
       }),
       8000,
     );
-    return posts ? posts.map((p) => p.slug) : [];
+    return posts ? (posts as Array<{ slug: string }>).map((p) => p.slug) : [];
   } catch {
     return [];
   }

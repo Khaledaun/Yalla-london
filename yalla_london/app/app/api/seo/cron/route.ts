@@ -7,7 +7,7 @@ import { getActiveSiteIds, getSiteDomain } from "@/config/sites";
 /**
  * After IndexNow/GSC submission, update URLIndexingStatus so the
  * verify-indexing cron knows these URLs have been submitted.
- * Without this, URLs stay in "discovered" forever.
+ * Without this, URLs stay in "discovered" forever (KG-052).
  */
 async function trackSubmittedUrls(report: IndexingReport, siteId: string) {
   if (report.urlsProcessed === 0) return;

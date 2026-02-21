@@ -4,6 +4,7 @@
 **Prepared for:** Khaled N. Aun, Zenitha.Luxury LLC
 **Based on:** Product Readiness Report + Skippers Business Plan + Platform Architecture
 **Status:** Ready for Implementation
+**Domain:** `zenithayachts.com` (purchased, DNS on Cloudflare)
 
 ---
 
@@ -43,13 +44,16 @@
 
 **What Khaled sets up (from iPhone):**
 
-### 0.1 Domain Purchase & DNS
+### 0.1 Domain Purchase & DNS — DONE
 
-| Step | Action | Time |
-|------|--------|------|
-| 1 | Purchase domain (e.g., zenithayachts.com) from registrar (Namecheap, GoDaddy, etc.) | 5 min |
-| 2 | Point DNS to Vercel: Add CNAME record `www` → `cname.vercel-dns.com` | 2 min |
-| 3 | Tell Claude Code the domain name — rest is automated | 0 min |
+| Step | Action | Status |
+|------|--------|--------|
+| 1 | Purchase domain `zenithayachts.com` | **DONE** — Cloudflare registrar |
+| 2 | Point DNS to Vercel: In Cloudflare DNS, add CNAME record `www` → `cname.vercel-dns.com` (proxy OFF / DNS only) | **NEXT** |
+| 3 | Add root (`@`) A record → `76.76.21.21` (Vercel's IP) OR CNAME `@` → `cname.vercel-dns.com` | **NEXT** |
+| 4 | In Vercel project: Settings → Domains → Add `zenithayachts.com` and `www.zenithayachts.com` | **Claude Code does this** |
+
+**Cloudflare DNS note:** Vercel requires the CNAME proxy to be **OFF** (DNS only / grey cloud icon) for SSL certificate provisioning. Cloudflare's orange cloud proxy conflicts with Vercel's edge SSL. After Vercel confirms the domain, you can optionally turn proxy back on.
 
 ### 0.2 Google Search Console (per site)
 
@@ -57,7 +61,7 @@
 |------|--------|------|
 | 1 | Go to [search.google.com/search-console](https://search.google.com/search-console) | 1 min |
 | 2 | Click "Add property" → choose "Domain" → enter `zenithayachts.com` | 1 min |
-| 3 | Copy the DNS TXT record Google gives you → add it in your registrar's DNS panel | 3 min |
+| 3 | Copy the DNS TXT record Google gives you → add it in **Cloudflare DNS** panel (type: TXT, name: `@`) | 3 min |
 | 4 | Wait for verification (usually instant, max 48h) | 0 min |
 | 5 | Add the **existing Google service account email** as a user with "Full" permission | 2 min |
 
@@ -990,7 +994,7 @@ Add "Yacht Management" section to admin sidebar:
   id: "zenitha-yachts-med",
   name: "Zenitha Yachts",
   slug: "zenitha-yachts-med",
-  domain: "zenithayachts.com",          // TBD — placeholder
+  domain: "zenithayachts.com",          // CONFIRMED — purchased Feb 21, 2026
   locale: "en",
   direction: "ltr",
   status: "active",
@@ -1293,14 +1297,15 @@ GSC_SITE_URL_ZENITHA_YACHTS_MED  →  GSC_SITE_URL  →  sc-domain:zenithayachts
 ### Phase 1: Foundation (Weeks 0-4) — MVP Launch
 
 **Week 0: Domain & Google Setup (Khaled — from iPhone, 30 min total)**
-- Purchase domain (e.g., zenithayachts.com)
-- Point DNS to Vercel (CNAME `www` → `cname.vercel-dns.com`)
-- Add domain as GSC property (domain verification via DNS TXT record)
-- Create GA4 property + web data stream, copy Measurement ID + Property ID
-- Grant existing service account access to both GA4 and GSC
-- Share the domain name, GA4 Property ID, and GA4 Measurement ID with Claude Code
-- Apply for NauSYS partner access (can take 1-2 weeks — start early)
-- Apply for Boatbookings affiliate account (instant-1 week)
+- [x] Purchase domain `zenithayachts.com` — **DONE** (Cloudflare, Feb 21 2026)
+- [ ] Point DNS to Vercel in Cloudflare (CNAME `www` → `cname.vercel-dns.com`, proxy OFF)
+- [ ] Add root A record `@` → `76.76.21.21` in Cloudflare DNS
+- [ ] Add domain as GSC property (domain verification via DNS TXT record in Cloudflare)
+- [ ] Create GA4 property + web data stream, copy Measurement ID + Property ID
+- [ ] Grant existing service account access to both GA4 and GSC
+- [ ] Share GA4 Property ID and GA4 Measurement ID with Claude Code
+- [ ] Apply for NauSYS partner access (can take 1-2 weeks — start early)
+- [ ] Apply for Boatbookings affiliate account (instant-1 week)
 
 **Week 1: Schema & Config (Claude Code — once domain is confirmed)**
 - Add domain to Vercel project

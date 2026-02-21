@@ -66,6 +66,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: '*.yallathailand.com',
       },
+      {
+        protocol: 'https',
+        hostname: '*.zenithayachts.com',
+      },
     ]
   },
   // Turbopack workspace root — resolves the "couldn't find next/package.json" error
@@ -86,7 +90,7 @@ const nextConfig = {
   },
   async headers() {
     // SECURITY: Only allow specific origins, not wildcard
-    const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://yalla-london.com,https://www.yalla-london.com,https://arabaldives.com,https://www.arabaldives.com,https://yallariviera.com,https://www.yallariviera.com,https://yallaistanbul.com,https://www.yallaistanbul.com,https://yallathailand.com,https://www.yallathailand.com').split(',').map(o => o.trim())
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://yalla-london.com,https://www.yalla-london.com,https://arabaldives.com,https://www.arabaldives.com,https://yallariviera.com,https://www.yallariviera.com,https://yallaistanbul.com,https://www.yallaistanbul.com,https://yallathailand.com,https://www.yallathailand.com,https://zenithayachts.com,https://www.zenithayachts.com').split(',').map(o => o.trim())
     const corsOrigin = process.env.NODE_ENV === 'development'
       ? 'http://localhost:3000'
       : allowedOrigins[0]

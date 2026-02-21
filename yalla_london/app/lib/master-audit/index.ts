@@ -55,6 +55,9 @@ import { validateLinks } from './validators/links';
 import { validateMetadata } from './validators/metadata';
 import { validateRobots } from './validators/robots';
 import { generateExecSummary, generateFixPlan } from './reporter';
+import { scanScaledContentAbuse } from './risk-scanners/scaled-content';
+import { scanSiteReputationAbuse } from './risk-scanners/site-reputation';
+import { scanExpiredDomainAbuse } from './risk-scanners/expired-domain';
 
 // ---------------------------------------------------------------------------
 // Options interface
@@ -63,7 +66,7 @@ import { generateExecSummary, generateFixPlan } from './reporter';
 export interface MasterAuditOptions {
   /** Site ID (required) */
   siteId: string;
-  /** Audit mode: full (fresh), quick (subset), resume (continue previous) */
+  /** Audit mode: preview (local), prod (live read-only), full, quick, resume */
   mode?: AuditMode;
   /** Base URL override (default: from config) */
   baseUrl?: string;
@@ -208,19 +211,29 @@ function evaluateSoftGates(
 }
 
 // ---------------------------------------------------------------------------
-// Risk scanners (stub)
+// Risk scanners
 // ---------------------------------------------------------------------------
 
 function runRiskScanners(
-  _allSignals: Map<string, ExtractedSignals>,
-  _config: AuditConfig
+  allSignals: Map<string, ExtractedSignals>,
+  config: AuditConfig,
+  baseUrl: string
 ): AuditIssue[] {
-  // Stub — risk scanners will be implemented in a future iteration.
-  // Planned scanners:
-  // - Thin content detection (word count below threshold)
-  // - Duplicate content detection (content similarity)
-  // - Orphan page detection (no inbound links)
-  return [];
+  const issues: AuditIssue[] = [];
+
+  // Scaled content abuse: near-duplicate clustering, thin clusters, entity coverage
+  const scaledIssues = scanScaledContentAbuse(allSignals, config.riskScanners);
+  issues.push(...scaledIssues);
+
+  // Site reputation abuse: topic drift, outbound dominance, missing ownership
+  const reputationIssues = scanSiteReputationAbuse(allSignals, config.riskScanners);
+  issues.push(...reputationIssues);
+
+  // Expired domain abuse: topic pivot, legacy orphans
+  const expiredIssues = scanExpiredDomainAbuse(allSignals, config.riskScanners, baseUrl);
+  issues.push(...expiredIssues);
+
+  return issues;
 }
 
 // ---------------------------------------------------------------------------
@@ -231,11 +244,22 @@ export async function runMasterAudit(
   options: MasterAuditOptions
 ): Promise<AuditRunResult> {
   const startTime = new Date().toISOString();
-  const mode = options.mode ?? 'full';
+  const rawMode = options.mode ?? 'full';
+  // Normalize mode: preview/prod both run as 'full' but with different defaults
+  const mode: AuditMode = rawMode === 'preview' || rawMode === 'prod' ? rawMode : rawMode;
 
   console.log(
     `[master-audit] Starting ${mode} audit for site "${options.siteId}"...`
   );
+
+  // preview mode defaults: localhost:3000, higher concurrency
+  if (rawMode === 'preview' && !options.baseUrl) {
+    options.baseUrl = 'http://localhost:3000';
+  }
+  // prod mode defaults: stricter rate limiting
+  if (rawMode === 'prod' && !options.concurrency) {
+    options.concurrency = 6;
+  }
 
   // ================================================================
   // Step 1: Load config
@@ -575,7 +599,7 @@ export async function runMasterAudit(
   // Step 6: Run risk scanners (stub)
   // ================================================================
 
-  const riskIssues = runRiskScanners(allSignals, config);
+  const riskIssues = runRiskScanners(allSignals, config, baseUrl);
   allIssues.push(...riskIssues);
 
   console.log(
@@ -659,6 +683,42 @@ export async function runMasterAudit(
     'result.json',
     JSON.stringify(result, null, 2)
   );
+
+  // Config snapshot (for reproducibility)
+  writeOutput(
+    config.outputDir,
+    state.runId,
+    'config_snapshot.json',
+    JSON.stringify(config, null, 2)
+  );
+
+  // URL inventory
+  writeOutput(
+    config.outputDir,
+    state.runId,
+    'url_inventory.json',
+    JSON.stringify(finalInventory, null, 2)
+  );
+
+  // CHANGELOG.md (run metadata)
+  const changelogLines = [
+    `# Audit Run Changelog`,
+    '',
+    `## ${state.runId}`,
+    '',
+    `- **Date:** ${new Date(endTime).toISOString().slice(0, 10)}`,
+    `- **Site:** ${options.siteId}`,
+    `- **Mode:** ${mode}`,
+    `- **URLs Audited:** ${allUrls.length}`,
+    `- **Issues Found:** ${allIssues.length}`,
+    `- **P0:** ${allIssues.filter((i) => i.severity === 'P0').length}`,
+    `- **P1:** ${allIssues.filter((i) => i.severity === 'P1').length}`,
+    `- **P2:** ${allIssues.filter((i) => i.severity === 'P2').length}`,
+    `- **Hard Gates:** ${hardGates.filter((g) => g.passed).length}/${hardGates.length} passed`,
+    `- **Verdict:** ${hardGates.every((g) => g.passed) ? 'PASS' : 'FAIL'}`,
+    '',
+  ];
+  writeOutput(config.outputDir, state.runId, 'CHANGELOG.md', changelogLines.join('\n'));
 
   // Update state to completed
   state.status = 'completed';

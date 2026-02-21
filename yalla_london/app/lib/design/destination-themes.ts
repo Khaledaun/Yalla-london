@@ -495,6 +495,90 @@ export const frenchRivieraTheme: DestinationTheme = {
 };
 
 // ═══════════════════════════════════════════════════════
+//  ZENITHA YACHTS — Maritime Luxury
+// ═══════════════════════════════════════════════════════
+export const zenithaYachtsTheme: DestinationTheme = {
+  id: "zenitha-yachts-med",
+  name: "Zenitha Yachts",
+  nameAr: "زينيثا يخوت",
+  destination: "Mediterranean",
+  tagline: "Luxury Yacht Charter",
+  taglineAr: "تأجير اليخوت الفاخرة",
+  mood: "Navy depths meets antique gold — quiet luxury on water, Swiss precision, editorial calm",
+
+  colors: {
+    primary: "#0A1628",        // Navy Depths
+    primaryLight: "#1B2A4A",   // Midnight Blue
+    primaryDark: "#050C16",
+    secondary: "#C9A96E",      // Antique Gold
+    secondaryLight: "#E8D5B5", // Champagne
+    accent: "#2E5A88",         // Aegean Blue
+    background: "#FAFAF7",     // Pearl White
+    surface: "#FFFFFF",
+    text: "#0A1628",           // Navy
+    textMuted: "#6B7280",
+    textOnPrimary: "#FFFFFF",
+    textOnSecondary: "#0A1628",
+    border: "#E8D5B5",         // Champagne
+    success: "#0EA5A2",        // Mediterranean
+    warning: "#C9A96E",        // Gold
+    error: "#DC2626",          // Storm
+  },
+
+  gradients: {
+    hero: "linear-gradient(135deg, #0A1628 0%, #1B2A4A 30%, #2E5A88 70%, #4A90B8 100%)",
+    card: "linear-gradient(135deg, #2E5A88 0%, #1B2A4A 60%, #0A1628 100%)",
+    cta: "linear-gradient(135deg, #C9A96E, #E8D5B5)",
+    subtle: "linear-gradient(135deg, #F5EDE0 0%, #E8D5B5 100%)",
+    overlay: "linear-gradient(to top, rgba(10,22,40,0.85) 0%, rgba(10,22,40,0.4) 40%, transparent 70%)",
+  },
+
+  typography: {
+    headingFont: "Playfair Display",
+    headingFontAr: "IBM Plex Sans Arabic",
+    bodyFont: "Source Sans 3",
+    bodyFontAr: "IBM Plex Sans Arabic",
+    displayFont: "Playfair Display",
+    displayFontAr: "IBM Plex Sans Arabic",
+    headingWeight: 700,
+    bodyWeight: 400,
+    letterSpacing: {
+      tight: "-0.02em",
+      normal: "0",
+      wide: "0.12em",
+    },
+  },
+
+  shadows: {
+    card: "0 1px 3px rgba(10,22,40,0.04), 0 4px 12px rgba(10,22,40,0.03)",
+    cardHover: "0 2px 8px rgba(10,22,40,0.06), 0 8px 24px rgba(10,22,40,0.06)",
+    elevated: "0 4px 12px rgba(10,22,40,0.08), 0 16px 40px rgba(10,22,40,0.08)",
+    button: "0 4px 20px rgba(201,169,110,0.25)",
+    inner: "inset 0 1px 2px rgba(10,22,40,0.06)",
+  },
+
+  shape: {
+    borderRadius: { sm: "4px", md: "8px", lg: "12px", xl: "16px", full: "9999px" },
+    borderWidth: "1px",
+    borderStyle: "solid",
+  },
+
+  animation: {
+    preset: "serene",
+    speed: "slow",
+    easing: "cubic-bezier(0.25, 0.1, 0.25, 1.0)",
+    hoverScale: 1.03,
+    entranceDelay: 100,
+  },
+
+  patterns: {
+    decorativeBorder: "linear-gradient(90deg, #C9A96E 60%, #E8D5B5 82%, #4A90B8 100%)",
+    sectionDivider: "wave",
+    backgroundTexture: "radial-gradient(circle at 80% 20%, rgba(46,90,136,0.03) 0%, transparent 50%)",
+  },
+};
+
+// ═══════════════════════════════════════════════════════
 //  THEME REGISTRY
 // ═══════════════════════════════════════════════════════
 
@@ -505,6 +589,7 @@ export const destinationThemes: Record<string, DestinationTheme> = {
   thailand: thailandTheme,
   caribbean: caribbeanTheme,
   "french-riviera": frenchRivieraTheme,
+  "zenitha-yachts-med": zenithaYachtsTheme,
 };
 
 export function getDestinationTheme(siteId: string): DestinationTheme {
@@ -512,7 +597,7 @@ export function getDestinationTheme(siteId: string): DestinationTheme {
 }
 
 export function getAllDestinationThemes(): DestinationTheme[] {
-  return [yallaLondonTheme, maldivesTheme, thailandTheme, caribbeanTheme, frenchRivieraTheme];
+  return [yallaLondonTheme, maldivesTheme, thailandTheme, caribbeanTheme, frenchRivieraTheme, zenithaYachtsTheme];
 }
 
 /**

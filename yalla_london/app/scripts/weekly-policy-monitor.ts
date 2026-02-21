@@ -268,7 +268,7 @@ async function main() {
   // Generate report
   const report = generateReport(snapshot);
 
-  // Save report
+  // Save report to both main location and dated directory
   const fullOutputDir = path.resolve(process.cwd(), outputDir);
   if (!fs.existsSync(fullOutputDir)) {
     fs.mkdirSync(fullOutputDir, { recursive: true });
@@ -280,6 +280,15 @@ async function main() {
   // Save snapshot JSON
   const snapshotPath = path.join(fullOutputDir, 'policy-snapshot.json');
   fs.writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2), 'utf-8');
+
+  // Also save dated copy for history diffing
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const datedDir = path.join(fullOutputDir, 'policy-monitor', dateStr);
+  if (!fs.existsSync(datedDir)) {
+    fs.mkdirSync(datedDir, { recursive: true });
+  }
+  fs.writeFileSync(path.join(datedDir, 'DIFF.md'), report, 'utf-8');
+  fs.writeFileSync(path.join(datedDir, 'policy-snapshot.json'), JSON.stringify(snapshot, null, 2), 'utf-8');
 
   console.log('');
   console.log('='.repeat(60));

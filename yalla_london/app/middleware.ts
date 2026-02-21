@@ -72,6 +72,17 @@ const DOMAIN_TO_SITE: Record<
     siteName: "Yalla Thailand",
     locale: "en",
   },
+  // Zenitha Yachts (Mediterranean)
+  "zenithayachts.com": {
+    siteId: "zenitha-yachts-med",
+    siteName: "Zenitha Yachts",
+    locale: "en",
+  },
+  "www.zenithayachts.com": {
+    siteId: "zenitha-yachts-med",
+    siteName: "Zenitha Yachts",
+    locale: "en",
+  },
   // Legacy/deprecated domains (redirect to main brands)
   "gulfmaldives.com": {
     siteId: "arabaldives",

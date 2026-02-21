@@ -328,29 +328,19 @@ async function promoteToBlogPost(
     }
   }
 
-  // Check for slug collision within this site — only append random suffix if needed (never a date)
+  // Check for slug collision or near-duplicate within this site.
+  // Uses startsWith to catch both exact matches and variants like "my-slug-a1b2".
+  // If any match found, SKIP — never create another variant (that's how duplicates pile up).
   const existingSlug = await prisma.blogPost.findFirst({
-    where: { slug, siteId },
-    select: { id: true },
-  });
-  if (existingSlug) {
-    slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
-    console.warn(`[content-selector] Slug collision — using "${slug}"`);
-  }
-
-  // Also check if a near-duplicate slug exists (e.g. same topic with date suffix).
-  // If so, skip creating a duplicate — the existing article should be updated instead.
-  const nearDuplicate = await prisma.blogPost.findFirst({
     where: {
       siteId,
       slug: { startsWith: slug },
-      published: true,
       deletedAt: null,
     },
     select: { id: true, slug: true },
   });
-  if (nearDuplicate && nearDuplicate.slug !== slug) {
-    console.warn(`[content-selector] Near-duplicate detected — "${slug}" vs existing "${nearDuplicate.slug}" — skipping`);
+  if (existingSlug) {
+    console.warn(`[content-selector] Slug collision/near-duplicate: "${existingSlug.slug}" already exists for "${slug}" — skipping to prevent duplicate content`);
     return null;
   }
 

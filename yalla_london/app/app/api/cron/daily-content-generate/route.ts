@@ -308,6 +308,12 @@ async function generateArticle(
   const systemUser = await getOrCreateSystemUser(site, prisma);
   const rawSlug = generateSlug(content.title, primaryLanguage);
 
+  // Hard guard: never publish with an empty or date-only slug (e.g. "-2026-02-14")
+  if (!rawSlug || /^-?\d{4}-\d{2}-\d{2}$/.test(rawSlug)) {
+    console.error(`[daily-content-generate] Empty or date-only slug generated from title "${content.title}" — skipping`);
+    return { slug: rawSlug, deduplicated: true };
+  }
+
   // Dedup: check if a published article already covers this topic/keyword.
   // Uses startsWith with the full slug (not a 40-char substring with `contains`)
   // to avoid both false positives and false negatives that let near-duplicates through.
@@ -334,7 +340,17 @@ async function generateArticle(
     return { slug: existingByKeyword.slug, deduplicated: true };
   }
 
-  const slug = await ensureUniqueSlug(rawSlug, prisma);
+  const slug = await ensureUniqueSlug(rawSlug, site.id, prisma);
+  if (!slug) {
+    // Near-duplicate exists — mark topic as published and skip
+    if (topic.id) {
+      await prisma.topicProposal.update({
+        where: { id: topic.id },
+        data: { status: "published" },
+      }).catch(() => {});
+    }
+    return { slug: rawSlug, deduplicated: true };
+  }
 
   // Pre-publication gate — verify route exists, content quality, and SEO minimums
   const targetUrl = `/blog/${slug}`;
@@ -802,21 +818,24 @@ function generateSlug(title: string, language: string): string {
 }
 
 /**
- * Check if a slug already exists in BlogPost. If so, return a unique variant.
- * Only appends a short random suffix on actual collision — never a date.
+ * Check if a slug (or near-duplicate) already exists in BlogPost.
+ * Uses startsWith to catch variants like "my-slug-a1b2" when checking "my-slug".
+ * Returns null if a near-duplicate exists (caller should skip, not create another variant).
  */
-async function ensureUniqueSlug(slug: string, prisma: any): Promise<string> {
+async function ensureUniqueSlug(slug: string, siteId: string, prisma: any): Promise<string | null> {
   const existing = await prisma.blogPost.findFirst({
-    where: { slug },
-    select: { id: true },
+    where: {
+      slug: { startsWith: slug },
+      siteId,
+      deletedAt: null,
+    },
+    select: { id: true, slug: true },
   });
   if (!existing) return slug;
 
-  // Slug taken — append short random suffix
-  const suffix = Date.now().toString(36).slice(-4);
-  const uniqueSlug = `${slug}-${suffix}`;
-  console.warn(`[daily-content-generate] Slug "${slug}" already exists — using "${uniqueSlug}"`);
-  return uniqueSlug;
+  // A near-duplicate already exists — return null to signal "skip this topic"
+  console.warn(`[daily-content-generate] Near-duplicate slug exists: "${existing.slug}" for new "${slug}" — skipping to prevent duplicate content`);
+  return null;
 }
 
 async function getOrCreateCategory(site: SiteConfig, prisma: any) {

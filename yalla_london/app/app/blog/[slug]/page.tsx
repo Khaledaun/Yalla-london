@@ -78,7 +78,7 @@ function computeReadingTime(html: string): number {
 }
 
 type PostResult =
-  | { source: "db"; post: NonNullable<Awaited<ReturnType<typeof getDbPost>>> }
+  | { source: "db"; post: Record<string, any> }
   | { source: "static"; post: Record<string, any> };
 
 /**

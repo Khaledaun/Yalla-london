@@ -3009,6 +3009,103 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
     tests.push({ name: "Content quality gate alignment", passed: false, error: msg });
   }
 
+  // ── Test 24: NEXT_PUBLIC_SITE_URL canonical override risk ──
+  try {
+    const npsu = process.env.NEXT_PUBLIC_SITE_URL;
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+    const configDomain = getSiteDomain(siteId);
+
+    if (!npsu) {
+      tests.push({
+        name: "NEXT_PUBLIC_SITE_URL canonical check",
+        passed: true,
+        data: {
+          note: "NEXT_PUBLIC_SITE_URL not set — canonical tags use config-driven getSiteDomain() (correct)",
+          configDomain,
+        },
+      });
+    } else {
+      // Check if it matches the expected domain
+      const npsuNorm = npsu.replace(/\/$/, "").toLowerCase();
+      const configNorm = configDomain.replace(/\/$/, "").toLowerCase();
+      const matches = npsuNorm === configNorm;
+
+      if (matches) {
+        tests.push({
+          name: "NEXT_PUBLIC_SITE_URL canonical check",
+          passed: true,
+          data: { NEXT_PUBLIC_SITE_URL: npsu, configDomain, match: true },
+        });
+      } else {
+        tests.push({
+          name: "NEXT_PUBLIC_SITE_URL canonical check",
+          passed: false,
+          error: `NEXT_PUBLIC_SITE_URL='${npsu}' doesn't match site config domain '${configDomain}'. Blog canonical tags and structured data will point to the wrong domain!`,
+          fix: `Either remove NEXT_PUBLIC_SITE_URL from Vercel env vars (recommended — let the code use config-driven domains), or set it to '${configDomain}'. Mismatched canonicals cause Google to ignore your pages in favor of the canonical URL's domain.`,
+          data: { NEXT_PUBLIC_SITE_URL: npsu, expectedDomain: configDomain },
+        });
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "NEXT_PUBLIC_SITE_URL canonical check", passed: false, error: msg });
+  }
+
+  // ── Test 25: Published posts with missing/empty content ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    // Find published posts with no content (Google won't index empty pages)
+    const emptyPosts = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        siteId,
+        OR: [
+          { content_en: null },
+          { content_en: "" },
+        ],
+      },
+      select: { slug: true, title: true, word_count: true, created_at: true },
+      take: 20,
+    });
+
+    // Find published posts with very thin content (<300 words)
+    const thinPosts = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        siteId,
+        content_en: { not: null },
+        word_count: { lt: 300 },
+      },
+      select: { slug: true, title: true, word_count: true },
+      take: 20,
+    });
+
+    const issues: string[] = [];
+    if (emptyPosts.length > 0) issues.push(`${emptyPosts.length} published posts have NO English content`);
+    if (thinPosts.length > 0) issues.push(`${thinPosts.length} published posts have <300 words (thin content)`);
+
+    tests.push({
+      name: "Published posts content health",
+      passed: issues.length === 0,
+      error: issues.length > 0 ? issues.join(". ") + ". Google deprioritizes thin/empty pages." : undefined,
+      fix: issues.length > 0
+        ? "Empty or thin content is the #1 reason Google refuses to index a page. Re-generate these articles through the content pipeline with the 1,000+ word minimum, or unpublish them to stop wasting crawl budget."
+        : undefined,
+      data: {
+        emptyPosts: emptyPosts.length > 0 ? emptyPosts.slice(0, 5).map((p) => ({ slug: p.slug, title: (p.title as string || "").substring(0, 50) })) : undefined,
+        thinPosts: thinPosts.length > 0 ? thinPosts.slice(0, 5).map((p) => ({ slug: p.slug, title: (p.title as string || "").substring(0, 50), words: p.word_count })) : undefined,
+        totalIssues: emptyPosts.length + thinPosts.length,
+      },
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Published posts content health", passed: false, error: msg });
+  }
+
   return suiteResult("indexing-pipeline", tests);
 }
 
@@ -3211,7 +3308,7 @@ function buildTestPage(): string {
     { id: "html-sanitizer", label: "HTML Sanitizer", icon: "shield", desc: "XSS removal for HTML and SVG" },
     { id: "pre-pub-gate", label: "Pre-Publication Gate", icon: "gate", desc: "13-check SEO quality gate" },
     { id: "distribution", label: "Design Distribution", icon: "share", desc: "Design → social/email/blog routing" },
-    { id: "indexing-pipeline", label: "Indexing Pipeline Health", icon: "index", desc: "23 tests: GSC probe, sitemap, robots.txt, URL lifecycle, cron chain, meta tags, discovery gaps" },
+    { id: "indexing-pipeline", label: "Indexing Pipeline Health", icon: "index", desc: "25 tests: GSC probe, sitemap, robots.txt, URL lifecycle, cron chain, meta tags, discovery gaps, content health" },
   ];
 
   const iconMap: Record<string, string> = {

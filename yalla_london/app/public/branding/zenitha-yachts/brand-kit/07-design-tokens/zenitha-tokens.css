@@ -1,0 +1,157 @@
+/* ═══════════════════════════════════════════════════════════
+   ZENITHA YACHTS — CSS Design Tokens
+   Maritime Luxury · Refined · Confident · Worldly
+   Generated from brand kit: February 2026
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Colors: Deep Maritime ──────────────────────────── */
+  --z-navy:         #0A1628;
+  --z-midnight:     #1B2A4A;
+  --z-aegean:       #2E5A88;
+  --z-ocean:        #4A90B8;
+  --z-shallow:      #7CB8D4;
+
+  /* ── Colors: Gold & Warm ────────────────────────────── */
+  --z-gold:         #C9A96E;
+  --z-champagne:    #E8D5B5;
+  --z-sand:         #F5EDE0;
+  --z-pearl:        #FAFAF7;
+  --z-white:        #FFFFFF;
+
+  /* ── Colors: Accent ─────────────────────────────────── */
+  --z-mediterranean:#0EA5A2;
+  --z-coral:        #E07A5F;
+  --z-storm:        #DC2626;
+
+  /* ── Typography ─────────────────────────────────────── */
+  --z-font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --z-font-heading: 'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+  --z-font-body:    'Source Sans 3', 'Segoe UI', Tahoma, sans-serif;
+  --z-font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+  --z-font-arabic:  'IBM Plex Sans Arabic', 'Noto Sans Arabic', Tahoma, sans-serif;
+
+  /* ── Spacing (8px base grid) ────────────────────────── */
+  --z-space-1:   4px;
+  --z-space-2:   8px;
+  --z-space-3:   12px;
+  --z-space-4:   16px;
+  --z-space-5:   20px;
+  --z-space-6:   24px;
+  --z-space-8:   32px;
+  --z-space-10:  40px;
+  --z-space-12:  48px;
+  --z-space-16:  64px;
+  --z-space-20:  80px;
+  --z-space-24:  96px;
+  --z-space-32:  128px;
+
+  /* ── Border Radius ──────────────────────────────────── */
+  --z-radius-sm:   4px;
+  --z-radius-md:   8px;
+  --z-radius-lg:   12px;
+  --z-radius-xl:   16px;
+  --z-radius-2xl:  24px;
+  --z-radius-full: 9999px;
+
+  /* ── Shadows ────────────────────────────────────────── */
+  --z-shadow-card:     0 1px 3px rgba(10,22,40,0.04), 0 4px 12px rgba(10,22,40,0.03);
+  --z-shadow-hover:    0 2px 8px rgba(10,22,40,0.06), 0 8px 24px rgba(10,22,40,0.06);
+  --z-shadow-elevated: 0 4px 12px rgba(10,22,40,0.08), 0 16px 40px rgba(10,22,40,0.08);
+  --z-shadow-gold:     0 4px 20px rgba(201,169,110,0.25);
+
+  /* ── Gradients ──────────────────────────────────────── */
+  --z-gradient-hero:    linear-gradient(135deg, #0A1628 0%, #1B2A4A 30%, #2E5A88 70%, #4A90B8 100%);
+  --z-gradient-card:    linear-gradient(135deg, #2E5A88 0%, #1B2A4A 60%, #0A1628 100%);
+  --z-gradient-cta:     linear-gradient(135deg, #C9A96E, #E8D5B5);
+  --z-gradient-subtle:  linear-gradient(135deg, #F5EDE0 0%, #E8D5B5 100%);
+  --z-gradient-overlay: linear-gradient(to top, rgba(10,22,40,0.85) 0%, rgba(10,22,40,0.4) 40%, transparent 70%);
+
+  /* ── Motion ─────────────────────────────────────────── */
+  --z-ease-gentle:    cubic-bezier(0.25, 0.1, 0.25, 1.0);
+  --z-duration-fast:  200ms;
+  --z-duration-base:  350ms;
+  --z-duration-slow:  600ms;
+  --z-duration-drift: 1200ms;
+
+  /* ── Containers ─────────────────────────────────────── */
+  --z-container:      1280px;
+  --z-container-wide: 1440px;
+  --z-container-text: 720px;
+}
+
+/* ── Animations ─────────────────────────────────────────── */
+
+@keyframes z-fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes z-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes z-stampIn {
+  from { opacity: 0; transform: scale(1.4) rotate(-8deg); }
+  to   { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes z-stampBounce {
+  0%   { opacity: 0; transform: scale(1.5) rotate(-10deg); }
+  60%  { transform: scale(0.95) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes z-barSlide {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+@keyframes z-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50%      { opacity: 1; transform: scale(1); }
+}
+
+@keyframes z-shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+
+@keyframes z-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+@keyframes z-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(201,169,110,0.2); }
+  50%      { box-shadow: 0 0 20px rgba(201,169,110,0.5); }
+}
+
+@keyframes z-slideUp {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes z-counterUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Stagger Delays ─────────────────────────────────────── */
+
+.z-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.z-stagger > *:nth-child(2) { animation-delay: 100ms; }
+.z-stagger > *:nth-child(3) { animation-delay: 200ms; }
+.z-stagger > *:nth-child(4) { animation-delay: 300ms; }
+.z-stagger > *:nth-child(5) { animation-delay: 400ms; }
+.z-stagger > *:nth-child(6) { animation-delay: 500ms; }
+
+/* ── Reduced Motion ─────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

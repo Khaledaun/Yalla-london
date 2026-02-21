@@ -37,7 +37,7 @@ function uid(): string {
 function buildBrandDefaults() {
   const siteId = getDefaultSiteId()
   const cfg = getSiteConfig(siteId)
-  const domain = cfg?.domain ?? 'yalla-london.com'
+  const domain = cfg?.domain ?? 'zenitha.luxury'
   const siteUrl = getSiteDomain(siteId)
   return {
     primaryColor: cfg?.primaryColor ?? '#1C1917',

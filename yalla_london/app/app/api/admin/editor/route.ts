@@ -1,33 +1,26 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase'
+import { withAdminAuth } from '@/lib/admin-middleware'
 import { prisma } from '@/lib/db'
 
 
 
-export async function POST(request: NextRequest) {
+export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
-    const supabase = createServiceClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json()
     const { action, data } = body
 
     switch (action) {
       case 'save_draft':
-        return await handleSaveDraft(data, user.id)
-      
+        return await handleSaveDraft(data)
+
       case 'preview_content':
         return await handlePreviewContent(data)
-      
+
       case 'get_page_types':
         return await handleGetPageTypes()
-      
+
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
@@ -36,9 +29,9 @@ export async function POST(request: NextRequest) {
     console.error('Error processing editor request:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})
 
-async function handleSaveDraft(data: any, userId: string) {
+async function handleSaveDraft(data: any) {
   const {
     title,
     content,
@@ -116,7 +109,7 @@ async function handleSaveDraft(data: any, userId: string) {
       og_image_id: ogImage,
       published: false,
       category_id: await getOrCreateCategory('General'),
-      author_id: userId
+      author_id: await getOrCreateSystemUser()
     }
   })
 
@@ -304,4 +297,20 @@ async function getOrCreateCategory(name: string) {
   })
   
   return newCategory.id
+}
+
+async function getOrCreateSystemUser(): Promise<string> {
+  const existing = await prisma.user.findFirst({
+    where: { email: 'system@zenitha.luxury' }
+  })
+  if (existing) return existing.id
+
+  const user = await prisma.user.create({
+    data: {
+      email: 'system@zenitha.luxury',
+      name: 'System Editor',
+      role: 'admin',
+    }
+  })
+  return user.id
 }

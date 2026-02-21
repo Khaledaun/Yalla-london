@@ -5,14 +5,14 @@ import { getTranslation } from '@/lib/i18n'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { SITES, getDefaultSiteId } from '@/config/sites'
 
-const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'yalla-london.com'
+const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury'
 const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
 
 const content = {
   en: {
     title: 'Terms of Use',
     lastUpdated: 'Last updated',
-    intro: 'Welcome to Yalla London, operated by Zenitha.Luxury LLC ("Company", "we", "us", or "our"). By accessing and using our website at yallalondon.com (the "Website"), you agree to be bound by these Terms of Use. If you do not agree with any part of these terms, please do not use our Website. These terms apply to all visitors, users, and subscribers regardless of language preference.',
+    intro: `Welcome to Yalla London, operated by Zenitha.Luxury LLC ("Company", "we", "us", or "our"). By accessing and using our website at ${SITE_DOMAIN} (the "Website"), you agree to be bound by these Terms of Use. If you do not agree with any part of these terms, please do not use our Website. These terms apply to all visitors, users, and subscribers regardless of language preference.`,
 
     aboutTitle: 'About Our Service',
     aboutIntro: 'Yalla London is a bilingual (English/Arabic) luxury London travel guide providing curated, editorially independent content:',
@@ -134,7 +134,7 @@ const content = {
   ar: {
     title: 'شروط الاستخدام',
     lastUpdated: 'آخر تحديث',
-    intro: 'مرحباً بك في يلا لندن، الذي تديره شركة Zenitha.Luxury LLC ("الشركة" أو "نحن" أو "لنا" أو "خاصتنا"). بالوصول إلى موقعنا واستخدامه على yallalondon.com ("الموقع")، فإنك توافق على الالتزام بشروط الاستخدام هذه. إذا كنت لا توافق على أي جزء من هذه الشروط، يرجى عدم استخدام موقعنا. تنطبق هذه الشروط على جميع الزوار والمستخدمين والمشتركين بغض النظر عن تفضيل اللغة.',
+    intro: `مرحباً بك في يلا لندن، الذي تديره شركة Zenitha.Luxury LLC ("الشركة" أو "نحن" أو "لنا" أو "خاصتنا"). بالوصول إلى موقعنا واستخدامه على ${SITE_DOMAIN} ("الموقع")، فإنك توافق على الالتزام بشروط الاستخدام هذه. إذا كنت لا توافق على أي جزء من هذه الشروط، يرجى عدم استخدام موقعنا. تنطبق هذه الشروط على جميع الزوار والمستخدمين والمشتركين بغض النظر عن تفضيل اللغة.`,
 
     aboutTitle: 'حول خدمتنا',
     aboutIntro: 'يلا لندن هو دليل سفر فاخر ثنائي اللغة (إنجليزي/عربي) للندن يقدم محتوى مختاراً ومستقلاً تحريرياً:',

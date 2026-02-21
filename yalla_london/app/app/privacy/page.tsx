@@ -5,14 +5,14 @@ import { getTranslation } from '@/lib/i18n'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { SITES, getDefaultSiteId } from '@/config/sites'
 
-const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'yalla-london.com'
+const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury'
 const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
 
 const content = {
   en: {
     title: 'Privacy Policy',
     lastUpdated: 'Last updated',
-    intro: 'Zenitha.Luxury LLC, operating as Yalla London ("we", "us", or "our"), is committed to protecting your privacy. This Privacy Policy explains how we collect, use, store, and share your personal information when you visit yallalondon.com (the "Website"). We operate as a bilingual (English/Arabic) luxury London travel guide, and this policy applies to all users regardless of language preference. Zenitha.Luxury LLC is the data controller for all personal information processed through this Website.',
+    intro: `Zenitha.Luxury LLC, operating as Yalla London ("we", "us", or "our"), is committed to protecting your privacy. This Privacy Policy explains how we collect, use, store, and share your personal information when you visit ${SITE_DOMAIN} (the "Website"). We operate as a bilingual (English/Arabic) luxury London travel guide, and this policy applies to all users regardless of language preference. Zenitha.Luxury LLC is the data controller for all personal information processed through this Website.`,
 
     dataCollectTitle: 'Information We Collect',
     dataCollectPersonalTitle: 'Personal Information You Provide',
@@ -160,7 +160,7 @@ const content = {
   ar: {
     title: 'سياسة الخصوصية',
     lastUpdated: 'آخر تحديث',
-    intro: 'تلتزم شركة Zenitha.Luxury LLC، التي تعمل تحت اسم يلا لندن ("نحن" أو "لنا" أو "خاصتنا")، بحماية خصوصيتك. توضح سياسة الخصوصية هذه كيف نجمع ونستخدم ونخزن ونشارك معلوماتك الشخصية عند زيارتك لموقع yallalondon.com ("الموقع"). نعمل كدليل سفر فاخر ثنائي اللغة (إنجليزي/عربي) للندن، وتنطبق هذه السياسة على جميع المستخدمين بغض النظر عن تفضيل اللغة. شركة Zenitha.Luxury LLC هي المتحكم في البيانات لجميع المعلومات الشخصية التي تتم معالجتها عبر هذا الموقع.',
+    intro: `تلتزم شركة Zenitha.Luxury LLC، التي تعمل تحت اسم يلا لندن ("نحن" أو "لنا" أو "خاصتنا")، بحماية خصوصيتك. توضح سياسة الخصوصية هذه كيف نجمع ونستخدم ونخزن ونشارك معلوماتك الشخصية عند زيارتك لموقع ${SITE_DOMAIN} ("الموقع"). نعمل كدليل سفر فاخر ثنائي اللغة (إنجليزي/عربي) للندن، وتنطبق هذه السياسة على جميع المستخدمين بغض النظر عن تفضيل اللغة. شركة Zenitha.Luxury LLC هي المتحكم في البيانات لجميع المعلومات الشخصية التي تتم معالجتها عبر هذا الموقع.`,
 
     dataCollectTitle: 'المعلومات التي نجمعها',
     dataCollectPersonalTitle: 'المعلومات الشخصية التي تقدمها',

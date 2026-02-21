@@ -12,7 +12,7 @@
 
 import { SITES, getDefaultSiteId } from '@/config/sites';
 
-const DEFAULT_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'yalla-london.com';
+const DEFAULT_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury';
 
 export type BusinessType = 'luxury-guide';
 

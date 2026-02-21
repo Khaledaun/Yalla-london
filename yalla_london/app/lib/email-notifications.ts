@@ -135,7 +135,7 @@ export async function processSubscriberNotifications(): Promise<ProcessingSummar
           const { getSiteDomain: gsd, getDefaultSiteId: gdsi } = await import("@/config/sites");
           baseUrl = gsd(gdsi());
         } catch {
-          baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+          baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.zenitha.luxury";
         }
       }
       const fromAddress =

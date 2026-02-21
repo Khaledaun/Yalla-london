@@ -2,8 +2,11 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
+import { SITES } from "@/config/sites";
 import puppeteer from "puppeteer";
 import * as cheerio from "cheerio";
+
+const ALL_SITE_DOMAINS = Object.values(SITES).map(s => s.domain);
 
 interface CrawlResult {
   url: string;
@@ -200,8 +203,8 @@ function analyzeSEO($: cheerio.CheerioAPI, loadTime: number): SEOAnalysis {
       missingAlt: $("img").length - $("img[alt]").length,
     },
     links: {
-      internal: $('a[href^="/"], a[href*="yalla-london.com"]').length,
-      external: $('a[href^="http"]').not('a[href*="yalla-london.com"]').length,
+      internal: $(`a[href^="/"]${ALL_SITE_DOMAINS.map(d => `, a[href*="${d}"]`).join('')}`).length,
+      external: $('a[href^="http"]').not(ALL_SITE_DOMAINS.map(d => `a[href*="${d}"]`).join(', ')).length,
       broken: 0, // Would need additional checking
     },
     performance: {

@@ -255,8 +255,8 @@ export class EmailMarketing {
   }
 
   private getWelcomeEmailTemplate(language: 'en' | 'ar'): string {
-    let siteUrl = 'https://yalla-london.com';
-    let siteName = 'Yalla London';
+    let siteUrl = 'https://zenitha.luxury';
+    let siteName = 'Zenitha Luxury';
     try {
       const { getSiteDomain, getSiteConfig, getDefaultSiteId } = require('@/config/sites');
       const id = getDefaultSiteId();

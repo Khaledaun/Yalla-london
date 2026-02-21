@@ -346,7 +346,7 @@ export function generateVideoSchema(localVideo: {
       name: 'Yalla London',
       logo: {
         '@type': 'ImageObject',
-        url: '/logo.png'
+        url: '/images/yalla-london-logo.svg'
       }
     }
   };

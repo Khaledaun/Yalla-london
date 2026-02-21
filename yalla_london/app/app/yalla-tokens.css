@@ -1,0 +1,148 @@
+/* ═══════════════════════════════════════════════════════════════
+   YALLA LONDON — Design Tokens (CSS Custom Properties)
+   Version 2.0 | Import this file as your design foundation
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── COLOR PALETTE ─── */
+  --yalla-london:    #C8322B;  /* Primary CTA, urgency, heritage       */
+  --yalla-gold:      #C49A2A;  /* Premium, highlights, star ratings     */
+  --yalla-sky:       #3B7EA1;  /* Thames Blue — links, info            */
+  --yalla-stamp:     #4A7BA8;  /* Stamp Blue — LDN stamp, interactive  */
+  --yalla-charcoal:  #1C1917;  /* Dark mode background, primary text   */
+  --yalla-graphite:  #3D3835;  /* Dark mode borders, cards             */
+  --yalla-stone:     #78716C;  /* Secondary text, metadata             */
+  --yalla-sand:      #D6D0C4;  /* Light mode borders, dividers         */
+  --yalla-cream:     #FAF8F4;  /* Light mode background                */
+  --yalla-forest:    #2D5A3D;  /* Success states, nature category      */
+  --yalla-white:     #FFFFFF;
+  --yalla-black:     #000000;
+
+  /* ─── SEMANTIC COLORS ─── */
+  --yalla-bg:        var(--yalla-cream);
+  --yalla-fg:        var(--yalla-charcoal);
+  --yalla-border:    var(--yalla-sand);
+  --yalla-muted:     var(--yalla-stone);
+  --yalla-accent:    var(--yalla-london);
+
+  --yalla-success:   var(--yalla-forest);
+  --yalla-warning:   var(--yalla-gold);
+  --yalla-error:     var(--yalla-london);
+  --yalla-info:      var(--yalla-sky);
+
+  /* ─── TYPOGRAPHY ─── */
+  --yalla-font-display:   'Anybody', sans-serif;
+  --yalla-font-editorial: 'Source Serif 4', Georgia, serif;
+  --yalla-font-system:    'IBM Plex Mono', 'Courier New', monospace;
+  --yalla-font-arabic:    'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
+
+  /* ─── TYPE SCALE ─── */
+  --yalla-text-h1:      48px;   /* Display hero — Anybody 800        */
+  --yalla-text-h2:      32px;   /* Section title — Anybody 700       */
+  --yalla-text-h3:      24px;   /* Subsection — Anybody 600          */
+  --yalla-text-h4:      18px;   /* Card title — Anybody 700          */
+  --yalla-text-body-lg: 18px;   /* Featured body — Source Serif 600  */
+  --yalla-text-body:    14px;   /* Body copy — Source Serif 400      */
+  --yalla-text-sm:      12px;   /* Small text — Source Serif 400     */
+  --yalla-text-caption: 10px;   /* Caption — IBM Plex Mono 500       */
+  --yalla-text-label:    9px;   /* Labels — IBM Plex Mono 600        */
+  --yalla-text-micro:    8px;   /* Micro labels — IBM Plex Mono 500  */
+  --yalla-text-tiny:     7px;   /* Metadata — IBM Plex Mono 500      */
+
+  /* ─── LINE HEIGHT ─── */
+  --yalla-leading-tight:   1.05;
+  --yalla-leading-snug:    1.25;
+  --yalla-leading-normal:  1.5;
+  --yalla-leading-relaxed: 1.65;
+  --yalla-leading-loose:   1.8;
+
+  /* ─── LETTER SPACING ─── */
+  --yalla-tracking-tight:  -1px;   /* Display headlines        */
+  --yalla-tracking-normal:  0;      /* Body text                */
+  --yalla-tracking-wide:    1.5px;  /* Buttons, labels          */
+  --yalla-tracking-wider:   2px;    /* Badges, section labels   */
+  --yalla-tracking-widest:  3px;    /* Mono metadata, stamps    */
+
+  /* ─── SPACING ─── */
+  --yalla-space-1:   4px;
+  --yalla-space-2:   8px;
+  --yalla-space-3:  12px;
+  --yalla-space-4:  16px;
+  --yalla-space-5:  20px;
+  --yalla-space-6:  24px;
+  --yalla-space-8:  32px;
+  --yalla-space-10: 40px;
+  --yalla-space-12: 48px;
+  --yalla-space-16: 64px;
+  --yalla-space-20: 80px;
+
+  /* ─── BORDER RADIUS ─── */
+  --yalla-radius-none:  0;
+  --yalla-radius-sm:    2px;    /* Stamps, badges         */
+  --yalla-radius-md:    4px;    /* Cards, inputs          */
+  --yalla-radius-lg:    8px;    /* Modals, sheets         */
+  --yalla-radius-xl:   16px;    /* Mobile cards           */
+  --yalla-radius-full: 9999px;  /* Dots, circles, pills   */
+
+  /* ─── SHADOWS ─── */
+  --yalla-shadow-sm:  0 1px 3px rgba(28, 25, 23, 0.06);
+  --yalla-shadow-md:  0 4px 12px rgba(28, 25, 23, 0.08);
+  --yalla-shadow-lg:  0 12px 40px rgba(28, 25, 23, 0.12);
+  --yalla-shadow-xl:  0 20px 60px rgba(28, 25, 23, 0.16);
+
+  /* ─── TRANSITIONS ─── */
+  --yalla-ease:       cubic-bezier(0.4, 0, 0.2, 1);
+  --yalla-ease-in:    cubic-bezier(0.4, 0, 1, 1);
+  --yalla-ease-out:   cubic-bezier(0, 0, 0.2, 1);
+  --yalla-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --yalla-duration-fast:   150ms;
+  --yalla-duration-normal: 200ms;
+  --yalla-duration-slow:   400ms;
+  --yalla-duration-slower: 600ms;
+
+  /* ─── Z-INDEX ─── */
+  --yalla-z-base:     0;
+  --yalla-z-raised:   10;
+  --yalla-z-sticky:   50;
+  --yalla-z-overlay:  100;
+  --yalla-z-modal:    200;
+  --yalla-z-toast:    300;
+
+  /* ─── TRI-COLOR BAR ─── */
+  --yalla-bar-height: 3px;
+
+  /* ─── BREAKPOINTS (reference only, not usable in CSS vars) ─── */
+  /* Mobile:  < 640px  */
+  /* Tablet:  640–1024px */
+  /* Desktop: > 1024px */
+}
+
+/* ─── DARK MODE ─── */
+[data-theme="dark"],
+.yalla-dark {
+  --yalla-bg:        var(--yalla-charcoal);
+  --yalla-fg:        var(--yalla-cream);
+  --yalla-border:    var(--yalla-graphite);
+  --yalla-muted:     var(--yalla-stone);
+  --yalla-skeleton-highlight: #4a4540;
+}
+
+/* ─── LIGHT MODE (explicit) ─── */
+[data-theme="light"],
+.yalla-light {
+  --yalla-bg:        var(--yalla-cream);
+  --yalla-fg:        var(--yalla-charcoal);
+  --yalla-border:    var(--yalla-sand);
+  --yalla-muted:     var(--yalla-stone);
+  --yalla-skeleton-highlight: #e8e2d8;
+}
+
+/* ─── ARABIC RTL CONTEXT ─── */
+[dir="rtl"],
+.yalla-rtl {
+  font-family: var(--yalla-font-arabic);
+  direction: rtl;
+  /* CRITICAL: No letter-spacing on Arabic text — preserves ligatures */
+  letter-spacing: 0 !important;
+}

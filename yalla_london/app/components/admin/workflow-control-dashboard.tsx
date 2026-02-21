@@ -32,8 +32,42 @@ import {
   ChevronUp,
   Search,
   Filter,
+  MapPin,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+interface AutomationJob {
+  jobName: string;
+  label: string;
+  schedule: string;
+  featureFlag: string | null;
+  flagStatus: 'enabled' | 'disabled' | 'no_flag';
+  status: 'active' | 'degraded' | 'inactive' | 'disabled' | 'never_run';
+  lastRun: {
+    startedAt: string;
+    completedAt: string | null;
+    status: string;
+    durationMs: number | null;
+    itemsProcessed: number;
+    itemsSucceeded: number;
+    itemsFailed: number;
+    error: string | null;
+    timedOut: boolean;
+  } | null;
+  last24h: {
+    runs: number;
+    failures: number;
+  };
+}
+
+interface AutomationSummary {
+  total: number;
+  active: number;
+  degraded: number;
+  disabled: number;
+  neverRun: number;
+  inactive: number;
+}
 
 interface QueuedTopic {
   id: string;
@@ -92,10 +126,19 @@ export function WorkflowControlDashboard() {
   const [selectedContent, setSelectedContent] = useState<string[]>([]);
   const [bulkPublishing, setBulkPublishing] = useState(false);
 
+  // Automation state
+  const [automationJobs, setAutomationJobs] = useState<AutomationJob[]>([]);
+  const [automationSummary, setAutomationSummary] = useState<AutomationSummary | null>(null);
+  const [automationLoading, setAutomationLoading] = useState(false);
+
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
   const [localeFilter, setLocaleFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Quick action state
+  const [actionRunning, setActionRunning] = useState<string | null>(null);
+  const [actionResult, setActionResult] = useState<string | null>(null);
 
   // Fetch queue data
   const fetchQueueData = useCallback(async () => {
@@ -142,20 +185,38 @@ export function WorkflowControlDashboard() {
     }
   }, []);
 
+  // Fetch automation status (real CronJobLog data)
+  const fetchAutomationStatus = useCallback(async () => {
+    setAutomationLoading(true);
+    try {
+      const response = await fetch('/api/admin/automation-status');
+      const data = await response.json();
+      if (data.jobs) {
+        setAutomationJobs(data.jobs);
+        setAutomationSummary(data.summary);
+      }
+    } catch (error) {
+      console.error('Failed to fetch automation status:', error);
+    } finally {
+      setAutomationLoading(false);
+    }
+  }, []);
+
   // Initial load
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([
+      await Promise.allSettled([
         fetchQueueData(),
         fetchPerformanceData(),
         fetchBulkStatus(),
+        fetchAutomationStatus(),
       ]);
       setLoading(false);
     };
 
     loadData();
-  }, [fetchQueueData, fetchPerformanceData, fetchBulkStatus]);
+  }, [fetchQueueData, fetchPerformanceData, fetchBulkStatus, fetchAutomationStatus]);
 
   // Queue a topic for content generation
   const queueTopicsForGeneration = async (topicIds: string[], generateImmediately = false) => {
@@ -254,6 +315,66 @@ export function WorkflowControlDashboard() {
       setSelectedContent([]);
     } else {
       setSelectedContent(readyContent.map(c => c.id));
+    }
+  };
+
+  // Quick Actions handler
+  const runQuickAction = async (action: string, label: string) => {
+    setActionRunning(action);
+    setActionResult(null);
+    try {
+      let endpoint = '';
+      let method = 'POST';
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+
+      switch (action) {
+        case 'generate_topics':
+          endpoint = '/api/admin/content-generation-monitor';
+          break;
+        case 'generate_content':
+          endpoint = '/api/admin/content-generation-monitor';
+          break;
+        case 'publish_ready':
+          endpoint = '/api/admin/content-generation-monitor';
+          break;
+        case 'full_cycle':
+          endpoint = '/api/admin/content-generation-monitor';
+          break;
+        case 'seo_report':
+          endpoint = '/api/admin/pipeline';
+          break;
+        case 'seed_walks':
+          endpoint = '/api/admin/seed-walks';
+          break;
+      }
+
+      const body: Record<string, string> = {};
+      if (action === 'generate_topics') body.action = 'trigger_build';
+      if (action === 'generate_content') body.action = 'trigger_build';
+      if (action === 'publish_ready') body.action = 'trigger_selector';
+      if (action === 'full_cycle') body.action = 'trigger_build';
+      if (action === 'seo_report') {
+        endpoint = '/api/admin/pipeline';
+        Object.assign(body, { operation: 'seo_audit', parameters: { scope: 'all_published_content' } });
+      }
+      if (action === 'seed_walks') {
+        body.action = 'seed_walks';
+      }
+
+      const res = await fetch(endpoint, { method, headers, body: JSON.stringify(body) });
+      const data = await res.json();
+
+      if (data.success) {
+        setActionResult(`${label}: Success`);
+        // Refresh data
+        await Promise.all([fetchQueueData(), fetchBulkStatus()]);
+      } else {
+        setActionResult(`${label}: ${data.error || 'Failed'}`);
+      }
+    } catch {
+      setActionResult(`${label}: Network error`);
+    } finally {
+      setActionRunning(null);
     }
   };
 
@@ -794,67 +915,106 @@ export function WorkflowControlDashboard() {
         {/* Automation Tab */}
         <TabsContent value="automation" className="mt-6">
           <div className="grid md:grid-cols-2 gap-6">
-            {/* Workflow Status */}
+            {/* Workflow Status — Real data from CronJobLog */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-yellow-500" />
-                  Automation Status
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-yellow-500" />
+                    Automation Status
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchAutomationStatus}
+                    disabled={automationLoading}
+                  >
+                    {automationLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                {automationSummary && (
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    <Badge variant="outline" className="bg-green-100 text-green-700">
+                      {automationSummary.active} active
+                    </Badge>
+                    {automationSummary.degraded > 0 && (
+                      <Badge variant="outline" className="bg-yellow-100 text-yellow-700">
+                        {automationSummary.degraded} degraded
+                      </Badge>
+                    )}
+                    {automationSummary.disabled > 0 && (
+                      <Badge variant="outline" className="bg-gray-100 text-gray-700">
+                        {automationSummary.disabled} disabled
+                      </Badge>
+                    )}
+                    {automationSummary.neverRun > 0 && (
+                      <Badge variant="outline" className="bg-blue-100 text-blue-700">
+                        {automationSummary.neverRun} never run
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-green-100 rounded">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Daily Trends Monitor</p>
-                        <p className="text-xs text-gray-500">Runs at 6 AM daily</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="bg-green-100">Active</Badge>
-                  </div>
+                <div className="space-y-3">
+                  {automationJobs.length === 0 && !automationLoading && (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      No automation data available. Cron jobs will appear here after their first run.
+                    </p>
+                  )}
+                  {automationJobs.map((job) => {
+                    const statusConfig = {
+                      active: { icon: CheckCircle2, bg: 'bg-green-100', text: 'text-green-600', badge: 'bg-green-100 text-green-700', badgeLabel: 'Active' },
+                      degraded: { icon: AlertTriangle, bg: 'bg-yellow-100', text: 'text-yellow-600', badge: 'bg-yellow-100 text-yellow-700', badgeLabel: 'Degraded' },
+                      inactive: { icon: XCircle, bg: 'bg-red-100', text: 'text-red-600', badge: 'bg-red-100 text-red-700', badgeLabel: 'Inactive' },
+                      disabled: { icon: PauseCircle, bg: 'bg-gray-100', text: 'text-gray-500', badge: 'bg-gray-100 text-gray-600', badgeLabel: 'Disabled' },
+                      never_run: { icon: Clock, bg: 'bg-blue-100', text: 'text-blue-600', badge: 'bg-blue-100 text-blue-700', badgeLabel: 'Never Run' },
+                    };
+                    const cfg = statusConfig[job.status];
+                    const StatusIcon = cfg.icon;
 
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-green-100 rounded">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    return (
+                      <div key={job.jobName} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className={`p-2 ${cfg.bg} rounded shrink-0`}>
+                            <StatusIcon className={`h-4 w-4 ${cfg.text}`} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">{job.label}</p>
+                            <p className="text-xs text-gray-500">{job.schedule}</p>
+                            {job.lastRun && (
+                              <p className="text-xs text-gray-400">
+                                Last: {new Date(job.lastRun.startedAt).toLocaleString()}
+                                {job.lastRun.durationMs != null && ` (${(job.lastRun.durationMs / 1000).toFixed(1)}s)`}
+                              </p>
+                            )}
+                            {job.lastRun?.error && (
+                              <p className="text-xs text-red-500 truncate" title={job.lastRun.error}>
+                                {job.lastRun.error}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0 ml-2">
+                          <Badge variant="outline" className={cfg.badge}>
+                            {cfg.badgeLabel}
+                          </Badge>
+                          {job.last24h.runs > 0 && (
+                            <span className="text-xs text-gray-400">
+                              {job.last24h.runs} runs / 24h
+                              {job.last24h.failures > 0 && (
+                                <span className="text-red-500"> ({job.last24h.failures} failed)</span>
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">Auto Content Generation</p>
-                        <p className="text-xs text-gray-500">Runs hourly</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="bg-green-100">Active</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-green-100 rounded">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Daily Publisher</p>
-                        <p className="text-xs text-gray-500">Runs at 10 AM daily</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="bg-green-100">Active</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-green-100 rounded">
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">SEO Health Report</p>
-                        <p className="text-xs text-gray-500">Runs at 2 AM daily</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="bg-green-100">Active</Badge>
-                  </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -866,29 +1026,94 @@ export function WorkflowControlDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <Button className="w-full justify-start" variant="outline">
-                    <Sparkles className="h-4 w-4 mr-2" />
+                  {actionResult && (
+                    <div className="text-sm px-3 py-2 rounded bg-gray-50 border text-gray-700 mb-2">
+                      {actionResult}
+                    </div>
+                  )}
+
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    disabled={!!actionRunning}
+                    onClick={() => runQuickAction('generate_topics', 'Generate Topics')}
+                  >
+                    {actionRunning === 'generate_topics' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2" />
+                    )}
                     Generate Topics from Trends
                   </Button>
 
-                  <Button className="w-full justify-start" variant="outline">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Generate Content for All Queued Topics
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    disabled={!!actionRunning}
+                    onClick={() => runQuickAction('generate_content', 'Generate Content')}
+                  >
+                    {actionRunning === 'generate_content' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <FileText className="h-4 w-4 mr-2" />
+                    )}
+                    Generate Content for Queued Topics
                   </Button>
 
-                  <Button className="w-full justify-start" variant="outline">
-                    <Send className="h-4 w-4 mr-2" />
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    disabled={!!actionRunning}
+                    onClick={() => runQuickAction('publish_ready', 'Publish Ready')}
+                  >
+                    {actionRunning === 'publish_ready' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
                     Publish All Ready Content
                   </Button>
 
-                  <Button className="w-full justify-start" variant="outline">
-                    <RefreshCw className="h-4 w-4 mr-2" />
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    disabled={!!actionRunning}
+                    onClick={() => runQuickAction('full_cycle', 'Full Cycle')}
+                  >
+                    {actionRunning === 'full_cycle' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
                     Run Full Workflow Cycle
                   </Button>
 
-                  <Button className="w-full justify-start" variant="outline">
-                    <BarChart3 className="h-4 w-4 mr-2" />
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    disabled={!!actionRunning}
+                    onClick={() => runQuickAction('seo_report', 'SEO Report')}
+                  >
+                    {actionRunning === 'seo_report' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                    )}
                     Generate SEO Health Report
+                  </Button>
+
+                  <Button
+                    className="w-full justify-start"
+                    variant="outline"
+                    disabled={!!actionRunning}
+                    onClick={() => runQuickAction('seed_walks', 'Seed Walking Guides')}
+                  >
+                    {actionRunning === 'seed_walks' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <MapPin className="h-4 w-4 mr-2" />
+                    )}
+                    Seed Walking Guides to Pipeline
                   </Button>
                 </div>
               </CardContent>

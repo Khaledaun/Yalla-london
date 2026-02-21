@@ -9,6 +9,7 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 import fs from 'fs/promises'
 import https from 'https'
+import { requireAdmin } from '@/lib/admin-middleware'
 
 const execAsync = promisify(exec)
 
@@ -16,6 +17,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const authError = await requireAdmin(request);
+  if (authError) return authError;
+
   try {
     const backup = await prisma.databaseBackup.findUnique({
       where: { id: params.id }
@@ -78,11 +82,11 @@ async function restoreDatabase(backupId: string, cloudStoragePath: string) {
     const username = url.username
     const password = url.password
 
-    // Create restore command
-    const restoreCommand = `PGPASSWORD="${password}" psql -h ${host} -p ${port} -U ${username} -d ${dbName} -f ${tempPath}`
-    
-    // Execute restore
-    await execAsync(restoreCommand)
+    // Create restore command (password passed via env to avoid shell injection)
+    const restoreCommand = `psql -h ${host} -p ${port} -U ${username} -d ${dbName} -f ${tempPath}`
+
+    // Execute restore with password in environment variable (not in command string)
+    await execAsync(restoreCommand, { env: { ...process.env, PGPASSWORD: password } })
 
     // Clean up temp file
     await fs.unlink(tempPath)

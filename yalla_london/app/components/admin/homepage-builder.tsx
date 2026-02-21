@@ -610,7 +610,7 @@ export function HomepageBuilder() {
                   ))}
                 </SortableContext>
                 
-                <DragOverlay>
+                <DragOverlay adjustScale={false} className="" style={undefined} transition={undefined}>
                   {activeBlock && ActiveBlockIcon && (
                     <Card className="opacity-90">
                       <CardContent className="p-4">

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   FileText,
   Plus,
@@ -21,7 +23,19 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
+  Activity,
+  SearchCheck,
 } from "lucide-react";
+
+const ContentGenerationMonitor = dynamic(
+  () => import("@/components/admin/ContentGenerationMonitor"),
+  { ssr: false },
+);
+
+const ContentIndexingTab = dynamic(
+  () => import("@/components/admin/ContentIndexingTab"),
+  { ssr: false },
+);
 
 interface Article {
   id: string;
@@ -39,13 +53,19 @@ interface Article {
 }
 
 export default function ContentHub() {
-  const [activeTab, setActiveTab] = useState("articles");
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "articles");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterLocale, setFilterLocale] = useState("all");
   const [articles, setArticles] = useState<Article[]>([]);
   const [mediaAssets, setMediaAssets] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (tabFromUrl) setActiveTab(tabFromUrl);
+  }, [tabFromUrl]);
 
   useEffect(() => {
     loadContent();
@@ -110,6 +130,8 @@ export default function ContentHub() {
 
   const tabs = [
     { id: "articles", name: "Articles", icon: FileText },
+    { id: "indexing", name: "Indexing", icon: SearchCheck },
+    { id: "generation", name: "Generation Monitor", icon: Activity },
     { id: "media", name: "Media", icon: Image },
     { id: "preview", name: "Social Preview", icon: Share },
     { id: "upload", name: "Upload Content", icon: Upload },
@@ -192,7 +214,9 @@ export default function ContentHub() {
               <Plus className="h-4 w-4" />
               New Article
             </Link>
-            <button className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors">
+            <button
+              onClick={() => { window.location.href = '/admin/media'; }}
+              className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors">
               <Upload className="h-4 w-4" />
               Upload Media
             </button>
@@ -400,6 +424,10 @@ export default function ContentHub() {
         </div>
       )}
 
+      {activeTab === "indexing" && <ContentIndexingTab />}
+
+      {activeTab === "generation" && <ContentGenerationMonitor />}
+
       {activeTab === "media" && (
         <div>
           {mediaAssets.length === 0 ? (
@@ -466,12 +494,19 @@ export default function ContentHub() {
                         <button
                           className="p-1 text-gray-400 hover:text-gray-600"
                           title="View"
+                          onClick={() => window.open(asset.url, '_blank')}
                         >
                           <Eye className="h-3 w-3" />
                         </button>
                         <button
                           className="p-1 text-gray-400 hover:text-gray-600"
                           title="Download"
+                          onClick={() => {
+                            const a = document.createElement('a');
+                            a.href = asset.url;
+                            a.download = asset.originalName || asset.name || 'media';
+                            a.click();
+                          }}
                         >
                           <Download className="h-3 w-3" />
                         </button>

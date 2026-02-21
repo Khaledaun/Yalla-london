@@ -20,18 +20,14 @@ import { logCronExecution } from "@/lib/cron-logger";
  * - Seasonal trend patterns
  */
 
-// Target keywords to monitor
+// Target keywords to monitor (reduced from 10 to 6 to prevent timeout)
 const MONITORED_KEYWORDS = [
-  "london restaurants",
-  "london hotels",
-  "london events",
   "halal food london",
   "luxury london",
-  "london tourism",
-  "things to do london",
+  "london restaurants",
+  "london hotels",
   "arab restaurants london",
-  "shisha london",
-  "afternoon tea london",
+  "things to do london",
 ];
 
 // Arabic keywords for GCC audience
@@ -54,15 +50,35 @@ interface TrendingTopic {
 }
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret for security
-  const authHeader = request.headers.get("authorization");
-  if (
-    authHeader !== `Bearer ${process.env.CRON_SECRET}` &&
-    process.env.NODE_ENV === "production"
-  ) {
-    // Allow without auth in development or if CRON_SECRET not set
-    if (process.env.CRON_SECRET) {
+  // Standard cron auth: reject only if CRON_SECRET is set and doesn't match
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
+  // Healthcheck mode — quick DB ping + last run status
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    try {
+      const lastRun = await prisma.seoReport.findFirst({
+        where: { reportType: "trends-monitor" },
+        orderBy: { generatedAt: "desc" },
+        select: { reportType: true, generatedAt: true },
+      });
+      return NextResponse.json({
+        status: "healthy",
+        endpoint: "trends-monitor",
+        lastRun: lastRun || null,
+        monitoredKeywords: MONITORED_KEYWORDS.length,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      return NextResponse.json(
+        { status: "unhealthy", endpoint: "trends-monitor" },
+        { status: 503 },
+      );
     }
   }
 
@@ -84,13 +100,18 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(results);
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error("Trends monitoring failed:", error);
     await logCronExecution("trends-monitor", "failed", {
       durationMs: Date.now() - _cronStart,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "trends-monitor", error: errMsg }).catch(() => {});
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Monitoring failed" },
+      { error: errMsg },
       { status: 500 },
     );
   }
@@ -135,6 +156,15 @@ async function runTrendsMonitoring(
 
   // 3. Get interest over time for monitored keywords
   const keywordTrends = await getKeywordTrends(keywords, geo);
+
+  // 3b. Supplement with Grok X/Twitter social buzz (if XAI_API_KEY is configured)
+  const socialTrends = await getGrokSocialTrends();
+  if (socialTrends.length > 0) {
+    // Merge Grok social trends into trending topics
+    trendingTopics.push(...socialTrends);
+    trendingTopics.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    console.log(`[trends-monitor] Added ${socialTrends.length} social trends from Grok X search`);
+  }
 
   // 4. Identify content opportunities
   const contentOpportunities = identifyContentOpportunities(
@@ -215,8 +245,16 @@ async function getKeywordTrends(
   geo: string,
 ): Promise<TrendData[]> {
   const trends: TrendData[] = [];
+  // Budget: leave 10s for trending-search + opportunities + DB save + response
+  const deadlineMs = Date.now() + 45_000; // 45s keyword budget within 60s maxDuration
 
   for (const keyword of keywords) {
+    // Stop processing if we're running out of time
+    if (Date.now() >= deadlineMs) {
+      console.warn(`[trends-monitor] Deadline approaching, processed ${trends.length}/${keywords.length} keywords`);
+      break;
+    }
+
     try {
       const result = await googleTrends.getInterestOverTime(
         [keyword],
@@ -241,15 +279,25 @@ async function getKeywordTrends(
         else if (recentAvg < olderAvg * 0.9) trend = "declining";
         else trend = "stable";
 
+        // Clamp to 0-100 range — SerpAPI should return normalized values
+        // but guard against raw extracted values leaking through
+        const clampedScore = Math.min(100, Math.max(0, recentAvg));
+
         trends.push({
           keyword,
-          interestScore: recentAvg,
+          interestScore: clampedScore,
           trend,
           relatedQueries: data.relatedQueries.slice(0, 5).map((q) => q.query),
           timestamp: new Date(),
         });
       }
     } catch (error) {
+      // If a single keyword fetch was aborted/timed out, skip it and continue
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("abort") || msg.includes("timeout")) {
+        console.warn(`[trends-monitor] Timeout for "${keyword}", skipping`);
+        continue;
+      }
       console.error(`Failed to get trends for "${keyword}":`, error);
     }
 
@@ -357,6 +405,49 @@ function generateTrendsSummary(
   };
 }
 
+/**
+ * Get supplementary social trends from Grok's X/Twitter search.
+ * Captures social buzz about London travel that Google Trends may miss.
+ * Returns empty array if XAI_API_KEY is not configured (graceful degradation).
+ */
+async function getGrokSocialTrends(): Promise<TrendingTopic[]> {
+  try {
+    const { isGrokSearchAvailable, searchSocialBuzz } = await import(
+      "@/lib/ai/grok-live-search"
+    );
+    if (!isGrokSearchAvailable()) {
+      return [];
+    }
+
+    const result = await searchSocialBuzz("London travel");
+
+    // Parse the JSON response
+    let jsonStr = result.content.trim();
+    if (jsonStr.startsWith("```json")) jsonStr = jsonStr.slice(7);
+    if (jsonStr.startsWith("```")) jsonStr = jsonStr.slice(3);
+    if (jsonStr.endsWith("```")) jsonStr = jsonStr.slice(0, -3);
+    jsonStr = jsonStr.trim();
+
+    const parsed = JSON.parse(jsonStr);
+    if (!Array.isArray(parsed)) return [];
+
+    // Map Grok social trends to TrendingTopic format
+    return parsed.slice(0, 5).map((item: any) => ({
+      title: `[X] ${item.trend || item.title || "Unknown trend"}`,
+      traffic: item.engagement || "N/A",
+      isRelevant: (item.relevance_to_tourism ?? 0.5) >= 0.3,
+      relevanceScore: item.relevance_to_tourism ?? 0.5,
+      category: "social",
+    }));
+  } catch (error) {
+    console.warn(
+      "[trends-monitor] Grok social trends failed (non-fatal):",
+      error instanceof Error ? error.message : error,
+    );
+    return [];
+  }
+}
+
 async function saveTrendsData(data: any): Promise<void> {
   try {
     // Persist trends data as an SeoReport record for historical tracking
@@ -374,6 +465,58 @@ async function saveTrendsData(data: any): Promise<void> {
       },
     });
     console.log("[Trends Monitor] Data persisted to SeoReport table");
+
+    // Feed high-relevance trending topics into the content pipeline as TopicProposals
+    // This connects trends → content-builder → articles
+    // Creates proposals for ALL active sites, not just the first one
+    const { getActiveSiteIds, getDefaultSiteId } = await import("@/config/sites");
+    const activeSites = getActiveSiteIds();
+    const targetSites = activeSites.length > 0 ? activeSites : [getDefaultSiteId()];
+
+    const relevantTopics = (data.trendingTopics || []).filter(
+      (t: any) => t.isRelevant && t.relevanceScore >= 0.5,
+    );
+
+    let trendsQueued = 0;
+    for (const siteId of targetSites) {
+      for (const topic of relevantTopics.slice(0, 5)) {
+        const keyword = (topic.title || "").toLowerCase().trim();
+        if (!keyword || keyword.length < 5) continue;
+
+        // Skip if a similar topic already exists for this site
+        const exists = await prisma.topicProposal.findFirst({
+          where: { primary_keyword: keyword, site_id: siteId },
+        });
+        if (exists) continue;
+
+        try {
+          await prisma.topicProposal.create({
+            data: {
+              title: topic.title,
+              primary_keyword: keyword,
+              site_id: siteId,
+              locale: "en",
+              longtails: [],
+              questions: [],
+              intent: "info",
+              suggested_page_type: "news",
+              status: "ready",
+              confidence_score: Math.min(topic.relevanceScore || 0.5, 1.0),
+              evergreen: false,
+              source_weights_json: { source: "trends-monitor" },
+              authority_links_json: { traffic: topic.traffic, category: topic.category },
+            },
+          });
+          trendsQueued++;
+        } catch {
+          // Duplicate or schema issue — skip
+        }
+      }
+    }
+
+    if (trendsQueued > 0) {
+      console.log(`[Trends Monitor] Queued ${trendsQueued} trending topics as TopicProposals across ${targetSites.length} sites`);
+    }
   } catch (error) {
     console.error("[Trends Monitor] Failed to save trends data:", error);
     // Log summary even if DB save fails

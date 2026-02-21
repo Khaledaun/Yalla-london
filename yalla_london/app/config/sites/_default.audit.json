@@ -1,0 +1,137 @@
+{
+  "crawl": {
+    "concurrency": 6,
+    "batchSize": 200,
+    "rateDelayMs": 200,
+    "timeoutMs": 15000,
+    "maxRetries": 3,
+    "retryBaseDelayMs": 1000,
+    "maxRedirects": 5,
+    "userAgent": "MasterAudit/1.0 (SEO Compliance; +https://zenitha.luxury)",
+    "allowedStatuses": [200, 301, 302, 304]
+  },
+  "validators": {
+    "enabled": {
+      "http": true,
+      "canonical": true,
+      "hreflang": true,
+      "sitemap": true,
+      "schema": true,
+      "links": true,
+      "metadata": true,
+      "robots": true
+    },
+    "titleLength": { "min": 30, "max": 60 },
+    "descriptionLength": { "min": 120, "max": 160 },
+    "expectedHreflangLangs": ["en-GB", "ar-SA", "x-default"],
+    "maxRedirectChain": 3,
+    "excludePatterns": [
+      "*/api/*",
+      "*/_next/*",
+      "*/admin/*",
+      "*/favicon.ico",
+      "*/robots.txt",
+      "*/shop/download",
+      "*/shop/purchases"
+    ],
+    "maxSitemapUrls": 50000,
+    "requiredSchemaByRoute": {
+      "/": ["Organization", "WebSite"],
+      "/blog/*": ["Article"]
+    },
+    "deprecatedSchemaTypes": [
+      "FAQPage",
+      "HowTo",
+      "CourseInfo",
+      "ClaimReview",
+      "EstimatedSalary",
+      "LearningVideo",
+      "SpecialAnnouncement",
+      "VehicleListing",
+      "PracticeProblems",
+      "SitelinksSearchBox"
+    ],
+    "allowedCanonicalParams": []
+  },
+  "riskScanners": {
+    "enabled": {
+      "thinContent": true,
+      "duplicateContent": true,
+      "orphanPages": true,
+      "scaledContentAbuse": true,
+      "siteReputationAbuse": true,
+      "expiredDomainAbuse": true
+    },
+    "minWordCount": 1000,
+    "thinContentThreshold": 300,
+    "duplicateSimilarityThreshold": 0.85,
+    "scaledContentMinClusterSize": 3,
+    "entityCoverageMinScore": 0.3,
+    "outboundDominanceThreshold": 0.7,
+    "topicPivotScoreThreshold": 0.6
+  },
+  "hardGates": [
+    {
+      "name": "no-p0-http-errors",
+      "category": "http",
+      "maxP0": 0,
+      "maxTotal": -1,
+      "description": "No critical HTTP errors (5xx on important pages)"
+    },
+    {
+      "name": "no-missing-canonical",
+      "category": "canonical",
+      "maxP0": 0,
+      "maxTotal": -1,
+      "description": "All indexable pages must have canonical tags"
+    },
+    {
+      "name": "no-broken-schema",
+      "category": "schema",
+      "maxP0": 0,
+      "maxTotal": -1,
+      "description": "All JSON-LD must be valid and non-deprecated"
+    },
+    {
+      "name": "no-hreflang-failures",
+      "category": "hreflang",
+      "maxP0": 0,
+      "maxTotal": -1,
+      "description": "All hreflang tags must have valid reciprocal links"
+    },
+    {
+      "name": "no-broken-internal-links",
+      "category": "links",
+      "maxP0": 0,
+      "maxTotal": -1,
+      "description": "No broken internal links across the site"
+    },
+    {
+      "name": "sitemap-valid",
+      "category": "sitemap",
+      "maxP0": 0,
+      "maxTotal": 0,
+      "description": "Sitemap must parse successfully with no critical errors"
+    }
+  ],
+  "staticRoutes": [
+    "/",
+    "/blog",
+    "/information",
+    "/information/articles",
+    "/news",
+    "/events",
+    "/experiences",
+    "/hotels",
+    "/recommendations",
+    "/london-by-foot",
+    "/shop",
+    "/about",
+    "/contact",
+    "/privacy",
+    "/terms",
+    "/affiliate-disclosure"
+  ],
+  "includeArVariants": true,
+  "outputDir": "docs/master-audit"
+}

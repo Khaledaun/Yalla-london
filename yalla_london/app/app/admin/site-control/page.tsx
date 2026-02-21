@@ -23,6 +23,9 @@ import {
   Mail,
   Phone
 } from 'lucide-react'
+import { getDefaultSiteId, getSiteConfig } from '@/config/sites'
+
+const _siteCfg = getSiteConfig(getDefaultSiteId())
 
 interface HomepageBlock {
   id: string
@@ -788,7 +791,7 @@ export default function SiteControl() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Site Name</label>
                   <input
                     type="text"
-                    defaultValue="Yalla London"
+                    defaultValue={_siteCfg?.name || 'Yalla London'}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
@@ -861,7 +864,7 @@ export default function SiteControl() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Site Name</label>
                   <input
                     type="text"
-                    defaultValue="Yalla London"
+                    defaultValue={_siteCfg?.name || 'Yalla London'}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>

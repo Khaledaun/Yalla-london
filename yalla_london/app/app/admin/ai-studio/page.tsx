@@ -21,48 +21,21 @@ import {
 export default function AIStudio() {
   const [activeTab, setActiveTab] = useState('prompts')
   const [isLoading, setIsLoading] = useState(false)
+  const [prompts, setPrompts] = useState([
+    { id: 1, name: 'Event Guide Generator', version: '2.1', locale: 'en', category: 'generation', pageType: 'event', isActive: true, usageCount: 45, lastUsed: '2024-01-14T10:30:00Z' },
+    { id: 2, name: 'Shopping Guide Generator', version: '1.8', locale: 'ar', category: 'generation', pageType: 'shopping', isActive: true, usageCount: 32, lastUsed: '2024-01-14T09:15:00Z' },
+    { id: 3, name: 'SEO Audit Prompt', version: '1.5', locale: 'en', category: 'seo_audit', pageType: null as string | null, isActive: false, usageCount: 18, lastUsed: '2024-01-13T16:45:00Z' }
+  ])
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).catch(() => {});
+  };
 
   const tabs = [
     { id: 'prompts', name: 'Prompts', icon: Brain },
     { id: 'models', name: 'Models & Providers', icon: Settings },
     { id: 'routing', name: 'Routing & Automation', icon: Zap },
     { id: 'usage', name: 'Token Usage & Cost', icon: BarChart3 }
-  ]
-
-  const prompts = [
-    {
-      id: 1,
-      name: 'Event Guide Generator',
-      version: '2.1',
-      locale: 'en',
-      category: 'generation',
-      pageType: 'event',
-      isActive: true,
-      usageCount: 45,
-      lastUsed: '2024-01-14T10:30:00Z'
-    },
-    {
-      id: 2,
-      name: 'Shopping Guide Generator',
-      version: '1.8',
-      locale: 'ar',
-      category: 'generation',
-      pageType: 'shopping',
-      isActive: true,
-      usageCount: 32,
-      lastUsed: '2024-01-14T09:15:00Z'
-    },
-    {
-      id: 3,
-      name: 'SEO Audit Prompt',
-      version: '1.5',
-      locale: 'en',
-      category: 'seo_audit',
-      pageType: null,
-      isActive: false,
-      usageCount: 18,
-      lastUsed: '2024-01-13T16:45:00Z'
-    }
   ]
 
   const providers = [
@@ -225,19 +198,19 @@ export default function AIStudio() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
+                    <button title="View prompt" onClick={() => { window.location.href = '/admin/prompts'; }} className="p-2 text-gray-400 hover:text-gray-600">
                       <Eye className="h-4 w-4" />
                     </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
+                    <button title="Edit prompt" onClick={() => { window.location.href = '/admin/prompts'; }} className="p-2 text-gray-400 hover:text-gray-600">
                       <Edit className="h-4 w-4" />
                     </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
+                    <button title="Copy name" onClick={() => copyToClipboard(prompt.name)} className="p-2 text-gray-400 hover:text-gray-600">
                       <Copy className="h-4 w-4" />
                     </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
+                    <button title="Use in content generation" onClick={() => { window.location.href = '/admin/content?tab=generation'; }} className="p-2 text-gray-400 hover:text-gray-600">
                       <Play className="h-4 w-4" />
                     </button>
-                    <button className="p-2 text-red-400 hover:text-red-600">
+                    <button title="Delete prompt" onClick={() => setPrompts(prev => prev.filter(p => p.id !== prompt.id))} className="p-2 text-red-400 hover:text-red-600">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -292,13 +265,13 @@ export default function AIStudio() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
+                    <button title="API Key Settings" onClick={() => { window.location.href = '/admin/command-center/settings/api-keys'; }} className="p-2 text-gray-400 hover:text-gray-600">
                       <Settings className="h-4 w-4" />
                     </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
+                    <button title="Test Connection" onClick={() => { window.location.href = '/admin/command-center/settings/api-keys'; }} className="p-2 text-gray-400 hover:text-gray-600">
                       <Play className="h-4 w-4" />
                     </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
+                    <button title="Edit Provider" onClick={() => { window.location.href = '/admin/command-center/settings/api-keys'; }} className="p-2 text-gray-400 hover:text-gray-600">
                       <Edit className="h-4 w-4" />
                     </button>
                   </div>
@@ -350,10 +323,10 @@ export default function AIStudio() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
+                    <button title="Route Settings" onClick={() => { window.location.href = '/admin/workflow'; }} className="p-2 text-gray-400 hover:text-gray-600">
                       <Settings className="h-4 w-4" />
                     </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600">
+                    <button title="Edit Route" onClick={() => { window.location.href = '/admin/workflow'; }} className="p-2 text-gray-400 hover:text-gray-600">
                       <Edit className="h-4 w-4" />
                     </button>
                   </div>

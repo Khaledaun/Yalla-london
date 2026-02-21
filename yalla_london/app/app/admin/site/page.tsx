@@ -35,6 +35,7 @@ import {
   Search
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { getSiteDomain, getDefaultSiteId, getSiteConfig } from '@/config/sites'
 
 interface HomepageConfig {
   hero: {
@@ -106,11 +107,13 @@ interface AutomationSettings {
   }
 }
 
+const _defaultSite = getSiteConfig(getDefaultSiteId())
+
 export default function SiteControl() {
   const [homepageConfig, setHomepageConfig] = useState<HomepageConfig>({
     hero: {
-      title: 'Discover London with Yalla London',
-      subtitle: 'Your ultimate guide to the best experiences in London',
+      title: `Discover ${_defaultSite?.destination || 'London'} with ${_defaultSite?.name || 'Us'}`,
+      subtitle: `Your ultimate guide to the best experiences in ${_defaultSite?.destination || 'London'}`,
       backgroundImage: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1200',
       cta1Text: 'Explore Articles',
       cta1Link: '/articles',
@@ -144,7 +147,7 @@ export default function SiteControl() {
     {
       id: '1',
       name: 'Welcome Offer',
-      title: 'Welcome to Yalla London!',
+      title: `Welcome to ${_defaultSite?.name || 'Our Site'}!`,
       description: 'Get 20% off your first booking with our exclusive welcome offer.',
       image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800',
       ctaText: 'Claim Offer',
@@ -284,7 +287,7 @@ export default function SiteControl() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-6">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -297,7 +300,7 @@ export default function SiteControl() {
               <p className="text-gray-600 mt-1">Homepage, theme, pop-ups, and automation settings</p>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => window.open(getSiteDomain(getDefaultSiteId()), '_blank')}>
                 <Eye className="h-4 w-4 mr-2" />
                 Preview Site
               </Button>
@@ -475,7 +478,14 @@ export default function SiteControl() {
                         ) : (
                           <ToggleLeft className="h-6 w-6 text-gray-400" />
                         )}
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setHomepageConfig(prev => ({
+                            ...prev,
+                            modules: prev.modules.map(m => m.id === module.id ? { ...m, enabled: !m.enabled } : m)
+                          }))}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                       </div>
@@ -559,7 +569,8 @@ export default function SiteControl() {
                       <option value="Open Sans">Open Sans (Sans-serif)</option>
                       <option value="Lato">Lato (Sans-serif)</option>
                       <option value="Montserrat">Montserrat (Sans-serif)</option>
-                      <option value="Playfair Display">Playfair Display (Serif)</option>
+                      <option value="Anybody">Anybody (Display)</option>
+                      <option value="Source Serif 4">Source Serif 4 (Editorial)</option>
                       <option value="Merriweather">Merriweather (Serif)</option>
                     </select>
                   </div>
@@ -617,7 +628,7 @@ export default function SiteControl() {
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-transparent to-black/20" />
                     <div className="relative z-10">
-                      <h3 className="text-2xl font-bold mb-2">Yalla London</h3>
+                      <h3 className="text-2xl font-bold mb-2">{_defaultSite?.name || 'Your Site'}</h3>
                       <p className="text-lg mb-4">Your site, your style.</p>
                       <div className="flex gap-2 justify-center">
                         <div
@@ -763,11 +774,19 @@ export default function SiteControl() {
                         >
                           {selectedPopup.status === 'active' ? 'Deactivate' : 'Activate'}
                         </Button>
-                        <Button variant="outline" className="flex-1">
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => { window.location.href = '/admin/workflow?tab=automation'; }}
+                        >
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </Button>
-                        <Button variant="outline" className="flex-1">
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => { window.location.href = '/admin/seo'; }}
+                        >
                           <BarChart3 className="h-4 w-4 mr-2" />
                           Analytics
                         </Button>

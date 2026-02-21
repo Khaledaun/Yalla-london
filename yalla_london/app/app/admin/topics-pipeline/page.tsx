@@ -451,7 +451,13 @@ export default function TopicsPipelinePage() {
                           Create Article
                         </Button>
 
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            window.location.href = `/admin/editor?title=${encodeURIComponent(topic.title)}&keyword=${encodeURIComponent(topic.primary_keyword || '')}`;
+                          }}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
 

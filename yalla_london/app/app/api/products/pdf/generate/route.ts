@@ -47,9 +47,12 @@ export async function POST(request: NextRequest) {
       locale as "ar" | "en",
     );
 
+    const { getSiteDomain, getSiteConfig, getDefaultSiteId } = await import("@/config/sites");
+    const currentSiteId = getDefaultSiteId();
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
-    const siteName = "Yalla London";
+      process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(currentSiteId);
+    const siteConfig = getSiteConfig(currentSiteId);
+    const siteName = siteConfig?.name || "Yalla London";
 
     // Step 2: Generate HTML
     const html = generatePDFHTML({
@@ -63,15 +66,15 @@ export async function POST(request: NextRequest) {
           : "Your Complete Guide by Yalla London",
       destination,
       locale: locale as "ar" | "en",
-      siteId: "yalla-london",
+      siteId: currentSiteId,
       template: template as any,
       sections,
       branding: {
-        primaryColor: "#7c3aed",
-        secondaryColor: "#d4af37",
-        logoUrl: `${siteUrl}/logo.png`,
+        primaryColor: siteConfig?.primaryColor || "#7c3aed",
+        secondaryColor: siteConfig?.secondaryColor || "#d4af37",
+        logoUrl: `${siteUrl}/images/yalla-london-logo.svg`,
         siteName,
-        contactEmail: "hello@yalla-london.com",
+        contactEmail: `hello@${siteConfig?.domain || "zenitha.luxury"}`,
         website: siteUrl,
       },
       includeAffiliate: true,
@@ -125,7 +128,7 @@ export async function POST(request: NextRequest) {
       if (product) {
         await prisma.purchase.create({
           data: {
-            site_id: "yalla-london",
+            site_id: currentSiteId,
             product_id: product.id,
             customer_email: customerEmail,
             customer_name: customerName || "",
@@ -142,7 +145,7 @@ export async function POST(request: NextRequest) {
       try {
         await prisma.lead.create({
           data: {
-            site_id: "yalla-london",
+            site_id: currentSiteId,
             email: customerEmail,
             name: customerName,
             lead_type: "GUIDE_DOWNLOAD",
@@ -204,7 +207,12 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET: Download a generated PDF/guide by token
+ * GET: Download / validate a purchase by token
+ *
+ * Used by the /shop/download page to validate the token and show
+ * the download UI. The actual file delivery happens either:
+ *   - via redirect to file_url (S3/R2 signed URL) if configured, or
+ *   - via the /api/products/download/[token] streaming endpoint.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -236,7 +244,7 @@ export async function GET(request: NextRequest) {
     // Check download limit
     if (purchase.download_count >= purchase.download_limit) {
       return NextResponse.json(
-        { error: "Download limit reached" },
+        { error: "Download limit reached", code: "LIMIT_REACHED" },
         { status: 403 },
       );
     }
@@ -244,7 +252,7 @@ export async function GET(request: NextRequest) {
     // Check payment status (allow free or completed)
     if (purchase.amount > 0 && purchase.status !== "COMPLETED") {
       return NextResponse.json(
-        { error: "Payment not completed" },
+        { error: "Payment not completed", code: "PAYMENT_PENDING" },
         { status: 402 },
       );
     }
@@ -255,18 +263,30 @@ export async function GET(request: NextRequest) {
       data: { download_count: { increment: 1 } },
     });
 
-    // Return download info
+    // If the product has an external file URL (S3/R2), redirect to it
+    const fileUrl = purchase.product.file_url;
+    if (
+      fileUrl &&
+      (fileUrl.startsWith("https://") || fileUrl.startsWith("http://"))
+    ) {
+      return NextResponse.redirect(fileUrl);
+    }
+
+    // Otherwise return download metadata for the client-side download page
     return NextResponse.json({
       success: true,
       product: {
         name: purchase.product.name_en,
+        name_ar: purchase.product.name_ar,
         type: purchase.product.product_type,
+        slug: purchase.product.slug,
       },
       downloadsUsed: purchase.download_count + 1,
       downloadsRemaining: purchase.download_limit - purchase.download_count - 1,
-      fileUrl: purchase.product.file_url,
+      fileUrl: fileUrl || null,
     });
   } catch (error) {
+    console.error("Download validation failed:", error);
     return NextResponse.json({ error: "Download failed" }, { status: 500 });
   }
 }

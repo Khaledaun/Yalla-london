@@ -83,13 +83,41 @@ export default function EditArticlePage() {
   }, [articleId]);
 
   const handleSave = async () => {
-    // This will be handled by the ArticleEditor component
-    console.log('Save triggered from edit page');
+    if (!article) return;
+    try {
+      const response = await fetch(`/api/admin/blog-posts/${article.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ published: false }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Save failed');
+      }
+      alert('Draft saved successfully');
+    } catch (err) {
+      alert('Save failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
   };
 
   const handlePublish = async () => {
-    // This will be handled by the ArticleEditor component
-    console.log('Publish triggered from edit page');
+    if (!article) return;
+    try {
+      const response = await fetch(`/api/admin/blog-posts/${article.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: article.published ? 'unpublish' : 'publish' }),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || 'Action failed');
+      }
+      const result = await response.json();
+      alert(result.message || 'Success');
+      setArticle(prev => prev ? { ...prev, published: !prev.published } : prev);
+    } catch (err) {
+      alert('Action failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
   };
 
   if (loading) {

@@ -91,7 +91,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = request.nextUrl.searchParams.get("siteId") || request.headers.get("x-site-id") || getDefaultSiteId();
+    const baseUrl = getSiteDomain(siteId);
     
     // Generate the OG image URL
     const ogImageUrl = new URL('/api/og', baseUrl);

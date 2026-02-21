@@ -2,6 +2,8 @@
  * Phase 4C Topics Management API
  * Individual topic CRUD operations
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';

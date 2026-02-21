@@ -213,12 +213,41 @@ export class BackgroundJobService {
         });
 
         if (!existingAnalysis) {
-          // Simulate backlink analysis
+          // Perform real entity extraction from content
+          const fullContent = await prisma.blogPost.findUnique({
+            where: { id: content.id },
+            select: {
+              content_en: true,
+              tags: true,
+              authority_links_json: true,
+              keywords_json: true,
+              category: { select: { name_en: true } },
+            }
+          });
+
+          const bodyText = fullContent?.content_en || '';
+          const tags = (fullContent?.tags as string[]) || [];
+          const authorityLinks = (fullContent?.authority_links_json as any[]) || [];
+
+          // Extract entities: proper nouns, locations, brands from content
+          const entityPattern = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g;
+          const rawEntities = bodyText.match(entityPattern) || [];
+          const uniqueEntities = [...new Set<string>(rawEntities)].filter(e => e.length > 2);
+
+          // Identify backlink opportunities based on entities and missing authority links
+          const existingLinkDomains = authorityLinks.map((l: any) => {
+            try { return new URL(l.url || l).hostname; } catch { return ''; }
+          });
+
           const analysis = {
             content_id: content.id,
-            entities_extracted: Math.floor(Math.random() * 10) + 1,
-            backlink_opportunities: Math.floor(Math.random() * 5) + 1,
-            campaign_suggestions: Math.floor(Math.random() * 3) + 1
+            entities_extracted: uniqueEntities.length,
+            entities: uniqueEntities.slice(0, 20),
+            backlink_opportunities: Math.max(0, 5 - authorityLinks.length),
+            existing_authority_links: authorityLinks.length,
+            tags_count: tags.length,
+            campaign_suggestions: uniqueEntities.length > 5 ? 2 : 1,
+            category: fullContent?.category?.name_en || 'uncategorized',
           };
 
           results.push(analysis);
@@ -307,36 +336,117 @@ export class BackgroundJobService {
 
   /**
    * Analytics Sync Job
-   * Sync GA4/GSC data and trigger audits on drops
+   * Sync GA4/GSC data and trigger audits on drops.
+   * Attempts real API calls first, falls back to database-derived metrics.
    */
   private async analyticsSyncJob(): Promise<any> {
     console.log('Running analytics sync job...');
 
     try {
-      // Simulate analytics data sync
-      const syncResult = {
-        ga4_sessions: Math.floor(Math.random() * 10000) + 1000,
-        gsc_impressions: Math.floor(Math.random() * 50000) + 5000,
-        gsc_clicks: Math.floor(Math.random() * 2000) + 200,
-        indexed_pages: Math.floor(Math.random() * 100) + 40,
-        avg_position: Math.random() * 30 + 10,
-        sync_timestamp: new Date()
+      let syncResult: {
+        ga4_sessions: number;
+        gsc_impressions: number;
+        gsc_clicks: number;
+        indexed_pages: number;
+        avg_position: number;
+        sync_timestamp: Date;
+        data_source: string;
       };
 
-      // Create analytics snapshot
+      let topQueries: Array<{ query: string; clicks: number; impressions: number }> = [];
+
+      // Attempt to fetch real data from Google Search Console
+      let usedRealData = false;
+      try {
+        const { searchConsole } = await import('@/lib/integrations/google-search-console');
+
+        if (searchConsole.isConfigured()) {
+          const endDate = new Date().toISOString().split('T')[0];
+          const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+          const gscResult = await searchConsole.getSearchAnalytics(startDate, endDate, ['query']);
+
+          if (gscResult?.rows) {
+            usedRealData = true;
+
+            let totalClicks = 0;
+            let totalImpressions = 0;
+            let totalPosition = 0;
+
+            topQueries = gscResult.rows.slice(0, 20).map((row: any) => {
+              totalClicks += row.clicks || 0;
+              totalImpressions += row.impressions || 0;
+              totalPosition += row.position || 0;
+              return {
+                query: row.keys?.[0] || '',
+                clicks: row.clicks || 0,
+                impressions: row.impressions || 0,
+              };
+            });
+
+            const avgPosition = gscResult.rows.length > 0
+              ? totalPosition / gscResult.rows.length
+              : 0;
+
+            syncResult = {
+              ga4_sessions: 0,
+              gsc_impressions: totalImpressions,
+              gsc_clicks: totalClicks,
+              indexed_pages: 0,
+              avg_position: avgPosition,
+              sync_timestamp: new Date(),
+              data_source: 'api',
+            };
+          }
+        }
+      } catch {
+        // GSC not configured or API call failed - fall back to database-derived data
+      }
+
+      // Fallback: derive metrics from actual database content
+      if (!usedRealData) {
+        const [publishedCount, recentPosts, totalViews] = await Promise.all([
+          prisma.blogPost.count({ where: { published: true } }),
+          prisma.blogPost.count({
+            where: {
+              published: true,
+              created_at: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+            }
+          }),
+          prisma.analyticsEvent.count({
+            where: {
+              eventName: 'page_view',
+              timestamp: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+            }
+          }).catch(() => 0),
+        ]);
+
+        syncResult = {
+          ga4_sessions: totalViews,
+          gsc_impressions: 0,
+          gsc_clicks: 0,
+          indexed_pages: publishedCount,
+          avg_position: 0,
+          sync_timestamp: new Date(),
+          data_source: 'database',
+        };
+
+        topQueries = [];
+      }
+
+      // Create analytics snapshot with real or derived data
       await prisma.analyticsSnapshot.create({
         data: {
           date_range: '7d',
           data_json: syncResult,
           indexed_pages: syncResult.indexed_pages,
-          top_queries: [
-            { query: 'london travel guide', clicks: 150, impressions: 2000 },
-            { query: 'best london attractions', clicks: 120, impressions: 1800 },
-            { query: 'london hidden gems', clicks: 90, impressions: 1200 }
-          ],
+          top_queries: topQueries.length > 0 ? topQueries : [],
           performance_metrics: {
-            ctr: (syncResult.gsc_clicks / syncResult.gsc_impressions) * 100,
-            avg_position: syncResult.avg_position
+            ctr: syncResult.gsc_impressions > 0
+              ? (syncResult.gsc_clicks / syncResult.gsc_impressions) * 100
+              : 0,
+            avg_position: syncResult.avg_position,
+            data_source: syncResult.data_source,
           }
         }
       });
@@ -354,13 +464,14 @@ export class BackgroundJobService {
       });
 
       let auditTriggered = false;
-      if (previousSnapshot) {
+      if (previousSnapshot && syncResult.data_source === 'api') {
         const prevData = previousSnapshot.data_json as any;
-        const trafficDrop = (prevData.gsc_clicks - syncResult.gsc_clicks) / prevData.gsc_clicks;
-        
-        if (trafficDrop > 0.2) { // 20% drop
-          auditTriggered = true;
-          console.log('Traffic drop detected, triggering audit...');
+        if (prevData.gsc_clicks > 0) {
+          const trafficDrop = (prevData.gsc_clicks - syncResult.gsc_clicks) / prevData.gsc_clicks;
+          if (trafficDrop > 0.2) { // 20% drop
+            auditTriggered = true;
+            console.log('Traffic drop detected (>20%), triggering SEO audit...');
+          }
         }
       }
 

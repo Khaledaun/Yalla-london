@@ -61,10 +61,10 @@ export function useSiteCheck() {
   const { siteId } = useTenant();
 
   return {
-    isArabaldives: siteId === 'arabaldives',
     isYallaLondon: siteId === 'yalla-london',
-    isGulfMaldives: siteId === 'gulf-maldives',
-    isArabBali: siteId === 'arab-bali',
-    isLuxuryEscapes: siteId === 'luxury-escapes-me',
+    isArabaldives: siteId === 'arabaldives',
+    isFrenchRiviera: siteId === 'french-riviera',
+    isIstanbul: siteId === 'istanbul',
+    isThailand: siteId === 'thailand',
   };
 }

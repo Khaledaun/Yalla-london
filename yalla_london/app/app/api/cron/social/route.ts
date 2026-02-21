@@ -1,19 +1,51 @@
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
 /**
  * Social Media Posting Cron Endpoint
  * Publishes scheduled social media posts every 15 minutes.
  * Configured in vercel.json crons array.
+ *
+ * NOTE: Social API integration is not yet connected.
+ * Posts are currently marked as published in the database but are NOT
+ * actually sent to any social platform. Connect real social APIs
+ * (Twitter/X, Instagram, LinkedIn, etc.) to enable actual posting.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { logCronExecution } from '@/lib/cron-logger';
 
-export async function GET(request: NextRequest) {
+async function handleSocialCron(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Healthcheck mode — quick status without processing
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    try {
+      const pendingPosts = await prisma.scheduledContent.count({
+        where: {
+          status: 'pending',
+          published: false,
+          platform: { not: 'blog' },
+        },
+      });
+      return NextResponse.json({
+        status: 'healthy',
+        endpoint: 'social cron',
+        pendingPosts,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      return NextResponse.json(
+        { status: 'unhealthy', endpoint: 'social cron' },
+        { status: 503 },
+      );
+    }
   }
 
   const _cronStart = Date.now();
@@ -22,15 +54,34 @@ export async function GET(request: NextRequest) {
     const now = new Date();
 
     // Get posts scheduled for now or earlier that haven't been published
-    const duePosts = await prisma.scheduledContent.findMany({
-      where: {
-        scheduled_time: { lte: now },
-        status: 'pending',
-        published: false,
-        platform: { not: 'blog' },
-      },
-      take: 20,
-    });
+    // Retry with backoff to handle PgBouncer MaxClientsInSessionMode errors
+    // when multiple crons fire simultaneously
+    let duePosts: any[];
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        duePosts = await prisma.scheduledContent.findMany({
+          where: {
+            scheduled_time: { lte: now },
+            status: 'pending',
+            published: false,
+            platform: { not: 'blog' },
+          },
+          take: 20,
+        });
+        break; // success
+      } catch (dbErr) {
+        const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+        if (attempt < maxRetries && (msg.includes('MaxClients') || msg.includes('FATAL') || msg.includes('connection'))) {
+          const delayMs = attempt * 2000; // 2s, 4s
+          console.warn(`[social-cron] DB connection failed (attempt ${attempt}/${maxRetries}), retrying in ${delayMs}ms: ${msg}`);
+          await new Promise(r => setTimeout(r, delayMs));
+        } else {
+          throw dbErr; // exhausted retries or non-retryable error
+        }
+      }
+    }
+    duePosts = duePosts!;
 
     const results = [];
 
@@ -53,7 +104,7 @@ export async function GET(request: NextRequest) {
               status: 'failed',
               metadata: {
                 ...(post.metadata as any || {}),
-                error: 'Social account not connected',
+                error: 'Social account not connected — configure a social ModelProvider for this platform',
                 failedAt: now.toISOString(),
               },
             },
@@ -68,8 +119,12 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // In production, decrypt token and call social media API
-        // For now, mark as published (mock)
+        // TODO: Integrate real social media APIs (Twitter/X, Instagram, LinkedIn)
+        // Currently a mock — marks as published in DB but does NOT post to any platform.
+        console.warn(
+          `[social-cron] MOCK PUBLISH: Post ${post.id} for ${post.platform} — social API not integrated yet`
+        );
+
         await prisma.scheduledContent.update({
           where: { id: post.id },
           data: {
@@ -79,7 +134,7 @@ export async function GET(request: NextRequest) {
             metadata: {
               ...(post.metadata as any || {}),
               publishedAt: now.toISOString(),
-              note: 'Mock publish - integrate social API for real posting',
+              note: 'Mock publish — social API not integrated yet',
             },
           },
         });
@@ -88,7 +143,7 @@ export async function GET(request: NextRequest) {
           postId: post.id,
           platform: post.platform,
           status: 'published',
-          note: 'Mock - connect social API',
+          note: 'Mock — social API not integrated',
         });
       } catch (error) {
         // Mark individual post as failed
@@ -125,6 +180,7 @@ export async function GET(request: NextRequest) {
         postsProcessed: duePosts.length,
         published,
         failed,
+        mockPublish: true,
       },
     });
 
@@ -132,20 +188,32 @@ export async function GET(request: NextRequest) {
       success: true,
       timestamp: now.toISOString(),
       postsProcessed: duePosts.length,
+      published,
+      failed,
       results,
     });
   } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
     console.error('Social cron failed:', error);
     await logCronExecution("social", "failed", {
       durationMs: Date.now() - _cronStart,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "social", error: errMsg }).catch(() => {});
+
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { success: false, error: errMsg },
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  return handleSocialCron(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handleSocialCron(request);
 }

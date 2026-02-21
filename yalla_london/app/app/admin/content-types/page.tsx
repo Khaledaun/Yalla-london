@@ -29,6 +29,9 @@ import {
   AlertTriangle,
   Tag
 } from 'lucide-react'
+import { getDefaultSiteId, getSiteConfig } from '@/config/sites'
+
+const _siteName = getSiteConfig(getDefaultSiteId())?.name || 'Yalla London'
 
 interface ContentType {
   id: string
@@ -121,7 +124,7 @@ const mockContentTypes: ContentType[] = [
       }
     ],
     seoTemplate: {
-      titleTemplate: 'Ultimate Guide to {{location}} - Yalla London',
+      titleTemplate: `Ultimate Guide to {{location}} - ${_siteName}`,
       descriptionTemplate: 'Discover the best of {{location}} with our comprehensive guide. Find top attractions, hidden gems, and local tips for your London adventure.',
       keywordsTemplate: '{{location}}, London guide, travel, attractions, things to do'
     },
@@ -357,7 +360,7 @@ export default function ContentTypesPage() {
       isActive: true,
       fields: editedType.fields || [],
       seoTemplate: editedType.seoTemplate || {
-        titleTemplate: '{{title}} - Yalla London',
+        titleTemplate: `{{title}} - ${_siteName}`,
         descriptionTemplate: '{{description}}',
         keywordsTemplate: '{{keywords}}'
       },

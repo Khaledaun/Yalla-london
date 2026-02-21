@@ -1,57 +1,77 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { getBaseUrl } from "@/lib/url-utils";
+import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
+import { StructuredData } from "@/components/structured-data";
 
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = await getBaseUrl();
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
+  const siteSlug = siteConfig?.slug || "yallalondon";
+  const destination = siteConfig?.destination || "London";
+  const canonicalUrl = `${baseUrl}/contact`;
 
-export const metadata: Metadata = {
-  title: "Contact Us - Get in Touch | Yalla London",
-  description:
-    "Contact the Yalla London team for luxury London travel recommendations, partnerships, press inquiries, or personalized itinerary planning.",
-  keywords: [
-    "contact Yalla London",
-    "London travel help",
-    "London travel planning",
-    "luxury London concierge",
-    "Arab travellers support",
-  ],
-  openGraph: {
-    title: "Contact Us | Yalla London",
-    description:
-      "Get in touch with Yalla London for luxury travel recommendations, partnerships, and personalized itinerary planning.",
-    url: `${siteUrl}/contact`,
-    type: "website",
-    locale: "en_GB",
-    alternateLocale: "ar_SA",
-    siteName: "Yalla London",
-    images: [
-      {
-        url: `${siteUrl}/og-image.jpg`,
-        width: 1200,
-        height: 630,
-        alt: "Contact Yalla London",
+  return {
+    title: `Contact Us — Get in Touch | ${siteName}`,
+    description: `Reach the ${siteName} team for ${destination} travel questions, partnerships, advertising, or feedback. We'd love to hear from you.`,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        "en-GB": canonicalUrl,
+        "ar-SA": `${baseUrl}/ar/contact`,
+        "x-default": canonicalUrl,
       },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Contact Us | Yalla London",
-    description:
-      "Get in touch with Yalla London for luxury travel recommendations and personalized itinerary planning.",
-    images: [`${siteUrl}/og-image.jpg`],
-  },
-  alternates: {
-    canonical: `${siteUrl}/contact`,
-    languages: {
-      "en-GB": `${siteUrl}/contact`,
-      "ar-SA": `${siteUrl}/ar/contact`,
     },
-  },
-};
+    openGraph: {
+      title: `Contact Us | ${siteName}`,
+      description: `Reach the ${siteName} team for ${destination} travel questions, partnerships, advertising, or feedback. We'd love to hear from you.`,
+      url: canonicalUrl,
+      siteName,
+      locale: "en_GB",
+      alternateLocale: "ar_SA",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      site: `@${siteSlug}`,
+      title: `Contact Us | ${siteName}`,
+      description: `Reach the ${siteName} team for ${destination} travel questions, partnerships, advertising, or feedback. We'd love to hear from you.`,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+      },
+    },
+  };
+}
 
-export default function ContactLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return children;
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const baseUrl = await getBaseUrl();
+
+  return (
+    <>
+      <StructuredData
+        type="breadcrumb"
+        siteId={siteId}
+        data={{
+          items: [
+            { name: "Home", url: baseUrl },
+            { name: "Contact", url: `${baseUrl}/contact` },
+          ],
+        }}
+      />
+      {children}
+    </>
+  );
 }

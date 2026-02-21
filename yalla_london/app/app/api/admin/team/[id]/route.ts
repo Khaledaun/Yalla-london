@@ -5,6 +5,7 @@
  * PUT /api/admin/team/[id] - Update a team member
  * DELETE /api/admin/team/[id] - Delete a team member
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { TeamService } from '@/lib/domains/team';

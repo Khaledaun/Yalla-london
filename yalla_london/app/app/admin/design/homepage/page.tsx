@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Save, Plus, Settings, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { getDefaultSiteId, getSiteConfig } from '@/config/sites'
 
 export default function HomepageBuilderPage() {
+  const _defaultSiteName = getSiteConfig(getDefaultSiteId())?.name || 'Our Site'
   const [modules, setModules] = useState([
-    { id: '1', type: 'hero', title: 'Hero Section', content: 'Welcome to Yalla London' },
+    { id: '1', type: 'hero', title: 'Hero Section', content: `Welcome to ${_defaultSiteName}` },
     { id: '2', type: 'articles', title: 'Latest Articles', content: '6 articles' },
     { id: '3', type: 'deals', title: 'Featured Deals', content: '4 deals' }
   ])

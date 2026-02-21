@@ -287,7 +287,7 @@ export function PhotoPoolManager() {
 
               <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="bg-[#1A1F36] hover:bg-[#2d3452]">
+                  <Button className="bg-[#1C1917] hover:bg-[#3D3835]">
                     <Upload className="w-4 h-4 mr-2" /> Upload Photos
                   </Button>
                 </DialogTrigger>
@@ -345,7 +345,7 @@ export function PhotoPoolManager() {
                               <div className="text-sm font-medium truncate">{file.file.name}</div>
                               <div className="h-2 bg-gray-200 rounded-full mt-1">
                                 <div
-                                  className="h-full bg-[#E8634B] rounded-full transition-all"
+                                  className="h-full bg-[#C8322B] rounded-full transition-all"
                                   style={{ width: `${file.progress}%` }}
                                 />
                               </div>
@@ -481,7 +481,7 @@ function PhotoCard({
   return (
     <div
       className={`relative group rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
-        isSelected ? 'border-[#E8634B] ring-2 ring-[#E8634B]/20' : 'border-transparent hover:border-gray-200'
+        isSelected ? 'border-[#C8322B] ring-2 ring-[#C8322B]/20' : 'border-transparent hover:border-gray-200'
       }`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
@@ -504,7 +504,7 @@ function PhotoCard({
 
       {/* Selection Checkbox */}
       <div className={`absolute top-2 right-2 w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
-        isSelected ? 'bg-[#E8634B] border-[#E8634B]' : 'bg-white/80 border-gray-300'
+        isSelected ? 'bg-[#C8322B] border-[#C8322B]' : 'bg-white/80 border-gray-300'
       }`}>
         {isSelected && <Check className="w-4 h-4 text-white" />}
       </div>

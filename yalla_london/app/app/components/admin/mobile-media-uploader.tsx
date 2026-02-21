@@ -11,7 +11,7 @@
  * - Quick share from other apps
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Camera,
   Image as ImageIcon,
@@ -67,7 +67,7 @@ export function MobileMediaUploader({
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Check online status
-  useState(() => {
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsOnline(navigator.onLine);
       const handleOnline = () => setIsOnline(true);
@@ -79,6 +79,7 @@ export function MobileMediaUploader({
         window.removeEventListener('offline', handleOffline);
       };
     }
+    return undefined;
   });
 
   // Handle file selection

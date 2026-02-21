@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
+import { sanitizeHtml } from "@/lib/html-sanitizer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,7 @@ import {
 import { toast } from "sonner";
 import type { DesignTemplate, DesignElement } from "@/lib/pdf/brand-design-system";
 import type { CanvasActions, CanvasState } from "@/components/design-studio/design-canvas";
+import { SITES as SITE_CONFIG, getDefaultSiteId } from "@/config/sites";
 
 // Dynamic imports for canvas components (SSR incompatible)
 const DesignCanvas = dynamic(
@@ -114,13 +116,7 @@ interface PoolStats {
 
 // ─── Constants ───────────────────────────────────────────────────
 
-const SITES = [
-  { id: "yalla-london", name: "Yalla London" },
-  { id: "arabaldives", name: "Arabaldives" },
-  { id: "gulf-maldives", name: "Gulf Maldives" },
-  { id: "arab-bali", name: "Arab Bali" },
-  { id: "luxury-escapes-me", name: "Luxury Escapes ME" },
-];
+const SITES = Object.values(SITE_CONFIG).map((s) => ({ id: s.id, name: s.name }));
 
 const CATEGORIES = [
   "travel-guide", "social-post", "flyer", "menu",
@@ -135,7 +131,7 @@ const ASSET_CATEGORIES = [
 // ─── Main Component ──────────────────────────────────────────────
 
 export default function DesignStudioPage() {
-  const [activeSite, setActiveSite] = useState("yalla-london");
+  const [activeSite, setActiveSite] = useState(getDefaultSiteId());
   const [activeTab, setActiveTab] = useState("templates");
 
   // Shared editor state
@@ -416,7 +412,7 @@ function TemplatesTab({
           <CardContent>
             <div
               className="border rounded-lg overflow-auto max-h-[600px] bg-white"
-              dangerouslySetInnerHTML={{ __html: generatedHtml }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(generatedHtml || '') }}
             />
           </CardContent>
         </Card>
@@ -674,7 +670,7 @@ function SimilarDesignTab({
               <CardContent>
                 <div
                   className="border rounded-lg overflow-auto max-h-[500px] bg-white"
-                  dangerouslySetInnerHTML={{ __html: resultHtml }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(resultHtml || '') }}
                 />
               </CardContent>
             </Card>

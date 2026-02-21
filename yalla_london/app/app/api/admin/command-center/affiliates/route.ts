@@ -3,9 +3,10 @@
  *
  * Track affiliate revenue, partners, and performance.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { requireAdmin } from "@/lib/admin-middleware";
 
 export async function GET(request: NextRequest) {

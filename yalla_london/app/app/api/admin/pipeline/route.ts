@@ -2,6 +2,8 @@
  * Admin Pipeline API
  * Provides automation pipeline status, cron jobs, and scheduling information
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
 import { prisma } from '@/lib/db';
@@ -46,7 +48,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
     // Get scheduled content and topics
     const scheduledContent = await prisma.scheduledContent.findMany({
-      orderBy: { scheduled_for: 'asc' },
+      orderBy: { scheduled_time: 'asc' },
       take: 10
     });
 
@@ -61,7 +63,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       where: {
         action: { in: ['topic_generation', 'auto_publish', 'content_pipeline', 'seo_audit'] }
       },
-      orderBy: { created_at: 'desc' },
+      orderBy: { timestamp: 'desc' },
       take: 50
     });
 
@@ -73,13 +75,13 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       nextOperations.push({
         type: 'content_publish',
         title: content.title || 'Scheduled Content',
-        scheduled_for: content.scheduled_for,
+        scheduled_for: (content as any).scheduled_time?.toISOString?.() ?? new Date().toISOString(),
         status: content.status,
         priority: 'medium',
         details: {
           content_type: content.content_type,
           category: content.category,
-          keywords: content.keywords
+          keywords: content.tags
         }
       });
     });
@@ -176,7 +178,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       in_progress_topics: await prisma.topicProposal.count({ where: { status: 'in_progress' } }),
       seo_audits_completed: await prisma.seoAuditResult.count(),
       automation_runs_today: recentLogs.filter(log => {
-        const logDate = new Date(log.created_at);
+        const logDate = new Date(log.timestamp);
         const today = new Date();
         return logDate.toDateString() === today.toDateString();
       }).length
@@ -277,10 +279,10 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       await prisma.auditLog.create({
         data: {
           action: operation,
-          details: JSON.stringify(result.details),
-          user_id: 'admin',
-          ip_address: request.headers.get('x-forwarded-for') || 'unknown',
-          user_agent: request.headers.get('user-agent') || 'unknown'
+          details: result.details,
+          userId: 'admin',
+          ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+          userAgent: request.headers.get('user-agent') || 'unknown'
         }
       });
     } catch (logError) {

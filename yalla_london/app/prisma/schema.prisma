@@ -43,6 +43,9 @@ model User {
   // Team & Expertise
   teamMemberProfile TeamMember[]
 
+  @@index([role])
+  @@index([isActive])
+  @@index([createdAt])
   @@map(name: "users")
 }
 
@@ -150,10 +153,252 @@ model BlogPost {
   @@index([siteId])
   @@index([siteId, published])
   @@index([siteId, created_at])
+  @@index([siteId, slug])
   @@index([published])
   @@index([category_id])
   @@index([author_id])
   @@index([created_at])
+}
+
+// ─────────────────────────────────────────────────────────
+// Information Hub Models
+// ─────────────────────────────────────────────────────────
+
+model InformationSection {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name_en         String
+  name_ar         String
+  description_en  String?
+  description_ar  String?
+  icon            String?
+  featured_image  String?
+  sort_order      Int      @default(1)
+  published       Boolean  @default(true)
+  subsections     Json?    // Array of { id, title_en, title_ar, content_en, content_ar }
+
+  siteId          String?
+  deletedAt       DateTime?
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  articles        InformationArticle[]
+
+  @@index([siteId])
+  @@index([published])
+  @@index([sort_order])
+  @@map("information_sections")
+}
+
+model InformationCategory {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name_en         String
+  name_ar         String
+  description_en  String?
+  description_ar  String?
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  articles        InformationArticle[]
+
+  @@map("information_categories")
+}
+
+model InformationArticle {
+  id                   String   @id @default(cuid())
+  slug                 String   @unique
+  section_id           String
+  category_id          String
+  title_en             String
+  title_ar             String
+  excerpt_en           String?
+  excerpt_ar           String?
+  content_en           String   @db.Text
+  content_ar           String   @db.Text
+  featured_image       String?
+  reading_time         Int      @default(5)
+  published            Boolean  @default(false)
+
+  // SEO fields
+  meta_title_en        String?
+  meta_title_ar        String?
+  meta_description_en  String?
+  meta_description_ar  String?
+  tags                 String[]
+  keywords             String[]
+  page_type            String?  @default("article")
+  seo_score            Int?     @default(0)
+  faq_questions        Json?    // Array of { question_en, question_ar, answer_en, answer_ar }
+
+  // Multi-tenant and soft delete
+  siteId               String?
+  deletedAt            DateTime?
+
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  section              InformationSection  @relation(fields: [section_id], references: [id])
+  category             InformationCategory @relation(fields: [category_id], references: [id])
+
+  @@index([section_id])
+  @@index([category_id])
+  @@index([siteId])
+  @@index([siteId, published])
+  @@index([published])
+  @@index([page_type])
+  @@index([seo_score])
+  @@index([created_at])
+  @@map("information_articles")
+}
+
+// ─────────────────────────────────────────────────────────
+// Fact Verification System
+// ─────────────────────────────────────────────────────────
+
+model FactEntry {
+  id                 String   @id @default(cuid())
+  article_type       String   // 'blog' | 'information'
+  article_slug       String
+  fact_text_en       String   @db.Text
+  fact_text_ar       String?  @db.Text
+  fact_location      String?  // Section/paragraph identifier within article
+  category           String?  // price, schedule, regulation, statistic, contact, address, transport
+
+  // Verification state
+  status             String   @default("pending") // pending, verified, outdated, disputed, updated
+  confidence_score   Int?     @default(0) // 0-100
+  last_verified_at   DateTime?
+  next_check_at      DateTime?
+  verification_count Int      @default(0)
+
+  // Source tracking
+  source_url         String?  @db.Text
+  source_name        String?
+  source_type        String?  // official_gov, transport_authority, tourism_board, news, review_site
+  source_last_checked DateTime?
+
+  // Update tracking
+  original_value     String?  @db.Text
+  current_value      String?  @db.Text
+  updated_value      String?  @db.Text  // Proposed new value if fact changed
+  update_applied     Boolean  @default(false)
+  update_applied_at  DateTime?
+
+  // Agent metadata
+  agent_notes        String?  @db.Text
+  verification_log   Json?    // Array of { date, source, result, notes }
+
+  siteId             String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  @@index([article_type, article_slug])
+  @@index([status])
+  @@index([next_check_at])
+  @@index([category])
+  @@index([siteId])
+  @@map("fact_entries")
+}
+
+// ─────────────────────────────────────────────────────────
+// London News Carousel System
+// ─────────────────────────────────────────────────────────
+
+model NewsItem {
+  id                 String    @id @default(cuid())
+  slug               String    @unique
+  status             String    @default("draft") // draft, published, archived, expired
+
+  // Content
+  headline_en        String
+  headline_ar        String
+  summary_en         String    @db.Text  // 200 words max
+  summary_ar         String    @db.Text
+  announcement_en    String    // Short announcement (few words)
+  announcement_ar    String
+
+  // Source
+  source_name        String    // BBC, TfL, Visit London, etc.
+  source_url         String    @db.Text
+  source_logo        String?
+
+  // Media
+  featured_image     String?
+  image_alt_en       String?
+  image_alt_ar       String?
+  image_credit       String?
+
+  // Classification
+  news_category      String    // events, transport, weather, health, festivals, sales, holidays, strikes, popup, general
+  relevance_score    Int       @default(50)  // 0-100 how relevant for London travellers
+  is_major           Boolean   @default(false)  // Featured/lead story
+  urgency            String    @default("normal") // breaking, urgent, normal, low
+
+  // Date relevance
+  event_start_date   DateTime? // When the event/news starts
+  event_end_date     DateTime? // When it ends (for ongoing events)
+  expires_at         DateTime? // When to auto-archive
+
+  // SEO
+  meta_title_en      String?
+  meta_title_ar      String?
+  meta_description_en String?
+  meta_description_ar String?
+  tags               String[]
+  keywords           String[]
+
+  // Internal linking
+  related_article_slugs String[] // Slugs of related blog/info articles
+  related_shop_slugs    String[] // Slugs of related shop products
+  affiliate_link_ids    String[] // IDs of relevant affiliate links
+
+  // Agent metadata
+  agent_source       String?   // Which research source found this
+  agent_notes        String?   @db.Text
+  research_log       Json?     // Array of { source, query, found_at, relevance }
+
+  // Information hub cross-reference
+  updates_info_article Boolean  @default(false) // Does this news update an info article?
+  affected_info_slugs  String[] // Which info articles should be flagged
+
+  siteId             String?
+  published_at       DateTime?
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  @@index([status])
+  @@index([news_category])
+  @@index([is_major])
+  @@index([published_at])
+  @@index([expires_at])
+  @@index([siteId])
+  @@index([siteId, status])
+  @@map("news_items")
+}
+
+model NewsResearchLog {
+  id                 String   @id @default(cuid())
+  run_type           String   @default("daily") // daily, weekly_deep, manual
+  status             String   @default("running") // running, completed, failed
+  sources_checked    String[] // List of sources checked
+  items_found        Int      @default(0)
+  items_published    Int      @default(0)
+  items_skipped      Int      @default(0)
+  facts_flagged      Int      @default(0) // Facts in info articles that need updating
+  duration_ms        Int?
+  error_message      String?  @db.Text
+  result_summary     Json?    // Detailed results
+
+  siteId             String?
+  created_at         DateTime @default(now())
+
+  @@index([run_type])
+  @@index([created_at])
+  @@index([siteId])
+  @@map("news_research_logs")
 }
 
 model Recommendation {
@@ -207,7 +452,11 @@ model ScheduledContent {
   published      Boolean  @default(false)
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
-  
+
+  // Publishing workflow
+  content_id     String?  // ID of the BlogPost to publish
+  site_id        String?  // Which site this content belongs to
+
   // Phase 4+ Extensions
   page_type              String?  // guide, place, event, list, faq, news, itinerary
   topic_proposal_id      String?  // Reference to TopicProposal
@@ -222,6 +471,10 @@ model ScheduledContent {
   @@index([topic_proposal_id])
   @@index([seo_score])
   @@index([generation_source])
+  @@index([content_id])
+  @@index([site_id])
+  @@index([scheduled_time])
+  @@index([status])
 }
 
 // Phase 3.2 - Social Media Embeds
@@ -389,7 +642,7 @@ model TopicProposal {
   suggested_window_start  DateTime?
   suggested_window_end    DateTime?
   source_weights_json     Json     // Citation weights and provenance
-  status                  String   @default("planned") // planned, queued, generated, drafted, ready, published
+  status                  String   @default("planned") // planned, proposed, ready, queued, generating, generated, drafted, approved, published
   confidence_score        Float?   // 0.0 - 1.0
   planned_at              DateTime? // When this topic is scheduled for generation
   evergreen               Boolean  @default(true) // true = evergreen, false = seasonal
@@ -1967,6 +2220,7 @@ model Lead {
   activities      LeadActivity[]
 
   @@unique([site_id, email])
+  @@index([email])
   @@index([site_id, created_at])
   @@index([lead_type])
   @@index([status])
@@ -2037,6 +2291,7 @@ model PageView {
   viewed_at   DateTime @default(now())
 
   @@index([site_id, viewed_at])
+  @@index([site_id, path])
   @@index([path])
   @@index([content_id])
   @@index([session_id])
@@ -2410,4 +2665,269 @@ model Invoice {
   @@index([billing_entity_id])
   @@index([status])
   @@map("invoices")
+}
+
+/// ArticleDraft — Incremental content generation pipeline (Reservoir + Builder)
+/// Articles are built phase-by-phase, each phase completing within a single cron invocation.
+/// Only articles passing quality threshold are promoted to BlogPost for publishing.
+model ArticleDraft {
+  id                  String   @id @default(cuid())
+  site_id             String
+  keyword             String
+  locale              String   @default("en")
+  topic_title         String?
+
+  // Pipeline phase tracking
+  current_phase       String   @default("research")  // research, outline, drafting, assembly, images, seo, scoring, reservoir, published, rejected
+  phase_attempts      Int      @default(0)
+  last_error          String?
+  sections_completed  Int      @default(0)           // Track how many sections drafted so far
+  sections_total      Int      @default(0)           // Total sections planned by outline
+
+  // Phase outputs (populated incrementally as phases complete)
+  research_data       Json?    @db.JsonB             // SERP analysis, competitor structure, PAA questions, keyword data
+  outline_data        Json?    @db.JsonB             // Structured outline: sections[], heading hierarchy, word targets, link plan
+  sections_data       Json?    @db.JsonB             // Array of {heading, content, wordCount, status} per section
+  assembled_html      String?  @db.Text              // Full assembled article HTML (EN or AR)
+  assembled_html_alt  String?  @db.Text              // Translation (AR if locale=en, EN if locale=ar)
+  seo_meta            Json?    @db.JsonB             // {metaTitle, metaDescription, schema, ogImage, keywords, internalLinks}
+  images_data         Json?    @db.JsonB             // {featured: PhotoEntry, inline: PhotoEntry[], unsplash_used: boolean}
+
+  // Quality scoring (populated in scoring phase)
+  quality_score       Float?                         // Overall 0-100
+  seo_score           Float?                         // SEO-specific 0-100
+  word_count          Int?
+  readability_score   Float?                         // Flesch-Kincaid or similar
+  content_depth_score Float?                         // Topic coverage completeness
+
+  // Source tracking
+  topic_proposal_id   String?                        // FK to TopicProposal if sourced from there
+  ai_model_used       String?                        // Which AI model generated each phase
+  generation_strategy String?                        // "topic_db", "template_cycle", "trending", "gap_fill"
+
+  // Bilingual pairing — EN and AR drafts reference each other
+  paired_draft_id     String?                        // ID of the paired locale draft (EN→AR or AR→EN)
+
+  // Publishing
+  blog_post_id        String?                        // Set when promoted to BlogPost
+  published_at        DateTime?
+  rejection_reason    String?
+  needs_review        Boolean  @default(true)        // Flagged for admin review after auto-publish
+
+  // Timestamps
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  phase_started_at    DateTime?                      // When current phase began processing
+  completed_at        DateTime?                      // When final phase completed
+
+  @@index([current_phase, site_id])
+  @@index([current_phase, created_at])
+  @@index([quality_score])
+  @@index([site_id, current_phase])
+  @@index([created_at])
+  @@index([paired_draft_id])
+  @@map("article_drafts")
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Design System Models
+// ══════════════════════════════════════════════════════════════════
+
+/// Design — Canvas designs created in the Design Studio (social graphics, headers, covers, etc.)
+model Design {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  type          String   // canvas, social-post, email-header, pdf-cover, logo, banner
+  category      String?  // travel-guide, social-post, flyer, menu, itinerary, infographic, poster, brochure
+  site          String   // yalla-london, arabaldives, etc.
+  canvasData    Json     // Full Konva stage JSON for re-editing
+  thumbnail     String?  // S3 URL of auto-generated preview thumbnail
+  exportedUrls  Json?    // { png: "...", svg: "...", pdf: "..." }
+  width         Int
+  height        Int
+  tags          String[]
+  isTemplate    Boolean  @default(false)
+  templateId    String?  // If created from a template, reference it
+  status        String   @default("draft") // draft, published, archived
+  createdBy     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([site, type])
+  @@index([status])
+  @@index([isTemplate])
+  @@index([createdAt])
+  @@map("designs")
+}
+
+/// PdfGuide — Generated travel PDF guides with AI content
+model PdfGuide {
+  id              String   @id @default(cuid())
+  title           String
+  slug            String   @unique
+  description     String?
+  site            String
+  style           String   // luxury, budget, family, adventure, honeymoon
+  language        String   @default("en")
+  contentSections Json     // Array of generated content sections
+  htmlContent     String?  @db.Text // Rendered HTML
+  pdfUrl          String?  // S3 URL of generated PDF binary
+  coverDesignId   String?  // Link to Design for the cover
+  status          String   @default("draft") // draft, generating, generated, published, failed
+  price           Float?   @default(0)
+  isGated         Boolean  @default(false) // Require email to download
+  downloads       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  pdfDownloads    PdfDownload[]
+
+  @@index([site])
+  @@index([status])
+  @@index([slug])
+  @@map("pdf_guides")
+}
+
+/// PdfDownload — Track PDF guide downloads for analytics and lead capture
+model PdfDownload {
+  id           String   @id @default(cuid())
+  pdfGuideId   String
+  pdfGuide     PdfGuide @relation(fields: [pdfGuideId], references: [id])
+  leadId       String?
+  email        String?
+  ip           String?
+  userAgent    String?
+  downloadedAt DateTime @default(now())
+
+  @@index([pdfGuideId])
+  @@index([email])
+  @@map("pdf_downloads")
+}
+
+/// EmailTemplate — Reusable email templates for campaigns and notifications
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  site        String
+  type        String   // notification, campaign, welcome, transactional, newsletter
+  subject     String?
+  htmlContent String   @db.Text
+  jsonContent Json?    // Structured block data for re-editing
+  thumbnail   String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([site, type])
+  @@index([isDefault])
+  @@map("email_templates")
+}
+
+/// EmailCampaign — Email campaigns sent to subscribers
+model EmailCampaign {
+  id             String    @id @default(cuid())
+  name           String
+  site           String
+  templateId     String?
+  subject        String
+  htmlContent    String    @db.Text
+  recipientCount Int       @default(0)
+  sentCount      Int       @default(0)
+  openCount      Int       @default(0)
+  clickCount     Int       @default(0)
+  status         String    @default("draft") // draft, scheduled, sending, sent, failed
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([site])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("email_campaigns")
+}
+
+/// VideoProject — Video compositions created in the Video Studio
+model VideoProject {
+  id              String   @id @default(cuid())
+  title           String
+  site            String
+  category        String   // destination-highlight, blog-promo, hotel-showcase, etc.
+  format          String   // instagram-reel, youtube-short, etc.
+  language        String   @default("en")
+  scenes          Json     // Array of scene configurations (for template-based)
+  compositionCode String?  @db.Text // AI-generated Remotion React component code
+  prompt          String?  @db.Text // Original user prompt that generated this video
+  duration        Int      // Total duration in seconds
+  fps             Int      @default(30)
+  width           Int
+  height          Int
+  thumbnail       String?  // S3 URL
+  exportedUrl     String?  // S3 URL of rendered MP4
+  status          String   @default("draft") // draft, rendering, rendered, failed, queued
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([site])
+  @@index([status])
+  @@index([category])
+  @@map("video_projects")
+}
+
+/// ContentPipeline — AI content engine pipeline runs (Researcher → Ideator → Scripter → Analyst)
+model ContentPipeline {
+  id                 String   @id @default(cuid())
+  site               String
+  status             String   @default("researching") // researching, ideating, scripting, analyzing, complete, paused
+  topic              String?
+  language           String   @default("en")
+  researchData       Json?    // Researcher output: trends, audience, keywords, competitors
+  contentAngles      Json?    // Ideator output: angles with cross-platform maps
+  scripts            Json?    // Scripter output: platform-specific scripts + asset links
+  analysisData       Json?    // Analyst output: grades, patterns, recommendations
+  generatedPosts     Json?    // Array of { platform, text, designId, videoId, scheduledContentId }
+  generatedArticleId String?
+  generatedEmailId   String?
+  generatedVideoIds  Json?
+  generatedDesignIds Json?
+  feedForwardApplied Json?    // Recommendations from previous pipeline that were applied
+  createdBy          String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  performance        ContentPerformance[]
+
+  @@index([site])
+  @@index([status])
+  @@index([createdAt])
+  @@map("content_pipelines")
+}
+
+/// ContentPerformance — Performance tracking for content pipeline outputs
+model ContentPerformance {
+  id             String    @id @default(cuid())
+  pipelineId     String
+  pipeline       ContentPipeline @relation(fields: [pipelineId], references: [id])
+  platform       String    // twitter, instagram, linkedin, blog, email, tiktok, youtube
+  contentType    String    // post, reel, story, article, newsletter, video
+  postUrl        String?   // URL of the published post
+  publishedAt    DateTime?
+  impressions    Int       @default(0)
+  engagements    Int       @default(0)
+  clicks         Int       @default(0)
+  shares         Int       @default(0)
+  saves          Int       @default(0)
+  comments       Int       @default(0)
+  conversionRate Float?
+  grade          String?   // A, B, C, D, F — set by Analyst
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([pipelineId])
+  @@index([platform])
+  @@index([grade])
+  @@map("content_performance")
 }

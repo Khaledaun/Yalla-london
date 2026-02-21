@@ -19,7 +19,8 @@ export const maxDuration = 60;
 
 import { withCronLog } from "@/lib/cron-logger";
 import { forEachSite } from "@/lib/resilience";
-import { getAllSiteIds, getSiteSeoConfig } from "@/config/sites";
+import { getActiveSiteIds, getSiteSeoConfig } from "@/config/sites";
+import { getSiteSeoConfigFromVault } from "@/lib/seo/config-vault";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -70,7 +71,8 @@ interface ScoreInputs {
 
 const handler = withCronLog("site-health-check", async (log) => {
   const { prisma } = await import("@/lib/db");
-  const siteIds = getAllSiteIds();
+  // Only check live sites
+  const siteIds = getActiveSiteIds();
 
   const loopResult = await forEachSite(siteIds, async (siteId) => {
     if (log.isExpired()) {
@@ -111,8 +113,15 @@ async function collectSiteHealth(
   const db = prisma as Record<string, any>;
 
   // ── Content metrics ────────────────────────────────────────────────
-  const [totalPosts, postsPublished, postsPending, avgScoreResult] =
-    await Promise.all([
+  // Note: siteId column exists in Prisma schema but not yet migrated to DB.
+  // Fall back to global counts until migration is run.
+  let totalPosts = 0;
+  let postsPublished = 0;
+  let postsPending = 0;
+  let avgSeoScore: number | null = null;
+
+  try {
+    const [tp, pp, ppend, avgRes] = await Promise.all([
       db.blogPost.count({ where: { siteId } }),
       db.blogPost.count({ where: { siteId, published: true } }),
       db.blogPost.count({ where: { siteId, published: false } }),
@@ -121,8 +130,26 @@ async function collectSiteHealth(
         where: { siteId, seo_score: { not: null } },
       }),
     ]);
-
-  const avgSeoScore: number | null = avgScoreResult._avg.seo_score ?? null;
+    totalPosts = tp;
+    postsPublished = pp;
+    postsPending = ppend;
+    avgSeoScore = avgRes._avg.seo_score ?? null;
+  } catch {
+    // siteId column doesn't exist yet — fall back to global counts
+    const [tp, pp, ppend, avgRes] = await Promise.all([
+      db.blogPost.count({ where: { deletedAt: null } }),
+      db.blogPost.count({ where: { published: true, deletedAt: null } }),
+      db.blogPost.count({ where: { published: false, deletedAt: null } }),
+      db.blogPost.aggregate({
+        _avg: { seo_score: true },
+        where: { seo_score: { not: null }, deletedAt: null },
+      }),
+    ]);
+    totalPosts = tp;
+    postsPublished = pp;
+    postsPending = ppend;
+    avgSeoScore = avgRes._avg.seo_score ?? null;
+  }
 
   // ── Topic proposals & rewrite queue ────────────────────────────────
   const [pendingProposals, rewriteQueue] = await Promise.all([
@@ -135,10 +162,13 @@ async function collectSiteHealth(
     db.topicProposal.count({
       where: {
         site_id: siteId,
-        source: "seo-agent-rewrite",
         status: "planned",
+        source_weights_json: {
+          path: ["source"],
+          equals: "seo-agent-rewrite",
+        },
       },
-    }),
+    }).catch(() => 0),
   ]);
 
   // ── Latest cron runs ───────────────────────────────────────────────

@@ -9,6 +9,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Mail, MapPin, Heart, Crown, Star, Coffee } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { ENTITY, getBrandDisclosure } from '@/config/entity'
+import { SITES, getDefaultSiteId } from '@/config/sites'
+
+const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury'
+const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
 
 const founderImages = [
   'https://media.cntraveller.com/photos/66b1f6248feace68eac032f7/16:9/w_3200,h_1800,c_limit/south%20asian%20heritage%20month.jpg',
@@ -79,10 +84,11 @@ export default function AboutPage() {
             src={founderImages[1]}
             alt="Founder workspace"
             fill
+            sizes="100vw"
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-900/80 to-yellow-600/70" />
+          <div className="absolute inset-0 bg-gradient-to-r from-london-900/85 to-yalla-gold-500/70" />
         </div>
         
         <div className="relative z-10 h-full flex items-center">
@@ -93,10 +99,10 @@ export default function AboutPage() {
               transition={{ duration: 0.8 }}
               className="max-w-2xl"
             >
-              <h1 className="text-5xl md:text-6xl font-playfair font-bold mb-6">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold mb-6">
                 {t('founderTitle')}
               </h1>
-              <p className="text-xl md:text-2xl text-purple-100">
+              <p className="text-xl md:text-2xl text-cream-100/90">
                 {language === 'en'
                   ? 'Your personal guide to London\'s most exclusive experiences'
                   : 'دليلك الشخصي للتجارب الأكثر حصرية في لندن'
@@ -118,10 +124,10 @@ export default function AboutPage() {
               transition={{ duration: 0.8 }}
               className="space-y-6"
             >
-              <h2 className="text-4xl font-playfair font-bold gradient-text">
-                {language === 'en' ? 'A Passionate Explorer' : 'مستكشفة شغوفة'}
+              <h2 className="text-4xl font-display font-bold gradient-text">
+                {language === 'en' ? 'A Passionate Explorer' : 'مستكشف شغوف'}
               </h2>
-              <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
+              <div className="space-y-4 text-lg text-stone leading-relaxed">
                 <p>
                   {language === 'en'
                     ? 'After moving to London over a decade ago, I fell deeply in love with this incredible city. What started as personal curiosity evolved into an expertise in discovering London\'s most refined experiences.'
@@ -140,9 +146,15 @@ export default function AboutPage() {
                     : 'يالا لندن يمثل التزامي بمشاركة الجانب المتطور من هذه المدينة الرائعة مع المسافرين المميزين الذين يقدرون الجودة والأصالة والتجارب الاستثنائية.'
                   }
                 </p>
+                <p className="text-base text-stone/80 italic">
+                  {language === 'en'
+                    ? `— ${ENTITY.founder.name}, ${ENTITY.founder.title} of ${ENTITY.legalName}`
+                    : `— خالد ن. عون، المؤسس والرئيس التنفيذي لشركة ${ENTITY.legalName}`
+                  }
+                </p>
               </div>
-              <Button asChild size="lg" className="bg-purple-800 hover:bg-purple-900">
-                <a href="mailto:hello@yalla-london.com">
+              <Button asChild size="lg" className="bg-brand-primary hover:bg-london-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600">
+                <a href={`mailto:${CONTACT_EMAIL}`}>
                   <Mail className="mr-2 h-5 w-5" />
                   {language === 'en' ? 'Get in Touch' : 'تواصل معي'}
                 </a>
@@ -164,7 +176,7 @@ export default function AboutPage() {
                   className="object-cover"
                 />
               </div>
-              <div className="absolute -bottom-6 -left-6 bg-yellow-500 text-gray-900 p-4 rounded-xl luxury-shadow">
+              <div className="absolute -bottom-6 -left-6 bg-yalla-gold-500 text-charcoal p-4 rounded-xl luxury-shadow">
                 <div className="text-2xl font-bold">10+</div>
                 <div className="text-sm font-medium">
                   {language === 'en' ? 'Years Experience' : 'سنوات خبرة'}
@@ -176,7 +188,7 @@ export default function AboutPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-cream">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             className="text-center mb-16"
@@ -185,10 +197,10 @@ export default function AboutPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-playfair font-bold gradient-text mb-4">
+            <h2 className="text-4xl font-display font-bold gradient-text mb-4">
               {language === 'en' ? 'By the Numbers' : 'بالأرقام'}
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-stone">
               {language === 'en'
                 ? 'A testament to years of exploration and discovery'
                 : 'شهادة على سنوات من الاستكشاف والاكتشاف'
@@ -208,13 +220,13 @@ export default function AboutPage() {
               >
                 <Card className="p-6 border-0 luxury-shadow hover:shadow-xl transition-shadow duration-300">
                   <CardContent className="p-0">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full flex items-center justify-center">
-                      <stat.icon className="h-8 w-8 text-purple-800" />
+                    <div className="w-16 h-16 mx-auto mb-4 bg-cream rounded-full flex items-center justify-center">
+                      <stat.icon className="h-8 w-8 text-brand-primary" />
                     </div>
-                    <div className="text-3xl font-bold text-purple-800 mb-2">
+                    <div className="text-3xl font-bold text-brand-primary mb-2">
                       {stat.number}
                     </div>
-                    <div className="text-gray-600 font-medium">
+                    <div className="text-stone font-medium">
                       {language === 'en' ? stat.label_en : stat.label_ar}
                     </div>
                   </CardContent>
@@ -235,10 +247,10 @@ export default function AboutPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-playfair font-bold gradient-text mb-4">
+            <h2 className="text-4xl font-display font-bold gradient-text mb-4">
               {language === 'en' ? 'My Values' : 'قيمي'}
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-stone">
               {language === 'en'
                 ? 'The principles that guide every recommendation'
                 : 'المبادئ التي توجه كل توصية'
@@ -258,13 +270,13 @@ export default function AboutPage() {
               >
                 <Card className="p-8 border-0 luxury-shadow hover:shadow-xl transition-all duration-300 h-full">
                   <CardContent className="p-0">
-                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-purple-100 to-yellow-50 rounded-full flex items-center justify-center">
-                      <value.icon className="h-10 w-10 text-purple-800" />
+                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-cream to-cream-200 rounded-full flex items-center justify-center">
+                      <value.icon className="h-10 w-10 text-brand-primary" />
                     </div>
-                    <h3 className="text-2xl font-playfair font-bold mb-4 text-gray-900">
+                    <h3 className="text-2xl font-display font-bold mb-4 text-charcoal">
                       {language === 'en' ? value.title_en : value.title_ar}
                     </h3>
-                    <p className="text-gray-600 leading-relaxed">
+                    <p className="text-stone leading-relaxed">
                       {language === 'en' ? value.description_en : value.description_ar}
                     </p>
                   </CardContent>
@@ -275,8 +287,44 @@ export default function AboutPage() {
         </div>
       </section>
 
+      {/* Company Imprint */}
+      <section className="py-16 bg-cream-100">
+        <div className="max-w-4xl mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-3xl font-display font-bold gradient-text mb-6 text-center">
+              {language === 'en' ? 'Company Information' : 'معلومات الشركة'}
+            </h2>
+            <Card className="p-8 border-0 luxury-shadow">
+              <CardContent className="p-0 space-y-3 text-stone">
+                <p className="font-semibold text-charcoal text-lg">{ENTITY.legalName}</p>
+                <p>
+                  {language === 'en'
+                    ? `A ${ENTITY.jurisdiction} ${ENTITY.entityType}, United States`
+                    : `شركة ذات مسؤولية محدودة مسجلة في ${ENTITY.jurisdiction}، الولايات المتحدة`
+                  }
+                </p>
+                <p>
+                  {getBrandDisclosure('Yalla London', language)}
+                </p>
+                <div className="pt-3 border-t border-stone/10">
+                  <p className="text-sm">
+                    {language === 'en' ? 'Contact: ' : 'تواصل: '}
+                    <a href={`mailto:${CONTACT_EMAIL}`} className="text-brand-primary hover:underline">{CONTACT_EMAIL}</a>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Contact CTA */}
-      <section className="py-20 bg-gradient-to-br from-purple-900 via-purple-800 to-yellow-600 text-white">
+      <section className="py-20 bg-gradient-to-br from-london-900 via-london-600 to-yalla-gold-500 text-white">
         <div className="max-w-4xl mx-auto text-center px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -284,20 +332,20 @@ export default function AboutPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-playfair font-bold mb-6">
+            <h2 className="text-4xl font-display font-bold mb-6">
               {language === 'en' 
                 ? 'Let\'s Explore London Together'
                 : 'دعونا نستكشف لندن معاً'
               }
             </h2>
-            <p className="text-xl mb-8 text-purple-100">
+            <p className="text-xl mb-8 text-cream-100/90">
               {language === 'en'
                 ? 'Have questions about London? Looking for personalized recommendations? I\'d love to help you discover this amazing city.'
                 : 'لديك أسئلة حول لندن؟ تبحث عن توصيات شخصية؟ أود أن أساعدك في اكتشاف هذه المدينة المذهلة.'
               }
             </p>
-            <Button asChild size="lg" className="bg-white text-purple-900 hover:bg-gray-100">
-              <a href="mailto:hello@yalla-london.com">
+            <Button asChild size="lg" className="bg-white text-london-900 hover:bg-cream-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+              <a href={`mailto:${CONTACT_EMAIL}`}>
                 <Mail className="mr-2 h-5 w-5" />
                 {language === 'en' ? 'Send a Message' : 'أرسل رسالة'}
               </a>

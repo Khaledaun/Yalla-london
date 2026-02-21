@@ -27,7 +27,9 @@ export async function POST(request: NextRequest) {
     // - External service like htmlcsstoimage.com
     
     // For now, we'll return a placeholder implementation
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = request.nextUrl.searchParams.get("siteId") || request.headers.get("x-site-id") || getDefaultSiteId();
+    const baseUrl = getSiteDomain(siteId);
     
     // Generate OG image URL using a service like htmlcsstoimage.com or similar
     // This is a placeholder - in production you'd implement actual image generation

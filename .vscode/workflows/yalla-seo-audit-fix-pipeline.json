@@ -1,0 +1,164 @@
+{
+  "id": "workflow-yalla-seo-audit-2026",
+  "name": "yalla-seo-audit-fix-pipeline",
+  "description": "Yalla London SEO Audit & Fix Pipeline: Weekly crawl → audit → diagnose → fix → validate → report. Runs every Sunday at 5am UTC. Covers all active sites with per-site scoping.",
+  "version": "1.0.0",
+  "schemaVersion": "1.1.0",
+  "nodes": [
+    {
+      "id": "start-seo-audit",
+      "type": "start",
+      "name": "start-seo-audit",
+      "position": { "x": 50, "y": 300 },
+      "data": { "label": "Weekly Cron Trigger (Sunday 5am UTC)" }
+    },
+    {
+      "id": "agent-site-crawler",
+      "type": "subAgent",
+      "name": "site-crawler",
+      "position": { "x": 300, "y": 200 },
+      "data": {
+        "description": "Site Crawler Agent",
+        "prompt": "Crawl all active sites to discover published pages. For each site: fetch sitemap.xml, extract URLs, check HTTP status codes, measure response times. Build page inventory with: URL, status code, content type, last modified, word count. Store results for audit phase. Respect robots.txt. Max 500 pages per site per run. Budget: 53s with 7s buffer.",
+        "model": "haiku",
+        "color": "blue",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-technical-audit",
+      "type": "subAgent",
+      "name": "technical-seo-audit",
+      "position": { "x": 550, "y": 120 },
+      "data": {
+        "description": "Technical SEO Audit Agent",
+        "prompt": "Run technical SEO audit on crawled pages. Check per page:\n1. Meta title (30-60 chars, keyword near start)\n2. Meta description (120-160 chars)\n3. Canonical tag (self-referencing, absolute URL)\n4. Hreflang tags (bidirectional, x-default)\n5. Open Graph tags (title, description, image)\n6. Heading hierarchy (1 H1, 2+ H2, no skipped levels)\n7. Image alt text completeness\n8. Internal link count (minimum 3)\n9. Broken links (4xx, 5xx)\n10. Page speed (TTFB < 600ms)\nScore each page 0-100. Flag blockers vs warnings.",
+        "model": "sonnet",
+        "color": "orange",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-content-audit",
+      "type": "subAgent",
+      "name": "content-quality-audit",
+      "position": { "x": 550, "y": 320 },
+      "data": {
+        "description": "Content Quality Audit Agent",
+        "prompt": "Audit content quality on crawled pages. Check per page:\n1. Word count (blocker < 1000, target 1800)\n2. Readability (Flesch-Kincaid grade ≤ 12)\n3. Keyword density (< 2.5%)\n4. E-E-A-T signals: author attribution, experience markers, original insights\n5. Authenticity signals (Jan 2026 update): 3+ first-hand experience markers, no AI-generic phrases\n6. Affiliate link presence (revenue requirement)\n7. Structured data validity (Article schema, BreadcrumbList)\n8. Thin content detection (< 300 words)\n9. Duplicate content check\n10. Freshness: last updated date vs content staleness\nFlag content for rewrite if score < 50.",
+        "model": "sonnet",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-cwv-audit",
+      "type": "subAgent",
+      "name": "core-web-vitals-audit",
+      "position": { "x": 550, "y": 480 },
+      "data": {
+        "description": "Core Web Vitals Audit Agent",
+        "prompt": "Check Core Web Vitals for all active sites using CrUX data and PageSpeed Insights API.\n- LCP: good ≤ 2.5s, needs improvement ≤ 4s\n- INP: good ≤ 200ms, needs improvement ≤ 500ms (replaced FID March 2024)\n- CLS: good ≤ 0.1, needs improvement ≤ 0.25\n- TTFB: good ≤ 600ms\nGroup results by: passing, needs improvement, poor. Identify worst-performing pages. Track trends vs previous week.",
+        "model": "haiku",
+        "color": "cyan",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "switch-severity",
+      "type": "switch",
+      "name": "severity-router",
+      "position": { "x": 850, "y": 280 },
+      "data": {
+        "evaluationTarget": "Combined audit severity level",
+        "branches": [
+          { "id": "b-critical", "label": "Critical", "condition": "Blockers found (broken pages, missing meta, thin content)" },
+          { "id": "b-warnings", "label": "Warnings", "condition": "Non-blocking issues (suboptimal meta lengths, missing alt text)" },
+          { "id": "b-healthy", "label": "Healthy", "condition": "All checks passing", "isDefault": true }
+        ],
+        "outputPorts": 3
+      }
+    },
+    {
+      "id": "agent-auto-fixer",
+      "type": "subAgent",
+      "name": "seo-auto-fixer",
+      "position": { "x": 1100, "y": 150 },
+      "data": {
+        "description": "SEO Auto-Fix Agent (Critical Issues)",
+        "prompt": "Auto-fix critical SEO issues:\n1. Missing/short meta titles → generate from content + focus keyword (50-60 chars)\n2. Missing/short meta descriptions → generate compelling description (120-160 chars)\n3. Missing canonical tags → add self-referencing canonical\n4. Missing structured data → inject Article + BreadcrumbList JSON-LD\n5. Missing author attribution → add default site author\n6. Broken internal links → update or remove\nLog all fixes to CronJobLog with before/after values. Never auto-fix content body — flag for editorial review instead.",
+        "model": "sonnet",
+        "color": "red",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-warning-logger",
+      "type": "subAgent",
+      "name": "warning-logger",
+      "position": { "x": 1100, "y": 320 },
+      "data": {
+        "description": "Warning Logger & Recommendations",
+        "prompt": "Log non-critical SEO warnings with actionable recommendations:\n- Suboptimal meta lengths → suggest improved versions\n- Missing image alt text → suggest alt text based on context\n- Low internal link count → suggest link targets from same site\n- Readability too high → flag sections needing simplification\n- Missing affiliate links → suggest relevant affiliate partners\nStore recommendations in SeoAudit table for dashboard display.",
+        "model": "haiku",
+        "color": "yellow",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-report-generator",
+      "type": "subAgent",
+      "name": "seo-report-generator",
+      "position": { "x": 1350, "y": 250 },
+      "data": {
+        "description": "SEO Health Report Generator",
+        "prompt": "Generate weekly SEO health report per site:\n- Overall health score (0-100)\n- Pages audited, passing, failing, fixed\n- Top 5 issues by severity\n- Core Web Vitals summary\n- Indexing status (indexed/pending/error counts)\n- Week-over-week trends\n- Auto-fixes applied this week\n- Recommendations prioritized by impact\nFormat for mobile dashboard display. Store in SeoReport table.",
+        "model": "haiku",
+        "color": "purple",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "agent-validate-fixes",
+      "type": "subAgent",
+      "name": "fix-validator",
+      "position": { "x": 1600, "y": 250 },
+      "data": {
+        "description": "Fix Validation Agent",
+        "prompt": "Validate all auto-fixes applied this run:\n1. Re-check fixed pages against original audit criteria\n2. Verify meta title/description within spec\n3. Validate JSON-LD against schema.org\n4. Confirm no regressions introduced\n5. Mark validated fixes as 'confirmed' in CronJobLog\n6. Flag any fixes that didn't resolve the issue for manual review\nReport validation results to dashboard.",
+        "model": "haiku",
+        "color": "green",
+        "outputPorts": 1
+      }
+    },
+    {
+      "id": "end-seo-report",
+      "type": "end",
+      "name": "end-seo-report",
+      "position": { "x": 1850, "y": 250 },
+      "data": { "label": "Weekly SEO Report (Dashboard)" }
+    }
+  ],
+  "connections": [
+    { "id": "conn-start-crawl", "from": "start-seo-audit", "to": "agent-site-crawler", "fromPort": "out", "toPort": "input" },
+    { "id": "conn-crawl-tech", "from": "agent-site-crawler", "to": "agent-technical-audit", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-crawl-content", "from": "agent-site-crawler", "to": "agent-content-audit", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-crawl-cwv", "from": "agent-site-crawler", "to": "agent-cwv-audit", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-tech-severity", "from": "agent-technical-audit", "to": "switch-severity", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-content-severity", "from": "agent-content-audit", "to": "switch-severity", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-cwv-severity", "from": "agent-cwv-audit", "to": "switch-severity", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-critical-fixer", "from": "switch-severity", "to": "agent-auto-fixer", "fromPort": "branch-0", "toPort": "input" },
+    { "id": "conn-warnings-logger", "from": "switch-severity", "to": "agent-warning-logger", "fromPort": "branch-1", "toPort": "input" },
+    { "id": "conn-healthy-report", "from": "switch-severity", "to": "agent-report-generator", "fromPort": "branch-2", "toPort": "input" },
+    { "id": "conn-fixer-report", "from": "agent-auto-fixer", "to": "agent-report-generator", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-logger-report", "from": "agent-warning-logger", "to": "agent-report-generator", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-report-validate", "from": "agent-report-generator", "to": "agent-validate-fixes", "fromPort": "output", "toPort": "input" },
+    { "id": "conn-validate-end", "from": "agent-validate-fixes", "to": "end-seo-report", "fromPort": "output", "toPort": "in" }
+  ],
+  "createdAt": "2026-02-19T00:00:00.000Z",
+  "updatedAt": "2026-02-19T00:00:00.000Z",
+  "metadata": {
+    "tags": ["seo-audit", "weekly", "auto-fix", "multi-site", "health-report"],
+    "author": "Claude Code (CTO/COO/CMO)"
+  }
+}

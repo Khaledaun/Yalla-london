@@ -5,9 +5,10 @@
  * PUT    /api/admin/domains/[id]         - Update domain
  * DELETE /api/admin/domains/[id]         - Delete domain
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { requireAdmin } from "@/lib/admin-middleware";
 
 interface RouteParams {

@@ -6,7 +6,7 @@
  */
 
 import { generateText, isAIAvailable } from "@/lib/ai";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 
 export interface PDFGuideConfig {
   title: string;
@@ -367,8 +367,8 @@ export function generatePDFHTML(config: PDFGuideConfig): string {
   const isRTL = config.locale === "ar";
   const direction = isRTL ? "rtl" : "ltr";
   const fontFamily = isRTL
-    ? "'Noto Sans Arabic', 'Cairo', sans-serif"
-    : "'Inter', sans-serif";
+    ? "'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif"
+    : "'Source Serif 4', Georgia, serif";
 
   return `
 <!DOCTYPE html>
@@ -378,7 +378,7 @@ export function generatePDFHTML(config: PDFGuideConfig): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${config.title}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Source+Serif+4:wght@400;600;700&display=swap');
 
     * {
       margin: 0;
@@ -586,7 +586,7 @@ export const PDF_TEMPLATES = {
     name: "Luxury",
     nameAr: "فاخر",
     primaryColor: "#8B7355",
-    secondaryColor: "#D4AF37",
+    secondaryColor: "#C49A2A",
     description: "Premium design for luxury travelers",
   },
   budget: {

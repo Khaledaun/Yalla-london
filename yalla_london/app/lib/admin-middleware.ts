@@ -4,11 +4,12 @@
  *
  * SECURITY: Admin emails loaded ONLY from environment variables.
  * No hardcoded email addresses.
+ *
+ * NOTE: Uses direct JWT decode from cookies instead of getServerSession()
+ * to avoid dependency on the [...nextauth] route handler.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 
 export interface AdminAuthenticatedRequest extends NextRequest {
   user?: {
@@ -28,6 +29,37 @@ function getAdminEmails(): string[] {
 }
 
 /**
+ * Decode session from JWT cookie directly.
+ * Bypasses getServerSession/[...nextauth] handler entirely.
+ */
+async function getSessionFromCookie(request: NextRequest) {
+  try {
+    const { decode } = await import("next-auth/jwt");
+    const secret = process.env.NEXTAUTH_SECRET;
+    if (!secret) return null;
+
+    const secureCookie = request.cookies.get("__Secure-next-auth.session-token")?.value;
+    const plainCookie = request.cookies.get("next-auth.session-token")?.value;
+    const tokenValue = secureCookie || plainCookie;
+    if (!tokenValue) return null;
+
+    const decoded = await decode({ secret, token: tokenValue });
+    if (!decoded || !decoded.email) return null;
+
+    return {
+      user: {
+        id: (decoded.id || decoded.sub) as string,
+        email: decoded.email as string,
+        name: (decoded.name as string) || undefined,
+        role: (decoded.role as string) || "viewer",
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Admin authentication middleware for App Router API routes
  * Returns NextResponse with 401 for unauthorized access
  */
@@ -35,7 +67,7 @@ export async function requireAdmin(
   request: NextRequest,
 ): Promise<NextResponse | null> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSessionFromCookie(request);
 
     if (!session?.user?.email) {
       return NextResponse.json(
@@ -45,7 +77,7 @@ export async function requireAdmin(
     }
 
     // Check admin via session role (from JWT) OR email whitelist from env
-    const userRole = (session.user as any).role;
+    const userRole = session.user.role;
     const adminEmails = getAdminEmails();
 
     const isAdmin =
@@ -104,13 +136,44 @@ export function withTenantAuth(
     const authResult = await requireAdmin(request);
     if (authResult) return authResult;
 
-    const siteId = request.headers.get("x-site-id") || "yalla-london";
+    // Use config-driven default instead of hardcoded "yalla-london"
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = request.headers.get("x-site-id") || getDefaultSiteId();
     const locale = request.headers.get("x-site-locale") || "en";
 
     const { getTenantPrisma } = await import("@/lib/db/tenant-queries");
     const db = getTenantPrisma(siteId);
 
     return handler(request, { db, siteId, locale });
+  };
+}
+
+/**
+ * Dual auth: accepts admin session cookie OR Bearer CRON_SECRET.
+ * Use for admin endpoints that also need to be testable from the
+ * connection validator page (/test-connections.html).
+ */
+export function requireAdminOrCron(request: NextRequest): Promise<NextResponse | null> {
+  const authHeader = request.headers.get("authorization") || "";
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (cronSecret && authHeader === `Bearer ${cronSecret}`) {
+    return Promise.resolve(null); // CRON_SECRET matched → allow
+  }
+
+  return requireAdmin(request); // Fall back to session-based admin auth
+}
+
+/**
+ * Wrapper: admin session OR CRON_SECRET
+ */
+export function withAdminOrCronAuth(
+  handler: (request: NextRequest) => Promise<NextResponse>,
+) {
+  return async (request: NextRequest): Promise<NextResponse> => {
+    const authResult = await requireAdminOrCron(request);
+    if (authResult) return authResult;
+    return handler(request);
   };
 }
 
@@ -123,13 +186,13 @@ export async function getCurrentAdminUser(request: NextRequest): Promise<{
   name?: string;
 } | null> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSessionFromCookie(request);
 
     if (!session?.user?.email) {
       return null;
     }
 
-    const userRole = (session.user as any).role;
+    const userRole = session.user.role;
     const adminEmails = getAdminEmails();
     const isAdmin =
       userRole === "admin" || adminEmails.includes(session.user.email);
@@ -139,7 +202,7 @@ export async function getCurrentAdminUser(request: NextRequest): Promise<{
     }
 
     return {
-      id: (session.user as any).id || session.user.email,
+      id: session.user.id || session.user.email,
       email: session.user.email,
       name: session.user.name || undefined,
     };

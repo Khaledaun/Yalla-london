@@ -45,12 +45,13 @@ const defaultTheme: ThemeConfig = {
 }
 
 const fontOptions = [
+  { value: 'Anybody', label: 'Anybody (Display)' },
+  { value: 'Source Serif 4', label: 'Source Serif 4 (Editorial)' },
   { value: 'Inter', label: 'Inter (Modern)' },
   { value: 'Roboto', label: 'Roboto (Clean)' },
   { value: 'Open Sans', label: 'Open Sans (Friendly)' },
   { value: 'Lato', label: 'Lato (Professional)' },
   { value: 'Poppins', label: 'Poppins (Bold)' },
-  { value: 'Playfair Display', label: 'Playfair Display (Elegant)' },
   { value: 'Merriweather', label: 'Merriweather (Readable)' },
   { value: 'Source Sans Pro', label: 'Source Sans Pro (Versatile)' }
 ]
@@ -58,8 +59,8 @@ const fontOptions = [
 const presetThemes = [
   {
     name: 'Yalla London',
-    colors: { primaryColor: '#3B82F6', secondaryColor: '#1E40AF', accentColor: '#F59E0B' },
-    font: 'Inter'
+    colors: { primaryColor: '#C8322B', secondaryColor: '#1C1917', accentColor: '#C49A2A' },
+    font: 'Anybody'
   },
   {
     name: 'Modern Blue',
@@ -74,7 +75,7 @@ const presetThemes = [
   {
     name: 'Elegant Purple',
     colors: { primaryColor: '#7C3AED', secondaryColor: '#5B21B6', accentColor: '#EC4899' },
-    font: 'Playfair Display'
+    font: 'Source Serif 4'
   },
   {
     name: 'Nature Green',

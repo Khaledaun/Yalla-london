@@ -13,6 +13,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox'
 import { Mail, Phone, MapPin, Send, MessageSquare, Star } from 'lucide-react'
 import { toast } from 'sonner'
+import { SITES, getDefaultSiteId } from '@/config/sites'
+
+const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury'
+const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
+const PRESS_EMAIL = `press@${SITE_DOMAIN}`
 
 interface ContactFormData {
   name: string
@@ -110,10 +115,10 @@ export default function ContactPage() {
       <div className={`container mx-auto px-6 py-12 max-w-2xl ${isRTL ? 'rtl' : 'ltr'}`}>
         <Card>
           <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <MessageSquare className="h-8 w-8 text-green-600" />
+            <div className="mx-auto w-16 h-16 bg-cream-100 rounded-full flex items-center justify-center mb-4">
+              <MessageSquare className="h-8 w-8 text-forest" />
             </div>
-            <CardTitle className="text-2xl text-green-800">Message Sent!</CardTitle>
+            <CardTitle className="text-2xl text-forest">Message Sent!</CardTitle>
             <CardDescription>
               Thank you for contacting us. We'll get back to you within 24 hours.
             </CardDescription>
@@ -131,10 +136,10 @@ export default function ContactPage() {
   return (
     <div className={`container mx-auto px-6 py-12 max-w-6xl ${isRTL ? 'rtl' : 'ltr'}`}>
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        <h1 className="text-3xl md:text-4xl font-display font-bold text-charcoal mb-4">
           {t('contactUs') || 'Contact Us'}
         </h1>
-        <p className="text-gray-600 text-lg">
+        <p className="text-stone text-lg">
           Get in touch with the Yalla London team. We'd love to hear from you!
         </p>
       </div>
@@ -151,29 +156,29 @@ export default function ContactPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-start gap-3">
-                <Mail className="h-5 w-5 text-yellow-600 mt-1 flex-shrink-0" />
+                <Mail className="h-5 w-5 text-yalla-gold-500 mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-medium">Email</h4>
-                  <p className="text-sm text-gray-600">hello@yalla-london.com</p>
-                  <p className="text-sm text-gray-600">For general inquiries</p>
+                  <p className="text-sm text-stone">{CONTACT_EMAIL}</p>
+                  <p className="text-sm text-stone">For general inquiries</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <Star className="h-5 w-5 text-yellow-600 mt-1 flex-shrink-0" />
+                <Star className="h-5 w-5 text-yalla-gold-500 mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-medium">Press & Partnerships</h4>
-                  <p className="text-sm text-gray-600">press@yalla-london.com</p>
-                  <p className="text-sm text-gray-600">For media and collaboration</p>
+                  <p className="text-sm text-stone">{PRESS_EMAIL}</p>
+                  <p className="text-sm text-stone">For media and collaboration</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <MapPin className="h-5 w-5 text-yellow-600 mt-1 flex-shrink-0" />
+                <MapPin className="h-5 w-5 text-yalla-gold-500 mt-1 flex-shrink-0" />
                 <div>
                   <h4 className="font-medium">Location</h4>
-                  <p className="text-sm text-gray-600">London, United Kingdom</p>
-                  <p className="text-sm text-gray-600">Covering all of London</p>
+                  <p className="text-sm text-stone">London, United Kingdom</p>
+                  <p className="text-sm text-stone">Covering all of London</p>
                 </div>
               </div>
             </CardContent>
@@ -322,7 +327,7 @@ export default function ContactPage() {
                     />
                     <Label htmlFor="consent" className="text-sm">
                       I agree to the{' '}
-                      <Link href="/privacy" className="text-blue-600 hover:underline">
+                      <Link href="/privacy" className="text-thames-500 hover:underline">
                         Privacy Policy
                       </Link>{' '}
                       and consent to my data being processed for this inquiry. *

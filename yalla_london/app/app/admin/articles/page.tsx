@@ -30,7 +30,8 @@ import {
   Globe,
   Users,
   Heart,
-  MessageSquare
+  MessageSquare,
+  ClipboardCheck
 } from 'lucide-react'
 
 interface Article {
@@ -131,6 +132,12 @@ export default function ArticlesPage() {
   const [categories, setCategories] = useState<string[]>([])
   const [selectedArticle, setSelectedArticle] = useState<BlogPostAdmin | null>(null)
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
+  const [bulkAuditing, setBulkAuditing] = useState(false)
+  const [bulkAuditResult, setBulkAuditResult] = useState<{
+    averageCompliance: number;
+    articlesAudited: number;
+    fullComplianceCount: number;
+  } | null>(null)
 
   // Fetch articles from backend
   useEffect(() => {
@@ -138,24 +145,32 @@ export default function ArticlesPage() {
       try {
         setLoading(true)
         setError(null)
-        
+
         const params = new URLSearchParams({
           limit: '100', // Get all articles for admin view
           status: selectedStatus === 'all' ? '' : selectedStatus,
           category: selectedCategory === 'all' ? '' : selectedCategory,
           search: searchQuery
         })
-        
+
         // Remove empty parameters
         const cleanParams = new URLSearchParams()
         for (const [key, value] of params.entries()) {
           if (value) cleanParams.set(key, value)
         }
-        
+
         const response = await fetch(`/api/admin/content?${cleanParams}`)
-        const data = await response.json()
-        
-        if (data.success) {
+
+        // Auth failures — show empty list, not an error
+        if (response.status === 401 || response.status === 403) {
+          setArticles([])
+          setLoading(false)
+          return
+        }
+
+        const data = await response.json().catch(() => null)
+
+        if (data?.success) {
           setArticles(data.data)
           // Extract unique categories
           const uniqueCategories = Array.from(new Set(
@@ -163,7 +178,9 @@ export default function ArticlesPage() {
           )) as string[]
           setCategories(uniqueCategories)
         } else {
-          throw new Error(data.error || 'Failed to fetch articles')
+          // Non-auth API error — show empty state instead of crashing
+          console.warn('Articles API error:', data?.error)
+          setArticles([])
         }
       } catch (err) {
         console.error('Error fetching articles:', err)
@@ -176,6 +193,46 @@ export default function ArticlesPage() {
 
     fetchArticles()
   }, [selectedStatus, selectedCategory, searchQuery])
+
+  // Bulk SEO compliance audit
+  const handleBulkAudit = async () => {
+    setBulkAuditing(true)
+    setBulkAuditResult(null)
+    const BATCH_SIZE = 10
+    let allResults: Array<{ compliancePercent: number }> = []
+    let currentOffset = 0
+    let totalArticles = 0
+    try {
+      // Batched audit to avoid Vercel timeouts
+      let hasMore = true
+      while (hasMore) {
+        const res = await fetch('/api/admin/seo/article-compliance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'audit_all', offset: currentOffset, limit: BATCH_SIZE }),
+        })
+        const data = await res.json()
+        if (!data.success) break
+        totalArticles = data.totalArticles || totalArticles
+        allResults = [...allResults, ...data.results]
+        hasMore = !!data.hasMore
+        currentOffset = data.nextOffset ?? totalArticles
+      }
+      if (allResults.length > 0) {
+        const avg = Math.round(allResults.reduce((s, r) => s + r.compliancePercent, 0) / allResults.length)
+        const full = allResults.filter(r => r.compliancePercent === 100).length
+        setBulkAuditResult({
+          averageCompliance: avg,
+          articlesAudited: allResults.length,
+          fullComplianceCount: full,
+        })
+      }
+    } catch (err) {
+      console.error('Bulk audit failed:', err)
+    } finally {
+      setBulkAuditing(false)
+    }
+  }
 
   // Toggle publish status
   const handleTogglePublish = async (articleId: string, currentStatus: boolean) => {
@@ -268,12 +325,21 @@ export default function ArticlesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Articles</h1>
           <p className="text-sm text-gray-500 mt-1">Manage your blog posts and articles</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button
             variant="outline"
             onClick={() => setViewMode(viewMode === 'cards' ? 'table' : 'cards')}
           >
             {viewMode === 'cards' ? 'Table View' : 'Card View'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleBulkAudit}
+            disabled={bulkAuditing}
+            className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+          >
+            <ClipboardCheck className="h-4 w-4 mr-2" />
+            {bulkAuditing ? 'Auditing...' : 'SEO Audit All'}
           </Button>
           <Button
             className="bg-blue-600 hover:bg-blue-700"
@@ -287,6 +353,36 @@ export default function ArticlesPage() {
       <div className="space-y-6">
         {/* Sync Status Indicator */}
         <SyncStatusIndicator />
+
+        {/* Bulk Audit Result Banner */}
+        {bulkAuditResult && (
+          <div className={`rounded-lg border p-4 flex items-center justify-between ${
+            bulkAuditResult.averageCompliance >= 90 ? 'bg-green-50 border-green-200' :
+            bulkAuditResult.averageCompliance >= 70 ? 'bg-yellow-50 border-yellow-200' :
+            'bg-red-50 border-red-200'
+          }`}>
+            <div>
+              <p className="font-semibold text-gray-900">
+                SEO Compliance Audit Complete
+              </p>
+              <p className="text-sm text-gray-600 mt-1">
+                {bulkAuditResult.articlesAudited} articles audited &middot;{' '}
+                {bulkAuditResult.fullComplianceCount} at 100% &middot;{' '}
+                Average compliance: <strong className={
+                  bulkAuditResult.averageCompliance >= 90 ? 'text-green-700' :
+                  bulkAuditResult.averageCompliance >= 70 ? 'text-yellow-700' :
+                  'text-red-700'
+                }>{bulkAuditResult.averageCompliance}%</strong>
+              </p>
+            </div>
+            <button
+              onClick={() => setBulkAuditResult(null)}
+              className="text-gray-400 hover:text-gray-600 text-lg"
+            >
+              &times;
+            </button>
+          </div>
+        )}
 
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -452,7 +548,7 @@ export default function ArticlesPage() {
                     : "Try adjusting your search or filter criteria."
                   }
                 </p>
-                <Button className="mt-4" onClick={() => {/* TODO: Add create article logic */}}>
+                <Button className="mt-4" onClick={() => window.location.href = '/admin/editor'}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Article
                 </Button>
@@ -543,16 +639,26 @@ export default function ArticlesPage() {
                         Edit
                       </Button>
                       
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="flex-1"
                         onClick={() => window.open(`/blog/${article.slug}`, '_blank')}
                       >
                         <Eye className="h-3 w-3 mr-1" />
                         {article.published ? 'View' : 'Preview'}
                       </Button>
-                      
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.location.href = `/admin/articles/${article.slug}/seo-checklist`}
+                        className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200"
+                      >
+                        <ClipboardCheck className="h-3 w-3 mr-1" />
+                        SEO
+                      </Button>
+
                       <Button
                         size="sm"
                         variant={article.published ? "secondary" : "default"}
@@ -620,19 +726,28 @@ export default function ArticlesPage() {
                         </td>
                         <td className="p-2">
                           <div className="flex items-center gap-1">
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
-                              onClick={() => {/* TODO: Edit functionality */}}
+                              onClick={() => window.location.href = `/admin/editor?slug=${article.slug}`}
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => window.open(`/blog/${article.slug}`, '_blank')}
                             >
                               <Eye className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.location.href = `/admin/articles/${article.slug}/seo-checklist`}
+                              className="text-indigo-600 hover:text-indigo-700"
+                              title="SEO Checklist"
+                            >
+                              <ClipboardCheck className="h-3 w-3" />
                             </Button>
                             <Button
                               variant="ghost"

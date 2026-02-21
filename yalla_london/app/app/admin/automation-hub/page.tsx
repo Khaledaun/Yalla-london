@@ -538,7 +538,7 @@ export default function AutomationHubPage() {
                               )}
                             </Button>
 
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" size="sm" onClick={() => { window.location.href = '/admin/health-monitoring'; }}>
                               <Settings className="h-4 w-4" />
                             </Button>
                           </div>
@@ -694,11 +694,11 @@ export default function AutomationHubPage() {
                             )}
                           </Button>
 
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => { window.location.href = '/admin/workflow'; }}>
                             <Edit className="h-4 w-4" />
                           </Button>
 
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => { window.location.href = '/admin/health-monitoring'; }}>
                             <Settings className="h-4 w-4" />
                           </Button>
                         </div>
@@ -823,7 +823,10 @@ export default function AutomationHubPage() {
                 >
                   Cancel
                 </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => { setIsCreatingJob(false); window.location.href = '/admin/workflow'; }}
+                >
                   Create Job
                 </Button>
               </div>
@@ -900,7 +903,10 @@ export default function AutomationHubPage() {
                 >
                   Cancel
                 </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => { setIsCreatingSchedule(false); window.location.href = '/admin/workflow'; }}
+                >
                   Create Schedule
                 </Button>
               </div>

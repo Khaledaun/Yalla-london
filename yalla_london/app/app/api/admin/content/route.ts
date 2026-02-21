@@ -35,7 +35,8 @@ const BlogPostSchema = z.object({
   meta_description_en: z.string().optional(),
   meta_description_ar: z.string().optional(),
   place_id: z.string().optional(),
-  seo_score: z.number().min(0).max(100).optional()
+  seo_score: z.number().min(0).max(100).optional(),
+  siteId: z.string().optional()
 });
 
 // CREATE - New blog post
@@ -69,10 +70,12 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       );
     }
 
-    // Create the blog post
+    // Create the blog post with site scoping
+    const { getDefaultSiteId } = await import('@/config/sites');
     const newPost = await prisma.blogPost.create({
       data: {
         ...data,
+        siteId: data.siteId || getDefaultSiteId(),
         keywords_json: data.tags.length > 0 ? { primary: data.tags[0], longtails: data.tags.slice(1) } : null,
         seo_score: data.seo_score || 50
       },

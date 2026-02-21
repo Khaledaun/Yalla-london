@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Search, Calendar, User, ArrowRight, Filter } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { FollowUs } from '@/components/follow-us'
 
 interface BlogPostData {
   id: string
@@ -91,7 +92,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
   return (
     <div className={`py-12 ${isRTL ? 'rtl' : 'ltr'}`}>
       {/* Header */}
-      <section className="bg-gradient-to-br from-purple-50 to-yellow-50 py-16">
+      <section className="bg-gradient-to-br from-cream to-cream-200 py-16">
         <div className="max-w-6xl mx-auto px-6">
           <motion.div
             className="text-center"
@@ -99,10 +100,10 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <h1 className="text-5xl font-playfair font-bold gradient-text mb-4">
+            <h1 className="text-4xl sm:text-5xl font-display font-bold gradient-text mb-4">
               {t('blog')}
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-stone max-w-2xl mx-auto">
               {language === 'en'
                 ? 'Discover the stories behind London\'s most luxurious experiences'
                 : 'اكتشف القصص وراء أكثر التجارب الفاخرة في لندن'
@@ -123,7 +124,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
           >
             <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone" />
                 <Input
                   placeholder={language === 'en' ? 'Search stories...' : 'البحث في القصص...'}
                   value={searchTerm}
@@ -145,7 +146,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-stone">
               {filteredPosts.length} {language === 'en' ? 'stories found' : 'قصة موجودة'}
             </div>
           </motion.div>
@@ -177,16 +178,17 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                         src={post.featured_image || '/images/placeholder-blog.jpg'}
                         alt={title}
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover group-hover:scale-110 transition-transform duration-500"
                       />
-                      <div className="absolute top-4 left-4">
-                        <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-purple-800">
+                      <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'}`}>
+                        <span className="bg-white/90 px-3 py-1 rounded-full text-xs font-medium text-brand-primary">
                           {categoryName}
                         </span>
                       </div>
                     </div>
                     <CardContent className="p-6 flex-1 flex flex-col">
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                      <div className="flex items-center gap-4 text-sm text-stone mb-3">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
                           {formatDate(post.created_at)}
@@ -196,13 +198,13 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
                           {language === 'en' ? 'Editorial Team' : 'فريق التحرير'}
                         </span>
                       </div>
-                      <h3 className="text-xl font-semibold mb-3 text-gray-900 group-hover:text-purple-800 transition-colors">
+                      <h3 className="text-xl font-semibold mb-3 text-charcoal group-hover:text-brand-primary transition-colors line-clamp-2">
                         {title}
                       </h3>
-                      <p className="text-gray-600 leading-relaxed flex-1 mb-4">
+                      <p className="text-stone leading-relaxed flex-1 mb-4 line-clamp-3">
                         {excerpt}
                       </p>
-                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-purple-800 hover:text-purple-900">
+                      <Button asChild variant="ghost" className="self-start p-0 h-auto text-brand-primary hover:text-london-800 transition-colors">
                         <Link href={`/blog/${post.slug}`}>
                           {t('readMore')}
                           <ArrowRight className={`ml-2 h-4 w-4 ${isRTL ? 'rtl-flip' : ''}`} />
@@ -222,7 +224,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6 }}
             >
-              <p className="text-xl text-gray-500">
+              <p className="text-xl text-stone">
                 {language === 'en'
                   ? 'No stories found matching your criteria.'
                   : 'لم يتم العثور على قصص تطابق معاييرك.'
@@ -230,6 +232,13 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
               </p>
             </motion.div>
           )}
+        </div>
+      </section>
+
+      {/* Follow Us */}
+      <section className="py-10 bg-charcoal">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <FollowUs variant="dark" showLabel={true} />
         </div>
       </section>
     </div>

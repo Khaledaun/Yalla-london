@@ -5,6 +5,7 @@
  * PUT /api/admin/skills/[id] - Update a skill
  * DELETE /api/admin/skills/[id] - Delete a skill
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { SkillService, SkillCategory } from '@/lib/domains/team';

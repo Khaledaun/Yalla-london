@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -464,7 +465,7 @@ export function ContentBuilder({
                   </div>
                 </SortableContext>
                 
-                <DragOverlay>
+                <DragOverlay adjustScale={false} className="" style={undefined} transition={undefined}>
                   {activeId && (
                     <div className="bg-white border border-slate-300 rounded-lg p-4 shadow-lg">
                       Dragging block...
@@ -595,8 +596,8 @@ function BlockContentPreview({ block }: { block: ContentBlock }) {
   switch (block.type) {
     case 'text':
       return (
-        <div dangerouslySetInnerHTML={{ 
-          __html: block.content.html || 'Empty text block' 
+        <div dangerouslySetInnerHTML={{
+          __html: sanitizeHtml(block.content.html || 'Empty text block')
         }} />
       )
     

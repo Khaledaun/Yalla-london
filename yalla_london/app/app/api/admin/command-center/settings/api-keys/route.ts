@@ -13,7 +13,7 @@ import { requireAdmin } from "@/lib/admin-middleware";
 
 interface ApiKeyConfig {
   id: string;
-  provider: 'claude' | 'openai' | 'gemini' | 'serpapi';
+  provider: 'grok' | 'claude' | 'openai' | 'gemini' | 'serpapi';
   name: string;
   key: string;
   status: 'active' | 'invalid' | 'expired' | 'unconfigured';
@@ -36,6 +36,8 @@ function validateKeyFormat(key: string, provider: string): boolean {
   if (!key) return false;
 
   switch (provider) {
+    case 'grok':
+      return key.startsWith('xai-') && key.length > 20;
     case 'claude':
       return key.startsWith('sk-ant-');
     case 'openai':
@@ -54,6 +56,24 @@ export async function GET(request: NextRequest) {
   if (authError) return authError;
 
   const keys: ApiKeyConfig[] = [];
+
+  // Check Grok (xAI) — preferred provider for EN content + live search
+  const grokKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY || '';
+  keys.push({
+    id: 'grok-key',
+    provider: 'grok',
+    name: 'Grok (xAI)',
+    key: maskKey(grokKey),
+    status: grokKey
+      ? (validateKeyFormat(grokKey, 'grok') ? 'active' : 'invalid')
+      : 'unconfigured',
+    lastUsed: null,
+    usageThisMonth: 0,
+    usageLimit: null,
+    models: grokKey ? ['grok-4-1-fast', 'grok-4-latest'] : [],
+    envVar: 'XAI_API_KEY',
+    source: grokKey ? 'env' : 'none'
+  });
 
   // Check Claude/Anthropic
   const anthropicKey = process.env.ANTHROPIC_API_KEY || '';
@@ -164,19 +184,27 @@ function generateRecommendations(keys: ApiKeyConfig[], integrations: any): strin
   // Check AI providers
   const hasAnyAI = keys.some(k => k.status === 'active');
   if (!hasAnyAI) {
-    recommendations.push('⚠️ CRITICAL: Configure at least one AI provider (Claude, OpenAI, or Gemini) to enable content generation');
+    recommendations.push('⚠️ CRITICAL: Configure at least one AI provider (Grok, Claude, OpenAI, or Gemini) to enable content generation');
   }
 
-  // Check Claude specifically
+  // Check Grok (highest priority provider)
+  const grokKey = keys.find(k => k.provider === 'grok');
+  if (grokKey?.status === 'unconfigured') {
+    recommendations.push('🚀 Add XAI_API_KEY for Grok — preferred EN content provider ($0.20/$0.50/1M tokens) + real-time web & X search');
+  } else if (grokKey?.status === 'active') {
+    recommendations.push('✅ Grok (xAI) is active — EN content generation, trending topics, live news, and X social buzz enabled');
+  }
+
+  // Check Claude
   const claudeKey = keys.find(k => k.provider === 'claude');
   if (claudeKey?.status === 'unconfigured') {
-    recommendations.push('Add ANTHROPIC_API_KEY for Claude AI - recommended as primary AI provider');
+    recommendations.push('Add ANTHROPIC_API_KEY for Claude AI - strong fallback for content generation');
   }
 
   // Check OpenAI
   const openaiKey = keys.find(k => k.provider === 'openai');
   if (openaiKey?.status === 'unconfigured') {
-    recommendations.push('Add OPENAI_API_KEY for GPT models - used for content generation');
+    recommendations.push('Add OPENAI_API_KEY for GPT models - additional AI fallback');
   }
 
   // Check SerpAPI for trends
@@ -223,6 +251,9 @@ export async function POST(request: NextRequest) {
       let testResult = { success: false, message: 'Unknown provider' };
 
       switch (keyId) {
+        case 'grok-key':
+          testResult = await testGrokKey();
+          break;
         case 'claude-key':
           testResult = await testClaudeKey();
           break;
@@ -243,6 +274,73 @@ export async function POST(request: NextRequest) {
       { error: error instanceof Error ? error.message : 'Test failed' },
       { status: 500 }
     );
+  }
+}
+
+async function testGrokKey(): Promise<{ success: boolean; message: string }> {
+  const key = process.env.XAI_API_KEY || process.env.GROK_API_KEY;
+  if (!key) {
+    return { success: false, message: 'XAI_API_KEY not configured in environment' };
+  }
+
+  try {
+    // Test 1: Chat Completions API (content generation)
+    const chatResponse = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+      },
+      signal: AbortSignal.timeout(15_000),
+      body: JSON.stringify({
+        model: 'grok-4-1-fast',
+        max_tokens: 10,
+        messages: [{ role: 'user', content: 'Say OK' }],
+        stream: false,
+      }),
+    });
+
+    if (!chatResponse.ok) {
+      const error = await chatResponse.text().catch(() => '');
+      return { success: false, message: `Chat API failed (${chatResponse.status}): ${error.slice(0, 150)}` };
+    }
+
+    const chatData = await chatResponse.json();
+    const chatOk = !!chatData.choices?.[0]?.message?.content;
+
+    // Test 2: Responses API (live search — web_search + x_search)
+    let searchOk = false;
+    try {
+      const searchResponse = await fetch('https://api.x.ai/v1/responses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${key}`,
+        },
+        signal: AbortSignal.timeout(15_000),
+        body: JSON.stringify({
+          model: 'grok-4-1-fast',
+          tools: [{ type: 'web_search' }],
+          input: 'London weather today',
+          stream: false,
+        }),
+      });
+      searchOk = searchResponse.ok;
+    } catch {
+      // Search test is non-blocking
+    }
+
+    const features = [
+      chatOk ? 'Chat Completions' : null,
+      searchOk ? 'Live Search (web + X)' : null,
+    ].filter(Boolean);
+
+    return {
+      success: true,
+      message: `Grok API key is valid. Active features: ${features.join(', ')}. Model: grok-4-1-fast ($0.20/$0.50 per 1M tokens)`,
+    };
+  } catch (error) {
+    return { success: false, message: `Failed to connect to xAI API: ${error instanceof Error ? error.message : 'Unknown error'}` };
   }
 }
 
@@ -334,6 +432,7 @@ export async function PUT(request: NextRequest) {
       error: 'API keys should be configured via environment variables (.env file) for security',
       instructions: [
         'Add your API keys to your .env file:',
+        'XAI_API_KEY=xai-... (Grok - recommended, cheapest + live search)',
         'ANTHROPIC_API_KEY=sk-ant-...',
         'OPENAI_API_KEY=sk-...',
         'GOOGLE_AI_API_KEY=...',

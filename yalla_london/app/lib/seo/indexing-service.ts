@@ -200,17 +200,30 @@ export async function submitToIndexNow(
 // SITEMAP PING SERVICE
 // ============================================
 
-export async function pingSitemaps(): Promise<Record<string, boolean>> {
+export async function pingSitemaps(siteUrl?: string): Promise<Record<string, boolean>> {
+  const baseUrl = siteUrl || BASE_URL;
   const results: Record<string, boolean> = {};
 
-  // Google deprecated their sitemap ping endpoint in 2023
-  // Use Google Search Console API or IndexNow instead
-  results["google"] = true; // Handled via GSC API
+  // Google deprecated their legacy sitemap ping endpoint in 2023.
+  // The correct path is GSC API sitemap submission — report actual result.
+  try {
+    const gsc = new GoogleSearchConsoleAPI(siteUrl);
+    const gscResult = await gsc.submitSitemap(`${baseUrl}/sitemap.xml`);
+    results["google_gsc"] = gscResult.success;
+    if (!gscResult.success) {
+      console.warn(`[SEO] GSC sitemap submission failed: ${gscResult.error || "unknown"}`);
+    }
+  } catch {
+    results["google_gsc"] = false;
+  }
 
-  // Bing/Yandex covered by IndexNow - no need for legacy ping
-  results["bing"] = true; // Handled via IndexNow
+  // Bing/Yandex covered by IndexNow — report whether key is configured
+  results["indexnow"] = !!INDEXNOW_KEY;
+  if (!INDEXNOW_KEY) {
+    console.warn("[SEO] INDEXNOW_KEY not configured — Bing/Yandex sitemap ping skipped");
+  }
 
-  console.log("[SEO] Sitemap ping: Google → GSC API, Bing/Yandex → IndexNow");
+  console.log(`[SEO] Sitemap ping: Google GSC=${results["google_gsc"]}, IndexNow=${results["indexnow"]}`);
   return results;
 }
 
@@ -916,6 +929,38 @@ export async function runAutomatedIndexing(
       default:
         urls = await getNewUrls(7, siteId, baseUrl);
         break;
+    }
+
+    // Also include URLs that were discovered by the SEO agent but haven't
+    // been submitted yet. These may fall outside the 7-day window used by
+    // getNewUrls/getUpdatedUrls but still need submission.
+    if (siteId) {
+      try {
+        const { prisma } = await import("@/lib/db");
+        const discoveredUrls = await prisma.uRLIndexingStatus.findMany({
+          where: {
+            site_id: siteId,
+            status: { in: ["discovered", "pending"] },
+          },
+          select: { url: true },
+          take: 500,
+        });
+        if (discoveredUrls.length > 0) {
+          const existingSet = new Set(urls);
+          let added = 0;
+          for (const row of discoveredUrls) {
+            if (!existingSet.has(row.url)) {
+              urls.push(row.url);
+              added++;
+            }
+          }
+          if (added > 0) {
+            console.log(`[SEO] Added ${added} "discovered" URLs from URLIndexingStatus to submission batch`);
+          }
+        }
+      } catch {
+        // URLIndexingStatus table may not exist yet — proceed with original URLs
+      }
     }
 
     report.urlsProcessed = urls.length;

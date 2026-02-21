@@ -112,7 +112,7 @@ interface ContactFormData {
 }
 
 // ─── Component ──────────────────────────────────────────────
-export default function ZenithaContactPage() {
+export default function ZenithaContactPage({ siteId }: { siteId?: string }) {
   const { language, isRTL } = useLanguage()
   const locale: Locale = (language as Locale) || 'en'
 
@@ -145,7 +145,7 @@ export default function ZenithaContactPage() {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, siteId: 'zenitha-yachts-med' }),
+        body: JSON.stringify({ ...formData, siteId: siteId || 'zenitha-yachts-med' }),
       })
       if (res.ok) {
         setSubmitted(true)

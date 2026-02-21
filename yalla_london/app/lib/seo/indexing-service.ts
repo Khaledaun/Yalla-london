@@ -755,7 +755,7 @@ export class GoogleSearchConsoleAPI {
 export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Promise<string[]> {
   const baseUrl = siteUrl || BASE_URL;
   const urls: string[] = [];
-  const isYachtSite = siteId === "zenitha-yachts-med";
+  const isYachtSite = (() => { try { return require("@/config/sites").isYachtSite(siteId); } catch { return false; } })();
 
   // Static pages — yacht site has a different page structure
   const staticPages = isYachtSite
@@ -870,7 +870,7 @@ export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUr
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - withinDays);
   const urls: string[] = [];
-  const isYachtSite = siteId === "zenitha-yachts-med";
+  const isYachtSite = (() => { try { return require("@/config/sites").isYachtSite(siteId); } catch { return false; } })();
 
   // Static file posts (only for default site)
   const _ds1 = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
@@ -944,7 +944,7 @@ export async function getUpdatedUrls(
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - withinDays);
   const urls: string[] = [];
-  const isYachtSite = siteId === "zenitha-yachts-med";
+  const isYachtSite = (() => { try { return require("@/config/sites").isYachtSite(siteId); } catch { return false; } })();
 
   // Static file posts (only for default site)
   const _ds2 = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();

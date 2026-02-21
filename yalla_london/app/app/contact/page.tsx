@@ -8,7 +8,7 @@ export default async function ContactPage() {
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
 
   if (isYachtSite(siteId)) {
-    return <ZenithaContactPage />;
+    return <ZenithaContactPage siteId={siteId} />;
   }
 
   return <YallaContactPage />;

@@ -1,5 +1,5 @@
 import { headers } from 'next/headers';
-import { getDefaultSiteId, getSiteConfig } from '@/config/sites';
+import { getDefaultSiteId, getSiteConfig, isYachtSite as checkIsYachtSite } from '@/config/sites';
 import { getBaseUrl } from '@/lib/url-utils';
 import { FAQClientPage } from './faq-client';
 
@@ -278,7 +278,7 @@ export default async function FAQPage() {
   const siteConfig = getSiteConfig(siteId);
   const locale = (headersList.get('x-locale') || siteConfig?.locale || 'en') as 'en' | 'ar';
   const baseUrl = await getBaseUrl();
-  const isYachtSite = siteId === 'zenitha-yachts-med';
+  const isYachtSite = checkIsYachtSite(siteId);
 
   const faqSections = isYachtSite ? YACHT_FAQ_SECTIONS : GENERIC_FAQ_SECTIONS;
   const siteName = siteConfig?.name || 'Zenitha Yachts';

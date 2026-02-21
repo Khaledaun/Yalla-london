@@ -10,7 +10,7 @@ import {
 import { extendedInformationArticles } from "@/data/information-hub-articles-extended";
 import { walks } from "@/app/london-by-foot/walks-data";
 import { prisma } from "@/lib/db";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { getSiteDomain, getDefaultSiteId, isYachtSite as checkIsYachtSite } from "@/config/sites";
 
 // Combine all static blog posts
 const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
@@ -48,7 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static pages — use staticDate for content that doesn't change on every
   // request, so crawlers get accurate last-modified signals.
   // Yacht site has a different page structure than travel blog sites.
-  const isYachtSite = siteId === "zenitha-yachts-med";
+  const isYachtSite = checkIsYachtSite(siteId);
 
   const staticPages: MetadataRoute.Sitemap = isYachtSite
     ? [

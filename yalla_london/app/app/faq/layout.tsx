@@ -5,6 +5,7 @@ import {
   getDefaultSiteId,
   getSiteConfig,
   getSiteDomain,
+  isYachtSite as checkIsYachtSite,
 } from '@/config/sites';
 import { StructuredData } from '@/components/structured-data';
 
@@ -16,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteDomain = getSiteDomain(siteId);
   const siteName = siteConfig?.name || 'Zenitha Yachts';
 
-  const isYachtSite = siteId === 'zenitha-yachts-med';
+  const isYachtSite = checkIsYachtSite(siteId);
 
   const title = isYachtSite
     ? `Frequently Asked Questions | ${siteName}`

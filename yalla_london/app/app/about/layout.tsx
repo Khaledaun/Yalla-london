@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getBaseUrl } from "@/lib/url-utils";
-import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, isYachtSite as checkIsYachtSite } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const canonicalUrl = `${baseUrl}/about`;
 
   // Yacht-specific metadata
-  if (siteId === "zenitha-yachts-med") {
+  if (checkIsYachtSite(siteId)) {
     return {
       title: "About Zenitha Yachts | Luxury Yacht Charters",
       description:

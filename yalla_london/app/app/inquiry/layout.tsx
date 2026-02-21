@@ -40,7 +40,7 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: "en_GB",
       images: [
         {
-          url: `${siteDomain}/images/zenitha-yachts-og.jpg`,
+          url: `${siteDomain}/images/${siteConfig?.slug || "zenitha-yachts"}-og.jpg`,
           width: 1200,
           height: 630,
           alt: `${siteName} - Charter Inquiry`,

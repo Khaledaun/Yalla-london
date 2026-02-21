@@ -295,7 +295,7 @@ function generateStructuredData(
   const contentText =
     source === "static"
       ? post.content_en
-      : post.content_en.replace(/<[^>]*>/g, "");
+      : (post.content_en || "").replace(/<[^>]*>/g, "");
   const createdAt =
     post.created_at instanceof Date
       ? post.created_at.toISOString()

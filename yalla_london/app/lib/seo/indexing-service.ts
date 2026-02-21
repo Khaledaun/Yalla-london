@@ -52,7 +52,8 @@ const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || (() => {
   return getSiteDomain(getDefaultSiteId());
 })();
 // GSC property URL — must match the property registered in Google Search Console.
-// CRITICAL: Do NOT strip "www." — GSC treats www and non-www as separate properties.
+// CRITICAL: Use GSC property URL (e.g. "sc-domain:yalla-london.com"), not site domain URL.
+// Domain properties require the sc-domain: prefix for API calls.
 const GSC_SITE_URL = process.env.GSC_SITE_URL || BASE_URL;
 const INDEXNOW_KEY = process.env.INDEXNOW_KEY || "";
 

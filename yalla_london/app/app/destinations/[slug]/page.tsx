@@ -172,19 +172,69 @@ export default async function DestinationDetailPage({ params }: PageProps) {
   const baseUrl = await getBaseUrl();
 
   /* ── Fetch destination from DB ── */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let destination: any = null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let relatedYachts: any[] = [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let relatedItineraries: any[] = [];
+  interface DestRow {
+    id: string;
+    name: string;
+    slug: string;
+    region: string;
+    country: string | null;
+    description_en: string | null;
+    description_ar: string | null;
+    seasonStart: string | null;
+    seasonEnd: string | null;
+    bestMonths: unknown;
+    heroImage: string | null;
+    galleryImages: unknown;
+    averagePricePerWeek: unknown;
+    highlights: unknown;
+    weatherInfo: unknown;
+    marinas: unknown;
+    siteId: string;
+    status: string;
+  }
+
+  interface YachtRow {
+    id: string;
+    name: string;
+    slug: string;
+    type: string;
+    length: unknown;
+    cabins: number;
+    berths: number;
+    pricePerWeekLow: unknown;
+    pricePerWeekHigh: unknown;
+    currency: string;
+    images: unknown;
+    rating: unknown;
+    reviewCount: number;
+    halalCateringAvailable: boolean;
+    familyFriendly: boolean;
+    crewIncluded: boolean;
+    homePort: string | null;
+    cruisingArea: string | null;
+  }
+
+  interface ItinRow {
+    id: string;
+    title_en: string;
+    slug: string;
+    duration: number;
+    difficulty: string;
+    heroImage: string | null;
+    estimatedCost: unknown;
+    currency: string;
+  }
+
+  let destination: DestRow | null = null;
+  let relatedYachts: YachtRow[] = [];
+  let relatedItineraries: ItinRow[] = [];
 
   try {
     const { prisma } = await import("@/lib/db");
 
-    destination = await prisma.yachtDestination.findFirst({
+    destination = (await prisma.yachtDestination.findFirst({
       where: { slug, siteId: SITE_ID, status: "active" },
-    });
+    })) as DestRow | null;
 
     if (destination) {
       [relatedYachts, relatedItineraries] = await Promise.all([
@@ -192,12 +242,12 @@ export default async function DestinationDetailPage({ params }: PageProps) {
           where: { destinationId: destination.id, siteId: SITE_ID, status: "active" },
           orderBy: { rating: "desc" },
           take: 6,
-        }),
+        }) as Promise<YachtRow[]>,
         prisma.charterItinerary.findMany({
           where: { destinationId: destination.id, siteId: SITE_ID, status: "active" },
           orderBy: { duration: "asc" },
           take: 6,
-        }),
+        }) as Promise<ItinRow[]>,
       ]);
     }
   } catch (e) {
@@ -839,17 +889,6 @@ function formatYachtType(type: string): string {
     POWER_CATAMARAN: "Power Cat",
   };
   return map[type] || type;
-}
-
-/* Unused but required for TypeScript to recognise the async DB helpers */
-async function fetchDestination() {
-  return null as null;
-}
-async function fetchRelatedYachts() {
-  return [] as never[];
-}
-async function fetchRelatedItineraries() {
-  return [] as never[];
 }
 
 /* ═══════════════════════════════════════════════════════════════════

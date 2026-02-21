@@ -68,10 +68,6 @@
   ],
   "rewrites": [
     {
-      "source": "/robots.txt",
-      "destination": "/robots.txt"
-    },
-    {
       "source": "/:key.txt",
       "destination": "/api/indexnow-key"
     }

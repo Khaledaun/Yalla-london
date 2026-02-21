@@ -25,11 +25,11 @@ async function main() {
   const args = parseArgs(process.argv);
 
   const siteId = args.site || args.siteId;
-  const mode = (args.mode || 'full') as 'full' | 'quick' | 'resume';
+  const resumeRunId = args.resume;
+  const mode = (resumeRunId ? 'resume' : (args.mode || 'prod')) as 'full' | 'quick' | 'resume' | 'preview' | 'prod';
   const batchSize = args.batchSize ? parseInt(args.batchSize, 10) : undefined;
   const concurrency = args.concurrency ? parseInt(args.concurrency, 10) : undefined;
   const baseUrl = args.baseUrl;
-  const resumeRunId = args.resume;
 
   if (!siteId && !resumeRunId) {
     console.error('Usage: npx tsx scripts/master-audit.ts --site=<siteId> [--mode=full|quick|resume] [--batchSize=200] [--concurrency=6] [--baseUrl=http://localhost:3000]');

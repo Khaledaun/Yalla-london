@@ -1143,3 +1143,113 @@ Following the owner's instruction to "Audit → Check connectivity → Fix → L
 5. `7b29393` — fix: critical runtime crashes in content engine + render engine
 
 **Final Status:** All 48+ files created, audited, and verified connected. Zero TypeScript errors. Development plan updated at `docs/DESIGN-SYSTEM-DEVELOPMENT-PLAN.md`
+
+### Session: February 21, 2026 — Master Audit Engine: Risk Scanners, Test Suite Expansion & Phase Completion
+
+**Master Audit Engine — Risk Scanner Implementation (3 new scanner modules):**
+
+Completed the master audit engine by implementing the 3 Google spam policy risk scanners that were previously stubs, plus comprehensive test coverage and integration testing.
+
+**New Risk Scanner Modules:**
+
+1. **`lib/master-audit/risk-scanners/scaled-content.ts`** — Scaled Content Abuse Scanner
+   - Jaccard similarity with 3-word shingles for near-duplicate detection
+   - Union-find algorithm for clustering duplicate pages
+   - Thin content cluster detection (configurable threshold, default 300 words)
+   - Entity coverage scoring (heading topics vs metadata alignment)
+   - Exports `scanScaledContentAbuse(allSignals, config)`
+
+2. **`lib/master-audit/risk-scanners/site-reputation.ts`** — Site Reputation Abuse Scanner
+   - Topic vocabulary extraction from key pages (homepage, blog, about)
+   - Topic drift detection for content pages (blog, information, news)
+   - Outbound link dominance detection (configurable threshold, default 0.7)
+   - Missing editorial ownership detection (checks JSON-LD for author field)
+   - Exports `scanSiteReputationAbuse(allSignals, config)`
+
+3. **`lib/master-audit/risk-scanners/expired-domain.ts`** — Expired Domain Abuse Scanner
+   - Domain topic extraction from hostname (splits camelCase, hyphens, underscores)
+   - Topic pivot score calculation (content vs domain name alignment)
+   - Site-level and page-level pivot analysis
+   - Legacy orphan detection (no inbound links + off-topic content)
+   - Exports `scanExpiredDomainAbuse(allSignals, config, baseUrl)`
+
+**Engine Updates:**
+- `lib/master-audit/index.ts`: Replaced stub `runRiskScanners` with real implementation wiring all 3 scanners
+- `lib/master-audit/types.ts`: Extended `AuditMode` with `'preview' | 'prod'`, extended `RiskScannerConfig` with 6 new threshold fields
+- `lib/master-audit/config-loader.ts`: Added all new risk scanner default values to `FALLBACK_DEFAULTS`
+- `scripts/master-audit.ts`: Fixed TS2448 variable ordering bug, added preview/prod mode support
+- `scripts/weekly-policy-monitor.ts`: Added dated copy storage to `docs/seo/policy-monitor/<date>/`
+
+**Config Files:**
+- `config/sites/_default.audit.json`: Updated with risk scanner enable flags and thresholds
+- `config/sites/zenitha-yachts-med.audit.json`: New yacht site-specific config
+
+**Test Suite Expansion (82 tests across 6 files):**
+
+| Test File | Tests | Coverage |
+|-----------|-------|----------|
+| `config-loader.spec.ts` | 9 | Config loading, deep merge, validation |
+| `extractor.spec.ts` | 16 | HTML signal extraction |
+| `validators.spec.ts` | 19 | HTTP, canonical, schema, sitemap validators |
+| `state-manager.spec.ts` | 11 | Run ID, state persistence, batch management |
+| `risk-scanners.spec.ts` | 17 | All 3 risk scanners (scaled, reputation, expired) |
+| `integration.spec.ts` | 10 | Hard gate evaluation, report generation, full pipeline |
+| **Total** | **82** | **All passing** |
+
+**Documentation Created:**
+- `docs/master-audit/README.md` — Comprehensive guide: quick start, modes, CLI options, outputs, hard gates, validators, risk scanners, batch+resume, configuration, adding new sites
+- `docs/seo/WEEKLY_POLICY_MONITOR.md` — Documents sources monitored, run schedule, output files, diffing mechanism, acting on changes, multi-site support
+
+**Dev Audit Checks (All Green):**
+- TypeScript: 0 errors
+- Lint: Only pre-existing warnings (no new issues)
+- Build: Successful (all pages compiled)
+- Unit tests: 82/82 passing
+- Integration tests: 10/10 passing
+
+**Baseline Audit Run:**
+- Engine ran end-to-end against live site (32 URLs: 16 static + 16 AR variants)
+- Generated all output files: EXEC_SUMMARY.md, FIX_PLAN.md, issues.json, result.json, config_snapshot.json, url_inventory.json, CHANGELOG.md, state.json, crawl-results.json
+- Hard gates evaluated correctly (5/6 pass — HTTP gate fails due to sandbox network restriction, not code issue)
+- Reports archived under `docs/master-audit/<runId>/`
+
+**CLI Usage:**
+```bash
+# Full audit against live site
+npm run audit:master -- --site=yalla-london
+
+# Preview mode (localhost:3000)
+npm run audit:master -- --site=yalla-london --mode=preview
+
+# Custom batch size and concurrency
+npm run audit:master -- --site=yalla-london --mode=prod --batchSize=50 --concurrency=3
+
+# Resume interrupted run
+npm run audit:master -- --resume=<runId>
+
+# Weekly policy monitor
+npm run audit:weekly-policy-monitor -- --site=yalla-london
+```
+
+**Key Files:**
+
+| File | Purpose |
+|------|---------|
+| `lib/master-audit/index.ts` | Main orchestrator — `runMasterAudit()` |
+| `lib/master-audit/types.ts` | All TypeScript interfaces and types |
+| `lib/master-audit/config-loader.ts` | 3-layer config merge with validation |
+| `lib/master-audit/crawler.ts` | Concurrent batch crawler with retry |
+| `lib/master-audit/extractor.ts` | HTML signal extraction (regex-based) |
+| `lib/master-audit/risk-scanners/scaled-content.ts` | Near-duplicate + thin content detection |
+| `lib/master-audit/risk-scanners/site-reputation.ts` | Topic drift + outbound dominance |
+| `lib/master-audit/risk-scanners/expired-domain.ts` | Domain-content mismatch detection |
+| `lib/master-audit/validators/*.ts` | 8 validators (http, canonical, hreflang, sitemap, schema, links, metadata, robots) |
+| `lib/master-audit/reporter.ts` | Markdown report generator |
+| `lib/master-audit/state-manager.ts` | Resume/batch state persistence |
+| `lib/master-audit/inventory-builder.ts` | URL inventory from sitemap + static routes |
+| `config/sites/_default.audit.json` | Default audit config (all sites) |
+| `config/sites/yalla-london.audit.json` | Yalla London-specific overrides |
+| `config/sites/zenitha-yachts-med.audit.json` | Yacht site-specific config |
+| `scripts/master-audit.ts` | CLI entry point |
+| `scripts/weekly-policy-monitor.ts` | Weekly policy check CLI |
+| `test/master-audit/*.spec.ts` | 82 unit + integration tests (6 files) |

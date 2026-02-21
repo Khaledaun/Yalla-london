@@ -54,18 +54,45 @@ These are not suggestions. These are hard rules for every commit:
 
 4. **Actionable next steps**: Every response that involves deployment or changes should end with exactly what Khaled needs to do (deploy, wait, check dashboard) and what he should expect to see.
 
+## Active Workstreams (What We Are Building)
+
+There are **3 distinct workstreams** in this repo. They share infrastructure but are separate products. Never confuse them.
+
+| # | Workstream | What It Is | Site ID(s) | Status |
+|---|-----------|-----------|------------|--------|
+| 1 | **Content Engine** | The shared multi-tenant platform: cron jobs, content pipeline, SEO engine, admin dashboard, affiliate injection, design system. Powers ALL sites. | N/A (shared) | Production |
+| 2 | **Yalla London** | Luxury travel blog for Arab travelers visiting London. First site on the engine. Content + affiliate monetization. | `yalla-london` | Active |
+| 3 | **Zenitha Yachts** | Yacht charter platform for the Mediterranean. Reuses 80% of the engine + adds yacht-specific features (fleet inventory, search, AI matchmaker, charter inquiry CRM, itinerary planner). | `zenitha-yachts-med` | **Building Now** |
+
+### Separation Rules (MANDATORY)
+
+1. **Never cross-contaminate site data**: Every DB query for content, articles, topics, affiliates MUST include `siteId` in the where clause. No global queries that return data from all sites.
+2. **Never hardcode site-specific values in shared code**: Use `getSiteConfig(siteId)` for all site-specific branding, domains, prompts, affiliate partners.
+3. **Yacht-specific code lives in yacht-specific paths**: New yacht models, yacht API routes, yacht admin pages — all clearly namespaced. Not mixed into Yalla London paths.
+4. **Shared engine changes must work for ALL sites**: If you modify the content pipeline, SEO gate, cron infrastructure, or admin dashboard — verify it works for both Yalla London AND Zenitha Yachts.
+5. **Design/branding is per-site**: Each site has its own branding folder (`public/branding/{site}/`), destination theme, and design tokens. Never apply one site's visual identity to another.
+
+### Key Reference Docs
+
+| Doc | Purpose |
+|-----|---------|
+| `docs/business-plans/YACHT-CHARTER-DEVELOPMENT-PLAN.md` | Full technical blueprint for Zenitha Yachts (Prisma models, API routes, phase plan) |
+| `config/sites/zenitha-yachts-med.audit.json` | SEO audit config for yacht site |
+| `public/branding/zenitha-yachts/` | Design & branding assets (upload here) |
+
 ## Platform Overview
 
-Multi-tenant luxury travel content platform under **Zenitha.Luxury LLC** (Delaware). 5 branded sites, bilingual (EN/AR), autonomous SEO and content agents, affiliate monetization. Built on Next.js 14 App Router, Prisma ORM, Supabase PostgreSQL, deployed on Vercel Pro.
+Multi-tenant luxury travel content platform under **Zenitha.Luxury LLC** (Delaware). 5 branded travel blog sites + 1 yacht charter platform, bilingual (EN/AR), autonomous SEO and content agents, affiliate monetization. Built on Next.js 14 App Router, Prisma ORM, Supabase PostgreSQL, deployed on Vercel Pro.
 
 ### Parent Entity
 
 **Zenitha.Luxury LLC** — Delaware limited liability company, founded by Khaled N. Aun.
-- **Content Arm:** Zenitha Content Network (5 travel sites below)
+- **Content Arm:** Zenitha Content Network (5 travel blog sites)
+- **Yacht Arm:** Zenitha Yachts (yacht charter platform — zenithayachts.com)
 - **Tech Arm:** ZenithaOS (travel tech, future SaaS)
 - Config: `config/entity.ts`
 
-### Sites
+### Sites — Travel Blogs (Content Engine)
 | Site | Domain | Site ID | Locale | Aesthetic | Status |
 |------|--------|---------|--------|-----------|--------|
 | Yalla London | yalla-london.com | yalla-london | en | Deep navy + gold | Active (primary) |
@@ -73,6 +100,11 @@ Multi-tenant luxury travel content platform under **Zenitha.Luxury LLC** (Delawa
 | Yalla Riviera | yallariviera.com | french-riviera | en | Mediterranean navy + champagne gold + lavender | Planned |
 | Yalla Istanbul | yallaistanbul.com | istanbul | en | Burgundy + copper | Planned |
 | Yalla Thailand | yallathailand.com | thailand | en | Emerald + golden amber | Planned |
+
+### Sites — Yacht Charter Platform
+| Site | Domain | Site ID | Locale | Aesthetic | Status |
+|------|--------|---------|--------|-----------|--------|
+| Zenitha Yachts | zenithayachts.com | zenitha-yachts-med | en | TBD (awaiting brand kit upload) | **Building Now** |
 
 **Note:** Yalla Dubai was replaced by Yalla Riviera (French Riviera / Côte d'Azur) — higher affiliate value, stronger Gulf tourist presence, and uncontested Arabic-language niche.
 

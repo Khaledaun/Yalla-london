@@ -15,7 +15,6 @@ import {
   Lock,
   Users,
   Calendar,
-  MoreHorizontal
 } from 'lucide-react';
 
 interface PageInfo {
@@ -202,7 +201,12 @@ function PagesList() {
 
                 <div className="flex items-center space-x-2">
                   {page.status === 'published' && (
-                    <Button variant="ghost" size="sm">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(`/${page.slug}`, '_blank')}
+                      title="View published page"
+                    >
                       <Eye className="h-4 w-4" />
                     </Button>
                   )}
@@ -211,16 +215,11 @@ function PagesList() {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      if (page.slug === 'privacy') {
-                        window.location.href = '/admin/content/pages/privacy';
-                      }
+                      window.location.href = `/admin/content/pages/${page.slug}`;
                     }}
+                    title="Edit page"
                   >
                     <Edit3 className="h-4 w-4" />
-                  </Button>
-
-                  <Button variant="ghost" size="sm">
-                    <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

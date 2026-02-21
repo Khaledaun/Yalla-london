@@ -15,7 +15,7 @@ import { Mail, Phone, MapPin, Send, MessageSquare, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { SITES, getDefaultSiteId } from '@/config/sites'
 
-const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'yalla-london.com'
+const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury'
 const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
 const PRESS_EMAIL = `press@${SITE_DOMAIN}`
 

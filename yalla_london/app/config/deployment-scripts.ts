@@ -54,7 +54,7 @@ export const quickDeployConfigs = {
   yallaLondon: {
     brandType: 'luxury-guide',
     siteName: 'Yalla London',
-    customDomain: 'yalla-london.com',
+    customDomain: 'yalla-london.com',  // Intentional: this is the actual production domain for Yalla London deployments
     envOverrides: {
       'NEXT_PUBLIC_PRIMARY_COLOR': '#C8322B',
       'NEXT_PUBLIC_SECONDARY_COLOR': '#C49A2A'

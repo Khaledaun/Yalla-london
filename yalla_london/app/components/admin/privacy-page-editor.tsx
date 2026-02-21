@@ -296,7 +296,7 @@ export function PrivacyPageEditor() {
         id: '5',
         type: 'contact',
         content: {
-          email: `privacy@${(process.env.NEXT_PUBLIC_SITE_URL || 'yalla-london.com').replace(/^https?:\/\/(www\.)?/, '')}`,
+          email: `privacy@${(process.env.NEXT_PUBLIC_SITE_URL || 'zenitha.luxury').replace(/^https?:\/\/(www\.)?/, '')}`,
           phone: '+44 20 1234 5678'
         }
       }

@@ -2,6 +2,8 @@
  * Admin Sync Test API
  * Tests real-time sync between admin dashboard and public site
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { cacheService } from '@/lib/cache-invalidation';

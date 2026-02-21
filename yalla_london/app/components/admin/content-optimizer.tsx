@@ -503,7 +503,7 @@ export function ContentOptimizer() {
                   {metaDescription?.substring(0, 100) || 'Your description preview...'}
                 </div>
                 <div className="text-xs text-gray-500">
-                  yalla-london.com
+                  {typeof window !== 'undefined' ? window.location.hostname : 'zenitha.luxury'}
                 </div>
               </div>
             </CardContent>

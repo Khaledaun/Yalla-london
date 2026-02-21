@@ -31,7 +31,7 @@ function checkAuth(request: NextRequest): NextResponse | null {
 
 const SITE_ID = getDefaultSiteId();
 const SITE_NAME = getDefaultSiteName();
-const SITE_DOMAIN_RAW = SITES[SITE_ID]?.domain || "yalla-london.com";
+const SITE_DOMAIN_RAW = SITES[SITE_ID]?.domain || "zenitha.luxury";
 const BASE_URL = getSiteDomain(SITE_ID);
 const SYSTEM_AUTHOR_EMAIL = `system@${SITE_DOMAIN_RAW}`;
 

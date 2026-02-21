@@ -27,7 +27,7 @@ function makeSite(
 }
 
 const DEFAULT_SITE: Site = makeSite(
-  "yalla-london", "Yalla London", "yalla-london", "yalla-london.com",
+  "yalla-london", "Yalla London", "yalla-london", "zenitha.luxury",
   "en", "ltr", "#1C1917", "#C8322B",
 );
 

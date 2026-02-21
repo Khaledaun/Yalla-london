@@ -3,6 +3,7 @@
  *
  * Generate site configuration from natural language prompts.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSiteConfig } from '@/lib/ai/site-generator';

@@ -2,6 +2,8 @@
  * Phase 4C LLM Model Providers API
  * Manage AI model providers with encrypted API keys
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';

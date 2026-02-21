@@ -3,9 +3,9 @@
  *
  * Generate PDF guides using AI content.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
 import {
   generatePDFContent,
   generatePDFHTML,
@@ -13,12 +13,14 @@ import {
   PDF_TEMPLATES,
 } from '@/lib/pdf';
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getSiteConfig } from "@/config/sites";
 
 export async function POST(request: NextRequest) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
   try {
+    const { prisma } = await import("@/lib/db");
     const {
       guideId,
       title,
@@ -31,22 +33,11 @@ export async function POST(request: NextRequest) {
       customSections,
     } = await request.json();
 
-    // Get site info
-    const site = await prisma.site.findUnique({
-      where: { id: siteId },
-      select: {
-        id: true,
-        name: true,
-        domain: true,
-        brand_color: true,
-        secondary_color: true,
-        logo_url: true,
-      },
-    });
-
-    if (!site) {
+    // Get site info from config (no Site model in DB)
+    const siteConfig = getSiteConfig(siteId);
+    if (!siteConfig) {
       return NextResponse.json(
-        { error: 'Site not found' },
+        { error: 'Site not found in config' },
         { status: 404 }
       );
     }
@@ -78,11 +69,10 @@ export async function POST(request: NextRequest) {
       template: template as any,
       sections,
       branding: {
-        primaryColor: site.brand_color || templateConfig.primaryColor,
-        secondaryColor: site.secondary_color || templateConfig.secondaryColor,
-        logoUrl: site.logo_url || undefined,
-        siteName: site.name,
-        website: site.domain ? `https://${site.domain}` : undefined,
+        primaryColor: siteConfig.primaryColor || templateConfig.primaryColor,
+        secondaryColor: siteConfig.secondaryColor || templateConfig.secondaryColor,
+        siteName: siteConfig.name,
+        website: siteConfig.domain ? `https://${siteConfig.domain}` : undefined,
       },
       includeAffiliate,
     };
@@ -90,9 +80,8 @@ export async function POST(request: NextRequest) {
     // Generate HTML
     const html = generatePDFHTML(config);
 
-    // In production, we would use a service like Puppeteer, wkhtmltopdf, or a cloud PDF service
-    // For now, return the HTML and config for client-side generation
-    const filename = `${destination.toLowerCase().replace(/\s+/g, '-')}-${template}-guide-${locale}.pdf`;
+    const filename = `${(destination || 'guide').toLowerCase().replace(/\s+/g, '-')}-${template}-guide-${locale}.pdf`;
+    const slug = `${(destination || 'guide').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${template}-${locale}`;
 
     // Update or create guide record
     let guide;
@@ -101,27 +90,25 @@ export async function POST(request: NextRequest) {
         where: { id: guideId },
         data: {
           title,
-          destination,
-          template,
-          locale,
-          config_json: config as any,
-          status: 'published',
-          updated_at: new Date(),
+          style: template,
+          language: locale,
+          contentSections: config as any,
+          htmlContent: html,
+          status: 'generated',
         },
       });
     } else {
       guide = await prisma.pdfGuide.create({
         data: {
           title,
-          destination,
-          template,
-          locale,
-          site_id: siteId,
-          config_json: config as any,
-          file_url: '', // Updated after upload
-          file_size: 0,
-          download_count: 0,
-          status: 'published',
+          slug,
+          description: subtitle || null,
+          site: siteId,
+          style: template,
+          language: locale,
+          contentSections: sections,
+          htmlContent: html,
+          status: 'generated',
         },
       });
     }
@@ -136,7 +123,7 @@ export async function POST(request: NextRequest) {
       message: 'PDF content generated. Use client-side library or server PDF service to render.',
     });
   } catch (error) {
-    console.error('Failed to generate PDF:', error);
+    console.error('[pdf-generate] POST error:', error);
     return NextResponse.json(
       { error: 'Failed to generate PDF' },
       { status: 500 }
@@ -184,7 +171,7 @@ export async function PUT(request: NextRequest) {
       config,
     });
   } catch (error) {
-    console.error('Failed to generate preview:', error);
+    console.error('[pdf-generate] PUT error:', error);
     return NextResponse.json(
       { error: 'Failed to generate preview' },
       { status: 500 }

@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       description: "Base URL for authentication callbacks",
       status: envStatus("NEXTAUTH_URL"),
       category: "infrastructure",
-      action: { type: "env", key: "NEXTAUTH_URL", hint: "Set to your domain: https://www.yalla-london.com" },
+      action: { type: "env", key: "NEXTAUTH_URL", hint: "Set to your domain (e.g., https://www.yoursite.com)" },
     },
     {
       id: "site_url",
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       description: "Public site URL — used in emails, download links, Open Graph",
       status: envStatus("NEXT_PUBLIC_SITE_URL"),
       category: "infrastructure",
-      action: { type: "env", key: "NEXT_PUBLIC_SITE_URL", hint: "https://www.yalla-london.com" },
+      action: { type: "env", key: "NEXT_PUBLIC_SITE_URL", hint: "Your public domain (e.g., https://www.yoursite.com)" },
     },
     {
       id: "cron_secret",

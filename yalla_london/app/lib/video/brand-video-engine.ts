@@ -6,8 +6,8 @@
  * templates for social media, promotional, showcase, and story formats.
  */
 
-import { SITES, type SiteConfig } from "@/config/sites";
-import type { BrandProfile } from "@/lib/pdf/brand-design-system";
+import { SITES, type SiteConfig, getSiteDomain } from "@/config/sites";
+import type { DesignBrandProfile } from "@/lib/pdf/brand-design-system";
 import { getBrandProfile } from "@/lib/pdf/brand-design-system";
 
 // ─── Video Template Types ─────────────────────────────────────────
@@ -53,7 +53,7 @@ export interface VideoTemplateConfig {
     startFrom?: number;     // Frame to start audio
   };
   siteId?: string;          // null = generic
-  brand?: BrandProfile;
+  brand?: DesignBrandProfile;
 }
 
 export interface VideoScene {
@@ -291,7 +291,7 @@ type SceneOptions = {
 };
 
 function destinationHighlightScenes(
-  brand: BrandProfile, w: number, h: number, fps: number, totalFrames: number, rtl: boolean, opts: SceneOptions,
+  brand: DesignBrandProfile, w: number, h: number, fps: number, totalFrames: number, rtl: boolean, opts: SceneOptions,
 ): VideoScene[] {
   const sceneDur = Math.floor(totalFrames / 4);
   const title = opts.title || `Discover ${brand.destination}`;
@@ -447,7 +447,7 @@ function destinationHighlightScenes(
           id: "cta-url", type: "text", x: 15, y: 58, width: 70, height: 6,
           animation: { enter: { type: "fade", durationFrames: fps, delay: Math.floor(fps * 0.5), easing: "ease-out" } },
           text: {
-            content: `www.${brand.siteId}.com`,
+            content: getSiteDomain(brand.siteId),
             fontSize: 18,
             fontFamily: brand.fonts.body,
             fontWeight: 400,
@@ -480,7 +480,7 @@ function destinationHighlightScenes(
 }
 
 function blogPromoScenes(
-  brand: BrandProfile, w: number, h: number, fps: number, totalFrames: number, rtl: boolean, opts: SceneOptions,
+  brand: DesignBrandProfile, w: number, h: number, fps: number, totalFrames: number, rtl: boolean, opts: SceneOptions,
 ): VideoScene[] {
   const sceneDur = Math.floor(totalFrames / 3);
   return [
@@ -591,7 +591,7 @@ function blogPromoScenes(
 }
 
 function hotelShowcaseScenes(
-  brand: BrandProfile, w: number, h: number, fps: number, totalFrames: number, rtl: boolean, opts: SceneOptions,
+  brand: DesignBrandProfile, w: number, h: number, fps: number, totalFrames: number, rtl: boolean, opts: SceneOptions,
 ): VideoScene[] {
   const sceneDur = Math.floor(totalFrames / 4);
   const images = opts.images || [];
@@ -681,27 +681,27 @@ function hotelShowcaseScenes(
 }
 
 // Shorter template generators — same pattern with different themes
-function restaurantFeatureScenes(b: BrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions): VideoScene[] {
+function restaurantFeatureScenes(b: DesignBrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions): VideoScene[] {
   return generateSimpleShowcase(b, w, h, fps, tf, rtl, o, { hookText: o.title || "Exquisite Dining", subText: o.subtitle || `Halal fine dining in ${b.destination}`, ctaText: "View Menu" });
 }
 
-function experiencePromoScenes(b: BrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions): VideoScene[] {
+function experiencePromoScenes(b: DesignBrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions): VideoScene[] {
   return generateSimpleShowcase(b, w, h, fps, tf, rtl, o, { hookText: o.title || "Unique Experience", subText: o.subtitle || `Curated for you in ${b.destination}`, ctaText: "Book Experience" });
 }
 
-function seasonalCampaignScenes(b: BrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions): VideoScene[] {
+function seasonalCampaignScenes(b: DesignBrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions): VideoScene[] {
   return generateSimpleShowcase(b, w, h, fps, tf, rtl, o, { hookText: o.title || "Ramadan in " + b.destination, subText: o.subtitle || "Special offers & experiences", ctaText: "Explore Deals" });
 }
 
-function travelTipScenes(b: BrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions): VideoScene[] {
+function travelTipScenes(b: DesignBrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions): VideoScene[] {
   return generateSimpleShowcase(b, w, h, fps, tf, rtl, o, { hookText: o.title || "Travel Tip", subText: o.subtitle || `Expert advice for ${b.destination}`, ctaText: "More Tips" });
 }
 
-function beforeAfterScenes(b: BrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions): VideoScene[] {
+function beforeAfterScenes(b: DesignBrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions): VideoScene[] {
   return generateSimpleShowcase(b, w, h, fps, tf, rtl, o, { hookText: o.title || "Before vs After", subText: o.subtitle || "See the transformation", ctaText: "Learn More" });
 }
 
-function testimonialScenes(b: BrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions): VideoScene[] {
+function testimonialScenes(b: DesignBrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions): VideoScene[] {
   const sd = Math.floor(tf / 3);
   return [
     {
@@ -741,7 +741,7 @@ function testimonialScenes(b: BrandProfile, w: number, h: number, fps: number, t
 }
 
 function listicleCountdownScenes(
-  b: BrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions,
+  b: DesignBrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions,
 ): VideoScene[] {
   const items = 5;
   const introFrames = Math.floor(fps * 2);
@@ -816,7 +816,7 @@ function listicleCountdownScenes(
 // ─── Reusable Pattern ────────────────────────────────────────────
 
 function generateSimpleShowcase(
-  b: BrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions,
+  b: DesignBrandProfile, w: number, h: number, fps: number, tf: number, rtl: boolean, o: SceneOptions,
   content: { hookText: string; subText: string; ctaText: string },
 ): VideoScene[] {
   const sd = Math.floor(tf / 3);

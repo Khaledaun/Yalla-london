@@ -331,7 +331,7 @@ async function getBrokenLinks(): Promise<NextResponse> {
       status: 404,
       referrers: [
         {
-          url: 'https://yalla-london.com/blog/old-post',
+          url: '/blog/old-post',
           anchorText: 'external resource',
           context: 'Referenced in blog post about London dining'
         }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SITES as SITE_CONFIG } from "@/config/sites";
 
 interface SiteInfo {
   id: string;
@@ -11,13 +12,13 @@ interface SiteInfo {
   primaryColor: string;
 }
 
-const SITE_LIST: SiteInfo[] = [
-  { id: "yalla-london", name: "Yalla London", domain: "yalla-london.com", destination: "London", primaryColor: "#C8322B" },
-  { id: "arabaldives", name: "ArabAlDives", domain: "arabaldives.com", destination: "Maldives", primaryColor: "#06B6D4" },
-  { id: "french-riviera", name: "Yalla Riviera", domain: "yallariviera.com", destination: "French Riviera", primaryColor: "#C9A961" },
-  { id: "istanbul", name: "Yalla Istanbul", domain: "yallaistanbul.com", destination: "Istanbul", primaryColor: "#F97316" },
-  { id: "thailand", name: "Yalla Thailand", domain: "yallathailand.com", destination: "Thailand", primaryColor: "#A78BFA" },
-];
+const SITE_LIST: SiteInfo[] = Object.values(SITE_CONFIG).map((s) => ({
+  id: s.id,
+  name: s.name,
+  domain: s.domain,
+  destination: s.destination,
+  primaryColor: s.secondaryColor,
+}));
 
 interface VaultSummary {
   siteId: string;

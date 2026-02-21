@@ -5,7 +5,7 @@
  * then generates a brand-adapted editable design template.
  */
 
-import { getBrandProfile, type DesignTemplate, type DesignElement, type BrandProfile } from "./brand-design-system";
+import { getBrandProfile, type DesignTemplate, type DesignElement, type DesignBrandProfile } from "./brand-design-system";
 
 // ─── Analysis Types ───────────────────────────────────────────────
 
@@ -242,7 +242,7 @@ export function generateDesignFromAnalysis(
 
 function buildBackground(
   analysis: DesignAnalysis,
-  brand: BrandProfile,
+  brand: DesignBrandProfile,
 ): { type: "solid" | "gradient" | "image"; color?: string; gradient?: { from: string; to: string; angle: number } } {
   if (analysis.elements.hasHeroImage && analysis.layout.imageRatio > 60) {
     // Hero-image style: use gradient as base (image to be added by user)
@@ -264,7 +264,7 @@ function buildBackground(
 
 function buildElementsFromAnalysis(
   analysis: DesignAnalysis,
-  brand: BrandProfile,
+  brand: DesignBrandProfile,
   isRTL: boolean,
 ): DesignElement[] {
   const elements: DesignElement[] = [];

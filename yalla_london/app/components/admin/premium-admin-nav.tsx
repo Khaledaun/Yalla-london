@@ -52,7 +52,10 @@ import {
   Building,
   Map,
   Link as LinkIcon,
-  Share2
+  Share2,
+  Mail,
+  Video,
+  Sparkles
 } from 'lucide-react'
 import { isPremiumFeatureEnabled, validatePremiumFeatureAccess } from '@/lib/feature-flags'
 
@@ -146,6 +149,38 @@ export const adminNavigation: NavItem[] = [
     icon: Layers,
     href: '/admin/content-types',
     description: 'Taxonomy management'
+  },
+  {
+    id: 'design-hub',
+    label: 'Design Hub',
+    icon: Palette,
+    href: '/admin/design',
+    badgeText: 'Studio',
+    badgeVariant: 'outline',
+    description: 'Create and manage visual assets across all sites'
+  },
+  {
+    id: 'content-engine',
+    label: 'Content Engine',
+    icon: Sparkles,
+    href: '/admin/content-engine',
+    badgeText: 'AI',
+    badgeVariant: 'secondary',
+    description: 'AI-powered 4-agent content generation pipeline'
+  },
+  {
+    id: 'email-campaigns',
+    label: 'Email Campaigns',
+    icon: Mail,
+    href: '/admin/email-campaigns',
+    description: 'Email templates, campaigns, and send history'
+  },
+  {
+    id: 'social-calendar',
+    label: 'Social Calendar',
+    icon: Calendar,
+    href: '/admin/social-calendar',
+    description: 'Schedule and manage social media posts'
   },
   {
     id: 'automation-hub',

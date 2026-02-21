@@ -2,6 +2,8 @@
  * Phase 4C Topic Generation API
  * Auto-generate topics based on policies and content gaps
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';

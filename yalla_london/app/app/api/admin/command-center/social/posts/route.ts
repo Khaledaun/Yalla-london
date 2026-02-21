@@ -3,6 +3,7 @@
  *
  * Manage social media posts across all platforms.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest) {
           platform,
           scheduled_time: scheduledFor ? new Date(scheduledFor) : new Date(),
           status: scheduledFor ? 'pending' : 'published',
+          site_id: site || null,
           metadata: {
             site,
             media: media || [],

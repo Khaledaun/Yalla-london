@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         secondaryColor: siteConfig?.secondaryColor || "#d4af37",
         logoUrl: `${siteUrl}/images/yalla-london-logo.svg`,
         siteName,
-        contactEmail: `hello@${siteConfig?.domain || "yalla-london.com"}`,
+        contactEmail: `hello@${siteConfig?.domain || "zenitha.luxury"}`,
         website: siteUrl,
       },
       includeAffiliate: true,

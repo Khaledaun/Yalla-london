@@ -37,6 +37,7 @@ import {
 import { toast } from "sonner";
 import type { DesignTemplate, DesignElement } from "@/lib/pdf/brand-design-system";
 import type { CanvasActions, CanvasState } from "@/components/design-studio/design-canvas";
+import { SITES as SITE_CONFIG, getDefaultSiteId } from "@/config/sites";
 
 // Dynamic imports for canvas components (SSR incompatible)
 const DesignCanvas = dynamic(
@@ -115,13 +116,7 @@ interface PoolStats {
 
 // ─── Constants ───────────────────────────────────────────────────
 
-const SITES = [
-  { id: "yalla-london",   name: "Yalla London" },
-  { id: "arabaldives",    name: "Arabaldives" },
-  { id: "french-riviera", name: "Yalla Riviera" },
-  { id: "istanbul",       name: "Yalla Istanbul" },
-  { id: "thailand",       name: "Yalla Thailand" },
-];
+const SITES = Object.values(SITE_CONFIG).map((s) => ({ id: s.id, name: s.name }));
 
 const CATEGORIES = [
   "travel-guide", "social-post", "flyer", "menu",
@@ -136,7 +131,7 @@ const ASSET_CATEGORIES = [
 // ─── Main Component ──────────────────────────────────────────────
 
 export default function DesignStudioPage() {
-  const [activeSite, setActiveSite] = useState("yalla-london");
+  const [activeSite, setActiveSite] = useState(getDefaultSiteId());
   const [activeTab, setActiveTab] = useState("templates");
 
   // Shared editor state

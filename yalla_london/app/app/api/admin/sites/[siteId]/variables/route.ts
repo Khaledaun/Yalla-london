@@ -7,6 +7,8 @@
  * Variables are stored in the Credential model (AES-256-GCM encrypted)
  * and optionally synced to Vercel as per-site env vars.
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
 import { prisma } from "@/lib/db";

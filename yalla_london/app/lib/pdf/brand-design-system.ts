@@ -81,7 +81,7 @@ export interface DesignPage {
 
 // ─── Brand Profile ────────────────────────────────────────────────
 
-export interface BrandProfile {
+export interface DesignBrandProfile {
   siteId: string;
   siteName: string;
   destination: string;
@@ -112,7 +112,7 @@ export interface BrandProfile {
 /**
  * Get complete brand profile for a site
  */
-export function getBrandProfile(siteId: string): BrandProfile {
+export function getBrandProfile(siteId: string): DesignBrandProfile {
   const site = SITES[siteId];
   if (!site) {
     return getDefaultBrandProfile(siteId);
@@ -145,7 +145,7 @@ export function getBrandProfile(siteId: string): BrandProfile {
   };
 }
 
-function getDefaultBrandProfile(siteId: string): BrandProfile {
+function getDefaultBrandProfile(siteId: string): DesignBrandProfile {
   return {
     siteId,
     siteName: "Yalla",
@@ -218,7 +218,7 @@ export function getAvailableTemplates(siteId: string): { category: string; name:
 
 // ─── Template Generators ──────────────────────────────────────────
 
-function travelGuideTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function travelGuideTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   const align = isRTL ? "right" : "left";
   return {
     id: `travel-guide-${brand.siteId}`,
@@ -291,7 +291,7 @@ function travelGuideTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplat
   };
 }
 
-function socialPostTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function socialPostTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   return {
     id: `social-${brand.siteId}`,
     name: "Social Media Post",
@@ -325,7 +325,7 @@ function socialPostTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate
   };
 }
 
-function flyerTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function flyerTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   const align = isRTL ? "right" : "left";
   return {
     id: `flyer-${brand.siteId}`,
@@ -367,28 +367,28 @@ function flyerTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
   };
 }
 
-function menuTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function menuTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   return generateSimpleTemplate(brand, isRTL, "menu", "Menu", "قائمة مطعم", "A4");
 }
 
-function itineraryTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function itineraryTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   return generateSimpleTemplate(brand, isRTL, "itinerary", "Trip Itinerary", "برنامج رحلة", "A4");
 }
 
-function infographicTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function infographicTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   return generateSimpleTemplate(brand, isRTL, "infographic", "Infographic", "إنفوجرافيك", "A4");
 }
 
-function posterTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function posterTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   return generateSimpleTemplate(brand, isRTL, "poster", "Event Poster", "بوستر فعالية", "A4");
 }
 
-function brochureTemplate(brand: BrandProfile, isRTL: boolean): DesignTemplate {
+function brochureTemplate(brand: DesignBrandProfile, isRTL: boolean): DesignTemplate {
   return generateSimpleTemplate(brand, isRTL, "brochure", "Brochure", "بروشور", "landscape");
 }
 
 function generateSimpleTemplate(
-  brand: BrandProfile,
+  brand: DesignBrandProfile,
   isRTL: boolean,
   category: DesignTemplate["category"],
   name: string,

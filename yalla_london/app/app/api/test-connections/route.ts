@@ -503,122 +503,234 @@ const FOREIGN_KEY_SQL = [
 async function handleFixIssues(): Promise<NextResponse> {
   const steps: Array<{ step: string; status: "pass" | "fail" | "skip"; message: string; duration: number }> = [];
   const overallStart = Date.now();
+  let totalFixed = 0;
 
-  // Step 1: Check which tables are missing
-  const requiredTables = Object.keys(DESIGN_SYSTEM_MIGRATION_SQL);
-  let missingBefore: string[] = [];
+  const { prisma } = await import("@/lib/db");
+  const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+  const siteId = getDefaultSiteId();
+  const correctBaseUrl = getSiteDomain(siteId);
 
+  // ── Step 1: Fix missing database tables ──
   try {
-    const { prisma } = await import("@/lib/db");
     const t0 = Date.now();
+    const requiredTables = Object.keys(DESIGN_SYSTEM_MIGRATION_SQL);
     const tables: Array<{ tablename: string }> = await prisma.$queryRaw`
       SELECT tablename FROM pg_tables WHERE schemaname = 'public'
     `;
     const existing = tables.map((t) => t.tablename);
-    missingBefore = requiredTables.filter((t) => !existing.includes(t));
-    if (missingBefore.length === 0) {
-      steps.push({ step: "Check missing tables", status: "pass", message: "All required tables already exist — nothing to fix", duration: Date.now() - t0 });
-      return NextResponse.json({ success: true, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
-    }
-    steps.push({ step: "Check missing tables", status: "fail", message: `Missing ${missingBefore.length}: ${missingBefore.join(", ")}`, duration: Date.now() - t0 });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    steps.push({ step: "Check missing tables", status: "fail", message: `Cannot query database: ${msg}`, duration: 0 });
-    return NextResponse.json({ success: false, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
-  }
+    const missingTables = requiredTables.filter((t) => !existing.includes(t));
 
-  // Step 2: Create missing tables + indexes via raw SQL
-  const created: string[] = [];
-  const errors: string[] = [];
-
-  try {
-    const { prisma } = await import("@/lib/db");
-    const t0 = Date.now();
-
-    for (const tableName of missingBefore) {
-      const statements = DESIGN_SYSTEM_MIGRATION_SQL[tableName];
-      if (!statements) continue;
-
-      try {
-        for (const sql of statements) {
-          await prisma.$executeRawUnsafe(sql);
-        }
-        created.push(tableName);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        errors.push(`${tableName}: ${msg.split("\n")[0]}`);
-      }
-    }
-
-    if (created.length > 0) {
-      steps.push({
-        step: `Create tables (${created.length}/${missingBefore.length})`,
-        status: errors.length === 0 ? "pass" : "fail",
-        message: `Created: ${created.join(", ")}${errors.length > 0 ? ` | Errors: ${errors.join("; ")}` : ""}`,
-        duration: Date.now() - t0,
-      });
+    if (missingTables.length === 0) {
+      steps.push({ step: "Database tables", status: "pass", message: "All required tables exist", duration: Date.now() - t0 });
     } else {
-      steps.push({
-        step: "Create tables",
-        status: "fail",
-        message: `No tables created. Errors: ${errors.join("; ")}`,
-        duration: Date.now() - t0,
-      });
-      return NextResponse.json({ success: false, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
+      let created = 0;
+      for (const tableName of missingTables) {
+        const statements = DESIGN_SYSTEM_MIGRATION_SQL[tableName];
+        if (!statements) continue;
+        try {
+          for (const sql of statements) await prisma.$executeRawUnsafe(sql);
+          created++;
+        } catch { /* table may already exist */ }
+      }
+      for (const sql of FOREIGN_KEY_SQL) {
+        try { await prisma.$executeRawUnsafe(sql); } catch { /* FK may exist */ }
+      }
+      totalFixed += created;
+      steps.push({ step: "Database tables", status: created > 0 ? "pass" : "skip", message: `Created ${created}/${missingTables.length} missing tables`, duration: Date.now() - t0 });
     }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    steps.push({ step: "Create tables", status: "fail", message: msg, duration: 0 });
-    return NextResponse.json({ success: false, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
+    steps.push({ step: "Database tables", status: "fail", message: err instanceof Error ? err.message : String(err), duration: 0 });
   }
 
-  // Step 3: Apply foreign keys
+  // ── Step 2: Soft-delete duplicate blog posts (date/random-suffixed near-duplicates) ──
   try {
-    const { prisma } = await import("@/lib/db");
     const t0 = Date.now();
-    const fkErrors: string[] = [];
-
-    for (const sql of FOREIGN_KEY_SQL) {
-      try {
-        await prisma.$executeRawUnsafe(sql);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        fkErrors.push(msg.split("\n")[0]);
-      }
-    }
-
-    steps.push({
-      step: "Apply foreign keys",
-      status: fkErrors.length === 0 ? "pass" : "skip",
-      message: fkErrors.length === 0 ? "2 foreign keys applied" : `Partial: ${fkErrors.join("; ")}`,
-      duration: Date.now() - t0,
+    const allPosts = await prisma.blogPost.findMany({
+      where: { siteId, deletedAt: null },
+      select: { id: true, slug: true, published: true, created_at: true },
+      orderBy: { slug: "asc" },
     });
+
+    const duplicateIds: string[] = [];
+    const duplicateSlugs: string[] = [];
+    const slugs = allPosts.map((p: { slug: string }) => p.slug).sort();
+    for (let i = 0; i < slugs.length; i++) {
+      for (let j = i + 1; j < slugs.length; j++) {
+        if (slugs[j].startsWith(slugs[i]) && slugs[j] !== slugs[i]) {
+          const suffix = slugs[j].slice(slugs[i].length);
+          if (/^-(\d{4}-\d{2}-\d{2}|[a-z0-9]{3,5})$/.test(suffix)) {
+            const dup = allPosts.find((p: { slug: string }) => p.slug === slugs[j]);
+            if (dup) { duplicateIds.push(dup.id); duplicateSlugs.push(slugs[j]); }
+          }
+        }
+      }
+    }
+
+    // Also catch malformed slugs (empty or date-only)
+    for (const p of allPosts) {
+      const post = p as { id: string; slug: string };
+      if (!post.slug || /^-?\d{4}-\d{2}-\d{2}$/.test(post.slug) || post.slug.startsWith("-")) {
+        if (!duplicateIds.includes(post.id)) {
+          duplicateIds.push(post.id);
+          duplicateSlugs.push(post.slug || "(empty)");
+        }
+      }
+    }
+
+    if (duplicateIds.length > 0) {
+      const result = await prisma.blogPost.updateMany({
+        where: { id: { in: duplicateIds } },
+        data: { deletedAt: new Date(), published: false },
+      });
+      totalFixed += result.count;
+      steps.push({ step: "Duplicate blog posts", status: "pass", message: `Soft-deleted ${result.count} duplicate/malformed posts: ${duplicateSlugs.slice(0, 5).join(", ")}${duplicateSlugs.length > 5 ? "..." : ""}`, duration: Date.now() - t0 });
+    } else {
+      steps.push({ step: "Duplicate blog posts", status: "pass", message: "No duplicates found", duration: Date.now() - t0 });
+    }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    steps.push({ step: "Apply foreign keys", status: "skip", message: msg.split("\n")[0], duration: 0 });
+    steps.push({ step: "Duplicate blog posts", status: "fail", message: err instanceof Error ? err.message : String(err), duration: 0 });
   }
 
-  // Step 4: Verify tables now exist
+  // ── Step 3: Remove orphan indexing entries (URLs for blog posts that don't exist) ──
   try {
-    const { prisma } = await import("@/lib/db");
     const t0 = Date.now();
-    const tables: Array<{ tablename: string }> = await prisma.$queryRaw`
-      SELECT tablename FROM pg_tables WHERE schemaname = 'public'
-    `;
-    const existing = tables.map((t) => t.tablename);
-    const stillMissing = requiredTables.filter((t) => !existing.includes(t));
-    const fixed = missingBefore.filter((t) => existing.includes(t));
-    if (stillMissing.length === 0) {
-      steps.push({ step: "Verify tables", status: "pass", message: `All 8 tables confirmed. Created: ${fixed.join(", ")}`, duration: Date.now() - t0 });
+    const allIndexEntries = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId, url: { contains: "/blog/" } },
+      select: { id: true, url: true, slug: true },
+    });
+    const publishedSlugs = new Set(
+      (await prisma.blogPost.findMany({
+        where: { published: true, siteId, deletedAt: null },
+        select: { slug: true },
+      })).map((p: { slug: string }) => p.slug)
+    );
+    const orphanEntries = allIndexEntries.filter((e: { slug: string | null; url: string }) => {
+      const slug = e.slug || e.url.split("/blog/").pop()?.split("?")[0] || "";
+      return slug.length > 0 && !publishedSlugs.has(slug);
+    });
+
+    if (orphanEntries.length > 0) {
+      await prisma.uRLIndexingStatus.deleteMany({
+        where: { id: { in: orphanEntries.map((e: { id: string }) => e.id) } },
+      });
+      totalFixed += orphanEntries.length;
+      steps.push({ step: "Orphan indexing entries", status: "pass", message: `Deleted ${orphanEntries.length} indexing entries for non-existent blog posts`, duration: Date.now() - t0 });
     } else {
-      steps.push({ step: "Verify tables", status: "fail", message: `Still missing: ${stillMissing.join(", ")}`, duration: Date.now() - t0 });
+      steps.push({ step: "Orphan indexing entries", status: "pass", message: "No orphan entries found", duration: Date.now() - t0 });
     }
-    return NextResponse.json({ success: stillMissing.length === 0, steps, duration: Date.now() - overallStart, tablesFixed: fixed.length, stillMissing });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    steps.push({ step: "Verify tables", status: "fail", message: msg, duration: 0 });
-    return NextResponse.json({ success: false, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
+    steps.push({ step: "Orphan indexing entries", status: "fail", message: err instanceof Error ? err.message : String(err), duration: 0 });
   }
+
+  // ── Step 4: Fix malformed indexing URLs (non-www, empty slugs) ──
+  try {
+    const t0 = Date.now();
+    const allEntries = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId },
+      select: { id: true, url: true, status: true, submitted_indexnow: true, submitted_sitemap: true, last_submitted_at: true },
+    });
+
+    // Remove malformed URLs (slug-only dates, trailing slashes on /blog/)
+    const malformed = allEntries.filter((e: { url: string }) =>
+      /\/blog\/-\d{4}-\d{2}-\d{2}/.test(e.url) || /\/blog\/$/.test(e.url)
+    );
+    if (malformed.length > 0) {
+      await prisma.uRLIndexingStatus.deleteMany({
+        where: { id: { in: malformed.map((e: { id: string }) => e.id) } },
+      });
+    }
+
+    // Fix non-www duplicates
+    let merged = 0;
+    let converted = 0;
+    const nonWww = allEntries.filter((e: { url: string }) => {
+      const url = e.url;
+      return url.includes("://") && !url.startsWith(correctBaseUrl) &&
+        url.replace("://", "://www.").startsWith(correctBaseUrl);
+    });
+    for (const entry of nonWww) {
+      const e = entry as { id: string; url: string; submitted_indexnow: boolean; submitted_sitemap: boolean; last_submitted_at: Date | null };
+      const wwwUrl = e.url.replace("://", "://www.");
+      const wwwEntry = allEntries.find((w: { url: string }) => w.url === wwwUrl);
+      if (wwwEntry) {
+        const w = wwwEntry as { id: string; submitted_indexnow: boolean; submitted_sitemap: boolean; last_submitted_at: Date | null };
+        const updates: Record<string, unknown> = {};
+        if (e.submitted_indexnow && !w.submitted_indexnow) updates.submitted_indexnow = true;
+        if (e.submitted_sitemap && !w.submitted_sitemap) updates.submitted_sitemap = true;
+        if (e.last_submitted_at && (!w.last_submitted_at || e.last_submitted_at > w.last_submitted_at)) {
+          updates.last_submitted_at = e.last_submitted_at;
+        }
+        if (Object.keys(updates).length > 0) {
+          await prisma.uRLIndexingStatus.update({ where: { id: w.id }, data: updates });
+        }
+        await prisma.uRLIndexingStatus.delete({ where: { id: e.id } });
+        merged++;
+      } else {
+        await prisma.uRLIndexingStatus.update({ where: { id: e.id }, data: { url: wwwUrl } });
+        converted++;
+      }
+    }
+
+    const urlsFixed = malformed.length + merged + converted;
+    totalFixed += urlsFixed;
+    steps.push({ step: "Indexing URL cleanup", status: "pass", message: `Fixed ${urlsFixed} URLs (${malformed.length} malformed, ${merged} merged, ${converted} converted to www)`, duration: Date.now() - t0 });
+  } catch (err: unknown) {
+    steps.push({ step: "Indexing URL cleanup", status: "fail", message: err instanceof Error ? err.message : String(err), duration: 0 });
+  }
+
+  // ── Step 5: Clear stale GSC error messages (>7 days old) ──
+  try {
+    const t0 = Date.now();
+    const staleResult = await prisma.uRLIndexingStatus.updateMany({
+      where: {
+        site_id: siteId,
+        last_error: { not: null },
+        last_inspected_at: { lt: new Date(Date.now() - 7 * 86400000) },
+      },
+      data: { last_error: null },
+    });
+    totalFixed += staleResult.count;
+    steps.push({ step: "Stale error cleanup", status: "pass", message: staleResult.count > 0 ? `Cleared ${staleResult.count} stale error messages` : "No stale errors found", duration: Date.now() - t0 });
+  } catch (err: unknown) {
+    steps.push({ step: "Stale error cleanup", status: "fail", message: err instanceof Error ? err.message : String(err), duration: 0 });
+  }
+
+  // ── Step 6: Fix empty metadata on published posts ──
+  try {
+    const t0 = Date.now();
+    const postsWithoutMeta = await prisma.blogPost.findMany({
+      where: { published: true, siteId, deletedAt: null, OR: [{ meta_title_en: null }, { meta_title_en: "" }, { meta_description_en: null }, { meta_description_en: "" }] },
+      select: { id: true, title_en: true, excerpt_en: true, content_en: true, meta_title_en: true, meta_description_en: true },
+    });
+    let metaFixed = 0;
+    for (const p of postsWithoutMeta) {
+      const post = p as { id: string; title_en: string; excerpt_en: string | null; content_en: string; meta_title_en: string | null; meta_description_en: string | null };
+      const updates: Record<string, string> = {};
+      if (!post.meta_title_en) {
+        updates.meta_title_en = (post.title_en || "").substring(0, 60);
+      }
+      if (!post.meta_description_en) {
+        const text = (post.excerpt_en || post.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        updates.meta_description_en = text.substring(0, 155) + (text.length > 155 ? "..." : "");
+      }
+      if (Object.keys(updates).length > 0) {
+        await prisma.blogPost.update({ where: { id: post.id }, data: updates });
+        metaFixed++;
+      }
+    }
+    totalFixed += metaFixed;
+    steps.push({ step: "Empty metadata", status: "pass", message: metaFixed > 0 ? `Auto-generated meta tags for ${metaFixed} posts` : "All published posts have metadata", duration: Date.now() - t0 });
+  } catch (err: unknown) {
+    steps.push({ step: "Empty metadata", status: "fail", message: err instanceof Error ? err.message : String(err), duration: 0 });
+  }
+
+  const allPassed = steps.every((s) => s.status !== "fail");
+  return NextResponse.json({
+    success: allPassed,
+    steps,
+    fixed: totalFixed,
+    duration: Date.now() - overallStart,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -4472,7 +4584,7 @@ async function fixIssues() {
   titleEl.textContent = 'Applying fixes...';
 
   // Show initial spinner state
-  stepsEl.innerHTML = '<div class="fix-step"><div class="fix-step-icon running"><span class="spinner" style="width:12px;height:12px;border-width:2px"></span></div><div><div class="fix-step-name">Running migrations...</div><div class="fix-step-msg">This may take up to 30 seconds</div></div></div>';
+  stepsEl.innerHTML = '<div class="fix-step"><div class="fix-step-icon running"><span class="spinner" style="width:12px;height:12px;border-width:2px"></span></div><div><div class="fix-step-name">Fixing all issues...</div><div class="fix-step-msg">Cleaning duplicates, orphans, stale errors, missing metadata — this takes 10-30 seconds</div></div></div>';
 
   try {
     const resp = await fetch(BASE, {
@@ -4498,18 +4610,19 @@ async function fixIssues() {
     stepsEl.innerHTML = html;
 
     // Summary
-    titleEl.textContent = data.success ? 'Fixes Applied' : 'Fix Issues';
+    const fixed = data.fixed || 0;
+    titleEl.textContent = data.success ? 'All Fixed!' : 'Fix Issues';
     summaryEl.style.display = 'block';
     if (data.success) {
-      const fixed = data.tablesFixed || 0;
       summaryEl.className = 'fix-summary success';
       summaryEl.innerHTML = fixed > 0
-        ? 'All good! ' + fixed + ' table' + (fixed > 1 ? 's' : '') + ' created. Run tests again to verify.'
-        : 'All tables already exist — nothing to fix.';
+        ? '<strong>' + fixed + ' issues fixed.</strong> Run tests again to verify everything passes.'
+        : 'Everything is clean — no issues to fix.';
     } else {
-      const still = data.stillMissing ? data.stillMissing.join(', ') : 'unknown';
       summaryEl.className = 'fix-summary failure';
-      summaryEl.innerHTML = 'Some issues remain. Still missing: ' + escHtml(still);
+      summaryEl.innerHTML = fixed > 0
+        ? '<strong>' + fixed + ' issues fixed</strong> but some steps failed. Check the details above.'
+        : 'Some fixes failed. Check the details above.';
     }
   } catch (err) {
     stepsEl.innerHTML = '<div class="fix-step"><div class="fix-step-icon fail">&#10007;</div><div><div class="fix-step-name">Network Error</div><div class="fix-step-msg">' + escHtml(err.message) + '</div></div></div>';

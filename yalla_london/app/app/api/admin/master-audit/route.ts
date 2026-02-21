@@ -156,7 +156,9 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
               created_at: p.created_at ?? new Date(),
             }));
           blogArticles.push(...staticArticles);
-        } catch { /* static content unavailable */ }
+        } catch (staticErr) {
+          console.warn("[master-audit] Static blog content import failed:", staticErr instanceof Error ? staticErr.message : String(staticErr));
+        }
       }
 
       // Only crawl the 15 newest articles — Vercel SSR can't handle 45+ concurrent renders
@@ -169,7 +171,7 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
         }
       }
     } catch (err) {
-      console.warn("[master-audit] Failed to fetch blog articles:", err);
+      console.error("[master-audit] Failed to fetch blog articles (likely DB pool timeout):", err);
     }
 
     // -----------------------------------------------------------------------
@@ -425,9 +427,8 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
       }
     }
 
-    // Auto-cleanup: Soft-delete blog posts that returned 404 when crawled
-    // These are ghost posts (in DB as published but not accessible via URL)
-    // that poison the sitemap and create broken internal links
+    // Report-only: Log blog posts that returned 404 when crawled (never auto-delete —
+    // 404s can be caused by timeouts, cold starts, or temporary SSR failures)
     const ghost404Slugs: string[] = [];
     for (const url of urls) {
       const crawl = crawlMap.get(url);
@@ -440,20 +441,7 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
       }
     }
     if (ghost404Slugs.length > 0) {
-      try {
-        const cleaned = await prisma.blogPost.updateMany({
-          where: { slug: { in: ghost404Slugs }, siteId, published: true },
-          data: { published: false, deletedAt: new Date() },
-        });
-        // Also clean indexing entries for these ghost posts
-        const ghostUrls = ghost404Slugs.map((s) => `${baseUrl}/blog/${s}`);
-        await prisma.uRLIndexingStatus.deleteMany({
-          where: { url: { in: ghostUrls }, site_id: siteId },
-        });
-        console.log(`[master-audit] Auto-cleaned ${cleaned.count} ghost 404 blog posts: ${ghost404Slugs.join(", ")}`);
-      } catch (cleanupErr) {
-        console.warn("[master-audit] Ghost 404 cleanup failed:", cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr));
-      }
+      console.warn(`[master-audit] ${ghost404Slugs.length} blog posts returned 404 (report only, not auto-deleted): ${ghost404Slugs.join(", ")}`);
     }
 
     const result = {
@@ -745,16 +733,17 @@ async function fetchIndexingData(prisma: PrismaInstance, siteId: string) {
       })),
     };
   } catch (err) {
-    console.warn("[master-audit] Indexing data fetch error:", err);
+    console.error("[master-audit] Indexing data fetch error (likely DB pool timeout):", err);
     return {
-      totalTracked: 0,
-      indexed: 0,
+      totalTracked: -1,
+      indexed: -1,
       submitted: 0,
       discovered: 0,
       notIndexed: 0,
       errors: 0,
       submissionMethods: { indexNow: 0, googleApi: 0, sitemap: 0 },
       pages: [],
+      _error: "Database query failed — check pool_timeout in DATABASE_URL",
     };
   }
 }
@@ -813,15 +802,16 @@ async function fetchSeoMetrics(prisma: PrismaInstance, siteId: string) {
       pageTypeBreakdown: pageTypes,
     };
   } catch (err) {
-    console.warn("[master-audit] SEO metrics fetch error:", err);
+    console.error("[master-audit] SEO metrics fetch error (likely DB pool timeout):", err);
     return {
-      totalPublished: 0,
-      totalDrafts: 0,
+      totalPublished: -1,
+      totalDrafts: -1,
       averageSeoScore: 0,
       articlesBelow70: 0,
       articlesAbove80: 0,
       totalWithScore: 0,
       pageTypeBreakdown: {},
+      _error: "Database query failed — check pool_timeout in DATABASE_URL",
     };
   }
 }

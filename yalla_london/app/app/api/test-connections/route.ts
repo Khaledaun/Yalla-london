@@ -161,6 +161,11 @@ export async function POST(request: NextRequest) {
     return await handleFixIssues();
   }
 
+  // --- Recovery: Re-publish posts wrongly soft-deleted by previous auto-fix code ---
+  if (body.action === "recover-deleted-posts") {
+    return await handleRecoverDeletedPosts();
+  }
+
   // --- Production data fix actions ---
   if (body.action === "scan-production-issues") {
     return await handleScanProductionIssues();
@@ -501,7 +506,7 @@ const FOREIGN_KEY_SQL = [
 ];
 
 async function handleFixIssues(): Promise<NextResponse> {
-  const steps: Array<{ step: string; status: "pass" | "fail" | "skip"; message: string; duration: number }> = [];
+  const steps: Array<{ step: string; status: "pass" | "fail" | "skip" | "warn"; message: string; duration: number }> = [];
   const overallStart = Date.now();
   let totalFixed = 0;
 
@@ -578,12 +583,8 @@ async function handleFixIssues(): Promise<NextResponse> {
     }
 
     if (duplicateIds.length > 0) {
-      const result = await prisma.blogPost.updateMany({
-        where: { id: { in: duplicateIds } },
-        data: { deletedAt: new Date(), published: false },
-      });
-      totalFixed += result.count;
-      steps.push({ step: "Duplicate blog posts", status: "pass", message: `Soft-deleted ${result.count} duplicate/malformed posts: ${duplicateSlugs.slice(0, 5).join(", ")}${duplicateSlugs.length > 5 ? "..." : ""}`, duration: Date.now() - t0 });
+      // REPORT ONLY — never auto-delete. False positives destroy live content
+      steps.push({ step: "Duplicate blog posts", status: "warn", message: `Found ${duplicateIds.length} potential duplicates (report only, not deleted): ${duplicateSlugs.slice(0, 5).join(", ")}${duplicateSlugs.length > 5 ? "..." : ""}`, duration: Date.now() - t0 });
     } else {
       steps.push({ step: "Duplicate blog posts", status: "pass", message: "No duplicates found", duration: Date.now() - t0 });
     }
@@ -598,15 +599,17 @@ async function handleFixIssues(): Promise<NextResponse> {
       where: { site_id: siteId, url: { contains: "/blog/" } },
       select: { id: true, url: true, slug: true },
     });
-    const publishedSlugs = new Set(
+    // Check against ALL non-deleted posts (not just published) — an unpublished post
+    // still has valid indexing history that shouldn't be destroyed
+    const existingSlugs = new Set(
       (await prisma.blogPost.findMany({
-        where: { published: true, siteId, deletedAt: null },
+        where: { siteId, deletedAt: null },
         select: { slug: true },
       })).map((p: { slug: string }) => p.slug)
     );
     const orphanEntries = allIndexEntries.filter((e: { slug: string | null; url: string }) => {
       const slug = e.slug || e.url.split("/blog/").pop()?.split("?")[0] || "";
-      return slug.length > 0 && !publishedSlugs.has(slug);
+      return slug.length > 0 && !existingSlugs.has(slug);
     });
 
     if (orphanEntries.length > 0) {
@@ -614,7 +617,7 @@ async function handleFixIssues(): Promise<NextResponse> {
         where: { id: { in: orphanEntries.map((e: { id: string }) => e.id) } },
       });
       totalFixed += orphanEntries.length;
-      steps.push({ step: "Orphan indexing entries", status: "pass", message: `Deleted ${orphanEntries.length} indexing entries for non-existent blog posts`, duration: Date.now() - t0 });
+      steps.push({ step: "Orphan indexing entries", status: "pass", message: `Deleted ${orphanEntries.length} indexing entries for hard-deleted blog posts`, duration: Date.now() - t0 });
     } else {
       steps.push({ step: "Orphan indexing entries", status: "pass", message: "No orphan entries found", duration: Date.now() - t0 });
     }
@@ -963,45 +966,106 @@ async function handleFixDuplicatePosts(): Promise<NextResponse> {
       duration: Date.now() - t0,
     });
 
-    if (duplicateIds.length === 0) {
-      return NextResponse.json({ success: true, steps, fixed: 0, duration: Date.now() - overallStart });
-    }
-
-    // Step 2: Soft-delete (set deletedAt instead of hard delete)
-    t0 = Date.now();
-    const result = await prisma.blogPost.updateMany({
-      where: { id: { in: duplicateIds } },
-      data: { deletedAt: new Date(), published: false },
+    // REPORT ONLY — never auto-delete posts. The slug suffix detection has false
+    // positives (date-suffixed posts are legitimate). Report for manual review.
+    return NextResponse.json({
+      success: true,
+      steps: [...steps, {
+        step: "Duplicate report",
+        status: "warn",
+        message: `Found ${duplicateIds.length} potential duplicates (report only): ${duplicateSlugs.slice(0, 10).join(", ")}`,
+      }],
+      fixed: 0,
+      duration: Date.now() - overallStart,
     });
-    steps.push({
-      step: "Soft-delete duplicates",
-      status: "pass",
-      message: `Soft-deleted ${result.count} duplicate/malformed posts`,
-      duration: Date.now() - t0,
-    });
-
-    // Step 3: Clean up related URLIndexingStatus entries
-    t0 = Date.now();
-    let urlsCleaned = 0;
-    for (const slug of duplicateSlugs) {
-      if (!slug || slug === "(empty)") continue;
-      const deleted = await prisma.uRLIndexingStatus.deleteMany({
-        where: { site_id: siteId, url: { contains: `/blog/${slug}` } },
-      });
-      urlsCleaned += deleted.count;
-    }
-    steps.push({
-      step: "Clean indexing entries",
-      status: "pass",
-      message: `Removed ${urlsCleaned} orphaned URLIndexingStatus entries`,
-      duration: Date.now() - t0,
-    });
-
-    return NextResponse.json({ success: true, steps, fixed: duplicateIds.length, duration: Date.now() - overallStart });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     steps.push({ step: "Error", status: "fail", message: msg });
     return NextResponse.json({ success: false, steps, fixed: 0, error: msg, duration: Date.now() - overallStart });
+  }
+}
+
+/** Recover blog posts wrongly soft-deleted or unpublished by previous auto-fix code */
+async function handleRecoverDeletedPosts(): Promise<NextResponse> {
+  const steps: Array<{ step: string; status: string; message: string; duration?: number }> = [];
+  const overallStart = Date.now();
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    // Find posts soft-deleted in the last 7 days that have content
+    const cutoff = new Date(Date.now() - 7 * 86400000);
+    const deletedPosts = await prisma.blogPost.findMany({
+      where: {
+        siteId,
+        deletedAt: { gte: cutoff },
+        content_en: { not: "" },
+      },
+      select: { id: true, slug: true, title_en: true, deletedAt: true, published: true },
+    });
+
+    steps.push({
+      step: "Find recently deleted posts",
+      status: "pass",
+      message: `Found ${deletedPosts.length} posts soft-deleted in the last 7 days`,
+      duration: Date.now() - overallStart,
+    });
+
+    if (deletedPosts.length === 0) {
+      return NextResponse.json({ success: true, steps, recovered: 0, duration: Date.now() - overallStart });
+    }
+
+    // Recover them: clear deletedAt and set published back to true
+    const t0 = Date.now();
+    const result = await prisma.blogPost.updateMany({
+      where: { id: { in: deletedPosts.map((p) => p.id) } },
+      data: { deletedAt: null, published: true },
+    });
+
+    const recoveredSlugs = deletedPosts.map((p) => p.slug);
+    steps.push({
+      step: "Recover posts",
+      status: "pass",
+      message: `Recovered ${result.count} posts: ${recoveredSlugs.slice(0, 5).join(", ")}${recoveredSlugs.length > 5 ? "..." : ""}`,
+      duration: Date.now() - t0,
+    });
+
+    // Also find unpublished (but not deleted) posts that have content
+    const unpublished = await prisma.blogPost.findMany({
+      where: {
+        siteId,
+        published: false,
+        deletedAt: null,
+        content_en: { not: "" },
+      },
+      select: { id: true, slug: true, title_en: true },
+    });
+
+    if (unpublished.length > 0) {
+      const repub = await prisma.blogPost.updateMany({
+        where: { id: { in: unpublished.map((p) => p.id) } },
+        data: { published: true },
+      });
+      steps.push({
+        step: "Re-publish unpublished posts",
+        status: "pass",
+        message: `Re-published ${repub.count} posts with content: ${unpublished.slice(0, 5).map((p) => p.slug).join(", ")}${unpublished.length > 5 ? "..." : ""}`,
+        duration: Date.now() - t0,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      steps,
+      recovered: result.count + (unpublished.length > 0 ? unpublished.length : 0),
+      duration: Date.now() - overallStart,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "Error", status: "fail", message: msg });
+    return NextResponse.json({ success: false, steps, recovered: 0, error: msg, duration: Date.now() - overallStart });
   }
 }
 
@@ -2639,38 +2703,10 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
       }
     }
 
-    // AUTO-FIX: Soft-delete the duplicates immediately
-    let autoFixed = 0;
-    if (duplicateIds.length > 0) {
-      const result = await prisma.blogPost.updateMany({
-        where: { id: { in: duplicateIds } },
-        data: { published: false, deletedAt: new Date() },
-      });
-      autoFixed = result.count;
-
-      // Also clean up their indexing entries
-      const orphanUrls = duplicateSlugs
-        .filter((s) => s && s !== "(empty)")
-        .map((s) => `https://www.yalla-london.com/blog/${s}`);
-      if (orphanUrls.length > 0) {
-        await prisma.uRLIndexingStatus.deleteMany({
-          where: { url: { in: orphanUrls } },
-        }).catch(() => {});
-      }
-    }
-
-    if (duplicatePairs.length > 0 && autoFixed > 0) {
-      tests.push({
-        name: "Slug deduplication (no near-duplicates)",
-        passed: true,
-        data: {
-          autoFixed,
-          removedSlugs: duplicateSlugs,
-          totalSlugs: slugList.length,
-          note: `Auto-fixed! Soft-deleted ${autoFixed} duplicate/malformed posts and cleaned their indexing entries.`,
-        },
-      });
-    } else if (duplicatePairs.length > 0) {
+    // REPORT ONLY — never auto-delete posts. Duplicates must be reviewed manually
+    // because suffix-based detection has false positives (e.g., date-suffixed posts
+    // like "mosque-timetable-2026-02-17-c9pd" are legitimate, not duplicates)
+    if (duplicatePairs.length > 0) {
       tests.push({
         name: "Slug deduplication (no near-duplicates)",
         passed: false,
@@ -3892,30 +3928,16 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
     if (emptyPosts.length > 0) issues.push(`${emptyPosts.length} published posts have NO English content`);
     if (thinPosts.length > 0) issues.push(`${thinPosts.length} published posts have <1000 words (thin content)`);
 
-    // AUTO-FIX: Unpublish empty and thin posts — they waste Google crawl budget
-    let autoUnpublished = 0;
-    if (emptyPosts.length > 0 || thinPosts.length > 0) {
-      const slugsToUnpublish = [
-        ...emptyPosts.map((p) => p.slug),
-        ...thinPosts.map((p) => p.slug),
-      ];
-      const result = await prisma.blogPost.updateMany({
-        where: { slug: { in: slugsToUnpublish }, siteId, published: true },
-        data: { published: false },
-      });
-      autoUnpublished = result.count;
-    }
-
+    // REPORT ONLY — never auto-unpublish. A thin article earning traffic is better than
+    // an unpublished article earning nothing. Flag for manual content enrichment instead.
     tests.push({
       name: "Published posts content health",
-      passed: autoUnpublished > 0 || issues.length === 0,
+      passed: issues.length === 0,
       data: {
-        autoFixed: autoUnpublished > 0 ? `Unpublished ${autoUnpublished} thin/empty posts to protect crawl budget` : undefined,
         emptyPosts: emptyPosts.length > 0 ? emptyPosts.slice(0, 5).map((p) => ({ slug: p.slug, title: (p.title_en || "").substring(0, 50) })) : undefined,
         thinPosts: thinPosts.length > 0 ? thinPosts.slice(0, 10).map((p) => ({ slug: p.slug, title: (p.title_en || "").substring(0, 50), words: p.words })) : undefined,
-        totalUnpublished: autoUnpublished,
-        note: autoUnpublished > 0
-          ? `Auto-fixed! Unpublished ${autoUnpublished} thin/empty posts. They'll be re-published automatically once the content pipeline regenerates them with 1,000+ words.`
+        note: issues.length > 0
+          ? `${issues.join(". ")}. These need content enrichment — NOT unpublishing.`
           : "All published posts have healthy content length (1,000+ words)",
       },
     });

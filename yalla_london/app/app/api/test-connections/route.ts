@@ -454,6 +454,34 @@ const DESIGN_SYSTEM_MIGRATION_SQL: Record<string, string[]> = {
     `CREATE INDEX IF NOT EXISTS "content_performance_platform_idx" ON "content_performance"("platform")`,
     `CREATE INDEX IF NOT EXISTS "content_performance_grade_idx" ON "content_performance"("grade")`,
   ],
+  url_indexing_status: [
+    `CREATE TABLE IF NOT EXISTS "url_indexing_status" (
+      "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
+      "site_id" TEXT NOT NULL,
+      "url" TEXT NOT NULL,
+      "slug" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'discovered',
+      "coverage_state" TEXT,
+      "indexing_state" TEXT,
+      "submitted_indexnow" BOOLEAN NOT NULL DEFAULT false,
+      "submitted_google_api" BOOLEAN NOT NULL DEFAULT false,
+      "submitted_sitemap" BOOLEAN NOT NULL DEFAULT false,
+      "last_submitted_at" TIMESTAMP(3),
+      "last_inspected_at" TIMESTAMP(3),
+      "last_crawled_at" TIMESTAMP(3),
+      "inspection_result" JSONB,
+      "submission_attempts" INTEGER NOT NULL DEFAULT 0,
+      "last_error" TEXT,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "url_indexing_status_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "url_indexing_status_site_id_url_key" ON "url_indexing_status"("site_id", "url")`,
+    `CREATE INDEX IF NOT EXISTS "url_indexing_status_site_id_status_idx" ON "url_indexing_status"("site_id", "status")`,
+    `CREATE INDEX IF NOT EXISTS "url_indexing_status_site_id_slug_idx" ON "url_indexing_status"("site_id", "slug")`,
+    `CREATE INDEX IF NOT EXISTS "url_indexing_status_status_idx" ON "url_indexing_status"("status")`,
+    `CREATE INDEX IF NOT EXISTS "url_indexing_status_last_submitted_at_idx" ON "url_indexing_status"("last_submitted_at")`,
+  ],
 };
 
 // Foreign keys — applied after all tables exist
@@ -489,7 +517,7 @@ async function handleFixIssues(): Promise<NextResponse> {
     const existing = tables.map((t) => t.tablename);
     missingBefore = requiredTables.filter((t) => !existing.includes(t));
     if (missingBefore.length === 0) {
-      steps.push({ step: "Check missing tables", status: "pass", message: "All 8 design system tables already exist — nothing to fix", duration: Date.now() - t0 });
+      steps.push({ step: "Check missing tables", status: "pass", message: "All required tables already exist — nothing to fix", duration: Date.now() - t0 });
       return NextResponse.json({ success: true, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
     }
     steps.push({ step: "Check missing tables", status: "fail", message: `Missing ${missingBefore.length}: ${missingBefore.join(", ")}`, duration: Date.now() - t0 });
@@ -2128,7 +2156,7 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
     const { prisma } = await import("@/lib/db");
     const tableCheck: Array<{ tablename: string }> = await prisma.$queryRaw`
       SELECT tablename FROM pg_tables
-      WHERE schemaname = 'public' AND tablename = 'url_indexing_statuses'
+      WHERE schemaname = 'public' AND tablename = 'url_indexing_status'
     `;
     if (tableCheck.length > 0) {
       tests.push({ name: "URLIndexingStatus table exists", passed: true });
@@ -2136,8 +2164,8 @@ async function testIndexingPipeline(): Promise<TestSuiteResult> {
       tests.push({
         name: "URLIndexingStatus table exists",
         passed: false,
-        error: "Table 'url_indexing_statuses' not found in database",
-        fix: "Run 'npx prisma migrate deploy' to create the URLIndexingStatus table. This table tracks which URLs have been submitted to search engines and their indexing status.",
+        error: "Table 'url_indexing_status' not found in database. Use the Fix Database button to create it.",
+        fix: "Click 'Fix Issues' button to create the url_indexing_status table, or run 'npx prisma migrate deploy' manually.",
       });
       return suiteResult("indexing-pipeline", tests);
     }

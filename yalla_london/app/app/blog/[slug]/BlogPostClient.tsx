@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useLanguage } from '@/components/language-provider'
@@ -11,10 +11,8 @@ import {
   Tag, Clock, Share2,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { RelatedArticles, type RelatedArticleData } from '@/components/related-articles'
 import { ShareButtons } from '@/components/share-buttons'
 import { FollowUs } from '@/components/follow-us'
-import { sanitizeHtml } from '@/lib/html-sanitizer'
 
 interface BlogPostData {
   id: string;
@@ -40,10 +38,21 @@ interface BlogPostData {
 
 interface BlogPostClientProps {
   post: BlogPostData | null;
-  relatedArticles?: RelatedArticleData[];
 }
 
-export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostClientProps) {
+/**
+ * Lightweight script/event-handler strip for SSR — runs instantly (no jsdom).
+ * Full DOMPurify sanitization runs client-side only (where it uses native DOM
+ * and is ~100x faster than isomorphic-dompurify's jsdom fallback).
+ */
+function fastStripScripts(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/\bon\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+}
+
+export default function BlogPostClient({ post }: BlogPostClientProps) {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
   const [isLiked, setIsLiked] = useState(false)
@@ -105,7 +114,18 @@ export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostC
 
   const title = language === 'en' ? post.title_en : post.title_ar
   const excerpt = language === 'en' ? post.excerpt_en : post.excerpt_ar
-  const content = language === 'en' ? post.content_en : post.content_ar
+  const rawContent = language === 'en' ? post.content_en : post.content_ar
+
+  // SSR: use fast regex strip (no jsdom overhead).
+  // Client: full DOMPurify sanitization via lazy import (native DOM, fast).
+  const [sanitizedContent, setSanitizedContent] = useState(() => fastStripScripts(rawContent))
+  useEffect(() => {
+    let cancelled = false;
+    import('@/lib/html-sanitizer').then(({ sanitizeHtml }) => {
+      if (!cancelled) setSanitizedContent(sanitizeHtml(rawContent));
+    });
+    return () => { cancelled = true; };
+  }, [rawContent]);
   const categoryName = post.category
     ? (language === 'en' ? post.category.name_en : post.category.name_ar)
     : ''
@@ -280,7 +300,7 @@ export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostC
                 <div
                   className="yalla-article-content"
                   dangerouslySetInnerHTML={{
-                    __html: sanitizeHtml(content)
+                    __html: sanitizedContent
                   }}
                 />
 
@@ -436,15 +456,6 @@ export default function BlogPostClient({ post, relatedArticles = [] }: BlogPostC
           </div>
         </div>
       </section>
-
-      {/* ═══ Related Articles ═══ */}
-      {relatedArticles.length > 0 && (
-        <section className="py-14 bg-cream border-t border-sand/50">
-          <div className="max-w-6xl mx-auto px-6">
-            <RelatedArticles articles={relatedArticles} currentType="blog" />
-          </div>
-        </section>
-      )}
 
       {/* ═══ Explore More CTA ═══ */}
       <section className="py-16 bg-charcoal">

@@ -153,6 +153,7 @@ model BlogPost {
   @@index([siteId])
   @@index([siteId, published])
   @@index([siteId, created_at])
+  @@index([siteId, slug])
   @@index([published])
   @@index([category_id])
   @@index([author_id])

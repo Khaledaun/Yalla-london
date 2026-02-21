@@ -186,19 +186,20 @@ const nextConfig = {
           { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
         ],
       },
-      // Sitemap & robots - hourly edge cache
+      // Sitemap - hourly edge cache (content changes infrequently)
       {
         source: '/sitemap.xml',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400' },
+          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=3600, stale-while-revalidate=3600' },
           { key: 'CDN-Cache-Control', value: 'max-age=3600' },
         ],
       },
+      // robots.txt - short cache, refreshes quickly after deploy
       {
         source: '/robots.txt',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400' },
-          { key: 'CDN-Cache-Control', value: 'max-age=3600' },
+          { key: 'Cache-Control', value: 'public, max-age=0, s-maxage=60, stale-while-revalidate=60' },
+          { key: 'CDN-Cache-Control', value: 'max-age=60' },
         ],
       },
       // SECURITY: Comprehensive security headers on all pages

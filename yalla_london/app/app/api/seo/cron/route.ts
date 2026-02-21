@@ -1,7 +1,43 @@
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
-import { runAutomatedIndexing, pingSitemaps } from "@/lib/seo/indexing-service";
+import { runAutomatedIndexing, pingSitemaps, type IndexingReport } from "@/lib/seo/indexing-service";
+import { getActiveSiteIds, getSiteDomain } from "@/config/sites";
+
+/**
+ * After IndexNow/GSC submission, update URLIndexingStatus so the
+ * verify-indexing cron knows these URLs have been submitted.
+ * Without this, URLs stay in "discovered" forever.
+ */
+async function trackSubmittedUrls(report: IndexingReport, siteId: string) {
+  if (report.urlsProcessed === 0) return;
+
+  const indexNowSuccess = report.indexNow.some((r) => r.success);
+  const gscSuccess = report.sitemapPings?.google_gsc === true;
+
+  // Only track if at least one submission channel succeeded
+  if (!indexNowSuccess && !gscSuccess) return;
+
+  try {
+    const { prisma } = await import("@/lib/db");
+
+    // Update all "discovered" or "pending" URLs for this site to "submitted"
+    await prisma.uRLIndexingStatus.updateMany({
+      where: {
+        site_id: siteId,
+        status: { in: ["discovered", "pending"] },
+      },
+      data: {
+        status: "submitted",
+        submitted_indexnow: indexNowSuccess || undefined,
+        submitted_sitemap: gscSuccess || undefined,
+        last_submitted_at: new Date(),
+      },
+    });
+  } catch (e) {
+    console.warn(`[SEO-CRON] Failed to track submitted URLs for ${siteId}:`, e instanceof Error ? e.message : e);
+  }
+}
 
 /**
  * Cron endpoint for automated SEO tasks
@@ -83,23 +119,34 @@ export async function GET(request: NextRequest) {
   console.log(`[SEO-CRON] Starting task="${task}" at ${results.timestamp}`);
 
   try {
+    // Run indexing per-site to prevent cross-site URL contamination.
+    // Previously ran without siteId, which collected ALL posts from ALL sites
+    // and submitted them under a single domain (yalla-london.com).
+    const activeSites = getActiveSiteIds();
+
     switch (task) {
       case "daily":
-        // Daily: Submit new/updated content + ping sitemaps
-        const dailyReport = await runAutomatedIndexing("updated");
-        results.actions.push({ name: "submit_updated", report: dailyReport });
-        console.log(
-          `[SEO-CRON] Daily: processed ${dailyReport.urlsProcessed} URLs, errors: ${dailyReport.errors.length}`,
-        );
+        for (const sid of activeSites) {
+          const siteUrl = getSiteDomain(sid);
+          const dailyReport = await runAutomatedIndexing("updated", sid, siteUrl);
+          await trackSubmittedUrls(dailyReport, sid);
+          results.actions.push({ name: "submit_updated", site: sid, report: dailyReport });
+          console.log(
+            `[SEO-CRON] Daily [${sid}]: processed ${dailyReport.urlsProcessed} URLs, errors: ${dailyReport.errors.length}`,
+          );
+        }
         break;
 
       case "weekly":
-        // Weekly: Submit all content
-        const weeklyReport = await runAutomatedIndexing("all");
-        results.actions.push({ name: "submit_all", report: weeklyReport });
-        console.log(
-          `[SEO-CRON] Weekly: processed ${weeklyReport.urlsProcessed} URLs, errors: ${weeklyReport.errors.length}`,
-        );
+        for (const sid of activeSites) {
+          const siteUrl = getSiteDomain(sid);
+          const weeklyReport = await runAutomatedIndexing("all", sid, siteUrl);
+          await trackSubmittedUrls(weeklyReport, sid);
+          results.actions.push({ name: "submit_all", site: sid, report: weeklyReport });
+          console.log(
+            `[SEO-CRON] Weekly [${sid}]: processed ${weeklyReport.urlsProcessed} URLs, errors: ${weeklyReport.errors.length}`,
+          );
+        }
         break;
 
       case "ping":
@@ -110,12 +157,15 @@ export async function GET(request: NextRequest) {
         break;
 
       case "new":
-        // Submit only new content
-        const newReport = await runAutomatedIndexing("new");
-        results.actions.push({ name: "submit_new", report: newReport });
-        console.log(
-          `[SEO-CRON] New: processed ${newReport.urlsProcessed} URLs, errors: ${newReport.errors.length}`,
-        );
+        for (const sid of activeSites) {
+          const siteUrl = getSiteDomain(sid);
+          const newReport = await runAutomatedIndexing("new", sid, siteUrl);
+          await trackSubmittedUrls(newReport, sid);
+          results.actions.push({ name: "submit_new", site: sid, report: newReport });
+          console.log(
+            `[SEO-CRON] New [${sid}]: processed ${newReport.urlsProcessed} URLs, errors: ${newReport.errors.length}`,
+          );
+        }
         break;
 
       default:

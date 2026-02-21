@@ -217,25 +217,20 @@ async function fetchDbRelatedArticles(
       deletedAt: null,
     };
 
-    // If we have a category hint, try to find the Category record first so we
-    // can filter BlogPosts by category_id.
+    // If we have a category hint, skip the separate Category lookup and use a
+    // nested filter instead — saves one DB roundtrip per page render.
     if (category) {
-      const cat = await prisma.category.findFirst({
-        where: {
-          OR: [
-            { name_en: { contains: category, mode: 'insensitive' as const } },
-            { slug: { contains: category.toLowerCase().replace(/\s+/g, '-') } },
-          ],
-        },
-        select: { id: true },
-      });
-
-      if (cat) {
-        where.category_id = cat.id;
-      }
+      where.category = {
+        OR: [
+          { name_en: { contains: category, mode: 'insensitive' as const } },
+          { slug: { contains: category.toLowerCase().replace(/\s+/g, '-') } },
+        ],
+      };
     }
 
-    const dbArticles = await prisma.blogPost.findMany({
+    // 3s timeout — related articles are non-critical; page has 4s outer timeout
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
+    const query = prisma.blogPost.findMany({
       where,
       select: {
         slug: true,
@@ -252,6 +247,9 @@ async function fetchDbRelatedArticles(
       orderBy: { created_at: 'desc' },
       take: limit,
     });
+
+    const dbArticles = await Promise.race([query, timeout]);
+    if (!dbArticles) return []; // timed out
 
     return dbArticles.map((post): RelatedArticleData => ({
       slug: post.slug,

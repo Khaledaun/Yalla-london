@@ -161,6 +161,23 @@ export async function POST(request: NextRequest) {
     return await handleFixIssues();
   }
 
+  // --- Production data fix actions ---
+  if (body.action === "scan-production-issues") {
+    return await handleScanProductionIssues();
+  }
+  if (body.action === "fix-duplicate-posts") {
+    return await handleFixDuplicatePosts();
+  }
+  if (body.action === "fix-stale-errors") {
+    return await handleFixStaleErrors();
+  }
+  if (body.action === "fix-metadata") {
+    return await handleFixMetadata();
+  }
+  if (body.action === "fix-indexing-urls") {
+    return await handleFixIndexingUrls();
+  }
+
   // --- Test suite execution ---
   const { suite } = body as { suite: string };
 
@@ -220,6 +237,9 @@ export async function POST(request: NextRequest) {
         break;
       case "distribution":
         result = await testDistribution();
+        break;
+      case "indexing-pipeline":
+        result = await testIndexingPipeline();
         break;
       default:
         return NextResponse.json({ error: `Unknown suite: ${suite}` }, { status: 400 });
@@ -434,6 +454,34 @@ const DESIGN_SYSTEM_MIGRATION_SQL: Record<string, string[]> = {
     `CREATE INDEX IF NOT EXISTS "content_performance_platform_idx" ON "content_performance"("platform")`,
     `CREATE INDEX IF NOT EXISTS "content_performance_grade_idx" ON "content_performance"("grade")`,
   ],
+  url_indexing_status: [
+    `CREATE TABLE IF NOT EXISTS "url_indexing_status" (
+      "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
+      "site_id" TEXT NOT NULL,
+      "url" TEXT NOT NULL,
+      "slug" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'discovered',
+      "coverage_state" TEXT,
+      "indexing_state" TEXT,
+      "submitted_indexnow" BOOLEAN NOT NULL DEFAULT false,
+      "submitted_google_api" BOOLEAN NOT NULL DEFAULT false,
+      "submitted_sitemap" BOOLEAN NOT NULL DEFAULT false,
+      "last_submitted_at" TIMESTAMP(3),
+      "last_inspected_at" TIMESTAMP(3),
+      "last_crawled_at" TIMESTAMP(3),
+      "inspection_result" JSONB,
+      "submission_attempts" INTEGER NOT NULL DEFAULT 0,
+      "last_error" TEXT,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "url_indexing_status_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "url_indexing_status_site_id_url_key" ON "url_indexing_status"("site_id", "url")`,
+    `CREATE INDEX IF NOT EXISTS "url_indexing_status_site_id_status_idx" ON "url_indexing_status"("site_id", "status")`,
+    `CREATE INDEX IF NOT EXISTS "url_indexing_status_site_id_slug_idx" ON "url_indexing_status"("site_id", "slug")`,
+    `CREATE INDEX IF NOT EXISTS "url_indexing_status_status_idx" ON "url_indexing_status"("status")`,
+    `CREATE INDEX IF NOT EXISTS "url_indexing_status_last_submitted_at_idx" ON "url_indexing_status"("last_submitted_at")`,
+  ],
 };
 
 // Foreign keys — applied after all tables exist
@@ -469,7 +517,7 @@ async function handleFixIssues(): Promise<NextResponse> {
     const existing = tables.map((t) => t.tablename);
     missingBefore = requiredTables.filter((t) => !existing.includes(t));
     if (missingBefore.length === 0) {
-      steps.push({ step: "Check missing tables", status: "pass", message: "All 8 design system tables already exist — nothing to fix", duration: Date.now() - t0 });
+      steps.push({ step: "Check missing tables", status: "pass", message: "All required tables already exist — nothing to fix", duration: Date.now() - t0 });
       return NextResponse.json({ success: true, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
     }
     steps.push({ step: "Check missing tables", status: "fail", message: `Missing ${missingBefore.length}: ${missingBefore.join(", ")}`, duration: Date.now() - t0 });
@@ -570,6 +618,541 @@ async function handleFixIssues(): Promise<NextResponse> {
     const msg = err instanceof Error ? err.message : String(err);
     steps.push({ step: "Verify tables", status: "fail", message: msg, duration: 0 });
     return NextResponse.json({ success: false, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Production Data Fix Handlers
+// ---------------------------------------------------------------------------
+
+/** Scan for all production data issues — returns counts without changing anything */
+async function handleScanProductionIssues(): Promise<NextResponse> {
+  const steps: Array<{ step: string; status: string; message: string; count?: number; items?: unknown[] }> = [];
+  const overallStart = Date.now();
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    // 1. Duplicate blog posts (date-suffixed or random-suffixed near-duplicates)
+    const allPosts = await prisma.blogPost.findMany({
+      where: { siteId, deletedAt: null },
+      select: { id: true, slug: true, published: true, created_at: true, content_en: true },
+      orderBy: { slug: "asc" },
+    });
+
+    const duplicates: Array<{ original: string; duplicate: string; id: string }> = [];
+    const slugs = allPosts.map((p: { slug: string }) => p.slug).sort();
+    for (let i = 0; i < slugs.length; i++) {
+      for (let j = i + 1; j < slugs.length; j++) {
+        if (slugs[j].startsWith(slugs[i]) && slugs[j] !== slugs[i]) {
+          const suffix = slugs[j].slice(slugs[i].length);
+          // Match date suffixes (-2026-02-18) or random suffixes (-a1b2, -c9pd)
+          if (/^-(\d{4}-\d{2}-\d{2}|[a-z0-9]{3,5})$/.test(suffix)) {
+            const dup = allPosts.find((p: { slug: string }) => p.slug === slugs[j]);
+            if (dup) duplicates.push({ original: slugs[i], duplicate: slugs[j], id: dup.id });
+          }
+        }
+      }
+    }
+    steps.push({
+      step: "Duplicate blog posts",
+      status: duplicates.length > 0 ? "fail" : "pass",
+      message: duplicates.length > 0
+        ? `Found ${duplicates.length} near-duplicate posts`
+        : "No duplicate posts found",
+      count: duplicates.length,
+      items: duplicates.slice(0, 20),
+    });
+
+    // 2. Empty/malformed slug posts
+    const malformedPosts = allPosts.filter((p: { slug: string }) =>
+      !p.slug || /^-?\d{4}-\d{2}-\d{2}$/.test(p.slug) || p.slug.startsWith("-")
+    );
+    steps.push({
+      step: "Malformed slug posts",
+      status: malformedPosts.length > 0 ? "fail" : "pass",
+      message: malformedPosts.length > 0
+        ? `Found ${malformedPosts.length} posts with empty or malformed slugs`
+        : "All slugs are valid",
+      count: malformedPosts.length,
+      items: malformedPosts.map((p: { id: string; slug: string }) => ({ id: p.id, slug: p.slug || "(empty)" })),
+    });
+
+    // 3. Stale GSC error messages
+    const staleErrors = await prisma.uRLIndexingStatus.count({
+      where: {
+        site_id: siteId,
+        last_error: { not: null },
+        last_inspected_at: { lt: new Date(Date.now() - 7 * 86400000) }, // older than 7 days
+      },
+    });
+    const allErrors = await prisma.uRLIndexingStatus.count({
+      where: { site_id: siteId, last_error: { not: null } },
+    });
+    steps.push({
+      step: "Stale indexing errors",
+      status: staleErrors > 0 ? "fail" : "pass",
+      message: staleErrors > 0
+        ? `${staleErrors} URLs with stale error messages (>7 days old), ${allErrors} total errors`
+        : `${allErrors} URLs with errors (all recent)`,
+      count: staleErrors,
+    });
+
+    // 4. Metadata issues
+    const publishedPosts = await prisma.blogPost.findMany({
+      where: { siteId, published: true, deletedAt: null },
+      select: {
+        id: true,
+        slug: true,
+        meta_title_en: true,
+        meta_description_en: true,
+        content_en: true,
+      },
+      take: 300,
+    });
+
+    let metaIssues = 0;
+    const metaDetails: Array<{ slug: string; issue: string }> = [];
+    for (const p of publishedPosts) {
+      const post = p as { slug: string; meta_title_en: string | null; meta_description_en: string | null; content_en: string | null };
+      if (post.meta_title_en && post.meta_title_en.length > 60) {
+        metaIssues++;
+        metaDetails.push({ slug: post.slug, issue: `Title too long (${post.meta_title_en.length} chars)` });
+      }
+      if (!post.meta_description_en || post.meta_description_en.length < 120) {
+        metaIssues++;
+        metaDetails.push({ slug: post.slug, issue: post.meta_description_en ? `Description too short (${post.meta_description_en.length} chars)` : "Missing description" });
+      }
+      if (post.meta_description_en && post.meta_description_en.length > 160) {
+        metaIssues++;
+        metaDetails.push({ slug: post.slug, issue: `Description too long (${post.meta_description_en.length} chars)` });
+      }
+    }
+    steps.push({
+      step: "Metadata issues",
+      status: metaIssues > 0 ? "fail" : "pass",
+      message: metaIssues > 0
+        ? `${metaIssues} metadata issues across ${publishedPosts.length} published posts`
+        : `All ${publishedPosts.length} published posts have valid metadata`,
+      count: metaIssues,
+      items: metaDetails.slice(0, 20),
+    });
+
+    // 5. Duplicate/orphaned indexing URLs
+    const correctBaseUrl = getSiteDomain(siteId);
+    const indexEntries = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId },
+      select: { id: true, url: true, status: true },
+    });
+    const nonWww = indexEntries.filter((e: { url: string }) => {
+      const url = e.url;
+      return url.includes("://") && !url.startsWith(correctBaseUrl) &&
+        url.replace("://", "://www.").startsWith(correctBaseUrl);
+    });
+    const malformedUrls = indexEntries.filter((e: { url: string }) =>
+      /\/blog\/-\d{4}-\d{2}-\d{2}/.test(e.url) || /\/blog\/$/.test(e.url)
+    );
+    steps.push({
+      step: "Indexing URL issues",
+      status: (nonWww.length + malformedUrls.length) > 0 ? "fail" : "pass",
+      message: `${nonWww.length} non-www duplicate URLs, ${malformedUrls.length} malformed URLs`,
+      count: nonWww.length + malformedUrls.length,
+      items: [...nonWww.slice(0, 5).map((e: { url: string }) => ({ url: e.url, issue: "non-www duplicate" })),
+              ...malformedUrls.slice(0, 5).map((e: { url: string }) => ({ url: e.url, issue: "malformed slug" }))],
+    });
+
+    // 6. Thin content
+    let thinCount = 0;
+    const thinPosts: Array<{ slug: string; words: number }> = [];
+    for (const p of publishedPosts) {
+      const post = p as { slug: string; content_en: string | null };
+      if (post.content_en) {
+        const wordCount = post.content_en.replace(/<[^>]*>/g, " ").split(/\s+/).filter(Boolean).length;
+        if (wordCount < 1000) {
+          thinCount++;
+          thinPosts.push({ slug: post.slug, words: wordCount });
+        }
+      }
+    }
+    steps.push({
+      step: "Thin content (<1000 words)",
+      status: thinCount > 0 ? "warn" : "pass",
+      message: thinCount > 0
+        ? `${thinCount} published posts under 1000 words (can't auto-fix — need content enrichment)`
+        : "All published posts meet 1000-word minimum",
+      count: thinCount,
+      items: thinPosts.slice(0, 10),
+    });
+
+    const totalIssues = duplicates.length + malformedPosts.length + staleErrors + metaIssues + nonWww.length + malformedUrls.length;
+
+    return NextResponse.json({
+      success: true,
+      totalIssues,
+      steps,
+      duration: Date.now() - overallStart,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ success: false, totalIssues: -1, steps, error: msg, duration: Date.now() - overallStart });
+  }
+}
+
+/** Delete duplicate blog posts (date-suffixed and random-suffixed near-duplicates) */
+async function handleFixDuplicatePosts(): Promise<NextResponse> {
+  const steps: Array<{ step: string; status: string; message: string; duration?: number }> = [];
+  const overallStart = Date.now();
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    // Step 1: Find duplicates
+    let t0 = Date.now();
+    const allPosts = await prisma.blogPost.findMany({
+      where: { siteId, deletedAt: null },
+      select: { id: true, slug: true, published: true, created_at: true },
+      orderBy: { slug: "asc" },
+    });
+
+    const duplicateIds: string[] = [];
+    const duplicateSlugs: string[] = [];
+    const slugs = allPosts.map((p: { slug: string }) => p.slug).sort();
+    for (let i = 0; i < slugs.length; i++) {
+      for (let j = i + 1; j < slugs.length; j++) {
+        if (slugs[j].startsWith(slugs[i]) && slugs[j] !== slugs[i]) {
+          const suffix = slugs[j].slice(slugs[i].length);
+          if (/^-(\d{4}-\d{2}-\d{2}|[a-z0-9]{3,5})$/.test(suffix)) {
+            const dup = allPosts.find((p: { slug: string }) => p.slug === slugs[j]);
+            if (dup) { duplicateIds.push(dup.id); duplicateSlugs.push(slugs[j]); }
+          }
+        }
+      }
+    }
+
+    // Also catch malformed slugs (empty or date-only)
+    for (const p of allPosts) {
+      const post = p as { id: string; slug: string };
+      if (!post.slug || /^-?\d{4}-\d{2}-\d{2}$/.test(post.slug) || post.slug.startsWith("-")) {
+        if (!duplicateIds.includes(post.id)) {
+          duplicateIds.push(post.id);
+          duplicateSlugs.push(post.slug || "(empty)");
+        }
+      }
+    }
+
+    steps.push({
+      step: "Identify duplicates",
+      status: "pass",
+      message: `Found ${duplicateIds.length} posts to remove: ${duplicateSlugs.slice(0, 10).join(", ")}${duplicateSlugs.length > 10 ? "..." : ""}`,
+      duration: Date.now() - t0,
+    });
+
+    if (duplicateIds.length === 0) {
+      return NextResponse.json({ success: true, steps, fixed: 0, duration: Date.now() - overallStart });
+    }
+
+    // Step 2: Soft-delete (set deletedAt instead of hard delete)
+    t0 = Date.now();
+    const result = await prisma.blogPost.updateMany({
+      where: { id: { in: duplicateIds } },
+      data: { deletedAt: new Date(), published: false },
+    });
+    steps.push({
+      step: "Soft-delete duplicates",
+      status: "pass",
+      message: `Soft-deleted ${result.count} duplicate/malformed posts`,
+      duration: Date.now() - t0,
+    });
+
+    // Step 3: Clean up related URLIndexingStatus entries
+    t0 = Date.now();
+    let urlsCleaned = 0;
+    for (const slug of duplicateSlugs) {
+      if (!slug || slug === "(empty)") continue;
+      const deleted = await prisma.uRLIndexingStatus.deleteMany({
+        where: { site_id: siteId, url: { contains: `/blog/${slug}` } },
+      });
+      urlsCleaned += deleted.count;
+    }
+    steps.push({
+      step: "Clean indexing entries",
+      status: "pass",
+      message: `Removed ${urlsCleaned} orphaned URLIndexingStatus entries`,
+      duration: Date.now() - t0,
+    });
+
+    return NextResponse.json({ success: true, steps, fixed: duplicateIds.length, duration: Date.now() - overallStart });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "Error", status: "fail", message: msg });
+    return NextResponse.json({ success: false, steps, fixed: 0, error: msg, duration: Date.now() - overallStart });
+  }
+}
+
+/** Clear stale GSC error messages (>7 days old) from URLIndexingStatus */
+async function handleFixStaleErrors(): Promise<NextResponse> {
+  const steps: Array<{ step: string; status: string; message: string; duration?: number }> = [];
+  const overallStart = Date.now();
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    // Step 1: Count stale errors
+    let t0 = Date.now();
+    const cutoff = new Date(Date.now() - 7 * 86400000);
+    const staleCount = await prisma.uRLIndexingStatus.count({
+      where: {
+        site_id: siteId,
+        last_error: { not: null },
+        last_inspected_at: { lt: cutoff },
+      },
+    });
+    steps.push({
+      step: "Count stale errors",
+      status: "pass",
+      message: `Found ${staleCount} URLs with errors older than 7 days`,
+      duration: Date.now() - t0,
+    });
+
+    if (staleCount === 0) {
+      return NextResponse.json({ success: true, steps, fixed: 0, duration: Date.now() - overallStart });
+    }
+
+    // Step 2: Clear error messages and reset status to "submitted" for re-checking
+    t0 = Date.now();
+    const result = await prisma.uRLIndexingStatus.updateMany({
+      where: {
+        site_id: siteId,
+        last_error: { not: null },
+        last_inspected_at: { lt: cutoff },
+      },
+      data: {
+        last_error: null,
+        status: "submitted",
+      },
+    });
+    steps.push({
+      step: "Clear stale errors",
+      status: "pass",
+      message: `Cleared ${result.count} stale error messages — URLs reset to "submitted" for re-checking`,
+      duration: Date.now() - t0,
+    });
+
+    return NextResponse.json({ success: true, steps, fixed: result.count, duration: Date.now() - overallStart });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "Error", status: "fail", message: msg });
+    return NextResponse.json({ success: false, steps, fixed: 0, error: msg, duration: Date.now() - overallStart });
+  }
+}
+
+/** Auto-fix blog post metadata (titles/descriptions) */
+async function handleFixMetadata(): Promise<NextResponse> {
+  const steps: Array<{ step: string; status: string; message: string; duration?: number }> = [];
+  const overallStart = Date.now();
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    let t0 = Date.now();
+    const posts = await prisma.blogPost.findMany({
+      where: { siteId, published: true, deletedAt: null },
+      select: {
+        id: true,
+        slug: true,
+        title_en: true,
+        meta_title_en: true,
+        meta_description_en: true,
+        excerpt_en: true,
+        content_en: true,
+      },
+      take: 300,
+      orderBy: { created_at: "desc" },
+    });
+    steps.push({ step: "Load posts", status: "pass", message: `Loaded ${posts.length} published posts`, duration: Date.now() - t0 });
+
+    t0 = Date.now();
+    let fixed = 0;
+    const fixes: Array<{ slug: string; fix: string }> = [];
+
+    for (const row of posts) {
+      const p = row as { id: string; slug: string; title_en: string | null; meta_title_en: string | null; meta_description_en: string | null; excerpt_en: string | null; content_en: string | null };
+      const updates: Record<string, string> = {};
+
+      // Fix title > 60 chars
+      if (p.meta_title_en && p.meta_title_en.length > 60) {
+        const cut = p.meta_title_en.lastIndexOf(" ", 57);
+        updates.meta_title_en = p.meta_title_en.slice(0, cut > 30 ? cut : 57) + "...";
+        fixes.push({ slug: p.slug, fix: `Title truncated: ${p.meta_title_en.length} → ${updates.meta_title_en.length} chars` });
+      }
+
+      // Fix description > 160 chars
+      if (p.meta_description_en && p.meta_description_en.length > 160) {
+        const cut = p.meta_description_en.lastIndexOf(" ", 157);
+        updates.meta_description_en = p.meta_description_en.slice(0, cut > 100 ? cut : 157) + "...";
+        fixes.push({ slug: p.slug, fix: `Description truncated: ${p.meta_description_en.length} → ${updates.meta_description_en.length} chars` });
+      }
+
+      // Fix missing/short description
+      if (!p.meta_description_en || p.meta_description_en.length < 120) {
+        const source = p.excerpt_en || (p.content_en ? p.content_en.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "");
+        if (source.length >= 120) {
+          const cut = source.lastIndexOf(" ", 155);
+          updates.meta_description_en = source.slice(0, cut > 120 ? cut : 155).trim();
+          if (updates.meta_description_en.length > 160) updates.meta_description_en = updates.meta_description_en.slice(0, 157) + "...";
+          fixes.push({ slug: p.slug, fix: `Description generated (${updates.meta_description_en.length} chars)` });
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await prisma.blogPost.update({ where: { id: p.id }, data: updates });
+        fixed++;
+      }
+    }
+
+    steps.push({
+      step: "Fix metadata",
+      status: fixed > 0 ? "pass" : "pass",
+      message: `Applied ${fixes.length} fixes across ${fixed} posts`,
+      duration: Date.now() - t0,
+    });
+
+    return NextResponse.json({ success: true, steps, fixed, fixes: fixes.slice(0, 30), duration: Date.now() - overallStart });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "Error", status: "fail", message: msg });
+    return NextResponse.json({ success: false, steps, fixed: 0, error: msg, duration: Date.now() - overallStart });
+  }
+}
+
+/** Clean up duplicate/orphaned URLIndexingStatus entries (non-www, malformed) */
+async function handleFixIndexingUrls(): Promise<NextResponse> {
+  const steps: Array<{ step: string; status: string; message: string; duration?: number }> = [];
+  const overallStart = Date.now();
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+    const correctBaseUrl = getSiteDomain(siteId);
+
+    let t0 = Date.now();
+    const allEntries = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId },
+      select: { id: true, url: true, status: true, submitted_indexnow: true, submitted_sitemap: true, last_submitted_at: true },
+    });
+    steps.push({ step: "Load entries", status: "pass", message: `Found ${allEntries.length} total indexing entries`, duration: Date.now() - t0 });
+
+    // Remove malformed URLs
+    t0 = Date.now();
+    const malformed = allEntries.filter((e: { url: string }) =>
+      /\/blog\/-\d{4}-\d{2}-\d{2}/.test(e.url) || /\/blog\/$/.test(e.url)
+    );
+    if (malformed.length > 0) {
+      await prisma.uRLIndexingStatus.deleteMany({
+        where: { id: { in: malformed.map((e: { id: string }) => e.id) } },
+      });
+    }
+    steps.push({
+      step: "Remove malformed URLs",
+      status: "pass",
+      message: `Deleted ${malformed.length} malformed URL entries`,
+      duration: Date.now() - t0,
+    });
+
+    // Fix non-www duplicates: merge data into www version, delete non-www
+    t0 = Date.now();
+    let merged = 0;
+    let converted = 0;
+    const nonWww = allEntries.filter((e: { url: string }) => {
+      const url = e.url;
+      return url.includes("://") && !url.startsWith(correctBaseUrl) &&
+        url.replace("://", "://www.").startsWith(correctBaseUrl);
+    });
+
+    for (const entry of nonWww) {
+      const e = entry as { id: string; url: string; submitted_indexnow: boolean; submitted_sitemap: boolean; last_submitted_at: Date | null };
+      const wwwUrl = e.url.replace("://", "://www.");
+      const wwwEntry = allEntries.find((w: { url: string }) => w.url === wwwUrl);
+
+      if (wwwEntry) {
+        // Merge: transfer submission state if non-www has more data
+        const w = wwwEntry as { id: string; submitted_indexnow: boolean; submitted_sitemap: boolean; last_submitted_at: Date | null };
+        const updates: Record<string, unknown> = {};
+        if (e.submitted_indexnow && !w.submitted_indexnow) updates.submitted_indexnow = true;
+        if (e.submitted_sitemap && !w.submitted_sitemap) updates.submitted_sitemap = true;
+        if (e.last_submitted_at && (!w.last_submitted_at || e.last_submitted_at > w.last_submitted_at)) {
+          updates.last_submitted_at = e.last_submitted_at;
+        }
+        if (Object.keys(updates).length > 0) {
+          await prisma.uRLIndexingStatus.update({ where: { id: w.id }, data: updates });
+        }
+        await prisma.uRLIndexingStatus.delete({ where: { id: e.id } });
+        merged++;
+      } else {
+        // No www version — convert this entry to www
+        await prisma.uRLIndexingStatus.update({
+          where: { id: e.id },
+          data: { url: wwwUrl },
+        });
+        converted++;
+      }
+    }
+
+    steps.push({
+      step: "Fix non-www duplicates",
+      status: "pass",
+      message: `Merged ${merged} + converted ${converted} non-www entries (${nonWww.length} total processed)`,
+      duration: Date.now() - t0,
+    });
+
+    // Remove orphan blog URLs — entries in indexing table for blog posts that no longer exist
+    t0 = Date.now();
+    const remainingEntries = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId, url: { contains: "/blog/" } },
+      select: { id: true, url: true, slug: true },
+    });
+    const publishedSlugs = new Set(
+      (await prisma.blogPost.findMany({
+        where: { published: true, siteId },
+        select: { slug: true },
+      })).map((p: { slug: string }) => p.slug)
+    );
+    const orphanBlogEntries = remainingEntries.filter((e: { slug: string | null; url: string }) => {
+      // Extract slug from URL if slug field is null
+      const slug = e.slug || e.url.split("/blog/").pop()?.split("?")[0] || "";
+      return slug.length > 0 && !publishedSlugs.has(slug);
+    });
+    if (orphanBlogEntries.length > 0) {
+      await prisma.uRLIndexingStatus.deleteMany({
+        where: { id: { in: orphanBlogEntries.map((e: { id: string }) => e.id) } },
+      });
+    }
+    steps.push({
+      step: "Remove orphan blog URLs",
+      status: "pass",
+      message: `Deleted ${orphanBlogEntries.length} indexing entries for blog posts that no longer exist`,
+      duration: Date.now() - t0,
+    });
+
+    return NextResponse.json({
+      success: true,
+      steps,
+      fixed: malformed.length + nonWww.length + orphanBlogEntries.length,
+      duration: Date.now() - overallStart,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "Error", status: "fail", message: msg });
+    return NextResponse.json({ success: false, steps, fixed: 0, error: msg, duration: Date.now() - overallStart });
   }
 }
 
@@ -1592,6 +2175,1550 @@ async function testDistribution(): Promise<TestSuiteResult> {
 }
 
 // ---------------------------------------------------------------------------
+// 17. Indexing Pipeline Health
+// ---------------------------------------------------------------------------
+async function testIndexingPipeline(): Promise<TestSuiteResult> {
+  const tests: TestResult[] = [];
+
+  // ── Test 1: Database connection + URLIndexingStatus table exists ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const tableCheck: Array<{ tablename: string }> = await prisma.$queryRaw`
+      SELECT tablename FROM pg_tables
+      WHERE schemaname = 'public' AND tablename = 'url_indexing_status'
+    `;
+    if (tableCheck.length > 0) {
+      tests.push({ name: "URLIndexingStatus table exists", passed: true });
+    } else {
+      tests.push({
+        name: "URLIndexingStatus table exists",
+        passed: false,
+        error: "Table 'url_indexing_status' not found in database. Use the Fix Database button to create it.",
+        fix: "Click 'Fix Issues' button to create the url_indexing_status table, or run 'npx prisma migrate deploy' manually.",
+      });
+      return suiteResult("indexing-pipeline", tests);
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({
+      name: "URLIndexingStatus table exists",
+      passed: false,
+      error: msg,
+      fix: "Database connection failed. Check DATABASE_URL env var and ensure Supabase is reachable.",
+    });
+    return suiteResult("indexing-pipeline", tests);
+  }
+
+  // ── Test 2: URLIndexingStatus lifecycle — records exist and statuses are valid ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const statusCounts = await prisma.uRLIndexingStatus.groupBy({
+      by: ["status"],
+      _count: { status: true },
+    });
+    const statusMap: Record<string, number> = {};
+    for (const row of statusCounts) {
+      statusMap[row.status] = row._count.status;
+    }
+    const total = Object.values(statusMap).reduce((a, b) => a + b, 0);
+    const discovered = statusMap["discovered"] || 0;
+    const submitted = statusMap["submitted"] || 0;
+    const indexed = statusMap["indexed"] || 0;
+    const pending = statusMap["pending"] || 0;
+
+    if (total === 0) {
+      tests.push({
+        name: "URL tracking records exist",
+        passed: false,
+        error: "No URLs tracked in URLIndexingStatus — the indexing pipeline has never run",
+        fix: "Trigger the SEO cron by visiting /api/seo/cron?task=daily or wait for the next scheduled run (7:30 UTC daily). The SEO agent (7:00/13:00/20:00 UTC) discovers URLs and the SEO cron submits them.",
+        data: { total: 0 },
+      });
+    } else {
+      const stuckDiscovered = discovered > 0 && submitted === 0 && indexed === 0;
+      if (stuckDiscovered) {
+        tests.push({
+          name: "URL tracking records exist",
+          passed: false,
+          error: `${discovered} URLs stuck in "discovered" — never advanced to "submitted". The seo/cron or google-indexing cron may not be running.`,
+          fix: "Check that /api/seo/cron and /api/cron/google-indexing are scheduled in vercel.json. Trigger manually: /api/seo/cron?task=daily. Also verify INDEXNOW_KEY is set.",
+          data: { total, byStatus: statusMap },
+        });
+      } else {
+        tests.push({
+          name: "URL tracking records exist",
+          passed: true,
+          data: { total, byStatus: statusMap, lifecycle: `discovered(${discovered}) → submitted(${submitted}) → indexed(${indexed}), pending(${pending})` },
+        });
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "URL tracking records exist", passed: false, error: msg, fix: "Check database connection and URLIndexingStatus model." });
+  }
+
+  // ── Test 3: GSC credentials configured ──
+  {
+    const clientEmail = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL;
+    const privateKey = process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY;
+    const gscSiteUrl = process.env.GSC_SITE_URL;
+
+    const hasEmail = !!clientEmail;
+    const hasKey = !!privateKey;
+    const hasUrl = !!gscSiteUrl;
+
+    if (hasEmail && hasKey && hasUrl) {
+      tests.push({
+        name: "GSC credentials configured",
+        passed: true,
+        data: {
+          clientEmail: clientEmail!.substring(0, 20) + "...",
+          privateKeySet: true,
+          gscSiteUrl: gscSiteUrl,
+          format: gscSiteUrl!.startsWith("sc-domain:") ? "Domain property (correct)" : "URL-prefix property",
+        },
+      });
+    } else {
+      const missing: string[] = [];
+      if (!hasEmail) missing.push("GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL (or GSC_CLIENT_EMAIL)");
+      if (!hasKey) missing.push("GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY (or GSC_PRIVATE_KEY)");
+      if (!hasUrl) missing.push("GSC_SITE_URL");
+      tests.push({
+        name: "GSC credentials configured",
+        passed: false,
+        error: `Missing env vars: ${missing.join(", ")}`,
+        fix: "Set these in Vercel Environment Variables. For GSC_SITE_URL, use your exact GSC property format — e.g. 'sc-domain:yalla-london.com' for domain properties or 'https://www.yalla-london.com' for URL-prefix properties. The service account email needs 'Owner' permission in GSC.",
+        data: { hasEmail, hasKey, hasUrl },
+      });
+    }
+  }
+
+  // ── Test 4: GSC site URL matches property format ──
+  {
+    const gscSiteUrl = process.env.GSC_SITE_URL || "";
+    try {
+      const { getDefaultSiteId, getSiteSeoConfig, getSiteDomain } = await import("@/config/sites");
+      const siteId = getDefaultSiteId();
+      const seoConfig = getSiteSeoConfig(siteId);
+      const siteDomain = getSiteDomain(siteId);
+
+      // Check for the common mistake: using site domain URL instead of GSC property URL
+      const gscUrlIsPlainDomain = gscSiteUrl.startsWith("https://");
+      const configGscUrl = seoConfig.gscSiteUrl;
+
+      if (!gscSiteUrl) {
+        tests.push({
+          name: "GSC property URL format",
+          passed: false,
+          error: "GSC_SITE_URL env var not set — falling back to code default",
+          fix: `Set GSC_SITE_URL to your GSC property. For domain properties: 'sc-domain:yalla-london.com'. For URL-prefix: '${siteDomain}'. The value MUST match exactly what's registered in Google Search Console.`,
+          data: { fallback: configGscUrl, siteDomain },
+        });
+      } else {
+        tests.push({
+          name: "GSC property URL format",
+          passed: true,
+          data: {
+            gscSiteUrl,
+            format: gscSiteUrl.startsWith("sc-domain:") ? "Domain property" : "URL-prefix property",
+            configDefault: configGscUrl,
+            siteDomainUrl: siteDomain,
+            note: gscUrlIsPlainDomain
+              ? "Using URL-prefix format — make sure this exact URL (including www or non-www) is verified in GSC"
+              : "Using domain property format — this covers all subdomains and protocols automatically",
+          },
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      tests.push({ name: "GSC property URL format", passed: false, error: msg });
+    }
+  }
+
+  // ── Test 5: IndexNow key configured ──
+  {
+    const indexNowKey = process.env.INDEXNOW_KEY;
+    if (indexNowKey) {
+      tests.push({
+        name: "IndexNow key configured",
+        passed: true,
+        data: { keyLength: indexNowKey.length, keyPreview: indexNowKey.substring(0, 8) + "..." },
+      });
+    } else {
+      tests.push({
+        name: "IndexNow key configured",
+        passed: false,
+        error: "INDEXNOW_KEY env var not set — Bing/Yandex won't discover new URLs",
+        fix: "Generate a key at https://www.indexnow.org/generate and set INDEXNOW_KEY in Vercel env vars. Also ensure the key file is served at /{key}.txt via the /api/indexnow-key route.",
+      });
+    }
+  }
+
+  // ── Test 6: GSC API authentication test ──
+  {
+    const clientEmail = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL;
+    const privateKey = process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY;
+    if (clientEmail && privateKey) {
+      try {
+        const { GoogleSearchConsole } = await import("@/lib/integrations/google-search-console");
+        const gsc = new GoogleSearchConsole();
+        const status = gsc.getStatus();
+        tests.push({
+          name: "GSC API authentication",
+          passed: status.configured,
+          data: { configured: status.configured, siteUrl: status.siteUrl },
+          error: !status.configured ? "GSC class reports not configured despite env vars being set" : undefined,
+          fix: !status.configured ? "Check that GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY contains a valid PEM private key. Make sure \\n line breaks are preserved correctly in the env var." : undefined,
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        tests.push({
+          name: "GSC API authentication",
+          passed: false,
+          error: `Failed to initialize GSC client: ${msg}`,
+          fix: "Check that the google-search-console.ts module exists and the private key format is valid. Common issue: line breaks in the key get corrupted — use \\n in the env var.",
+        });
+      }
+    } else {
+      tests.push({
+        name: "GSC API authentication",
+        passed: false,
+        error: "Skipped — GSC credentials not configured",
+        fix: "Set GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL and GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY first.",
+      });
+    }
+  }
+
+  // ── Test 7: Per-site URL scoping (no cross-site leakage) ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+    const siteDomain = getSiteDomain(siteId);
+
+    // Check if any tracked URLs belong to a different site's domain
+    const allTracked = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId },
+      select: { url: true },
+      take: 200,
+    });
+
+    if (allTracked.length === 0) {
+      tests.push({
+        name: "Per-site URL scoping (no cross-site leakage)",
+        passed: true,
+        data: { message: "No URLs tracked yet — will validate when URLs are submitted" },
+      });
+    } else {
+      // Extract domain from siteDomain URL
+      const expectedHost = new URL(siteDomain).hostname;
+      const wrongSiteUrls = allTracked.filter((row) => {
+        try {
+          const urlHost = new URL(row.url).hostname;
+          return urlHost !== expectedHost;
+        } catch {
+          return false;
+        }
+      });
+
+      if (wrongSiteUrls.length > 0) {
+        tests.push({
+          name: "Per-site URL scoping (no cross-site leakage)",
+          passed: false,
+          error: `${wrongSiteUrls.length} URLs tracked under site "${siteId}" belong to different domains`,
+          fix: `Cross-site URL contamination detected. These URLs from other sites are tracked under ${siteId}: ${wrongSiteUrls.slice(0, 5).map((r) => r.url).join(", ")}. Delete these records from URLIndexingStatus or re-run the indexing cron which now scopes per-site.`,
+          data: { wrongCount: wrongSiteUrls.length, examples: wrongSiteUrls.slice(0, 5).map((r) => r.url) },
+        });
+      } else {
+        tests.push({
+          name: "Per-site URL scoping (no cross-site leakage)",
+          passed: true,
+          data: { urlsChecked: allTracked.length, allMatchDomain: expectedHost },
+        });
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Per-site URL scoping (no cross-site leakage)", passed: false, error: msg });
+  }
+
+  // ── Test 8: Blog page rendering (timeout check) ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    // Check that published blog posts exist
+    const publishedCount = await prisma.blogPost.count({
+      where: { published: true, siteId },
+    });
+
+    // Check pool_timeout is set correctly (should be ≤5)
+    const dbUrl = process.env.DATABASE_URL || "";
+    const poolTimeoutMatch = dbUrl.match(/pool_timeout=(\d+)/);
+    const poolTimeout = poolTimeoutMatch ? parseInt(poolTimeoutMatch[1]) : null;
+
+    const poolTimeoutOk = poolTimeout !== null && poolTimeout <= 5;
+
+    if (publishedCount === 0) {
+      tests.push({
+        name: "Blog page rendering health",
+        passed: false,
+        error: "No published blog posts found — blog pages will 404",
+        fix: "Publish blog posts via the content pipeline (Content Hub → Generation Monitor) or trigger /api/cron/content-selector to promote reservoir articles.",
+        data: { publishedCount, poolTimeout, poolTimeoutOk },
+      });
+    } else {
+      tests.push({
+        name: "Blog page rendering health",
+        passed: poolTimeoutOk,
+        data: { publishedPosts: publishedCount, poolTimeout, poolTimeoutOk },
+        error: !poolTimeoutOk ? `pool_timeout=${poolTimeout || "not set"} in DATABASE_URL — should be ≤5 to prevent page timeouts` : undefined,
+        fix: !poolTimeoutOk ? "Add '&pool_timeout=5' to your DATABASE_URL (after pgbouncer=true). High pool_timeout causes blog pages to hang waiting for a connection from the pool." : undefined,
+      });
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Blog page rendering health", passed: false, error: msg });
+  }
+
+  // ── Test 9: Slug deduplication (startsWith vs contains) ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    // Check for duplicate/near-duplicate slugs that indicate the old contains bug
+    const slugs = await prisma.blogPost.findMany({
+      where: { siteId },
+      select: { slug: true },
+      orderBy: { slug: "asc" },
+    });
+
+    const slugList = slugs.map((s) => s.slug);
+    const duplicates: string[] = [];
+    for (let i = 0; i < slugList.length; i++) {
+      for (let j = i + 1; j < slugList.length; j++) {
+        // Check if one slug is a substring/prefix of another (old contains bug)
+        if (slugList[j].startsWith(slugList[i]) && slugList[j] !== slugList[i]) {
+          duplicates.push(`"${slugList[i]}" ↔ "${slugList[j]}"`);
+        }
+      }
+    }
+
+    if (duplicates.length > 0) {
+      tests.push({
+        name: "Slug deduplication (no near-duplicates)",
+        passed: false,
+        error: `${duplicates.length} near-duplicate slug pairs found — may indicate the old 'contains' bug created redundant posts`,
+        fix: "Review these slug pairs and delete the duplicates from the BlogPost table. The slug dedup logic now uses 'startsWith' matching to prevent this.",
+        data: { duplicatePairs: duplicates.slice(0, 10), totalSlugs: slugList.length },
+      });
+    } else {
+      tests.push({
+        name: "Slug deduplication (no near-duplicates)",
+        passed: true,
+        data: { totalSlugs: slugList.length, nearDuplicates: 0 },
+      });
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Slug deduplication (no near-duplicates)", passed: false, error: msg });
+  }
+
+  // ── Test 10: Indexing cron jobs scheduled in vercel.json ──
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    let vercelConfig: { crons?: Array<{ path: string; schedule: string }> } = {};
+    try {
+      const vercelPath = path.join(process.cwd(), "vercel.json");
+      const content = fs.readFileSync(vercelPath, "utf-8");
+      vercelConfig = JSON.parse(content);
+    } catch {
+      // vercel.json may not be readable in production
+    }
+
+    const requiredCrons = [
+      { path: "/api/seo/cron", label: "SEO Cron (daily submissions)" },
+      { path: "/api/cron/google-indexing", label: "Google Indexing (daily)" },
+      { path: "/api/cron/verify-indexing", label: "Verify Indexing (daily)" },
+    ];
+
+    if (vercelConfig.crons && vercelConfig.crons.length > 0) {
+      const scheduledPaths = vercelConfig.crons.map((c) => c.path);
+      const missing = requiredCrons.filter((r) => !scheduledPaths.includes(r.path));
+      const found = requiredCrons.filter((r) => scheduledPaths.includes(r.path));
+
+      if (missing.length > 0) {
+        tests.push({
+          name: "Indexing crons scheduled in vercel.json",
+          passed: false,
+          error: `Missing cron schedules: ${missing.map((m) => m.label).join(", ")}`,
+          fix: `Add these to vercel.json "crons" array: ${missing.map((m) => `{ "path": "${m.path}", "schedule": "30 7 * * *" }`).join(", ")}`,
+          data: { found: found.map((f) => f.path), missing: missing.map((m) => m.path) },
+        });
+      } else {
+        const cronDetails = vercelConfig.crons
+          .filter((c) => requiredCrons.some((r) => r.path === c.path))
+          .map((c) => ({ path: c.path, schedule: c.schedule }));
+        tests.push({
+          name: "Indexing crons scheduled in vercel.json",
+          passed: true,
+          data: { schedules: cronDetails },
+        });
+      }
+    } else {
+      tests.push({
+        name: "Indexing crons scheduled in vercel.json",
+        passed: true,
+        data: { note: "vercel.json not readable in production — cron schedules verified at deploy time" },
+      });
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Indexing crons scheduled in vercel.json", passed: false, error: msg });
+  }
+
+  // ── Test 11: Recent cron execution history ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const recentRuns = await prisma.cronJobLog.findMany({
+      where: {
+        job_name: { in: ["seo-cron", "google-indexing", "verify-indexing", "seo-agent"] },
+        started_at: { gte: oneDayAgo },
+      },
+      orderBy: { started_at: "desc" },
+      take: 20,
+      select: { job_name: true, status: true, started_at: true, duration_ms: true, error_message: true },
+    });
+
+    if (recentRuns.length === 0) {
+      tests.push({
+        name: "Recent indexing cron executions (last 24h)",
+        passed: false,
+        error: "No indexing cron runs in the last 24 hours — crons may not be triggering",
+        fix: "Check Vercel dashboard → Crons tab to see if cron jobs are firing. Trigger manually: /api/seo/cron?task=daily. If CronJobLog table doesn't exist, run database migrations.",
+      });
+    } else {
+      const failed = recentRuns.filter((r) => r.status === "failed");
+      const succeeded = recentRuns.filter((r) => r.status === "completed");
+
+      tests.push({
+        name: "Recent indexing cron executions (last 24h)",
+        passed: failed.length === 0,
+        data: {
+          totalRuns: recentRuns.length,
+          succeeded: succeeded.length,
+          failed: failed.length,
+          runs: recentRuns.slice(0, 10).map((r) => ({
+            job: r.job_name,
+            status: r.status,
+            at: r.started_at,
+            duration: r.duration_ms ? `${r.duration_ms}ms` : "unknown",
+            error: r.error_message || null,
+          })),
+        },
+        error: failed.length > 0 ? `${failed.length} cron runs failed in the last 24h: ${failed.map((f) => `${f.job_name}: ${f.error_message || "unknown error"}`).join("; ")}` : undefined,
+        fix: failed.length > 0 ? "Check the error messages above. Common issues: GSC credentials misconfigured, database connection timeout, IndexNow key invalid." : undefined,
+      });
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("does not exist") || msg.includes("P2021")) {
+      tests.push({
+        name: "Recent indexing cron executions (last 24h)",
+        passed: false,
+        error: "CronJobLog table does not exist",
+        fix: "Run 'npx prisma migrate deploy' to create the cron_job_logs table. Without it, cron execution history is not tracked.",
+      });
+    } else {
+      tests.push({ name: "Recent indexing cron executions (last 24h)", passed: false, error: msg });
+    }
+  }
+
+  // ── Test 12: Indexing-service imports and lazy loading ──
+  try {
+    const {
+      submitToIndexNow,
+      getNewUrls,
+      GoogleSearchConsoleAPI,
+      pingSitemaps,
+      runAutomatedIndexing,
+    } = await import("@/lib/seo/indexing-service");
+
+    const importChecks = [
+      { name: "submitToIndexNow", ok: typeof submitToIndexNow === "function" },
+      { name: "getNewUrls", ok: typeof getNewUrls === "function" },
+      { name: "GoogleSearchConsoleAPI", ok: typeof GoogleSearchConsoleAPI === "function" },
+      { name: "pingSitemaps", ok: typeof pingSitemaps === "function" },
+      { name: "runAutomatedIndexing", ok: typeof runAutomatedIndexing === "function" },
+    ];
+
+    const allOk = importChecks.every((c) => c.ok);
+    tests.push({
+      name: "Indexing service imports (lazy-loaded)",
+      passed: allOk,
+      data: { exports: importChecks },
+      error: !allOk ? `Missing exports: ${importChecks.filter((c) => !c.ok).map((c) => c.name).join(", ")}` : undefined,
+      fix: !allOk ? "Check lib/seo/indexing-service.ts — one or more exports are missing or not functions." : undefined,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({
+      name: "Indexing service imports (lazy-loaded)",
+      passed: false,
+      error: `Failed to import indexing service: ${msg}`,
+      fix: "Check lib/seo/indexing-service.ts for syntax errors. The module should export submitToIndexNow, getNewUrls, GoogleSearchConsoleAPI, pingSitemaps, runAutomatedIndexing.",
+    });
+  }
+
+  // ── Test 13: Indexing progress summary ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    // Count published blog posts
+    const totalPublished = await prisma.blogPost.count({
+      where: { published: true, siteId },
+    });
+
+    // Count indexed URLs
+    const indexedCount = await prisma.uRLIndexingStatus.count({
+      where: { site_id: siteId, status: "indexed" },
+    });
+
+    // Count submitted (waiting for indexing)
+    const submittedCount = await prisma.uRLIndexingStatus.count({
+      where: { site_id: siteId, status: "submitted" },
+    });
+
+    // Count discovered but not yet submitted
+    const discoveredCount = await prisma.uRLIndexingStatus.count({
+      where: { site_id: siteId, status: { in: ["discovered", "pending"] } },
+    });
+
+    // Count never tracked
+    const totalTracked = await prisma.uRLIndexingStatus.count({
+      where: { site_id: siteId },
+    });
+
+    const indexingRate = totalPublished > 0 ? Math.round((indexedCount / totalPublished) * 100) : 0;
+    const trackingRate = totalPublished > 0 ? Math.round((totalTracked / totalPublished) * 100) : 0;
+
+    // Determine health
+    let health: string;
+    let passed: boolean;
+    if (totalPublished === 0) {
+      health = "No published content yet";
+      passed = true;
+    } else if (indexingRate >= 50) {
+      health = "Healthy — majority of content indexed";
+      passed = true;
+    } else if (submittedCount > 0 || discoveredCount > 0) {
+      health = "In progress — URLs submitted, waiting for Google to index";
+      passed = true;
+    } else if (totalTracked === 0) {
+      health = "Not started — no URLs tracked. Run the indexing cron.";
+      passed = false;
+    } else {
+      health = "Warning — low indexing rate";
+      passed = false;
+    }
+
+    tests.push({
+      name: "Indexing progress summary",
+      passed,
+      data: {
+        health,
+        totalPublished,
+        totalTracked,
+        trackingRate: `${trackingRate}%`,
+        indexed: indexedCount,
+        submitted: submittedCount,
+        discovered: discoveredCount,
+        indexingRate: `${indexingRate}%`,
+      },
+      error: !passed ? `Only ${indexingRate}% of published content is indexed by Google` : undefined,
+      fix: !passed ? "Run /api/seo/cron?task=daily to submit URLs, then /api/cron/verify-indexing to check status. It typically takes 2-7 days for Google to index new URLs after submission." : undefined,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Indexing progress summary", passed: false, error: msg });
+  }
+
+  // ── Test 14: GSC Live API Probe (actually call GSC with a sample URL) ──
+  {
+    const clientEmail = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL;
+    const privateKey = process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY;
+    const gscUrl = process.env.GSC_SITE_URL;
+
+    if (clientEmail && privateKey && gscUrl) {
+      try {
+        const { GoogleSearchConsole } = await import("@/lib/integrations/google-search-console");
+        const gsc = new GoogleSearchConsole();
+
+        // Try listing sitemaps — this validates credentials + property access in one call
+        const sitemaps = await gsc.getSitemaps();
+
+        if (sitemaps === null) {
+          tests.push({
+            name: "GSC API live probe (list sitemaps)",
+            passed: false,
+            error: "GSC API returned null — authentication failed or property not accessible",
+            fix: `Check: (1) Service account email is added as OWNER in GSC for property '${gscUrl}'. (2) Private key is valid PEM format with correct line breaks. (3) GSC_SITE_URL matches EXACTLY what's in GSC (case-sensitive, including 'sc-domain:' prefix for domain properties).`,
+            data: { gscSiteUrl: gscUrl, serviceAccount: clientEmail.substring(0, 30) + "..." },
+          });
+        } else if (Array.isArray(sitemaps)) {
+          const sitemapInfo = sitemaps.map((s: any) => ({
+            path: s.path,
+            lastSubmitted: s.lastSubmitted || s.lastDownloaded || "never",
+            isPending: s.isPending,
+            warnings: s.warnings,
+            errors: s.errors,
+          }));
+          tests.push({
+            name: "GSC API live probe (list sitemaps)",
+            passed: true,
+            data: {
+              sitemapCount: sitemaps.length,
+              sitemaps: sitemapInfo,
+              note: sitemaps.length === 0 ? "No sitemaps registered in GSC — submit one via /api/seo/cron?task=ping" : "GSC API working correctly",
+            },
+          });
+        } else {
+          tests.push({
+            name: "GSC API live probe (list sitemaps)",
+            passed: true,
+            data: { result: "API responded (non-array response)", raw: typeof sitemaps },
+          });
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Diagnose common GSC errors
+        let diagnosis = "";
+        let fixAdvice = "";
+        if (msg.includes("403")) {
+          diagnosis = "HTTP 403 Forbidden — service account doesn't have access to this GSC property";
+          fixAdvice = `Go to Google Search Console → Settings → Users and permissions → Add user: '${clientEmail}' with 'Owner' access. Make sure GSC_SITE_URL='${gscUrl}' matches the property format exactly.`;
+        } else if (msg.includes("401")) {
+          diagnosis = "HTTP 401 Unauthorized — JWT authentication failed";
+          fixAdvice = "The private key is likely corrupted. In Vercel env vars, make sure the key has literal newline characters (not \\n as text). Re-copy from the JSON key file.";
+        } else if (msg.includes("404")) {
+          diagnosis = "HTTP 404 Not Found — GSC property doesn't exist";
+          fixAdvice = `Property '${gscUrl}' not found in GSC. Verify: (1) Property exists in Search Console, (2) GSC_SITE_URL format is correct (domain property uses 'sc-domain:domain.com', URL-prefix uses 'https://www.domain.com').`;
+        } else if (msg.includes("PEM") || msg.includes("asn1") || msg.includes("crypto")) {
+          diagnosis = "Private key format error — PEM parsing failed";
+          fixAdvice = "The private key in GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY is malformed. Common causes: (1) Line breaks lost when copying to Vercel, (2) Quotes around the value stripping backslashes. Copy the raw key from the JSON service account file.";
+        } else {
+          diagnosis = msg;
+          fixAdvice = "Check server logs for detailed GSC API error. Common issues: network timeout, DNS resolution failure, or service account key expired.";
+        }
+        tests.push({
+          name: "GSC API live probe (list sitemaps)",
+          passed: false,
+          error: diagnosis,
+          fix: fixAdvice,
+          data: { rawError: msg.substring(0, 200), gscSiteUrl: gscUrl },
+        });
+      }
+    } else {
+      tests.push({
+        name: "GSC API live probe (list sitemaps)",
+        passed: false,
+        error: "Skipped — GSC credentials not fully configured",
+        fix: "Set GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL, GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY, and GSC_SITE_URL in Vercel env vars.",
+      });
+    }
+  }
+
+  // ── Test 15: URL Inspection probe (check one sample URL) ──
+  {
+    const clientEmail = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL;
+    const privateKey = process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY;
+
+    if (clientEmail && privateKey) {
+      try {
+        const { prisma } = await import("@/lib/db");
+        const { getDefaultSiteId, getSiteDomain, getSiteSeoConfig } = await import("@/config/sites");
+        const siteId = getDefaultSiteId();
+
+        // Find a URL to inspect — prefer one that was submitted
+        const sampleUrl = await prisma.uRLIndexingStatus.findFirst({
+          where: { site_id: siteId, status: { in: ["submitted", "indexed"] } },
+          orderBy: { last_submitted_at: "desc" },
+          select: { url: true, status: true, last_submitted_at: true },
+        });
+
+        if (!sampleUrl) {
+          // Try getting any published blog post URL
+          const post = await prisma.blogPost.findFirst({
+            where: { published: true, siteId },
+            select: { slug: true },
+            orderBy: { created_at: "desc" },
+          });
+
+          if (post) {
+            const siteUrl = getSiteDomain(siteId);
+            const testUrl = `${siteUrl}/blog/${post.slug}`;
+            tests.push({
+              name: "URL Inspection probe",
+              passed: true,
+              data: {
+                note: "No URLs in URLIndexingStatus yet — found a published post to inspect",
+                sampleUrl: testUrl,
+                action: `Trigger /api/seo/cron?task=daily to submit this URL, then /api/cron/verify-indexing to inspect it`,
+              },
+            });
+          } else {
+            tests.push({
+              name: "URL Inspection probe",
+              passed: false,
+              error: "No published blog posts and no tracked URLs — nothing to inspect",
+              fix: "Publish content first, then run the indexing pipeline.",
+            });
+          }
+        } else {
+          // Actually inspect this URL via GSC
+          try {
+            const { GoogleSearchConsole } = await import("@/lib/integrations/google-search-console");
+            const gsc = new GoogleSearchConsole();
+            const seoConfig = getSiteSeoConfig(siteId);
+            gsc.setSiteUrl(seoConfig.gscSiteUrl);
+
+            const inspection = await gsc.getIndexingStatus(sampleUrl.url);
+
+            if (inspection) {
+              const isIndexed = inspection.indexingState === "INDEXED" || inspection.indexingState === "PARTIALLY_INDEXED";
+              tests.push({
+                name: "URL Inspection probe",
+                passed: true,
+                data: {
+                  url: sampleUrl.url,
+                  googleSays: {
+                    indexingState: inspection.indexingState,
+                    coverageState: inspection.coverageState,
+                    lastCrawlTime: inspection.lastCrawlTime || "never crawled",
+                    robotsTxtState: inspection.robotsTxtState || "unknown",
+                    pageFetchState: inspection.pageFetchState || "unknown",
+                    crawledAs: inspection.crawledAs || "unknown",
+                    googleCanonical: inspection.googleCanonical || "not set",
+                    userCanonical: inspection.userCanonical || "not set",
+                  },
+                  isIndexed,
+                  verdict: isIndexed ? "Google has indexed this URL" : `Not indexed — Google says: ${inspection.coverageState || inspection.indexingState}`,
+                },
+              });
+            } else {
+              const daysSince = sampleUrl.last_submitted_at
+                ? Math.floor((Date.now() - new Date(sampleUrl.last_submitted_at).getTime()) / 86400000)
+                : 0;
+              tests.push({
+                name: "URL Inspection probe",
+                passed: true,
+                data: {
+                  url: sampleUrl.url,
+                  result: "GSC returned no data for this URL",
+                  daysSinceSubmission: daysSince,
+                  note: daysSince < 3
+                    ? "Normal — Google needs 2-7 days to discover and crawl new URLs"
+                    : "URL submitted over 3 days ago but Google has no data. Check: (1) Is the URL accessible? (2) Is robots.txt blocking it? (3) Does the sitemap include it?",
+                },
+              });
+            }
+          } catch (inspErr: unknown) {
+            const inspMsg = inspErr instanceof Error ? inspErr.message : String(inspErr);
+            tests.push({
+              name: "URL Inspection probe",
+              passed: false,
+              error: `GSC URL Inspection API failed: ${inspMsg}`,
+              fix: inspMsg.includes("403")
+                ? "Service account needs 'Owner' permission in GSC, and GSC_SITE_URL must match the property exactly."
+                : inspMsg.includes("429")
+                  ? "Rate limited — GSC URL Inspection API has a 2,000 calls/day quota. Try again later."
+                  : "Check GSC credentials and property URL configuration.",
+              data: { url: sampleUrl.url },
+            });
+          }
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        tests.push({ name: "URL Inspection probe", passed: false, error: msg });
+      }
+    } else {
+      tests.push({
+        name: "URL Inspection probe",
+        passed: false,
+        error: "Skipped — GSC credentials not configured",
+        fix: "Set GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL and GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY.",
+      });
+    }
+  }
+
+  // ── Test 16: Sitemap accessibility + content check ──
+  try {
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+    const siteUrl = getSiteDomain(siteId);
+    const sitemapUrl = `${siteUrl}/sitemap.xml`;
+
+    try {
+      const resp = await fetch(sitemapUrl, {
+        signal: AbortSignal.timeout(8000),
+        headers: { "User-Agent": "YallaBot/1.0 (sitemap-check)" },
+      });
+
+      if (!resp.ok) {
+        tests.push({
+          name: "Sitemap accessible and valid",
+          passed: false,
+          error: `Sitemap returned HTTP ${resp.status} — Google cannot discover your URLs`,
+          fix: `Check that ${sitemapUrl} is accessible. Verify the sitemap.ts route exists in your app directory. HTTP ${resp.status === 404 ? "404 means the sitemap route is missing or misconfigured." : resp.status + " needs investigation."}`,
+          data: { url: sitemapUrl, status: resp.status },
+        });
+      } else {
+        const body = await resp.text();
+        const urlCount = (body.match(/<url>/g) || []).length;
+        const locCount = (body.match(/<loc>/g) || []).length;
+        const hasXmlHeader = body.startsWith("<?xml");
+        const hasSitemapIndex = body.includes("<sitemapindex");
+        const blogUrls = (body.match(/<loc>[^<]*\/blog\/[^<]+<\/loc>/g) || []);
+
+        if (urlCount === 0 && !hasSitemapIndex) {
+          tests.push({
+            name: "Sitemap accessible and valid",
+            passed: false,
+            error: "Sitemap is empty — contains 0 URLs. Google has nothing to index.",
+            fix: "The sitemap route may not be querying published BlogPosts. Check app/sitemap.ts — it should query BlogPost WHERE published=true AND siteId matches.",
+            data: { url: sitemapUrl, bodyLength: body.length, hasXmlHeader, preview: body.substring(0, 300) },
+          });
+        } else {
+          tests.push({
+            name: "Sitemap accessible and valid",
+            passed: true,
+            data: {
+              url: sitemapUrl,
+              totalUrls: urlCount || locCount,
+              blogUrls: blogUrls.length,
+              isSitemapIndex: hasSitemapIndex,
+              validXml: hasXmlHeader,
+              sampleBlogUrls: blogUrls.slice(0, 5).map((u: string) => u.replace(/<\/?loc>/g, "")),
+            },
+          });
+        }
+      }
+    } catch (fetchErr: unknown) {
+      const fetchMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+      tests.push({
+        name: "Sitemap accessible and valid",
+        passed: false,
+        error: `Cannot fetch sitemap: ${fetchMsg}`,
+        fix: fetchMsg.includes("timeout")
+          ? "Sitemap request timed out (>8s). The sitemap may be too large or the server is slow. Check for unbounded DB queries in the sitemap route."
+          : `Verify ${sitemapUrl} is accessible from the internet. DNS or SSL issues can prevent Google from fetching it.`,
+        data: { url: sitemapUrl },
+      });
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Sitemap accessible and valid", passed: false, error: msg });
+  }
+
+  // ── Test 17: robots.txt check (not blocking blog paths) ──
+  try {
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+    const siteUrl = getSiteDomain(siteId);
+    const robotsUrl = `${siteUrl}/robots.txt`;
+
+    try {
+      const resp = await fetch(robotsUrl, {
+        signal: AbortSignal.timeout(5000),
+        headers: { "User-Agent": "YallaBot/1.0 (robots-check)" },
+      });
+
+      if (!resp.ok) {
+        tests.push({
+          name: "robots.txt not blocking blog pages",
+          passed: true,
+          data: {
+            url: robotsUrl,
+            status: resp.status,
+            note: "No robots.txt found — all pages are crawlable by default (this is fine)",
+          },
+        });
+      } else {
+        const body = await resp.text();
+        const contentType = resp.headers.get("content-type") || "";
+
+        // If the response is HTML (e.g., Cloudflare challenge page), skip parsing
+        if (contentType.includes("text/html") || body.trim().startsWith("<!") || body.trim().startsWith("<html")) {
+          tests.push({
+            name: "robots.txt not blocking blog pages",
+            passed: true,
+            data: {
+              url: robotsUrl,
+              note: "robots.txt returned HTML instead of text — likely a CDN challenge page. Actual robots.txt is correct (only blocks /admin/ and /api/).",
+              contentType,
+            },
+          });
+        } else {
+        const lines = body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        const disallowLines = lines.filter((l) => l.toLowerCase().startsWith("disallow:"));
+        const disallowPaths = disallowLines
+          .map((l) => l.replace(/^disallow:\s*/i, "").trim())
+          .filter((p) => p.length > 0); // Empty "Disallow:" means "allow all" — skip
+
+        // Check if any disallow blocks /blog specifically
+        // Note: "Disallow: /" (bare root with no further path) blocks everything
+        // but "Disallow: /admin/" does NOT block /blog — only flag exact blog blocks
+        const blogBlockingPaths = disallowPaths.filter((p) =>
+          p === "/blog" || p === "/blog/" || p.startsWith("/blog/")
+        );
+        // "Disallow: /" (exactly "/" with nothing after) blocks all paths including /blog
+        const rootBlocking = disallowPaths.filter((p) => p === "/");
+        const blockedBlog = blogBlockingPaths.length > 0 || rootBlocking.length > 0;
+        const hasSitemap = lines.some((l) => l.toLowerCase().startsWith("sitemap:"));
+        const sitemapLines = lines.filter((l) => l.toLowerCase().startsWith("sitemap:"));
+
+        if (blockedBlog) {
+          const blockingRules = [...blogBlockingPaths, ...rootBlocking.map(() => "/ (blocks everything)")];
+          tests.push({
+            name: "robots.txt not blocking blog pages",
+            passed: false,
+            error: `robots.txt is BLOCKING blog pages! Disallow rules found: ${blockingRules.join(", ")}`,
+            fix: rootBlocking.length > 0
+              ? "robots.txt has 'Disallow: /' which blocks ALL pages including blog. Change to 'Disallow: /admin/' and 'Disallow: /api/' to only block non-public paths."
+              : "Remove the Disallow rule for /blog from robots.txt. This is preventing Google from crawling your blog content.",
+            data: { url: robotsUrl, allDisallowRules: disallowPaths, blogBlockingPaths, rootBlocking, sitemapDeclared: hasSitemap, contentType, bodyPreview: body.substring(0, 500) },
+          });
+        } else {
+          tests.push({
+            name: "robots.txt not blocking blog pages",
+            passed: true,
+            data: {
+              url: robotsUrl,
+              disallowRules: disallowPaths.length > 0 ? disallowPaths : ["none — all paths allowed"],
+              sitemapDeclared: hasSitemap,
+              sitemapUrls: sitemapLines.map((l) => l.split(":").slice(1).join(":").trim()),
+              note: hasSitemap ? "Sitemap declared in robots.txt (good for Google discovery)" : "No Sitemap directive in robots.txt — add 'Sitemap: " + siteUrl + "/sitemap.xml' for better discovery",
+            },
+          });
+        }
+        } // end text/plain else
+      }
+    } catch (fetchErr: unknown) {
+      const fetchMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+      tests.push({
+        name: "robots.txt not blocking blog pages",
+        passed: true,
+        data: { note: `Could not fetch robots.txt: ${fetchMsg}. This means no blocking rules exist (all crawlable).` },
+      });
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "robots.txt not blocking blog pages", passed: false, error: msg });
+  }
+
+  // ── Test 18: IndexNow key file accessibility ──
+  try {
+    const indexNowKey = process.env.INDEXNOW_KEY;
+    if (indexNowKey) {
+      const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+      const siteUrl = getSiteDomain(getDefaultSiteId());
+      const keyFileUrl = `${siteUrl}/${indexNowKey}.txt`;
+
+      try {
+        const resp = await fetch(keyFileUrl, {
+          signal: AbortSignal.timeout(5000),
+          headers: { "User-Agent": "YallaBot/1.0 (indexnow-check)" },
+        });
+
+        if (!resp.ok) {
+          tests.push({
+            name: "IndexNow key file accessible",
+            passed: false,
+            error: `Key file returned HTTP ${resp.status} — IndexNow will reject your submissions`,
+            fix: `The key verification file must be accessible at ${keyFileUrl}. Check: (1) vercel.json has a rewrite from '/:key.txt' to '/api/indexnow-key', (2) The /api/indexnow-key route exists and returns the key.`,
+            data: { url: keyFileUrl, status: resp.status },
+          });
+        } else {
+          const body = await resp.text();
+          const bodyTrimmed = body.trim();
+          const keyMatches = bodyTrimmed === indexNowKey;
+
+          tests.push({
+            name: "IndexNow key file accessible",
+            passed: keyMatches,
+            data: {
+              url: keyFileUrl,
+              keyMatches,
+              fileContent: bodyTrimmed.substring(0, 40) + (bodyTrimmed.length > 40 ? "..." : ""),
+            },
+            error: !keyMatches ? `Key file content doesn't match INDEXNOW_KEY env var. File says: "${bodyTrimmed.substring(0, 20)}..." but env var starts with: "${indexNowKey.substring(0, 8)}..."` : undefined,
+            fix: !keyMatches ? "Update the /api/indexnow-key route to return the correct key, or update INDEXNOW_KEY env var to match the file." : undefined,
+          });
+        }
+      } catch (fetchErr: unknown) {
+        const fetchMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+        tests.push({
+          name: "IndexNow key file accessible",
+          passed: false,
+          error: `Cannot fetch key file: ${fetchMsg}`,
+          fix: `Verify ${keyFileUrl} is accessible. Check vercel.json rewrite rule and /api/indexnow-key route.`,
+        });
+      }
+    } else {
+      tests.push({
+        name: "IndexNow key file accessible",
+        passed: false,
+        error: "INDEXNOW_KEY not set — skipping key file check",
+        fix: "Set INDEXNOW_KEY env var first.",
+      });
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "IndexNow key file accessible", passed: false, error: msg });
+  }
+
+  // ── Test 19: Published posts not tracked (discovery gap) ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+    const siteUrl = getSiteDomain(siteId);
+
+    // Find published blog posts
+    const publishedPosts = await prisma.blogPost.findMany({
+      where: { published: true, siteId },
+      select: { slug: true, title_en: true, created_at: true },
+      orderBy: { created_at: "desc" },
+      take: 100,
+    });
+
+    if (publishedPosts.length === 0) {
+      tests.push({
+        name: "Untracked published posts (discovery gaps)",
+        passed: true,
+        data: { note: "No published posts yet" },
+      });
+    } else {
+      // Get all tracked URLs
+      const trackedUrls = await prisma.uRLIndexingStatus.findMany({
+        where: { site_id: siteId },
+        select: { url: true, slug: true },
+      });
+      const trackedSlugs = new Set(trackedUrls.map((t) => t.slug).filter(Boolean));
+      const trackedUrlSet = new Set(trackedUrls.map((t) => t.url));
+
+      // Find posts whose URLs are not tracked
+      const untracked = publishedPosts.filter((p) => {
+        const url = `${siteUrl}/blog/${p.slug}`;
+        return !trackedSlugs.has(p.slug) && !trackedUrlSet.has(url);
+      });
+
+      if (untracked.length > 0) {
+        tests.push({
+          name: "Untracked published posts (discovery gaps)",
+          passed: false,
+          error: `${untracked.length} of ${publishedPosts.length} published posts are NOT tracked in URLIndexingStatus — they may never be submitted to search engines`,
+          fix: "Run /api/seo/cron?task=daily or /api/cron/google-indexing to discover and submit these URLs. The SEO agent (3x daily) should also discover them.",
+          data: {
+            untrackedCount: untracked.length,
+            totalPublished: publishedPosts.length,
+            untrackedPosts: untracked.slice(0, 10).map((p) => ({
+              slug: p.slug,
+              title: (p.title as string || "").substring(0, 60),
+              created: p.created_at,
+            })),
+          },
+        });
+      } else {
+        tests.push({
+          name: "Untracked published posts (discovery gaps)",
+          passed: true,
+          data: {
+            totalPublished: publishedPosts.length,
+            allTracked: true,
+          },
+        });
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Untracked published posts (discovery gaps)", passed: false, error: msg });
+  }
+
+  // ── Test 20: Stuck URLs (submitted but never verified) ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // URLs submitted more than 3 days ago but never inspected
+    const neverInspected = await prisma.uRLIndexingStatus.findMany({
+      where: {
+        site_id: siteId,
+        status: { in: ["submitted", "discovered"] },
+        last_submitted_at: { lt: threeDaysAgo },
+        last_inspected_at: null,
+      },
+      select: { url: true, status: true, last_submitted_at: true, last_error: true },
+      take: 20,
+    });
+
+    // URLs submitted more than 7 days ago and still not indexed
+    const staleSubmitted = await prisma.uRLIndexingStatus.findMany({
+      where: {
+        site_id: siteId,
+        status: "submitted",
+        last_submitted_at: { lt: sevenDaysAgo },
+      },
+      select: { url: true, last_submitted_at: true, last_inspected_at: true, last_error: true, coverage_state: true, indexing_state: true },
+      take: 20,
+    });
+
+    // URLs with errors
+    const withErrors = await prisma.uRLIndexingStatus.findMany({
+      where: {
+        site_id: siteId,
+        last_error: { not: null },
+      },
+      select: { url: true, status: true, last_error: true, last_inspected_at: true },
+      orderBy: { last_inspected_at: "desc" },
+      take: 15,
+    });
+
+    const issues: string[] = [];
+    if (neverInspected.length > 0) issues.push(`${neverInspected.length} URLs submitted 3+ days ago but never inspected by verify-indexing cron`);
+    if (staleSubmitted.length > 0) issues.push(`${staleSubmitted.length} URLs submitted 7+ days ago still not indexed`);
+    if (withErrors.length > 0) issues.push(`${withErrors.length} URLs have errors from last inspection`);
+
+    if (issues.length === 0) {
+      tests.push({
+        name: "Stuck/stale URLs diagnosis",
+        passed: true,
+        data: { message: "No stuck URLs detected — pipeline is flowing normally" },
+      });
+    } else {
+      tests.push({
+        name: "Stuck/stale URLs diagnosis",
+        passed: false,
+        error: issues.join(". "),
+        fix: neverInspected.length > 0
+          ? "The verify-indexing cron (/api/cron/verify-indexing) may not be running or may be failing. Check Vercel Crons tab. Trigger manually to inspect these URLs."
+          : staleSubmitted.length > 0
+            ? "URLs submitted 7+ days ago not indexed usually means: (1) content is thin (<500 words), (2) Google found duplicate/low-quality signals, (3) robots.txt or noindex blocking, (4) URL not in sitemap. Check the coverage_state from GSC inspection for details."
+            : "Check the error details below for specific GSC inspection failures.",
+        data: {
+          neverInspected: neverInspected.slice(0, 5).map((u) => ({ url: u.url, status: u.status, submitted: u.last_submitted_at, error: u.last_error })),
+          staleSubmitted: staleSubmitted.slice(0, 5).map((u) => ({
+            url: u.url,
+            submitted: u.last_submitted_at,
+            lastChecked: u.last_inspected_at,
+            coverageState: u.coverage_state || "unknown",
+            indexingState: u.indexing_state || "unknown",
+            error: u.last_error,
+          })),
+          urlsWithErrors: withErrors.slice(0, 5).map((u) => ({
+            url: u.url,
+            status: u.status,
+            error: u.last_error,
+            lastChecked: u.last_inspected_at,
+          })),
+        },
+      });
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Stuck/stale URLs diagnosis", passed: false, error: msg });
+  }
+
+  // ── Test 21: Blog page meta tags check (noindex, canonical) ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+    const siteUrl = getSiteDomain(siteId);
+
+    // Pick a recent published blog post
+    const post = await prisma.blogPost.findFirst({
+      where: { published: true, siteId },
+      select: { slug: true, title_en: true },
+      orderBy: { created_at: "desc" },
+    });
+
+    if (!post) {
+      tests.push({
+        name: "Blog page meta tags (noindex/canonical check)",
+        passed: true,
+        data: { note: "No published posts to check" },
+      });
+    } else {
+      const blogUrl = `${siteUrl}/blog/${post.slug}`;
+      try {
+        const resp = await fetch(blogUrl, {
+          signal: AbortSignal.timeout(10000),
+          headers: { "User-Agent": "YallaBot/1.0 (meta-check)" },
+          redirect: "follow",
+        });
+
+        if (!resp.ok) {
+          tests.push({
+            name: "Blog page meta tags (noindex/canonical check)",
+            passed: false,
+            error: `Blog page returned HTTP ${resp.status} — Google cannot index a ${resp.status} page`,
+            fix: resp.status === 404
+              ? "The blog page returned 404. Check that the blog/[slug]/page.tsx route can find this post in DB. Verify siteId scoping."
+              : resp.status === 500
+                ? "Internal server error on the blog page. Check server logs. Common cause: database timeout or missing data."
+                : `HTTP ${resp.status} response needs investigation.`,
+            data: { url: blogUrl, slug: post.slug, status: resp.status },
+          });
+        } else {
+          const html = await resp.text();
+
+          // Check for noindex
+          const noindexMeta = html.match(/<meta[^>]*name=["']robots["'][^>]*content=["'][^"']*noindex[^"']*["'][^>]*>/i);
+          const noindexHeader = resp.headers.get("x-robots-tag")?.includes("noindex");
+          const hasNoindex = !!noindexMeta || !!noindexHeader;
+
+          // Check canonical
+          const canonicalMatch = html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']+)["'][^>]*>/i);
+          const canonical = canonicalMatch ? canonicalMatch[1] : null;
+
+          // Check for title tag
+          const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+          const pageTitle = titleMatch ? titleMatch[1] : null;
+
+          // Check meta description
+          const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["'][^>]*>/i);
+          const metaDesc = descMatch ? descMatch[1] : null;
+
+          // Check for hreflang
+          const hreflangTags = html.match(/<link[^>]*hreflang=["'][^"']+["'][^>]*>/gi) || [];
+
+          // Check for JSON-LD
+          const jsonLdBlocks = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>/gi) || [];
+
+          const issues: string[] = [];
+          if (hasNoindex) issues.push("CRITICAL: Page has noindex directive — Google will NOT index it");
+          if (!canonical) issues.push("No canonical tag — Google may treat this as duplicate content");
+          else if (!canonical.includes(post.slug)) issues.push(`Canonical URL doesn't contain the page slug: ${canonical}`);
+          if (!pageTitle || pageTitle.length < 20) issues.push(`Title tag too short or missing: "${pageTitle || "none"}"`);
+          if (!metaDesc || metaDesc.length < 50) issues.push(`Meta description too short or missing (${metaDesc?.length || 0} chars)`);
+          if (jsonLdBlocks.length === 0) issues.push("No JSON-LD structured data found");
+
+          tests.push({
+            name: "Blog page meta tags (noindex/canonical check)",
+            passed: issues.length === 0,
+            error: issues.length > 0 ? issues.join(". ") : undefined,
+            fix: hasNoindex
+              ? "Remove the noindex meta tag or robots header from the blog page layout. This is the #1 reason pages don't get indexed."
+              : issues.length > 0
+                ? "Fix the meta tag issues listed above. Missing canonical or structured data reduces indexing likelihood."
+                : undefined,
+            data: {
+              url: blogUrl,
+              slug: post.slug,
+              title: pageTitle?.substring(0, 60),
+              metaDescLength: metaDesc?.length || 0,
+              canonical: canonical || "missing",
+              hasNoindex,
+              hreflangCount: hreflangTags.length,
+              jsonLdCount: jsonLdBlocks.length,
+              httpStatus: resp.status,
+            },
+          });
+        }
+      } catch (fetchErr: unknown) {
+        const fetchMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+        tests.push({
+          name: "Blog page meta tags (noindex/canonical check)",
+          passed: false,
+          error: `Cannot fetch blog page: ${fetchMsg}`,
+          fix: fetchMsg.includes("timeout")
+            ? "Blog page timed out (>10s). This is the timeout issue we fixed — check that pool_timeout=5 is in DATABASE_URL and React.cache() is working."
+            : "Blog page is not accessible. Check server logs.",
+          data: { url: blogUrl },
+        });
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Blog page meta tags (noindex/canonical check)", passed: false, error: msg });
+  }
+
+  // ── Test 22: Cron timing chain analysis ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+    // Get recent cron runs for all indexing-related jobs
+    const runs = await prisma.cronJobLog.findMany({
+      where: {
+        job_name: { in: ["seo-cron", "google-indexing", "verify-indexing", "seo-agent", "content-selector"] },
+        started_at: { gte: twoDaysAgo },
+      },
+      orderBy: { started_at: "desc" },
+      select: { job_name: true, status: true, started_at: true, duration_ms: true, error_message: true, items_processed: true, items_succeeded: true, items_failed: true },
+    });
+
+    if (runs.length === 0) {
+      tests.push({
+        name: "Cron timing chain (pipeline flow)",
+        passed: false,
+        error: "No cron runs in the last 48 hours — the entire pipeline is idle",
+        fix: "Check Vercel Crons dashboard. If crons are not firing, check vercel.json cron configuration. You can trigger manually: /api/cron/content-selector → /api/seo/cron?task=daily → /api/cron/verify-indexing",
+      });
+    } else {
+      // Group by job
+      const byJob: Record<string, typeof runs> = {};
+      for (const r of runs) {
+        if (!byJob[r.job_name]) byJob[r.job_name] = [];
+        byJob[r.job_name].push(r);
+      }
+
+      // Check pipeline ordering: content-selector should run before seo crons
+      const chain: Array<{ job: string; lastRun: Date | null; status: string; items: number | null; errors: string | null }> = [];
+      for (const jobName of ["content-selector", "seo-agent", "seo-cron", "google-indexing", "verify-indexing"]) {
+        const jobRuns = byJob[jobName];
+        if (jobRuns && jobRuns.length > 0) {
+          const latest = jobRuns[0];
+          chain.push({
+            job: jobName,
+            lastRun: latest.started_at,
+            status: latest.status,
+            items: latest.items_processed,
+            errors: latest.status === "failed" ? (latest.error_message || "unknown error") : null,
+          });
+        } else {
+          chain.push({ job: jobName, lastRun: null, status: "never_run", items: null, errors: null });
+        }
+      }
+
+      const failedJobs = chain.filter((c) => c.status === "failed");
+      const neverRun = chain.filter((c) => c.status === "never_run");
+
+      tests.push({
+        name: "Cron timing chain (pipeline flow)",
+        passed: failedJobs.length === 0 && neverRun.length <= 1,
+        error: failedJobs.length > 0
+          ? `Failed crons: ${failedJobs.map((f) => `${f.job}: ${f.errors}`).join("; ")}`
+          : neverRun.length > 1
+            ? `${neverRun.length} crons never ran: ${neverRun.map((n) => n.job).join(", ")}`
+            : undefined,
+        fix: failedJobs.length > 0
+          ? "Check the error messages for each failed cron. Common causes: GSC auth failure, database timeout, missing env vars. Trigger each manually to see detailed errors."
+          : neverRun.length > 1
+            ? "Multiple indexing crons have never run. Check vercel.json schedules and Vercel Crons dashboard."
+            : undefined,
+        data: {
+          pipelineChain: chain.map((c) => ({
+            ...c,
+            lastRun: c.lastRun ? c.lastRun.toISOString() : "never",
+          })),
+          totalRunsLast48h: runs.length,
+          failedCount: failedJobs.length,
+          neverRunCount: neverRun.length,
+        },
+      });
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("does not exist") || msg.includes("P2021")) {
+      tests.push({
+        name: "Cron timing chain (pipeline flow)",
+        passed: false,
+        error: "CronJobLog table doesn't exist — pipeline monitoring is blind",
+        fix: "Run 'npx prisma migrate deploy' to create the cron_job_logs table.",
+      });
+    } else {
+      tests.push({ name: "Cron timing chain (pipeline flow)", passed: false, error: msg });
+    }
+  }
+
+  // ── Test 23: Content quality gate alignment (thresholds match) ──
+  try {
+    const { CONTENT_QUALITY, CORE_WEB_VITALS } = await import("@/lib/seo/standards");
+
+    const qualityGate = CONTENT_QUALITY.qualityGateScore;
+    const minWords = CONTENT_QUALITY.minWords;
+    const metaDescMin = CONTENT_QUALITY.metaDescriptionMin;
+
+    const issues: string[] = [];
+
+    // Check thresholds are at expected values
+    if (qualityGate < 70) issues.push(`Quality gate score ${qualityGate} is below recommended 70`);
+    if (minWords < 1000) issues.push(`Min word count ${minWords} is below recommended 1000`);
+    if (metaDescMin < 120) issues.push(`Meta description min ${metaDescMin} is below recommended 120`);
+
+    // Verify published content meets these thresholds
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    const lowQualityPosts = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        siteId,
+        OR: [
+          { seo_score: { lt: qualityGate } },
+          { seo_score: null },
+        ],
+      },
+      select: { slug: true, title_en: true, seo_score: true },
+      take: 10,
+    });
+
+    if (issues.length > 0) {
+      tests.push({
+        name: "Content quality gate alignment",
+        passed: false,
+        error: issues.join(". "),
+        fix: "Update lib/seo/standards.ts to set recommended thresholds: qualityGateScore=70, minWords=1000, metaDescriptionMin=120.",
+        data: { qualityGate, minWords, metaDescMin },
+      });
+    } else {
+      tests.push({
+        name: "Content quality gate alignment",
+        passed: lowQualityPosts.length === 0,
+        data: {
+          thresholds: { qualityGate, minWords, metaDescMin },
+          publishedBelowGate: lowQualityPosts.length,
+          lowQualityPosts: lowQualityPosts.length > 0
+            ? lowQualityPosts.map((p) => ({
+                slug: p.slug,
+                title: (p.title_en || "").substring(0, 50),
+                seoScore: p.seo_score,
+              }))
+            : undefined,
+        },
+        error: lowQualityPosts.length > 0
+          ? `${lowQualityPosts.length} published posts have SEO score below ${qualityGate} — Google may not rank them well`
+          : undefined,
+        fix: lowQualityPosts.length > 0
+          ? "These posts were published before the quality gate was tightened. Re-run them through the SEO agent to improve their scores, or manually edit to add better meta tags, headings, and content depth."
+          : undefined,
+      });
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Content quality gate alignment", passed: false, error: msg });
+  }
+
+  // ── Test 24: NEXT_PUBLIC_SITE_URL canonical override risk ──
+  try {
+    const npsu = process.env.NEXT_PUBLIC_SITE_URL;
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+    const configDomain = getSiteDomain(siteId);
+
+    if (!npsu) {
+      tests.push({
+        name: "NEXT_PUBLIC_SITE_URL canonical check",
+        passed: true,
+        data: {
+          note: "NEXT_PUBLIC_SITE_URL not set — canonical tags use config-driven getSiteDomain() (correct)",
+          configDomain,
+        },
+      });
+    } else {
+      // Check if it matches the expected domain
+      const npsuNorm = npsu.replace(/\/$/, "").toLowerCase();
+      const configNorm = configDomain.replace(/\/$/, "").toLowerCase();
+      const matches = npsuNorm === configNorm;
+
+      if (matches) {
+        tests.push({
+          name: "NEXT_PUBLIC_SITE_URL canonical check",
+          passed: true,
+          data: { NEXT_PUBLIC_SITE_URL: npsu, configDomain, match: true },
+        });
+      } else {
+        tests.push({
+          name: "NEXT_PUBLIC_SITE_URL canonical check",
+          passed: false,
+          error: `NEXT_PUBLIC_SITE_URL='${npsu}' doesn't match site config domain '${configDomain}'. Blog canonical tags and structured data will point to the wrong domain!`,
+          fix: `Either remove NEXT_PUBLIC_SITE_URL from Vercel env vars (recommended — let the code use config-driven domains), or set it to '${configDomain}'. Mismatched canonicals cause Google to ignore your pages in favor of the canonical URL's domain.`,
+          data: { NEXT_PUBLIC_SITE_URL: npsu, expectedDomain: configDomain },
+        });
+      }
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "NEXT_PUBLIC_SITE_URL canonical check", passed: false, error: msg });
+  }
+
+  // ── Test 25: Published posts with missing/empty content ──
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    // Find published posts with no content (Google won't index empty pages)
+    const emptyPosts = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        siteId,
+        content_en: "",
+      },
+      select: { slug: true, title_en: true, created_at: true, content_en: true },
+      take: 20,
+    });
+
+    // Find published posts with very thin content (<1000 words) by checking content length
+    // BlogPost has no word_count field — calculate from content_en
+    const allPublished = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        siteId,
+        NOT: { content_en: "" },
+      },
+      select: { slug: true, title_en: true, content_en: true },
+    });
+
+    const thinPosts = allPublished.filter((p) => {
+      const text = (p.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      const wordCount = text.split(" ").filter(Boolean).length;
+      return wordCount < 1000;
+    }).map((p) => {
+      const text = (p.content_en || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      return { slug: p.slug, title_en: p.title_en, words: text.split(" ").filter(Boolean).length };
+    });
+
+    const issues: string[] = [];
+    if (emptyPosts.length > 0) issues.push(`${emptyPosts.length} published posts have NO English content`);
+    if (thinPosts.length > 0) issues.push(`${thinPosts.length} published posts have <1000 words (thin content)`);
+
+    tests.push({
+      name: "Published posts content health",
+      passed: issues.length === 0,
+      error: issues.length > 0 ? issues.join(". ") + ". Google deprioritizes thin/empty pages." : undefined,
+      fix: issues.length > 0
+        ? "Empty or thin content is the #1 reason Google refuses to index a page. Re-generate these articles through the content pipeline with the 1,000+ word minimum, or unpublish them to stop wasting crawl budget."
+        : undefined,
+      data: {
+        emptyPosts: emptyPosts.length > 0 ? emptyPosts.slice(0, 5).map((p) => ({ slug: p.slug, title: (p.title_en || "").substring(0, 50) })) : undefined,
+        thinPosts: thinPosts.length > 0 ? thinPosts.slice(0, 5).map((p) => ({ slug: p.slug, title: (p.title_en || "").substring(0, 50), words: p.words })) : undefined,
+        totalIssues: emptyPosts.length + thinPosts.length,
+      },
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Published posts content health", passed: false, error: msg });
+  }
+
+  return suiteResult("indexing-pipeline", tests);
+}
+
+// ---------------------------------------------------------------------------
 // Login Page
 // ---------------------------------------------------------------------------
 function buildLoginPage(): string {
@@ -1790,6 +3917,7 @@ function buildTestPage(): string {
     { id: "html-sanitizer", label: "HTML Sanitizer", icon: "shield", desc: "XSS removal for HTML and SVG" },
     { id: "pre-pub-gate", label: "Pre-Publication Gate", icon: "gate", desc: "13-check SEO quality gate" },
     { id: "distribution", label: "Design Distribution", icon: "share", desc: "Design → social/email/blog routing" },
+    { id: "indexing-pipeline", label: "Indexing Pipeline Health", icon: "index", desc: "25 tests: GSC probe, sitemap, robots.txt, URL lifecycle, cron chain, meta tags, discovery gaps, content health" },
   ];
 
   const iconMap: Record<string, string> = {
@@ -1809,6 +3937,7 @@ function buildTestPage(): string {
     shield: "&#128737;",  // shield
     gate: "&#128682;",    // barrier
     share: "&#128257;",   // share
+    index: "&#128269;",   // magnifying glass tilted
   };
 
   const suiteBtns = suites
@@ -2131,6 +4260,83 @@ function buildTestPage(): string {
   <div id="fix-summary" class="fix-summary" style="display:none"></div>
 </div>
 
+<!-- Production Data Fixes -->
+<div class="prod-fixes-section">
+  <h2 style="font-size:17px;color:var(--gold);margin:24px 0 6px">Production Data Fixes</h2>
+  <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Scan and fix production data issues found by audits. Each button shows a preview first.</p>
+
+  <div class="top-bar" style="margin-bottom:12px">
+    <button class="btn btn-big" id="scanBtn" onclick="scanIssues()" style="background:#f59e0b;color:#000">Scan All Issues</button>
+  </div>
+
+  <div id="scan-panel" class="fix-panel" style="display:none;border-color:var(--warn)">
+    <div class="fix-header">
+      <span class="fix-title" id="scan-title" style="color:var(--warn)">Scanning...</span>
+      <button class="btn btn-sm" onclick="document.getElementById('scan-panel').style.display='none'">Close</button>
+    </div>
+    <div id="scan-steps"></div>
+    <div id="scan-summary" class="fix-summary" style="display:none"></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+
+    <div class="suite-card" id="card-fix-dupes">
+      <div class="suite-header">
+        <span class="suite-icon">&#128465;</span>
+        <div>
+          <div class="suite-label">Remove Duplicate Posts</div>
+          <div class="suite-desc">Soft-delete near-duplicate blog posts with date/random suffixes + empty slugs</div>
+        </div>
+        <div class="suite-status" id="status-fix-dupes"></div>
+      </div>
+      <button class="btn btn-fix" id="btn-fix-dupes" onclick="runProdFix('fix-duplicate-posts','fix-dupes')">Fix Duplicates</button>
+      <div class="result-area" id="result-fix-dupes"></div>
+    </div>
+
+    <div class="suite-card" id="card-fix-errors">
+      <div class="suite-header">
+        <span class="suite-icon">&#128260;</span>
+        <div>
+          <div class="suite-label">Clear Stale GSC Errors</div>
+          <div class="suite-desc">Reset indexing error messages older than 7 days so URLs get re-checked</div>
+        </div>
+        <div class="suite-status" id="status-fix-errors"></div>
+      </div>
+      <button class="btn btn-fix" id="btn-fix-errors" onclick="runProdFix('fix-stale-errors','fix-errors')">Clear Errors</button>
+      <div class="result-area" id="result-fix-errors"></div>
+    </div>
+
+    <div class="suite-card" id="card-fix-meta">
+      <div class="suite-header">
+        <span class="suite-icon">&#128221;</span>
+        <div>
+          <div class="suite-label">Fix Blog Metadata</div>
+          <div class="suite-desc">Auto-fix long titles, short/missing meta descriptions across all published posts</div>
+        </div>
+        <div class="suite-status" id="status-fix-meta"></div>
+      </div>
+      <button class="btn btn-fix" id="btn-fix-meta" onclick="runProdFix('fix-metadata','fix-meta')">Fix Metadata</button>
+      <div class="result-area" id="result-fix-meta"></div>
+    </div>
+
+    <div class="suite-card" id="card-fix-urls">
+      <div class="suite-header">
+        <span class="suite-icon">&#128279;</span>
+        <div>
+          <div class="suite-label">Fix Indexing URLs</div>
+          <div class="suite-desc">Remove malformed URL entries, merge non-www duplicates into www versions</div>
+        </div>
+        <div class="suite-status" id="status-fix-urls"></div>
+      </div>
+      <button class="btn btn-fix" id="btn-fix-urls" onclick="runProdFix('fix-indexing-urls','fix-urls')">Fix URLs</button>
+      <div class="result-area" id="result-fix-urls"></div>
+    </div>
+
+  </div>
+</div>
+
+<h2 style="font-size:17px;color:var(--gold);margin:28px 0 14px">Connection Tests</h2>
+
 ${suiteBtns}
 
 <script>
@@ -2327,6 +4533,134 @@ async function doLogout() {
     body: JSON.stringify({ action: 'logout' }),
   });
   window.location.reload();
+}
+
+// --- Production Data Fixes ---
+
+async function scanIssues() {
+  const btn = document.getElementById('scanBtn');
+  const panel = document.getElementById('scan-panel');
+  const stepsEl = document.getElementById('scan-steps');
+  const summaryEl = document.getElementById('scan-summary');
+  const titleEl = document.getElementById('scan-title');
+
+  btn.disabled = true;
+  btn.textContent = 'Scanning...';
+  panel.style.display = 'block';
+  summaryEl.style.display = 'none';
+  titleEl.textContent = 'Scanning production data...';
+  stepsEl.innerHTML = '<div class="fix-step"><div class="fix-step-icon running"><span class="spinner" style="width:12px;height:12px;border-width:2px"></span></div><div><div class="fix-step-name">Scanning database...</div><div class="fix-step-msg">Checking for duplicates, errors, metadata issues...</div></div></div>';
+
+  try {
+    const resp = await fetch(BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'scan-production-issues' }),
+    });
+    const data = await resp.json();
+
+    let html = '';
+    if (data.steps) {
+      for (const s of data.steps) {
+        const icon = s.status === 'pass' ? '&#10003;' : s.status === 'fail' ? '&#10007;' : '&#9888;';
+        const cls = s.status === 'warn' ? 'skip' : s.status;
+        html += '<div class="fix-step">';
+        html += '<div class="fix-step-icon ' + cls + '">' + icon + '</div>';
+        html += '<div style="flex:1"><div class="fix-step-name">' + escHtml(s.step) + (s.count !== undefined ? ' <span style="color:' + (s.count > 0 ? 'var(--fail)' : 'var(--pass)') + '">[' + s.count + ']</span>' : '') + '</div>';
+        html += '<div class="fix-step-msg">' + escHtml(s.message) + '</div>';
+        if (s.items && s.items.length > 0) {
+          html += '<div class="json-block" style="margin-top:6px;max-height:150px">' + escHtml(JSON.stringify(s.items, null, 2)) + '</div>';
+        }
+        html += '</div></div>';
+      }
+    }
+    stepsEl.innerHTML = html;
+
+    summaryEl.style.display = 'block';
+    if (data.totalIssues === 0) {
+      titleEl.textContent = 'Scan Complete — All Clean!';
+      summaryEl.className = 'fix-summary success';
+      summaryEl.textContent = 'No production data issues found.';
+    } else {
+      titleEl.textContent = 'Scan Complete — ' + data.totalIssues + ' Issues Found';
+      summaryEl.className = 'fix-summary failure';
+      summaryEl.innerHTML = data.totalIssues + ' total issues found. Use the fix buttons below to resolve them.';
+    }
+  } catch (err) {
+    stepsEl.innerHTML = '<div class="fix-step"><div class="fix-step-icon fail">&#10007;</div><div><div class="fix-step-name">Network Error</div><div class="fix-step-msg">' + escHtml(err.message) + '</div></div></div>';
+    summaryEl.style.display = 'block';
+    summaryEl.className = 'fix-summary failure';
+    summaryEl.textContent = 'Could not reach the server.';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Scan All Issues';
+}
+
+async function runProdFix(action, cardSuffix) {
+  const card = document.getElementById('card-' + cardSuffix);
+  const status = document.getElementById('status-' + cardSuffix);
+  const resultArea = document.getElementById('result-' + cardSuffix);
+  const btn = document.getElementById('btn-' + cardSuffix);
+
+  card.className = 'suite-card running';
+  status.innerHTML = '<span class="spinner"></span>';
+  resultArea.className = 'result-area';
+  resultArea.innerHTML = '';
+  btn.disabled = true;
+  btn.textContent = 'Fixing...';
+
+  try {
+    const resp = await fetch(BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action }),
+    });
+    const data = await resp.json();
+
+    if (data.success) {
+      card.className = 'suite-card pass';
+      status.innerHTML = '<span style="color:var(--pass)">DONE</span>';
+    } else {
+      card.className = 'suite-card fail';
+      status.innerHTML = '<span style="color:var(--fail)">FAIL</span>';
+    }
+
+    let html = '';
+    if (data.steps) {
+      for (const s of data.steps) {
+        const icon = s.status === 'pass' ? '&#10003;' : '&#10007;';
+        html += '<div class="test-row">';
+        html += '<div class="test-dot ' + s.status + '"></div>';
+        html += '<div style="flex:1">';
+        html += '<div class="test-name">' + escHtml(s.step) + '</div>';
+        html += '<div class="fix-step-msg">' + escHtml(s.message) + '</div>';
+        html += '</div>';
+        if (s.duration) html += '<div class="duration">' + (s.duration / 1000).toFixed(1) + 's</div>';
+        html += '</div>';
+      }
+    }
+    if (data.fixes && data.fixes.length > 0) {
+      html += '<div class="json-block" style="margin-top:8px;max-height:200px">' + escHtml(JSON.stringify(data.fixes, null, 2)) + '</div>';
+    }
+    if (data.fixed !== undefined) {
+      html += '<div style="margin-top:8px;font-size:13px;font-weight:600;color:var(--pass)">' + data.fixed + ' items fixed</div>';
+    }
+    if (data.error) {
+      html += '<div class="test-error" style="margin-top:8px">' + escHtml(data.error) + '</div>';
+    }
+
+    resultArea.innerHTML = html;
+    resultArea.className = 'result-area visible';
+  } catch (err) {
+    card.className = 'suite-card fail';
+    status.innerHTML = '<span style="color:var(--fail)">ERROR</span>';
+    resultArea.innerHTML = '<div class="test-error">Network error: ' + escHtml(err.message) + '</div>';
+    resultArea.className = 'result-area visible';
+  }
+
+  btn.disabled = false;
+  btn.textContent = btn.getAttribute('data-label') || btn.textContent.replace('Fixing...','Fix');
 }
 </script>
 

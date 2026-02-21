@@ -2,55 +2,160 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
 
 // ---------------------------------------------------------------------------
-// Auth: CRON_SECRET via ?secret= query param (bookmarkable, no typing needed)
+// Auth: Cookie-based session. Login via admin credentials OR CRON_SECRET.
 // ---------------------------------------------------------------------------
-function checkAuth(request: NextRequest): NextResponse | null {
-  const secret = request.nextUrl.searchParams.get("secret");
+const COOKIE_NAME = "tc_session";
+const SESSION_TTL = 4 * 60 * 60 * 1000; // 4 hours
+
+function getSigningKey(): string {
+  return process.env.NEXTAUTH_SECRET || process.env.CRON_SECRET || "fallback-dev-key";
+}
+
+function createSessionToken(): string {
+  const payload = JSON.stringify({ exp: Date.now() + SESSION_TTL });
+  const sig = createHmac("sha256", getSigningKey()).update(payload).digest("hex");
+  return Buffer.from(payload).toString("base64") + "." + sig;
+}
+
+function verifySessionToken(token: string): boolean {
+  try {
+    const [payloadB64, sig] = token.split(".");
+    if (!payloadB64 || !sig) return false;
+    const payload = Buffer.from(payloadB64, "base64").toString();
+    const expected = createHmac("sha256", getSigningKey()).update(payload).digest("hex");
+    if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+    const data = JSON.parse(payload) as { exp: number };
+    return data.exp > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function isAuthenticated(request: NextRequest): boolean {
+  const cookie = request.cookies.get(COOKIE_NAME)?.value;
+  if (cookie && verifySessionToken(cookie)) return true;
+  return false;
+}
+
+async function isAdminSession(request: NextRequest): Promise<boolean> {
+  try {
+    const { decode } = await import("next-auth/jwt");
+    const secret = process.env.NEXTAUTH_SECRET;
+    if (!secret) return false;
+    const secureCookie = request.cookies.get("__Secure-next-auth.session-token")?.value;
+    const plainCookie = request.cookies.get("next-auth.session-token")?.value;
+    const tokenValue = secureCookie || plainCookie;
+    if (!tokenValue) return false;
+    const decoded = await decode({ secret, token: tokenValue });
+    return !!decoded?.email;
+  } catch {
+    return false;
+  }
+}
+
+async function validateCredentials(input: string): Promise<{ ok: boolean; method: string }> {
+  // Method 1: CRON_SECRET match
   const cronSecret = process.env.CRON_SECRET;
-
-  // If CRON_SECRET not configured, block access entirely
-  if (!cronSecret) {
-    return NextResponse.json(
-      { error: "CRON_SECRET not configured on this deployment" },
-      { status: 503 }
-    );
+  if (cronSecret && input === cronSecret) {
+    return { ok: true, method: "CRON_SECRET" };
   }
 
-  if (secret !== cronSecret) {
-    return NextResponse.json(
-      { error: "Invalid or missing secret" },
-      { status: 401 }
-    );
+  // Method 2: Admin password check (via User table)
+  try {
+    const { prisma } = await import("@/lib/db");
+    const bcrypt = await import("bcryptjs");
+    const admins = await prisma.user.findMany({
+      where: { role: "admin", isActive: true, passwordHash: { not: null } },
+      select: { passwordHash: true },
+    });
+    for (const admin of admins) {
+      if (admin.passwordHash && await bcrypt.compare(input, admin.passwordHash)) {
+        return { ok: true, method: "Admin password" };
+      }
+    }
+  } catch {
+    // bcryptjs may not be installed or DB unreachable — skip, CRON_SECRET still works
   }
 
-  return null; // authorized
+  return { ok: false, method: "" };
 }
 
 // ---------------------------------------------------------------------------
-// GET — Serve the HTML test page
+// GET — Show login page OR test dashboard
 // ---------------------------------------------------------------------------
 export async function GET(request: NextRequest) {
-  const authError = checkAuth(request);
-  if (authError) return authError;
+  // Already authenticated via our cookie?
+  if (isAuthenticated(request)) {
+    return new NextResponse(buildTestPage(), {
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
 
-  const secret = request.nextUrl.searchParams.get("secret")!;
-  const html = buildHtmlPage(secret);
+  // Already logged into admin dashboard? (NextAuth session cookie)
+  if (await isAdminSession(request)) {
+    const response = new NextResponse(buildTestPage(), {
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
+    const token = createSessionToken();
+    response.cookies.set(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: SESSION_TTL / 1000,
+      path: "/api/test-connections",
+    });
+    return response;
+  }
 
-  return new NextResponse(html, {
+  // Not authenticated — show login page
+  return new NextResponse(buildLoginPage(), {
     headers: { "Content-Type": "text/html; charset=utf-8" },
   });
 }
 
 // ---------------------------------------------------------------------------
-// POST — Run a specific test suite
+// POST — Login OR run a test suite
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest) {
-  const authError = checkAuth(request);
-  if (authError) return authError;
-
   const body = await request.json();
+
+  // --- Login action ---
+  if (body.action === "login") {
+    const { password } = body as { password: string };
+    if (!password) {
+      return NextResponse.json({ error: "Password is required" }, { status: 400 });
+    }
+    const result = await validateCredentials(password);
+    if (!result.ok) {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+    const token = createSessionToken();
+    const response = NextResponse.json({ success: true, method: result.method });
+    response.cookies.set(COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: SESSION_TTL / 1000,
+      path: "/api/test-connections",
+    });
+    return response;
+  }
+
+  // --- Logout action ---
+  if (body.action === "logout") {
+    const response = NextResponse.json({ success: true });
+    response.cookies.delete(COOKIE_NAME);
+    return response;
+  }
+
+  // --- Test suite execution (requires auth) ---
+  if (!isAuthenticated(request) && !(await isAdminSession(request))) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
   const { suite } = body as { suite: string };
 
   if (!suite) {
@@ -1111,9 +1216,187 @@ async function testDistribution(): Promise<TestSuiteResult> {
 }
 
 // ---------------------------------------------------------------------------
-// HTML Page Builder
+// Login Page
 // ---------------------------------------------------------------------------
-function buildHtmlPage(secret: string): string {
+function buildLoginPage(): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Test Connections — Login</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --text2: #9ca3af;
+    --fail: #ef4444;
+    --gold: #d4a853;
+    --navy: #1e3a5f;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .login-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 28px;
+    width: 100%;
+    max-width: 400px;
+  }
+  .login-card h1 {
+    font-size: 20px;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .login-card p {
+    color: var(--text2);
+    font-size: 13px;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+  .field {
+    margin-bottom: 16px;
+  }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--text2);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .field input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus { border-color: var(--gold); }
+  .login-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 8px;
+    border: none;
+    background: var(--gold);
+    color: var(--bg);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 8px;
+  }
+  .login-btn:hover { background: #c4983f; }
+  .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .error-msg {
+    color: var(--fail);
+    font-size: 13px;
+    margin-top: 12px;
+    display: none;
+    text-align: center;
+  }
+  .divider {
+    color: var(--text2);
+    font-size: 11px;
+    text-align: center;
+    margin: 16px 0;
+    position: relative;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 35%;
+    height: 1px;
+    background: var(--border);
+  }
+  .divider::before { left: 0; }
+  .divider::after { right: 0; }
+  .admin-hint {
+    color: var(--text2);
+    font-size: 12px;
+    text-align: center;
+    margin-top: 16px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="login-card">
+  <h1>Test Connections</h1>
+  <p>Enter your admin password or cron secret to access the design system test dashboard.</p>
+  <form onsubmit="return doLogin(event)">
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="pw" autocomplete="current-password" placeholder="Admin password or CRON_SECRET" autofocus>
+    </div>
+    <button class="login-btn" type="submit" id="loginBtn">Sign In</button>
+    <div class="error-msg" id="errMsg"></div>
+  </form>
+  <div class="admin-hint">Already logged into the admin dashboard?<br><a href="" onclick="return tryAdminSession()" style="color:var(--gold)">Continue with admin session</a></div>
+</div>
+<script>
+async function doLogin(e) {
+  e.preventDefault();
+  const pw = document.getElementById('pw').value.trim();
+  if (!pw) return false;
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('errMsg');
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+  err.style.display = 'none';
+  try {
+    const resp = await fetch(window.location.pathname, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', password: pw }),
+    });
+    const data = await resp.json();
+    if (data.success) {
+      window.location.reload();
+    } else {
+      err.textContent = data.error || 'Invalid credentials';
+      err.style.display = 'block';
+    }
+  } catch (ex) {
+    err.textContent = 'Network error — try again';
+    err.style.display = 'block';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Sign In';
+  return false;
+}
+function tryAdminSession() {
+  window.location.reload();
+  return false;
+}
+</script>
+</body>
+</html>`;
+}
+
+// ---------------------------------------------------------------------------
+// Test Dashboard Page
+// ---------------------------------------------------------------------------
+function buildTestPage(): string {
   const suites = [
     { id: "db-connection", label: "Database Connection", icon: "db", desc: "Prisma + Supabase connectivity, tables exist" },
     { id: "design-crud", label: "Design CRUD", icon: "palette", desc: "Create, Read, Update, Delete in designs table" },
@@ -1377,12 +1660,12 @@ function buildHtmlPage(secret: string): string {
 <div class="top-bar">
   <button class="btn btn-big" id="runAllBtn" onclick="runAll()">Run All Tests</button>
   <button class="btn" onclick="clearAll()">Clear Results</button>
+  <button class="btn" style="margin-left:auto;border-color:var(--text2);color:var(--text2)" onclick="doLogout()">Logout</button>
 </div>
 
 ${suiteBtns}
 
 <script>
-const SECRET = ${JSON.stringify(secret)};
 const BASE = window.location.pathname;
 const SUITES = ${JSON.stringify(suites.map((s) => s.id))};
 
@@ -1419,7 +1702,7 @@ async function runSuite(suiteId) {
   runningCount++;
 
   try {
-    const resp = await fetch(BASE + '?secret=' + encodeURIComponent(SECRET), {
+    const resp = await fetch(BASE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ suite: suiteId }),
@@ -1499,6 +1782,15 @@ function clearAll() {
 function escHtml(s) {
   if (typeof s !== 'string') return '';
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function doLogout() {
+  await fetch(BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'logout' }),
+  });
+  window.location.reload();
 }
 </script>
 

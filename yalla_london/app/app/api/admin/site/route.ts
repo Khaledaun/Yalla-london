@@ -1,20 +1,13 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase'
+import { withAdminAuth } from '@/lib/admin-middleware'
 import { prisma } from '@/lib/db'
 
 
 
-export async function GET(request: NextRequest) {
+export const GET = withAdminAuth(async (_request: NextRequest) => {
   try {
-    const supabase = createServiceClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     // Get site configuration
     const siteConfig = await prisma.siteConfig.findFirst({
       where: { site_id: 'default' } // For single-site setup
@@ -61,33 +54,26 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching site data:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
-    const supabase = createServiceClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json()
     const { action, data } = body
 
     switch (action) {
       case 'update_hero_config':
         return await handleUpdateHeroConfig(data)
-      
+
       case 'update_homepage_layout':
         return await handleUpdateHomepageLayout(data)
-      
+
       case 'create_homepage_version':
         return await handleCreateHomepageVersion(data)
-      
+
       case 'publish_homepage':
         return await handlePublishHomepage(data)
-      
+
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
@@ -96,7 +82,7 @@ export async function POST(request: NextRequest) {
     console.error('Error processing site request:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})
 
 async function handleUpdateHeroConfig(data: any) {
   const {

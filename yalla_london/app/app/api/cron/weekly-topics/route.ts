@@ -186,18 +186,34 @@ export async function POST(request: NextRequest) {
           if (exists) continue;
 
           // Skip if a published BlogPost already covers this keyword
-          const keywordSlug = keyword.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 40);
+          const keywordSlug = keyword.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 80);
           const publishedExists = await prisma.blogPost.findFirst({
             where: {
               siteId: targetSiteId,
               published: true,
               deletedAt: null,
-              slug: { contains: keywordSlug },
+              slug: { startsWith: keywordSlug },
             },
             select: { id: true },
           });
           if (publishedExists) {
             console.log(`[weekly-topics] Skipping "${keyword}" — published article already exists`);
+            continue;
+          }
+
+          // Also skip if an ArticleDraft is already in the pipeline for this keyword
+          // (prevents near-duplicate topics from entering the pipeline before the
+          // first one has been published)
+          const draftExists = await prisma.articleDraft.findFirst({
+            where: {
+              site_id: targetSiteId,
+              keyword: { startsWith: keywordSlug },
+              current_phase: { not: 'failed' },
+            },
+            select: { id: true },
+          });
+          if (draftExists) {
+            console.log(`[weekly-topics] Skipping "${keyword}" — draft already in pipeline`);
             continue;
           }
 

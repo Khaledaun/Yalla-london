@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -28,13 +29,25 @@ type Props = {
 
 // ─── Database helpers ──────────────────────────────────────────────────────
 
+/** Race a promise against a timeout (ms). Returns null on timeout. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
 async function getDbPost(slug: string, siteId?: string) {
   try {
     const { prisma } = await import("@/lib/db");
-    return await prisma.blogPost.findFirst({
-      where: { slug, published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
-      include: { category: true },
-    });
+    // 8s timeout — fail fast instead of hanging until Vercel's 60s limit
+    return await withTimeout(
+      prisma.blogPost.findFirst({
+        where: { slug, published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
+        include: { category: true },
+      }),
+      8000,
+    );
   } catch {
     return null;
   }
@@ -43,11 +56,14 @@ async function getDbPost(slug: string, siteId?: string) {
 async function getDbSlugs(siteId?: string): Promise<string[]> {
   try {
     const { prisma } = await import("@/lib/db");
-    const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
-      select: { slug: true },
-    });
-    return posts.map((p) => p.slug);
+    const posts = await withTimeout(
+      prisma.blogPost.findMany({
+        where: { published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
+        select: { slug: true },
+      }),
+      8000,
+    );
+    return posts ? posts.map((p) => p.slug) : [];
   } catch {
     return [];
   }
@@ -65,7 +81,13 @@ type PostResult =
   | { source: "db"; post: NonNullable<Awaited<ReturnType<typeof getDbPost>>> }
   | { source: "static"; post: Record<string, any> };
 
-async function findPost(slug: string, siteId?: string): Promise<PostResult | null> {
+/**
+ * findPost is wrapped with React.cache() so that generateMetadata() and
+ * BlogPostPage() share the same DB result within a single request.
+ * Without this, Prisma fires the identical query twice per page render
+ * (Next.js only auto-deduplicates fetch(), not Prisma calls).
+ */
+const findPost = cache(async function findPost(slug: string, siteId?: string): Promise<PostResult | null> {
   // Database first — this is where pipeline-generated articles live
   const dbPost = await getDbPost(slug, siteId);
   if (dbPost) return { source: "db", post: dbPost };
@@ -76,7 +98,7 @@ async function findPost(slug: string, siteId?: string): Promise<PostResult | nul
   if (staticPost) return { source: "static", post: staticPost };
 
   return null;
-}
+});
 
 // ─── Static params (build + ISR) ───────────────────────────────────────────
 
@@ -130,9 +152,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = locale === "ar"
     ? ((post as any).meta_title_ar || post.title_ar || post.title_en)
     : (post.meta_title_en || post.title_en);
-  const description = locale === "ar"
+  const rawDescription = locale === "ar"
     ? ((post as any).meta_description_ar || post.excerpt_ar || post.excerpt_en || "")
     : (post.meta_description_en || post.excerpt_en || "");
+  // Cap at 160 chars — Google truncates beyond this and it hurts CTR
+  const description = rawDescription.length > 160
+    ? rawDescription.slice(0, 157) + "..."
+    : rawDescription;
   const image = post.featured_image || "";
   const createdAt =
     post.created_at instanceof Date

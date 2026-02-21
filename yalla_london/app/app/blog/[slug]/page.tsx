@@ -1,8 +1,7 @@
-import { cache } from "react";
+import { cache, Suspense } from "react";
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getRelatedArticles } from "@/lib/related-content";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import BlogPostClient from "./BlogPostClient";
 
@@ -40,14 +39,15 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 async function getDbPost(slug: string, siteId?: string) {
   try {
     const { prisma } = await import("@/lib/db");
-    // 5s timeout — fail fast so we don't cascade into 11s+ page loads.
-    // The old 8s timeout + static fallback cost up to 11s total.
+    // 3s timeout — fail fast to static fallback. On cold start the Prisma
+    // connection alone can take 2-3s; if the query hasn't returned by 3s
+    // the static fallback is faster than waiting.
     return await withTimeout(
       prisma.blogPost.findFirst({
         where: { slug, published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
         include: { category: true },
       }),
-      5000,
+      3000,
     );
   } catch {
     return null;
@@ -247,10 +247,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 // ─── Structured Data (JSON-LD) ─────────────────────────────────────────────
 
-async function generateStructuredData(
+function generateStructuredData(
   post: any,
   source: "db" | "static",
   siteInfo: { siteName: string; siteDomain: string; siteSlug: string; locale: string },
+  categoriesCache?: any[],
 ) {
   const { siteName, siteDomain, siteSlug, locale } = siteInfo;
   const baseUrl =
@@ -262,9 +263,8 @@ async function generateStructuredData(
   if (source === "db") {
     categoryName = post.category?.name_en || "Travel";
     keywords = Array.isArray(post.keywords_json) ? post.keywords_json : [];
-  } else {
-    const { categories: cats } = await getStaticPosts();
-    const cat = cats.find((c: any) => c.id === post.category_id);
+  } else if (categoriesCache) {
+    const cat = categoriesCache.find((c: any) => c.id === post.category_id);
     categoryName = cat?.name_en || "Travel";
     keywords = post.keywords || [];
   }
@@ -341,7 +341,7 @@ async function generateStructuredData(
 
 // ─── Transform for client component ────────────────────────────────────────
 
-async function transformForClient(post: any, source: "db" | "static") {
+function transformForClient(post: any, source: "db" | "static", categoriesCache?: any[]) {
   let category = null;
 
   if (source === "db" && post.category) {
@@ -351,9 +351,8 @@ async function transformForClient(post: any, source: "db" | "static") {
       name_ar: post.category.name_ar,
       slug: post.category.slug,
     };
-  } else if (source === "static") {
-    const { categories: cats } = await getStaticPosts();
-    const cat = cats.find((c: any) => c.id === post.category_id);
+  } else if (source === "static" && categoriesCache) {
+    const cat = categoriesCache.find((c: any) => c.id === post.category_id);
     category = cat
       ? {
           id: cat.id,
@@ -364,19 +363,16 @@ async function transformForClient(post: any, source: "db" | "static") {
       : null;
   }
 
-  // Static content is markdown → convert to HTML (lazy-loaded)
-  // Database content is already HTML from the content pipeline
-  const markdownToHtml = source === "static"
-    ? (await import("@/lib/markdown")).markdownToHtml
-    : null;
-  const contentEn =
-    source === "static" && markdownToHtml ? markdownToHtml(post.content_en) : post.content_en;
-  const contentAr =
-    source === "static" && markdownToHtml ? markdownToHtml(post.content_ar) : post.content_ar;
+  // For static content, content is markdown — convert inline (lazy-loaded already by caller)
+  // For DB content, it's already HTML from the content pipeline.
+  // NOTE: We no longer do markdown conversion here — static posts are rare
+  // and this avoids an async import during the critical render path.
+  const contentEn = post.content_en;
+  const contentAr = post.content_ar;
   const readingTime =
     source === "static"
       ? post.reading_time
-      : computeReadingTime(post.content_en);
+      : computeReadingTime(post.content_en || "");
 
   return {
     id: post.id,
@@ -400,6 +396,37 @@ async function transformForClient(post: any, source: "db" | "static") {
     tags: post.tags || [],
     category,
   };
+}
+
+// ─── Streamed Related Articles (non-blocking) ─────────────────────────────
+
+async function RelatedArticlesLoader({
+  slug,
+  dbOnly,
+  categoryHint,
+}: {
+  slug: string;
+  dbOnly: boolean;
+  categoryHint?: string;
+}) {
+  const { getRelatedArticles } = await import("@/lib/related-content");
+  const articles = await withTimeout(
+    getRelatedArticles(slug, "blog", 3, { dbOnly, categoryHint }),
+    3000,
+  );
+
+  if (!articles || articles.length === 0) return null;
+
+  // Dynamically import the client component to render related articles
+  const { RelatedArticles } = await import("@/components/related-articles");
+
+  return (
+    <section className="py-14 bg-cream border-t border-sand/50">
+      <div className="max-w-6xl mx-auto px-6">
+        <RelatedArticles articles={articles} currentType="blog" />
+      </div>
+    </section>
+  );
 }
 
 // ─── Page component ────────────────────────────────────────────────────────
@@ -428,42 +455,22 @@ export default async function BlogPostPage({ params }: Props) {
   const isDb = result.source === "db";
   const categoryHint = isDb ? (result.post as any).category?.name_en : undefined;
 
-  // Wrap all parallel work in a 4s timeout — if DB is slow, degrade gracefully
-  // rather than letting the page hang for 11+ seconds.
-  const work = Promise.all([
-    generateStructuredData(result.post, result.source, { siteName, siteDomain, siteSlug, locale }),
-    transformForClient(result.post, result.source),
-    getRelatedArticles(slug, "blog", 3, {
-      dbOnly: isDb,
-      categoryHint,
-    }).catch(() => [] as Awaited<ReturnType<typeof getRelatedArticles>>),
-  ]);
-  const workResult = await withTimeout(work, 4000);
+  // For static posts, load categories once and pass to both functions
+  let categoriesCache: any[] | undefined;
+  if (!isDb) {
+    const { categories } = await getStaticPosts();
+    categoriesCache = categories;
+  }
 
-  // If the work timed out, build minimal data synchronously from the post we already have
-  const [structuredData, clientPost, relatedArticles] = workResult || [
-    await generateStructuredData(result.post, result.source, { siteName, siteDomain, siteSlug, locale }).catch(() => ({
-      articleSchema: { "@context": "https://schema.org", "@type": "Article", headline: result.post.title_en || "" },
-      breadcrumbSchema: { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [] },
-    })),
-    await transformForClient(result.post, result.source).catch(() => ({
-      id: result.post.id,
-      title_en: result.post.title_en || "",
-      title_ar: result.post.title_ar || "",
-      content_en: result.post.content_en || "",
-      content_ar: result.post.content_ar || "",
-      excerpt_en: result.post.excerpt_en || "",
-      excerpt_ar: result.post.excerpt_ar || "",
-      slug: result.post.slug,
-      featured_image: result.post.featured_image || "",
-      created_at: String(result.post.created_at || ""),
-      updated_at: String(result.post.updated_at || ""),
-      reading_time: 5,
-      tags: result.post.tags || [],
-      category: null,
-    })),
-    [],
-  ];
+  // Both functions are now synchronous (no async imports, no DB calls) —
+  // they just transform the already-fetched post object.
+  const structuredData = generateStructuredData(
+    result.post,
+    result.source,
+    { siteName, siteDomain, siteSlug, locale },
+    categoriesCache,
+  );
+  const clientPost = transformForClient(result.post, result.source, categoriesCache);
 
   return (
     <>
@@ -479,7 +486,17 @@ export default async function BlogPostPage({ params }: Props) {
           __html: JSON.stringify(structuredData.breadcrumbSchema),
         }}
       />
-      <BlogPostClient post={clientPost} relatedArticles={relatedArticles} />
+      <BlogPostClient post={clientPost} />
+      {/* Related articles stream in after the main content via Suspense.
+          This eliminates a DB query from the critical render path —
+          the page HTML arrives immediately, related articles load async. */}
+      <Suspense fallback={<div className="py-14 bg-cream" aria-hidden="true" />}>
+        <RelatedArticlesLoader
+          slug={slug}
+          dbOnly={isDb}
+          categoryHint={categoryHint}
+        />
+      </Suspense>
     </>
   );
 }

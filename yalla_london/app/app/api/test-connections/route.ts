@@ -242,17 +242,222 @@ export async function POST(request: NextRequest) {
 }
 
 // ---------------------------------------------------------------------------
-// Fix Issues Handler — runs migrations and verifies tables
+// Fix Issues Handler — executes migration SQL directly via Prisma raw queries
 // ---------------------------------------------------------------------------
+
+// Each missing table's CREATE TABLE + indexes + foreign keys as SQL statements.
+// Uses IF NOT EXISTS so it's safe to re-run.
+const DESIGN_SYSTEM_MIGRATION_SQL: Record<string, string[]> = {
+  designs: [
+    `CREATE TABLE IF NOT EXISTS "designs" (
+      "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
+      "title" TEXT NOT NULL,
+      "description" TEXT,
+      "type" TEXT NOT NULL,
+      "category" TEXT,
+      "site" TEXT NOT NULL,
+      "canvasData" JSONB NOT NULL DEFAULT '{}',
+      "thumbnail" TEXT,
+      "exportedUrls" JSONB,
+      "width" INTEGER NOT NULL DEFAULT 1200,
+      "height" INTEGER NOT NULL DEFAULT 630,
+      "tags" TEXT[],
+      "isTemplate" BOOLEAN NOT NULL DEFAULT false,
+      "templateId" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'draft',
+      "createdBy" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "designs_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "designs_site_type_idx" ON "designs"("site", "type")`,
+    `CREATE INDEX IF NOT EXISTS "designs_status_idx" ON "designs"("status")`,
+    `CREATE INDEX IF NOT EXISTS "designs_isTemplate_idx" ON "designs"("isTemplate")`,
+    `CREATE INDEX IF NOT EXISTS "designs_createdAt_idx" ON "designs"("createdAt")`,
+  ],
+  pdf_guides: [
+    `CREATE TABLE IF NOT EXISTS "pdf_guides" (
+      "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
+      "title" TEXT NOT NULL,
+      "slug" TEXT NOT NULL,
+      "description" TEXT,
+      "site" TEXT NOT NULL,
+      "style" TEXT NOT NULL DEFAULT 'modern',
+      "language" TEXT NOT NULL DEFAULT 'en',
+      "contentSections" JSONB NOT NULL DEFAULT '[]',
+      "htmlContent" TEXT,
+      "pdfUrl" TEXT,
+      "coverDesignId" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'draft',
+      "price" DOUBLE PRECISION DEFAULT 0,
+      "isGated" BOOLEAN NOT NULL DEFAULT false,
+      "downloads" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "pdf_guides_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "pdf_guides_slug_key" ON "pdf_guides"("slug")`,
+    `CREATE INDEX IF NOT EXISTS "pdf_guides_site_idx" ON "pdf_guides"("site")`,
+    `CREATE INDEX IF NOT EXISTS "pdf_guides_status_idx" ON "pdf_guides"("status")`,
+    `CREATE INDEX IF NOT EXISTS "pdf_guides_slug_idx" ON "pdf_guides"("slug")`,
+  ],
+  pdf_downloads: [
+    `CREATE TABLE IF NOT EXISTS "pdf_downloads" (
+      "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
+      "pdfGuideId" TEXT NOT NULL,
+      "leadId" TEXT,
+      "email" TEXT,
+      "ip" TEXT,
+      "userAgent" TEXT,
+      "downloadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "pdf_downloads_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "pdf_downloads_pdfGuideId_idx" ON "pdf_downloads"("pdfGuideId")`,
+    `CREATE INDEX IF NOT EXISTS "pdf_downloads_email_idx" ON "pdf_downloads"("email")`,
+  ],
+  email_templates: [
+    `CREATE TABLE IF NOT EXISTS "email_templates" (
+      "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
+      "name" TEXT NOT NULL,
+      "description" TEXT,
+      "site" TEXT NOT NULL,
+      "type" TEXT NOT NULL,
+      "subject" TEXT,
+      "htmlContent" TEXT NOT NULL DEFAULT '',
+      "jsonContent" JSONB,
+      "thumbnail" TEXT,
+      "isDefault" BOOLEAN NOT NULL DEFAULT false,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "email_templates_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "email_templates_site_type_idx" ON "email_templates"("site", "type")`,
+    `CREATE INDEX IF NOT EXISTS "email_templates_isDefault_idx" ON "email_templates"("isDefault")`,
+  ],
+  email_campaigns: [
+    `CREATE TABLE IF NOT EXISTS "email_campaigns" (
+      "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
+      "name" TEXT NOT NULL,
+      "site" TEXT NOT NULL,
+      "templateId" TEXT,
+      "subject" TEXT NOT NULL DEFAULT '',
+      "htmlContent" TEXT NOT NULL DEFAULT '',
+      "recipientCount" INTEGER NOT NULL DEFAULT 0,
+      "sentCount" INTEGER NOT NULL DEFAULT 0,
+      "openCount" INTEGER NOT NULL DEFAULT 0,
+      "clickCount" INTEGER NOT NULL DEFAULT 0,
+      "status" TEXT NOT NULL DEFAULT 'draft',
+      "scheduledAt" TIMESTAMP(3),
+      "sentAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "email_campaigns_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "email_campaigns_site_idx" ON "email_campaigns"("site")`,
+    `CREATE INDEX IF NOT EXISTS "email_campaigns_status_idx" ON "email_campaigns"("status")`,
+    `CREATE INDEX IF NOT EXISTS "email_campaigns_scheduledAt_idx" ON "email_campaigns"("scheduledAt")`,
+  ],
+  video_projects: [
+    `CREATE TABLE IF NOT EXISTS "video_projects" (
+      "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
+      "title" TEXT NOT NULL,
+      "site" TEXT NOT NULL,
+      "category" TEXT NOT NULL DEFAULT 'general',
+      "format" TEXT NOT NULL DEFAULT 'landscape',
+      "language" TEXT NOT NULL DEFAULT 'en',
+      "scenes" JSONB NOT NULL DEFAULT '[]',
+      "compositionCode" TEXT,
+      "prompt" TEXT,
+      "duration" INTEGER NOT NULL DEFAULT 30,
+      "fps" INTEGER NOT NULL DEFAULT 30,
+      "width" INTEGER NOT NULL DEFAULT 1920,
+      "height" INTEGER NOT NULL DEFAULT 1080,
+      "thumbnail" TEXT,
+      "exportedUrl" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'draft',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "video_projects_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "video_projects_site_idx" ON "video_projects"("site")`,
+    `CREATE INDEX IF NOT EXISTS "video_projects_status_idx" ON "video_projects"("status")`,
+    `CREATE INDEX IF NOT EXISTS "video_projects_category_idx" ON "video_projects"("category")`,
+  ],
+  content_pipelines: [
+    `CREATE TABLE IF NOT EXISTS "content_pipelines" (
+      "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
+      "site" TEXT NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'researching',
+      "topic" TEXT,
+      "language" TEXT NOT NULL DEFAULT 'en',
+      "researchData" JSONB,
+      "contentAngles" JSONB,
+      "scripts" JSONB,
+      "analysisData" JSONB,
+      "generatedPosts" JSONB,
+      "generatedArticleId" TEXT,
+      "generatedEmailId" TEXT,
+      "generatedVideoIds" JSONB,
+      "generatedDesignIds" JSONB,
+      "feedForwardApplied" JSONB,
+      "createdBy" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "content_pipelines_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "content_pipelines_site_idx" ON "content_pipelines"("site")`,
+    `CREATE INDEX IF NOT EXISTS "content_pipelines_status_idx" ON "content_pipelines"("status")`,
+    `CREATE INDEX IF NOT EXISTS "content_pipelines_createdAt_idx" ON "content_pipelines"("createdAt")`,
+  ],
+  content_performance: [
+    `CREATE TABLE IF NOT EXISTS "content_performance" (
+      "id" TEXT NOT NULL DEFAULT gen_random_uuid()::TEXT,
+      "pipelineId" TEXT NOT NULL,
+      "platform" TEXT NOT NULL,
+      "contentType" TEXT NOT NULL,
+      "postUrl" TEXT,
+      "publishedAt" TIMESTAMP(3),
+      "impressions" INTEGER NOT NULL DEFAULT 0,
+      "engagements" INTEGER NOT NULL DEFAULT 0,
+      "clicks" INTEGER NOT NULL DEFAULT 0,
+      "shares" INTEGER NOT NULL DEFAULT 0,
+      "saves" INTEGER NOT NULL DEFAULT 0,
+      "comments" INTEGER NOT NULL DEFAULT 0,
+      "conversionRate" DOUBLE PRECISION,
+      "grade" TEXT,
+      "notes" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "content_performance_pkey" PRIMARY KEY ("id")
+    )`,
+    `CREATE INDEX IF NOT EXISTS "content_performance_pipelineId_idx" ON "content_performance"("pipelineId")`,
+    `CREATE INDEX IF NOT EXISTS "content_performance_platform_idx" ON "content_performance"("platform")`,
+    `CREATE INDEX IF NOT EXISTS "content_performance_grade_idx" ON "content_performance"("grade")`,
+  ],
+};
+
+// Foreign keys — applied after all tables exist
+const FOREIGN_KEY_SQL = [
+  `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'pdf_downloads_pdfGuideId_fkey') THEN
+      ALTER TABLE "pdf_downloads" ADD CONSTRAINT "pdf_downloads_pdfGuideId_fkey"
+        FOREIGN KEY ("pdfGuideId") REFERENCES "pdf_guides"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+  END $$`,
+  `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'content_performance_pipelineId_fkey') THEN
+      ALTER TABLE "content_performance" ADD CONSTRAINT "content_performance_pipelineId_fkey"
+        FOREIGN KEY ("pipelineId") REFERENCES "content_pipelines"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+  END $$`,
+];
+
 async function handleFixIssues(): Promise<NextResponse> {
   const steps: Array<{ step: string; status: "pass" | "fail" | "skip"; message: string; duration: number }> = [];
   const overallStart = Date.now();
 
   // Step 1: Check which tables are missing
-  const requiredTables = [
-    "designs", "pdf_guides", "pdf_downloads", "email_templates",
-    "email_campaigns", "video_projects", "content_pipelines", "content_performance",
-  ];
+  const requiredTables = Object.keys(DESIGN_SYSTEM_MIGRATION_SQL);
   let missingBefore: string[] = [];
 
   try {
@@ -267,64 +472,82 @@ async function handleFixIssues(): Promise<NextResponse> {
       steps.push({ step: "Check missing tables", status: "pass", message: "All 8 design system tables already exist — nothing to fix", duration: Date.now() - t0 });
       return NextResponse.json({ success: true, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
     }
-    steps.push({ step: "Check missing tables", status: "fail", message: `Missing ${missingBefore.length} tables: ${missingBefore.join(", ")}`, duration: Date.now() - t0 });
+    steps.push({ step: "Check missing tables", status: "fail", message: `Missing ${missingBefore.length}: ${missingBefore.join(", ")}`, duration: Date.now() - t0 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     steps.push({ step: "Check missing tables", status: "fail", message: `Cannot query database: ${msg}`, duration: 0 });
     return NextResponse.json({ success: false, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
   }
 
-  // Step 2: Run prisma migrate deploy
-  try {
-    const { execSync } = await import("child_process");
-    const t0 = Date.now();
-    const cwd = process.cwd();
-    const output = execSync("npx prisma migrate deploy", {
-      cwd,
-      timeout: 30000,
-      encoding: "utf-8",
-      env: { ...process.env, PRISMA_SCHEMA: `${cwd}/prisma/schema.prisma` },
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    steps.push({ step: "prisma migrate deploy", status: "pass", message: output.trim().split("\n").slice(-3).join(" | "), duration: Date.now() - t0 });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? (err as Error & { stderr?: string }).stderr || err.message : String(err);
-    steps.push({ step: "prisma migrate deploy", status: "fail", message: msg.trim().split("\n").slice(-5).join(" | "), duration: 0 });
+  // Step 2: Create missing tables + indexes via raw SQL
+  const created: string[] = [];
+  const errors: string[] = [];
 
-    // Fallback: try prisma db push (works when migration history is out of sync)
-    try {
-      const { execSync } = await import("child_process");
-      const t0 = Date.now();
-      const cwd = process.cwd();
-      const output = execSync("npx prisma db push --accept-data-loss", {
-        cwd,
-        timeout: 30000,
-        encoding: "utf-8",
-        env: { ...process.env, PRISMA_SCHEMA: `${cwd}/prisma/schema.prisma` },
-        stdio: ["pipe", "pipe", "pipe"],
+  try {
+    const { prisma } = await import("@/lib/db");
+    const t0 = Date.now();
+
+    for (const tableName of missingBefore) {
+      const statements = DESIGN_SYSTEM_MIGRATION_SQL[tableName];
+      if (!statements) continue;
+
+      try {
+        for (const sql of statements) {
+          await prisma.$executeRawUnsafe(sql);
+        }
+        created.push(tableName);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`${tableName}: ${msg.split("\n")[0]}`);
+      }
+    }
+
+    if (created.length > 0) {
+      steps.push({
+        step: `Create tables (${created.length}/${missingBefore.length})`,
+        status: errors.length === 0 ? "pass" : "fail",
+        message: `Created: ${created.join(", ")}${errors.length > 0 ? ` | Errors: ${errors.join("; ")}` : ""}`,
+        duration: Date.now() - t0,
       });
-      steps.push({ step: "prisma db push (fallback)", status: "pass", message: output.trim().split("\n").slice(-3).join(" | "), duration: Date.now() - t0 });
-    } catch (err2: unknown) {
-      const msg2 = err2 instanceof Error ? (err2 as Error & { stderr?: string }).stderr || err2.message : String(err2);
-      steps.push({ step: "prisma db push (fallback)", status: "fail", message: msg2.trim().split("\n").slice(-5).join(" | "), duration: 0 });
+    } else {
+      steps.push({
+        step: "Create tables",
+        status: "fail",
+        message: `No tables created. Errors: ${errors.join("; ")}`,
+        duration: Date.now() - t0,
+      });
       return NextResponse.json({ success: false, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
     }
-  }
-
-  // Step 3: Generate Prisma client (so runtime picks up new models)
-  try {
-    const { execSync } = await import("child_process");
-    const t0 = Date.now();
-    execSync("npx prisma generate", {
-      cwd: process.cwd(),
-      timeout: 30000,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    steps.push({ step: "prisma generate", status: "pass", message: "Prisma client regenerated", duration: Date.now() - t0 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    steps.push({ step: "prisma generate", status: "skip", message: `Client generation skipped: ${msg.split("\n")[0]}`, duration: 0 });
+    steps.push({ step: "Create tables", status: "fail", message: msg, duration: 0 });
+    return NextResponse.json({ success: false, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
+  }
+
+  // Step 3: Apply foreign keys
+  try {
+    const { prisma } = await import("@/lib/db");
+    const t0 = Date.now();
+    const fkErrors: string[] = [];
+
+    for (const sql of FOREIGN_KEY_SQL) {
+      try {
+        await prisma.$executeRawUnsafe(sql);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        fkErrors.push(msg.split("\n")[0]);
+      }
+    }
+
+    steps.push({
+      step: "Apply foreign keys",
+      status: fkErrors.length === 0 ? "pass" : "skip",
+      message: fkErrors.length === 0 ? "2 foreign keys applied" : `Partial: ${fkErrors.join("; ")}`,
+      duration: Date.now() - t0,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "Apply foreign keys", status: "skip", message: msg.split("\n")[0], duration: 0 });
   }
 
   // Step 4: Verify tables now exist
@@ -338,9 +561,9 @@ async function handleFixIssues(): Promise<NextResponse> {
     const stillMissing = requiredTables.filter((t) => !existing.includes(t));
     const fixed = missingBefore.filter((t) => existing.includes(t));
     if (stillMissing.length === 0) {
-      steps.push({ step: "Verify tables", status: "pass", message: `All 8 tables now exist. Fixed: ${fixed.join(", ")}`, duration: Date.now() - t0 });
+      steps.push({ step: "Verify tables", status: "pass", message: `All 8 tables confirmed. Created: ${fixed.join(", ")}`, duration: Date.now() - t0 });
     } else {
-      steps.push({ step: "Verify tables", status: "fail", message: `Still missing: ${stillMissing.join(", ")}. Fixed: ${fixed.join(", ") || "none"}`, duration: Date.now() - t0 });
+      steps.push({ step: "Verify tables", status: "fail", message: `Still missing: ${stillMissing.join(", ")}`, duration: Date.now() - t0 });
     }
     return NextResponse.json({ success: stillMissing.length === 0, steps, duration: Date.now() - overallStart, tablesFixed: fixed.length, stillMissing });
   } catch (err: unknown) {
@@ -1057,33 +1280,71 @@ async function testSvgExporter(): Promise<TestSuiteResult> {
 async function testContentEngineImports(): Promise<TestSuiteResult> {
   const tests: TestResult[] = [];
 
-  const agents = [
-    { module: "@/lib/content-engine/researcher", fn: "runResearcher" },
-    { module: "@/lib/content-engine/ideator", fn: "runIdeator" },
-    { module: "@/lib/content-engine/scripter", fn: "runScripter" },
-    { module: "@/lib/content-engine/analyst", fn: "runAnalyst" },
-  ];
+  // NOTE: Each import MUST be a literal string — Next.js/webpack cannot resolve
+  // dynamic imports with variable paths (they get excluded from the bundle).
 
-  for (const agent of agents) {
-    try {
-      const mod = await import(agent.module);
-      const hasFn = typeof mod[agent.fn] === "function";
-      tests.push({
-        name: `Import ${agent.module} → ${agent.fn}`,
-        passed: hasFn,
-        data: { exported: Object.keys(mod), hasFn },
-        error: hasFn ? undefined : `Module loaded but ${agent.fn} is not exported as a function`,
-        fix: hasFn ? undefined : `Check that ${agent.module} exports a function named ${agent.fn}`,
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      tests.push({
-        name: `Import ${agent.module} → ${agent.fn}`,
-        passed: false,
-        error: msg,
-        fix: `Module ${agent.module} failed to import. Check the file exists and compiles. Common causes: missing dependency, TypeScript error, circular import.`,
-      });
-    }
+  // Agent 1: Researcher
+  try {
+    const mod = await import("@/lib/content-engine/researcher");
+    const hasFn = typeof mod.runResearcher === "function";
+    tests.push({
+      name: "Import @/lib/content-engine/researcher → runResearcher",
+      passed: hasFn,
+      data: { exported: Object.keys(mod), hasFn },
+      error: hasFn ? undefined : "Module loaded but runResearcher is not exported as a function",
+      fix: hasFn ? undefined : "Check that @/lib/content-engine/researcher exports runResearcher",
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Import @/lib/content-engine/researcher → runResearcher", passed: false, error: msg, fix: "Module failed to import. Check file exists, compiles, and all dependencies are installed." });
+  }
+
+  // Agent 2: Ideator
+  try {
+    const mod = await import("@/lib/content-engine/ideator");
+    const hasFn = typeof mod.runIdeator === "function";
+    tests.push({
+      name: "Import @/lib/content-engine/ideator → runIdeator",
+      passed: hasFn,
+      data: { exported: Object.keys(mod), hasFn },
+      error: hasFn ? undefined : "Module loaded but runIdeator is not exported as a function",
+      fix: hasFn ? undefined : "Check that @/lib/content-engine/ideator exports runIdeator",
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Import @/lib/content-engine/ideator → runIdeator", passed: false, error: msg, fix: "Module failed to import. Check file exists, compiles, and all dependencies are installed." });
+  }
+
+  // Agent 3: Scripter
+  try {
+    const mod = await import("@/lib/content-engine/scripter");
+    const hasFn = typeof mod.runScripter === "function";
+    tests.push({
+      name: "Import @/lib/content-engine/scripter → runScripter",
+      passed: hasFn,
+      data: { exported: Object.keys(mod), hasFn },
+      error: hasFn ? undefined : "Module loaded but runScripter is not exported as a function",
+      fix: hasFn ? undefined : "Check that @/lib/content-engine/scripter exports runScripter",
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Import @/lib/content-engine/scripter → runScripter", passed: false, error: msg, fix: "Module failed to import. Check file exists, compiles, and all dependencies are installed." });
+  }
+
+  // Agent 4: Analyst
+  try {
+    const mod = await import("@/lib/content-engine/analyst");
+    const hasFn = typeof mod.runAnalyst === "function";
+    tests.push({
+      name: "Import @/lib/content-engine/analyst → runAnalyst",
+      passed: hasFn,
+      data: { exported: Object.keys(mod), hasFn },
+      error: hasFn ? undefined : "Module loaded but runAnalyst is not exported as a function",
+      fix: hasFn ? undefined : "Check that @/lib/content-engine/analyst exports runAnalyst",
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    tests.push({ name: "Import @/lib/content-engine/analyst → runAnalyst", passed: false, error: msg, fix: "Module failed to import. Check file exists, compiles, and all dependencies are installed." });
   }
 
   // Test social scheduler

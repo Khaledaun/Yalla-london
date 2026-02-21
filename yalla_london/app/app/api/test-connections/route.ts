@@ -161,6 +161,23 @@ export async function POST(request: NextRequest) {
     return await handleFixIssues();
   }
 
+  // --- Production data fix actions ---
+  if (body.action === "scan-production-issues") {
+    return await handleScanProductionIssues();
+  }
+  if (body.action === "fix-duplicate-posts") {
+    return await handleFixDuplicatePosts();
+  }
+  if (body.action === "fix-stale-errors") {
+    return await handleFixStaleErrors();
+  }
+  if (body.action === "fix-metadata") {
+    return await handleFixMetadata();
+  }
+  if (body.action === "fix-indexing-urls") {
+    return await handleFixIndexingUrls();
+  }
+
   // --- Test suite execution ---
   const { suite } = body as { suite: string };
 
@@ -573,6 +590,512 @@ async function handleFixIssues(): Promise<NextResponse> {
     const msg = err instanceof Error ? err.message : String(err);
     steps.push({ step: "Verify tables", status: "fail", message: msg, duration: 0 });
     return NextResponse.json({ success: false, steps, duration: Date.now() - overallStart, tablesFixed: 0 });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Production Data Fix Handlers
+// ---------------------------------------------------------------------------
+
+/** Scan for all production data issues — returns counts without changing anything */
+async function handleScanProductionIssues(): Promise<NextResponse> {
+  const steps: Array<{ step: string; status: string; message: string; count?: number; items?: unknown[] }> = [];
+  const overallStart = Date.now();
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    // 1. Duplicate blog posts (date-suffixed or random-suffixed near-duplicates)
+    const allPosts = await prisma.blogPost.findMany({
+      where: { siteId, deletedAt: null },
+      select: { id: true, slug: true, published: true, created_at: true, content_en: true },
+      orderBy: { slug: "asc" },
+    });
+
+    const duplicates: Array<{ original: string; duplicate: string; id: string }> = [];
+    const slugs = allPosts.map((p: { slug: string }) => p.slug).sort();
+    for (let i = 0; i < slugs.length; i++) {
+      for (let j = i + 1; j < slugs.length; j++) {
+        if (slugs[j].startsWith(slugs[i]) && slugs[j] !== slugs[i]) {
+          const suffix = slugs[j].slice(slugs[i].length);
+          // Match date suffixes (-2026-02-18) or random suffixes (-a1b2, -c9pd)
+          if (/^-(\d{4}-\d{2}-\d{2}|[a-z0-9]{3,5})$/.test(suffix)) {
+            const dup = allPosts.find((p: { slug: string }) => p.slug === slugs[j]);
+            if (dup) duplicates.push({ original: slugs[i], duplicate: slugs[j], id: dup.id });
+          }
+        }
+      }
+    }
+    steps.push({
+      step: "Duplicate blog posts",
+      status: duplicates.length > 0 ? "fail" : "pass",
+      message: duplicates.length > 0
+        ? `Found ${duplicates.length} near-duplicate posts`
+        : "No duplicate posts found",
+      count: duplicates.length,
+      items: duplicates.slice(0, 20),
+    });
+
+    // 2. Empty/malformed slug posts
+    const malformedPosts = allPosts.filter((p: { slug: string }) =>
+      !p.slug || /^-?\d{4}-\d{2}-\d{2}$/.test(p.slug) || p.slug.startsWith("-")
+    );
+    steps.push({
+      step: "Malformed slug posts",
+      status: malformedPosts.length > 0 ? "fail" : "pass",
+      message: malformedPosts.length > 0
+        ? `Found ${malformedPosts.length} posts with empty or malformed slugs`
+        : "All slugs are valid",
+      count: malformedPosts.length,
+      items: malformedPosts.map((p: { id: string; slug: string }) => ({ id: p.id, slug: p.slug || "(empty)" })),
+    });
+
+    // 3. Stale GSC error messages
+    const staleErrors = await prisma.uRLIndexingStatus.count({
+      where: {
+        site_id: siteId,
+        last_error: { not: null },
+        last_inspected_at: { lt: new Date(Date.now() - 7 * 86400000) }, // older than 7 days
+      },
+    });
+    const allErrors = await prisma.uRLIndexingStatus.count({
+      where: { site_id: siteId, last_error: { not: null } },
+    });
+    steps.push({
+      step: "Stale indexing errors",
+      status: staleErrors > 0 ? "fail" : "pass",
+      message: staleErrors > 0
+        ? `${staleErrors} URLs with stale error messages (>7 days old), ${allErrors} total errors`
+        : `${allErrors} URLs with errors (all recent)`,
+      count: staleErrors,
+    });
+
+    // 4. Metadata issues
+    const publishedPosts = await prisma.blogPost.findMany({
+      where: { siteId, published: true, deletedAt: null },
+      select: {
+        id: true,
+        slug: true,
+        meta_title_en: true,
+        meta_description_en: true,
+        content_en: true,
+      },
+      take: 300,
+    });
+
+    let metaIssues = 0;
+    const metaDetails: Array<{ slug: string; issue: string }> = [];
+    for (const p of publishedPosts) {
+      const post = p as { slug: string; meta_title_en: string | null; meta_description_en: string | null; content_en: string | null };
+      if (post.meta_title_en && post.meta_title_en.length > 60) {
+        metaIssues++;
+        metaDetails.push({ slug: post.slug, issue: `Title too long (${post.meta_title_en.length} chars)` });
+      }
+      if (!post.meta_description_en || post.meta_description_en.length < 120) {
+        metaIssues++;
+        metaDetails.push({ slug: post.slug, issue: post.meta_description_en ? `Description too short (${post.meta_description_en.length} chars)` : "Missing description" });
+      }
+      if (post.meta_description_en && post.meta_description_en.length > 160) {
+        metaIssues++;
+        metaDetails.push({ slug: post.slug, issue: `Description too long (${post.meta_description_en.length} chars)` });
+      }
+    }
+    steps.push({
+      step: "Metadata issues",
+      status: metaIssues > 0 ? "fail" : "pass",
+      message: metaIssues > 0
+        ? `${metaIssues} metadata issues across ${publishedPosts.length} published posts`
+        : `All ${publishedPosts.length} published posts have valid metadata`,
+      count: metaIssues,
+      items: metaDetails.slice(0, 20),
+    });
+
+    // 5. Duplicate/orphaned indexing URLs
+    const correctBaseUrl = getSiteDomain(siteId);
+    const indexEntries = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId },
+      select: { id: true, url: true, status: true },
+    });
+    const nonWww = indexEntries.filter((e: { url: string }) => {
+      const url = e.url;
+      return url.includes("://") && !url.startsWith(correctBaseUrl) &&
+        url.replace("://", "://www.").startsWith(correctBaseUrl);
+    });
+    const malformedUrls = indexEntries.filter((e: { url: string }) =>
+      /\/blog\/-\d{4}-\d{2}-\d{2}/.test(e.url) || /\/blog\/$/.test(e.url)
+    );
+    steps.push({
+      step: "Indexing URL issues",
+      status: (nonWww.length + malformedUrls.length) > 0 ? "fail" : "pass",
+      message: `${nonWww.length} non-www duplicate URLs, ${malformedUrls.length} malformed URLs`,
+      count: nonWww.length + malformedUrls.length,
+      items: [...nonWww.slice(0, 5).map((e: { url: string }) => ({ url: e.url, issue: "non-www duplicate" })),
+              ...malformedUrls.slice(0, 5).map((e: { url: string }) => ({ url: e.url, issue: "malformed slug" }))],
+    });
+
+    // 6. Thin content
+    let thinCount = 0;
+    const thinPosts: Array<{ slug: string; words: number }> = [];
+    for (const p of publishedPosts) {
+      const post = p as { slug: string; content_en: string | null };
+      if (post.content_en) {
+        const wordCount = post.content_en.replace(/<[^>]*>/g, " ").split(/\s+/).filter(Boolean).length;
+        if (wordCount < 1000) {
+          thinCount++;
+          thinPosts.push({ slug: post.slug, words: wordCount });
+        }
+      }
+    }
+    steps.push({
+      step: "Thin content (<1000 words)",
+      status: thinCount > 0 ? "warn" : "pass",
+      message: thinCount > 0
+        ? `${thinCount} published posts under 1000 words (can't auto-fix — need content enrichment)`
+        : "All published posts meet 1000-word minimum",
+      count: thinCount,
+      items: thinPosts.slice(0, 10),
+    });
+
+    const totalIssues = duplicates.length + malformedPosts.length + staleErrors + metaIssues + nonWww.length + malformedUrls.length;
+
+    return NextResponse.json({
+      success: true,
+      totalIssues,
+      steps,
+      duration: Date.now() - overallStart,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ success: false, totalIssues: -1, steps, error: msg, duration: Date.now() - overallStart });
+  }
+}
+
+/** Delete duplicate blog posts (date-suffixed and random-suffixed near-duplicates) */
+async function handleFixDuplicatePosts(): Promise<NextResponse> {
+  const steps: Array<{ step: string; status: string; message: string; duration?: number }> = [];
+  const overallStart = Date.now();
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    // Step 1: Find duplicates
+    let t0 = Date.now();
+    const allPosts = await prisma.blogPost.findMany({
+      where: { siteId, deletedAt: null },
+      select: { id: true, slug: true, published: true, created_at: true },
+      orderBy: { slug: "asc" },
+    });
+
+    const duplicateIds: string[] = [];
+    const duplicateSlugs: string[] = [];
+    const slugs = allPosts.map((p: { slug: string }) => p.slug).sort();
+    for (let i = 0; i < slugs.length; i++) {
+      for (let j = i + 1; j < slugs.length; j++) {
+        if (slugs[j].startsWith(slugs[i]) && slugs[j] !== slugs[i]) {
+          const suffix = slugs[j].slice(slugs[i].length);
+          if (/^-(\d{4}-\d{2}-\d{2}|[a-z0-9]{3,5})$/.test(suffix)) {
+            const dup = allPosts.find((p: { slug: string }) => p.slug === slugs[j]);
+            if (dup) { duplicateIds.push(dup.id); duplicateSlugs.push(slugs[j]); }
+          }
+        }
+      }
+    }
+
+    // Also catch malformed slugs (empty or date-only)
+    for (const p of allPosts) {
+      const post = p as { id: string; slug: string };
+      if (!post.slug || /^-?\d{4}-\d{2}-\d{2}$/.test(post.slug) || post.slug.startsWith("-")) {
+        if (!duplicateIds.includes(post.id)) {
+          duplicateIds.push(post.id);
+          duplicateSlugs.push(post.slug || "(empty)");
+        }
+      }
+    }
+
+    steps.push({
+      step: "Identify duplicates",
+      status: "pass",
+      message: `Found ${duplicateIds.length} posts to remove: ${duplicateSlugs.slice(0, 10).join(", ")}${duplicateSlugs.length > 10 ? "..." : ""}`,
+      duration: Date.now() - t0,
+    });
+
+    if (duplicateIds.length === 0) {
+      return NextResponse.json({ success: true, steps, fixed: 0, duration: Date.now() - overallStart });
+    }
+
+    // Step 2: Soft-delete (set deletedAt instead of hard delete)
+    t0 = Date.now();
+    const result = await prisma.blogPost.updateMany({
+      where: { id: { in: duplicateIds } },
+      data: { deletedAt: new Date(), published: false },
+    });
+    steps.push({
+      step: "Soft-delete duplicates",
+      status: "pass",
+      message: `Soft-deleted ${result.count} duplicate/malformed posts`,
+      duration: Date.now() - t0,
+    });
+
+    // Step 3: Clean up related URLIndexingStatus entries
+    t0 = Date.now();
+    let urlsCleaned = 0;
+    for (const slug of duplicateSlugs) {
+      if (!slug || slug === "(empty)") continue;
+      const deleted = await prisma.uRLIndexingStatus.deleteMany({
+        where: { site_id: siteId, url: { contains: `/blog/${slug}` } },
+      });
+      urlsCleaned += deleted.count;
+    }
+    steps.push({
+      step: "Clean indexing entries",
+      status: "pass",
+      message: `Removed ${urlsCleaned} orphaned URLIndexingStatus entries`,
+      duration: Date.now() - t0,
+    });
+
+    return NextResponse.json({ success: true, steps, fixed: duplicateIds.length, duration: Date.now() - overallStart });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "Error", status: "fail", message: msg });
+    return NextResponse.json({ success: false, steps, fixed: 0, error: msg, duration: Date.now() - overallStart });
+  }
+}
+
+/** Clear stale GSC error messages (>7 days old) from URLIndexingStatus */
+async function handleFixStaleErrors(): Promise<NextResponse> {
+  const steps: Array<{ step: string; status: string; message: string; duration?: number }> = [];
+  const overallStart = Date.now();
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    // Step 1: Count stale errors
+    let t0 = Date.now();
+    const cutoff = new Date(Date.now() - 7 * 86400000);
+    const staleCount = await prisma.uRLIndexingStatus.count({
+      where: {
+        site_id: siteId,
+        last_error: { not: null },
+        last_inspected_at: { lt: cutoff },
+      },
+    });
+    steps.push({
+      step: "Count stale errors",
+      status: "pass",
+      message: `Found ${staleCount} URLs with errors older than 7 days`,
+      duration: Date.now() - t0,
+    });
+
+    if (staleCount === 0) {
+      return NextResponse.json({ success: true, steps, fixed: 0, duration: Date.now() - overallStart });
+    }
+
+    // Step 2: Clear error messages and reset status to "submitted" for re-checking
+    t0 = Date.now();
+    const result = await prisma.uRLIndexingStatus.updateMany({
+      where: {
+        site_id: siteId,
+        last_error: { not: null },
+        last_inspected_at: { lt: cutoff },
+      },
+      data: {
+        last_error: null,
+        status: "submitted",
+      },
+    });
+    steps.push({
+      step: "Clear stale errors",
+      status: "pass",
+      message: `Cleared ${result.count} stale error messages — URLs reset to "submitted" for re-checking`,
+      duration: Date.now() - t0,
+    });
+
+    return NextResponse.json({ success: true, steps, fixed: result.count, duration: Date.now() - overallStart });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "Error", status: "fail", message: msg });
+    return NextResponse.json({ success: false, steps, fixed: 0, error: msg, duration: Date.now() - overallStart });
+  }
+}
+
+/** Auto-fix blog post metadata (titles/descriptions) */
+async function handleFixMetadata(): Promise<NextResponse> {
+  const steps: Array<{ step: string; status: string; message: string; duration?: number }> = [];
+  const overallStart = Date.now();
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+
+    let t0 = Date.now();
+    const posts = await prisma.blogPost.findMany({
+      where: { siteId, published: true, deletedAt: null },
+      select: {
+        id: true,
+        slug: true,
+        title_en: true,
+        meta_title_en: true,
+        meta_description_en: true,
+        excerpt_en: true,
+        content_en: true,
+      },
+      take: 300,
+      orderBy: { created_at: "desc" },
+    });
+    steps.push({ step: "Load posts", status: "pass", message: `Loaded ${posts.length} published posts`, duration: Date.now() - t0 });
+
+    t0 = Date.now();
+    let fixed = 0;
+    const fixes: Array<{ slug: string; fix: string }> = [];
+
+    for (const row of posts) {
+      const p = row as { id: string; slug: string; title_en: string | null; meta_title_en: string | null; meta_description_en: string | null; excerpt_en: string | null; content_en: string | null };
+      const updates: Record<string, string> = {};
+
+      // Fix title > 60 chars
+      if (p.meta_title_en && p.meta_title_en.length > 60) {
+        const cut = p.meta_title_en.lastIndexOf(" ", 57);
+        updates.meta_title_en = p.meta_title_en.slice(0, cut > 30 ? cut : 57) + "...";
+        fixes.push({ slug: p.slug, fix: `Title truncated: ${p.meta_title_en.length} → ${updates.meta_title_en.length} chars` });
+      }
+
+      // Fix description > 160 chars
+      if (p.meta_description_en && p.meta_description_en.length > 160) {
+        const cut = p.meta_description_en.lastIndexOf(" ", 157);
+        updates.meta_description_en = p.meta_description_en.slice(0, cut > 100 ? cut : 157) + "...";
+        fixes.push({ slug: p.slug, fix: `Description truncated: ${p.meta_description_en.length} → ${updates.meta_description_en.length} chars` });
+      }
+
+      // Fix missing/short description
+      if (!p.meta_description_en || p.meta_description_en.length < 120) {
+        const source = p.excerpt_en || (p.content_en ? p.content_en.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "");
+        if (source.length >= 120) {
+          const cut = source.lastIndexOf(" ", 155);
+          updates.meta_description_en = source.slice(0, cut > 120 ? cut : 155).trim();
+          if (updates.meta_description_en.length > 160) updates.meta_description_en = updates.meta_description_en.slice(0, 157) + "...";
+          fixes.push({ slug: p.slug, fix: `Description generated (${updates.meta_description_en.length} chars)` });
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await prisma.blogPost.update({ where: { id: p.id }, data: updates });
+        fixed++;
+      }
+    }
+
+    steps.push({
+      step: "Fix metadata",
+      status: fixed > 0 ? "pass" : "pass",
+      message: `Applied ${fixes.length} fixes across ${fixed} posts`,
+      duration: Date.now() - t0,
+    });
+
+    return NextResponse.json({ success: true, steps, fixed, fixes: fixes.slice(0, 30), duration: Date.now() - overallStart });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "Error", status: "fail", message: msg });
+    return NextResponse.json({ success: false, steps, fixed: 0, error: msg, duration: Date.now() - overallStart });
+  }
+}
+
+/** Clean up duplicate/orphaned URLIndexingStatus entries (non-www, malformed) */
+async function handleFixIndexingUrls(): Promise<NextResponse> {
+  const steps: Array<{ step: string; status: string; message: string; duration?: number }> = [];
+  const overallStart = Date.now();
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const siteId = getDefaultSiteId();
+    const correctBaseUrl = getSiteDomain(siteId);
+
+    let t0 = Date.now();
+    const allEntries = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId },
+      select: { id: true, url: true, status: true, submitted_indexnow: true, submitted_sitemap: true, last_submitted_at: true },
+    });
+    steps.push({ step: "Load entries", status: "pass", message: `Found ${allEntries.length} total indexing entries`, duration: Date.now() - t0 });
+
+    // Remove malformed URLs
+    t0 = Date.now();
+    const malformed = allEntries.filter((e: { url: string }) =>
+      /\/blog\/-\d{4}-\d{2}-\d{2}/.test(e.url) || /\/blog\/$/.test(e.url)
+    );
+    if (malformed.length > 0) {
+      await prisma.uRLIndexingStatus.deleteMany({
+        where: { id: { in: malformed.map((e: { id: string }) => e.id) } },
+      });
+    }
+    steps.push({
+      step: "Remove malformed URLs",
+      status: "pass",
+      message: `Deleted ${malformed.length} malformed URL entries`,
+      duration: Date.now() - t0,
+    });
+
+    // Fix non-www duplicates: merge data into www version, delete non-www
+    t0 = Date.now();
+    let merged = 0;
+    let converted = 0;
+    const nonWww = allEntries.filter((e: { url: string }) => {
+      const url = e.url;
+      return url.includes("://") && !url.startsWith(correctBaseUrl) &&
+        url.replace("://", "://www.").startsWith(correctBaseUrl);
+    });
+
+    for (const entry of nonWww) {
+      const e = entry as { id: string; url: string; submitted_indexnow: boolean; submitted_sitemap: boolean; last_submitted_at: Date | null };
+      const wwwUrl = e.url.replace("://", "://www.");
+      const wwwEntry = allEntries.find((w: { url: string }) => w.url === wwwUrl);
+
+      if (wwwEntry) {
+        // Merge: transfer submission state if non-www has more data
+        const w = wwwEntry as { id: string; submitted_indexnow: boolean; submitted_sitemap: boolean; last_submitted_at: Date | null };
+        const updates: Record<string, unknown> = {};
+        if (e.submitted_indexnow && !w.submitted_indexnow) updates.submitted_indexnow = true;
+        if (e.submitted_sitemap && !w.submitted_sitemap) updates.submitted_sitemap = true;
+        if (e.last_submitted_at && (!w.last_submitted_at || e.last_submitted_at > w.last_submitted_at)) {
+          updates.last_submitted_at = e.last_submitted_at;
+        }
+        if (Object.keys(updates).length > 0) {
+          await prisma.uRLIndexingStatus.update({ where: { id: w.id }, data: updates });
+        }
+        await prisma.uRLIndexingStatus.delete({ where: { id: e.id } });
+        merged++;
+      } else {
+        // No www version — convert this entry to www
+        await prisma.uRLIndexingStatus.update({
+          where: { id: e.id },
+          data: { url: wwwUrl },
+        });
+        converted++;
+      }
+    }
+
+    steps.push({
+      step: "Fix non-www duplicates",
+      status: "pass",
+      message: `Merged ${merged} + converted ${converted} non-www entries (${nonWww.length} total processed)`,
+      duration: Date.now() - t0,
+    });
+
+    return NextResponse.json({
+      success: true,
+      steps,
+      fixed: malformed.length + nonWww.length,
+      duration: Date.now() - overallStart,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    steps.push({ step: "Error", status: "fail", message: msg });
+    return NextResponse.json({ success: false, steps, fixed: 0, error: msg, duration: Date.now() - overallStart });
   }
 }
 
@@ -3651,6 +4174,83 @@ function buildTestPage(): string {
   <div id="fix-summary" class="fix-summary" style="display:none"></div>
 </div>
 
+<!-- Production Data Fixes -->
+<div class="prod-fixes-section">
+  <h2 style="font-size:17px;color:var(--gold);margin:24px 0 6px">Production Data Fixes</h2>
+  <p style="font-size:12px;color:var(--text2);margin-bottom:14px">Scan and fix production data issues found by audits. Each button shows a preview first.</p>
+
+  <div class="top-bar" style="margin-bottom:12px">
+    <button class="btn btn-big" id="scanBtn" onclick="scanIssues()" style="background:#f59e0b;color:#000">Scan All Issues</button>
+  </div>
+
+  <div id="scan-panel" class="fix-panel" style="display:none;border-color:var(--warn)">
+    <div class="fix-header">
+      <span class="fix-title" id="scan-title" style="color:var(--warn)">Scanning...</span>
+      <button class="btn btn-sm" onclick="document.getElementById('scan-panel').style.display='none'">Close</button>
+    </div>
+    <div id="scan-steps"></div>
+    <div id="scan-summary" class="fix-summary" style="display:none"></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+
+    <div class="suite-card" id="card-fix-dupes">
+      <div class="suite-header">
+        <span class="suite-icon">&#128465;</span>
+        <div>
+          <div class="suite-label">Remove Duplicate Posts</div>
+          <div class="suite-desc">Soft-delete near-duplicate blog posts with date/random suffixes + empty slugs</div>
+        </div>
+        <div class="suite-status" id="status-fix-dupes"></div>
+      </div>
+      <button class="btn btn-fix" id="btn-fix-dupes" onclick="runProdFix('fix-duplicate-posts','fix-dupes')">Fix Duplicates</button>
+      <div class="result-area" id="result-fix-dupes"></div>
+    </div>
+
+    <div class="suite-card" id="card-fix-errors">
+      <div class="suite-header">
+        <span class="suite-icon">&#128260;</span>
+        <div>
+          <div class="suite-label">Clear Stale GSC Errors</div>
+          <div class="suite-desc">Reset indexing error messages older than 7 days so URLs get re-checked</div>
+        </div>
+        <div class="suite-status" id="status-fix-errors"></div>
+      </div>
+      <button class="btn btn-fix" id="btn-fix-errors" onclick="runProdFix('fix-stale-errors','fix-errors')">Clear Errors</button>
+      <div class="result-area" id="result-fix-errors"></div>
+    </div>
+
+    <div class="suite-card" id="card-fix-meta">
+      <div class="suite-header">
+        <span class="suite-icon">&#128221;</span>
+        <div>
+          <div class="suite-label">Fix Blog Metadata</div>
+          <div class="suite-desc">Auto-fix long titles, short/missing meta descriptions across all published posts</div>
+        </div>
+        <div class="suite-status" id="status-fix-meta"></div>
+      </div>
+      <button class="btn btn-fix" id="btn-fix-meta" onclick="runProdFix('fix-metadata','fix-meta')">Fix Metadata</button>
+      <div class="result-area" id="result-fix-meta"></div>
+    </div>
+
+    <div class="suite-card" id="card-fix-urls">
+      <div class="suite-header">
+        <span class="suite-icon">&#128279;</span>
+        <div>
+          <div class="suite-label">Fix Indexing URLs</div>
+          <div class="suite-desc">Remove malformed URL entries, merge non-www duplicates into www versions</div>
+        </div>
+        <div class="suite-status" id="status-fix-urls"></div>
+      </div>
+      <button class="btn btn-fix" id="btn-fix-urls" onclick="runProdFix('fix-indexing-urls','fix-urls')">Fix URLs</button>
+      <div class="result-area" id="result-fix-urls"></div>
+    </div>
+
+  </div>
+</div>
+
+<h2 style="font-size:17px;color:var(--gold);margin:28px 0 14px">Connection Tests</h2>
+
 ${suiteBtns}
 
 <script>
@@ -3847,6 +4447,134 @@ async function doLogout() {
     body: JSON.stringify({ action: 'logout' }),
   });
   window.location.reload();
+}
+
+// --- Production Data Fixes ---
+
+async function scanIssues() {
+  const btn = document.getElementById('scanBtn');
+  const panel = document.getElementById('scan-panel');
+  const stepsEl = document.getElementById('scan-steps');
+  const summaryEl = document.getElementById('scan-summary');
+  const titleEl = document.getElementById('scan-title');
+
+  btn.disabled = true;
+  btn.textContent = 'Scanning...';
+  panel.style.display = 'block';
+  summaryEl.style.display = 'none';
+  titleEl.textContent = 'Scanning production data...';
+  stepsEl.innerHTML = '<div class="fix-step"><div class="fix-step-icon running"><span class="spinner" style="width:12px;height:12px;border-width:2px"></span></div><div><div class="fix-step-name">Scanning database...</div><div class="fix-step-msg">Checking for duplicates, errors, metadata issues...</div></div></div>';
+
+  try {
+    const resp = await fetch(BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'scan-production-issues' }),
+    });
+    const data = await resp.json();
+
+    let html = '';
+    if (data.steps) {
+      for (const s of data.steps) {
+        const icon = s.status === 'pass' ? '&#10003;' : s.status === 'fail' ? '&#10007;' : '&#9888;';
+        const cls = s.status === 'warn' ? 'skip' : s.status;
+        html += '<div class="fix-step">';
+        html += '<div class="fix-step-icon ' + cls + '">' + icon + '</div>';
+        html += '<div style="flex:1"><div class="fix-step-name">' + escHtml(s.step) + (s.count !== undefined ? ' <span style="color:' + (s.count > 0 ? 'var(--fail)' : 'var(--pass)') + '">[' + s.count + ']</span>' : '') + '</div>';
+        html += '<div class="fix-step-msg">' + escHtml(s.message) + '</div>';
+        if (s.items && s.items.length > 0) {
+          html += '<div class="json-block" style="margin-top:6px;max-height:150px">' + escHtml(JSON.stringify(s.items, null, 2)) + '</div>';
+        }
+        html += '</div></div>';
+      }
+    }
+    stepsEl.innerHTML = html;
+
+    summaryEl.style.display = 'block';
+    if (data.totalIssues === 0) {
+      titleEl.textContent = 'Scan Complete — All Clean!';
+      summaryEl.className = 'fix-summary success';
+      summaryEl.textContent = 'No production data issues found.';
+    } else {
+      titleEl.textContent = 'Scan Complete — ' + data.totalIssues + ' Issues Found';
+      summaryEl.className = 'fix-summary failure';
+      summaryEl.innerHTML = data.totalIssues + ' total issues found. Use the fix buttons below to resolve them.';
+    }
+  } catch (err) {
+    stepsEl.innerHTML = '<div class="fix-step"><div class="fix-step-icon fail">&#10007;</div><div><div class="fix-step-name">Network Error</div><div class="fix-step-msg">' + escHtml(err.message) + '</div></div></div>';
+    summaryEl.style.display = 'block';
+    summaryEl.className = 'fix-summary failure';
+    summaryEl.textContent = 'Could not reach the server.';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Scan All Issues';
+}
+
+async function runProdFix(action, cardSuffix) {
+  const card = document.getElementById('card-' + cardSuffix);
+  const status = document.getElementById('status-' + cardSuffix);
+  const resultArea = document.getElementById('result-' + cardSuffix);
+  const btn = document.getElementById('btn-' + cardSuffix);
+
+  card.className = 'suite-card running';
+  status.innerHTML = '<span class="spinner"></span>';
+  resultArea.className = 'result-area';
+  resultArea.innerHTML = '';
+  btn.disabled = true;
+  btn.textContent = 'Fixing...';
+
+  try {
+    const resp = await fetch(BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action }),
+    });
+    const data = await resp.json();
+
+    if (data.success) {
+      card.className = 'suite-card pass';
+      status.innerHTML = '<span style="color:var(--pass)">DONE</span>';
+    } else {
+      card.className = 'suite-card fail';
+      status.innerHTML = '<span style="color:var(--fail)">FAIL</span>';
+    }
+
+    let html = '';
+    if (data.steps) {
+      for (const s of data.steps) {
+        const icon = s.status === 'pass' ? '&#10003;' : '&#10007;';
+        html += '<div class="test-row">';
+        html += '<div class="test-dot ' + s.status + '"></div>';
+        html += '<div style="flex:1">';
+        html += '<div class="test-name">' + escHtml(s.step) + '</div>';
+        html += '<div class="fix-step-msg">' + escHtml(s.message) + '</div>';
+        html += '</div>';
+        if (s.duration) html += '<div class="duration">' + (s.duration / 1000).toFixed(1) + 's</div>';
+        html += '</div>';
+      }
+    }
+    if (data.fixes && data.fixes.length > 0) {
+      html += '<div class="json-block" style="margin-top:8px;max-height:200px">' + escHtml(JSON.stringify(data.fixes, null, 2)) + '</div>';
+    }
+    if (data.fixed !== undefined) {
+      html += '<div style="margin-top:8px;font-size:13px;font-weight:600;color:var(--pass)">' + data.fixed + ' items fixed</div>';
+    }
+    if (data.error) {
+      html += '<div class="test-error" style="margin-top:8px">' + escHtml(data.error) + '</div>';
+    }
+
+    resultArea.innerHTML = html;
+    resultArea.className = 'result-area visible';
+  } catch (err) {
+    card.className = 'suite-card fail';
+    status.innerHTML = '<span style="color:var(--fail)">ERROR</span>';
+    resultArea.innerHTML = '<div class="test-error">Network error: ' + escHtml(err.message) + '</div>';
+    resultArea.className = 'result-area visible';
+  }
+
+  btn.disabled = false;
+  btn.textContent = btn.getAttribute('data-label') || btn.textContent.replace('Fixing...','Fix');
 }
 </script>
 

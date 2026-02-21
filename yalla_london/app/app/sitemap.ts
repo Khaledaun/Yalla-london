@@ -45,94 +45,193 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
   }
 
-  // Static pages (common to all sites) — use staticDate for content that doesn't
-  // change on every request, so crawlers get accurate last-modified signals.
-  const staticPages: MetadataRoute.Sitemap = [
-    {
-      url: baseUrl,
-      lastModified: staticDate,
-      changeFrequency: "daily",
-      priority: 1,
-      alternates: hreflang(""),
-    },
-    {
-      url: `${baseUrl}/blog`,
-      lastModified: currentDate,
-      changeFrequency: "daily",
-      priority: 0.9,
-      alternates: hreflang("/blog"),
-    },
-    {
-      url: `${baseUrl}/recommendations`,
-      lastModified: staticDate,
-      changeFrequency: "weekly",
-      priority: 0.9,
-      alternates: hreflang("/recommendations"),
-    },
-    {
-      url: `${baseUrl}/events`,
-      lastModified: currentDate,
-      changeFrequency: "daily",
-      priority: 0.8,
-      alternates: hreflang("/events"),
-    },
-    {
-      url: `${baseUrl}/experiences`,
-      lastModified: staticDate,
-      changeFrequency: "weekly",
-      priority: 0.8,
-      alternates: hreflang("/experiences"),
-    },
-    {
-      url: `${baseUrl}/hotels`,
-      lastModified: staticDate,
-      changeFrequency: "weekly",
-      priority: 0.8,
-      alternates: hreflang("/hotels"),
-    },
-    {
-      url: `${baseUrl}/about`,
-      lastModified: staticDate,
-      changeFrequency: "monthly",
-      priority: 0.7,
-      alternates: hreflang("/about"),
-    },
-    {
-      url: `${baseUrl}/contact`,
-      lastModified: staticDate,
-      changeFrequency: "monthly",
-      priority: 0.6,
-      alternates: hreflang("/contact"),
-    },
-    {
-      url: `${baseUrl}/privacy`,
-      lastModified: staticDate,
-      changeFrequency: "yearly",
-      priority: 0.3,
-      alternates: hreflang("/privacy"),
-    },
-    {
-      url: `${baseUrl}/terms`,
-      lastModified: staticDate,
-      changeFrequency: "yearly",
-      priority: 0.3,
-      alternates: hreflang("/terms"),
-    },
-    {
-      url: `${baseUrl}/affiliate-disclosure`,
-      lastModified: staticDate,
-      changeFrequency: "yearly",
-      priority: 0.3,
-      alternates: hreflang("/affiliate-disclosure"),
-    },
-    {
-      url: `${baseUrl}/shop`,
-      lastModified: currentDate,
-      changeFrequency: "weekly",
-      priority: 0.7,
-      alternates: hreflang("/shop"),
-    },
-  ];
+  // Static pages — use staticDate for content that doesn't change on every
+  // request, so crawlers get accurate last-modified signals.
+  // Yacht site has a different page structure than travel blog sites.
+  const isYachtSite = siteId === "zenitha-yachts-med";
+
+  const staticPages: MetadataRoute.Sitemap = isYachtSite
+    ? [
+        // Zenitha Yachts static pages
+        {
+          url: baseUrl,
+          lastModified: staticDate,
+          changeFrequency: "daily",
+          priority: 1,
+          alternates: hreflang(""),
+        },
+        {
+          url: `${baseUrl}/yachts`,
+          lastModified: currentDate,
+          changeFrequency: "daily",
+          priority: 0.9,
+          alternates: hreflang("/yachts"),
+        },
+        {
+          url: `${baseUrl}/destinations`,
+          lastModified: currentDate,
+          changeFrequency: "weekly",
+          priority: 0.9,
+          alternates: hreflang("/destinations"),
+        },
+        {
+          url: `${baseUrl}/itineraries`,
+          lastModified: currentDate,
+          changeFrequency: "weekly",
+          priority: 0.8,
+          alternates: hreflang("/itineraries"),
+        },
+        {
+          url: `${baseUrl}/charter-planner`,
+          lastModified: staticDate,
+          changeFrequency: "weekly",
+          priority: 0.8,
+          alternates: hreflang("/charter-planner"),
+        },
+        {
+          url: `${baseUrl}/inquiry`,
+          lastModified: staticDate,
+          changeFrequency: "monthly",
+          priority: 0.7,
+          alternates: hreflang("/inquiry"),
+        },
+        {
+          url: `${baseUrl}/how-it-works`,
+          lastModified: staticDate,
+          changeFrequency: "monthly",
+          priority: 0.7,
+          alternates: hreflang("/how-it-works"),
+        },
+        {
+          url: `${baseUrl}/faq`,
+          lastModified: staticDate,
+          changeFrequency: "monthly",
+          priority: 0.6,
+          alternates: hreflang("/faq"),
+        },
+        {
+          url: `${baseUrl}/about`,
+          lastModified: staticDate,
+          changeFrequency: "monthly",
+          priority: 0.7,
+          alternates: hreflang("/about"),
+        },
+        {
+          url: `${baseUrl}/contact`,
+          lastModified: staticDate,
+          changeFrequency: "monthly",
+          priority: 0.6,
+          alternates: hreflang("/contact"),
+        },
+        {
+          url: `${baseUrl}/blog`,
+          lastModified: currentDate,
+          changeFrequency: "weekly",
+          priority: 0.7,
+          alternates: hreflang("/blog"),
+        },
+        {
+          url: `${baseUrl}/privacy`,
+          lastModified: staticDate,
+          changeFrequency: "yearly",
+          priority: 0.3,
+          alternates: hreflang("/privacy"),
+        },
+        {
+          url: `${baseUrl}/terms`,
+          lastModified: staticDate,
+          changeFrequency: "yearly",
+          priority: 0.3,
+          alternates: hreflang("/terms"),
+        },
+      ]
+    : [
+        // Travel blog sites static pages
+        {
+          url: baseUrl,
+          lastModified: staticDate,
+          changeFrequency: "daily",
+          priority: 1,
+          alternates: hreflang(""),
+        },
+        {
+          url: `${baseUrl}/blog`,
+          lastModified: currentDate,
+          changeFrequency: "daily",
+          priority: 0.9,
+          alternates: hreflang("/blog"),
+        },
+        {
+          url: `${baseUrl}/recommendations`,
+          lastModified: staticDate,
+          changeFrequency: "weekly",
+          priority: 0.9,
+          alternates: hreflang("/recommendations"),
+        },
+        {
+          url: `${baseUrl}/events`,
+          lastModified: currentDate,
+          changeFrequency: "daily",
+          priority: 0.8,
+          alternates: hreflang("/events"),
+        },
+        {
+          url: `${baseUrl}/experiences`,
+          lastModified: staticDate,
+          changeFrequency: "weekly",
+          priority: 0.8,
+          alternates: hreflang("/experiences"),
+        },
+        {
+          url: `${baseUrl}/hotels`,
+          lastModified: staticDate,
+          changeFrequency: "weekly",
+          priority: 0.8,
+          alternates: hreflang("/hotels"),
+        },
+        {
+          url: `${baseUrl}/about`,
+          lastModified: staticDate,
+          changeFrequency: "monthly",
+          priority: 0.7,
+          alternates: hreflang("/about"),
+        },
+        {
+          url: `${baseUrl}/contact`,
+          lastModified: staticDate,
+          changeFrequency: "monthly",
+          priority: 0.6,
+          alternates: hreflang("/contact"),
+        },
+        {
+          url: `${baseUrl}/privacy`,
+          lastModified: staticDate,
+          changeFrequency: "yearly",
+          priority: 0.3,
+          alternates: hreflang("/privacy"),
+        },
+        {
+          url: `${baseUrl}/terms`,
+          lastModified: staticDate,
+          changeFrequency: "yearly",
+          priority: 0.3,
+          alternates: hreflang("/terms"),
+        },
+        {
+          url: `${baseUrl}/affiliate-disclosure`,
+          lastModified: staticDate,
+          changeFrequency: "yearly",
+          priority: 0.3,
+          alternates: hreflang("/affiliate-disclosure"),
+        },
+        {
+          url: `${baseUrl}/shop`,
+          lastModified: currentDate,
+          changeFrequency: "weekly",
+          priority: 0.7,
+          alternates: hreflang("/shop"),
+        },
+      ];
 
   // Blog posts from static content files (only for yalla-london)
   let staticBlogPages: MetadataRoute.Sitemap = [];
@@ -319,18 +418,81 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.warn(`[sitemap] Shop products DB query failed for ${siteId}:`, error instanceof Error ? error.message : String(error));
   }
 
+  // ── Yacht-specific dynamic pages (zenitha-yachts-med only) ──
+  let yachtPages: MetadataRoute.Sitemap = [];
+  let destinationPages: MetadataRoute.Sitemap = [];
+  let itineraryPages: MetadataRoute.Sitemap = [];
+
+  if (isYachtSite) {
+    // Individual yacht pages
+    try {
+      const yachts = await prisma.yacht.findMany({
+        where: { siteId: "zenitha-yachts-med", status: "active" },
+        select: { slug: true, updatedAt: true },
+      });
+      yachtPages = yachts.map((yacht) => ({
+        url: `${baseUrl}/yachts/${yacht.slug}`,
+        lastModified: yacht.updatedAt?.toISOString() || currentDate,
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+        alternates: hreflang(`/yachts/${yacht.slug}`),
+      }));
+    } catch (error) {
+      console.warn(`[sitemap] Yacht DB query failed:`, error instanceof Error ? error.message : String(error));
+    }
+
+    // Destination pages
+    try {
+      const destinations = await prisma.yachtDestination.findMany({
+        where: { siteId: "zenitha-yachts-med", status: "active" },
+        select: { slug: true, updatedAt: true },
+      });
+      destinationPages = destinations.map((dest) => ({
+        url: `${baseUrl}/destinations/${dest.slug}`,
+        lastModified: dest.updatedAt?.toISOString() || currentDate,
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+        alternates: hreflang(`/destinations/${dest.slug}`),
+      }));
+    } catch (error) {
+      console.warn(`[sitemap] YachtDestination DB query failed:`, error instanceof Error ? error.message : String(error));
+    }
+
+    // Itinerary pages
+    try {
+      const itineraries = await prisma.charterItinerary.findMany({
+        where: { siteId: "zenitha-yachts-med", status: "active" },
+        select: { slug: true, updatedAt: true },
+      });
+      itineraryPages = itineraries.map((itin) => ({
+        url: `${baseUrl}/itineraries/${itin.slug}`,
+        lastModified: itin.updatedAt?.toISOString() || currentDate,
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+        alternates: hreflang(`/itineraries/${itin.slug}`),
+      }));
+    } catch (error) {
+      console.warn(`[sitemap] CharterItinerary DB query failed:`, error instanceof Error ? error.message : String(error));
+    }
+  }
+
   return [
     ...staticPages,
     ...staticBlogPages,
     ...dbBlogPages,
     ...eventPages,
-    ...categoryPages,
-    ...infoHubPages,
-    ...infoSectionPages,
-    ...infoArticlePages,
+    // Travel blog-specific sections (skip for yacht site)
+    ...(isYachtSite ? [] : categoryPages),
+    ...(isYachtSite ? [] : infoHubPages),
+    ...(isYachtSite ? [] : infoSectionPages),
+    ...(isYachtSite ? [] : infoArticlePages),
     ...newsLandingPages,
     ...newsPages,
-    ...londonByFootPages,
-    ...shopProductPages,
+    ...(isYachtSite ? [] : londonByFootPages),
+    ...(isYachtSite ? [] : shopProductPages),
+    // Yacht-specific dynamic pages
+    ...yachtPages,
+    ...destinationPages,
+    ...itineraryPages,
   ];
 }

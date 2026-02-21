@@ -7,6 +7,7 @@ import {
   Play, Send, Loader2, Activity, ArrowRight, Search, FileText,
   Lightbulb, Database, ExternalLink, Eye, BarChart3, MapPin,
   TrendingUp, Radio, Shield, Cpu, Bell, ChevronRight, ChevronDown,
+  Anchor, Ship, MessageSquare,
 } from "lucide-react";
 
 type Health = "green" | "yellow" | "red" | "gray";
@@ -427,6 +428,122 @@ function RecentLog({ logs }: { logs: LogEntry[] }) {
   );
 }
 
+interface YachtAnalytics {
+  fleet: { total: number; active: number; featured: number; avgPricePerWeek: number | null };
+  inquiries: { total: number; thisMonth: number; byStatus: Record<string, number>; conversionRate: number };
+  destinations: { total: number };
+}
+
+function YachtPlatformCard({ sites }: { sites: SiteData[] }) {
+  const [yachtData, setYachtData] = useState<YachtAnalytics | null>(null);
+  const [yachtLoading, setYachtLoading] = useState(true);
+  const [yachtError, setYachtError] = useState(false);
+
+  const hasYachtSite = sites.some(s => s.siteId === "zenitha-yachts-med");
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!hasYachtSite) {
+      setYachtLoading(false);
+    } else {
+      (async () => {
+        try {
+          const res = await fetch("/api/admin/yachts/analytics?siteId=zenitha-yachts-med");
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const json = await res.json();
+          if (!cancelled) setYachtData(json);
+        } catch {
+          if (!cancelled) setYachtError(true);
+        } finally {
+          if (!cancelled) setYachtLoading(false);
+        }
+      })();
+    }
+    return () => { cancelled = true; };
+  }, [hasYachtSite]);
+
+  if (!hasYachtSite) return null;
+
+  const activeInquiries = yachtData
+    ? (yachtData.inquiries.byStatus["NEW"] ?? 0) + (yachtData.inquiries.byStatus["CONTACTED"] ?? 0)
+    : 0;
+
+  const YACHT_LINKS = [
+    { label: "Fleet Inventory", href: "/admin/yachts", icon: Ship },
+    { label: "Inquiries",       href: "/admin/yachts/inquiries", icon: MessageSquare },
+    { label: "Destinations",    href: "/admin/yachts/destinations", icon: MapPin },
+    { label: "Analytics",       href: "/admin/yachts/analytics", icon: BarChart3 },
+  ];
+
+  return (
+    <div className="neu-card">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div style={{ width:36, height:36, borderRadius:"50%", backgroundColor:"rgba(74,123,168,0.12)",
+            display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <Anchor size={18} style={{ color:"#4A7BA8" }} />
+          </div>
+          <div>
+            <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:16, color:"#1C1917" }}>Yacht Platform</div>
+            <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:11, color:"#78716C", letterSpacing:0 }}>منصة اليخوت</div>
+          </div>
+        </div>
+        <span className="neu-badge" style={{ backgroundColor:"rgba(74,123,168,0.1)", color:"#4A7BA8", border:"none", fontSize:7 }}>
+          ZENITHA YACHTS
+        </span>
+      </div>
+
+      {yachtLoading ? (
+        <div className="flex items-center justify-center py-6">
+          <Loader2 size={18} className="animate-spin" style={{ color:"#78716C" }} />
+        </div>
+      ) : yachtError ? (
+        <div className="flex items-center gap-3 px-3 py-4 rounded-xl" style={{ backgroundColor:"rgba(200,50,43,0.06)" }}>
+          <XCircle size={16} style={{ color:"#C8322B", flexShrink:0 }} />
+          <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#C8322B", textTransform:"uppercase", letterSpacing:1 }}>
+            Could not load yacht data — tables may not be migrated yet
+          </span>
+        </div>
+      ) : (
+        <>
+          {/* KPI Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            {[
+              ["Fleet Size", yachtData?.fleet.total ?? 0, "#4A7BA8"],
+              ["Active Inquiries", activeInquiries, activeInquiries > 0 ? "#C49A2A" : "#78716C"],
+              ["This Month", yachtData?.inquiries.thisMonth ?? 0, "#2D5A3D"],
+              ["Conversion", (yachtData?.inquiries.conversionRate ?? 0) + "%", "#C8322B"],
+            ].map(([label, value, color]) => (
+              <div key={String(label)} className="text-center p-3 rounded-xl"
+                   style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
+                <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:20, color: String(color) }}>{value}</div>
+                <div className="neu-section-label mt-0.5">{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Quick Links */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {YACHT_LINKS.map((link) => {
+              const Icon = link.icon;
+              return (
+                <Link key={link.href} href={link.href} className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all"
+                      style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
+                  <Icon size={14} style={{ color:"#4A7BA8", flexShrink:0 }} />
+                  <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, textTransform:"uppercase",
+                    letterSpacing:0.5, color:"#1C1917" }}>
+                    {link.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function CommandCenter() {
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -563,6 +680,9 @@ export default function CommandCenter() {
         <SiteHealthGrid sites={data.sites} />
         <CronHealth crons={data.crons} />
       </div>
+
+      {/* Yacht Platform — shows only when zenitha-yachts-med is configured */}
+      <YachtPlatformCard sites={data.sites} />
 
       {/* Recent Log */}
       <RecentLog logs={data.recentLogs} />

@@ -1,0 +1,1606 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   ZENITHA YACHTS — Design Tokens & Utility System
+   Maritime Luxury: Refined, Confident, Worldly
+   Version 1.0 | February 2026
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Color system:     Deep maritime blues + antique gold warmth
+   Typography:       Playfair Display (display) + DM Sans (heading) +
+                     Source Sans 3 (body) + IBM Plex Sans Arabic (AR) +
+                     JetBrains Mono (specs/data)
+   Spacing:          8px base grid
+   Motion:           Gentle, serene — slow luxury feel
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1. CSS CUSTOM PROPERTIES (DESIGN TOKENS)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+
+  /* ── 1.1  Colors: Deep Maritime ────────────────────────────────────────── */
+  --z-navy:          #0A1628;
+  --z-midnight:      #1B2A4A;
+  --z-aegean:        #2E5A88;
+  --z-ocean:         #4A90B8;
+  --z-shallow:       #7CB8D4;
+
+  /* ── 1.2  Colors: Gold & Warm ──────────────────────────────────────────── */
+  --z-gold:          #C9A96E;
+  --z-champagne:     #E8D5B5;
+  --z-sand:          #F5EDE0;
+  --z-pearl:         #FAFAF7;
+  --z-white:         #FFFFFF;
+
+  /* ── 1.3  Colors: Accent & Status ──────────────────────────────────────── */
+  --z-mediterranean: #0EA5A2;
+  --z-coral:         #E07A5F;
+  --z-storm:         #DC2626;
+  --z-seafoam:       #A7D8D0;
+  --z-dusk:          #8B5CF6;
+
+  /* ── 1.4  Semantic Colors ──────────────────────────────────────────────── */
+  --z-bg:            var(--z-pearl);
+  --z-fg:            var(--z-navy);
+  --z-border:        var(--z-champagne);
+  --z-muted:         #6B7280;
+  --z-accent:        var(--z-gold);
+
+  --z-success:       var(--z-mediterranean);
+  --z-warning:       var(--z-gold);
+  --z-error:         var(--z-storm);
+  --z-info:          var(--z-ocean);
+
+  /* ── 1.5  Surface Colors ───────────────────────────────────────────────── */
+  --z-surface:       var(--z-white);
+  --z-surface-raised: var(--z-pearl);
+  --z-surface-sunken: #F0EBE3;
+  --z-surface-overlay: rgba(10, 22, 40, 0.6);
+
+  /* ── 1.6  Interactive State Colors ─────────────────────────────────────── */
+  --z-focus-ring:    rgba(46, 90, 136, 0.5);
+  --z-hover-bg:      rgba(201, 169, 110, 0.08);
+  --z-active-bg:     rgba(201, 169, 110, 0.14);
+  --z-disabled:      #D1D5DB;
+  --z-disabled-text: #9CA3AF;
+
+
+  /* ── 2.1  Font Families ────────────────────────────────────────────────── */
+  --z-font-display:  'Playfair Display', Georgia, 'Times New Roman', serif;
+  --z-font-heading:  'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+  --z-font-body:     'Source Sans 3', 'Segoe UI', Tahoma, sans-serif;
+  --z-font-arabic:   'IBM Plex Sans Arabic', 'Noto Sans Arabic', Tahoma, sans-serif;
+  --z-font-mono:     'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+  /* ── 2.2  Font Weights ─────────────────────────────────────────────────── */
+  --z-weight-light:    300;
+  --z-weight-regular:  400;
+  --z-weight-medium:   500;
+  --z-weight-semibold: 600;
+  --z-weight-bold:     700;
+  --z-weight-black:    900;
+
+  /* ── 2.3  Typography Scale (responsive via clamp) ──────────────────────── */
+  /*
+     Pattern: clamp(min, preferred, max)
+     min       = mobile size
+     preferred = fluid middle (viewport-based)
+     max       = desktop size
+  */
+
+  /* Hero / Display */
+  --z-text-hero-display: clamp(2.75rem, 5vw + 1rem, 5rem);          /* 44px → 80px  */
+  --z-text-display:      clamp(2.25rem, 4vw + 0.75rem, 3.75rem);    /* 36px → 60px  */
+  --z-text-title-lg:     clamp(1.875rem, 3vw + 0.5rem, 3rem);       /* 30px → 48px  */
+
+  /* Headings */
+  --z-text-title:        clamp(1.5rem, 2.5vw + 0.25rem, 2.25rem);   /* 24px → 36px  */
+  --z-text-subtitle:     clamp(1.25rem, 2vw + 0.25rem, 1.75rem);    /* 20px → 28px  */
+  --z-text-heading:      clamp(1.125rem, 1.5vw + 0.25rem, 1.5rem);  /* 18px → 24px  */
+
+  /* Body */
+  --z-text-body-lg:      clamp(1.0625rem, 1vw + 0.25rem, 1.25rem);  /* 17px → 20px  */
+  --z-text-body:         clamp(0.9375rem, 0.8vw + 0.25rem, 1.0625rem); /* 15px → 17px */
+  --z-text-body-sm:      clamp(0.8125rem, 0.6vw + 0.25rem, 0.9375rem); /* 13px → 15px */
+
+  /* Small / Utility */
+  --z-text-caption:      clamp(0.6875rem, 0.5vw + 0.2rem, 0.8125rem); /* 11px → 13px */
+  --z-text-label:        clamp(0.625rem, 0.4vw + 0.2rem, 0.75rem);    /* 10px → 12px */
+  --z-text-overline:     clamp(0.625rem, 0.4vw + 0.2rem, 0.75rem);    /* 10px → 12px */
+  --z-text-micro:        0.625rem;                                      /* 10px fixed  */
+
+  /* Spec / Data values (mono, large for yacht specs) */
+  --z-text-spec-value:   clamp(1.5rem, 2.5vw + 0.25rem, 2.5rem);   /* 24px → 40px  */
+  --z-text-spec-label:   clamp(0.6875rem, 0.5vw + 0.2rem, 0.8125rem); /* 11px → 13px */
+
+  /* ── 2.4  Line Heights ─────────────────────────────────────────────────── */
+  --z-leading-none:      1;
+  --z-leading-tight:     1.1;
+  --z-leading-snug:      1.25;
+  --z-leading-normal:    1.5;
+  --z-leading-relaxed:   1.65;
+  --z-leading-loose:     1.8;
+
+  /* ── 2.5  Letter Spacing ───────────────────────────────────────────────── */
+  --z-tracking-tighter:  -0.03em;
+  --z-tracking-tight:    -0.02em;
+  --z-tracking-normal:   0;
+  --z-tracking-wide:     0.04em;
+  --z-tracking-wider:    0.08em;
+  --z-tracking-widest:   0.12em;
+  --z-tracking-caps:     0.16em;
+
+
+  /* ── 3.  Spacing (8px base grid) ───────────────────────────────────────── */
+  --z-space-px:    1px;
+  --z-space-0:     0;
+  --z-space-0-5:   2px;
+  --z-space-1:     4px;
+  --z-space-1-5:   6px;
+  --z-space-2:     8px;
+  --z-space-2-5:   10px;
+  --z-space-3:     12px;
+  --z-space-3-5:   14px;
+  --z-space-4:     16px;
+  --z-space-5:     20px;
+  --z-space-6:     24px;
+  --z-space-7:     28px;
+  --z-space-8:     32px;
+  --z-space-9:     36px;
+  --z-space-10:    40px;
+  --z-space-11:    44px;
+  --z-space-12:    48px;
+  --z-space-14:    56px;
+  --z-space-16:    64px;
+  --z-space-18:    72px;
+  --z-space-20:    80px;
+  --z-space-24:    96px;
+  --z-space-28:    112px;
+  --z-space-32:    128px;
+
+
+  /* ── 4.  Border Radius ─────────────────────────────────────────────────── */
+  --z-radius-none:   0;
+  --z-radius-xs:     2px;
+  --z-radius-sm:     4px;
+  --z-radius-md:     8px;
+  --z-radius-lg:     12px;
+  --z-radius-xl:     16px;
+  --z-radius-2xl:    24px;
+  --z-radius-3xl:    32px;
+  --z-radius-full:   9999px;
+
+
+  /* ── 5.  Shadows ───────────────────────────────────────────────────────── */
+  --z-shadow-xs:       0 1px 2px rgba(10, 22, 40, 0.03);
+  --z-shadow-card:     0 1px 3px rgba(10, 22, 40, 0.04),
+                       0 4px 12px rgba(10, 22, 40, 0.03);
+  --z-shadow-hover:    0 2px 8px rgba(10, 22, 40, 0.06),
+                       0 8px 24px rgba(10, 22, 40, 0.06);
+  --z-shadow-elevated: 0 4px 12px rgba(10, 22, 40, 0.08),
+                       0 16px 40px rgba(10, 22, 40, 0.08);
+  --z-shadow-modal:    0 8px 24px rgba(10, 22, 40, 0.12),
+                       0 32px 64px rgba(10, 22, 40, 0.14);
+  --z-shadow-gold:     0 4px 20px rgba(201, 169, 110, 0.25);
+  --z-shadow-gold-lg:  0 8px 40px rgba(201, 169, 110, 0.35);
+  --z-shadow-inner:    inset 0 1px 2px rgba(10, 22, 40, 0.06);
+  --z-shadow-inner-lg: inset 0 2px 8px rgba(10, 22, 40, 0.1);
+
+
+  /* ── 6.  Gradients ─────────────────────────────────────────────────────── */
+  --z-gradient-hero:          linear-gradient(135deg, #0A1628 0%, #1B2A4A 30%, #2E5A88 70%, #4A90B8 100%);
+  --z-gradient-hero-vertical: linear-gradient(180deg, #0A1628 0%, #1B2A4A 40%, #2E5A88 100%);
+  --z-gradient-card:          linear-gradient(135deg, #2E5A88 0%, #1B2A4A 60%, #0A1628 100%);
+  --z-gradient-cta:           linear-gradient(135deg, #C9A96E 0%, #E8D5B5 100%);
+  --z-gradient-cta-hover:     linear-gradient(135deg, #B89A5E 0%, #D4C4A0 100%);
+  --z-gradient-subtle:        linear-gradient(135deg, #F5EDE0 0%, #E8D5B5 100%);
+  --z-gradient-overlay:       linear-gradient(to top, rgba(10, 22, 40, 0.85) 0%, rgba(10, 22, 40, 0.4) 40%, transparent 70%);
+  --z-gradient-overlay-light: linear-gradient(to top, rgba(10, 22, 40, 0.5) 0%, rgba(10, 22, 40, 0.15) 40%, transparent 70%);
+  --z-gradient-image:         linear-gradient(180deg, transparent 0%, rgba(10, 22, 40, 0.6) 70%, rgba(10, 22, 40, 0.9) 100%);
+  --z-gradient-gold-shine:    linear-gradient(105deg, #C9A96E 0%, #E8D5B5 40%, #C9A96E 60%, #E8D5B5 100%);
+  --z-gradient-pearl:         linear-gradient(180deg, #FAFAF7 0%, #F5EDE0 100%);
+  --z-gradient-navy-depth:    linear-gradient(180deg, #0A1628 0%, #050C16 100%);
+  --z-gradient-mediterranean: linear-gradient(135deg, #0EA5A2 0%, #2E5A88 100%);
+
+
+  /* ── 7.  Motion / Animation ────────────────────────────────────────────── */
+  --z-ease-gentle:   cubic-bezier(0.25, 0.1, 0.25, 1.0);
+  --z-ease-smooth:   cubic-bezier(0.4, 0, 0.2, 1);
+  --z-ease-in:       cubic-bezier(0.4, 0, 1, 1);
+  --z-ease-out:      cubic-bezier(0, 0, 0.2, 1);
+  --z-ease-bounce:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --z-ease-spring:   cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  --z-duration-instant: 100ms;
+  --z-duration-fast:    200ms;
+  --z-duration-base:    350ms;
+  --z-duration-slow:    600ms;
+  --z-duration-slower:  800ms;
+  --z-duration-drift:   1200ms;
+  --z-duration-cinematic: 1800ms;
+
+
+  /* ── 8.  Containers ────────────────────────────────────────────────────── */
+  --z-container-xs:    480px;
+  --z-container-sm:    640px;
+  --z-container-md:    768px;
+  --z-container-lg:    1024px;
+  --z-container:       1280px;
+  --z-container-wide:  1440px;
+  --z-container-full:  1600px;
+  --z-container-text:  720px;
+  --z-container-prose: 65ch;
+
+
+  /* ── 9.  Z-Index Scale ─────────────────────────────────────────────────── */
+  --z-index-base:    0;
+  --z-index-raised:  10;
+  --z-index-dropdown: 20;
+  --z-index-sticky:  50;
+  --z-index-header:  100;
+  --z-index-overlay: 200;
+  --z-index-modal:   300;
+  --z-index-toast:   400;
+  --z-index-tooltip: 500;
+
+
+  /* ── 10.  Borders ──────────────────────────────────────────────────────── */
+  --z-border-width:   1px;
+  --z-border-width-2: 2px;
+  --z-border-width-3: 3px;
+  --z-border-color:   var(--z-champagne);
+  --z-border-subtle:  rgba(232, 213, 181, 0.5);
+  --z-border-strong:  var(--z-gold);
+
+  /* Gold accent bar (analogous to Yalla London tri-color bar) */
+  --z-bar-height:     2px;
+  --z-bar-gradient:   linear-gradient(90deg, var(--z-gold) 60%, var(--z-champagne) 82%, var(--z-ocean) 100%);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2. DARK MODE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="dark"] .zenitha-site,
+.zenitha-dark {
+  --z-bg:            var(--z-navy);
+  --z-fg:            var(--z-pearl);
+  --z-border:        rgba(46, 90, 136, 0.3);
+  --z-muted:         #9CA3AF;
+  --z-surface:       var(--z-midnight);
+  --z-surface-raised: #1F3157;
+  --z-surface-sunken: #070F1E;
+  --z-hover-bg:      rgba(201, 169, 110, 0.12);
+  --z-active-bg:     rgba(201, 169, 110, 0.2);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. ARABIC / RTL CONTEXT
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.zenitha-site[dir="rtl"],
+.zenitha-rtl {
+  font-family: var(--z-font-arabic);
+  direction: rtl;
+  /* Preserve Arabic ligatures — never apply letter-spacing */
+  letter-spacing: 0 !important;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4. KEYFRAME ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* --- Entrance Animations --- */
+
+@keyframes z-fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes z-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes z-fadeDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes z-fadeLeft {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes z-fadeRight {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes z-scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes z-slideUp {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes z-slideDown {
+  from { opacity: 0; transform: translateY(-100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Brand Signature Animations --- */
+
+@keyframes z-stampIn {
+  from { opacity: 0; transform: scale(1.4) rotate(-8deg); }
+  to   { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes z-stampBounce {
+  0%   { opacity: 0; transform: scale(1.5) rotate(-10deg); }
+  60%  { transform: scale(0.95) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes z-barSlide {
+  from { width: 0; }
+  to   { width: 100%; }
+}
+
+/* --- Continuous / Loop Animations --- */
+
+@keyframes z-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50%      { opacity: 1; transform: scale(1); }
+}
+
+@keyframes z-shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+
+@keyframes z-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+@keyframes z-drift {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  25%      { transform: translateX(4px) translateY(-3px); }
+  50%      { transform: translateX(0) translateY(-6px); }
+  75%      { transform: translateX(-4px) translateY(-3px); }
+}
+
+@keyframes z-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(201, 169, 110, 0.2); }
+  50%      { box-shadow: 0 0 20px rgba(201, 169, 110, 0.5); }
+}
+
+@keyframes z-goldShine {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* --- Counter / Number Animation --- */
+
+@keyframes z-counterUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Wave / Water Animation (brand-specific) --- */
+
+@keyframes z-wave {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  25%      { transform: translateX(-5px) translateY(2px); }
+  50%      { transform: translateX(0) translateY(4px); }
+  75%      { transform: translateX(5px) translateY(2px); }
+}
+
+@keyframes z-ripple {
+  0%   { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* --- Skeleton Loading --- */
+
+@keyframes z-skeleton {
+  0%   { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5. STAGGER ANIMATION UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.z-stagger > * {
+  opacity: 0;
+  animation: z-fadeUp var(--z-duration-slow) var(--z-ease-gentle) forwards;
+}
+
+.z-stagger > *:nth-child(1)  { animation-delay: 0ms; }
+.z-stagger > *:nth-child(2)  { animation-delay: 100ms; }
+.z-stagger > *:nth-child(3)  { animation-delay: 200ms; }
+.z-stagger > *:nth-child(4)  { animation-delay: 300ms; }
+.z-stagger > *:nth-child(5)  { animation-delay: 400ms; }
+.z-stagger > *:nth-child(6)  { animation-delay: 500ms; }
+.z-stagger > *:nth-child(7)  { animation-delay: 600ms; }
+.z-stagger > *:nth-child(8)  { animation-delay: 700ms; }
+.z-stagger > *:nth-child(9)  { animation-delay: 800ms; }
+.z-stagger > *:nth-child(10) { animation-delay: 900ms; }
+.z-stagger > *:nth-child(11) { animation-delay: 1000ms; }
+.z-stagger > *:nth-child(12) { animation-delay: 1100ms; }
+
+/* Faster stagger variant */
+.z-stagger-fast > * {
+  opacity: 0;
+  animation: z-fadeUp var(--z-duration-base) var(--z-ease-gentle) forwards;
+}
+
+.z-stagger-fast > *:nth-child(1)  { animation-delay: 0ms; }
+.z-stagger-fast > *:nth-child(2)  { animation-delay: 60ms; }
+.z-stagger-fast > *:nth-child(3)  { animation-delay: 120ms; }
+.z-stagger-fast > *:nth-child(4)  { animation-delay: 180ms; }
+.z-stagger-fast > *:nth-child(5)  { animation-delay: 240ms; }
+.z-stagger-fast > *:nth-child(6)  { animation-delay: 300ms; }
+.z-stagger-fast > *:nth-child(7)  { animation-delay: 360ms; }
+.z-stagger-fast > *:nth-child(8)  { animation-delay: 420ms; }
+
+/* Scale-in stagger for cards/grids */
+.z-stagger-scale > * {
+  opacity: 0;
+  animation: z-scaleIn var(--z-duration-slow) var(--z-ease-gentle) forwards;
+}
+
+.z-stagger-scale > *:nth-child(1)  { animation-delay: 0ms; }
+.z-stagger-scale > *:nth-child(2)  { animation-delay: 80ms; }
+.z-stagger-scale > *:nth-child(3)  { animation-delay: 160ms; }
+.z-stagger-scale > *:nth-child(4)  { animation-delay: 240ms; }
+.z-stagger-scale > *:nth-child(5)  { animation-delay: 320ms; }
+.z-stagger-scale > *:nth-child(6)  { animation-delay: 400ms; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   6. PREFERS-REDUCED-MOTION
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .z-stagger > *,
+  .z-stagger-fast > *,
+  .z-stagger-scale > * {
+    opacity: 1 !important;
+    animation: none !important;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   7. CONTAINER UTILITIES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.z-container {
+  width: 100%;
+  max-width: var(--z-container);
+  margin-inline: auto;
+  padding-inline: var(--z-space-4);
+}
+
+.z-container-wide {
+  width: 100%;
+  max-width: var(--z-container-wide);
+  margin-inline: auto;
+  padding-inline: var(--z-space-4);
+}
+
+.z-container-full {
+  width: 100%;
+  max-width: var(--z-container-full);
+  margin-inline: auto;
+  padding-inline: var(--z-space-4);
+}
+
+.z-container-text {
+  width: 100%;
+  max-width: var(--z-container-text);
+  margin-inline: auto;
+  padding-inline: var(--z-space-4);
+}
+
+.z-container-prose {
+  width: 100%;
+  max-width: var(--z-container-prose);
+  margin-inline: auto;
+  padding-inline: var(--z-space-4);
+}
+
+@media (min-width: 640px) {
+  .z-container,
+  .z-container-wide,
+  .z-container-full,
+  .z-container-text,
+  .z-container-prose {
+    padding-inline: var(--z-space-6);
+  }
+}
+
+@media (min-width: 1024px) {
+  .z-container,
+  .z-container-wide,
+  .z-container-full,
+  .z-container-text,
+  .z-container-prose {
+    padding-inline: var(--z-space-8);
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   8. TYPOGRAPHY UTILITY CLASSES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Display / Hero */
+.z-text-hero-display {
+  font-family: var(--z-font-display);
+  font-size: var(--z-text-hero-display);
+  font-weight: var(--z-weight-bold);
+  line-height: var(--z-leading-none);
+  letter-spacing: var(--z-tracking-tighter);
+  color: var(--z-fg);
+}
+
+.z-text-display {
+  font-family: var(--z-font-display);
+  font-size: var(--z-text-display);
+  font-weight: var(--z-weight-bold);
+  line-height: var(--z-leading-tight);
+  letter-spacing: var(--z-tracking-tight);
+  color: var(--z-fg);
+}
+
+.z-text-title-lg {
+  font-family: var(--z-font-display);
+  font-size: var(--z-text-title-lg);
+  font-weight: var(--z-weight-bold);
+  line-height: var(--z-leading-tight);
+  letter-spacing: var(--z-tracking-tight);
+  color: var(--z-fg);
+}
+
+/* Headings */
+.z-text-title {
+  font-family: var(--z-font-heading);
+  font-size: var(--z-text-title);
+  font-weight: var(--z-weight-bold);
+  line-height: var(--z-leading-snug);
+  letter-spacing: var(--z-tracking-tight);
+  color: var(--z-fg);
+}
+
+.z-text-subtitle {
+  font-family: var(--z-font-heading);
+  font-size: var(--z-text-subtitle);
+  font-weight: var(--z-weight-semibold);
+  line-height: var(--z-leading-snug);
+  letter-spacing: var(--z-tracking-normal);
+  color: var(--z-fg);
+}
+
+.z-text-heading {
+  font-family: var(--z-font-heading);
+  font-size: var(--z-text-heading);
+  font-weight: var(--z-weight-semibold);
+  line-height: var(--z-leading-snug);
+  letter-spacing: var(--z-tracking-normal);
+  color: var(--z-fg);
+}
+
+/* Body */
+.z-text-body-lg {
+  font-family: var(--z-font-body);
+  font-size: var(--z-text-body-lg);
+  font-weight: var(--z-weight-regular);
+  line-height: var(--z-leading-relaxed);
+  letter-spacing: var(--z-tracking-normal);
+  color: var(--z-fg);
+}
+
+.z-text-body {
+  font-family: var(--z-font-body);
+  font-size: var(--z-text-body);
+  font-weight: var(--z-weight-regular);
+  line-height: var(--z-leading-normal);
+  letter-spacing: var(--z-tracking-normal);
+  color: var(--z-fg);
+}
+
+.z-text-body-sm {
+  font-family: var(--z-font-body);
+  font-size: var(--z-text-body-sm);
+  font-weight: var(--z-weight-regular);
+  line-height: var(--z-leading-normal);
+  letter-spacing: var(--z-tracking-normal);
+  color: var(--z-muted);
+}
+
+/* Small / Utility */
+.z-text-caption {
+  font-family: var(--z-font-body);
+  font-size: var(--z-text-caption);
+  font-weight: var(--z-weight-medium);
+  line-height: var(--z-leading-normal);
+  letter-spacing: var(--z-tracking-wide);
+  color: var(--z-muted);
+}
+
+.z-text-label {
+  font-family: var(--z-font-heading);
+  font-size: var(--z-text-label);
+  font-weight: var(--z-weight-semibold);
+  line-height: var(--z-leading-normal);
+  letter-spacing: var(--z-tracking-wider);
+  text-transform: uppercase;
+  color: var(--z-muted);
+}
+
+.z-text-overline {
+  font-family: var(--z-font-heading);
+  font-size: var(--z-text-overline);
+  font-weight: var(--z-weight-semibold);
+  line-height: var(--z-leading-normal);
+  letter-spacing: var(--z-tracking-caps);
+  text-transform: uppercase;
+  color: var(--z-gold);
+}
+
+/* Mono / Spec */
+.z-text-spec-value {
+  font-family: var(--z-font-mono);
+  font-size: var(--z-text-spec-value);
+  font-weight: var(--z-weight-bold);
+  line-height: var(--z-leading-none);
+  letter-spacing: var(--z-tracking-tight);
+  color: var(--z-fg);
+}
+
+.z-text-spec-label {
+  font-family: var(--z-font-mono);
+  font-size: var(--z-text-spec-label);
+  font-weight: var(--z-weight-medium);
+  line-height: var(--z-leading-normal);
+  letter-spacing: var(--z-tracking-wider);
+  text-transform: uppercase;
+  color: var(--z-muted);
+}
+
+.z-text-mono {
+  font-family: var(--z-font-mono);
+  font-size: var(--z-text-body-sm);
+  font-weight: var(--z-weight-regular);
+  line-height: var(--z-leading-normal);
+  letter-spacing: var(--z-tracking-normal);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   9. TAILWIND-COMPATIBLE UTILITY CLASSES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* --- 9.1  Buttons --- */
+
+.z-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--z-space-2);
+  padding: var(--z-space-3) var(--z-space-6);
+  font-family: var(--z-font-heading);
+  font-size: var(--z-text-body-sm);
+  font-weight: var(--z-weight-semibold);
+  letter-spacing: var(--z-tracking-wide);
+  line-height: var(--z-leading-snug);
+  border-radius: var(--z-radius-sm);
+  border: var(--z-border-width) solid transparent;
+  cursor: pointer;
+  transition:
+    background var(--z-duration-fast) var(--z-ease-gentle),
+    color var(--z-duration-fast) var(--z-ease-gentle),
+    border-color var(--z-duration-fast) var(--z-ease-gentle),
+    box-shadow var(--z-duration-fast) var(--z-ease-gentle),
+    transform var(--z-duration-fast) var(--z-ease-gentle);
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.z-btn:focus-visible {
+  outline: 2px solid var(--z-focus-ring);
+  outline-offset: 2px;
+}
+
+.z-btn:disabled,
+.z-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Primary — Gold gradient CTA */
+.z-btn-primary {
+  background: var(--z-gradient-cta);
+  color: var(--z-navy);
+  border-color: transparent;
+  box-shadow: var(--z-shadow-gold);
+}
+
+.z-btn-primary:hover {
+  background: var(--z-gradient-cta-hover);
+  box-shadow: var(--z-shadow-gold-lg);
+  transform: translateY(-1px);
+}
+
+.z-btn-primary:active {
+  transform: translateY(0);
+  box-shadow: var(--z-shadow-gold);
+}
+
+/* Secondary — Outlined navy */
+.z-btn-secondary {
+  background: transparent;
+  color: var(--z-navy);
+  border-color: var(--z-champagne);
+}
+
+.z-btn-secondary:hover {
+  background: var(--z-hover-bg);
+  border-color: var(--z-gold);
+  color: var(--z-navy);
+}
+
+.z-btn-secondary:active {
+  background: var(--z-active-bg);
+}
+
+/* Ghost — Minimal, text-only feel */
+.z-btn-ghost {
+  background: transparent;
+  color: var(--z-aegean);
+  border-color: transparent;
+}
+
+.z-btn-ghost:hover {
+  background: var(--z-hover-bg);
+  color: var(--z-navy);
+}
+
+/* Navy — Solid dark for high-contrast areas */
+.z-btn-navy {
+  background: var(--z-navy);
+  color: var(--z-pearl);
+  border-color: transparent;
+}
+
+.z-btn-navy:hover {
+  background: var(--z-midnight);
+  box-shadow: var(--z-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.z-btn-navy:active {
+  transform: translateY(0);
+}
+
+/* Danger / Destructive */
+.z-btn-danger {
+  background: var(--z-storm);
+  color: var(--z-white);
+  border-color: transparent;
+}
+
+.z-btn-danger:hover {
+  background: #B91C1C;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+/* Button Sizes */
+.z-btn-sm {
+  padding: var(--z-space-1-5) var(--z-space-4);
+  font-size: var(--z-text-caption);
+}
+
+.z-btn-lg {
+  padding: var(--z-space-4) var(--z-space-8);
+  font-size: var(--z-text-body);
+}
+
+.z-btn-xl {
+  padding: var(--z-space-5) var(--z-space-10);
+  font-size: var(--z-text-body-lg);
+  border-radius: var(--z-radius-md);
+}
+
+/* Icon-only button */
+.z-btn-icon {
+  padding: var(--z-space-2-5);
+  border-radius: var(--z-radius-md);
+  aspect-ratio: 1;
+}
+
+/* Full-width button */
+.z-btn-block {
+  width: 100%;
+}
+
+
+/* --- 9.2  Cards --- */
+
+.z-card {
+  background: var(--z-surface);
+  border: var(--z-border-width) solid var(--z-border);
+  border-radius: var(--z-radius-lg);
+  box-shadow: var(--z-shadow-card);
+  overflow: hidden;
+  transition:
+    box-shadow var(--z-duration-base) var(--z-ease-gentle),
+    transform var(--z-duration-base) var(--z-ease-gentle),
+    border-color var(--z-duration-base) var(--z-ease-gentle);
+}
+
+.z-card:hover {
+  box-shadow: var(--z-shadow-hover);
+  transform: translateY(-2px);
+  border-color: var(--z-gold);
+}
+
+.z-card-body {
+  padding: var(--z-space-6);
+}
+
+.z-card-header {
+  padding: var(--z-space-6) var(--z-space-6) 0;
+}
+
+.z-card-footer {
+  padding: 0 var(--z-space-6) var(--z-space-6);
+}
+
+/* Card with image — no hover lift (for gallery/yacht listings) */
+.z-card-flat {
+  background: var(--z-surface);
+  border: var(--z-border-width) solid var(--z-border);
+  border-radius: var(--z-radius-lg);
+  box-shadow: var(--z-shadow-card);
+  overflow: hidden;
+}
+
+/* Dark card — for hero/overlay areas */
+.z-card-dark {
+  background: var(--z-gradient-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--z-radius-lg);
+  color: var(--z-pearl);
+}
+
+/* Glass card — frosted glass effect */
+.z-card-glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--z-radius-lg);
+  color: var(--z-pearl);
+}
+
+/* Gold-bordered card — premium items */
+.z-card-gold {
+  background: var(--z-surface);
+  border: var(--z-border-width-2) solid var(--z-gold);
+  border-radius: var(--z-radius-lg);
+  box-shadow: var(--z-shadow-gold);
+  overflow: hidden;
+}
+
+
+/* --- 9.3  Badge / Tag --- */
+
+.z-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--z-space-1);
+  padding: var(--z-space-0-5) var(--z-space-2-5);
+  font-family: var(--z-font-heading);
+  font-size: var(--z-text-micro);
+  font-weight: var(--z-weight-semibold);
+  letter-spacing: var(--z-tracking-wider);
+  text-transform: uppercase;
+  line-height: var(--z-leading-normal);
+  border-radius: var(--z-radius-sm);
+  white-space: nowrap;
+}
+
+.z-badge-gold {
+  background: rgba(201, 169, 110, 0.12);
+  color: var(--z-gold);
+  border: 1px solid rgba(201, 169, 110, 0.25);
+}
+
+.z-badge-navy {
+  background: var(--z-navy);
+  color: var(--z-pearl);
+}
+
+.z-badge-ocean {
+  background: rgba(74, 144, 184, 0.12);
+  color: var(--z-aegean);
+  border: 1px solid rgba(74, 144, 184, 0.25);
+}
+
+.z-badge-success {
+  background: rgba(14, 165, 162, 0.12);
+  color: var(--z-mediterranean);
+  border: 1px solid rgba(14, 165, 162, 0.25);
+}
+
+.z-badge-warning {
+  background: rgba(201, 169, 110, 0.12);
+  color: #92730A;
+  border: 1px solid rgba(201, 169, 110, 0.25);
+}
+
+.z-badge-error {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--z-storm);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.z-badge-outline {
+  background: transparent;
+  color: var(--z-muted);
+  border: 1px solid var(--z-border);
+}
+
+
+/* --- 9.4  Input / Form Controls --- */
+
+.z-input {
+  width: 100%;
+  padding: var(--z-space-3) var(--z-space-4);
+  font-family: var(--z-font-body);
+  font-size: var(--z-text-body);
+  font-weight: var(--z-weight-regular);
+  line-height: var(--z-leading-normal);
+  color: var(--z-fg);
+  background: var(--z-surface);
+  border: var(--z-border-width) solid var(--z-border);
+  border-radius: var(--z-radius-md);
+  transition:
+    border-color var(--z-duration-fast) var(--z-ease-gentle),
+    box-shadow var(--z-duration-fast) var(--z-ease-gentle);
+  appearance: none;
+}
+
+.z-input::placeholder {
+  color: var(--z-disabled-text);
+}
+
+.z-input:hover {
+  border-color: var(--z-gold);
+}
+
+.z-input:focus {
+  border-color: var(--z-aegean);
+  box-shadow: 0 0 0 3px var(--z-focus-ring);
+  outline: none;
+}
+
+.z-input:disabled {
+  background: var(--z-surface-sunken);
+  color: var(--z-disabled-text);
+  cursor: not-allowed;
+}
+
+.z-input-error {
+  border-color: var(--z-storm);
+}
+
+.z-input-error:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25);
+}
+
+.z-input-sm {
+  padding: var(--z-space-2) var(--z-space-3);
+  font-size: var(--z-text-body-sm);
+}
+
+.z-input-lg {
+  padding: var(--z-space-4) var(--z-space-5);
+  font-size: var(--z-text-body-lg);
+}
+
+.z-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.z-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--z-space-4) center;
+  padding-right: var(--z-space-10);
+}
+
+
+/* --- 9.5  Divider / Separator --- */
+
+.z-divider {
+  width: 100%;
+  height: var(--z-border-width);
+  background: var(--z-border);
+  border: none;
+  margin: var(--z-space-8) 0;
+}
+
+.z-divider-gold {
+  height: var(--z-bar-height);
+  background: var(--z-bar-gradient);
+}
+
+.z-divider-subtle {
+  background: var(--z-border-subtle);
+}
+
+
+/* --- 9.6  Section Utilities --- */
+
+.z-section {
+  padding-block: var(--z-space-16);
+}
+
+.z-section-sm {
+  padding-block: var(--z-space-10);
+}
+
+.z-section-lg {
+  padding-block: var(--z-space-24);
+}
+
+.z-section-hero {
+  padding-block: var(--z-space-24) var(--z-space-16);
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+}
+
+.z-section-dark {
+  background: var(--z-navy);
+  color: var(--z-pearl);
+}
+
+.z-section-pearl {
+  background: var(--z-pearl);
+}
+
+.z-section-sand {
+  background: var(--z-sand);
+}
+
+
+/* --- 9.7  Image Overlay --- */
+
+.z-img-overlay {
+  position: relative;
+  overflow: hidden;
+}
+
+.z-img-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--z-gradient-overlay);
+  pointer-events: none;
+}
+
+.z-img-overlay-light::after {
+  background: var(--z-gradient-overlay-light);
+}
+
+.z-img-overlay-image::after {
+  background: var(--z-gradient-image);
+}
+
+
+/* --- 9.8  Gold Accent Bar --- */
+
+.z-gold-bar {
+  display: block;
+  width: 48px;
+  height: var(--z-bar-height);
+  background: var(--z-bar-gradient);
+  border-radius: var(--z-radius-full);
+}
+
+.z-gold-bar-wide {
+  width: 80px;
+}
+
+.z-gold-bar-full {
+  width: 100%;
+}
+
+
+/* --- 9.9  Skeleton Loading --- */
+
+.z-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--z-surface-sunken) 25%,
+    var(--z-border-subtle) 37%,
+    var(--z-surface-sunken) 63%
+  );
+  background-size: 400px 100%;
+  animation: z-skeleton 1.4s ease infinite;
+  border-radius: var(--z-radius-sm);
+}
+
+.z-skeleton-text {
+  height: 1em;
+  margin-bottom: 0.5em;
+  border-radius: var(--z-radius-xs);
+}
+
+.z-skeleton-heading {
+  height: 1.5em;
+  width: 60%;
+  margin-bottom: 0.75em;
+  border-radius: var(--z-radius-xs);
+}
+
+.z-skeleton-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--z-radius-full);
+}
+
+.z-skeleton-image {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--z-radius-md);
+}
+
+
+/* --- 9.10  Yacht Spec Grid --- */
+
+.z-spec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--z-space-6);
+}
+
+.z-spec-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--z-space-1);
+  padding: var(--z-space-4);
+}
+
+.z-spec-item-value {
+  font-family: var(--z-font-mono);
+  font-size: var(--z-text-spec-value);
+  font-weight: var(--z-weight-bold);
+  line-height: var(--z-leading-none);
+  color: var(--z-navy);
+}
+
+.z-spec-item-unit {
+  font-family: var(--z-font-mono);
+  font-size: var(--z-text-caption);
+  font-weight: var(--z-weight-medium);
+  color: var(--z-muted);
+  letter-spacing: var(--z-tracking-wide);
+}
+
+.z-spec-item-label {
+  font-family: var(--z-font-heading);
+  font-size: var(--z-text-label);
+  font-weight: var(--z-weight-semibold);
+  color: var(--z-muted);
+  letter-spacing: var(--z-tracking-wider);
+  text-transform: uppercase;
+}
+
+
+/* --- 9.11  Price Display --- */
+
+.z-price {
+  display: flex;
+  align-items: baseline;
+  gap: var(--z-space-1);
+}
+
+.z-price-amount {
+  font-family: var(--z-font-display);
+  font-size: var(--z-text-title);
+  font-weight: var(--z-weight-bold);
+  color: var(--z-navy);
+}
+
+.z-price-currency {
+  font-family: var(--z-font-mono);
+  font-size: var(--z-text-body-sm);
+  font-weight: var(--z-weight-medium);
+  color: var(--z-muted);
+}
+
+.z-price-period {
+  font-family: var(--z-font-body);
+  font-size: var(--z-text-caption);
+  color: var(--z-muted);
+}
+
+.z-price-from {
+  font-family: var(--z-font-body);
+  font-size: var(--z-text-caption);
+  color: var(--z-muted);
+  letter-spacing: var(--z-tracking-wide);
+  text-transform: uppercase;
+}
+
+
+/* --- 9.12  Tooltip --- */
+
+.z-tooltip {
+  position: relative;
+}
+
+.z-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.96);
+  padding: var(--z-space-1-5) var(--z-space-3);
+  font-family: var(--z-font-body);
+  font-size: var(--z-text-caption);
+  font-weight: var(--z-weight-medium);
+  color: var(--z-pearl);
+  background: var(--z-navy);
+  border-radius: var(--z-radius-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity var(--z-duration-fast) var(--z-ease-gentle),
+    transform var(--z-duration-fast) var(--z-ease-gentle);
+  z-index: var(--z-index-tooltip);
+}
+
+.z-tooltip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+
+/* --- 9.13  Prose / Article Content --- */
+
+.z-prose {
+  font-family: var(--z-font-body);
+  font-size: var(--z-text-body-lg);
+  font-weight: var(--z-weight-regular);
+  line-height: var(--z-leading-relaxed);
+  color: var(--z-fg);
+  max-width: var(--z-container-prose);
+}
+
+.z-prose h1 {
+  font-family: var(--z-font-display);
+  font-size: var(--z-text-title-lg);
+  font-weight: var(--z-weight-bold);
+  line-height: var(--z-leading-tight);
+  letter-spacing: var(--z-tracking-tight);
+  margin-top: var(--z-space-12);
+  margin-bottom: var(--z-space-6);
+  color: var(--z-navy);
+}
+
+.z-prose h2 {
+  font-family: var(--z-font-heading);
+  font-size: var(--z-text-title);
+  font-weight: var(--z-weight-bold);
+  line-height: var(--z-leading-snug);
+  letter-spacing: var(--z-tracking-tight);
+  margin-top: var(--z-space-10);
+  margin-bottom: var(--z-space-4);
+  color: var(--z-navy);
+}
+
+.z-prose h3 {
+  font-family: var(--z-font-heading);
+  font-size: var(--z-text-subtitle);
+  font-weight: var(--z-weight-semibold);
+  line-height: var(--z-leading-snug);
+  margin-top: var(--z-space-8);
+  margin-bottom: var(--z-space-3);
+  color: var(--z-navy);
+}
+
+.z-prose h4 {
+  font-family: var(--z-font-heading);
+  font-size: var(--z-text-heading);
+  font-weight: var(--z-weight-semibold);
+  line-height: var(--z-leading-snug);
+  margin-top: var(--z-space-6);
+  margin-bottom: var(--z-space-2);
+  color: var(--z-navy);
+}
+
+.z-prose p {
+  margin-bottom: var(--z-space-4);
+}
+
+.z-prose a {
+  color: var(--z-aegean);
+  text-decoration: underline;
+  text-decoration-color: rgba(46, 90, 136, 0.3);
+  text-underline-offset: 3px;
+  transition: color var(--z-duration-fast) var(--z-ease-gentle),
+              text-decoration-color var(--z-duration-fast) var(--z-ease-gentle);
+}
+
+.z-prose a:hover {
+  color: var(--z-navy);
+  text-decoration-color: var(--z-navy);
+}
+
+.z-prose blockquote {
+  border-left: 3px solid var(--z-gold);
+  padding-left: var(--z-space-6);
+  margin: var(--z-space-6) 0;
+  font-style: italic;
+  color: var(--z-muted);
+}
+
+.z-prose ul,
+.z-prose ol {
+  padding-left: var(--z-space-6);
+  margin-bottom: var(--z-space-4);
+}
+
+.z-prose li {
+  margin-bottom: var(--z-space-2);
+}
+
+.z-prose li::marker {
+  color: var(--z-gold);
+}
+
+.z-prose img {
+  border-radius: var(--z-radius-lg);
+  margin: var(--z-space-6) 0;
+}
+
+.z-prose hr {
+  border: none;
+  height: var(--z-bar-height);
+  background: var(--z-bar-gradient);
+  margin: var(--z-space-10) 0;
+}
+
+.z-prose code {
+  font-family: var(--z-font-mono);
+  font-size: 0.9em;
+  padding: var(--z-space-0-5) var(--z-space-1-5);
+  background: var(--z-surface-sunken);
+  border-radius: var(--z-radius-xs);
+  color: var(--z-aegean);
+}
+
+.z-prose pre {
+  font-family: var(--z-font-mono);
+  font-size: var(--z-text-body-sm);
+  line-height: var(--z-leading-relaxed);
+  padding: var(--z-space-6);
+  background: var(--z-navy);
+  color: var(--z-pearl);
+  border-radius: var(--z-radius-md);
+  overflow-x: auto;
+  margin: var(--z-space-6) 0;
+}
+
+.z-prose pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.z-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--z-space-6) 0;
+}
+
+.z-prose th {
+  font-family: var(--z-font-heading);
+  font-size: var(--z-text-body-sm);
+  font-weight: var(--z-weight-semibold);
+  letter-spacing: var(--z-tracking-wide);
+  text-align: left;
+  padding: var(--z-space-3) var(--z-space-4);
+  border-bottom: var(--z-border-width-2) solid var(--z-gold);
+  color: var(--z-navy);
+}
+
+.z-prose td {
+  padding: var(--z-space-3) var(--z-space-4);
+  border-bottom: var(--z-border-width) solid var(--z-border);
+}
+
+
+/* --- 9.14  Utility Helpers --- */
+
+/* Colors */
+.z-text-navy      { color: var(--z-navy); }
+.z-text-gold      { color: var(--z-gold); }
+.z-text-aegean    { color: var(--z-aegean); }
+.z-text-ocean     { color: var(--z-ocean); }
+.z-text-pearl     { color: var(--z-pearl); }
+.z-text-white     { color: var(--z-white); }
+.z-text-muted     { color: var(--z-muted); }
+.z-text-coral     { color: var(--z-coral); }
+.z-text-med       { color: var(--z-mediterranean); }
+
+.z-bg-navy        { background-color: var(--z-navy); }
+.z-bg-midnight    { background-color: var(--z-midnight); }
+.z-bg-aegean      { background-color: var(--z-aegean); }
+.z-bg-gold        { background-color: var(--z-gold); }
+.z-bg-champagne   { background-color: var(--z-champagne); }
+.z-bg-sand        { background-color: var(--z-sand); }
+.z-bg-pearl       { background-color: var(--z-pearl); }
+.z-bg-white       { background-color: var(--z-white); }
+.z-bg-surface     { background-color: var(--z-surface); }
+
+.z-border-gold    { border-color: var(--z-gold); }
+.z-border-champagne { border-color: var(--z-champagne); }
+.z-border-navy    { border-color: var(--z-navy); }
+.z-border-ocean   { border-color: var(--z-ocean); }
+
+/* Gradients as backgrounds */
+.z-bg-hero        { background: var(--z-gradient-hero); }
+.z-bg-card-grad   { background: var(--z-gradient-card); }
+.z-bg-cta         { background: var(--z-gradient-cta); }
+.z-bg-subtle      { background: var(--z-gradient-subtle); }
+.z-bg-pearl-grad  { background: var(--z-gradient-pearl); }
+
+/* Shadows */
+.z-shadow-card     { box-shadow: var(--z-shadow-card); }
+.z-shadow-hover    { box-shadow: var(--z-shadow-hover); }
+.z-shadow-elevated { box-shadow: var(--z-shadow-elevated); }
+.z-shadow-gold     { box-shadow: var(--z-shadow-gold); }
+.z-shadow-none     { box-shadow: none; }
+
+/* Border radius */
+.z-rounded-sm   { border-radius: var(--z-radius-sm); }
+.z-rounded-md   { border-radius: var(--z-radius-md); }
+.z-rounded-lg   { border-radius: var(--z-radius-lg); }
+.z-rounded-xl   { border-radius: var(--z-radius-xl); }
+.z-rounded-2xl  { border-radius: var(--z-radius-2xl); }
+.z-rounded-full { border-radius: var(--z-radius-full); }
+
+/* Animations */
+.z-animate-fadeUp    { animation: z-fadeUp var(--z-duration-slow) var(--z-ease-gentle) both; }
+.z-animate-fadeIn    { animation: z-fadeIn var(--z-duration-slow) var(--z-ease-gentle) both; }
+.z-animate-fadeDown  { animation: z-fadeDown var(--z-duration-slow) var(--z-ease-gentle) both; }
+.z-animate-scaleIn   { animation: z-scaleIn var(--z-duration-slow) var(--z-ease-gentle) both; }
+.z-animate-slideUp   { animation: z-slideUp var(--z-duration-slow) var(--z-ease-gentle) both; }
+.z-animate-float     { animation: z-float 3s var(--z-ease-gentle) infinite; }
+.z-animate-drift     { animation: z-drift 6s var(--z-ease-gentle) infinite; }
+.z-animate-pulse     { animation: z-pulse 2s var(--z-ease-gentle) infinite; }
+.z-animate-shimmer   { animation: z-shimmer 2s linear infinite; }
+.z-animate-glow      { animation: z-glow 2s var(--z-ease-gentle) infinite; }
+.z-animate-goldShine {
+  background: var(--z-gradient-gold-shine);
+  background-size: 200% auto;
+  animation: z-goldShine 3s linear infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Focus ring */
+.z-focus-ring:focus-visible {
+  outline: 2px solid var(--z-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Screen-reader only */
+.z-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Truncate text */
+.z-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.z-line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.z-line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Aspect ratios */
+.z-aspect-video     { aspect-ratio: 16 / 9; }
+.z-aspect-photo     { aspect-ratio: 4 / 3; }
+.z-aspect-portrait  { aspect-ratio: 3 / 4; }
+.z-aspect-square    { aspect-ratio: 1 / 1; }
+.z-aspect-wide      { aspect-ratio: 21 / 9; }
+.z-aspect-yacht     { aspect-ratio: 2.35 / 1; }
+
+/* Scrollbar styling */
+.z-scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.z-scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+.z-scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--z-champagne) transparent;
+}
+
+.z-scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.z-scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.z-scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--z-champagne);
+  border-radius: var(--z-radius-full);
+}
+
+.z-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--z-gold);
+}

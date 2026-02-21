@@ -755,23 +755,38 @@ export class GoogleSearchConsoleAPI {
 export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Promise<string[]> {
   const baseUrl = siteUrl || BASE_URL;
   const urls: string[] = [];
+  const isYachtSite = siteId === "zenitha-yachts-med";
 
-  // Static pages
-  const staticPages = [
-    "",
-    "/blog",
-    "/recommendations",
-    "/events",
-    "/about",
-    "/contact",
-    "/information",
-    "/information/articles",
-  ];
+  // Static pages — yacht site has a different page structure
+  const staticPages = isYachtSite
+    ? [
+        "",
+        "/yachts",
+        "/destinations",
+        "/itineraries",
+        "/charter-planner",
+        "/inquiry",
+        "/about",
+        "/how-it-works",
+        "/faq",
+        "/contact",
+        "/blog",
+      ]
+    : [
+        "",
+        "/blog",
+        "/recommendations",
+        "/events",
+        "/about",
+        "/contact",
+        "/information",
+        "/information/articles",
+      ];
   staticPages.forEach((page) => urls.push(`${baseUrl}${page}`));
 
   // Information hub: sections + articles (static data files — Yalla London only)
   const _defaultSite = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
-  if (!siteId || siteId === _defaultSite) {
+  if (!isYachtSite && (!siteId || siteId === _defaultSite)) {
     const { informationSections, informationArticles, extendedInformationArticles } = await getInfoContent();
     informationSections
       .filter((s: any) => s.published)
@@ -784,7 +799,7 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
 
   // Blog posts from static files (only for default site or when no siteId specified)
   const staticSlugs = new Set<string>();
-  if (!siteId || siteId === _defaultSite) {
+  if (!isYachtSite && (!siteId || siteId === _defaultSite)) {
     const allPosts = await getStaticContent();
     allPosts
       .filter((post: any) => post.published)
@@ -811,6 +826,42 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
     // Database not available - use static posts only
   }
 
+  // ── Yacht-specific dynamic pages (zenitha-yachts-med only) ──
+  if (isYachtSite) {
+    try {
+      const { prisma } = await import("@/lib/db");
+
+      // Individual yacht pages
+      const yachts = await prisma.yacht.findMany({
+        where: { siteId: "zenitha-yachts-med", status: "active" },
+        select: { slug: true },
+      });
+      for (const yacht of yachts) {
+        urls.push(`${baseUrl}/yachts/${yacht.slug}`);
+      }
+
+      // Destination pages
+      const destinations = await prisma.yachtDestination.findMany({
+        where: { siteId: "zenitha-yachts-med", status: "active" },
+        select: { slug: true },
+      });
+      for (const dest of destinations) {
+        urls.push(`${baseUrl}/destinations/${dest.slug}`);
+      }
+
+      // Itinerary pages
+      const itineraries = await prisma.charterItinerary.findMany({
+        where: { siteId: "zenitha-yachts-med", status: "active" },
+        select: { slug: true },
+      });
+      for (const itin of itineraries) {
+        urls.push(`${baseUrl}/itineraries/${itin.slug}`);
+      }
+    } catch (error) {
+      console.warn("[SEO] Yacht URL discovery failed:", error instanceof Error ? error.message : String(error));
+    }
+  }
+
   return urls;
 }
 
@@ -819,10 +870,11 @@ export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUr
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - withinDays);
   const urls: string[] = [];
+  const isYachtSite = siteId === "zenitha-yachts-med";
 
   // Static file posts (only for default site)
   const _ds1 = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
-  if (!siteId || siteId === _ds1) {
+  if (!isYachtSite && (!siteId || siteId === _ds1)) {
     const allPosts = await getStaticContent();
     allPosts
       .filter((post: any) => post.published && post.created_at >= cutoffDate)
@@ -853,6 +905,33 @@ export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUr
     // Database not available
   }
 
+  // ── New yacht content (zenitha-yachts-med only) ──
+  if (isYachtSite) {
+    try {
+      const { prisma } = await import("@/lib/db");
+
+      const newYachts = await prisma.yacht.findMany({
+        where: { siteId: "zenitha-yachts-med", status: "active", createdAt: { gte: cutoffDate } },
+        select: { slug: true },
+      });
+      for (const y of newYachts) urls.push(`${baseUrl}/yachts/${y.slug}`);
+
+      const newDests = await prisma.yachtDestination.findMany({
+        where: { siteId: "zenitha-yachts-med", status: "active", createdAt: { gte: cutoffDate } },
+        select: { slug: true },
+      });
+      for (const d of newDests) urls.push(`${baseUrl}/destinations/${d.slug}`);
+
+      const newItins = await prisma.charterItinerary.findMany({
+        where: { siteId: "zenitha-yachts-med", status: "active", createdAt: { gte: cutoffDate } },
+        select: { slug: true },
+      });
+      for (const i of newItins) urls.push(`${baseUrl}/itineraries/${i.slug}`);
+    } catch (error) {
+      console.warn("[SEO] New yacht URL discovery failed:", error instanceof Error ? error.message : String(error));
+    }
+  }
+
   return urls;
 }
 
@@ -865,10 +944,11 @@ export async function getUpdatedUrls(
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - withinDays);
   const urls: string[] = [];
+  const isYachtSite = siteId === "zenitha-yachts-med";
 
   // Static file posts (only for default site)
   const _ds2 = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
-  if (!siteId || siteId === _ds2) {
+  if (!isYachtSite && (!siteId || siteId === _ds2)) {
     const allPosts = await getStaticContent();
     allPosts
       .filter((post: any) => post.published && post.updated_at >= cutoffDate)
@@ -897,6 +977,33 @@ export async function getUpdatedUrls(
     }
   } catch {
     // Database not available
+  }
+
+  // ── Updated yacht content (zenitha-yachts-med only) ──
+  if (isYachtSite) {
+    try {
+      const { prisma } = await import("@/lib/db");
+
+      const updatedYachts = await prisma.yacht.findMany({
+        where: { siteId: "zenitha-yachts-med", status: "active", updatedAt: { gte: cutoffDate } },
+        select: { slug: true },
+      });
+      for (const y of updatedYachts) urls.push(`${baseUrl}/yachts/${y.slug}`);
+
+      const updatedDests = await prisma.yachtDestination.findMany({
+        where: { siteId: "zenitha-yachts-med", status: "active", updatedAt: { gte: cutoffDate } },
+        select: { slug: true },
+      });
+      for (const d of updatedDests) urls.push(`${baseUrl}/destinations/${d.slug}`);
+
+      const updatedItins = await prisma.charterItinerary.findMany({
+        where: { siteId: "zenitha-yachts-med", status: "active", updatedAt: { gte: cutoffDate } },
+        select: { slug: true },
+      });
+      for (const i of updatedItins) urls.push(`${baseUrl}/itineraries/${i.slug}`);
+    } catch (error) {
+      console.warn("[SEO] Updated yacht URL discovery failed:", error instanceof Error ? error.message : String(error));
+    }
   }
 
   return urls;

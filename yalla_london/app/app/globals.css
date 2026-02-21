@@ -7,6 +7,9 @@
 @import './yalla-tokens.css';
 @import './yalla-animations.css';
 
+/* Zenitha Yachts — Maritime Design Tokens */
+@import './zenitha-tokens.css';
+
 /* Google Fonts — Brand Kit v2 Typography Stack */
 @import url('https://fonts.googleapis.com/css2?family=Anybody:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
 

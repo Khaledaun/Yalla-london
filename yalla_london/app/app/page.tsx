@@ -1,11 +1,16 @@
-'use client'
+import { headers } from 'next/headers';
+import { getDefaultSiteId } from '@/config/sites';
+import { YallaHomepage } from '@/components/home/yalla-homepage';
+import { ZenithaHomepage } from '@/components/zenitha/zenitha-homepage';
 
-import { useLanguage } from '@/components/language-provider'
-import { YallaHomepage } from '@/components/home/yalla-homepage'
+export default async function Home() {
+  const headersList = await headers();
+  const siteId = headersList.get('x-site-id') || getDefaultSiteId();
+  const locale = (headersList.get('x-locale') || 'en') as 'en' | 'ar';
 
-export default function Home() {
-  const { language } = useLanguage()
+  if (siteId === 'zenitha-yachts-med') {
+    return <ZenithaHomepage locale={locale} />;
+  }
 
-  // Default to 'en' for SSR so crawlers see English content
-  return <YallaHomepage locale={(language || 'en') as 'en' | 'ar'} />
+  return <YallaHomepage locale={locale} />;
 }

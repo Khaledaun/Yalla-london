@@ -10,7 +10,7 @@
  * without reaching into two separate configs.
  */
 
-import { SITES, getSiteConfig, getAllSiteIds, getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { getSiteConfig, getAllSiteIds, getSiteDomain, getDefaultSiteId } from "@/config/sites";
 import {
   getDestinationTheme,
   type DestinationTheme,

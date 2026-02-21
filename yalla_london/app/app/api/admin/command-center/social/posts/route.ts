@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
           platform,
           scheduled_time: scheduledFor ? new Date(scheduledFor) : new Date(),
           status: scheduledFor ? 'pending' : 'published',
+          site_id: site || null,
           metadata: {
             site,
             media: media || [],

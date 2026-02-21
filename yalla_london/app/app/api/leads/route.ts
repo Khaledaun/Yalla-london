@@ -63,20 +63,17 @@ export async function POST(request: NextRequest) {
 
     if (existingLead) {
       // Update existing lead with new activity
+      const existingInterests = (existingLead.interests_json as any)?.tags || [];
+      const mergedTags = [...existingInterests, ...(body.tags || [])].filter(
+        (v, i, a) => a.indexOf(v) === i,
+      );
       const updatedLead = await prisma.lead.update({
         where: { id: existingLead.id },
         data: {
           // Increase score for returning engagement
           score: { increment: 5 },
-          // Update metadata with new tags
-          metadata: {
-            ...(existingLead.metadata as object || {}),
-            ...(body.metadata || {}),
-            tags: [
-              ...((existingLead.metadata as any)?.tags || []),
-              ...(body.tags || []),
-            ].filter((v, i, a) => a.indexOf(v) === i), // dedupe
-          },
+          // Update interests with new tags
+          interests_json: { tags: mergedTags, ...(body.metadata || {}) },
           updated_at: new Date(),
         },
       });
@@ -86,8 +83,8 @@ export async function POST(request: NextRequest) {
         data: {
           lead_id: updatedLead.id,
           activity_type: body.lead_type === 'PDF_GUIDE' ? 'GUIDE_DOWNLOAD' : 'FORM_SUBMIT',
-          source: body.source || 'website',
-          metadata: {
+          activity_data: {
+            source: body.source || 'website',
             lead_type: body.lead_type,
             ...body.metadata,
           },
@@ -121,20 +118,22 @@ export async function POST(request: NextRequest) {
         name: body.name,
         phone: body.phone,
         lead_type: body.lead_type || 'NEWSLETTER',
-        source: body.source || 'website',
+        lead_source: body.source || 'website',
         score: initialScore,
         status: 'NEW',
-        visitor_id: visitorId,
-        session_id: sessionId,
         utm_source: utmSource,
         utm_medium: utmMedium,
         utm_campaign: utmCampaign,
-        utm_content: utmContent,
-        utm_term: utmTerm,
-        first_touch_at: new Date(),
+        referrer: cookieStore.get('referrer')?.value,
+        landing_page: cookieStore.get('landing_page')?.value,
         marketing_consent: true, // They submitted the form
-        metadata: {
+        consent_at: new Date(),
+        interests_json: {
           tags: body.tags || [],
+          visitor_id: visitorId,
+          session_id: sessionId,
+          utm_content: utmContent,
+          utm_term: utmTerm,
           ...body.metadata,
         },
       },
@@ -145,8 +144,8 @@ export async function POST(request: NextRequest) {
       data: {
         lead_id: lead.id,
         activity_type: body.lead_type === 'PDF_GUIDE' ? 'GUIDE_DOWNLOAD' : 'FORM_SUBMIT',
-        source: body.source || 'website',
-        metadata: {
+        activity_data: {
+          source: body.source || 'website',
           lead_type: body.lead_type,
           initial_signup: true,
           ...body.metadata,

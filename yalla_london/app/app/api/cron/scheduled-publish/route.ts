@@ -138,11 +138,14 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
   // Also check for unpublished blog posts that were created by the content
   // pipeline but never published (safety net)
   try {
+    const { getActiveSiteIds } = await import("@/config/sites");
+    const activeSites = getActiveSiteIds();
     const orphanedDrafts = await prisma.blogPost.findMany({
       where: {
         published: false,
         content_en: { not: "" },
         created_at: { lte: new Date(Date.now() - 2 * 60 * 60 * 1000) }, // 2h+ old
+        ...(activeSites.length > 0 ? { siteId: { in: activeSites } } : {}),
       },
       select: { id: true, slug: true, title_en: true },
       take: 5,

@@ -67,9 +67,12 @@ interface YachtResponse {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const YACHT_TYPES = ['All Types', 'Motor Yacht', 'Sailing Yacht', 'Catamaran', 'Gulet', 'Explorer', 'Classic']
+const YACHT_TYPES = ['All Types', 'MOTOR_YACHT', 'SAILING_YACHT', 'CATAMARAN', 'GULET', 'EXPLORER', 'CLASSIC']
+const YACHT_TYPE_LABELS: Record<string, string> = {
+  'All Types': 'All Types', MOTOR_YACHT: 'Motor Yacht', SAILING_YACHT: 'Sailing Yacht',
+  CATAMARAN: 'Catamaran', GULET: 'Gulet', EXPLORER: 'Explorer', CLASSIC: 'Classic',
+}
 const STATUSES = ['All Statuses', 'active', 'inactive', 'draft']
-const DESTINATIONS = ['All Destinations', 'French Riviera', 'Greek Islands', 'Croatia', 'Amalfi Coast', 'Balearics', 'Turkey', 'Montenegro']
 
 const formatPrice = (value: number, currency = 'EUR') =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)
@@ -91,6 +94,7 @@ export default function YachtsFleetPage() {
   const [yachts, setYachts] = useState<Yacht[]>([])
   const [summary, setSummary] = useState<YachtSummary>({ total: 0, active: 0, featured: 0, pendingReview: 0 })
   const [totalPages, setTotalPages] = useState(1)
+  const [destinations, setDestinations] = useState<{ id: string; name: string }[]>([])
 
   // UI
   const [loading, setLoading] = useState(true)
@@ -101,8 +105,16 @@ export default function YachtsFleetPage() {
   const [search, setSearch] = useState('')
   const [type, setType] = useState('All Types')
   const [status, setStatus] = useState('All Statuses')
-  const [destination, setDestination] = useState('All Destinations')
+  const [destinationId, setDestinationId] = useState('')
   const [page, setPage] = useState(1)
+
+  // Load destinations for filter dropdown
+  useEffect(() => {
+    fetch(`/api/admin/yachts/destinations?siteId=${siteId}`)
+      .then(r => r.ok ? r.json() : { destinations: [] })
+      .then(d => setDestinations(d.destinations ?? []))
+      .catch(() => setDestinations([]))
+  }, [siteId])
 
   // -----------------------------------------------------------------------
   // Fetch
@@ -117,7 +129,7 @@ export default function YachtsFleetPage() {
       if (search) params.set('search', search)
       if (type !== 'All Types') params.set('type', type)
       if (status !== 'All Statuses') params.set('status', status)
-      if (destination !== 'All Destinations') params.set('destination', destination)
+      if (destinationId) params.set('destinationId', destinationId)
 
       const res = await fetch(`/api/admin/yachts?${params}`)
       if (!res.ok) {
@@ -138,12 +150,12 @@ export default function YachtsFleetPage() {
     } finally {
       setLoading(false)
     }
-  }, [siteId, page, search, type, status, destination])
+  }, [siteId, page, search, type, status, destinationId])
 
   useEffect(() => { fetchYachts() }, [fetchYachts])
 
   // Reset page when filters change
-  useEffect(() => { setPage(1) }, [search, type, status, destination])
+  useEffect(() => { setPage(1) }, [search, type, status, destinationId])
 
   // -----------------------------------------------------------------------
   // Actions
@@ -294,7 +306,7 @@ export default function YachtsFleetPage() {
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                {YACHT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                {YACHT_TYPES.map(t => <SelectItem key={t} value={t}>{YACHT_TYPE_LABELS[t] ?? t}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={status} onValueChange={setStatus}>
@@ -305,12 +317,13 @@ export default function YachtsFleetPage() {
                 {STATUSES.map(s => <SelectItem key={s} value={s}>{s === 'All Statuses' ? s : s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={destination} onValueChange={setDestination}>
+            <Select value={destinationId} onValueChange={setDestinationId}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="Destination" />
               </SelectTrigger>
               <SelectContent>
-                {DESTINATIONS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                <SelectItem value="">All Destinations</SelectItem>
+                {destinations.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -336,7 +349,7 @@ export default function YachtsFleetPage() {
               <Ship className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No yachts found</h3>
               <p className="mt-1 text-sm text-gray-500">
-                {search || type !== 'All Types' || status !== 'All Statuses' || destination !== 'All Destinations'
+                {search || type !== 'All Types' || status !== 'All Statuses' || destinationId
                   ? 'Try adjusting your search or filter criteria.'
                   : 'Get started by adding your first yacht to the fleet.'}
               </p>

@@ -160,9 +160,16 @@ export const PUT = withAdminAuth(async (request: NextRequest) => {
       )
     }
 
-    // Verify destination exists
+    // Verify destination exists and belongs to the requesting site
+    const siteId = body.siteId || getDefaultSiteId()
     const existing = await prisma.yachtDestination.findUnique({ where: { id } })
     if (!existing) {
+      return NextResponse.json(
+        { error: 'Destination not found' },
+        { status: 404 }
+      )
+    }
+    if (existing.siteId !== siteId) {
       return NextResponse.json(
         { error: 'Destination not found' },
         { status: 404 }
@@ -250,9 +257,16 @@ export const DELETE = withAdminAuth(async (request: NextRequest) => {
       )
     }
 
-    // Verify destination exists
+    // Verify destination exists and belongs to the requesting site
+    const siteId = url.searchParams.get('siteId') || getDefaultSiteId()
     const existing = await prisma.yachtDestination.findUnique({ where: { id } })
     if (!existing) {
+      return NextResponse.json(
+        { error: 'Destination not found' },
+        { status: 404 }
+      )
+    }
+    if (existing.siteId !== siteId) {
       return NextResponse.json(
         { error: 'Destination not found' },
         { status: 404 }

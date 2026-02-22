@@ -120,7 +120,44 @@ export default function YachtAnalyticsPage() {
         throw new Error('Failed to load analytics')
       }
       const json = await res.json()
-      setData(json)
+      // Transform nested API response to flat AnalyticsData interface
+      const fleet = json.fleet ?? {}
+      const inq = json.inquiries ?? {}
+      const dest = json.destinations ?? {}
+      const rev = json.revenue ?? {}
+      const recent = json.recentActivity ?? {}
+      const byType = (fleet.byType ?? []).map((t: { type: string; _count: { id: number } }) => ({
+        type: t.type, count: t._count?.id ?? 0,
+      }))
+      const byStatus = (inq.byStatus ?? []).map((s: { status: string; _count: { id: number } }) => ({
+        status: s.status, count: s._count?.id ?? 0,
+      }))
+      const topDests = (dest.list ?? []).map((d: { name: string; yachtCount: number }) => ({
+        name: d.name, yachtCount: d.yachtCount ?? 0,
+      }))
+      // Build funnel from inquiry statuses
+      const funnelOrder = ['NEW', 'CONTACTED', 'QUALIFIED', 'SENT_TO_BROKER', 'BOOKED']
+      const funnelColors = ['#3B82F6', '#F59E0B', '#8B5CF6', '#F97316', '#22C55E']
+      const statusMap = Object.fromEntries(byStatus.map((s: { status: string; count: number }) => [s.status, s.count]))
+      const funnel = funnelOrder.map((label, i) => ({
+        label, count: statusMap[label] ?? 0, color: funnelColors[i],
+      }))
+      setData({
+        fleetSize: fleet.total ?? 0,
+        activeInquiries: inq.total ?? 0,
+        conversionRate: inq.conversionRate ?? 0,
+        avgBudget: rev.avgBudget ?? 0,
+        avgBudgetCurrency: 'EUR',
+        yachtsByType: byType,
+        inquiriesByStatus: byStatus,
+        topDestinations: topDests,
+        recentInquiries: (recent.inquiries ?? []).map((r: Record<string, unknown>) => ({
+          id: r.id, name: r.customerName ?? r.guestName ?? 'Guest',
+          destination: r.destination ?? '', budget: Number(r.budget ?? 0),
+          status: String(r.status ?? 'NEW'), date: String(r.createdAt ?? ''),
+        })),
+        funnel,
+      })
     } catch (err) {
       console.warn('[yacht-analytics] fetch error:', err)
       setError('Unable to load analytics. Please try again.')

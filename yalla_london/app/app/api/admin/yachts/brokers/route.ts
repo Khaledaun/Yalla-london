@@ -153,9 +153,16 @@ export const PUT = withAdminAuth(async (request: NextRequest) => {
       )
     }
 
-    // Verify broker exists
+    // Verify broker exists and belongs to the requesting site
+    const siteId = body.siteId || getDefaultSiteId()
     const existing = await prisma.brokerPartner.findUnique({ where: { id } })
     if (!existing) {
+      return NextResponse.json(
+        { error: 'Broker partner not found' },
+        { status: 404 }
+      )
+    }
+    if (existing.siteId !== siteId) {
       return NextResponse.json(
         { error: 'Broker partner not found' },
         { status: 404 }
@@ -229,8 +236,15 @@ export const DELETE = withAdminAuth(async (request: NextRequest) => {
       )
     }
 
+    const siteId = url.searchParams.get('siteId') || getDefaultSiteId()
     const existing = await prisma.brokerPartner.findUnique({ where: { id } })
     if (!existing) {
+      return NextResponse.json(
+        { error: 'Broker partner not found' },
+        { status: 404 }
+      )
+    }
+    if (existing.siteId !== siteId) {
       return NextResponse.json(
         { error: 'Broker partner not found' },
         { status: 404 }

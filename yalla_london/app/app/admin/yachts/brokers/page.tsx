@@ -33,15 +33,18 @@ interface Broker {
   phone: string
   website: string
   commissionRate: number
-  leadsSent: number
-  bookings: number
-  conversionRate: number
+  totalLeadsSent: number
+  totalBookings: number
   status: 'active' | 'inactive' | 'pending'
-  specialties: string[]
-  regions: string[]
+  destinations: string[] | null
   notes: string
   createdAt: string
   updatedAt: string
+  performance?: {
+    leadsSent: number
+    bookings: number
+    conversionRate: number
+  }
 }
 
 interface BrokerSummary {
@@ -107,7 +110,13 @@ export default function BrokersPage() {
       }
       const data = await res.json()
       setBrokers(data.brokers ?? [])
-      setSummary(data.summary ?? { total: 0, active: 0, totalLeadsSent: 0, totalBookings: 0 })
+      const stats = data.stats ?? {}
+      setSummary({
+        total: stats.totalBrokers ?? 0,
+        active: stats.activeBrokers ?? 0,
+        totalLeadsSent: stats.totalLeadsSent ?? 0,
+        totalBookings: stats.totalBookings ?? 0,
+      })
     } catch (err) {
       console.warn('[brokers] fetch error:', err)
       setError('Unable to load broker partners. Please try again.')
@@ -370,12 +379,12 @@ export default function BrokersPage() {
                           </div>
                         </td>
                         <td className="p-3 text-gray-700 font-medium">{broker.commissionRate}%</td>
-                        <td className="p-3 text-gray-700">{broker.leadsSent}</td>
-                        <td className="p-3 text-gray-700">{broker.bookings}</td>
+                        <td className="p-3 text-gray-700">{broker.performance?.leadsSent ?? broker.totalLeadsSent ?? 0}</td>
+                        <td className="p-3 text-gray-700">{broker.performance?.bookings ?? broker.totalBookings ?? 0}</td>
                         <td className="p-3">
                           <span className="flex items-center gap-1">
-                            <TrendingUp className={`h-3.5 w-3.5 ${broker.conversionRate >= 20 ? 'text-green-500' : broker.conversionRate >= 10 ? 'text-yellow-500' : 'text-gray-400'}`} />
-                            <span className="font-medium">{broker.conversionRate.toFixed(1)}%</span>
+                            <TrendingUp className={`h-3.5 w-3.5 ${(broker.performance?.conversionRate ?? 0) >= 20 ? 'text-green-500' : (broker.performance?.conversionRate ?? 0) >= 10 ? 'text-yellow-500' : 'text-gray-400'}`} />
+                            <span className="font-medium">{(broker.performance?.conversionRate ?? 0).toFixed(1)}%</span>
                           </span>
                         </td>
                         <td className="p-3">

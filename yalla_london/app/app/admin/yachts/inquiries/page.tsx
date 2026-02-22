@@ -68,8 +68,8 @@ interface InquirySummary {
 
 interface InquiryResponse {
   inquiries: Inquiry[]
-  summary: InquirySummary
-  pagination: { page: number; pageSize: number; total: number; totalPages: number }
+  stats: { total: number; byStatus: Record<string, number>; conversionRate: number }
+  pagination: { page: number; limit: number; total: number; totalPages: number }
 }
 
 // ---------------------------------------------------------------------------
@@ -154,7 +154,14 @@ export default function InquiriesPage() {
 
       const data: InquiryResponse = await res.json()
       setInquiries(data.inquiries ?? [])
-      setSummary(data.summary ?? { total: 0, new: 0, inProgress: 0, booked: 0, conversionRate: 0 })
+      const byStatus = data.stats?.byStatus ?? {}
+      setSummary({
+        total: data.stats?.total ?? 0,
+        new: byStatus['NEW'] ?? 0,
+        inProgress: (byStatus['CONTACTED'] ?? 0) + (byStatus['QUALIFIED'] ?? 0) + (byStatus['SENT_TO_BROKER'] ?? 0),
+        booked: byStatus['BOOKED'] ?? 0,
+        conversionRate: data.stats?.conversionRate ?? 0,
+      })
       setTotalPages(data.pagination?.totalPages ?? 1)
     } catch (err) {
       console.warn('[inquiries] fetch error:', err)

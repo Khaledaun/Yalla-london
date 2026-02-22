@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
 
 interface YachtGalleryProps {
@@ -34,20 +34,60 @@ export function YachtGallery({ images, yachtName }: YachtGalleryProps) {
     setLightboxIndex((i) => (i - 1 + images.length) % images.length);
   }, [images.length]);
 
-  // Keyboard navigation
+  // Refs for focus management
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Keyboard navigation + focus trap
   useEffect(() => {
     if (!lightboxOpen) return undefined;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeLightbox();
-      if (e.key === "ArrowRight") goNext();
-      if (e.key === "ArrowLeft") goPrev();
-    };
-    document.addEventListener("keydown", handler);
+
+    // Save the element that opened the lightbox so we can restore focus
+    triggerRef.current = document.activeElement as HTMLElement;
+
     // Lock scroll
     document.body.style.overflow = "hidden";
+
+    // Move initial focus to the close button
+    requestAnimationFrame(() => {
+      closeButtonRef.current?.focus();
+    });
+
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { closeLightbox(); return; }
+      if (e.key === "ArrowRight") { goNext(); return; }
+      if (e.key === "ArrowLeft") { goPrev(); return; }
+
+      // Focus trap: cycle Tab within the lightbox
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handler);
     return () => {
       document.removeEventListener("keydown", handler);
       document.body.style.overflow = "";
+      // Restore focus to the element that opened the lightbox
+      triggerRef.current?.focus();
     };
   }, [lightboxOpen, closeLightbox, goNext, goPrev]);
 
@@ -153,6 +193,7 @@ export function YachtGallery({ images, yachtName }: YachtGalleryProps) {
       {/* Lightbox Overlay */}
       {lightboxOpen && (
         <div
+          ref={dialogRef}
           className="fixed inset-0 z-[100] flex items-center justify-center"
           style={{ background: "rgba(0,0,0,0.95)" }}
           role="dialog"
@@ -161,6 +202,7 @@ export function YachtGallery({ images, yachtName }: YachtGalleryProps) {
         >
           {/* Close button */}
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={closeLightbox}
             className="absolute top-4 right-4 z-10 p-2 rounded-full transition-colors hover:bg-white/10"

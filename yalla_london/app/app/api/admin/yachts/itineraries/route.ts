@@ -205,9 +205,16 @@ export const PUT = withAdminAuth(async (request: NextRequest) => {
       )
     }
 
-    // Verify itinerary exists
+    // Verify itinerary exists and belongs to the requesting site
+    const siteId = body.siteId || getDefaultSiteId()
     const existing = await prisma.charterItinerary.findUnique({ where: { id } })
     if (!existing) {
+      return NextResponse.json(
+        { error: 'Itinerary not found' },
+        { status: 404 }
+      )
+    }
+    if (existing.siteId !== siteId) {
       return NextResponse.json(
         { error: 'Itinerary not found' },
         { status: 404 }
@@ -325,8 +332,15 @@ export const DELETE = withAdminAuth(async (request: NextRequest) => {
       )
     }
 
+    const siteId = url.searchParams.get('siteId') || getDefaultSiteId()
     const existing = await prisma.charterItinerary.findUnique({ where: { id } })
     if (!existing) {
+      return NextResponse.json(
+        { error: 'Itinerary not found' },
+        { status: 404 }
+      )
+    }
+    if (existing.siteId !== siteId) {
       return NextResponse.json(
         { error: 'Itinerary not found' },
         { status: 404 }

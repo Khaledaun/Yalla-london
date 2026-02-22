@@ -36,13 +36,14 @@ interface Destination {
   avgPricePerWeek: number
   currency: string
   highlights: string[]
-  isActive: boolean
+  status: string
   createdAt: string
   updatedAt: string
 }
 
 interface DestinationFormData {
   name: string
+  slug: string
   region: string
   description: string
   seasonStart: string
@@ -54,12 +55,21 @@ interface DestinationFormData {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const REGIONS = ['Western Mediterranean', 'Eastern Mediterranean', 'Adriatic', 'Aegean', 'Caribbean']
+const REGIONS = ['MEDITERRANEAN', 'ARABIAN_GULF', 'RED_SEA', 'INDIAN_OCEAN', 'CARIBBEAN', 'SOUTHEAST_ASIA']
+
+const REGION_LABELS: Record<string, string> = {
+  MEDITERRANEAN: 'Mediterranean',
+  ARABIAN_GULF: 'Arabian Gulf',
+  RED_SEA: 'Red Sea',
+  INDIAN_OCEAN: 'Indian Ocean',
+  CARIBBEAN: 'Caribbean',
+  SOUTHEAST_ASIA: 'Southeast Asia',
+}
 
 const formatPrice = (value: number, currency = 'EUR') =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)
 
-const EMPTY_FORM: DestinationFormData = { name: '', region: '', description: '', seasonStart: '', seasonEnd: '', avgPricePerWeek: '' }
+const EMPTY_FORM: DestinationFormData = { name: '', slug: '', region: '', description: '', seasonStart: '', seasonEnd: '', avgPricePerWeek: '' }
 
 const GRADIENT_COLORS = [
   'from-blue-500 to-cyan-400',
@@ -132,6 +142,7 @@ export default function DestinationsPage() {
     setEditingId(dest.id)
     setForm({
       name: dest.name,
+      slug: dest.slug,
       region: dest.region,
       description: dest.description,
       seasonStart: dest.seasonStart,
@@ -165,16 +176,17 @@ export default function DestinationsPage() {
     finally { setSaving(false) }
   }
 
-  const toggleActive = async (id: string, currentActive: boolean) => {
+  const toggleActive = async (id: string, currentStatus: string) => {
     setTogglingId(id)
     try {
+      const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
       const res = await fetch(`/api/admin/yachts/destinations`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, isActive: !currentActive, siteId }),
+        body: JSON.stringify({ id, status: newStatus, siteId }),
       })
       if (res.ok) {
-        setDestinations(prev => prev.map(d => d.id === id ? { ...d, isActive: !currentActive } : d))
+        setDestinations(prev => prev.map(d => d.id === id ? { ...d, status: currentStatus === 'active' ? 'inactive' : 'active' } : d))
       }
     } catch { console.warn('[destinations] toggle failed') }
     finally { setTogglingId(null) }
@@ -298,7 +310,7 @@ export default function DestinationsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {destinations.map((dest, idx) => (
-            <Card key={dest.id} className={`overflow-hidden ${!dest.isActive ? 'opacity-60' : ''}`}>
+            <Card key={dest.id} className={`overflow-hidden ${dest.status !== 'active' ? 'opacity-60' : ''}`}>
               {/* Hero */}
               {dest.heroImage ? (
                 <div className="h-40 bg-cover bg-center" style={{ backgroundImage: `url(${dest.heroImage})` }} />
@@ -314,7 +326,7 @@ export default function DestinationsPage() {
                     <h3 className="font-semibold text-lg text-gray-900">{dest.name}</h3>
                     <Badge className="bg-gray-100 text-gray-600 mt-1">{dest.region}</Badge>
                   </div>
-                  {!dest.isActive && <Badge className="bg-red-100 text-red-700">Inactive</Badge>}
+                  {dest.status !== 'active' && <Badge className="bg-red-100 text-red-700">Inactive</Badge>}
                 </div>
 
                 {dest.description && (
@@ -346,12 +358,12 @@ export default function DestinationsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className={`flex-1 ${dest.isActive ? 'text-red-600 hover:bg-red-50 border-red-200' : 'text-green-600 hover:bg-green-50 border-green-200'}`}
-                    onClick={() => toggleActive(dest.id, dest.isActive)}
+                    className={`flex-1 ${dest.status === 'active' ? 'text-red-600 hover:bg-red-50 border-red-200' : 'text-green-600 hover:bg-green-50 border-green-200'}`}
+                    onClick={() => toggleActive(dest.id, dest.status)}
                     disabled={togglingId === dest.id}
                   >
                     <Power className="h-3.5 w-3.5 mr-1" />
-                    {dest.isActive ? 'Deactivate' : 'Activate'}
+                    {dest.status === 'active' ? 'Deactivate' : 'Activate'}
                   </Button>
                 </div>
               </CardContent>

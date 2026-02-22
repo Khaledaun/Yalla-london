@@ -42,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: brandConfig.description,
       images: [
         {
-          url: `${baseUrl}/images/${siteConfig?.slug || defaultSiteSlug}-og.jpg`,
+          url: `${baseUrl}/api/og?siteId=${defaultSiteId}`,
           width: 1200,
           height: 630,
           alt: `${siteName} - ${brandConfig.tagline}`,
@@ -54,7 +54,7 @@ export async function generateMetadata(): Promise<Metadata> {
       site: `@${siteConfig?.slug || defaultSiteSlug}`,
       title: `${siteName} - ${brandConfig.tagline}`,
       description: brandConfig.description,
-      images: [`${baseUrl}/images/${siteConfig?.slug || defaultSiteSlug}-og.jpg`],
+      images: [`${baseUrl}/api/og?siteId=${defaultSiteId}`],
     },
     robots: {
       index: true,

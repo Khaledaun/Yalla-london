@@ -9,10 +9,18 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(request: NextRequest) {
   try {
+    const { getDefaultSiteId, getSiteConfig, isYachtSite } = await import("@/config/sites");
+    const siteId = request.nextUrl.searchParams.get("siteId") || request.headers.get("x-site-id") || getDefaultSiteId();
+    const siteConfig = getSiteConfig(siteId);
+    const isYacht = isYachtSite(siteId);
+
+    const defaultTitle = siteConfig?.name || (isYacht ? "Zenitha Yachts" : "Yalla London");
+    const defaultDesc = isYacht ? "Luxury Yacht Charters in the Mediterranean" : "Your Guide to London";
+
     const { searchParams } = new URL(request.url);
     const postId = searchParams.get('postId');
-    const title = searchParams.get('title') || 'Yalla London';
-    const description = searchParams.get('description') || 'Your Guide to London';
+    const title = searchParams.get('title') || defaultTitle;
+    const description = searchParams.get('description') || defaultDesc;
     const type = searchParams.get('type') || 'website';
     const heroImage = searchParams.get('heroImage');
     
@@ -47,7 +55,9 @@ export async function GET(request: NextRequest) {
       title: postTitle,
       description: postDescription,
       heroImage: postHeroImage,
-      type
+      type,
+      isYacht,
+      siteName: defaultTitle,
     });
 
     return new Response(html, {
@@ -62,10 +72,12 @@ export async function GET(request: NextRequest) {
     
     // Return fallback image HTML
     const fallbackHtml = generateOGImageHTML({
-      title: 'Yalla London',
-      description: 'Your Guide to London',
+      title: 'Zenitha',
+      description: 'Luxury Travel & Yacht Charters',
       heroImage: null,
-      type: 'website'
+      type: 'website',
+      isYacht: false,
+      siteName: 'Zenitha',
     });
     
     return new Response(fallbackHtml, {
@@ -128,12 +140,16 @@ function generateOGImageHTML({
   title,
   description,
   heroImage,
-  type
+  type,
+  isYacht = false,
+  siteName = "Yalla London",
 }: {
   title: string;
   description: string;
   heroImage?: string | null;
   type: string;
+  isYacht?: boolean;
+  siteName?: string;
 }) {
   // Truncate text to fit properly
   const truncatedTitle = title.length > 60 ? title.substring(0, 57) + '...' : title;
@@ -150,7 +166,7 @@ function generateOGImageHTML({
             padding: 0;
             width: 1200px;
             height: 630px;
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            background: linear-gradient(135deg, ${isYacht ? '#0a1628 0%, #1a3a5c 50%, #c9a84c 100%' : '#1e3a8a 0%, #3b82f6 100%'});
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
             display: flex;
             flex-direction: column;
@@ -257,8 +273,8 @@ function generateOGImageHTML({
         <div class="background-pattern"></div>
         
         <div class="brand">
-          <div class="brand-logo">YL</div>
-          <div class="brand-text">Yalla London</div>
+          <div class="brand-logo">${isYacht ? 'ZY' : 'YL'}</div>
+          <div class="brand-text">${siteName}</div>
         </div>
         
         <div class="content">

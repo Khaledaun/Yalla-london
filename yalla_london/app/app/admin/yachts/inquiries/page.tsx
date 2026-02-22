@@ -146,7 +146,11 @@ export default function InquiriesPage() {
 
       const res = await fetch(`/api/admin/yachts/inquiries?${params}`)
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) { setInquiries([]); return }
+        if (res.status === 401 || res.status === 403) {
+          setInquiries([])
+          setError('Authentication failed. Please log in to access inquiries.')
+          return
+        }
         throw new Error('Failed to load inquiries')
       }
 

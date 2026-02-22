@@ -1,7 +1,58 @@
 import { headers } from 'next/headers';
-import { getDefaultSiteId, getSiteConfig, isYachtSite as checkIsYachtSite } from '@/config/sites';
+import { Metadata } from 'next';
+import { getDefaultSiteId, getSiteConfig, getSiteDomain, isYachtSite as checkIsYachtSite } from '@/config/sites';
 import { getBaseUrl } from '@/lib/url-utils';
 import { FAQClientPage } from './faq-client';
+
+// ─── SEO Metadata ───────────────────────────────────────────
+
+export async function generateMetadata(): Promise<Metadata> {
+  const headersList = await headers();
+  const siteId = headersList.get('x-site-id') || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const isYacht = checkIsYachtSite(siteId);
+  const baseUrl = await getBaseUrl();
+  const siteName = siteConfig?.name || 'Zenitha';
+  const domain = getSiteDomain(siteId);
+
+  const title = isYacht
+    ? `Yacht Charter FAQs | ${siteName}`
+    : `Frequently Asked Questions | ${siteName}`;
+
+  const description = isYacht
+    ? `Find answers to common questions about yacht charters, booking process, pricing, destinations, and onboard experiences with ${siteName}.`
+    : `Find answers to common questions about luxury travel, accommodations, dining, and experiences with ${siteName}.`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: `${baseUrl}/faq`,
+      languages: {
+        'en-GB': `${baseUrl}/faq`,
+        'ar-SA': `${baseUrl}/ar/faq`,
+        'x-default': `${baseUrl}/faq`,
+      },
+    },
+    openGraph: {
+      title,
+      description,
+      url: `${baseUrl}/faq`,
+      siteName,
+      locale: 'en_GB',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary',
+      title,
+      description,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
+}
 
 // ─── FAQ Data ───────────────────────────────────────────────
 interface FAQItem {

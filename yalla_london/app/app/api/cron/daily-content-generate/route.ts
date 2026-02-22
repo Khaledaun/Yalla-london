@@ -7,6 +7,7 @@ import {
   getActiveSiteIds,
   getSiteConfig,
   getSiteDomain,
+  isYachtSite,
 } from "@/config/sites";
 import type { SiteConfig, TopicTemplate } from "@/config/sites";
 import { logCronExecution } from "@/lib/cron-logger";
@@ -138,6 +139,14 @@ async function generateDailyContentAllSites() {
   const MAX_AI_FAILURES_BEFORE_ABORT = 2;
 
   for (const siteId of siteIds) {
+    // Skip yacht sites — they use a different content model (Yacht, YachtDestination, CharterItinerary)
+    // and don't need blog articles generated through the content pipeline
+    if (isYachtSite(siteId)) {
+      allResults[siteId] = { status: "skipped", reason: "yacht_platform_not_blog" };
+      console.log(`[${siteId}] Skipped — yacht platform uses different content model, not blog pipeline`);
+      continue;
+    }
+
     if (deadline.isExpired()) {
       allResults[siteId] = { status: "skipped", reason: "timeout_approaching" };
       console.warn(`[${siteId}] Skipped — timeout approaching (${deadline.elapsedMs()}ms elapsed)`);

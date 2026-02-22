@@ -112,7 +112,11 @@ export default function DestinationsPage() {
       setError(null)
       const res = await fetch(`/api/admin/yachts/destinations?siteId=${siteId}`)
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) { setDestinations([]); return }
+        if (res.status === 401 || res.status === 403) {
+          setDestinations([])
+          setError('Authentication failed. Please log in to access destinations.')
+          return
+        }
         throw new Error('Failed to load destinations')
       }
       const data = await res.json()

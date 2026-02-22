@@ -160,7 +160,11 @@ export default function ItinerariesAdminPage() {
 
       const res = await fetch(`/api/admin/yachts/itineraries?${params}`)
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) { setItineraries([]); return }
+        if (res.status === 401 || res.status === 403) {
+          setItineraries([])
+          setError('Authentication failed. Please log in to access itineraries.')
+          return
+        }
         throw new Error('Failed to load itineraries')
       }
 

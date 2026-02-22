@@ -108,12 +108,8 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         { status: 400 }
       )
     }
-    if (!stops || !Array.isArray(stops) || stops.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one stop is required' },
-        { status: 400 }
-      )
-    }
+    // Stops are optional on creation — admin can add them later via the stops editor
+    const validStops = Array.isArray(stops) ? stops : []
     if (!siteId || typeof siteId !== 'string') {
       return NextResponse.json(
         { error: 'Site ID is required' },
@@ -121,9 +117,9 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       )
     }
 
-    // Verify destination exists
-    const destination = await prisma.yachtDestination.findUnique({
-      where: { id: destinationId },
+    // Verify destination exists and belongs to the same site
+    const destination = await prisma.yachtDestination.findFirst({
+      where: { id: destinationId, siteId },
     })
     if (!destination) {
       return NextResponse.json(
@@ -164,7 +160,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         difficulty: body.difficulty || 'EASY',
         description_en: body.description_en || null,
         description_ar: body.description_ar || null,
-        stops,
+        stops: validStops,
         recommendedYachtTypes: body.recommendedYachtTypes || null,
         estimatedCost: body.estimatedCost != null ? parseFloat(body.estimatedCost) : null,
         currency: body.currency || 'EUR',
@@ -249,10 +245,10 @@ export const PUT = withAdminAuth(async (request: NextRequest) => {
       }
     }
 
-    // Validate destination if changing
+    // Validate destination if changing — must belong to same site
     if (body.destinationId && body.destinationId !== existing.destinationId) {
-      const dest = await prisma.yachtDestination.findUnique({
-        where: { id: body.destinationId },
+      const dest = await prisma.yachtDestination.findFirst({
+        where: { id: body.destinationId, siteId: existing.siteId },
       })
       if (!dest) {
         return NextResponse.json(

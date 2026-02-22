@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useLanguage } from '@/components/language-provider';
-import { Mail, Phone, MessageCircle, Instagram, Linkedin, Anchor } from 'lucide-react';
+import { Mail, MessageCircle, Instagram, Linkedin, Anchor } from 'lucide-react';
 import { ENTITY, getCopyrightLine } from '@/config/entity';
 
 const FOOTER_NAV = {

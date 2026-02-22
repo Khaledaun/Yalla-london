@@ -255,7 +255,7 @@ export default function DestinationsPage() {
                   className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="">Select region</option>
-                  {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  {REGIONS.map(r => <option key={r} value={r}>{REGION_LABELS[r] ?? r}</option>)}
                 </select>
               </div>
               <div className="md:col-span-2">
@@ -324,7 +324,7 @@ export default function DestinationsPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-semibold text-lg text-gray-900">{dest.name}</h3>
-                    <Badge className="bg-gray-100 text-gray-600 mt-1">{dest.region}</Badge>
+                    <Badge className="bg-gray-100 text-gray-600 mt-1">{REGION_LABELS[dest.region] ?? dest.region}</Badge>
                   </div>
                   {dest.status !== 'active' && <Badge className="bg-red-100 text-red-700">Inactive</Badge>}
                 </div>

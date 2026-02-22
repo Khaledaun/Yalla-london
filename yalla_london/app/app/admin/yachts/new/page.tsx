@@ -40,6 +40,15 @@ interface Destination {
 // Constants
 // ---------------------------------------------------------------------------
 
+const REGION_LABELS: Record<string, string> = {
+  MEDITERRANEAN: 'Mediterranean',
+  ARABIAN_GULF: 'Arabian Gulf',
+  RED_SEA: 'Red Sea',
+  INDIAN_OCEAN: 'Indian Ocean',
+  CARIBBEAN: 'Caribbean',
+  SOUTHEAST_ASIA: 'Southeast Asia',
+}
+
 const YACHT_TYPES = [
   { value: 'SAILBOAT', label: 'Sailboat' },
   { value: 'CATAMARAN', label: 'Catamaran' },
@@ -432,7 +441,7 @@ export default function AddYachtPage() {
                 <SelectTrigger><SelectValue placeholder="Select destination" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">None</SelectItem>
-                  {destinations.map(d => <SelectItem key={d.id} value={d.id}>{d.name} ({d.region})</SelectItem>)}
+                  {destinations.map(d => <SelectItem key={d.id} value={d.id}>{d.name} ({REGION_LABELS[d.region] ?? d.region})</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

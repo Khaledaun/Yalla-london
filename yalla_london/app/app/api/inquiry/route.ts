@@ -148,10 +148,11 @@ export async function POST(request: NextRequest) {
     const year = new Date().getFullYear();
     const prefix = `ZY-${year}-`;
 
-    // Find the highest sequence number for this year
+    // Find the highest sequence number for this year (scoped by site)
     const lastInquiry = await prisma.charterInquiry.findFirst({
       where: {
         referenceNumber: { startsWith: prefix },
+        siteId,
       },
       orderBy: { createdAt: "desc" },
       select: { referenceNumber: true },

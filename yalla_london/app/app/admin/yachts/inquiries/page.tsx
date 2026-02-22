@@ -32,7 +32,7 @@ import {
 // Types
 // ---------------------------------------------------------------------------
 
-type InquiryStatus = 'new' | 'contacted' | 'qualified' | 'sent_to_broker' | 'booked' | 'lost'
+type InquiryStatus = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'SENT_TO_BROKER' | 'BOOKED' | 'LOST'
 
 interface Inquiry {
   id: string
@@ -78,30 +78,30 @@ interface InquiryResponse {
 
 const STATUS_TABS: { label: string; value: string }[] = [
   { label: 'All', value: 'all' },
-  { label: 'New', value: 'new' },
-  { label: 'Contacted', value: 'contacted' },
-  { label: 'Qualified', value: 'qualified' },
-  { label: 'Sent to Broker', value: 'sent_to_broker' },
-  { label: 'Booked', value: 'booked' },
-  { label: 'Lost', value: 'lost' },
+  { label: 'New', value: 'NEW' },
+  { label: 'Contacted', value: 'CONTACTED' },
+  { label: 'Qualified', value: 'QUALIFIED' },
+  { label: 'Sent to Broker', value: 'SENT_TO_BROKER' },
+  { label: 'Booked', value: 'BOOKED' },
+  { label: 'Lost', value: 'LOST' },
 ]
 
 const statusColor: Record<InquiryStatus, string> = {
-  new: 'bg-blue-100 text-blue-800',
-  contacted: 'bg-yellow-100 text-yellow-800',
-  qualified: 'bg-purple-100 text-purple-800',
-  sent_to_broker: 'bg-orange-100 text-orange-800',
-  booked: 'bg-green-100 text-green-800',
-  lost: 'bg-red-100 text-red-800',
+  NEW: 'bg-blue-100 text-blue-800',
+  CONTACTED: 'bg-yellow-100 text-yellow-800',
+  QUALIFIED: 'bg-purple-100 text-purple-800',
+  SENT_TO_BROKER: 'bg-orange-100 text-orange-800',
+  BOOKED: 'bg-green-100 text-green-800',
+  LOST: 'bg-red-100 text-red-800',
 }
 
 const statusLabel: Record<InquiryStatus, string> = {
-  new: 'New',
-  contacted: 'Contacted',
-  qualified: 'Qualified',
-  sent_to_broker: 'Sent to Broker',
-  booked: 'Booked',
-  lost: 'Lost',
+  NEW: 'New',
+  CONTACTED: 'Contacted',
+  QUALIFIED: 'Qualified',
+  SENT_TO_BROKER: 'Sent to Broker',
+  BOOKED: 'Booked',
+  LOST: 'Lost',
 }
 
 const formatPrice = (value: number, currency = 'EUR') =>

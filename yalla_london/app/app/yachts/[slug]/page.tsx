@@ -315,17 +315,20 @@ async function getYachtFromDB(
             region: yacht.destination.region,
           }
         : null,
-      reviews: yacht.reviews.map((r) => ({
-        id: r.id,
-        authorName: r.authorName,
-        rating: r.rating,
-        title_en: r.title ?? null,
-        title_ar: r.title ?? null,
-        review_en: r.content_en ?? null,
-        review_ar: r.content_ar ?? null,
-        charterDate: r.charterDate,
-        createdAt: r.createdAt.toISOString(),
-      })),
+      reviews: yacht.reviews.map((r) => {
+        const rec = r as Record<string, unknown>;
+        return {
+          id: r.id,
+          authorName: r.authorName,
+          rating: r.rating,
+          title_en: (rec.title_en as string) ?? r.title ?? null,
+          title_ar: (rec.title_ar as string) ?? null,
+          review_en: r.content_en ?? null,
+          review_ar: r.content_ar ?? null,
+          charterDate: r.charterDate,
+          createdAt: r.createdAt.toISOString(),
+        };
+      }),
     };
   } catch (err) {
     console.warn("[yacht-detail] DB fetch failed, using placeholder:", err);

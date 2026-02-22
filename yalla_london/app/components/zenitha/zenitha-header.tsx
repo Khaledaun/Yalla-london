@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ChevronDown, Globe, Phone, Anchor, Compass, Ship, Users, Waves, ShieldCheck, MapPin, Calendar, BookOpen, HelpCircle, MessageCircle, Mail } from 'lucide-react';
+import { Menu, X, ChevronDown, Globe, Phone, Anchor, Compass, Ship, Waves, ShieldCheck, Users, MapPin, HelpCircle, MessageCircle } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
 
 // ─── Navigation Config ──────────────────────────────────────────

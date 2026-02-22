@@ -55,8 +55,7 @@ interface YachtData {
     id: string;
     authorName: string;
     rating: number;
-    title_en: string | null;
-    title_ar: string | null;
+    title: string | null;
     review_en: string | null;
     review_ar: string | null;
     charterDate: string | null;
@@ -131,8 +130,7 @@ const PLACEHOLDER_YACHT: YachtData = {
       id: "rev-1",
       authorName: "Ahmed K.",
       rating: 5,
-      title_en: "An unforgettable family charter",
-      title_ar: "\u0631\u062D\u0644\u0629 \u0639\u0627\u0626\u0644\u064A\u0629 \u0644\u0627 \u062A\u064F\u0646\u0633\u0649",
+      title: "An unforgettable family charter",
       review_en:
         "We chartered the Aegean Splendor for a week through the Cyclades with our family. The halal catering was outstanding \u2014 the chef prepared fresh grilled fish every day using ingredients from the local markets. The crew was incredibly attentive to our children, and the water sports platform kept everyone entertained for hours.",
       review_ar:
@@ -144,8 +142,7 @@ const PLACEHOLDER_YACHT: YachtData = {
       id: "rev-2",
       authorName: "Sarah M.",
       rating: 5,
-      title_en: "Luxury beyond expectations",
-      title_ar: "\u0641\u062E\u0627\u0645\u0629 \u062A\u0641\u0648\u0642 \u0627\u0644\u062A\u0648\u0642\u0639\u0627\u062A",
+      title: "Luxury beyond expectations",
       review_en:
         "From the moment we stepped aboard, every detail was perfect. The master suite is enormous, and the sundeck Jacuzzi with views of Santorini at sunset was the highlight of our honeymoon. Captain Nikos knew the best hidden bays away from the tourist crowds.",
       review_ar:
@@ -157,9 +154,7 @@ const PLACEHOLDER_YACHT: YachtData = {
       id: "rev-3",
       authorName: "Mohammed Al-Rashid",
       rating: 4,
-      title_en: "Great yacht, minor wifi issues",
-      title_ar:
-        "\u064A\u062E\u062A \u0631\u0627\u0626\u0639\u060C \u0645\u0634\u0627\u0643\u0644 \u0628\u0633\u064A\u0637\u0629 \u0641\u064A \u0627\u0644\u0648\u0627\u064A\u0641\u0627\u064A",
+      title: "Great yacht, minor wifi issues",
       review_en:
         "The yacht itself is beautiful and the crew is top-notch. Only minor complaint was the wifi connectivity dropping between islands, but honestly that forced us to disconnect and enjoy the trip more. The chef's lamb ouzi was the best I have had outside of Jordan.",
       review_ar:
@@ -315,20 +310,16 @@ async function getYachtFromDB(
             region: yacht.destination.region,
           }
         : null,
-      reviews: yacht.reviews.map((r) => {
-        const rec = r as Record<string, unknown>;
-        return {
-          id: r.id,
-          authorName: r.authorName,
-          rating: r.rating,
-          title_en: (rec.title_en as string) ?? r.title ?? null,
-          title_ar: (rec.title_ar as string) ?? null,
-          review_en: r.content_en ?? null,
-          review_ar: r.content_ar ?? null,
-          charterDate: r.charterDate,
-          createdAt: r.createdAt.toISOString(),
-        };
-      }),
+      reviews: yacht.reviews.map((r) => ({
+        id: r.id,
+        authorName: r.authorName,
+        rating: r.rating,
+        title: r.title ?? null,
+        review_en: r.content_en ?? null,
+        review_ar: r.content_ar ?? null,
+        charterDate: r.charterDate ? r.charterDate.toISOString() : null,
+        createdAt: r.createdAt.toISOString(),
+      })),
     };
   } catch (err) {
     console.warn("[yacht-detail] DB fetch failed, using placeholder:", err);

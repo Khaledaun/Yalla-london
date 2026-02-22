@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
@@ -503,25 +504,25 @@ export default async function YachtDetailPage({ params }: PageProps) {
         >
           <ol className="flex items-center gap-2 flex-wrap z-text-caption">
             <li>
-              <a
+              <Link
                 href="/"
                 className="hover:underline"
                 style={{ color: "var(--z-aegean)" }}
               >
                 Home
-              </a>
+              </Link>
             </li>
             <li style={{ color: "var(--z-muted)" }} aria-hidden="true">
               /
             </li>
             <li>
-              <a
+              <Link
                 href="/yachts"
                 className="hover:underline"
                 style={{ color: "var(--z-aegean)" }}
               >
                 Yachts
-              </a>
+              </Link>
             </li>
             {yacht.destination && (
               <>
@@ -529,13 +530,13 @@ export default async function YachtDetailPage({ params }: PageProps) {
                   /
                 </li>
                 <li>
-                  <a
+                  <Link
                     href={`/destinations/${yacht.destination.slug}`}
                     className="hover:underline"
                     style={{ color: "var(--z-aegean)" }}
                   >
                     {yacht.destination.name}
-                  </a>
+                  </Link>
                 </li>
               </>
             )}
@@ -767,7 +768,7 @@ export default async function YachtDetailPage({ params }: PageProps) {
                 <hr className="z-divider-subtle" style={{ margin: "0" }} />
 
                 {/* Inquiry CTA */}
-                <a
+                <Link
                   href={`/inquiry?yacht=${slug}`}
                   className="z-btn z-btn-primary z-btn-lg z-btn-block"
                 >
@@ -786,7 +787,7 @@ export default async function YachtDetailPage({ params }: PageProps) {
                     <path d="m22 10-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 10" />
                   </svg>
                   Inquire About This Yacht
-                </a>
+                </Link>
 
                 {/* Affiliate Link */}
                 <a
@@ -942,13 +943,13 @@ export default async function YachtDetailPage({ params }: PageProps) {
                 <span className="z-text-caption"> /week</span>
               )}
             </div>
-            <a
+            <Link
               href={`/inquiry?yacht=${slug}`}
               className="z-btn z-btn-primary z-btn-lg"
               style={{ whiteSpace: "nowrap" }}
             >
               Inquire Now
-            </a>
+            </Link>
           </div>
         </div>
       </main>

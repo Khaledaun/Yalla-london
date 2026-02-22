@@ -977,7 +977,7 @@ interface MigrateResult {
   errors: string[];
 }
 
-async function migrateDatabase(prisma: any): Promise<MigrateResult> {
+async function migrateDatabase(prisma: any, budgetLeft: () => number = () => 999_999): Promise<MigrateResult> {
   const result: MigrateResult = {
     enumsCreated: [],
     tablesCreated: [],
@@ -993,6 +993,7 @@ async function migrateDatabase(prisma: any): Promise<MigrateResult> {
   const existingEnums = await getExistingEnums(prisma);
   for (const en of ENUM_STATEMENTS) {
     if (existingEnums.has(en.name)) continue;
+    if (budgetLeft() < 3_000) { result.errors.push("Budget exhausted during enum creation"); break; }
     try {
       await prisma.$executeRawUnsafe(
         `DO $$ BEGIN CREATE TYPE "${en.name}" AS ENUM (${en.values.map((v) => `'${v}'`).join(", ")}); EXCEPTION WHEN duplicate_object THEN NULL; END $$;`,
@@ -1007,6 +1008,7 @@ async function migrateDatabase(prisma: any): Promise<MigrateResult> {
 
   // 1. Create missing tables
   for (const def of CREATE_TABLE_STATEMENTS) {
+    if (budgetLeft() < 3_000) { result.errors.push("Budget exhausted during table creation"); break; }
     if (!existingTables.has(def.table)) {
       try {
         await prisma.$executeRawUnsafe(def.sql);
@@ -1015,6 +1017,7 @@ async function migrateDatabase(prisma: any): Promise<MigrateResult> {
         // Create indexes for new table
         const tableIndexes = NEW_TABLE_INDEXES[def.table] || [];
         for (const idx of tableIndexes) {
+          if (budgetLeft() < 2_000) break;
           try {
             await prisma.$executeRawUnsafe(idx);
             result.indexesCreated.push(idx.match(/\"([^"]+_idx)\"/)?.[1] || idx);
@@ -1032,6 +1035,7 @@ async function migrateDatabase(prisma: any): Promise<MigrateResult> {
 
   // 2. Add missing columns to existing tables
   for (const def of EXPECTED_TABLES) {
+    if (budgetLeft() < 3_000) { result.errors.push("Budget exhausted during column addition"); break; }
     const tableName = def.table.replace(/"/g, "");
     if (!existingTables.has(tableName)) {
       // Table doesn't exist and isn't in CREATE_TABLE_STATEMENTS — skip
@@ -1042,6 +1046,7 @@ async function migrateDatabase(prisma: any): Promise<MigrateResult> {
 
     for (const col of def.columns) {
       if (existingCols.has(col.name)) continue;
+      if (budgetLeft() < 2_000) break;
 
       const nullable = col.nullable !== false ? "" : " NOT NULL";
       const dflt = col.defaultValue ? ` DEFAULT ${col.defaultValue}` : "";
@@ -1060,6 +1065,7 @@ async function migrateDatabase(prisma: any): Promise<MigrateResult> {
     // Create indexes for existing tables
     if (def.indexes) {
       for (const idx of def.indexes) {
+        if (budgetLeft() < 2_000) break;
         try {
           await prisma.$executeRawUnsafe(idx);
           result.indexesCreated.push(
@@ -1077,6 +1083,7 @@ async function migrateDatabase(prisma: any): Promise<MigrateResult> {
 
   // 3. Create unique constraints
   for (const sql of UNIQUE_CONSTRAINTS) {
+    if (budgetLeft() < 2_000) { result.errors.push("Budget exhausted during constraint creation"); break; }
     try {
       await prisma.$executeRawUnsafe(sql);
       result.indexesCreated.push(sql.match(/\"([^"]+_key)\"/)?.[1] || "unique");
@@ -1089,6 +1096,7 @@ async function migrateDatabase(prisma: any): Promise<MigrateResult> {
 
   // 4. Create foreign keys (after all tables exist)
   for (const fk of FOREIGN_KEYS) {
+    if (budgetLeft() < 2_000) { result.errors.push("Budget exhausted during FK creation"); break; }
     try {
       await prisma.$executeRawUnsafe(
         `DO $$ BEGIN ${fk.sql}; EXCEPTION WHEN duplicate_object THEN NULL; END $$;`,
@@ -1128,10 +1136,11 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (e: any) {
+    console.error("[db-migrate] Scan failed:", e);
     return NextResponse.json(
       {
         success: false,
-        error: e.message || "Scan failed",
+        error: "Scan failed",
         hint: "Check DATABASE_URL and that the database is reachable",
       },
       { status: 500 },
@@ -1143,17 +1152,25 @@ export async function POST(request: NextRequest) {
   const authError = await checkAuth(request);
   if (authError) return authError;
 
+  const _start = Date.now();
+  const BUDGET_MS = 53_000; // 53s budget out of 60s maxDuration
+  const budgetLeft = () => BUDGET_MS - (Date.now() - _start);
+
   try {
     const { prisma } = await import("@/lib/db");
 
     // Scan first
     const before = await scanDatabase(prisma);
 
-    // Migrate
-    const result = await migrateDatabase(prisma);
+    // Migrate (pass budget checker so it can bail early if running out of time)
+    const result = await migrateDatabase(prisma, budgetLeft);
 
-    // Scan after to verify
-    const after = await scanDatabase(prisma);
+    // Scan after to verify (only if budget permits)
+    let after = { missingTables: [] as any[], missingColumns: [] as any[] };
+    if (budgetLeft() > 5_000) {
+      const afterScan = await scanDatabase(prisma);
+      after = { missingTables: afterScan.missingTables, missingColumns: afterScan.missingColumns };
+    }
 
     return NextResponse.json({
       success: true,
@@ -1167,13 +1184,15 @@ export async function POST(request: NextRequest) {
         missingColumns: after.missingColumns.length,
       },
       result,
+      durationMs: Date.now() - _start,
       timestamp: new Date().toISOString(),
     });
   } catch (e: any) {
+    console.error("[db-migrate] Migration failed:", e);
     return NextResponse.json(
       {
         success: false,
-        error: e.message || "Migration failed",
+        error: "Migration failed",
         hint: "Check DATABASE_URL and ensure the database user has CREATE/ALTER permissions",
       },
       { status: 500 },

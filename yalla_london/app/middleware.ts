@@ -225,7 +225,11 @@ export function middleware(request: NextRequest) {
       effectivePathname === "/api/admin/setup" ||
       effectivePathname === "/api/admin/migrate" ||
       effectivePathname === "/api/admin/session";
-    if (!isInternalRoute) {
+    // Requests with Bearer token auth (e.g. test-connections.html using
+    // CRON_SECRET) are validated by route-level requireAdminOrCron /
+    // withAdminAuth — no Origin check needed.
+    const hasBearerAuth = (request.headers.get("authorization") || "").startsWith("Bearer ");
+    if (!isInternalRoute && !hasBearerAuth) {
       if (!origin || !ALLOWED_ORIGINS.has(origin)) {
         return NextResponse.json(
           { error: "Forbidden: Invalid origin" },

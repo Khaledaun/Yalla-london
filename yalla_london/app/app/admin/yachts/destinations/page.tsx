@@ -28,14 +28,13 @@ interface Destination {
   name: string
   slug: string
   region: string
-  description: string
+  description_en: string | null
   heroImage?: string
   yachtCount: number
-  seasonStart: string
-  seasonEnd: string
-  avgPricePerWeek: number
-  currency: string
-  highlights: string[]
+  seasonStart: string | null
+  seasonEnd: string | null
+  averagePricePerWeek: number | null
+  highlights: string[] | null
   status: string
   createdAt: string
   updatedAt: string
@@ -144,10 +143,10 @@ export default function DestinationsPage() {
       name: dest.name,
       slug: dest.slug,
       region: dest.region,
-      description: dest.description,
-      seasonStart: dest.seasonStart,
-      seasonEnd: dest.seasonEnd,
-      avgPricePerWeek: String(dest.avgPricePerWeek),
+      description: dest.description_en ?? '',
+      seasonStart: dest.seasonStart ?? '',
+      seasonEnd: dest.seasonEnd ?? '',
+      avgPricePerWeek: String(Number(dest.averagePricePerWeek ?? 0)),
     })
     setShowForm(true)
   }
@@ -162,7 +161,8 @@ export default function DestinationsPage() {
     if (!form.name.trim() || !form.region.trim()) return
     setSaving(true)
     try {
-      const body = { ...form, avgPricePerWeek: Number(form.avgPricePerWeek) || 0, siteId }
+      const { description, avgPricePerWeek, ...rest } = form
+      const body = { ...rest, description_en: description, averagePricePerWeek: Number(avgPricePerWeek) || 0, siteId }
       const res = await fetch(`/api/admin/yachts/destinations`, {
         method: editingId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -329,21 +329,21 @@ export default function DestinationsPage() {
                   {dest.status !== 'active' && <Badge className="bg-red-100 text-red-700">Inactive</Badge>}
                 </div>
 
-                {dest.description && (
-                  <p className="text-sm text-gray-600 line-clamp-2">{dest.description}</p>
+                {dest.description_en && (
+                  <p className="text-sm text-gray-600 line-clamp-2">{dest.description_en}</p>
                 )}
 
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
                   <span className="flex items-center gap-1"><Ship className="h-3.5 w-3.5 text-gray-400" />{dest.yachtCount} yachts</span>
-                  <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5 text-gray-400" />{dest.seasonStart} &ndash; {dest.seasonEnd}</span>
-                  {dest.avgPricePerWeek > 0 && (
-                    <span className="flex items-center gap-1"><DollarSign className="h-3.5 w-3.5 text-gray-400" />{formatPrice(dest.avgPricePerWeek, dest.currency)}/wk avg</span>
+                  {(dest.seasonStart || dest.seasonEnd) && <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5 text-gray-400" />{dest.seasonStart ?? '?'} &ndash; {dest.seasonEnd ?? '?'}</span>}
+                  {Number(dest.averagePricePerWeek ?? 0) > 0 && (
+                    <span className="flex items-center gap-1"><DollarSign className="h-3.5 w-3.5 text-gray-400" />{formatPrice(Number(dest.averagePricePerWeek ?? 0))}/wk avg</span>
                   )}
                 </div>
 
-                {dest.highlights.length > 0 && (
+                {Array.isArray(dest.highlights) && dest.highlights.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {dest.highlights.slice(0, 4).map((h, i) => (
+                    {dest.highlights.slice(0, 4).map((h: string, i: number) => (
                       <Badge key={i} className="bg-blue-50 text-blue-700 border-blue-200 text-xs">{h}</Badge>
                     ))}
                     {dest.highlights.length > 4 && <span className="text-xs text-gray-400">+{dest.highlights.length - 4}</span>}

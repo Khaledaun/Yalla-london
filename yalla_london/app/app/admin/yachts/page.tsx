@@ -31,20 +31,19 @@ interface Yacht {
   id: string
   name: string
   type: string
-  length: number
-  lengthUnit: string
+  length: number | null
   cabins: number
-  guests: number
-  crew: number
-  priceFrom: number
-  priceTo: number
+  berths: number
+  crewSize: number
+  pricePerWeekLow: number | null
+  pricePerWeekHigh: number | null
   currency: string
-  rating: number
-  status: 'active' | 'inactive' | 'draft'
+  rating: number | null
+  status: string
   featured: boolean
-  destination: string
-  builder: string
-  yearBuilt: number
+  destination: { id: string; name: string; slug: string; region: string } | null
+  builder: string | null
+  yearBuilt: number | null
   heroImage?: string
   createdAt: string
   updatedAt: string
@@ -174,8 +173,8 @@ export default function YachtsFleetPage() {
   }
 
   const handleExport = () => {
-    const header = ['Name', 'Type', 'Length', 'Cabins', 'Guests', 'Price From', 'Price To', 'Status', 'Destination']
-    const rows = yachts.map(y => [y.name, y.type, `${y.length}${y.lengthUnit}`, y.cabins, y.guests, y.priceFrom, y.priceTo, y.status, y.destination])
+    const header = ['Name', 'Type', 'Length (m)', 'Cabins', 'Berths', 'Price Low', 'Price High', 'Status', 'Destination']
+    const rows = yachts.map(y => [y.name, y.type, y.length ?? '', y.cabins, y.berths, y.pricePerWeekLow ?? '', y.pricePerWeekHigh ?? '', y.status, y.destination?.name ?? ''])
     const csv = [header, ...rows].map(r => r.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -387,21 +386,21 @@ export default function YachtsFleetPage() {
                             {yacht.featured && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />}
                             <span className="font-medium text-gray-900">{yacht.name}</span>
                           </div>
-                          <span className="text-xs text-gray-500">{yacht.builder} &middot; {yacht.yearBuilt}</span>
+                          <span className="text-xs text-gray-500">{yacht.builder ?? ''}{yacht.builder && yacht.yearBuilt ? ' · ' : ''}{yacht.yearBuilt ?? ''}</span>
                         </td>
                         <td className="p-3">
                           <Badge className="bg-blue-50 text-blue-700 border-blue-200">{yacht.type}</Badge>
                         </td>
-                        <td className="p-3 text-gray-700">{yacht.length}{yacht.lengthUnit}</td>
-                        <td className="p-3 text-gray-700">{yacht.cabins} <span className="text-gray-400 text-xs">({yacht.guests} guests)</span></td>
+                        <td className="p-3 text-gray-700">{yacht.length ? `${yacht.length}m` : '–'}</td>
+                        <td className="p-3 text-gray-700">{yacht.cabins} <span className="text-gray-400 text-xs">({yacht.berths} berths)</span></td>
                         <td className="p-3 text-gray-700">
-                          {formatPrice(yacht.priceFrom, yacht.currency)} &ndash; {formatPrice(yacht.priceTo, yacht.currency)}
+                          {yacht.pricePerWeekLow ? formatPrice(Number(yacht.pricePerWeekLow), yacht.currency) : '–'} &ndash; {yacht.pricePerWeekHigh ? formatPrice(Number(yacht.pricePerWeekHigh), yacht.currency) : '–'}
                         </td>
                         <td className="p-3">
-                          {yacht.rating > 0 ? (
+                          {yacht.rating && Number(yacht.rating) > 0 ? (
                             <span className="flex items-center gap-1 text-gray-700">
                               <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                              {yacht.rating.toFixed(1)}
+                              {Number(yacht.rating).toFixed(1)}
                             </span>
                           ) : (
                             <span className="text-gray-400">&ndash;</span>
@@ -412,7 +411,7 @@ export default function YachtsFleetPage() {
                             {yacht.status.charAt(0).toUpperCase() + yacht.status.slice(1)}
                           </Badge>
                         </td>
-                        <td className="p-3 text-gray-700">{yacht.destination}</td>
+                        <td className="p-3 text-gray-700">{yacht.destination?.name ?? '–'}</td>
                         <td className="p-3">
                           <div className="flex items-center gap-1">
                             <Link href={`/admin/yachts/${yacht.id}/edit`}>

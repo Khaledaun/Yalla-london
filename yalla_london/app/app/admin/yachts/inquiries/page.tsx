@@ -36,24 +36,22 @@ type InquiryStatus = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'SENT_TO_BROKER' | 'BOO
 
 interface Inquiry {
   id: string
-  reference: string
+  referenceNumber: string
   firstName: string
   lastName: string
   email: string
-  phone: string
-  destination: string
-  dateFrom: string
-  dateTo: string
-  guests: number
-  cabins: number
-  budget: number
-  currency: string
+  phone: string | null
+  destination: string | null
+  preferredDates: { start?: string; end?: string; flexible?: boolean } | null
+  guestCount: number
+  budget: number | null
+  budgetCurrency: string
   status: InquiryStatus
-  yachtPreferences: string[]
-  specialRequests: string
-  brokerNotes: string
-  assignedBroker: string | null
-  source: string
+  preferences: Record<string, unknown> | null
+  message: string | null
+  brokerNotes: string | null
+  brokerAssigned: string | null
+  source: string | null
   createdAt: string
   updatedAt: string
 }
@@ -374,7 +372,7 @@ export default function InquiriesPage() {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-mono text-gray-400">{inq.reference}</span>
+                          <span className="text-xs font-mono text-gray-400">{inq.referenceNumber}</span>
                           <Badge className={statusColor[inq.status]}>{statusLabel[inq.status]}</Badge>
                         </div>
                         <p className="font-semibold text-gray-900 mt-1">{inq.firstName} {inq.lastName}</p>
@@ -385,9 +383,11 @@ export default function InquiriesPage() {
                       </div>
                       <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-600 shrink-0">
                         <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-gray-400" />{inq.destination}</span>
-                        <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5 text-gray-400" />{formatDate(inq.dateFrom)} &ndash; {formatDate(inq.dateTo)}</span>
-                        <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5 text-gray-400" />{inq.guests} guests</span>
-                        <span className="flex items-center gap-1"><DollarSign className="h-3.5 w-3.5 text-gray-400" />{formatPrice(inq.budget, inq.currency)}</span>
+                        {inq.preferredDates && (inq.preferredDates.start || inq.preferredDates.end) && (
+                          <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5 text-gray-400" />{inq.preferredDates.start ? formatDate(inq.preferredDates.start) : '?'} &ndash; {inq.preferredDates.end ? formatDate(inq.preferredDates.end) : '?'}</span>
+                        )}
+                        <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5 text-gray-400" />{inq.guestCount} guests</span>
+                        <span className="flex items-center gap-1"><DollarSign className="h-3.5 w-3.5 text-gray-400" />{inq.budget ? formatPrice(Number(inq.budget), inq.budgetCurrency) : '–'}</span>
                       </div>
                       <div className="shrink-0">
                         {isExpanded ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
@@ -400,10 +400,10 @@ export default function InquiriesPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Preferences</h4>
-                            {inq.yachtPreferences.length > 0 ? (
+                            {inq.preferences && Object.keys(inq.preferences).length > 0 ? (
                               <div className="flex flex-wrap gap-1">
-                                {inq.yachtPreferences.map((pref, i) => (
-                                  <Badge key={i} className="bg-gray-100 text-gray-700">{pref}</Badge>
+                                {Object.entries(inq.preferences).filter(([, v]) => v).map(([key]) => (
+                                  <Badge key={key} className="bg-gray-100 text-gray-700">{key}</Badge>
                                 ))}
                               </div>
                             ) : (
@@ -412,7 +412,7 @@ export default function InquiriesPage() {
                           </div>
                           <div>
                             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Special Requests</h4>
-                            <p className="text-sm text-gray-700">{inq.specialRequests || 'None'}</p>
+                            <p className="text-sm text-gray-700">{inq.message || 'None'}</p>
                           </div>
                         </div>
 

@@ -345,14 +345,14 @@ export function ZenithaHeader() {
               {language === 'en' ? 'العربية' : 'English'}
             </button>
 
-            {/* Contact options */}
+            {/* Contact options — CTA links to inquiry page since phone numbers pending */}
             <div className="flex items-center gap-3 px-3 py-3">
-              <a href="tel:+44000000000" className="flex items-center gap-1.5 text-sm text-[var(--z-aegean)]">
-                <Phone size={16} /> {language === 'ar' ? 'اتصل بنا' : 'Call Us'}
-              </a>
-              <a href="https://wa.me/44000000000" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-[var(--z-aegean)]">
-                <MessageCircle size={16} /> WhatsApp
-              </a>
+              <Link href="/contact" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-1.5 text-sm text-[var(--z-aegean)]">
+                <Phone size={16} /> {language === 'ar' ? 'اتصل بنا' : 'Contact Us'}
+              </Link>
+              <Link href="/inquiry" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-1.5 text-sm text-[var(--z-aegean)]">
+                <MessageCircle size={16} /> {language === 'ar' ? 'استفسار' : 'Enquire'}
+              </Link>
             </div>
 
             {/* CTA */}

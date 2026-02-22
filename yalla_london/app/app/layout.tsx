@@ -3,9 +3,9 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import Script from "next/script";
 import "./globals.css";
+import "./zenitha-tokens.css";
 import { LanguageProvider } from "@/components/language-provider";
-import { DynamicHeader } from "@/components/dynamic-header";
-import { Footer } from "@/components/footer";
+import { SiteShell } from "@/components/site-shell";
 import { ThemeProvider } from "@/components/theme-provider";
 import { BrandThemeProvider } from "@/components/brand-theme-provider";
 import { StructuredData } from "@/components/structured-data";
@@ -16,7 +16,7 @@ import { brandConfig } from "@/config/brand-config";
 // HreflangTags component removed — hreflang is handled by generateMetadata().alternates.languages
 // in each layout/page file. The component was causing duplicate hreflang tags on every page.
 import { getBaseUrl } from "@/lib/url-utils";
-import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, isYachtSite as checkIsYachtSite } from "@/config/sites";
 import type { Language } from "@/lib/types";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -95,8 +95,10 @@ export default async function RootLayout({
     "French Riviera": { region: "FR-PAC", placename: "Nice", position: "43.7102;7.2620", icbm: "43.7102, 7.2620" },
     "Istanbul": { region: "TR-34", placename: "Istanbul", position: "41.0082;28.9784", icbm: "41.0082, 28.9784" },
     "Thailand": { region: "TH-10", placename: "Bangkok", position: "13.7563;100.5018", icbm: "13.7563, 100.5018" },
+    "Mediterranean": { region: "GR", placename: "Athens", position: "37.9838;23.7275", icbm: "37.9838, 23.7275" },
   };
   const geo = geoData[currentSiteConfig?.destination || "London"] || geoData["London"];
+  const isYachtSite = checkIsYachtSite(siteId);
 
   return (
     <html lang={locale} dir={dir} suppressHydrationWarning>
@@ -109,6 +111,16 @@ export default async function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin=""
         />
+
+        {/* Zenitha Yachts font preloading — only loaded for yacht site */}
+        {isYachtSite && (
+          <>
+            <link
+              href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
+              rel="stylesheet"
+            />
+          </>
+        )}
 
         {/* PWA Meta Tags — theme-color and title from site config */}
         <link rel="manifest" href="/manifest.json" />
@@ -136,7 +148,7 @@ export default async function RootLayout({
           ) : null;
         })()}
       </head>
-      <body className="font-editorial antialiased" suppressHydrationWarning>
+      <body className={`antialiased ${isYachtSite ? 'font-body' : 'font-editorial'}`} suppressHydrationWarning>
         <NextAuthSessionProvider>
           <BrandThemeProvider>
             <ThemeProvider
@@ -152,11 +164,9 @@ export default async function RootLayout({
                 <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-white focus:text-charcoal focus:rounded focus:shadow-lg focus:text-sm focus:font-semibold">
                   Skip to content
                 </a>
-                <div className="min-h-screen flex flex-col">
-                  <DynamicHeader />
-                  <main id="main-content" className="flex-1 pt-20">{children}</main>
-                  <Footer />
-                </div>
+                <SiteShell siteId={siteId}>
+                  {children}
+                </SiteShell>
                 <CookieConsentBanner />
               </LanguageProvider>
             </ThemeProvider>

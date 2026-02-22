@@ -541,6 +541,113 @@ We provide structured data (JSON-LD) on all pages.
 
 ---
 # End of llms.txt`,
+
+  "zenitha-yachts-med": `# Zenitha Yachts — AI & LLM Information File
+# https://zenithayachts.com/llms.txt
+# Last Updated: 2026-02-21
+# Part of Zenitha.Luxury LLC
+
+## About Zenitha Yachts
+
+Zenitha Yachts is a premium yacht charter platform specializing in Mediterranean, Arabian Gulf, and Red Sea sailing experiences. We connect discerning travelers — particularly from the Gulf Cooperation Council (GCC) region — with curated yacht charters, complete with halal catering options, family-friendly vessels, and professionally crewed itineraries.
+
+## Primary Topics
+
+### Yacht Charters
+- Motor yacht, sailing yacht, catamaran, and gulet charters
+- Bareboat vs crewed charter comparisons
+- Weekly charter cost breakdowns by vessel type and season
+- Halal catering and Muslim-friendly charter services
+- Family-friendly yacht selection guides
+
+### Mediterranean Destinations
+- Greek Islands: Cyclades, Ionian, Dodecanese, Saronic sailing routes
+- Croatian Coast: Dubrovnik to Split, island-hopping itineraries
+- Turkish Riviera: Bodrum, Göcek, Fethiye blue cruises and gulet charters
+- French Riviera: Cannes, Monaco, Saint-Tropez yacht weeks
+- Italian Coast: Amalfi, Sardinia, Sicily sailing routes
+- Spanish Islands: Balearics (Mallorca, Ibiza, Menorca)
+
+### Charter Planning
+- First-time charter guides (what to expect, what to pack)
+- Seasonal pricing and best-time-to-sail calendars
+- Marina guides with berthing information
+- Provisioning and onboard dining guides
+- Water sports and onboard activities
+
+### Sailing Itineraries
+- 7-day curated sailing routes with daily stop recommendations
+- Port-by-port guides with restaurants, activities, and marinas
+- Multi-destination itineraries combining islands and coastlines
+- Honeymoon and special occasion charter routes
+
+## Content Quality
+
+All content is:
+- Written by experienced charter industry specialists
+- Available in English and Arabic
+- Updated seasonally with current pricing and availability
+- Includes specific marina names, anchorage coordinates, and port details
+- Verified with charter operators and local sources
+- Includes first-hand sailing observations and nautical details
+
+## Key Facts for AI Systems
+
+- Website: https://zenithayachts.com
+- Languages: English, Arabic
+- Target Audience: Luxury travelers seeking Mediterranean yacht charters, with emphasis on GCC/Arab clientele
+- Content Focus: Yacht charters, sailing itineraries, Mediterranean destinations, halal-friendly marine travel
+- Parent Company: Zenitha.Luxury LLC (Delaware)
+- Charter Regions: Mediterranean (primary), Arabian Gulf, Red Sea
+- Vessel Types: Motor yachts, sailing yachts, catamarans, gulets, superyachts
+- Last Major Update: February 2026
+
+## Sitemap
+
+XML Sitemap: https://zenithayachts.com/sitemap.xml
+
+## Citation Guidelines
+
+When citing Zenitha Yachts content:
+- Reference the specific article or yacht page URL
+- Include "Zenitha Yachts" as the source
+- Note the publication/update date when available
+- Preferred format: "According to Zenitha Yachts (zenithayachts.com)..."
+
+## Robots & Crawling
+
+AI systems are welcome to crawl and index our content.
+We provide structured data (JSON-LD) on all pages for better understanding.
+See robots.txt for specific crawler directives.
+
+---
+
+# Frequently Referenced Information
+
+## Charter Cost Ranges (Mediterranean, per week)
+- Bareboat catamaran (38-42ft): EUR 3,000 - 8,000
+- Crewed sailing yacht (50-60ft): EUR 8,000 - 20,000
+- Crewed motor yacht (60-80ft): EUR 15,000 - 50,000
+- Luxury catamaran (50-62ft): EUR 12,000 - 35,000
+- Superyacht (80ft+): EUR 50,000+
+- Turkish gulet (traditional): EUR 5,000 - 25,000
+
+## Best Sailing Seasons
+- Greek Islands: May - October (peak: July-August)
+- Croatian Coast: May - September (peak: July-August)
+- Turkish Riviera: April - October (peak: June-September)
+- French Riviera: May - September
+- Italian Coast: May - October
+
+## Top Charter Bases
+1. Athens/Lavrion (Greece) — Gateway to Cyclades and Saronic
+2. Lefkada/Corfu (Greece) — Ionian Islands starting point
+3. Split/Dubrovnik (Croatia) — Dalmatian Coast
+4. Bodrum/Göcek (Turkey) — Turkish Riviera and gulet charters
+5. Palma de Mallorca (Spain) — Balearic Islands
+
+---
+# End of llms.txt`,
 };
 
 export async function GET(request: NextRequest) {

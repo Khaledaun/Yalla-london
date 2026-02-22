@@ -1548,6 +1548,11 @@ export function getDefaultSiteName(): string {
   return SITES[id]?.name || "Yalla London";
 }
 
+/** Check if a site is a yacht charter platform (as opposed to a content blog) */
+export function isYachtSite(siteId: string): boolean {
+  return siteId === "zenitha-yachts-med";
+}
+
 /** Get site config by ID */
 export function getSiteConfig(siteId: string): SiteConfig | undefined {
   return SITES[siteId];

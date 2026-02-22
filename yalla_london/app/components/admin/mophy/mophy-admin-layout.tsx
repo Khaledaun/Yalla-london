@@ -12,7 +12,7 @@ import {
   ShoppingCart, Command, Plus, Zap, Link2, Store, Activity,
   BookOpen, Newspaper, ShieldCheck, Edit3, Home, AlertTriangle,
   Clock, Play, Database, RefreshCw, Layers, Cpu, Hash, Radio,
-  Send, Eye, Shield, Wrench, Package,
+  Send, Eye, Shield, Wrench, Package, Ship, Anchor, MapPin,
 } from 'lucide-react'
 
 // ── Navigation Structure ──────────────────────────────────────────────────────
@@ -114,6 +114,23 @@ const navigation = [
       { label: 'PDF Generator',    href: '/admin/pdf-generator' },
       { label: 'Brand Assets',     href: '/admin/brand-assets' },
       { label: 'Email Campaigns', href: '/admin/email-campaigns' },
+    ],
+  },
+  {
+    id: 'yachts',
+    label: 'Yacht Management',
+    labelAr: 'إدارة اليخوت',
+    icon: Ship,
+    href: '/admin/yachts',
+    items: [
+      { label: 'Fleet Inventory',     href: '/admin/yachts' },
+      { label: 'Add Yacht',           href: '/admin/yachts/new' },
+      { label: 'Destinations',        href: '/admin/yachts/destinations' },
+      { label: 'Charter Inquiries',   href: '/admin/yachts/inquiries' },
+      { label: 'Itineraries',         href: '/admin/yachts/itineraries' },
+      { label: 'Broker Partners',     href: '/admin/yachts/brokers' },
+      { label: 'Sync & Imports',      href: '/admin/yachts/sync' },
+      { label: 'Yacht Analytics',     href: '/admin/yachts/analytics' },
     ],
   },
   {

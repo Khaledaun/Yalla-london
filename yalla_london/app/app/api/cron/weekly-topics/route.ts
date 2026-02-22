@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
 
       if (topicData.topics.length === 0 && pplxKey) {
         try {
-          topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en');
+          topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en', siteDestination);
           providerUsed = 'perplexity';
         } catch (e) {
           console.warn(`[weekly-topics] Perplexity EN failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
       if (topicData.topics.length === 0) {
         try {
-          topicData = await generateTopicsViaAIProvider('weekly_mixed', 'en');
+          topicData = await generateTopicsViaAIProvider('weekly_mixed', 'en', siteDestination);
           providerUsed = 'ai-provider';
         } catch (e) {
           console.warn(`[weekly-topics] AI provider EN failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
         }
         if (!arabicData && pplxKey) {
           try {
-            arabicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'ar');
+            arabicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'ar', siteDestination);
           } catch (e) {
             console.warn(`[weekly-topics] Perplexity AR failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
           }
@@ -312,8 +312,9 @@ async function generateTopicsDirect(
   apiKey: string,
   category: string,
   locale: string,
+  destination = 'London',
 ): Promise<{ topics: any[] }> {
-  const prompt = `You are a London-local editor. Suggest 5 timely article topics for "${category}"
+  const prompt = `You are a local editor specializing in ${destination}. Suggest 5 timely article topics about ${destination} for "${category}"
 in locale "${locale}" with short slugs and 1-2 authority sources each (domain only).
 Return strict JSON array with objects: {title, slug, rationale, sources: string[]}`;
 
@@ -359,16 +360,17 @@ Return strict JSON array with objects: {title, slug, rationale, sources: string[
 async function generateTopicsViaAIProvider(
   category: string,
   locale: string,
+  destination = 'London',
 ): Promise<{ topics: any[] }> {
   const { generateJSON } = await import('@/lib/ai/provider');
 
   const prompt = locale === 'en'
-    ? `You are a London-local editor for a luxury travel platform targeting Arab travelers.
-Suggest 5 timely, SEO-worthy article topics for the category "${category}".
+    ? `You are a local editor specializing in ${destination} for a luxury travel platform targeting Arab travelers.
+Suggest 5 timely, SEO-worthy article topics about ${destination} for the category "${category}".
 Each topic should have a short URL slug and 1-2 authority source domains.
 Return a strict JSON array: [{title, slug, rationale, sources: ["domain.com"]}]`
-    : `أنت محرر محلي في لندن لمنصة سفر فاخرة تستهدف المسافرين العرب.
-اقترح 5 مواضيع مقالات مناسبة لفئة "${category}".
+    : `أنت محرر متخصص في ${destination} لمنصة سفر فاخرة تستهدف المسافرين العرب.
+اقترح 5 مواضيع مقالات عن ${destination} مناسبة لفئة "${category}".
 لكل موضوع عنوان قصير وسلاغ URL ومصدرين موثوقين.
 أرجع مصفوفة JSON: [{title, slug, rationale, sources: ["domain.com"]}]`;
 

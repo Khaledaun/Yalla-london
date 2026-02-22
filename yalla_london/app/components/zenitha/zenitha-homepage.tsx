@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, Compass, Anchor, Ship, Star, ArrowRight, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
+import { ChevronDown, Compass, Anchor, Ship, Star, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
 import { useScrollRevealClass } from '@/hooks/use-scroll-reveal';
 
@@ -118,17 +118,11 @@ function TrustBar({ locale }: { locale: Locale }) {
   );
 }
 
-// ─── Featured Yachts Section (Placeholder until DB has data) ─
+// ─── Featured Yachts Section ─────────────────────────────────
 function FeaturedYachtsSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
   const headerRef = useScrollRevealClass<HTMLDivElement>();
-  const gridRef = useScrollRevealClass<HTMLDivElement>();
-
-  const placeholderYachts = [
-    { name: 'Lagoon 450 F', type: { en: 'Catamaran', ar: 'كاتاماران' }, cabins: 4, guests: 8, length: '14m', price: '€5,200', rating: 4.8, reviews: 23, halal: true },
-    { name: 'Bavaria C57', type: { en: 'Sailing Yacht', ar: 'يخت شراعي' }, cabins: 5, guests: 10, length: '17m', price: '€4,800', rating: 4.6, reviews: 15, halal: false },
-    { name: 'Azimut 55', type: { en: 'Motor Yacht', ar: 'يخت بمحرك' }, cabins: 3, guests: 6, length: '17m', price: '€8,500', rating: 4.9, reviews: 31, halal: true },
-  ];
+  const sectionRef = useScrollRevealClass<HTMLDivElement>();
 
   return (
     <section className="py-20 bg-white">
@@ -143,58 +137,23 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
           </h2>
         </div>
 
-        {/* Yacht Cards Grid */}
-        <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {placeholderYachts.map((yacht, i) => (
-            <Link key={i} href="/yachts" className="group z-reveal-fadeUp z-reveal-stagger">
-              <div className="bg-white rounded-xl overflow-hidden shadow-card hover:shadow-hover transition-shadow duration-350">
-                {/* Image placeholder */}
-                <div className="relative aspect-[4/3] bg-gradient-to-br from-[var(--z-midnight)] to-[var(--z-aegean)] overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Ship size={48} className="text-white/20" aria-hidden="true" />
-                  </div>
-                  {/* Type badge */}
-                  <span className="absolute top-3 left-3 bg-[var(--z-navy)]/80 text-white text-xs font-heading font-semibold px-2.5 py-1 rounded">
-                    {t(yacht.type)}
-                  </span>
-                  {/* Halal badge */}
-                  {yacht.halal && (
-                    <span className="absolute top-3 right-3 bg-[var(--z-mediterranean)]/90 text-white text-xs font-heading font-semibold px-2.5 py-1 rounded flex items-center gap-1">
-                      <ShieldCheck size={12} aria-hidden="true" /> {t({ en: 'Halal', ar: 'حلال' })}
-                    </span>
-                  )}
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 bg-[var(--z-navy)]/0 group-hover:bg-[var(--z-navy)]/10 transition-colors duration-350" />
-                </div>
-
-                {/* Content */}
-                <div className="p-5">
-                  <h3 className="font-heading text-lg font-semibold text-[var(--z-navy)]">{yacht.name}</h3>
-                  <p className="text-sm font-body text-[var(--z-aegean)] mt-1">
-                    {yacht.cabins} {t({ en: 'Cabins', ar: 'كبائن' })} · {yacht.guests} {t({ en: 'Guests', ar: 'ضيوف' })} · {yacht.length}
-                  </p>
-                  <div className="flex items-center justify-between mt-4">
-                    <div>
-                      <span className="font-mono text-lg font-medium text-[var(--z-gold)]">{t({ en: 'From ', ar: 'من ' })}{yacht.price}</span>
-                      <span className="text-xs text-[var(--z-aegean)] font-body"> /{t({ en: 'week', ar: 'أسبوع' })}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-sm">
-                      <Star size={14} className="fill-[var(--z-gold)] text-[var(--z-gold)]" aria-hidden="true" />
-                      <span className="font-heading font-medium text-[var(--z-navy)]">{yacht.rating}</span>
-                      <span className="text-[var(--z-aegean)]">({yacht.reviews})</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+        {/* Fleet Preview — links to full search */}
+        <div ref={sectionRef} className="z-reveal-fadeUp">
+          <div className="bg-gradient-to-br from-[var(--z-sand)] to-[var(--z-champagne)] rounded-2xl p-10 sm:p-14 text-center">
+            <Ship size={56} className="text-[var(--z-aegean)] mx-auto mb-6" style={{ opacity: 0.4 }} aria-hidden="true" />
+            <h3 className="font-heading text-xl sm:text-2xl font-semibold text-[var(--z-navy)] mb-3">
+              {t({ en: 'Your Perfect Yacht Awaits', ar: 'يختك المثالي بانتظارك' })}
+            </h3>
+            <p className="font-body text-[var(--z-aegean)] max-w-lg mx-auto mb-8 leading-relaxed">
+              {t({
+                en: 'Browse our curated selection of motor yachts, catamarans, gulets, and sailing yachts — each handpicked for exceptional Mediterranean charters.',
+                ar: 'تصفح مجموعتنا المختارة من اليخوت الآلية والكاتاماران والقوارب التركية واليخوت الشراعية — كل واحد مختار بعناية لرحلات استثنائية في البحر المتوسط.',
+              })}
+            </p>
+            <Link href="/yachts" className="z-btn-primary text-base px-8 py-3.5 inline-flex items-center gap-2">
+              {t({ en: 'Explore Our Fleet', ar: 'استكشف أسطولنا' })} <ArrowRight size={18} />
             </Link>
-          ))}
-        </div>
-
-        {/* View all link */}
-        <div className="text-center mt-10">
-          <Link href="/yachts" className="inline-flex items-center gap-2 text-[var(--z-aegean)] font-heading font-medium hover:text-[var(--z-navy)] transition-colors">
-            {t({ en: 'Explore All Yachts', ar: 'استكشف جميع اليخوت' })} <ArrowRight size={18} />
-          </Link>
+          </div>
         </div>
       </div>
     </section>

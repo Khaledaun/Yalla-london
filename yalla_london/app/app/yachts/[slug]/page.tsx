@@ -63,168 +63,8 @@ interface YachtData {
   }[];
 }
 
-// ─── Placeholder Data ───────────────────────────────────────────────
-
-const PLACEHOLDER_YACHT: YachtData = {
-  id: "placeholder-001",
-  name: "Aegean Splendor",
-  slug: "aegean-splendor",
-  type: "MOTOR_YACHT",
-  length: 42,
-  beam: 8.5,
-  draft: 2.2,
-  yearBuilt: 2022,
-  builder: "Benetti",
-  model: "Oasis 40M",
-  cabins: 5,
-  berths: 10,
-  bathrooms: 5,
-  crewSize: 7,
-  pricePerWeekLow: 85000,
-  pricePerWeekHigh: 120000,
-  currency: "EUR",
-  description_en:
-    "The Aegean Splendor is a masterfully crafted 42-metre motor yacht by Benetti, built in 2022 to the highest standards of Italian maritime craftsmanship. With five luxuriously appointed staterooms accommodating up to ten guests, she offers an intimate yet spacious charter experience across the Mediterranean. Her experienced crew of seven anticipates every need, from arranging private dining on secluded beaches to coordinating seamless transfers between ports.\n\nHer expansive sundeck features a Jacuzzi with panoramic views, a full wet bar, and a shaded dining area perfect for sunset meals. The main deck salon blends contemporary Italian design with warm walnut finishes, creating an atmosphere of refined comfort. A fully equipped water sports platform at the stern provides direct access to the sea, with a tender, jet skis, paddleboards, and snorkelling gear ready for adventure.\n\nCertified halal catering is available upon request, with an onboard chef experienced in preparing traditional Middle Eastern and Mediterranean cuisine using the finest local ingredients sourced from each port of call.",
-  description_ar:
-    "\u064A\u062E\u062A \u0625\u064A\u062C\u064A\u0627\u0646 \u0633\u0628\u0644\u0646\u062F\u0648\u0631 \u0647\u0648 \u064A\u062E\u062A \u0645\u0648\u062A\u0648\u0631 \u0628\u0637\u0648\u0644 42 \u0645\u062A\u0631\u0627\u064B \u0645\u0646 \u0628\u0646\u064A\u062A\u064A\u060C \u062A\u0645 \u0628\u0646\u0627\u0624\u0647 \u0641\u064A 2022 \u0628\u0623\u0639\u0644\u0649 \u0645\u0639\u0627\u064A\u064A\u0631 \u0627\u0644\u062D\u0631\u0641\u064A\u0629 \u0627\u0644\u0628\u062D\u0631\u064A\u0629 \u0627\u0644\u0625\u064A\u0637\u0627\u0644\u064A\u0629. \u064A\u0636\u0645 \u062E\u0645\u0633 \u063A\u0631\u0641 \u0641\u0627\u062E\u0631\u0629 \u062A\u062A\u0633\u0639 \u0644\u0639\u0634\u0631\u0629 \u0636\u064A\u0648\u0641\u060C \u0645\u0639 \u0637\u0627\u0642\u0645 \u0645\u0643\u0648\u0646 \u0645\u0646 \u0633\u0628\u0639\u0629 \u0623\u0641\u0631\u0627\u062F. \u064A\u062A\u0648\u0641\u0631 \u0637\u0639\u0627\u0645 \u062D\u0644\u0627\u0644 \u0645\u0639\u062A\u0645\u062F \u0639\u0646\u062F \u0627\u0644\u0637\u0644\u0628.",
-  features: [
-    "Jacuzzi",
-    "Stabilizers at anchor",
-    "Air conditioning",
-    "Wifi",
-    "Satellite TV",
-    "Gym",
-    "BBQ",
-    "Underwater lights",
-    "Deck Jacuzzi",
-    "Sun awning",
-    "Tender garage",
-    "Zero-speed stabilizers",
-  ],
-  images: null,
-  waterSports: [
-    "Jet Ski",
-    "Paddleboard",
-    "Snorkelling gear",
-    "Water skiing",
-    "Wakeboard",
-    "Fishing gear",
-    "Sea scooter",
-    "Kayak",
-  ],
-  halalCateringAvailable: true,
-  familyFriendly: true,
-  crewIncluded: true,
-  homePort: "Athens, Greece",
-  cruisingArea: "Greek Islands, Turkish Coast",
-  rating: 4.8,
-  reviewCount: 24,
-  featured: true,
-  destination: {
-    name: "Greek Islands",
-    slug: "greek-islands",
-    region: "MEDITERRANEAN",
-  },
-  reviews: [
-    {
-      id: "rev-1",
-      authorName: "Ahmed K.",
-      rating: 5,
-      title: "An unforgettable family charter",
-      review_en:
-        "We chartered the Aegean Splendor for a week through the Cyclades with our family. The halal catering was outstanding \u2014 the chef prepared fresh grilled fish every day using ingredients from the local markets. The crew was incredibly attentive to our children, and the water sports platform kept everyone entertained for hours.",
-      review_ar:
-        "\u0627\u0633\u062A\u0623\u062C\u0631\u0646\u0627 \u0627\u0644\u064A\u062E\u062A \u0644\u0645\u062F\u0629 \u0623\u0633\u0628\u0648\u0639 \u0639\u0628\u0631 \u0633\u064A\u0643\u0644\u0627\u062F\u064A\u0632 \u0645\u0639 \u0639\u0627\u0626\u0644\u062A\u0646\u0627. \u0643\u0627\u0646 \u0627\u0644\u0637\u0639\u0627\u0645 \u0627\u0644\u062D\u0644\u0627\u0644 \u0645\u0645\u062A\u0627\u0632\u0627\u064B.",
-      charterDate: "2025-08",
-      createdAt: "2025-09-15T00:00:00Z",
-    },
-    {
-      id: "rev-2",
-      authorName: "Sarah M.",
-      rating: 5,
-      title: "Luxury beyond expectations",
-      review_en:
-        "From the moment we stepped aboard, every detail was perfect. The master suite is enormous, and the sundeck Jacuzzi with views of Santorini at sunset was the highlight of our honeymoon. Captain Nikos knew the best hidden bays away from the tourist crowds.",
-      review_ar:
-        "\u0645\u0646 \u0644\u062D\u0638\u0629 \u0635\u0639\u0648\u062F\u0646\u0627 \u0639\u0644\u0649 \u0645\u062A\u0646 \u0627\u0644\u064A\u062E\u062A\u060C \u0643\u0627\u0646 \u0643\u0644 \u0634\u064A\u0621 \u0645\u062B\u0627\u0644\u064A\u0627\u064B. \u0627\u0644\u062C\u0627\u0643\u0648\u0632\u064A \u0639\u0644\u0649 \u0627\u0644\u0633\u0637\u062D \u0645\u0639 \u0625\u0637\u0644\u0627\u0644\u0629 \u0639\u0644\u0649 \u0633\u0627\u0646\u062A\u0648\u0631\u064A\u0646\u064A \u0639\u0646\u062F \u0627\u0644\u063A\u0631\u0648\u0628 \u0643\u0627\u0646 \u0623\u0641\u0636\u0644 \u0644\u062D\u0638\u0629 \u0641\u064A \u0634\u0647\u0631 \u0639\u0633\u0644\u0646\u0627.",
-      charterDate: "2025-07",
-      createdAt: "2025-08-02T00:00:00Z",
-    },
-    {
-      id: "rev-3",
-      authorName: "Mohammed Al-Rashid",
-      rating: 4,
-      title: "Great yacht, minor wifi issues",
-      review_en:
-        "The yacht itself is beautiful and the crew is top-notch. Only minor complaint was the wifi connectivity dropping between islands, but honestly that forced us to disconnect and enjoy the trip more. The chef's lamb ouzi was the best I have had outside of Jordan.",
-      review_ar:
-        "\u0627\u0644\u064A\u062E\u062A \u062C\u0645\u064A\u0644 \u0648\u0627\u0644\u0637\u0627\u0642\u0645 \u0645\u0645\u062A\u0627\u0632. \u0627\u0644\u0634\u0643\u0648\u0649 \u0627\u0644\u0648\u062D\u064A\u062F\u0629 \u0643\u0627\u0646\u062A \u0627\u0646\u0642\u0637\u0627\u0639 \u0627\u0644\u0648\u0627\u064A\u0641\u0627\u064A \u0628\u064A\u0646 \u0627\u0644\u062C\u0632\u0631.",
-      charterDate: "2025-06",
-      createdAt: "2025-07-10T00:00:00Z",
-    },
-  ],
-};
-
-// ─── Related Yachts Placeholder ─────────────────────────────────────
-
-const RELATED_YACHTS = [
-  {
-    name: "Azure Horizon",
-    slug: "azure-horizon",
-    type: "CATAMARAN",
-    length: 24,
-    cabins: 4,
-    pricePerWeekLow: 35000,
-    currency: "EUR",
-    rating: 4.7,
-    reviewCount: 18,
-    halalCateringAvailable: true,
-    image: null,
-    cruisingArea: "Greek Islands",
-  },
-  {
-    name: "Sultan's Pearl",
-    slug: "sultans-pearl",
-    type: "GULET",
-    length: 36,
-    cabins: 6,
-    pricePerWeekLow: 55000,
-    currency: "EUR",
-    rating: 4.9,
-    reviewCount: 31,
-    halalCateringAvailable: true,
-    image: null,
-    cruisingArea: "Turkish Coast",
-  },
-  {
-    name: "Mediterranean Star",
-    slug: "mediterranean-star",
-    type: "MOTOR_YACHT",
-    length: 30,
-    cabins: 4,
-    pricePerWeekLow: 65000,
-    currency: "EUR",
-    rating: 4.6,
-    reviewCount: 12,
-    halalCateringAvailable: false,
-    image: null,
-    cruisingArea: "French Riviera",
-  },
-  {
-    name: "Cyclades Dream",
-    slug: "cyclades-dream",
-    type: "SAILBOAT",
-    length: 18,
-    cabins: 3,
-    pricePerWeekLow: 15000,
-    currency: "EUR",
-    rating: 4.5,
-    reviewCount: 42,
-    halalCateringAvailable: true,
-    image: null,
-    cruisingArea: "Cyclades, Greece",
-  },
-];
+// NOTE: No placeholder/fake yacht data. All yacht data comes from the database.
+// If a yacht slug has no matching DB record, the page returns 404 (notFound()).
 
 // ─── DB Fetch ───────────────────────────────────────────────────────
 
@@ -322,8 +162,81 @@ async function getYachtFromDB(
       })),
     };
   } catch (err) {
-    console.warn("[yacht-detail] DB fetch failed, using placeholder:", err);
+    console.warn("[yacht-detail] DB fetch failed for slug:", slug, err);
     return null;
+  }
+}
+
+// ─── Related Yachts DB Fetch ──────────────────────────────────────
+
+async function getRelatedYachtsFromDB(
+  yacht: YachtData,
+  siteId: string
+): Promise<
+  {
+    name: string;
+    slug: string;
+    type: string;
+    length: number;
+    cabins: number;
+    pricePerWeekLow: number;
+    currency: string;
+    rating: number;
+    reviewCount: number;
+    halalCateringAvailable: boolean;
+    image: string | null;
+    cruisingArea: string;
+  }[]
+> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const related = await prisma.yacht.findMany({
+      where: {
+        siteId,
+        status: "active",
+        id: { not: yacht.id },
+        OR: [
+          ...(yacht.destination
+            ? [{ destinationId: yacht.destination.slug }]
+            : []),
+          { type: yacht.type },
+        ],
+      },
+      take: 4,
+      orderBy: { featured: "desc" },
+      select: {
+        name: true,
+        slug: true,
+        type: true,
+        length: true,
+        cabins: true,
+        pricePerWeekLow: true,
+        currency: true,
+        rating: true,
+        reviewCount: true,
+        halalCateringAvailable: true,
+        images: true,
+        cruisingArea: true,
+      },
+    });
+
+    return related.map((r) => ({
+      name: r.name,
+      slug: r.slug,
+      type: r.type,
+      length: r.length ? Number(r.length) : 0,
+      cabins: r.cabins,
+      pricePerWeekLow: r.pricePerWeekLow ? Number(r.pricePerWeekLow) : 0,
+      currency: r.currency,
+      rating: r.rating ? Number(r.rating) : 0,
+      reviewCount: r.reviewCount,
+      halalCateringAvailable: r.halalCateringAvailable,
+      image: (r.images as string[] | null)?.[0] || null,
+      cruisingArea: r.cruisingArea || "",
+    }));
+  } catch (err) {
+    console.warn("[yacht-detail] Related yachts DB fetch failed:", err);
+    return [];
   }
 }
 
@@ -344,7 +257,17 @@ export async function generateMetadata({
   const siteDomain = getSiteDomain(siteId);
   const siteName = siteConfig?.name || "Zenitha Yachts";
 
-  const yacht = (await getYachtFromDB(slug, siteId)) || PLACEHOLDER_YACHT;
+  const yacht = await getYachtFromDB(slug, siteId);
+
+  // If yacht not found, return generic metadata (page will render 404 via notFound())
+  if (!yacht) {
+    return {
+      title: `Yacht Charter | ${siteName}`,
+      description: `Explore luxury yacht charters with ${siteName}. Browse our fleet of premium yachts for your Mediterranean sailing holiday.`,
+      robots: { index: false, follow: true },
+    };
+  }
+
   const yachtType = formatYachtType(yacht.type);
   const title = `${yacht.name} | ${yachtType} Charter | ${siteName}`;
   const description =
@@ -430,6 +353,7 @@ export default async function YachtDetailPage({ params }: PageProps) {
   const yacht = await getYachtFromDB(slug, siteId);
   if (!yacht) notFound();
 
+  const relatedYachts = await getRelatedYachtsFromDB(yacht, siteId);
   const yachtType = formatYachtType(yacht.type);
   const canonicalUrl = `${baseUrl}/yachts/${slug}`;
 
@@ -689,7 +613,7 @@ export default async function YachtDetailPage({ params }: PageProps) {
               {/* Tabbed Content (Client Component) */}
               <YachtDetailClient
                 yacht={yacht}
-                relatedYachts={RELATED_YACHTS}
+                relatedYachts={relatedYachts}
                 baseUrl={baseUrl}
                 siteId={siteId}
                 siteName={siteName}

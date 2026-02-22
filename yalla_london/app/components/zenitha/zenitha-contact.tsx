@@ -23,12 +23,14 @@ type Locale = 'en' | 'ar'
 // ─── Bilingual helper ───────────────────────────────────────
 const t = (obj: { en: string; ar: string }, locale: Locale) => obj[locale] || obj.en
 
+import { ZENITHA_CONTACT } from './zenitha-config';
+
 // ─── Contact Config ─────────────────────────────────────────
-// Set real values here once available. Empty string = hidden from page.
+// Sourced from zenitha-config.ts — single source of truth for all contact details.
 const CONTACT_CONFIG = {
-  whatsapp: '', // e.g. '971501234567'
-  phone: '',    // e.g. '+971501234567'
-  email: 'charters@zenithayachts.com',
+  whatsapp: ZENITHA_CONTACT.whatsapp,
+  phone: ZENITHA_CONTACT.phone,
+  email: ZENITHA_CONTACT.charterEmail,
 }
 
 // Build contact methods dynamically — only show configured channels

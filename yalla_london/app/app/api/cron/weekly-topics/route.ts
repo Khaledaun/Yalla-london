@@ -238,6 +238,45 @@ export async function POST(request: NextRequest) {
 
     console.log(`[weekly-topics] Completed: ${totalGenerated} topics generated, ${savedCount} saved across ${targetSiteIds.length} sites`);
 
+    // Detect if zero topics were generated for content sites (not yacht sites)
+    const contentSitesAttempted = Object.entries(perSiteResults).filter(
+      ([, r]) => r.generated === 0 && r.pending < 10
+    );
+    const noAiProviders = !grokAvailable && !pplxKey && !process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY && !process.env.GOOGLE_API_KEY;
+
+    // If we attempted generation but got 0 topics, that's a failure
+    if (totalGenerated === 0 && contentSitesAttempted.length > 0) {
+      const failureMessage = noAiProviders
+        ? 'No AI API keys configured — set XAI_API_KEY, PPLX_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY to enable topic generation'
+        : 'All AI providers failed to generate topics — check API key validity and provider status';
+
+      console.warn(`[weekly-topics] ${failureMessage}`);
+
+      await logCronExecution("weekly-topics", "failed", {
+        durationMs: Date.now() - _cronStart,
+        itemsProcessed: 0,
+        errorMessage: failureMessage,
+        resultSummary: {
+          reason,
+          total: 0,
+          newSaved: 0,
+          noAiProviders,
+          perSite: perSiteResults,
+        },
+      });
+
+      onCronFailure({ jobName: "weekly-topics", error: new Error(failureMessage) }).catch(() => {});
+
+      return NextResponse.json({
+        success: false,
+        error: failureMessage,
+        reason,
+        generated: { total: 0, newSaved: 0, duplicatesSkipped: 0 },
+        perSite: perSiteResults,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     await logCronExecution("weekly-topics", "completed", {
       durationMs: Date.now() - _cronStart,
       itemsProcessed: savedCount,
@@ -274,10 +313,7 @@ export async function POST(request: NextRequest) {
     onCronFailure({ jobName: "weekly-topics", error }).catch(() => {});
 
     return NextResponse.json(
-      {
-        error: 'Weekly topic generation failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Weekly topic generation failed' },
       { status: 500 }
     );
   }

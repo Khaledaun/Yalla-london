@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDefaultSiteId } from "@/config/sites";
 
 /**
- * GET /api/yachts/recommend
+ * GET /api/yachts/recommend   — preferences via query params
+ * POST /api/yachts/recommend  — preferences via JSON body
  *
  * Public yacht recommendation endpoint. Returns top-matching yachts
  * based on user preferences with a match score breakdown.
@@ -21,7 +22,7 @@ import { getDefaultSiteId } from "@/config/sites";
  *   - Yacht type match: +10
  *   - Featured yacht: +5
  *
- * Query params:
+ * Query params (GET):
  *   ?destination=SLUG    - Preferred destination slug
  *   ?budget=N            - Maximum weekly budget (EUR)
  *   ?guests=N            - Number of guests
@@ -30,29 +31,76 @@ import { getDefaultSiteId } from "@/config/sites";
  *   ?crew=true           - Prefer crew included
  *   ?type=MOTOR_YACHT    - Preferred yacht type
  *   ?limit=N             - Max results (default: 5, max: 10)
+ *
+ * JSON body (POST):
+ *   { destination, budget, guests, halal, family, crew, type, limit }
  */
-export async function GET(request: NextRequest) {
+
+interface RecommendPrefs {
+  destination: string | null;
+  budget: number | null;
+  guests: number | null;
+  halal: boolean;
+  family: boolean;
+  crew: boolean;
+  type: string | null;
+  limit: number;
+}
+
+function parsePrefsFromQuery(searchParams: URLSearchParams): RecommendPrefs {
+  return {
+    destination: searchParams.get("destination"),
+    budget: searchParams.get("budget")
+      ? parseFloat(searchParams.get("budget")!)
+      : null,
+    guests: searchParams.get("guests")
+      ? parseInt(searchParams.get("guests")!, 10)
+      : null,
+    halal: searchParams.get("halal") === "true",
+    family: searchParams.get("family") === "true",
+    crew: searchParams.get("crew") === "true",
+    type: searchParams.get("type"),
+    limit: Math.min(
+      Math.max(1, parseInt(searchParams.get("limit") || "5", 10)),
+      10,
+    ),
+  };
+}
+
+async function parsePrefsFromBody(request: NextRequest): Promise<RecommendPrefs> {
+  try {
+    const body = await request.json();
+    return {
+      destination: body.destination || null,
+      budget: typeof body.budget === "number" ? body.budget : null,
+      guests: typeof body.guests === "number" ? body.guests : null,
+      halal: body.halal === true,
+      family: body.family === true,
+      crew: body.crew === true,
+      type: body.type || null,
+      limit: Math.min(Math.max(1, body.limit || 5), 10),
+    };
+  } catch {
+    return {
+      destination: null,
+      budget: null,
+      guests: null,
+      halal: false,
+      family: false,
+      crew: false,
+      type: null,
+      limit: 5,
+    };
+  }
+}
+
+async function handleRecommend(request: NextRequest, prefs: RecommendPrefs) {
   try {
     const { prisma } = await import("@/lib/db");
-    const { searchParams } = new URL(request.url);
     const siteId =
       request.headers.get("x-site-id") || getDefaultSiteId();
 
-    // Parse preference params
-    const destinationSlug = searchParams.get("destination");
-    const budgetStr = searchParams.get("budget");
-    const guestsStr = searchParams.get("guests");
-    const halal = searchParams.get("halal") === "true";
-    const family = searchParams.get("family") === "true";
-    const crew = searchParams.get("crew") === "true";
-    const preferredType = searchParams.get("type");
-    const limit = Math.min(
-      Math.max(1, parseInt(searchParams.get("limit") || "5", 10)),
-      10,
-    );
-
-    const budget = budgetStr ? parseFloat(budgetStr) : null;
-    const guests = guestsStr ? parseInt(guestsStr, 10) : null;
+    const { destination: destinationSlug, budget, guests, halal, family, crew, type: preferredType, limit } = prefs;
 
     // Resolve destination slug to ID for scoring
     let destinationId: string | null = null;
@@ -247,4 +295,15 @@ export async function GET(request: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const prefs = parsePrefsFromQuery(searchParams);
+  return handleRecommend(request, prefs);
+}
+
+export async function POST(request: NextRequest) {
+  const prefs = await parsePrefsFromBody(request);
+  return handleRecommend(request, prefs);
 }

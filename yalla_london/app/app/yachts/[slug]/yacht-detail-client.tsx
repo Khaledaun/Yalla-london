@@ -63,8 +63,7 @@ interface YachtData {
     id: string;
     authorName: string;
     rating: number;
-    title_en: string | null;
-    title_ar: string | null;
+    title: string | null;
     review_en: string | null;
     review_ar: string | null;
     charterDate: string | null;
@@ -734,9 +733,7 @@ export function YachtDetailClient({
                         ))}
                       </div>
                     </div>
-                    {(lang === "ar"
-                      ? review.title_ar || review.title_en
-                      : review.title_en) && (
+                    {review.title && (
                       <h4
                         className="font-heading font-semibold mb-2"
                         style={{
@@ -744,9 +741,7 @@ export function YachtDetailClient({
                           color: "var(--z-navy)",
                         }}
                       >
-                        {lang === "ar"
-                          ? review.title_ar || review.title_en
-                          : review.title_en}
+                        {review.title}
                       </h4>
                     )}
                     <p

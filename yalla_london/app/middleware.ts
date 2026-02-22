@@ -151,6 +151,8 @@ const ALLOWED_ORIGINS = new Set([
   "https://www.yallalondon.com",
   "https://yalla-london.com",
   "https://www.yalla-london.com",
+  "https://zenithayachts.com",
+  "https://www.zenithayachts.com",
   "https://arabaldives.com",
   "https://www.arabaldives.com",
   "https://yallariviera.com",

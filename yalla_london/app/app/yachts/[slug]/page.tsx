@@ -10,6 +10,8 @@ import {
 } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 import { YachtDetailClient } from "./yacht-detail-client";
+import { YachtGallery } from "@/components/zenitha/yacht-gallery";
+import { WhatsAppButton } from "@/components/zenitha/whatsapp-button";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -53,8 +55,7 @@ interface YachtData {
     id: string;
     authorName: string;
     rating: number;
-    title_en: string | null;
-    title_ar: string | null;
+    title: string | null;
     review_en: string | null;
     review_ar: string | null;
     charterDate: string | null;
@@ -129,8 +130,7 @@ const PLACEHOLDER_YACHT: YachtData = {
       id: "rev-1",
       authorName: "Ahmed K.",
       rating: 5,
-      title_en: "An unforgettable family charter",
-      title_ar: "\u0631\u062D\u0644\u0629 \u0639\u0627\u0626\u0644\u064A\u0629 \u0644\u0627 \u062A\u064F\u0646\u0633\u0649",
+      title: "An unforgettable family charter",
       review_en:
         "We chartered the Aegean Splendor for a week through the Cyclades with our family. The halal catering was outstanding \u2014 the chef prepared fresh grilled fish every day using ingredients from the local markets. The crew was incredibly attentive to our children, and the water sports platform kept everyone entertained for hours.",
       review_ar:
@@ -142,8 +142,7 @@ const PLACEHOLDER_YACHT: YachtData = {
       id: "rev-2",
       authorName: "Sarah M.",
       rating: 5,
-      title_en: "Luxury beyond expectations",
-      title_ar: "\u0641\u062E\u0627\u0645\u0629 \u062A\u0641\u0648\u0642 \u0627\u0644\u062A\u0648\u0642\u0639\u0627\u062A",
+      title: "Luxury beyond expectations",
       review_en:
         "From the moment we stepped aboard, every detail was perfect. The master suite is enormous, and the sundeck Jacuzzi with views of Santorini at sunset was the highlight of our honeymoon. Captain Nikos knew the best hidden bays away from the tourist crowds.",
       review_ar:
@@ -155,9 +154,7 @@ const PLACEHOLDER_YACHT: YachtData = {
       id: "rev-3",
       authorName: "Mohammed Al-Rashid",
       rating: 4,
-      title_en: "Great yacht, minor wifi issues",
-      title_ar:
-        "\u064A\u062E\u062A \u0631\u0627\u0626\u0639\u060C \u0645\u0634\u0627\u0643\u0644 \u0628\u0633\u064A\u0637\u0629 \u0641\u064A \u0627\u0644\u0648\u0627\u064A\u0641\u0627\u064A",
+      title: "Great yacht, minor wifi issues",
       review_en:
         "The yacht itself is beautiful and the crew is top-notch. Only minor complaint was the wifi connectivity dropping between islands, but honestly that forced us to disconnect and enjoy the trip more. The chef's lamb ouzi was the best I have had outside of Jordan.",
       review_ar:
@@ -259,10 +256,9 @@ async function getYachtFromDB(
             id: true,
             authorName: true,
             rating: true,
-            title_en: true,
-            title_ar: true,
-            review_en: true,
-            review_ar: true,
+            title: true,
+            content_en: true,
+            content_ar: true,
             charterDate: true,
             createdAt: true,
           },
@@ -318,11 +314,10 @@ async function getYachtFromDB(
         id: r.id,
         authorName: r.authorName,
         rating: r.rating,
-        title_en: r.title_en,
-        title_ar: r.title_ar,
-        review_en: r.review_en,
-        review_ar: r.review_ar,
-        charterDate: r.charterDate,
+        title: r.title ?? null,
+        review_en: r.content_en ?? null,
+        review_ar: r.content_ar ?? null,
+        charterDate: r.charterDate ? r.charterDate.toISOString() : null,
         createdAt: r.createdAt.toISOString(),
       })),
     };
@@ -432,7 +427,7 @@ export default async function YachtDetailPage({ params }: PageProps) {
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Zenitha Yachts";
 
-  const yacht = (await getYachtFromDB(slug, siteId)) || PLACEHOLDER_YACHT;
+  const yacht = await getYachtFromDB(slug, siteId);
   if (!yacht) notFound();
 
   const yachtType = formatYachtType(yacht.type);
@@ -549,75 +544,43 @@ export default async function YachtDetailPage({ params }: PageProps) {
           </ol>
         </nav>
 
-        {/* Photo Gallery Placeholder */}
+        {/* Photo Gallery */}
         <section className="z-container-wide py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-            {/* Main Image */}
-            <div className="lg:col-span-3 relative overflow-hidden rounded-xl" style={{ aspectRatio: "16/10" }}>
-              <div
-                className="w-full h-full flex items-center justify-center"
-                style={{
-                  background: "var(--z-gradient-hero)",
-                  color: "var(--z-pearl)",
-                }}
-              >
-                <div className="text-center p-8">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="64"
-                    height="64"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mx-auto mb-4"
-                    style={{ opacity: 0.5 }}
-                  >
-                    <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
-                  </svg>
-                  <p className="font-display text-2xl font-bold">{yacht.name}</p>
-                  <p className="z-text-body-sm mt-2" style={{ color: "var(--z-champagne)" }}>
-                    Gallery photos coming soon
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Thumbnail Grid */}
-            <div className="lg:col-span-2 grid grid-cols-2 gap-3">
-              {[0, 1, 2, 3].map((i) => (
+          {yacht.images && yacht.images.length > 0 ? (
+            <YachtGallery images={yacht.images} yachtName={yacht.name} />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+              {/* Main placeholder */}
+              <div className="lg:col-span-3 relative overflow-hidden rounded-xl" style={{ aspectRatio: "16/10" }}>
                 <div
-                  key={i}
-                  className="relative overflow-hidden rounded-lg"
-                  style={{
-                    aspectRatio: "4/3",
-                    background: `linear-gradient(135deg, var(--z-midnight) ${i * 10}%, var(--z-aegean) 100%)`,
-                  }}
+                  className="w-full h-full flex items-center justify-center"
+                  style={{ background: "var(--z-gradient-hero)", color: "var(--z-pearl)" }}
                 >
-                  <div className="w-full h-full flex items-center justify-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      style={{ color: "var(--z-champagne)", opacity: 0.4 }}
-                    >
-                      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                      <circle cx="9" cy="9" r="2" />
-                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                  <div className="text-center p-8">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-4" style={{ opacity: 0.5 }}>
+                      <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
                     </svg>
+                    <p className="font-display text-2xl font-bold">{yacht.name}</p>
+                    <p className="z-text-body-sm mt-2" style={{ color: "var(--z-champagne)" }}>Gallery photos coming soon</p>
                   </div>
                 </div>
-              ))}
+              </div>
+              {/* Thumbnail placeholders */}
+              <div className="lg:col-span-2 grid grid-cols-2 gap-3">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="rounded-lg overflow-hidden" style={{ aspectRatio: "4/3", background: `linear-gradient(135deg, var(--z-midnight) ${i * 10}%, var(--z-aegean) 100%)` }}>
+                    <div className="w-full h-full flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--z-champagne)", opacity: 0.4 }}>
+                        <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                        <circle cx="9" cy="9" r="2" />
+                        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                      </svg>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </section>
 
         {/* Main Content + Sidebar */}
@@ -951,6 +914,11 @@ export default async function YachtDetailPage({ params }: PageProps) {
               Inquire Now
             </Link>
           </div>
+        </div>
+
+        {/* WhatsApp Floating Button — positioned above mobile bar */}
+        <div className="hidden lg:block">
+          <WhatsAppButton yachtName={yacht.name} />
         </div>
       </main>
     </>

@@ -822,8 +822,8 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
         urls.push(`${baseUrl}/blog/${post.slug}`);
       }
     }
-  } catch {
-    // Database not available - use static posts only
+  } catch (err) {
+    console.warn("[indexing-service] DB query for all indexable URLs failed:", err instanceof Error ? err.message : String(err));
   }
 
   // ── Yacht-specific dynamic pages ──
@@ -901,8 +901,8 @@ export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUr
         urls.push(`${baseUrl}/blog/${post.slug}`);
       }
     }
-  } catch {
-    // Database not available
+  } catch (err) {
+    console.warn("[indexing-service] DB query for new URLs failed:", err instanceof Error ? err.message : String(err));
   }
 
   // ── New yacht content ──
@@ -975,8 +975,8 @@ export async function getUpdatedUrls(
         urls.push(`${baseUrl}/blog/${post.slug}`);
       }
     }
-  } catch {
-    // Database not available
+  } catch (err) {
+    console.warn("[indexing-service] DB query for updated URLs failed:", err instanceof Error ? err.message : String(err));
   }
 
   // ── Updated yacht content ──

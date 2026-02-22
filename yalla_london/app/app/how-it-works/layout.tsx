@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   const title = `How It Works | ${siteName}`;
   const description =
-    "Discover how easy it is to book your dream yacht charter. From initial inquiry to setting sail, our expert team handles every detail of your Mediterranean sailing holiday.";
+    "Discover how easy it is to book your dream yacht charter. From inquiry to setting sail, our experts handle every detail of your Mediterranean voyage.";
 
   return {
     title,

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Search, SlidersHorizontal, X, Star, Ship, ShieldCheck, Users, Waves, ChevronDown, ArrowUpDown, Compass } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Search, SlidersHorizontal, X, Star, Ship, ShieldCheck, Users, Waves, ChevronDown, ChevronLeft, ChevronRight, ArrowUpDown, Compass } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
 
 // ─── Types ──────────────────────────────────────────────────
@@ -42,6 +43,8 @@ interface Props {
 }
 
 // ─── Constants ──────────────────────────────────────────────
+const PAGE_SIZE = 24;
+
 const YACHT_TYPES = [
   { value: 'SAILBOAT', label: { en: 'Sailing Yacht', ar: 'يخت شراعي' } },
   { value: 'CATAMARAN', label: { en: 'Catamaran', ar: 'كاتاماران' } },
@@ -59,6 +62,8 @@ const SORT_OPTIONS = [
   { value: 'popular', label: { en: 'Most Popular', ar: 'الأكثر شعبية' } },
 ];
 
+const FILTER_KEYS = ['destination', 'type', 'minPrice', 'maxPrice', 'guests', 'halal', 'family', 'crew'];
+
 // ─── Type Badge Helper ──────────────────────────────────────
 function getTypeBadge(type: string, locale: Locale): string {
   const found = YACHT_TYPES.find(t => t.value === type);
@@ -70,27 +75,20 @@ function FilterPanel({
   destinations,
   locale,
   filters,
-  setFilters,
+  updateFilter,
+  clearAll,
   isOpen,
   onClose,
 }: {
   destinations: Destination[];
   locale: Locale;
   filters: Record<string, string>;
-  setFilters: (f: Record<string, string>) => void;
+  updateFilter: (key: string, value: string) => void;
+  clearAll: () => void;
   isOpen: boolean;
   onClose: () => void;
 }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
-
-  const updateFilter = (key: string, value: string) => {
-    const next = { ...filters };
-    if (value) next[key] = value;
-    else delete next[key];
-    setFilters(next);
-  };
-
-  const clearAll = () => setFilters({});
 
   return (
     <div className={`
@@ -202,16 +200,20 @@ function FilterPanel({
                     <toggle.icon size={16} className="text-[var(--z-aegean)]" />
                     {toggle.label[locale] || toggle.label.en}
                   </span>
-                  <div
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={filters[toggle.key] === 'true'}
+                    aria-label={toggle.label.en}
                     onClick={() => updateFilter(toggle.key, filters[toggle.key] === 'true' ? '' : 'true')}
                     className={`w-10 h-6 rounded-full transition-colors cursor-pointer flex items-center px-0.5 ${
                       filters[toggle.key] === 'true' ? 'bg-[var(--z-aegean)]' : 'bg-[var(--z-champagne)]'
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    <span className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
                       filters[toggle.key] === 'true' ? 'translate-x-4' : 'translate-x-0'
                     }`} />
-                  </div>
+                  </button>
                 </label>
               ))}
             </div>
@@ -245,9 +247,18 @@ function YachtCardComponent({ yacht, locale }: { yacht: YachtCard; locale: Local
       <div className="bg-white rounded-xl overflow-hidden shadow-card hover:shadow-hover transition-all duration-350">
         {/* Image */}
         <div className="relative aspect-[4/3] bg-gradient-to-br from-[var(--z-midnight)] to-[var(--z-aegean)] overflow-hidden">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Ship size={40} className="text-white/15" />
-          </div>
+          {yacht.images && yacht.images.length > 0 ? (
+            <img
+              src={yacht.images[0]}
+              alt={yacht.name}
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Ship size={40} className="text-white/15" />
+            </div>
+          )}
           {/* Type badge */}
           <span className="absolute top-3 left-3 bg-[var(--z-navy)]/80 backdrop-blur-sm text-white text-xs font-heading font-semibold px-2.5 py-1 rounded">
             {getTypeBadge(yacht.type, locale)}
@@ -319,26 +330,146 @@ function EmptyState({ locale }: { locale: Locale }) {
   );
 }
 
+// ─── Pagination ─────────────────────────────────────────────
+function PaginationBar({
+  page,
+  totalPages,
+  onPageChange,
+  locale,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (p: number) => void;
+  locale: Locale;
+}) {
+  const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
+  if (totalPages <= 1) return null;
+
+  const pages: (number | '...')[] = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= page - 1 && i <= page + 1)) {
+      pages.push(i);
+    } else if (pages[pages.length - 1] !== '...') {
+      pages.push('...');
+    }
+  }
+
+  return (
+    <nav aria-label="Pagination" className="flex items-center justify-center gap-2 mt-10">
+      <button
+        type="button"
+        onClick={() => onPageChange(page - 1)}
+        disabled={page <= 1}
+        className="p-2 rounded-lg border border-[var(--z-champagne)] text-[var(--z-navy)] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--z-sand)] transition-colors"
+        aria-label={t({ en: 'Previous page', ar: 'الصفحة السابقة' })}
+      >
+        <ChevronLeft size={18} />
+      </button>
+
+      {pages.map((p, idx) =>
+        p === '...' ? (
+          <span key={`ellipsis-${idx}`} className="px-2 text-[var(--z-muted)]">...</span>
+        ) : (
+          <button
+            type="button"
+            key={p}
+            onClick={() => onPageChange(p)}
+            className={`w-10 h-10 rounded-lg text-sm font-heading font-semibold transition-colors ${
+              p === page
+                ? 'bg-[var(--z-navy)] text-white'
+                : 'border border-[var(--z-champagne)] text-[var(--z-navy)] hover:bg-[var(--z-sand)]'
+            }`}
+            aria-current={p === page ? 'page' : undefined}
+          >
+            {p}
+          </button>
+        )
+      )}
+
+      <button
+        type="button"
+        onClick={() => onPageChange(page + 1)}
+        disabled={page >= totalPages}
+        className="p-2 rounded-lg border border-[var(--z-champagne)] text-[var(--z-navy)] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[var(--z-sand)] transition-colors"
+        aria-label={t({ en: 'Next page', ar: 'الصفحة التالية' })}
+      >
+        <ChevronRight size={18} />
+      </button>
+    </nav>
+  );
+}
+
 // ─── Main Search Component ──────────────────────────────────
 export function YachtSearchClient({ initialYachts, initialTotal, destinations, locale: serverLocale }: Props) {
   const { language } = useLanguage();
   const locale = (language || serverLocale) as Locale;
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Initialize state from URL search params
+  const initFilters = (): Record<string, string> => {
+    const f: Record<string, string> = {};
+    for (const key of FILTER_KEYS) {
+      const val = searchParams.get(key);
+      if (val) f[key] = val;
+    }
+    return f;
+  };
 
   const [yachts, setYachts] = useState<YachtCard[]>(initialYachts);
   const [total, setTotal] = useState(initialTotal);
-  const [filters, setFilters] = useState<Record<string, string>>({});
-  const [sort, setSort] = useState('newest');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState<Record<string, string>>(initFilters);
+  const [sort, setSort] = useState(searchParams.get('sort') || 'newest');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
+  const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch yachts when filters change
-  const fetchYachts = useCallback(async () => {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Sync state to URL
+  const syncToURL = useCallback((f: Record<string, string>, s: string, q: string, p: number) => {
+    const params = new URLSearchParams();
+    for (const [key, val] of Object.entries(f)) {
+      if (val) params.set(key, val);
+    }
+    if (s && s !== 'newest') params.set('sort', s);
+    if (q) params.set('q', q);
+    if (p > 1) params.set('page', String(p));
+    const qs = params.toString();
+    router.replace(`/yachts${qs ? `?${qs}` : ''}`, { scroll: false });
+  }, [router]);
+
+  // Update a single filter and reset to page 1
+  const updateFilter = useCallback((key: string, value: string) => {
+    setFilters(prev => {
+      const next = { ...prev };
+      if (value) next[key] = value;
+      else delete next[key];
+      return next;
+    });
+    setPage(1);
+  }, []);
+
+  const clearAll = useCallback(() => {
+    setFilters({});
+    setPage(1);
+  }, []);
+
+  const handlePageChange = useCallback((p: number) => {
+    setPage(p);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // Fetch yachts when filters/sort/search/page change
+  const fetchYachts = useCallback(async (f: Record<string, string>, s: string, q: string, p: number) => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams({ sort, ...filters });
-      if (searchQuery) params.set('q', searchQuery);
+      const params = new URLSearchParams({ sort: s, ...f });
+      if (q) params.set('q', q);
+      params.set('page', String(p));
+      params.set('limit', String(PAGE_SIZE));
       const res = await fetch(`/api/yachts?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
@@ -350,17 +481,22 @@ export function YachtSearchClient({ initialYachts, initialTotal, destinations, l
     } finally {
       setIsLoading(false);
     }
-  }, [filters, sort, searchQuery]);
+  }, []);
 
-  // Debounced search
+  // Debounced fetch on changes
   useEffect(() => {
     const timeout = setTimeout(() => {
-      if (Object.keys(filters).length > 0 || searchQuery || sort !== 'newest') {
-        fetchYachts();
+      const hasChanges = Object.keys(filters).length > 0 || searchQuery || sort !== 'newest' || page > 1;
+      if (hasChanges) {
+        fetchYachts(filters, sort, searchQuery, page);
+      } else if (page === 1 && !searchQuery && sort === 'newest' && Object.keys(filters).length === 0) {
+        setYachts(initialYachts);
+        setTotal(initialTotal);
       }
+      syncToURL(filters, sort, searchQuery, page);
     }, 300);
     return () => clearTimeout(timeout);
-  }, [filters, sort, searchQuery, fetchYachts]);
+  }, [filters, sort, searchQuery, page, fetchYachts, syncToURL, initialYachts, initialTotal]);
 
   const activeFilterCount = Object.keys(filters).length;
 
@@ -387,7 +523,7 @@ export function YachtSearchClient({ initialYachts, initialTotal, destinations, l
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
               placeholder={t({ en: 'Search yachts by name...', ar: 'ابحث عن يخوت بالاسم...' })}
               className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[var(--z-champagne)] text-sm font-body text-[var(--z-navy)] bg-white focus:outline-none focus:border-[var(--z-aegean)]"
             />
@@ -398,7 +534,7 @@ export function YachtSearchClient({ initialYachts, initialTotal, destinations, l
             <ArrowUpDown size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--z-aegean)]" />
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value)}
+              onChange={(e) => { setSort(e.target.value); setPage(1); }}
               className="pl-9 pr-8 py-2.5 rounded-lg border border-[var(--z-champagne)] text-sm font-body text-[var(--z-navy)] bg-white focus:outline-none focus:border-[var(--z-aegean)] appearance-none"
             >
               {SORT_OPTIONS.map(opt => (
@@ -431,7 +567,8 @@ export function YachtSearchClient({ initialYachts, initialTotal, destinations, l
               destinations={destinations}
               locale={locale}
               filters={filters}
-              setFilters={setFilters}
+              updateFilter={updateFilter}
+              clearAll={clearAll}
               isOpen={true}
               onClose={() => {}}
             />
@@ -442,7 +579,8 @@ export function YachtSearchClient({ initialYachts, initialTotal, destinations, l
             destinations={destinations}
             locale={locale}
             filters={filters}
-            setFilters={setFilters}
+            updateFilter={updateFilter}
+            clearAll={clearAll}
             isOpen={isFilterOpen}
             onClose={() => setIsFilterOpen(false)}
           />
@@ -463,11 +601,19 @@ export function YachtSearchClient({ initialYachts, initialTotal, destinations, l
                 ))}
               </div>
             ) : yachts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {yachts.map(yacht => (
-                  <YachtCardComponent key={yacht.id} yacht={yacht} locale={locale} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {yachts.map(yacht => (
+                    <YachtCardComponent key={yacht.id} yacht={yacht} locale={locale} />
+                  ))}
+                </div>
+                <PaginationBar
+                  page={page}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  locale={locale}
+                />
+              </>
             ) : (
               <EmptyState locale={locale} />
             )}

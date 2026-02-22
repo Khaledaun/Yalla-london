@@ -36,7 +36,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   ]);
 }
 
-async function getDbPost(slug: string, siteId?: string) {
+async function getDbPost(slug: string, siteId: string) {
   try {
     const { prisma } = await import("@/lib/db");
     // 3s timeout — fail fast to static fallback. On cold start the Prisma
@@ -45,7 +45,7 @@ async function getDbPost(slug: string, siteId?: string) {
     // Use select instead of include to skip heavy JSON columns (~40% less data)
     return await withTimeout(
       prisma.blogPost.findFirst({
-        where: { slug, published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
+        where: { slug, published: true, deletedAt: null, siteId },
         select: {
           id: true,
           title_en: true,
@@ -82,7 +82,7 @@ async function getDbSlugs(siteId?: string): Promise<string[]> {
     const { prisma } = await import("@/lib/db");
     const posts = await withTimeout(
       prisma.blogPost.findMany({
-        where: { published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
+        where: { published: true, deletedAt: null, siteId },
         select: { slug: true },
       }),
       8000,
@@ -111,7 +111,7 @@ type PostResult =
  * Without this, Prisma fires the identical query twice per page render
  * (Next.js only auto-deduplicates fetch(), not Prisma calls).
  */
-const findPost = cache(async function findPost(slug: string, siteId?: string): Promise<PostResult | null> {
+const findPost = cache(async function findPost(slug: string, siteId: string): Promise<PostResult | null> {
   // Database first — this is where pipeline-generated articles live
   const dbPost = await getDbPost(slug, siteId);
   if (dbPost) return { source: "db", post: dbPost };

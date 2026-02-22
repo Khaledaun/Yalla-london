@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
 
     try {
       // Build where clause for database query (scoped by tenant)
-      const siteId = request.headers.get("x-site-id") || "yalla-london";
+      const siteId = request.headers.get("x-site-id") || getDefaultSiteId();
       const where: any = {
         published: true,
         site_id: siteId,

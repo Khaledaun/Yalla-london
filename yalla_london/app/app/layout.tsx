@@ -21,7 +21,9 @@ import type { Language } from "@/lib/types";
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
-  const siteConfig = getSiteConfig(getDefaultSiteId());
+  const defaultSiteId = getDefaultSiteId();
+  const siteConfig = getSiteConfig(defaultSiteId);
+  const defaultSiteSlug = siteConfig?.slug || "zenitha-yachts";
   const siteName = siteConfig?.name || brandConfig.siteName;
 
   return {
@@ -40,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: brandConfig.description,
       images: [
         {
-          url: `${baseUrl}/images/${siteConfig?.slug || 'yalla-london'}-og.jpg`,
+          url: `${baseUrl}/images/${siteConfig?.slug || defaultSiteSlug}-og.jpg`,
           width: 1200,
           height: 630,
           alt: `${siteName} - ${brandConfig.tagline}`,
@@ -49,10 +51,10 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: "summary_large_image",
-      site: `@${siteConfig?.slug || 'yallalondon'}`,
+      site: `@${siteConfig?.slug || defaultSiteSlug}`,
       title: `${siteName} - ${brandConfig.tagline}`,
       description: brandConfig.description,
-      images: [`${baseUrl}/images/${siteConfig?.slug || 'yalla-london'}-og.jpg`],
+      images: [`${baseUrl}/images/${siteConfig?.slug || defaultSiteSlug}-og.jpg`],
     },
     robots: {
       index: true,
@@ -128,7 +130,7 @@ export default async function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content={currentSiteConfig?.name || "Yalla London"} />
+        <meta name="apple-mobile-web-app-title" content={currentSiteConfig?.name || brandConfig.siteName} />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
 
         {/* Geo-targeting Meta Tags — per-site destination */}

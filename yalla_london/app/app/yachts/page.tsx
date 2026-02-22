@@ -1,8 +1,10 @@
+import { Suspense } from 'react';
 import { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { getBaseUrl } from '@/lib/url-utils';
 import { getDefaultSiteId, getSiteConfig } from '@/config/sites';
 import { YachtSearchClient } from './yacht-search-client';
+import { WhatsAppButton } from '@/components/zenitha/whatsapp-button';
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
@@ -121,12 +123,15 @@ export default async function YachtSearchPage() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }} />
-      <YachtSearchClient
-        initialYachts={yachts}
-        initialTotal={total}
-        destinations={destinations}
-        locale={locale}
-      />
+      <Suspense fallback={null}>
+        <YachtSearchClient
+          initialYachts={yachts}
+          initialTotal={total}
+          destinations={destinations}
+          locale={locale}
+        />
+      </Suspense>
+      <WhatsAppButton />
     </>
   );
 }

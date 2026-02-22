@@ -82,21 +82,21 @@ const formatPrice = (value: number, currency = 'EUR') =>
 const formatDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
 const statusBadgeColor: Record<string, string> = {
-  new: 'bg-blue-100 text-blue-800',
-  contacted: 'bg-yellow-100 text-yellow-800',
-  qualified: 'bg-purple-100 text-purple-800',
-  sent_to_broker: 'bg-orange-100 text-orange-800',
-  booked: 'bg-green-100 text-green-800',
-  lost: 'bg-red-100 text-red-800',
+  NEW: 'bg-blue-100 text-blue-800',
+  CONTACTED: 'bg-yellow-100 text-yellow-800',
+  QUALIFIED: 'bg-purple-100 text-purple-800',
+  SENT_TO_BROKER: 'bg-orange-100 text-orange-800',
+  BOOKED: 'bg-green-100 text-green-800',
+  LOST: 'bg-red-100 text-red-800',
 }
 
 const statusLabel: Record<string, string> = {
-  new: 'New',
-  contacted: 'Contacted',
-  qualified: 'Qualified',
-  sent_to_broker: 'Sent to Broker',
-  booked: 'Booked',
-  lost: 'Lost',
+  NEW: 'New',
+  CONTACTED: 'Contacted',
+  QUALIFIED: 'Qualified',
+  SENT_TO_BROKER: 'Sent to Broker',
+  BOOKED: 'Booked',
+  LOST: 'Lost',
 }
 
 // ---------------------------------------------------------------------------
@@ -120,7 +120,63 @@ export default function YachtAnalyticsPage() {
         throw new Error('Failed to load analytics')
       }
       const json = await res.json()
-      setData(json)
+      // Transform nested API response to flat AnalyticsData interface
+      const fleet = json.fleet ?? {}
+      const inq = json.inquiries ?? {}
+      const dest = json.destinations ?? {}
+      const rev = json.revenue ?? {}
+      const recent = json.recentActivity ?? {}
+      const rawByType = (fleet.byType ?? []).map((t: { type: string; _count: { id: number } }) => ({
+        type: t.type, count: t._count?.id ?? 0,
+      }))
+      const totalTypeCount = rawByType.reduce((s: number, t: { count: number }) => s + t.count, 0)
+      const byType = rawByType.map((t: { type: string; count: number }) => ({
+        ...t,
+        percentage: totalTypeCount > 0 ? Math.round((t.count / totalTypeCount) * 100) : 0,
+      }))
+      const statusColors: Record<string, string> = {
+        NEW: 'bg-blue-500',
+        CONTACTED: 'bg-yellow-500',
+        QUALIFIED: 'bg-purple-500',
+        SENT_TO_BROKER: 'bg-orange-500',
+        BOOKED: 'bg-green-500',
+        LOST: 'bg-red-400',
+      }
+      const byStatus = (inq.byStatus ?? []).map((s: { status: string; _count: { id: number } }) => ({
+        status: s.status, count: s._count?.id ?? 0, color: statusColors[s.status] ?? 'bg-gray-400',
+      }))
+      const topDests = (dest.list ?? []).map((d: { name: string; yachtCount: number; inquiryCount?: number }) => ({
+        name: d.name, yachtCount: d.yachtCount ?? 0, inquiryCount: d.inquiryCount ?? 0,
+      }))
+      // Build funnel from inquiry statuses
+      const funnelOrder = ['NEW', 'CONTACTED', 'QUALIFIED', 'SENT_TO_BROKER', 'BOOKED']
+      const funnelColors = ['#3B82F6', '#F59E0B', '#8B5CF6', '#F97316', '#22C55E']
+      const statusMap = Object.fromEntries(byStatus.map((s: { status: string; count: number }) => [s.status, s.count]))
+      const funnel = funnelOrder.map((label, i) => ({
+        label, count: statusMap[label] ?? 0, color: funnelColors[i],
+      }))
+      setData({
+        fleetSize: fleet.total ?? 0,
+        activeInquiries: inq.total ?? 0,
+        conversionRate: inq.conversionRate ?? 0,
+        avgBudget: rev.avgBudget ?? 0,
+        avgBudgetCurrency: 'EUR',
+        yachtsByType: byType,
+        inquiriesByStatus: byStatus,
+        topDestinations: topDests,
+        recentInquiries: (recent.inquiries ?? []).map((r: Record<string, unknown>) => ({
+          id: String(r.id ?? ''),
+          reference: String(r.referenceNumber ?? ''),
+          name: `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim() || 'Guest',
+          email: String(r.email ?? ''),
+          destination: String(r.destination ?? ''),
+          budget: Number(r.budget ?? 0),
+          currency: String(r.budgetCurrency ?? 'EUR'),
+          status: String(r.status ?? 'NEW'),
+          createdAt: String(r.createdAt ?? ''),
+        })),
+        funnel,
+      })
     } catch (err) {
       console.warn('[yacht-analytics] fetch error:', err)
       setError('Unable to load analytics. Please try again.')

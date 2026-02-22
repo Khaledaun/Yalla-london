@@ -275,14 +275,14 @@ export class BookingManager {
     const eventTypes = await this.calendly.getEventTypes();
     
     if (!eventTypes || eventTypes.length === 0) {
-      return 'https://calendly.com/yalla-london'; // Fallback
+      return ''; // No Calendly event types configured
     }
 
-    const targetEventType = eventTypeId 
+    const targetEventType = eventTypeId
       ? eventTypes.find((et: any) => et.uri.includes(eventTypeId))
       : eventTypes[0];
 
-    return targetEventType?.scheduling_url || 'https://calendly.com/yalla-london';
+    return targetEventType?.scheduling_url || '';
   }
 }
 

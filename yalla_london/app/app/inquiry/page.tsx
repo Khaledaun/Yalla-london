@@ -549,25 +549,11 @@ export default function InquiryPage() {
                   {labels.directContact}
                 </h3>
                 <div className="space-y-3">
-                  <a href="https://wa.me/971501234567?text=Hello%2C%20I%20am%20interested%20in%20a%20yacht%20charter" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "rgba(14, 165, 162, 0.06)", border: "1px solid rgba(14, 165, 162, 0.15)" }}>
-                    <MessageCircle size={20} style={{ color: "var(--z-mediterranean)" }} />
-                    <div>
-                      <span className="font-heading font-semibold block" style={{ fontSize: "var(--z-text-body-sm)", color: "var(--z-navy)" }}>{labels.whatsappLabel}</span>
-                      <span className="z-text-caption">+971 50 123 4567</span>
-                    </div>
-                  </a>
-                  <a href="tel:+971501234567" className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "var(--z-surface-sunken)", border: "1px solid var(--z-border)" }}>
-                    <Phone size={20} style={{ color: "var(--z-aegean)" }} />
-                    <div>
-                      <span className="font-heading font-semibold block" style={{ fontSize: "var(--z-text-body-sm)", color: "var(--z-navy)" }}>{labels.phoneLabel}</span>
-                      <span className="z-text-caption">+971 50 123 4567</span>
-                    </div>
-                  </a>
-                  <a href="mailto:charter@zenithayachts.com" className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "var(--z-surface-sunken)", border: "1px solid var(--z-border)" }}>
+                  <a href="mailto:charters@zenithayachts.com" className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "var(--z-surface-sunken)", border: "1px solid var(--z-border)" }}>
                     <Mail size={20} style={{ color: "var(--z-aegean)" }} />
                     <div>
                       <span className="font-heading font-semibold block" style={{ fontSize: "var(--z-text-body-sm)", color: "var(--z-navy)" }}>{labels.emailLabel}</span>
-                      <span className="z-text-caption">charter@zenithayachts.com</span>
+                      <span className="z-text-caption">charters@zenithayachts.com</span>
                     </div>
                   </a>
                 </div>

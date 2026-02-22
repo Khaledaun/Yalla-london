@@ -130,9 +130,16 @@ export const PUT = withAdminAuth(async (request: NextRequest) => {
       )
     }
 
-    // Verify inquiry exists
+    // Verify inquiry exists and belongs to the requesting site
+    const siteId = body.siteId || request.nextUrl.searchParams.get('siteId') || getDefaultSiteId()
     const existing = await prisma.charterInquiry.findUnique({ where: { id } })
     if (!existing) {
+      return NextResponse.json(
+        { error: 'Inquiry not found' },
+        { status: 404 }
+      )
+    }
+    if (existing.siteId !== siteId) {
       return NextResponse.json(
         { error: 'Inquiry not found' },
         { status: 404 }

@@ -38,6 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName,
       type: "website",
       locale: "en_GB",
+      alternateLocale: "ar_SA",
       images: [
         {
           url: `${siteDomain}/images/${siteConfig?.slug || "zenitha-yachts"}-og.jpg`,
@@ -55,6 +56,13 @@ export async function generateMetadata(): Promise<Metadata> {
     robots: {
       index: true,
       follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-video-preview": -1,
+        "max-image-preview": "large" as const,
+        "max-snippet": -1,
+      },
     },
   };
 }

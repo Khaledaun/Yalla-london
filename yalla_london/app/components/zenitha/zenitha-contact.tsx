@@ -23,32 +23,44 @@ type Locale = 'en' | 'ar'
 // ─── Bilingual helper ───────────────────────────────────────
 const t = (obj: { en: string; ar: string }, locale: Locale) => obj[locale] || obj.en
 
-// ─── Contact Methods ────────────────────────────────────────
+// ─── Contact Config ─────────────────────────────────────────
+// Set real values here once available. Empty string = hidden from page.
+const CONTACT_CONFIG = {
+  whatsapp: '', // e.g. '971501234567'
+  phone: '',    // e.g. '+971501234567'
+  email: 'charters@zenithayachts.com',
+}
+
+// Build contact methods dynamically — only show configured channels
 const CONTACT_METHODS = [
-  {
-    icon: Phone,
-    title: { en: 'WhatsApp', ar: 'واتساب' },
-    value: '+971 XX XXX XXXX',
-    detail: { en: 'Fastest response — typically within 1 hour', ar: 'أسرع استجابة — عادة خلال ساعة واحدة' },
-    href: 'https://wa.me/971XXXXXXXX',
-    external: true,
-  },
+  ...(CONTACT_CONFIG.whatsapp
+    ? [{
+        icon: Phone,
+        title: { en: 'WhatsApp' as const, ar: 'واتساب' as const },
+        value: `+${CONTACT_CONFIG.whatsapp.replace(/(\d{3})(\d{2})(\d{3})(\d{4})/, '$1 $2 $3 $4')}`,
+        detail: { en: 'Fastest response — typically within 1 hour' as const, ar: 'أسرع استجابة — عادة خلال ساعة واحدة' as const },
+        href: `https://wa.me/${CONTACT_CONFIG.whatsapp}`,
+        external: true as const,
+      }]
+    : []),
   {
     icon: Mail,
     title: { en: 'Email', ar: 'البريد الإلكتروني' },
-    value: 'charters@zenithayachts.com',
+    value: CONTACT_CONFIG.email,
     detail: { en: 'For detailed inquiries and documentation', ar: 'للاستفسارات التفصيلية والوثائق' },
-    href: 'mailto:charters@zenithayachts.com',
+    href: `mailto:${CONTACT_CONFIG.email}`,
     external: false,
   },
-  {
-    icon: Phone,
-    title: { en: 'Phone', ar: 'الهاتف' },
-    value: '+971 XX XXX XXXX',
-    detail: { en: 'Sunday-Thursday, 9am-6pm GST', ar: 'الأحد-الخميس، 9 صباحاً - 6 مساءً بتوقيت الخليج' },
-    href: 'tel:+971XXXXXXXX',
-    external: false,
-  },
+  ...(CONTACT_CONFIG.phone
+    ? [{
+        icon: Phone,
+        title: { en: 'Phone' as const, ar: 'الهاتف' as const },
+        value: CONTACT_CONFIG.phone,
+        detail: { en: 'Sunday-Thursday, 9am-6pm GST' as const, ar: 'الأحد-الخميس، 9 صباحاً - 6 مساءً بتوقيت الخليج' as const },
+        href: `tel:${CONTACT_CONFIG.phone.replace(/\s/g, '')}`,
+        external: false as const,
+      }]
+    : []),
 ]
 
 // ─── Offices ────────────────────────────────────────────────

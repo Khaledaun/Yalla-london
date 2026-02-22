@@ -126,3 +126,8 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// GET handler — Vercel cron compatibility
+export async function GET(request: NextRequest) {
+  return POST(request);
+}

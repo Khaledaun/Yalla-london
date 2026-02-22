@@ -15,7 +15,7 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
   const resolvedSiteId = siteId || getDefaultSiteId();
   const siteConfig = getSiteConfig(resolvedSiteId);
   const siteName = siteConfig?.name || brandConfig.siteName;
-  const siteSlug = siteConfig?.slug || 'yalla-london';
+  const siteSlug = siteConfig?.slug || resolvedSiteId;
   const siteDomain = getSiteDomain(resolvedSiteId);
   const siteCountry = siteConfig?.country || 'UK';
   const siteDestination = siteConfig?.destination || 'London';

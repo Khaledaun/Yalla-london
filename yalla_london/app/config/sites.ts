@@ -1280,7 +1280,7 @@ Always respond with valid JSON.`,
     domain: "zenithayachts.com",
     locale: "en",
     direction: "ltr",
-    status: "development",
+    status: "active",
     destination: "Mediterranean",
     country: "International",
     currency: "EUR",
@@ -1546,6 +1546,25 @@ export function getDefaultSiteId(): string {
 export function getDefaultSiteName(): string {
   const id = getDefaultSiteId();
   return SITES[id]?.name || "Yalla London";
+}
+
+/**
+ * Resolve siteId from hostname string.
+ * Useful when x-site-id header might be missing and you have the hostname.
+ * Returns undefined if hostname is not mapped.
+ */
+export function getSiteIdFromHostname(hostname: string): string | undefined {
+  // Match against configured site domains
+  for (const [id, site] of Object.entries(SITES)) {
+    if (
+      hostname === site.domain ||
+      hostname === `www.${site.domain}` ||
+      hostname.endsWith(`.${site.domain}`)
+    ) {
+      return id;
+    }
+  }
+  return undefined;
 }
 
 /** Check if a site is a yacht charter platform (as opposed to a content blog) */

@@ -10,25 +10,14 @@ interface BrandThemeProviderProps {
 
 export function BrandThemeProvider({ children }: BrandThemeProviderProps) {
   useEffect(() => {
-    // Inject brand-specific CSS variables
+    // Inject brand-specific CSS variables (safe for all sites — Zenitha uses --z- prefix)
     const style = document.createElement('style');
     style.textContent = generateCSSVariables();
     document.head.appendChild(style);
 
-    // Set document title dynamically
-    document.title = `${brandConfig.siteName} - ${brandConfig.tagline}`;
-
-    // Set meta description
-    const metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) {
-      metaDescription.setAttribute('content', brandConfig.description);
-    }
-
-    // Set meta keywords
-    const metaKeywords = document.querySelector('meta[name="keywords"]');
-    if (metaKeywords) {
-      metaKeywords.setAttribute('content', brandConfig.seo.keywords);
-    }
+    // NOTE: document.title and meta tags are NOT set here.
+    // Next.js generateMetadata() handles per-site metadata correctly.
+    // Overriding here would break multi-site support (Zenitha Yachts, etc.)
 
     // Cleanup function
     return () => {

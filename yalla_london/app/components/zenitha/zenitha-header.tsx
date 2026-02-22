@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ChevronDown, Search, Globe, Phone, Anchor, Compass, Ship, Users, Waves, ShieldCheck, MapPin, Calendar, BookOpen, HelpCircle, MessageCircle, Mail } from 'lucide-react';
+import { Menu, X, ChevronDown, Globe, Phone, Anchor, Compass, Ship, Waves, ShieldCheck, Users, MapPin, HelpCircle, MessageCircle } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
 
 // ─── Navigation Config ──────────────────────────────────────────
@@ -251,6 +251,7 @@ export function ZenithaHeader() {
             className="lg:hidden p-2 text-[var(--z-navy)]"
             aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={isMenuOpen}
+            aria-haspopup="menu"
           >
             {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -345,14 +346,14 @@ export function ZenithaHeader() {
               {language === 'en' ? 'العربية' : 'English'}
             </button>
 
-            {/* Contact options */}
+            {/* Contact options — CTA links to inquiry page since phone numbers pending */}
             <div className="flex items-center gap-3 px-3 py-3">
-              <a href="tel:+44000000000" className="flex items-center gap-1.5 text-sm text-[var(--z-aegean)]">
-                <Phone size={16} /> {language === 'ar' ? 'اتصل بنا' : 'Call Us'}
-              </a>
-              <a href="https://wa.me/44000000000" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-[var(--z-aegean)]">
-                <MessageCircle size={16} /> WhatsApp
-              </a>
+              <Link href="/contact" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-1.5 text-sm text-[var(--z-aegean)]">
+                <Phone size={16} /> {language === 'ar' ? 'اتصل بنا' : 'Contact Us'}
+              </Link>
+              <Link href="/inquiry" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-1.5 text-sm text-[var(--z-aegean)]">
+                <MessageCircle size={16} /> {language === 'ar' ? 'استفسار' : 'Enquire'}
+              </Link>
             </div>
 
             {/* CTA */}

@@ -2,8 +2,16 @@
 
 import Link from 'next/link';
 import { useLanguage } from '@/components/language-provider';
-import { Mail, Phone, MessageCircle, Instagram, Linkedin, Anchor } from 'lucide-react';
+import { Mail, MessageCircle, Instagram, Linkedin, Anchor } from 'lucide-react';
 import { ENTITY, getCopyrightLine } from '@/config/entity';
+
+// Contact & social links — update with real values before production launch
+const CONTACT = {
+  email: 'hello@zenithayachts.com',
+  whatsapp: '', // Set to real WhatsApp number e.g. '971501234567'
+  instagram: '', // Set to real Instagram URL
+  linkedin: '', // Set to real LinkedIn URL
+};
 
 const FOOTER_NAV = {
   destinations: {
@@ -70,22 +78,30 @@ export function ZenithaFooter() {
             </p>
             {/* Contact */}
             <div className="space-y-2.5">
-              <a href="mailto:hello@zenithayachts.com" className="flex items-center gap-2 text-sm text-[var(--z-shallow)] hover:text-[var(--z-gold)] transition-colors">
-                <Mail size={16} /> hello@zenithayachts.com
+              <a href={`mailto:${CONTACT.email}`} className="flex items-center gap-2 text-sm text-[var(--z-shallow)] hover:text-[var(--z-gold)] transition-colors">
+                <Mail size={16} /> {CONTACT.email}
               </a>
-              <a href="https://wa.me/44000000000" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-[var(--z-shallow)] hover:text-[var(--z-gold)] transition-colors">
-                <MessageCircle size={16} /> WhatsApp
-              </a>
+              {CONTACT.whatsapp && (
+                <a href={`https://wa.me/${CONTACT.whatsapp}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-[var(--z-shallow)] hover:text-[var(--z-gold)] transition-colors">
+                  <MessageCircle size={16} /> WhatsApp
+                </a>
+              )}
             </div>
-            {/* Social */}
-            <div className="flex items-center gap-3 mt-5">
-              <a href="#" aria-label="Instagram" className="w-9 h-9 flex items-center justify-center rounded-full border border-white/20 text-white/60 hover:border-[var(--z-gold)] hover:text-[var(--z-gold)] transition-colors">
-                <Instagram size={16} />
-              </a>
-              <a href="#" aria-label="LinkedIn" className="w-9 h-9 flex items-center justify-center rounded-full border border-white/20 text-white/60 hover:border-[var(--z-gold)] hover:text-[var(--z-gold)] transition-colors">
-                <Linkedin size={16} />
-              </a>
-            </div>
+            {/* Social — only render links that have real URLs */}
+            {(CONTACT.instagram || CONTACT.linkedin) && (
+              <div className="flex items-center gap-3 mt-5">
+                {CONTACT.instagram && (
+                  <a href={CONTACT.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-9 h-9 flex items-center justify-center rounded-full border border-white/20 text-white/60 hover:border-[var(--z-gold)] hover:text-[var(--z-gold)] transition-colors">
+                    <Instagram size={16} />
+                  </a>
+                )}
+                {CONTACT.linkedin && (
+                  <a href={CONTACT.linkedin} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="w-9 h-9 flex items-center justify-center rounded-full border border-white/20 text-white/60 hover:border-[var(--z-gold)] hover:text-[var(--z-gold)] transition-colors">
+                    <Linkedin size={16} />
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Navigation Columns */}

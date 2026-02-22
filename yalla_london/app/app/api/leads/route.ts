@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { cookies, headers } from 'next/headers';
+import { getDefaultSiteId } from '@/config/sites';
 import { apiLimiter } from '@/lib/rate-limit';
 
 // Lead types
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // Get site context from headers (set by middleware)
     const headersList = await headers();
-    const siteId = headersList.get('x-site-id') || 'yalla-london';
+    const siteId = headersList.get('x-site-id') || getDefaultSiteId();
 
     // Get UTM data from cookies
     const cookieStore = await cookies();

@@ -25,6 +25,7 @@
 | 14 | 2026-02-18 | London News feature + SEO audit scalability | 19 issues | 19 | 0 |
 | 15 | 2026-02-18 | System-wide validation: maxDuration, blog siteId, sitemap scoping | 5 issues | 5 | 0 |
 | 16 | 2026-02-18 | SEO dashboard real data: audit page rewrite, command route, full-site audit API | 5 issues | 5 | 0 |
+| 17 | 2026-02-22 | Zenitha Yachts deep audit: API mismatches, cross-site security, lightbox a11y, DB fields | 31 issues | 19 | 12 (documented) |
 
 ---
 
@@ -1202,6 +1203,60 @@ Added 7 new tests in "SEO Dashboard" category:
 - No Math.random() in seo-command
 
 Total test suite: 90 tests across 16 categories.
+
+---
+
+## Audit #17 — Zenitha Yachts Deep Audit (2026-02-22)
+
+**Scope:** 5 parallel audit agents covering: (1) Public pages SEO, (2) Admin API auth + cross-site, (3) Component quality, (4) Admin pages UI/API contract, (5) DB models + imports
+
+### Findings Fixed (19)
+
+| ID | Severity | Description | Fix |
+|----|----------|-------------|-----|
+| A17-01 | CRITICAL | YachtReview: code uses `review_en/ar`, `title_en/ar` but schema has `content_en/ar`, `title` | Updated Prisma select + mapping in yacht detail page |
+| A17-02 | CRITICAL | Inquiries admin page expects `data.summary` but API returns `data.stats` | Updated interface + data extraction |
+| A17-03 | CRITICAL | Inquiries pagination `pageSize` vs `limit` mismatch | Changed to `limit` |
+| A17-04 | CRITICAL | Destinations `isActive: boolean` vs `status: string` mismatch | Changed interface + all template refs |
+| A17-05 | CRITICAL | Destinations `openEditForm` missing `slug` field | Added slug to edit form |
+| A17-06 | CRITICAL | Fleet page hardcoded destination names instead of IDs from API | Dynamic destination loading + destinationId filter |
+| A17-07 | CRITICAL | Brokers page `data.summary` vs `data.stats`, wrong field names | Updated to use `data.stats` + `performance` sub-object |
+| A17-08 | CRITICAL | Analytics page expects flat response, API returns nested | Added transformation layer |
+| A17-09 | HIGH | Inquiries PUT: no siteId ownership check after findUnique | Added `existing.siteId !== siteId` guard |
+| A17-10 | HIGH | Itineraries PUT: no siteId ownership check | Added siteId check |
+| A17-11 | HIGH | Itineraries DELETE: no siteId ownership check | Added siteId check |
+| A17-12 | HIGH | Brokers PUT: no siteId ownership check | Added siteId check |
+| A17-13 | HIGH | Brokers DELETE: no siteId ownership check | Added siteId check |
+| A17-14 | HIGH | Destinations PUT: no siteId ownership check | Added siteId check |
+| A17-15 | HIGH | Destinations DELETE: no siteId ownership check | Added siteId check |
+| A17-16 | HIGH | Lightbox missing focus trap — keyboard Tab exits dialog | Added focus trap cycling within dialog |
+| A17-17 | HIGH | Lightbox missing initial focus — opens without focus placement | Close button auto-focused on open |
+| A17-18 | HIGH | Lightbox missing focus restore on close | Saved trigger element, restore on close |
+| A17-19 | LOW | Unused imports: Waves in homepage, Search in header | Removed |
+
+### Findings Documented (Not Fixed — Future Sprints)
+
+| ID | Severity | Description | Notes |
+|----|----------|-------------|-------|
+| A17-20 | HIGH | Charter Planner 70+ hardcoded English strings, no bilingual support | Needs i18n pass |
+| A17-21 | MEDIUM | Hardcoded WhatsApp phone + email in inquiry page | Should come from site config |
+| A17-22 | MEDIUM | Missing HowTo schema on How It Works page | Deprecated by Google — use Article instead |
+| A17-23 | MEDIUM | Filter panel missing `dir` for RTL | RTL support pass needed |
+| A17-24 | MEDIUM | WhatsApp button positioning doesn't flip for RTL | Need `inset-inline-end` |
+| A17-25 | MEDIUM | Carousel nav arrows don't flip for RTL | RTL support pass needed |
+| A17-26 | MEDIUM | Mega menu grid unconditional 3-col, keyboard nav incomplete | Future polish |
+| A17-27 | MEDIUM | Raw `<img>` instead of next/image in gallery | Performance optimization |
+| A17-28 | LOW | YachtAmenity model orphaned (never referenced) | Future cleanup |
+| A17-29 | LOW | Missing YachtReview admin CRUD endpoints | Future feature |
+| A17-30 | LOW | Missing aria-pressed on active thumbnail, empty social href | Future a11y |
+| A17-31 | LOW | Missing touch swipe support in gallery | Mobile UX enhancement |
+
+### Verification
+
+- Build: PASS (0 errors)
+- TypeScript: 0 errors
+- All 13 files compiled successfully
+- Commit: 0b420fa pushed to claude/luxury-travel-business-plan-LDaOT
 
 ---
 

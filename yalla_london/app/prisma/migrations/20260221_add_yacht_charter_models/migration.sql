@@ -230,7 +230,7 @@ CREATE INDEX "yachts_siteId_idx" ON "yachts"("siteId");
 CREATE INDEX "yachts_destinationId_idx" ON "yachts"("destinationId");
 CREATE INDEX "yachts_type_idx" ON "yachts"("type");
 CREATE INDEX "yachts_status_siteId_idx" ON "yachts"("status", "siteId");
-CREATE INDEX "yachts_slug_siteId_idx" ON "yachts"("slug", "siteId");
+CREATE UNIQUE INDEX "yachts_slug_siteId_key" ON "yachts"("slug", "siteId");
 CREATE INDEX "yachts_pricePerWeekLow_idx" ON "yachts"("pricePerWeekLow");
 CREATE INDEX "yachts_halalCateringAvailable_idx" ON "yachts"("halalCateringAvailable");
 

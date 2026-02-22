@@ -45,7 +45,7 @@ async function getDbPost(slug: string, siteId?: string) {
     // Use select instead of include to skip heavy JSON columns (~40% less data)
     return await withTimeout(
       prisma.blogPost.findFirst({
-        where: { slug, published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
+        where: { slug, published: true, deletedAt: null, siteId },
         select: {
           id: true,
           title_en: true,
@@ -82,7 +82,7 @@ async function getDbSlugs(siteId?: string): Promise<string[]> {
     const { prisma } = await import("@/lib/db");
     const posts = await withTimeout(
       prisma.blogPost.findMany({
-        where: { published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
+        where: { published: true, deletedAt: null, siteId },
         select: { slug: true },
       }),
       8000,

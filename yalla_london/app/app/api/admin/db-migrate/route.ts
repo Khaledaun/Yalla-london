@@ -747,7 +747,6 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "yachts_destinationId_idx" ON "yachts"("destinationId")',
     'CREATE INDEX IF NOT EXISTS "yachts_type_idx" ON "yachts"("type")',
     'CREATE INDEX IF NOT EXISTS "yachts_status_siteId_idx" ON "yachts"("status", "siteId")',
-    'CREATE INDEX IF NOT EXISTS "yachts_slug_siteId_idx" ON "yachts"("slug", "siteId")',
     'CREATE INDEX IF NOT EXISTS "yachts_pricePerWeekLow_idx" ON "yachts"("pricePerWeekLow")',
     'CREATE INDEX IF NOT EXISTS "yachts_halalCateringAvailable_idx" ON "yachts"("halalCateringAvailable")',
   ],
@@ -829,6 +828,7 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
 // ─── Unique Constraints ──────────────────────────────────────────────────────
 const UNIQUE_CONSTRAINTS: string[] = [
   'CREATE UNIQUE INDEX IF NOT EXISTS "yachts_externalId_source_key" ON "yachts"("externalId", "source")',
+  'CREATE UNIQUE INDEX IF NOT EXISTS "yachts_slug_siteId_key" ON "yachts"("slug", "siteId")',
   'CREATE UNIQUE INDEX IF NOT EXISTS "yacht_destinations_slug_siteId_key" ON "yacht_destinations"("slug", "siteId")',
   'CREATE UNIQUE INDEX IF NOT EXISTS "charter_inquiries_referenceNumber_key" ON "charter_inquiries"("referenceNumber")',
   'CREATE UNIQUE INDEX IF NOT EXISTS "charter_itineraries_slug_siteId_key" ON "charter_itineraries"("slug", "siteId")',

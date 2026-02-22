@@ -3074,7 +3074,7 @@ model Yacht {
   @@index([destinationId])
   @@index([type])
   @@index([status, siteId])
-  @@index([slug, siteId])
+  @@unique([slug, siteId])
   @@index([pricePerWeekLow])
   @@index([halalCateringAvailable])
   @@map("yachts")

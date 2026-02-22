@@ -38,10 +38,18 @@ const DIFFICULTY_LABELS: Record<string, string> = {
    PAGE COMPONENT
    ═══════════════════════════════════════════════════════════════════ */
 
-export default async function ItinerariesPage() {
+export default async function ItinerariesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ dest?: string; dur?: string; diff?: string }>;
+}) {
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const baseUrl = await getBaseUrl();
+  const params = await searchParams;
+  const filterDest = params.dest || "";
+  const filterDur = params.dur || "";
+  const filterDiff = params.diff || "";
 
   /* ── Fetch itineraries with destination relation ── */
   interface ItineraryWithDest {
@@ -96,14 +104,29 @@ export default async function ItinerariesPage() {
     console.warn("[itineraries-page] DB query failed:", e);
   }
 
+  // Apply server-side filters from URL searchParams
+  let filtered = itineraries;
+  if (filterDest) {
+    filtered = filtered.filter((it) => it.destination?.slug === filterDest);
+  }
+  if (filterDur) {
+    const [minStr, maxStr] = filterDur.split("-");
+    const min = parseInt(minStr, 10) || 0;
+    const max = parseInt(maxStr, 10) || 999;
+    filtered = filtered.filter((it) => it.duration >= min && it.duration <= max);
+  }
+  if (filterDiff) {
+    filtered = filtered.filter((it) => it.difficulty === filterDiff);
+  }
+
   /* ── ItemList structured data ── */
   const itemListJsonLd = {
     "@context": "https://schema.org",
     "@type": "ItemList",
     name: "Sailing Itineraries",
     description: "Curated yacht charter itineraries across the Mediterranean and beyond.",
-    numberOfItems: itineraries.length,
-    itemListElement: itineraries.map((it, i) => ({
+    numberOfItems: filtered.length,
+    itemListElement: filtered.map((it, i) => ({
       "@type": "ListItem",
       position: i + 1,
       name: it.title_en,
@@ -201,7 +224,7 @@ export default async function ItinerariesPage() {
           }}
         >
           <div className="z-container py-4">
-            <div className="flex flex-wrap items-center gap-4">
+            <form method="get" action="/itineraries#itineraries" className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2" style={{ color: "var(--z-muted)" }}>
                 <Filter className="w-4 h-4" />
                 <span
@@ -222,8 +245,8 @@ export default async function ItinerariesPage() {
                     className="z-input z-input-sm"
                     style={{ minWidth: "180px" }}
                     aria-label="Filter by destination"
-                    disabled
-                    title="Client-side filtering coming soon"
+                    name="dest"
+                    defaultValue={filterDest}
                   >
                     <option value="">All Destinations</option>
                     {destinations.map((d) => (
@@ -241,11 +264,11 @@ export default async function ItinerariesPage() {
                   className="z-input z-input-sm"
                   style={{ minWidth: "150px" }}
                   aria-label="Filter by duration"
-                  disabled
-                  title="Client-side filtering coming soon"
+                  name="dur"
+                  defaultValue={filterDur}
                 >
                   {DURATION_FILTERS.map((f) => (
-                    <option key={f.label} value={`${f.min}-${f.max}`}>
+                    <option key={f.label} value={f.min === 0 && f.max === 999 ? "" : `${f.min}-${f.max}`}>
                       {f.label}
                     </option>
                   ))}
@@ -258,8 +281,8 @@ export default async function ItinerariesPage() {
                   className="z-input z-input-sm"
                   style={{ minWidth: "140px" }}
                   aria-label="Filter by difficulty"
-                  disabled
-                  title="Client-side filtering coming soon"
+                  name="diff"
+                  defaultValue={filterDiff}
                 >
                   <option value="">All Levels</option>
                   {Object.entries(DIFFICULTY_LABELS).map(([key, label]) => (
@@ -270,14 +293,29 @@ export default async function ItinerariesPage() {
                 </select>
               </div>
 
+              <button
+                type="submit"
+                className="z-btn z-btn-sm"
+                style={{ background: "var(--z-aegean)", color: "#fff", borderRadius: "var(--z-radius-md)", padding: "0.4rem 1rem", fontSize: "var(--z-text-body-sm)" }}
+              >
+                Apply
+              </button>
+
+              {(filterDest || filterDur || filterDiff) && (
+                <a href="/itineraries" className="text-sm" style={{ color: "var(--z-coral)" }}>
+                  Clear
+                </a>
+              )}
+
               {/* Count */}
               <span
                 className="ml-auto z-text-caption"
                 style={{ color: "var(--z-muted)" }}
               >
-                {itineraries.length} itinerar{itineraries.length === 1 ? "y" : "ies"}
+                {filtered.length} itinerar{filtered.length === 1 ? "y" : "ies"}
+                {filtered.length !== itineraries.length && ` of ${itineraries.length}`}
               </span>
-            </div>
+            </form>
           </div>
         </section>
 
@@ -286,9 +324,9 @@ export default async function ItinerariesPage() {
            ──────────────────────────────────────────────────────────── */}
         <section className="z-section" style={{ background: "var(--z-pearl)" }}>
           <div className="z-container">
-            {itineraries.length > 0 ? (
+            {filtered.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {itineraries.map((itin) => (
+                {filtered.map((itin) => (
                   <Link
                     key={itin.id}
                     href={`/itineraries/${itin.slug}`}

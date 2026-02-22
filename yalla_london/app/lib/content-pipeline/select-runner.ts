@@ -242,6 +242,13 @@ function getAffiliateRules(siteId: string) {
       { kw: ["tour", "experience", "activity", "temple", "market"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com/bangkok-l169/", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
       { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com/en/bangkok", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
     ],
+    'zenitha-yachts-med': [
+      { kw: ["yacht", "charter", "sailing", "boat", "catamaran", "gulet"], aff: { name: "Boatbookings", url: "https://www.boatbookings.com", param: `?ref=${process.env.BOATBOOKINGS_AFFILIATE_ID || ""}` } },
+      { kw: ["yacht", "boat", "rental", "hire"], aff: { name: "Click&Boat", url: "https://www.clickandboat.com", param: `?aff=${process.env.CLICKANDBOAT_AFFILIATE_ID || ""}` } },
+      { kw: ["tour", "experience", "excursion", "marine", "snorkeling", "diving"], aff: { name: "GetYourGuide", url: "https://www.getyourguide.com", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}` } },
+      { kw: ["hotel", "accommodation", "stay", "marina", "port"], aff: { name: "Booking.com", url: "https://www.booking.com", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}` } },
+      { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
+    ],
   };
   return SITE_AFFILIATES[siteId] || SITE_AFFILIATES['yalla-london'] || [];
 }

@@ -43,132 +43,115 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check current topic backlog (count all unused topics)
-    const pendingCount = await prisma.topicProposal.count({
-      where: { status: { in: ['proposed', 'ready', 'queued', 'planned'] } }
-    });
-
-    console.log(`📊 Current pending topics: ${pendingCount}`);
-
-    let shouldGenerate = false;
-    let reason = '';
-
-    // Check if it's time for weekly generation (run on Sundays)
-    const today = new Date();
-    const isWeeklySchedule = today.getDay() === 1; // Monday = 1 (matches vercel.json "0 4 * * 1")
-
-    // Check for low backlog trigger
-    const isLowBacklog = pendingCount < 10;
-
-    if (isWeeklySchedule) {
-      shouldGenerate = true;
-      reason = 'weekly_scheduled';
-    } else if (isLowBacklog) {
-      shouldGenerate = true;
-      reason = 'low_backlog_trigger';
-    }
-
-    if (!shouldGenerate) {
-      console.log('⏭️ No generation needed - sufficient backlog and not weekly schedule');
-      return NextResponse.json({
-        success: true,
-        message: 'No topic generation needed',
-        pendingCount,
-        reason: 'sufficient_backlog',
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    console.log(`🎯 Generating topics - reason: ${reason}`);
-
-    // Priority cascade: Grok Live Search → Perplexity → AI provider fallback
-    // Each provider is wrapped in try/catch so failures cascade to the next one.
-    const grokAvailable = !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY);
-    const pplxKey = process.env.PPLX_API_KEY || process.env.PERPLEXITY_API_KEY;
-
-    let topicData: { topics: any[] } = { topics: [] };
-    let arabicData: { topics: any[] } | null = null;
-    let arabicSkipped = false;
-    let providerUsed = 'none';
-
-    // ─── English topics: try each provider until one works ────────────
-    if (grokAvailable) {
-      try {
-        console.log('[weekly-topics] Trying Grok Live Search for EN topics...');
-        topicData = await generateTopicsViaGrok('London', 'en');
-        providerUsed = 'grok';
-      } catch (e) {
-        console.warn('[weekly-topics] Grok EN failed, falling through:', e instanceof Error ? e.message : e);
-      }
-    }
-
-    if (topicData.topics.length === 0 && pplxKey) {
-      try {
-        console.log('[weekly-topics] Trying Perplexity for EN topics...');
-        topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en');
-        providerUsed = 'perplexity';
-      } catch (e) {
-        console.warn('[weekly-topics] Perplexity EN failed, falling through:', e instanceof Error ? e.message : e);
-      }
-    }
-
-    if (topicData.topics.length === 0) {
-      try {
-        console.log('[weekly-topics] Using AI provider fallback for EN topics...');
-        topicData = await generateTopicsViaAIProvider('weekly_mixed', 'en');
-        providerUsed = 'ai-provider';
-      } catch (e) {
-        console.warn('[weekly-topics] AI provider EN also failed:', e instanceof Error ? e.message : e);
-      }
-    }
-
-    // ─── Arabic topics: same cascade, budget-gated ────────────────────
-    if (budgetLeft() > 25_000) {
-      if (providerUsed === 'grok' && grokAvailable) {
-        try {
-          arabicData = await generateTopicsViaGrok('London', 'ar');
-        } catch (e) {
-          console.warn('[weekly-topics] Grok AR failed:', e instanceof Error ? e.message : e);
-        }
-      }
-      if (!arabicData && pplxKey) {
-        try {
-          arabicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'ar');
-        } catch (e) {
-          console.warn('[weekly-topics] Perplexity AR failed:', e instanceof Error ? e.message : e);
-        }
-      }
-      if (!arabicData && budgetLeft() > 15_000) {
-        try {
-          arabicData = await generateTopicsViaAIProvider('weekly_mixed', 'ar');
-        } catch (e) {
-          console.warn('[weekly-topics] AI provider AR failed:', e instanceof Error ? e.message : e);
-        }
-      }
-    } else {
-      arabicSkipped = true;
-      console.log(`[weekly-topics] Budget low (${budgetLeft()}ms left), skipping Arabic generation`);
-    }
-
-    // Persist generated topics as TopicProposal rows
-    // Assign to all active sites so content-builder can find them
+    // ─── Per-site topic generation ──────────────────────────────────────
+    // Each active site gets topics generated for its own destination.
+    // This prevents London travel topics from being assigned to yacht sites.
     const { getActiveSiteIds, getSiteConfig, getDefaultSiteId } = await import('@/config/sites');
     const activeSiteIds = getActiveSiteIds();
     const primarySiteId = activeSiteIds[0] || getDefaultSiteId();
-
-    const allTopics = [
-      ...(topicData?.topics || []).map((t: any) => ({ ...t, locale: 'en' })),
-      ...(arabicData?.topics || []).map((t: any) => ({ ...t, locale: 'ar' })),
-    ];
-
-    // Save topics for ALL active sites (multi-site distribution)
-    // Each active site gets the generated topics assigned to it
     const targetSiteIds = activeSiteIds.length > 0 ? activeSiteIds : [primarySiteId];
+
+    const today = new Date();
+    const isWeeklySchedule = today.getDay() === 1; // Monday = 1 (matches vercel.json "0 4 * * 1")
+
+    const grokAvailable = !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY);
+    const pplxKey = process.env.PPLX_API_KEY || process.env.PERPLEXITY_API_KEY;
+
     let savedCount = 0;
+    let totalGenerated = 0;
+    let reason = '';
+    const perSiteResults: Record<string, { pending: number; generated: number; saved: number }> = {};
 
     for (const targetSiteId of targetSiteIds) {
+      if (budgetLeft() < 10_000) {
+        console.log(`[weekly-topics] Budget low (${budgetLeft()}ms), stopping site loop`);
+        break;
+      }
+
       const siteConfig = getSiteConfig(targetSiteId);
       const siteDestination = siteConfig?.destination || 'London';
+
+      // Per-site backlog check (ZY-004 fix)
+      const pendingCount = await prisma.topicProposal.count({
+        where: { site_id: targetSiteId, status: { in: ['proposed', 'ready', 'queued', 'planned'] } }
+      });
+
+      console.log(`[weekly-topics] Site ${targetSiteId}: ${pendingCount} pending, destination="${siteDestination}"`);
+
+      const isLowBacklog = pendingCount < 10;
+      let shouldGenerate = false;
+
+      if (isWeeklySchedule) {
+        shouldGenerate = true;
+        reason = 'weekly_scheduled';
+      } else if (isLowBacklog) {
+        shouldGenerate = true;
+        reason = 'low_backlog_trigger';
+      }
+
+      if (!shouldGenerate) {
+        console.log(`[weekly-topics] Skipping ${targetSiteId} — sufficient backlog (${pendingCount})`);
+        perSiteResults[targetSiteId] = { pending: pendingCount, generated: 0, saved: 0 };
+        continue;
+      }
+
+      // ─── Generate topics with per-site destination ──────────────────
+      let topicData: { topics: any[] } = { topics: [] };
+      let arabicData: { topics: any[] } | null = null;
+      let providerUsed = 'none';
+
+      if (grokAvailable) {
+        try {
+          topicData = await generateTopicsViaGrok(siteDestination, 'en');
+          providerUsed = 'grok';
+        } catch (e) {
+          console.warn(`[weekly-topics] Grok EN failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
+        }
+      }
+
+      if (topicData.topics.length === 0 && pplxKey) {
+        try {
+          topicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'en');
+          providerUsed = 'perplexity';
+        } catch (e) {
+          console.warn(`[weekly-topics] Perplexity EN failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
+        }
+      }
+
+      if (topicData.topics.length === 0) {
+        try {
+          topicData = await generateTopicsViaAIProvider('weekly_mixed', 'en');
+          providerUsed = 'ai-provider';
+        } catch (e) {
+          console.warn(`[weekly-topics] AI provider EN failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
+        }
+      }
+
+      // Arabic topics — budget-gated
+      if (budgetLeft() > 15_000) {
+        if (providerUsed === 'grok' && grokAvailable) {
+          try {
+            arabicData = await generateTopicsViaGrok(siteDestination, 'ar');
+          } catch (e) {
+            console.warn(`[weekly-topics] Grok AR failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
+          }
+        }
+        if (!arabicData && pplxKey) {
+          try {
+            arabicData = await generateTopicsDirect(pplxKey, 'weekly_mixed', 'ar');
+          } catch (e) {
+            console.warn(`[weekly-topics] Perplexity AR failed for ${targetSiteId}:`, e instanceof Error ? e.message : e);
+          }
+        }
+      }
+
+      const allTopics = [
+        ...(topicData?.topics || []).map((t: any) => ({ ...t, locale: 'en' })),
+        ...(arabicData?.topics || []).map((t: any) => ({ ...t, locale: 'ar' })),
+      ];
+
+      totalGenerated += allTopics.length;
+      let siteSaved = 0;
 
       for (const t of allTopics) {
         // Budget check — stop DB saves if we're running out of time
@@ -235,29 +218,26 @@ export async function POST(request: NextRequest) {
             },
           });
           savedCount++;
+          siteSaved++;
         } catch (saveErr) {
           console.warn(`[weekly-topics] Failed to save topic "${t.title}" for ${targetSiteId}:`, saveErr instanceof Error ? saveErr.message : saveErr);
         }
       }
-    }
 
-    // Log generation results
-    const englishCount = topicData?.topics?.length || 0;
-    const arabicCount = arabicData?.topics?.length || 0;
-    const totalGenerated = englishCount + arabicCount;
-    console.log(`Topic generation completed: ${totalGenerated} topics generated (${savedCount} new, ${totalGenerated - savedCount} duplicates skipped)`);
+      perSiteResults[targetSiteId] = { pending: pendingCount, generated: allTopics.length, saved: siteSaved };
+    } // end per-site loop
+
+    console.log(`[weekly-topics] Completed: ${totalGenerated} topics generated, ${savedCount} saved across ${targetSiteIds.length} sites`);
 
     await logCronExecution("weekly-topics", "completed", {
       durationMs: Date.now() - _cronStart,
       itemsProcessed: savedCount,
       resultSummary: {
         reason,
-        english: englishCount,
-        arabic: arabicCount,
         total: totalGenerated,
         newSaved: savedCount,
         duplicatesSkipped: totalGenerated - savedCount,
-        pendingCountBefore: pendingCount,
+        perSite: perSiteResults,
       },
     });
 
@@ -266,13 +246,11 @@ export async function POST(request: NextRequest) {
       message: 'Weekly topic generation completed',
       reason,
       generated: {
-        english: englishCount,
-        arabic: arabicCount,
         total: totalGenerated,
         newSaved: savedCount,
         duplicatesSkipped: totalGenerated - savedCount,
       },
-      pendingCountBefore: pendingCount,
+      perSite: perSiteResults,
       timestamp: new Date().toISOString()
     });
 

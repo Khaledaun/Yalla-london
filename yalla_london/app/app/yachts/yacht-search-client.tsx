@@ -202,16 +202,20 @@ function FilterPanel({
                     <toggle.icon size={16} className="text-[var(--z-aegean)]" />
                     {toggle.label[locale] || toggle.label.en}
                   </span>
-                  <div
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={filters[toggle.key] === 'true'}
+                    aria-label={toggle.label.en}
                     onClick={() => updateFilter(toggle.key, filters[toggle.key] === 'true' ? '' : 'true')}
                     className={`w-10 h-6 rounded-full transition-colors cursor-pointer flex items-center px-0.5 ${
                       filters[toggle.key] === 'true' ? 'bg-[var(--z-aegean)]' : 'bg-[var(--z-champagne)]'
                     }`}
                   >
-                    <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    <span className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
                       filters[toggle.key] === 'true' ? 'translate-x-4' : 'translate-x-0'
                     }`} />
-                  </div>
+                  </button>
                 </label>
               ))}
             </div>
@@ -245,9 +249,18 @@ function YachtCardComponent({ yacht, locale }: { yacht: YachtCard; locale: Local
       <div className="bg-white rounded-xl overflow-hidden shadow-card hover:shadow-hover transition-all duration-350">
         {/* Image */}
         <div className="relative aspect-[4/3] bg-gradient-to-br from-[var(--z-midnight)] to-[var(--z-aegean)] overflow-hidden">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Ship size={40} className="text-white/15" />
-          </div>
+          {yacht.images && yacht.images.length > 0 ? (
+            <img
+              src={yacht.images[0]}
+              alt={yacht.name}
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Ship size={40} className="text-white/15" />
+            </div>
+          )}
           {/* Type badge */}
           <span className="absolute top-3 left-3 bg-[var(--z-navy)]/80 backdrop-blur-sm text-white text-xs font-heading font-semibold px-2.5 py-1 rounded">
             {getTypeBadge(yacht.type, locale)}

@@ -22,7 +22,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Resolve base URL from tenant context (set by middleware)
   const headersList = await headers();
   const hostname = headersList.get("x-hostname") || getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\//, '');
-  const siteId = headersList.get("x-site-id") || "yalla-london";
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const baseUrl =
     hostname === "localhost:3000"
       ? "http://localhost:3000"

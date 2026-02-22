@@ -826,14 +826,14 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
     // Database not available - use static posts only
   }
 
-  // ── Yacht-specific dynamic pages (zenitha-yachts-med only) ──
-  if (isYachtSite) {
+  // ── Yacht-specific dynamic pages ──
+  if (isYachtSite && siteId) {
     try {
       const { prisma } = await import("@/lib/db");
 
       // Individual yacht pages
       const yachts = await prisma.yacht.findMany({
-        where: { siteId: "zenitha-yachts-med", status: "active" },
+        where: { siteId, status: "active" },
         select: { slug: true },
       });
       for (const yacht of yachts) {
@@ -842,7 +842,7 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
 
       // Destination pages
       const destinations = await prisma.yachtDestination.findMany({
-        where: { siteId: "zenitha-yachts-med", status: "active" },
+        where: { siteId, status: "active" },
         select: { slug: true },
       });
       for (const dest of destinations) {
@@ -851,7 +851,7 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
 
       // Itinerary pages
       const itineraries = await prisma.charterItinerary.findMany({
-        where: { siteId: "zenitha-yachts-med", status: "active" },
+        where: { siteId, status: "active" },
         select: { slug: true },
       });
       for (const itin of itineraries) {
@@ -905,25 +905,25 @@ export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUr
     // Database not available
   }
 
-  // ── New yacht content (zenitha-yachts-med only) ──
-  if (isYachtSite) {
+  // ── New yacht content ──
+  if (isYachtSite && siteId) {
     try {
       const { prisma } = await import("@/lib/db");
 
       const newYachts = await prisma.yacht.findMany({
-        where: { siteId: "zenitha-yachts-med", status: "active", createdAt: { gte: cutoffDate } },
+        where: { siteId, status: "active", createdAt: { gte: cutoffDate } },
         select: { slug: true },
       });
       for (const y of newYachts) urls.push(`${baseUrl}/yachts/${y.slug}`);
 
       const newDests = await prisma.yachtDestination.findMany({
-        where: { siteId: "zenitha-yachts-med", status: "active", createdAt: { gte: cutoffDate } },
+        where: { siteId, status: "active", createdAt: { gte: cutoffDate } },
         select: { slug: true },
       });
       for (const d of newDests) urls.push(`${baseUrl}/destinations/${d.slug}`);
 
       const newItins = await prisma.charterItinerary.findMany({
-        where: { siteId: "zenitha-yachts-med", status: "active", createdAt: { gte: cutoffDate } },
+        where: { siteId, status: "active", createdAt: { gte: cutoffDate } },
         select: { slug: true },
       });
       for (const i of newItins) urls.push(`${baseUrl}/itineraries/${i.slug}`);
@@ -979,25 +979,25 @@ export async function getUpdatedUrls(
     // Database not available
   }
 
-  // ── Updated yacht content (zenitha-yachts-med only) ──
-  if (isYachtSite) {
+  // ── Updated yacht content ──
+  if (isYachtSite && siteId) {
     try {
       const { prisma } = await import("@/lib/db");
 
       const updatedYachts = await prisma.yacht.findMany({
-        where: { siteId: "zenitha-yachts-med", status: "active", updatedAt: { gte: cutoffDate } },
+        where: { siteId, status: "active", updatedAt: { gte: cutoffDate } },
         select: { slug: true },
       });
       for (const y of updatedYachts) urls.push(`${baseUrl}/yachts/${y.slug}`);
 
       const updatedDests = await prisma.yachtDestination.findMany({
-        where: { siteId: "zenitha-yachts-med", status: "active", updatedAt: { gte: cutoffDate } },
+        where: { siteId, status: "active", updatedAt: { gte: cutoffDate } },
         select: { slug: true },
       });
       for (const d of updatedDests) urls.push(`${baseUrl}/destinations/${d.slug}`);
 
       const updatedItins = await prisma.charterItinerary.findMany({
-        where: { siteId: "zenitha-yachts-med", status: "active", updatedAt: { gte: cutoffDate } },
+        where: { siteId, status: "active", updatedAt: { gte: cutoffDate } },
         select: { slug: true },
       });
       for (const i of updatedItins) urls.push(`${baseUrl}/itineraries/${i.slug}`);

@@ -26,6 +26,7 @@
 | 15 | 2026-02-18 | System-wide validation: maxDuration, blog siteId, sitemap scoping | 5 issues | 5 | 0 |
 | 16 | 2026-02-18 | SEO dashboard real data: audit page rewrite, command route, full-site audit API | 5 issues | 5 | 0 |
 | 17 | 2026-02-22 | Zenitha Yachts deep audit: API mismatches, cross-site security, lightbox a11y, DB fields | 31 issues | 19 | 12 (documented) |
+| 18 | 2026-02-22 | Zenitha Yachts DB/pipeline/dashboard: weekly topics, blog siteId, yacht affiliates | 11 reported | 3 fixed | 7 false positives, 1 doc-only |
 
 ---
 
@@ -1257,6 +1258,47 @@ Total test suite: 90 tests across 16 categories.
 - TypeScript: 0 errors
 - All 13 files compiled successfully
 - Commit: 0b420fa pushed to claude/luxury-travel-business-plan-LDaOT
+
+---
+
+## Audit #18 — Zenitha Yachts DB/Pipeline/Dashboard Deep Audit (2026-02-22)
+
+**Scope:** Background audit agent covering: (1) DB migration alignment, (2) Content pipeline integrity, (3) Indexing process, (4) Dashboard integration, (5) Vercel/Supabase config, (6) Website separation
+
+### Findings Fixed (3)
+
+| ID | Severity | Description | Fix |
+|----|----------|-------------|-----|
+| ZY-003 | HIGH | Weekly topics Perplexity + AI provider fallbacks hardcoded "London-local editor" | Pass per-site `destination` param to both fallback functions |
+| ZY-006 | MEDIUM | Affiliate injection cron missing zenitha-yachts-med rules | Added 5 rule groups: yacht charter, marine tours, hotels/marinas, transport, insurance |
+| ZY-009 | HIGH | Blog [slug] `getDbPost` and `findPost` had optional `siteId` parameter | Made siteId mandatory to prevent accidental cross-site visibility |
+
+### False Positives (7 findings already resolved in prior sessions)
+
+| ID | Severity | Description | Actual Status |
+|----|----------|-------------|---------------|
+| ZY-001 | MEDIUM | Yacht model missing `@@unique([slug, siteId])` | Already present at schema line 3077 |
+| ZY-004 | MEDIUM | Weekly topics pendingCount global | Already per-site at line 75-77 |
+| ZY-005 | MEDIUM | Select-runner missing yacht affiliates | Already present at lines 245-251 |
+| ZY-008 | HIGH | `getDefaultSiteId()` returns yalla-london | Mitigated by middleware + prior `getSiteIdFromHostname()` fix |
+| ZY-010 | MEDIUM | Sitemap hardcoded "zenitha-yachts-med" | Already using dynamic `siteId` at lines 430, 447, 464 |
+| ZY-002 | LOW | CLAUDE.md lists non-existent models | Documentation only |
+| ZY-007 | LOW | Yacht env vars not in .env.example | Documentation only |
+
+### What Works Well (No Issues Found)
+
+- Schema/migration alignment — all 8 tables, enums, foreign keys match perfectly
+- Indexing service — fully yacht-aware with yacht-specific static pages + dynamic URL discovery
+- SEO agent + SEO cron — both loop all active sites with per-site domain handling
+- Sitemap — yacht pages included, travel-blog sections excluded for yacht site
+- Middleware — zenithayachts.com properly mapped
+- All admin APIs authenticated with `withAdminAuth` + siteId scoped
+- Content builder multi-site with per-site budget guards
+
+### Verification
+
+- Build: PASS (0 errors)
+- Commit: 241e747 pushed to claude/luxury-travel-business-plan-LDaOT
 
 ---
 

@@ -250,7 +250,7 @@ function getAffiliateRules(siteId: string) {
       { kw: ["transfer", "airport", "taxi", "transport"], aff: { name: "Blacklane", url: "https://www.blacklane.com", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}` } },
     ],
   };
-  return SITE_AFFILIATES[siteId] || SITE_AFFILIATES['yalla-london'] || [];
+  return SITE_AFFILIATES[siteId] || [];
 }
 
 // ─── Promote ArticleDraft → BlogPost ──────────────────────────────────────

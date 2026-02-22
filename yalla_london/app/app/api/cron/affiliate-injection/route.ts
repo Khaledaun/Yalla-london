@@ -267,7 +267,7 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
     ],
   };
 
-  return SITE_RULES[siteId] || SITE_RULES['yalla-london'] || [];
+  return SITE_RULES[siteId] || [];
 }
 
 function escapeHtml(str: string): string {

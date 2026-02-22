@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ZENITHA_CONTACT } from "@/components/zenitha/zenitha-config";
 
 interface WhatsAppButtonProps {
   /** WhatsApp phone number in international format (no +) */
@@ -16,18 +17,23 @@ interface WhatsAppButtonProps {
  * Opens WhatsApp Web/App with a pre-filled charter inquiry message.
  */
 export function WhatsAppButton({
-  phoneNumber = "971501234567",
+  phoneNumber,
   message,
   yachtName,
 }: WhatsAppButtonProps) {
   const [isHovered, setIsHovered] = useState(false);
+
+  // Hide button entirely when no real WhatsApp number is configured
+  // to prevent users contacting a placeholder number
+  const resolvedNumber = phoneNumber || ZENITHA_CONTACT.whatsapp;
+  if (!resolvedNumber) return null;
 
   const defaultMessage = yachtName
     ? `Hello, I'm interested in chartering the ${yachtName}. Could you provide more details about availability and pricing?`
     : "Hello, I'm interested in chartering a yacht. Could you help me find the perfect vessel?";
 
   const whatsappMessage = encodeURIComponent(message || defaultMessage);
-  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${whatsappMessage}`;
+  const whatsappUrl = `https://wa.me/${resolvedNumber}?text=${whatsappMessage}`;
 
   return (
     <a

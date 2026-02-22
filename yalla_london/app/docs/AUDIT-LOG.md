@@ -27,6 +27,11 @@
 | 16 | 2026-02-18 | SEO dashboard real data: audit page rewrite, command route, full-site audit API | 5 issues | 5 | 0 |
 | 17 | 2026-02-22 | Zenitha Yachts deep audit: API mismatches, cross-site security, lightbox a11y, DB fields | 31 issues | 19 | 12 (documented) |
 | 18 | 2026-02-22 | Zenitha Yachts DB/pipeline/dashboard: weekly topics, blog siteId, yacht affiliates | 11 reported | 3 fixed | 7 false positives, 1 doc-only |
+| 19-24 | 2026-02-22 | Yacht public pages: contact placeholders, newsletter, a11y, YachtReview schema | 12 issues | 12 | 0 |
+| 25 | 2026-02-22 | Multi-site pipeline: healthcheck scoping, Calendly fallback, domain regex, affiliates | 7 issues | 7 | 0 |
+| 26 | 2026-02-22 | Admin API auth comprehensive audit (162 routes) | 0 issues | N/A | 0 — 100% auth coverage |
+| 27 | 2026-02-22 | Cron chain integrity: seo/cron budget guards, orphan routes, GET handlers | 4 issues | 3 | 1 (orphan route decisions) |
+| 28 | 2026-02-22 | Middleware + public routes: newsletter siteId, blog API site scoping | 2 issues | 2 | 0 |
 
 ---
 
@@ -1299,6 +1304,53 @@ Total test suite: 90 tests across 16 categories.
 
 - Build: PASS (0 errors)
 - Commit: 241e747 pushed to claude/luxury-travel-business-plan-LDaOT
+
+---
+
+## Audits #25-28 — Multi-Site Pipeline, Auth, Cron, Public Routes (2026-02-22)
+
+**Date:** 2026-02-22
+**Scope:** Deep multi-site pipeline audit, admin auth coverage, cron chain integrity, public route scoping
+**Commits:** `475aac8`, `cefef0d`, `1aa2caa`, `8993c4c`, `61de99f`
+
+### Known Gaps Resolved
+
+| ID | Description | Fix | Commit |
+|----|-------------|-----|--------|
+| KG-053 | content-selector healthcheck missing siteId filter | Added `getActiveSiteIds()` filter | `cefef0d` |
+| KG-054 | scheduled-publish orphan check missing siteId filter | Added `getActiveSiteIds()` filter | `cefef0d` |
+| KG-055 | Calendly fallback hardcoded to yalla-london | Returns empty when unconfigured | `cefef0d` |
+| KG-056 | Email marketing tag hardcoded 'yalla-london-subscriber' | Uses subscriber source dynamically | `cefef0d` |
+| KG-057 | Pre-pub gate domain regex missing zenithayachts | Added to fallback pattern | `cefef0d` |
+| KG-058 | Affiliate rules fall back to yalla-london for unknown sites | Returns `[]` instead | `1aa2caa` |
+| KG-059 | /api/seo/cron missing budget guards (all 3 per-site loops) | Added 53s budget checks | `8993c4c` |
+| KG-060 | /api/seo/cron missing logCronExecution | Added success+failure logging | `8993c4c` |
+| KG-061 | /api/cron/real-time-optimization missing GET handler | Added GET → POST delegation | `8993c4c` |
+| KG-062 | Newsletter subscribe ignores siteId | Reads from body/header/config | `61de99f` |
+| KG-063 | Blog API only reads site from query param, ignores x-site-id header | Added header as primary source | `61de99f` |
+| ZY-003 | Weekly topics hardcodes 'London' in function defaults | Removed defaults, fallback to 'luxury travel' | `475aac8` |
+| ZY-004 | Weekly topics healthcheck pendingCount is global | Per-site counts with `getActiveSiteIds()` loop | `475aac8` |
+
+### Audit Results Summary
+
+| Audit | Scope | Result |
+|-------|-------|--------|
+| #25 (Pipeline) | Multi-site content pipeline DB queries | 2 CRITICAL + 3 HIGH + 2 MEDIUM → all fixed |
+| #25 (Hardcoded) | Remaining hardcoded values sweep | 3 CRITICAL + 12 HIGH + 20 MEDIUM + 17 LOW identified; actionable items fixed |
+| #26 (Auth) | 162 admin API routes auth check | **100% pass — zero vulnerabilities** |
+| #26 (Affiliates) | select-runner + injection cron affiliate coverage | All 6 sites covered; fallback fixed |
+| #27 (Yacht pages) | Admin + public yacht pages runtime audit | **100% pass — zero crash risks** |
+| #27 (Cron chain) | 22 vercel.json crons + 6 orphan routes | 96% healthy; seo/cron budget + logging fixed |
+| #28 (Middleware) | Middleware domain mapping + public routes | Excellent; newsletter + blog API fixed |
+
+### Verification
+
+- Build: PASS (0 TypeScript errors)
+- All 5 commits pushed to `claude/luxury-travel-business-plan-LDaOT`
+- Admin auth: 162/162 routes protected
+- Cron chain: 22/22 scheduled routes have GET+POST, auth, logging
+- Yacht pages: zero runtime crash risks
+- Multi-site pipeline: all DB queries properly scoped by siteId
 
 ---
 

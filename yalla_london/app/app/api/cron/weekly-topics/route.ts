@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       }
 
       const siteConfig = getSiteConfig(targetSiteId);
-      const siteDestination = siteConfig?.destination || 'London';
+      const siteDestination = siteConfig?.destination || 'luxury travel';
 
       // Per-site backlog check (ZY-004 fix)
       const pendingCount = await prisma.topicProposal.count({
@@ -278,15 +278,27 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   // Healthcheck mode — quick status without generating topics
   if (request.nextUrl.searchParams.get("healthcheck") === "true") {
-    const pendingCount = await prisma.topicProposal.count({
-      where: { status: 'proposed' }
-    });
+    const { getActiveSiteIds, getDefaultSiteId } = await import('@/config/sites');
+    const activeSiteIds = getActiveSiteIds();
+    const siteIds = activeSiteIds.length > 0 ? activeSiteIds : [getDefaultSiteId()];
+
+    const perSite: Record<string, { pending: number; lowBacklog: boolean }> = {};
+    let totalPending = 0;
+
+    for (const sid of siteIds) {
+      const count = await prisma.topicProposal.count({
+        where: { site_id: sid, status: { in: ['proposed', 'ready', 'queued', 'planned'] } }
+      });
+      perSite[sid] = { pending: count, lowBacklog: count < 10 };
+      totalPending += count;
+    }
 
     return NextResponse.json({
       status: 'healthy',
       endpoint: 'weekly-topics cron',
-      pendingTopics: pendingCount,
-      lowBacklog: pendingCount < 10,
+      pendingTopics: totalPending,
+      lowBacklog: totalPending < 10,
+      perSite,
       nextWeeklyRun: getNextSunday(),
       timestamp: new Date().toISOString()
     });
@@ -312,7 +324,7 @@ async function generateTopicsDirect(
   apiKey: string,
   category: string,
   locale: string,
-  destination = 'London',
+  destination: string,
 ): Promise<{ topics: any[] }> {
   const prompt = `You are a local editor specializing in ${destination}. Suggest 5 timely article topics about ${destination} for "${category}"
 in locale "${locale}" with short slugs and 1-2 authority sources each (domain only).
@@ -360,7 +372,7 @@ Return strict JSON array with objects: {title, slug, rationale, sources: string[
 async function generateTopicsViaAIProvider(
   category: string,
   locale: string,
-  destination = 'London',
+  destination: string,
 ): Promise<{ topics: any[] }> {
   const { generateJSON } = await import('@/lib/ai/provider');
 

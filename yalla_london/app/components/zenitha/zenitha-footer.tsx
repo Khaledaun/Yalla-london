@@ -4,13 +4,14 @@ import Link from 'next/link';
 import { useLanguage } from '@/components/language-provider';
 import { Mail, MessageCircle, Instagram, Linkedin, Anchor } from 'lucide-react';
 import { ENTITY, getCopyrightLine } from '@/config/entity';
+import { ZENITHA_CONTACT } from './zenitha-config';
 
-// Contact & social links — update with real values before production launch
+// Contact & social links — sourced from zenitha-config.ts (single source of truth)
 const CONTACT = {
-  email: 'hello@zenithayachts.com',
-  whatsapp: '', // Set to real WhatsApp number e.g. '971501234567'
-  instagram: '', // Set to real Instagram URL
-  linkedin: '', // Set to real LinkedIn URL
+  email: ZENITHA_CONTACT.email,
+  whatsapp: ZENITHA_CONTACT.whatsapp,
+  instagram: ZENITHA_CONTACT.instagram,
+  linkedin: ZENITHA_CONTACT.linkedin,
 };
 
 const FOOTER_NAV = {

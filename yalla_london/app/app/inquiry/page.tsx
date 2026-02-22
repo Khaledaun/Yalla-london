@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLanguage } from "@/components/language-provider";
+import { ZENITHA_CONTACT } from "@/components/zenitha/zenitha-config";
 import {
   Send,
   CheckCircle2,
@@ -549,11 +550,11 @@ export default function InquiryPage() {
                   {labels.directContact}
                 </h3>
                 <div className="space-y-3">
-                  <a href="mailto:charters@zenithayachts.com" className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "var(--z-surface-sunken)", border: "1px solid var(--z-border)" }}>
+                  <a href={`mailto:${ZENITHA_CONTACT.charterEmail}`} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "var(--z-surface-sunken)", border: "1px solid var(--z-border)" }}>
                     <Mail size={20} style={{ color: "var(--z-aegean)" }} />
                     <div>
                       <span className="font-heading font-semibold block" style={{ fontSize: "var(--z-text-body-sm)", color: "var(--z-navy)" }}>{labels.emailLabel}</span>
-                      <span className="z-text-caption">charters@zenithayachts.com</span>
+                      <span className="z-text-caption">{ZENITHA_CONTACT.charterEmail}</span>
                     </div>
                   </a>
                 </div>

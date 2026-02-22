@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       50,
     );
     const offset = parseInt(searchParams.get("offset") || "0", 10);
-    const siteFilter = searchParams.get("site");
+    const siteFilter = searchParams.get("site") || request.headers.get("x-site-id") || undefined;
 
     // Parse sort parameter
     const sortParam = searchParams.get("sort") || "created_at:desc";

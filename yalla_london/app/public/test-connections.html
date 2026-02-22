@@ -1619,6 +1619,66 @@ async function runAllTests() {
     }
   } catch (e) { log('  ERROR: ' + e.message); addResult('yachts-public', 'Charter Inquiry API (POST)', 'fail', 'JS Error: ' + e.message); }
 
+  // GET /api/yachts/[id] — Public yacht detail (uses first yacht from search if available)
+  try {
+    // Attempt to get a yacht ID from the search results above
+    let testYachtId = null;
+    try {
+      const searchResp = await testFetch('/api/yachts?limit=1');
+      if (searchResp.ok && searchResp.json && searchResp.json.yachts && searchResp.json.yachts.length > 0) {
+        testYachtId = searchResp.json.yachts[0].id;
+      }
+    } catch (_) { /* use fallback */ }
+
+    if (testYachtId) {
+      const detailResp = await testFetch('/api/yachts/' + testYachtId);
+      if (detailResp.ok && detailResp.json) {
+        const y = detailResp.json.yacht || detailResp.json;
+        addResult('yachts-public', 'Yacht Detail API (GET /[id])', 'pass', 'Connected — ' + (y.name || 'yacht') + ' (' + (y.type || 'unknown') + ')');
+      } else {
+        addResult('yachts-public', 'Yacht Detail API (GET /[id])', detailResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + detailResp.status + ' — ' + (detailResp.errorDetail || ''));
+      }
+    } else {
+      // No yachts in DB yet — test the route exists with a dummy ID
+      const detailResp = await testFetch('/api/yachts/test-nonexistent-id');
+      if (detailResp.status === 404) {
+        addResult('yachts-public', 'Yacht Detail API (GET /[id])', 'pass', 'Route exists — returned 404 for nonexistent yacht (no yachts in DB yet)');
+      } else if (detailResp.status === 500) {
+        addResult('yachts-public', 'Yacht Detail API (GET /[id])', 'fail', 'HTTP 500 — Yacht table may not exist. Run npx prisma db push.');
+      } else {
+        addResult('yachts-public', 'Yacht Detail API (GET /[id])', 'warn', 'HTTP ' + detailResp.status + ' — route returned unexpected status');
+      }
+    }
+  } catch (e) { log('  ERROR: ' + e.message); addResult('yachts-public', 'Yacht Detail API (GET /[id])', 'fail', 'JS Error: ' + e.message); }
+
+  // POST /api/yachts/recommend — AI yacht recommendation
+  try {
+    const recommendResp = await testFetch('/api/yachts/recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        destination: 'Mediterranean',
+        guestCount: 4,
+        budget: 'luxury',
+        preferences: 'sailing, snorkeling',
+        _testMode: true,
+      }),
+    });
+    if (recommendResp.ok && recommendResp.json) {
+      const recs = recommendResp.json.recommendations || recommendResp.json.yachts || [];
+      addResult('yachts-public', 'AI Yacht Recommend API (POST)', 'pass', 'Connected — ' + recs.length + ' recommendation(s) returned');
+    } else if (recommendResp.status === 400) {
+      addResult('yachts-public', 'AI Yacht Recommend API (POST)', 'pass', 'Route exists — returned 400 (validation active)');
+    } else if (recommendResp.status === 404) {
+      addResult('yachts-public', 'AI Yacht Recommend API (POST)', 'warn', 'HTTP 404 — endpoint not deployed yet',
+        'The <code>/api/yachts/recommend</code> route is not deployed. Ensure <code>app/api/yachts/recommend/route.ts</code> exists.');
+    } else {
+      addResult('yachts-public', 'AI Yacht Recommend API (POST)', recommendResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + recommendResp.status + ' — ' + (recommendResp.errorDetail || ''),
+        recommendResp.status === 500 ? 'AI recommendation may require an AI provider key (XAI_API_KEY, ANTHROPIC_API_KEY, etc.).' :
+        'Unexpected response from recommend endpoint.');
+    }
+  } catch (e) { log('  ERROR: ' + e.message); addResult('yachts-public', 'AI Yacht Recommend API (POST)', 'fail', 'JS Error: ' + e.message); }
+
   // ── Full pipeline tests (need CRON_SECRET) ──
   if (testMode === 'full' && cronSecret) {
     const cronHeaders = { 'Authorization': 'Bearer ' + cronSecret };
@@ -2407,6 +2467,26 @@ async function runAllTests() {
         addResult('yachts-admin', 'Yacht Brokers (Admin)', 'warn', 'HTTP ' + brokerResp.status + ' — Auth rejected (may require session auth)');
       } else {
         addResult('yachts-admin', 'Yacht Brokers (Admin)', brokerResp.status === 404 ? 'warn' : 'fail', 'HTTP ' + brokerResp.status);
+      }
+
+      // POST /api/admin/yachts/sync — Admin sync/import
+      log('  Testing admin yacht sync...');
+      const syncResp = await testFetch('/api/admin/yachts/sync', {
+        method: 'POST',
+        headers: { ...cronHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'manual', force: false }),
+      });
+      if (syncResp.ok && syncResp.json) {
+        addResult('yachts-admin', 'Yacht Sync/Import (Admin POST)', 'pass', 'Connected — sync endpoint functional');
+      } else if (syncResp.status === 401 || syncResp.status === 403) {
+        addResult('yachts-admin', 'Yacht Sync/Import (Admin POST)', 'warn', 'HTTP ' + syncResp.status + ' — Auth rejected (may require session auth)',
+          'The <code>/api/admin/yachts/sync</code> endpoint uses <code>withAdminAuth</code>. Try from the admin dashboard.');
+      } else if (syncResp.status === 404) {
+        addResult('yachts-admin', 'Yacht Sync/Import (Admin POST)', 'warn', 'HTTP 404 — endpoint not deployed yet',
+          'The <code>/api/admin/yachts/sync</code> route is not deployed.');
+      } else {
+        addResult('yachts-admin', 'Yacht Sync/Import (Admin POST)', syncResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + syncResp.status + ' — ' + (syncResp.errorDetail || ''),
+          syncResp.status === 500 ? 'Sync tables may not exist. Run <code>npx prisma db push</code> to create them.' : '');
       }
 
     } catch (e) { log('  ERROR in section 23: ' + e.message); addResult('yachts-admin', 'Yacht Admin APIs', 'fail', 'JS Error: ' + e.message); }

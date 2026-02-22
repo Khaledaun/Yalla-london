@@ -68,6 +68,15 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      // Skip yacht sites — they use a different content model (Yacht, YachtDestination, CharterItinerary)
+      // and don't need TopicProposals generated through the blog topic pipeline
+      const { isYachtSite } = await import('@/config/sites');
+      if (isYachtSite(targetSiteId)) {
+        console.log(`[weekly-topics] Skipping ${targetSiteId} — yacht site uses different content model`);
+        perSiteResults[targetSiteId] = { pending: 0, generated: 0, saved: 0 };
+        continue;
+      }
+
       const siteConfig = getSiteConfig(targetSiteId);
       const siteDestination = siteConfig?.destination || 'luxury travel';
 

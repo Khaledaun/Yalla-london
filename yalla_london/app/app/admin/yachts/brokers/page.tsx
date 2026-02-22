@@ -105,7 +105,11 @@ export default function BrokersPage() {
       setError(null)
       const res = await fetch(`/api/admin/yachts/brokers?siteId=${siteId}`)
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) { setBrokers([]); return }
+        if (res.status === 401 || res.status === 403) {
+          setBrokers([])
+          setError('Authentication failed. Please log in to access broker data.')
+          return
+        }
         throw new Error('Failed to load broker data')
       }
       const data = await res.json()

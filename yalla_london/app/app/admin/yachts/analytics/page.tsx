@@ -116,7 +116,11 @@ export default function YachtAnalyticsPage() {
       setError(null)
       const res = await fetch(`/api/admin/yachts/analytics?siteId=${siteId}`)
       if (!res.ok) {
-        if (res.status === 401 || res.status === 403) { setData(null); return }
+        if (res.status === 401 || res.status === 403) {
+          setData(null)
+          setError('Authentication failed. Please log in to access analytics.')
+          return
+        }
         throw new Error('Failed to load analytics')
       }
       const json = await res.json()

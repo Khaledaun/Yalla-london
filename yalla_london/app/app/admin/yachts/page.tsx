@@ -134,6 +134,7 @@ export default function YachtsFleetPage() {
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
           setYachts([])
+          setError('Authentication failed. Please log in to access fleet data.')
           return
         }
         throw new Error('Failed to load fleet data')

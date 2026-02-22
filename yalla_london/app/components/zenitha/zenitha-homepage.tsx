@@ -86,7 +86,7 @@ function HeroSection({ locale }: { locale: Locale }) {
 
         {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-pulse">
-          <ChevronDown size={24} className="text-white/40" />
+          <ChevronDown size={24} className="text-white/40" aria-hidden="true" />
         </div>
       </div>
     </section>
@@ -151,7 +151,7 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
                 {/* Image placeholder */}
                 <div className="relative aspect-[4/3] bg-gradient-to-br from-[var(--z-midnight)] to-[var(--z-aegean)] overflow-hidden">
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Ship size={48} className="text-white/20" />
+                    <Ship size={48} className="text-white/20" aria-hidden="true" />
                   </div>
                   {/* Type badge */}
                   <span className="absolute top-3 left-3 bg-[var(--z-navy)]/80 text-white text-xs font-heading font-semibold px-2.5 py-1 rounded">
@@ -160,7 +160,7 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
                   {/* Halal badge */}
                   {yacht.halal && (
                     <span className="absolute top-3 right-3 bg-[var(--z-mediterranean)]/90 text-white text-xs font-heading font-semibold px-2.5 py-1 rounded flex items-center gap-1">
-                      <ShieldCheck size={12} /> {t({ en: 'Halal', ar: 'حلال' })}
+                      <ShieldCheck size={12} aria-hidden="true" /> {t({ en: 'Halal', ar: 'حلال' })}
                     </span>
                   )}
                   {/* Hover overlay */}
@@ -179,7 +179,7 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
                       <span className="text-xs text-[var(--z-aegean)] font-body"> /{t({ en: 'week', ar: 'أسبوع' })}</span>
                     </div>
                     <div className="flex items-center gap-1 text-sm">
-                      <Star size={14} className="fill-[var(--z-gold)] text-[var(--z-gold)]" />
+                      <Star size={14} className="fill-[var(--z-gold)] text-[var(--z-gold)]" aria-hidden="true" />
                       <span className="font-heading font-medium text-[var(--z-navy)]">{yacht.rating}</span>
                       <span className="text-[var(--z-aegean)]">({yacht.reviews})</span>
                     </div>
@@ -225,7 +225,7 @@ function DestinationsSection({ locale }: { locale: Locale }) {
               <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-gradient-to-br from-[var(--z-midnight)] to-[var(--z-aegean)]">
                 {/* Placeholder for destination image */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Compass size={40} className="text-white/15" />
+                  <Compass size={40} className="text-white/15" aria-hidden="true" />
                 </div>
                 {/* Gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-[var(--z-navy)]/85 via-[var(--z-navy)]/40 to-transparent" />
@@ -330,7 +330,7 @@ function AIPlannerSection({ locale }: { locale: Locale }) {
           <div className="relative aspect-square max-w-md mx-auto lg:mx-0 z-reveal-fadeRight z-reveal-stagger">
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[var(--z-sand)] to-[var(--z-champagne)] flex items-center justify-center">
               <div className="text-center">
-                <Compass size={80} className="text-[var(--z-aegean)]/30 mx-auto mb-4" />
+                <Compass size={80} className="text-[var(--z-aegean)]/30 mx-auto mb-4" aria-hidden="true" />
                 <p className="text-sm font-heading text-[var(--z-aegean)]/50">{t({ en: 'AI Charter Planner Preview', ar: 'معاينة مخطط الرحلات' })}</p>
               </div>
             </div>
@@ -377,7 +377,7 @@ function TestimonialsSection({ locale }: { locale: Locale }) {
           <div className="mt-8">
             <div className="flex items-center justify-center gap-1 mb-2">
               {Array.from({ length: testimonial.rating }).map((_, i) => (
-                <Star key={i} size={16} className="fill-[var(--z-gold)] text-[var(--z-gold)]" />
+                <Star key={i} size={16} className="fill-[var(--z-gold)] text-[var(--z-gold)]" aria-hidden="true" />
               ))}
             </div>
             <p className="font-heading font-semibold text-white">{testimonial.name}</p>
@@ -415,7 +415,29 @@ function TestimonialsSection({ locale }: { locale: Locale }) {
 function NewsletterSection({ locale }: { locale: Locale }) {
   const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
   const [email, setEmail] = useState('');
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const sectionRef = useScrollRevealClass<HTMLElement>();
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setStatus('submitting');
+    try {
+      const res = await fetch('/api/newsletter/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, siteId: 'zenitha-yachts-med' }),
+      });
+      if (res.ok) {
+        setStatus('success');
+        setEmail('');
+      } else {
+        setStatus('error');
+      }
+    } catch {
+      setStatus('error');
+    }
+  };
 
   return (
     <section ref={sectionRef} className="py-16 bg-gradient-to-br from-[var(--z-champagne)] to-[var(--z-sand)]">
@@ -426,19 +448,33 @@ function NewsletterSection({ locale }: { locale: Locale }) {
         <p className="font-body text-[var(--z-aegean)] mb-8">
           {t({ en: 'Early access to new yachts, seasonal deals, and insider sailing guides.', ar: 'وصول مبكر لليخوت الجديدة والعروض الموسمية وأدلة الإبحار الحصرية.' })}
         </p>
-        <form onSubmit={(e) => e.preventDefault()} className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder={t({ en: 'Your email address', ar: 'بريدك الإلكتروني' })}
-            className="flex-1 px-4 py-3 rounded-lg border border-[var(--z-champagne)] bg-white text-[var(--z-navy)] font-body placeholder:text-[var(--z-aegean)]/50 focus:outline-none focus:border-[var(--z-aegean)] focus:ring-1 focus:ring-[var(--z-aegean)]"
-            required
-          />
-          <button type="submit" className="z-btn-primary px-6 py-3">
-            {t({ en: 'Subscribe', ar: 'اشترك' })}
-          </button>
-        </form>
+        {status === 'success' ? (
+          <p className="font-body text-[var(--z-navy)] font-semibold py-3">
+            {t({ en: 'Thank you! You\'re on the list.', ar: 'شكراً! تمت إضافتك إلى القائمة.' })}
+          </p>
+        ) : (
+          <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={t({ en: 'Your email address', ar: 'بريدك الإلكتروني' })}
+              className="flex-1 px-4 py-3 rounded-lg border border-[var(--z-champagne)] bg-white text-[var(--z-navy)] font-body placeholder:text-[var(--z-aegean)]/50 focus:outline-none focus:border-[var(--z-aegean)] focus:ring-1 focus:ring-[var(--z-aegean)]"
+              required
+              disabled={status === 'submitting'}
+            />
+            <button type="submit" className="z-btn-primary px-6 py-3" disabled={status === 'submitting'}>
+              {status === 'submitting'
+                ? t({ en: 'Subscribing...', ar: 'جارٍ الاشتراك...' })
+                : t({ en: 'Subscribe', ar: 'اشترك' })}
+            </button>
+          </form>
+        )}
+        {status === 'error' && (
+          <p className="text-sm font-body text-red-600 mt-2">
+            {t({ en: 'Something went wrong. Please try again.', ar: 'حدث خطأ. يرجى المحاولة مرة أخرى.' })}
+          </p>
+        )}
         <p className="text-xs font-body text-[var(--z-aegean)]/60 mt-4">
           {t({ en: 'We respect your privacy. Unsubscribe anytime.', ar: 'نحترم خصوصيتك. يمكنك إلغاء الاشتراك في أي وقت.' })}
         </p>

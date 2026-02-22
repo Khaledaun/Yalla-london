@@ -251,6 +251,7 @@ export function ZenithaHeader() {
             className="lg:hidden p-2 text-[var(--z-navy)]"
             aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={isMenuOpen}
+            aria-haspopup="menu"
           >
             {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>

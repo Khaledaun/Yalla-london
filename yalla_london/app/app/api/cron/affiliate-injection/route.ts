@@ -325,7 +325,7 @@ async function handleAffiliateInjection(request: NextRequest) {
     const { prisma } = await import("@/lib/db");
 
     // Find published posts that still have affiliate placeholders OR no affiliate links
-    const { getActiveSiteIds } = await import("@/config/sites");
+    const { getActiveSiteIds, getDefaultSiteId } = await import("@/config/sites");
     const activeSiteIds = getActiveSiteIds();
     const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const posts = await prisma.blogPost.findMany({
@@ -358,7 +358,7 @@ async function handleAffiliateInjection(request: NextRequest) {
     for (const post of needsInjection) {
       if (Date.now() - startTime > BUDGET_MS) break;
 
-      const postSiteId = post.siteId || "yalla-london";
+      const postSiteId = post.siteId || getDefaultSiteId();
       const enResult = injectAffiliates(post.content_en, postSiteId);
       const arResult = injectAffiliates(post.content_ar, postSiteId);
 

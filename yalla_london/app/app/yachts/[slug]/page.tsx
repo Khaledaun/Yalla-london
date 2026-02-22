@@ -10,6 +10,8 @@ import {
 } from "@/config/sites";
 import { StructuredData } from "@/components/structured-data";
 import { YachtDetailClient } from "./yacht-detail-client";
+import { YachtGallery } from "@/components/zenitha/yacht-gallery";
+import { WhatsAppButton } from "@/components/zenitha/whatsapp-button";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -549,75 +551,43 @@ export default async function YachtDetailPage({ params }: PageProps) {
           </ol>
         </nav>
 
-        {/* Photo Gallery Placeholder */}
+        {/* Photo Gallery */}
         <section className="z-container-wide py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
-            {/* Main Image */}
-            <div className="lg:col-span-3 relative overflow-hidden rounded-xl" style={{ aspectRatio: "16/10" }}>
-              <div
-                className="w-full h-full flex items-center justify-center"
-                style={{
-                  background: "var(--z-gradient-hero)",
-                  color: "var(--z-pearl)",
-                }}
-              >
-                <div className="text-center p-8">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="64"
-                    height="64"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="mx-auto mb-4"
-                    style={{ opacity: 0.5 }}
-                  >
-                    <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
-                  </svg>
-                  <p className="font-display text-2xl font-bold">{yacht.name}</p>
-                  <p className="z-text-body-sm mt-2" style={{ color: "var(--z-champagne)" }}>
-                    Gallery photos coming soon
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Thumbnail Grid */}
-            <div className="lg:col-span-2 grid grid-cols-2 gap-3">
-              {[0, 1, 2, 3].map((i) => (
+          {yacht.images && yacht.images.length > 0 ? (
+            <YachtGallery images={yacht.images} yachtName={yacht.name} />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+              {/* Main placeholder */}
+              <div className="lg:col-span-3 relative overflow-hidden rounded-xl" style={{ aspectRatio: "16/10" }}>
                 <div
-                  key={i}
-                  className="relative overflow-hidden rounded-lg"
-                  style={{
-                    aspectRatio: "4/3",
-                    background: `linear-gradient(135deg, var(--z-midnight) ${i * 10}%, var(--z-aegean) 100%)`,
-                  }}
+                  className="w-full h-full flex items-center justify-center"
+                  style={{ background: "var(--z-gradient-hero)", color: "var(--z-pearl)" }}
                 >
-                  <div className="w-full h-full flex items-center justify-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      style={{ color: "var(--z-champagne)", opacity: 0.4 }}
-                    >
-                      <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                      <circle cx="9" cy="9" r="2" />
-                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                  <div className="text-center p-8">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-4" style={{ opacity: 0.5 }}>
+                      <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
                     </svg>
+                    <p className="font-display text-2xl font-bold">{yacht.name}</p>
+                    <p className="z-text-body-sm mt-2" style={{ color: "var(--z-champagne)" }}>Gallery photos coming soon</p>
                   </div>
                 </div>
-              ))}
+              </div>
+              {/* Thumbnail placeholders */}
+              <div className="lg:col-span-2 grid grid-cols-2 gap-3">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="rounded-lg overflow-hidden" style={{ aspectRatio: "4/3", background: `linear-gradient(135deg, var(--z-midnight) ${i * 10}%, var(--z-aegean) 100%)` }}>
+                    <div className="w-full h-full flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--z-champagne)", opacity: 0.4 }}>
+                        <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                        <circle cx="9" cy="9" r="2" />
+                        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                      </svg>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </section>
 
         {/* Main Content + Sidebar */}
@@ -951,6 +921,11 @@ export default async function YachtDetailPage({ params }: PageProps) {
               Inquire Now
             </Link>
           </div>
+        </div>
+
+        {/* WhatsApp Floating Button — positioned above mobile bar */}
+        <div className="hidden lg:block">
+          <WhatsAppButton yachtName={yacht.name} />
         </div>
       </main>
     </>

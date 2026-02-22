@@ -469,6 +469,60 @@
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   5B. SCROLL-REVEAL UTILITIES
+   Apply `.z-reveal-*` to elements — they start hidden and animate in when
+   IntersectionObserver adds the `.z-revealed` class (via useScrollReveal hook).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Base: hidden before reveal */
+.z-reveal-fadeUp,
+.z-reveal-fadeIn,
+.z-reveal-scaleIn,
+.z-reveal-fadeLeft,
+.z-reveal-fadeRight {
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.z-reveal-fadeUp   { transform: translateY(28px); }
+.z-reveal-fadeLeft  { transform: translateX(-28px); }
+.z-reveal-fadeRight { transform: translateX(28px); }
+.z-reveal-scaleIn  { transform: scale(0.92); }
+
+/* Revealed: animate to final state */
+.z-revealed.z-reveal-fadeUp,
+.z-revealed.z-reveal-fadeIn,
+.z-revealed.z-reveal-scaleIn,
+.z-revealed.z-reveal-fadeLeft,
+.z-revealed.z-reveal-fadeRight,
+.z-revealed > .z-reveal-fadeUp,
+.z-revealed > .z-reveal-fadeIn,
+.z-revealed > .z-reveal-scaleIn,
+.z-revealed > .z-reveal-fadeLeft,
+.z-revealed > .z-reveal-fadeRight {
+  opacity: 1;
+  transform: none;
+  transition: opacity var(--z-duration-slow) var(--z-ease-gentle),
+              transform var(--z-duration-slow) var(--z-ease-gentle);
+}
+
+/* Stagger delays for children of .z-revealed containers */
+.z-revealed > .z-reveal-stagger:nth-child(1)  { transition-delay: 0ms; }
+.z-revealed > .z-reveal-stagger:nth-child(2)  { transition-delay: 80ms; }
+.z-revealed > .z-reveal-stagger:nth-child(3)  { transition-delay: 160ms; }
+.z-revealed > .z-reveal-stagger:nth-child(4)  { transition-delay: 240ms; }
+.z-revealed > .z-reveal-stagger:nth-child(5)  { transition-delay: 320ms; }
+.z-revealed > .z-reveal-stagger:nth-child(6)  { transition-delay: 400ms; }
+.z-revealed > .z-reveal-stagger:nth-child(7)  { transition-delay: 480ms; }
+.z-revealed > .z-reveal-stagger:nth-child(8)  { transition-delay: 560ms; }
+
+/* Longer transition for hero-weight sections */
+.z-reveal-slow {
+  --z-duration-slow: 1000ms;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
    6. PREFERS-REDUCED-MOTION
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -487,6 +541,17 @@
   .z-stagger-scale > * {
     opacity: 1 !important;
     animation: none !important;
+  }
+
+  /* Scroll-reveal: show immediately, no transitions */
+  .z-reveal-fadeUp,
+  .z-reveal-fadeIn,
+  .z-reveal-scaleIn,
+  .z-reveal-fadeLeft,
+  .z-reveal-fadeRight {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
 }
 

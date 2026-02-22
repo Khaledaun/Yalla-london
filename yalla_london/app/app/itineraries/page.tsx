@@ -302,9 +302,9 @@ export default async function ItinerariesPage({
               </button>
 
               {(filterDest || filterDur || filterDiff) && (
-                <a href="/itineraries" className="text-sm" style={{ color: "var(--z-coral)" }}>
+                <Link href="/itineraries" className="text-sm" style={{ color: "var(--z-coral)" }}>
                   Clear
-                </a>
+                </Link>
               )}
 
               {/* Count */}

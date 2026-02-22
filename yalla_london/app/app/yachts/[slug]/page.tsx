@@ -432,7 +432,7 @@ export default async function YachtDetailPage({ params }: PageProps) {
   const siteConfig = getSiteConfig(siteId);
   const siteName = siteConfig?.name || "Zenitha Yachts";
 
-  const yacht = (await getYachtFromDB(slug, siteId)) || PLACEHOLDER_YACHT;
+  const yacht = await getYachtFromDB(slug, siteId);
   if (!yacht) notFound();
 
   const yachtType = formatYachtType(yacht.type);

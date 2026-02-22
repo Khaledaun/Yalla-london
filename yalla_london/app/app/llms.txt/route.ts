@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getDefaultSiteId } from "@/config/sites";
 
 export const dynamic = "force-dynamic";
 
@@ -651,9 +652,10 @@ See robots.txt for specific crawler directives.
 };
 
 export async function GET(request: NextRequest) {
-  const siteId = request.headers.get("x-site-id") || "yalla-london";
+  const defaultSiteId = getDefaultSiteId();
+  const siteId = request.headers.get("x-site-id") || defaultSiteId;
 
-  const content = LLMS_DATA[siteId] || LLMS_DATA["yalla-london"] || "";
+  const content = LLMS_DATA[siteId] || LLMS_DATA[defaultSiteId] || "";
 
   return new NextResponse(content, {
     status: 200,

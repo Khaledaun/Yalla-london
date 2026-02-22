@@ -398,6 +398,11 @@ async function migrateDatabase() {
         j.after.missingTables + ' missing tables, ' + j.after.missingColumns + ' missing columns',
         j.after.missingTables > 0 || j.after.missingColumns > 0 ? 'Some items could not be created. Check the errors below for details.' : undefined);
 
+      // Enums created
+      if (r.enumsCreated && r.enumsCreated.length > 0) {
+        addResult('dbmigrate', 'Enums Created', 'pass', r.enumsCreated.length + ' enums: ' + r.enumsCreated.join(', '));
+      }
+
       // Tables created
       if (r.tablesCreated && r.tablesCreated.length > 0) {
         for (const t of r.tablesCreated) {
@@ -417,9 +422,16 @@ async function migrateDatabase() {
         addResult('dbmigrate', 'Indexes Created', 'pass', r.indexesCreated.length + ' indexes: ' + r.indexesCreated.slice(0, 8).join(', ') + (r.indexesCreated.length > 8 ? '...' : ''));
       }
 
+      // Foreign keys created
+      if (r.foreignKeysCreated && r.foreignKeysCreated.length > 0) {
+        addResult('dbmigrate', 'Foreign Keys Created', 'pass', r.foreignKeysCreated.length + ' FKs: ' + r.foreignKeysCreated.join(', '));
+      }
+
       // Nothing to do
-      if ((!r.tablesCreated || r.tablesCreated.length === 0) &&
-          (!r.columnsAdded || r.columnsAdded.length === 0)) {
+      if ((!r.enumsCreated || r.enumsCreated.length === 0) &&
+          (!r.tablesCreated || r.tablesCreated.length === 0) &&
+          (!r.columnsAdded || r.columnsAdded.length === 0) &&
+          (!r.foreignKeysCreated || r.foreignKeysCreated.length === 0)) {
         addResult('dbmigrate', 'Result', 'pass', 'Nothing to migrate — database is already in sync');
       }
 

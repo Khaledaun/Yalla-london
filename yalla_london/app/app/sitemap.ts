@@ -427,7 +427,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Individual yacht pages
     try {
       const yachts = await prisma.yacht.findMany({
-        where: { siteId: "zenitha-yachts-med", status: "active" },
+        where: { siteId, status: "active" },
         select: { slug: true, updatedAt: true },
       });
       yachtPages = yachts.map((yacht) => ({
@@ -444,7 +444,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Destination pages
     try {
       const destinations = await prisma.yachtDestination.findMany({
-        where: { siteId: "zenitha-yachts-med", status: "active" },
+        where: { siteId, status: "active" },
         select: { slug: true, updatedAt: true },
       });
       destinationPages = destinations.map((dest) => ({
@@ -461,7 +461,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Itinerary pages
     try {
       const itineraries = await prisma.charterItinerary.findMany({
-        where: { siteId: "zenitha-yachts-med", status: "active" },
+        where: { siteId, status: "active" },
         select: { slug: true, updatedAt: true },
       });
       itineraryPages = itineraries.map((itin) => ({

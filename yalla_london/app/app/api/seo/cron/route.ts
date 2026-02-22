@@ -3,6 +3,9 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { runAutomatedIndexing, pingSitemaps, type IndexingReport } from "@/lib/seo/indexing-service";
 import { getActiveSiteIds, getSiteDomain } from "@/config/sites";
+import { logCronExecution } from "@/lib/cron-logger";
+
+const BUDGET_MS = 53_000; // 53s usable out of 60s maxDuration
 
 /**
  * After IndexNow/GSC submission, update URLIndexingStatus so the
@@ -127,6 +130,10 @@ export async function GET(request: NextRequest) {
     switch (task) {
       case "daily":
         for (const sid of activeSites) {
+          if (Date.now() - startTime > BUDGET_MS) {
+            console.log(`[SEO-CRON] Budget exhausted (${Date.now() - startTime}ms), skipping remaining sites`);
+            break;
+          }
           const siteUrl = getSiteDomain(sid);
           const dailyReport = await runAutomatedIndexing("updated", sid, siteUrl);
           await trackSubmittedUrls(dailyReport, sid);
@@ -139,6 +146,10 @@ export async function GET(request: NextRequest) {
 
       case "weekly":
         for (const sid of activeSites) {
+          if (Date.now() - startTime > BUDGET_MS) {
+            console.log(`[SEO-CRON] Budget exhausted (${Date.now() - startTime}ms), skipping remaining sites`);
+            break;
+          }
           const siteUrl = getSiteDomain(sid);
           const weeklyReport = await runAutomatedIndexing("all", sid, siteUrl);
           await trackSubmittedUrls(weeklyReport, sid);
@@ -158,6 +169,10 @@ export async function GET(request: NextRequest) {
 
       case "new":
         for (const sid of activeSites) {
+          if (Date.now() - startTime > BUDGET_MS) {
+            console.log(`[SEO-CRON] Budget exhausted (${Date.now() - startTime}ms), skipping remaining sites`);
+            break;
+          }
           const siteUrl = getSiteDomain(sid);
           const newReport = await runAutomatedIndexing("new", sid, siteUrl);
           await trackSubmittedUrls(newReport, sid);
@@ -176,6 +191,13 @@ export async function GET(request: NextRequest) {
     results.success = true;
     results.durationMs = durationMs;
     console.log(`[SEO-CRON] Completed task="${task}" in ${durationMs}ms`);
+
+    await logCronExecution(`seo-cron-${task}`, "completed", {
+      durationMs,
+      itemsProcessed: results.actions.length,
+      resultSummary: { task, actionsCount: results.actions.length },
+    }).catch((e: unknown) => console.warn("[SEO-CRON] Failed to log execution:", e));
+
     return NextResponse.json(results);
   } catch (error) {
     const durationMs = Date.now() - startTime;
@@ -185,6 +207,12 @@ export async function GET(request: NextRequest) {
     console.error(
       `[SEO-CRON] FAILED task="${task}" after ${durationMs}ms: ${error}`,
     );
+
+    await logCronExecution(`seo-cron-${task}`, "failed", {
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }).catch((e: unknown) => console.warn("[SEO-CRON] Failed to log execution:", e));
+
     return NextResponse.json(results, { status: 500 });
   }
 }

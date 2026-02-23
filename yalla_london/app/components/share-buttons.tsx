@@ -165,7 +165,7 @@ export function ShareButtons({
   return (
     <div className={`flex items-center ${isBar ? 'gap-1' : 'gap-1.5'} flex-wrap`}>
       {/* Label */}
-      <span className="font-mono text-[9px] font-medium uppercase tracking-[1.5px] text-stone mr-1">
+      <span className="font-sans text-[11px] font-medium uppercase tracking-[1.5px] text-stone mr-1">
         {language === 'en' ? 'Share' : 'مشاركة'}
       </span>
 

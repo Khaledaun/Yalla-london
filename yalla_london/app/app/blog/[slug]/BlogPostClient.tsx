@@ -145,7 +145,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
       {/* ═══ Breadcrumb ═══ */}
       <nav className="bg-white border-b border-sand/50">
         <div className="max-w-5xl mx-auto px-6 py-3">
-          <ol className="flex items-center gap-1.5 text-xs font-mono tracking-wide text-stone/60">
+          <ol className="flex items-center gap-1.5 text-xs font-sans tracking-wide text-stone/60">
             <li>
               <Link href="/" className="hover:text-london-600 transition-colors">
                 {language === 'en' ? 'Home' : 'الرئيسية'}
@@ -214,7 +214,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                     {categoryName}
                   </Link>
                 )}
-                <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm text-white/90 px-3 py-1.5 rounded text-xs font-mono tracking-wide">
+                <span className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm text-white/90 px-3 py-1.5 rounded text-xs font-sans tracking-wide">
                   <Clock className="h-3 w-3" />
                   {language === 'en' ? `${readingTime} min read` : `${readingTime} دقائق قراءة`}
                 </span>
@@ -309,7 +309,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                   <div className="mt-12 pt-8 border-t border-sand">
                     <div className="flex items-center gap-2 mb-4">
                       <Tag className="h-4 w-4 text-stone/50" />
-                      <span className={`text-xs font-medium uppercase tracking-wider text-stone/60 ${isRTL ? 'font-arabic' : 'font-mono'}`}>
+                      <span className={`text-xs font-medium uppercase tracking-wider text-stone/60 ${isRTL ? 'font-arabic' : 'font-sans'}`}>
                         {language === 'en' ? 'Topics' : 'المواضيع'}
                       </span>
                     </div>
@@ -348,7 +348,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
 
                 {/* ─── Mobile Share Buttons (bottom) ─── */}
                 <div className="mt-8 p-5 rounded-xl bg-cream-100 border border-sand/40 lg:hidden">
-                  <p className={`text-xs font-medium text-stone/60 mb-3 ${isRTL ? 'font-arabic' : 'font-mono uppercase tracking-wider'}`}>
+                  <p className={`text-xs font-medium text-stone/60 mb-3 ${isRTL ? 'font-arabic' : 'font-sans uppercase tracking-wider'}`}>
                     {language === 'en' ? 'Share This Story' : 'شارك هذه القصة'}
                   </p>
                   <ShareButtons title={title} excerpt={excerpt} variant="bar" />
@@ -371,7 +371,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                 <div className="p-5 rounded-xl bg-cream border border-sand/60">
                   <div className="flex items-center gap-2 mb-4">
                     <Share2 className="h-4 w-4 text-stone/50" />
-                    <span className="text-xs font-mono font-medium uppercase tracking-wider text-stone/60">
+                    <span className="text-xs font-sans font-medium uppercase tracking-wider text-stone/60">
                       {language === 'en' ? 'Share' : 'مشاركة'}
                     </span>
                   </div>
@@ -397,7 +397,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                     href={`/blog/category/${post.category.slug}`}
                     className="block p-5 rounded-xl bg-gradient-to-br from-london-600 to-london-800 text-white hover:from-london-700 hover:to-london-900 transition-all duration-300 group"
                   >
-                    <span className="text-[10px] font-mono font-medium uppercase tracking-widest text-white/50 block mb-2">
+                    <span className="text-[11px] font-sans font-medium uppercase tracking-widest text-white/50 block mb-2">
                       {language === 'en' ? 'Category' : 'الفئة'}
                     </span>
                     <span className={`text-lg font-bold block mb-1 ${isRTL ? 'font-arabic' : 'font-display'}`}>
@@ -415,7 +415,7 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
                   <div className="p-5 rounded-xl bg-cream border border-sand/60">
                     <div className="flex items-center gap-2 mb-3">
                       <Tag className="h-3.5 w-3.5 text-stone/50" />
-                      <span className="text-xs font-mono font-medium uppercase tracking-wider text-stone/60">
+                      <span className="text-xs font-sans font-medium uppercase tracking-wider text-stone/60">
                         {language === 'en' ? 'Topics' : 'المواضيع'}
                       </span>
                     </div>

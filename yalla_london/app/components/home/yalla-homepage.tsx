@@ -544,7 +544,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   <div className="absolute inset-0 bg-gradient-to-t from-charcoal/50 to-transparent" />
                   <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} bg-white rounded-xl px-3 py-2 text-center shadow-elegant`}>
                     <div className="text-2xl font-display font-bold text-charcoal leading-none">{event.day}</div>
-                    <div className="text-[10px] font-bold text-london-600 uppercase tracking-wider">{event.month}</div>
+                    <div className="text-[11px] font-bold text-london-600 uppercase tracking-wider">{event.month}</div>
                   </div>
                 </div>
                 <div className="p-5">
@@ -627,7 +627,6 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   )}
                   <div className="absolute bottom-4 left-4 right-4">
                     <h3 className="text-lg font-bold text-white">{guide.title}</h3>
-                    <p className="text-xs text-cream-300 mt-1">{guide.pages}</p>
                   </div>
                 </div>
                 <div className="p-5">
@@ -661,7 +660,6 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   </div>
                   <div className="absolute bottom-4 left-4 right-4">
                     <h3 className="font-bold text-white text-sm mb-1 group-hover:text-yalla-gold-300 transition-colors">{exp.title}</h3>
-                    <p className="text-xs text-cream-400">{exp.reviews.toLocaleString()} {locale === 'ar' ? 'تقييم' : 'reviews'}</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between px-1">

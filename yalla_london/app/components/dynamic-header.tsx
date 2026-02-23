@@ -147,7 +147,7 @@ export function DynamicHeader() {
                 isRTL ? 'flex-row-reverse' : ''
               }`}
             >
-              <span className={language === 'en' ? 'font-arabic' : 'font-mono text-sm tracking-[1.5px] uppercase'}>
+              <span className={language === 'en' ? 'font-arabic' : 'font-sans text-sm tracking-[1.5px] uppercase'}>
                 {language === 'en' ? 'العربية' : 'English'}
               </span>
             </button>

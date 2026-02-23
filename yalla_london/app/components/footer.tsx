@@ -142,7 +142,7 @@ export function Footer() {
                 />
                 <button
                   type="submit"
-                  className="px-3 py-1.5 bg-yalla-gold-500 text-charcoal rounded font-sans text-[11px] font-semibold uppercase tracking-[1px] hover:bg-yalla-gold-400 transition-colors"
+                  className="px-3 py-1.5 bg-yalla-gold-500 text-charcoal rounded font-sans text-xs font-semibold uppercase tracking-[1px] hover:bg-yalla-gold-400 transition-colors"
                 >
                   <Mail size={14} />
                 </button>
@@ -157,26 +157,26 @@ export function Footer() {
         {/* Bottom Bar — Copyright */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
           <div className="text-center md:text-left">
-            <p className="font-sans text-[10px] font-normal text-stone-400 tracking-[0.5px] uppercase">
+            <p className="font-sans text-[11px] font-normal text-stone-400 tracking-[0.5px] uppercase">
               {getCopyrightLine(language)}
             </p>
-            <p className="font-sans text-[9px] font-normal text-stone-500 tracking-[0.25px] mt-1">
+            <p className="font-sans text-[11px] font-normal text-stone-500 tracking-[0.25px] mt-1">
               {getBrandDisclosure('Yalla London', language)}
             </p>
           </div>
           <div className="flex items-center gap-5 flex-wrap justify-center">
-            <Link href="/privacy" className="font-sans text-[10px] font-normal text-stone-400 tracking-[0.5px] uppercase hover:text-yalla-gold-500 transition-colors">
+            <Link href="/privacy" className="font-sans text-[11px] font-normal text-stone-400 tracking-[0.5px] uppercase hover:text-yalla-gold-500 transition-colors">
               {language === 'en' ? 'Privacy Policy' : 'سياسة الخصوصية'}
             </Link>
-            <Link href="/terms" className="font-sans text-[10px] font-normal text-stone-400 tracking-[0.5px] uppercase hover:text-yalla-gold-500 transition-colors">
+            <Link href="/terms" className="font-sans text-[11px] font-normal text-stone-400 tracking-[0.5px] uppercase hover:text-yalla-gold-500 transition-colors">
               {language === 'en' ? 'Terms of Use' : 'شروط الاستخدام'}
             </Link>
-            <Link href="/affiliate-disclosure" className="font-sans text-[10px] font-normal text-stone-400 tracking-[0.5px] uppercase hover:text-yalla-gold-500 transition-colors">
+            <Link href="/affiliate-disclosure" className="font-sans text-[11px] font-normal text-stone-400 tracking-[0.5px] uppercase hover:text-yalla-gold-500 transition-colors">
               {language === 'en' ? 'Affiliate Disclosure' : 'إفصاح الإحالة'}
             </Link>
             <a
               href={`mailto:${ENTITY.contact.legalEmail}`}
-              className="font-sans text-[10px] font-normal text-stone-400 tracking-[0.5px] uppercase hover:text-yalla-gold-500 transition-colors"
+              className="font-sans text-[11px] font-normal text-stone-400 tracking-[0.5px] uppercase hover:text-yalla-gold-500 transition-colors"
             >
               {language === 'en' ? 'Legal' : 'القانونية'}
             </a>

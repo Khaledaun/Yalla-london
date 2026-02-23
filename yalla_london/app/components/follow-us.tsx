@@ -151,7 +151,7 @@ export function FollowUs({
   return (
     <div className="flex flex-col items-center gap-3">
       {showLabel && (
-        <span className={`font-mono text-[9px] font-medium uppercase tracking-[1.5px] ${labelColor}`}>
+        <span className={`font-sans text-[11px] font-medium uppercase tracking-[1.5px] ${labelColor}`}>
           {language === 'en' ? 'Follow Us' : 'تابعنا'}
         </span>
       )}

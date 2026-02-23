@@ -86,6 +86,51 @@ export default async function Layout({ children }: { children: React.ReactNode }
           ],
         }}
       />
+      <StructuredData
+        type="event"
+        siteId={siteId}
+        data={{
+          title: `Premier League Football in ${destination}`,
+          description: `Experience the thrill of Premier League football at iconic ${destination} stadiums. VIP hospitality packages available for Arab visitors.`,
+          startDate: "2026-03-15T15:00:00",
+          venue: `${destination} Stadium`,
+          location: { city: destination },
+          price: "120",
+          currency: "GBP",
+          ticketUrl: `${baseUrl}/events`,
+          image: `${baseUrl}/images/${siteConfig?.slug || "yalla-london"}-og.jpg`,
+        }}
+      />
+      <StructuredData
+        type="event"
+        siteId={siteId}
+        data={{
+          title: `West End Theatre Shows in ${destination}`,
+          description: `Book tickets for the best West End musicals, plays, and shows in ${destination}. From Hamilton to The Lion King.`,
+          startDate: "2026-03-20T19:30:00",
+          venue: `West End, ${destination}`,
+          location: { city: destination },
+          price: "45",
+          currency: "GBP",
+          ticketUrl: `${baseUrl}/events`,
+          image: `${baseUrl}/images/${siteConfig?.slug || "yalla-london"}-og.jpg`,
+        }}
+      />
+      <StructuredData
+        type="event"
+        siteId={siteId}
+        data={{
+          title: `Thames Luxury Dinner Cruise`,
+          description: `Fine dining on the Thames with views of Tower Bridge, Big Ben, and the ${destination} Eye. Halal menu available.`,
+          startDate: "2026-03-22T19:00:00",
+          venue: "Westminster Pier",
+          location: { city: destination },
+          price: "89",
+          currency: "GBP",
+          ticketUrl: `${baseUrl}/events`,
+          image: `${baseUrl}/images/${siteConfig?.slug || "yalla-london"}-og.jpg`,
+        }}
+      />
       {children}
     </>
   );

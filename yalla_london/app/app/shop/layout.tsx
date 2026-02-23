@@ -86,6 +86,51 @@ export default async function Layout({ children }: { children: React.ReactNode }
           ],
         }}
       />
+      <StructuredData
+        type="product"
+        siteId={siteId}
+        data={{
+          name: `Complete ${destination} Guide 2026`,
+          description: `The ultimate 45-page guide covering everything you need to know for your ${destination} visit. Includes halal restaurants, prayer facilities, attractions, and insider tips.`,
+          price: "9.99",
+          currency: "GBP",
+          availability: "https://schema.org/InStock",
+          url: `${baseUrl}/shop`,
+          image: `${baseUrl}/images/${siteConfig?.slug || "yalla-london"}-og.jpg`,
+          category: "Travel Guide",
+          sku: `${siteConfig?.slug || "yl"}-guide-2026`,
+        }}
+      />
+      <StructuredData
+        type="product"
+        siteId={siteId}
+        data={{
+          name: `Halal Restaurant Guide ${destination}`,
+          description: `Discover 100+ halal restaurants across ${destination}. From fine dining to street food, organized by cuisine, location, and price range.`,
+          price: "7.99",
+          currency: "GBP",
+          availability: "https://schema.org/InStock",
+          url: `${baseUrl}/shop`,
+          image: `${baseUrl}/images/${siteConfig?.slug || "yalla-london"}-og.jpg`,
+          category: "Restaurant Guide",
+          sku: `${siteConfig?.slug || "yl"}-halal-guide`,
+        }}
+      />
+      <StructuredData
+        type="product"
+        siteId={siteId}
+        data={{
+          name: `Ultimate ${destination} Bundle`,
+          description: `All our guides in one discounted package. Save 40% and get everything you need for the perfect ${destination} experience.`,
+          price: "29.99",
+          currency: "GBP",
+          availability: "https://schema.org/InStock",
+          url: `${baseUrl}/shop`,
+          image: `${baseUrl}/images/${siteConfig?.slug || "yalla-london"}-og.jpg`,
+          category: "Travel Bundle",
+          sku: `${siteConfig?.slug || "yl"}-ultimate-bundle`,
+        }}
+      />
       {children}
     </>
   );

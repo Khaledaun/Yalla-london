@@ -73,6 +73,19 @@ export default async function Layout({ children }: { children: React.ReactNode }
           ],
         }}
       />
+      <StructuredData
+        type="itemList"
+        siteId={siteId}
+        data={{
+          name: `${destination} Events & Shows`,
+          description: `Upcoming events, shows, exhibitions, and experiences in ${destination}`,
+          items: [
+            { name: `${destination} Theatre & Shows`, url: `${baseUrl}/events` },
+            { name: `${destination} Exhibitions`, url: `${baseUrl}/events` },
+            { name: `${destination} Festivals`, url: `${baseUrl}/events` },
+          ],
+        }}
+      />
       {children}
     </>
   );

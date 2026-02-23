@@ -251,12 +251,13 @@ async function generateDailyContentForSite(site: SiteConfig, prisma: any, deadli
     }
   }
 
-  // Generate AR article if needed — require at least 28s remaining
-  // (AR generation needs AI call ~22s + overhead ~5s = ~27s minimum)
-  // Previous threshold of 20s caused timeouts: EN(25s) + overhead(5s) = 30s elapsed,
-  // leaving 23s > 20s, so AR started and pushed total to 55s → Vercel kill.
+  // Generate AR article if needed — require at least 18s remaining
+  // Arabic generation: AI call ~15s + overhead ~3s = ~18s minimum.
+  // Previous threshold of 28s was too conservative and ALWAYS skipped Arabic
+  // because EN(22s) + overhead(5s) = 27s elapsed → 26s remaining < 28s → AR skipped.
+  // Lowered to 18s. The per-call AI timeout cap will prevent Vercel overrun.
   if (todayAR === 0) {
-    if (deadline?.isExpired() || (deadline && deadline.remainingMs() < 28_000)) {
+    if (deadline?.isExpired() || (deadline && deadline.remainingMs() < 18_000)) {
       results.push({ language: "ar", status: "skipped", error: "timeout_approaching — insufficient time for AR generation" });
     } else {
       try {
@@ -680,11 +681,11 @@ ${topic.questions?.length ? `\nAnswer these questions within the article (use as
 Return JSON with these exact fields:
 {
   "title": "Compelling article title with focus keyword (50-60 chars)",
-  "titleTranslation": "Arabic translation of the title",
-  "body": "Full HTML article content with h2, h3, p, ul/ol, a[href] tags. Must include internal links and affiliate links.",
-  "bodyTranslation": "Brief Arabic summary (200-300 words)",
+  "titleTranslation": "Arabic translation of the title — must be natural Arabic, not machine-translated",
+  "body": "Full HTML article content with h2, h3, p, ul/ol, a[href] tags. Must include internal links and affiliate links. MINIMUM 1,500 words.",
+  "bodyTranslation": "Full Arabic translation of the article body in HTML (h2, h3, p, ul/ol, a[href] tags). Must be a COMPLETE translation, not a summary. Minimum 1,000 words in Arabic. Use Modern Standard Arabic appropriate for Gulf Arab readers.",
   "excerpt": "Engaging excerpt (120-160 chars)",
-  "excerptTranslation": "Arabic excerpt",
+  "excerptTranslation": "Arabic translation of the excerpt",
   "metaTitle": "SEO meta title with keyword near start (50-60 chars)",
   "metaTitleTranslation": "Arabic meta title",
   "metaDescription": "SEO meta description with CTA (120-160 chars)",
@@ -715,10 +716,10 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
 {
   "title": "عنوان جذاب مع الكلمة المفتاحية (50-60 حرف)",
   "titleTranslation": "English translation of the title",
-  "body": "محتوى المقال الكامل بتنسيق HTML مع h2, h3, p, ul/ol, a[href]. يجب أن يتضمن روابط داخلية وروابط شراكة.",
-  "bodyTranslation": "Brief English summary (200-300 words)",
+  "body": "محتوى المقال الكامل بتنسيق HTML مع h2, h3, p, ul/ol, a[href]. يجب أن يتضمن روابط داخلية وروابط شراكة. الحد الأدنى 1,500 كلمة.",
+  "bodyTranslation": "Full English translation of the article body in HTML (h2, h3, p, ul/ol, a[href] tags). Must be a COMPLETE translation, not a summary. Minimum 1,000 words.",
   "excerpt": "مقتطف جذاب (120-160 حرف)",
-  "excerptTranslation": "English excerpt",
+  "excerptTranslation": "English translation of the excerpt",
   "metaTitle": "عنوان SEO مع الكلمة المفتاحية في البداية (50-60 حرف)",
   "metaTitleTranslation": "English meta title",
   "metaDescription": "وصف SEO مع دعوة للعمل (120-160 حرف)",
@@ -730,17 +731,16 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
   "seoScore": 90
 }`;
 
-    // Dynamic timeout: use remaining deadline time (capped at 22s per call, min 12s)
-    // Reduced from 25s to 22s — EN(25s) + overhead(5s) was leaving only 23s for AR,
-    // which triggered a second 25s AI call → 55s total → Vercel timeout.
-    // At 22s cap: EN(22s) + overhead(5s) = 27s, leaving 26s < 28s threshold → AR skipped safely.
+    // Dynamic timeout: use remaining deadline time (capped at 20s per call, min 10s)
+    // Reduced EN cap from 22s to 20s to leave more time for Arabic generation.
+    // At 20s cap: EN(20s) + overhead(3s) = 23s elapsed → 30s remaining > 18s threshold → AR runs.
     const aiTimeoutMs = deadline
-      ? Math.max(12_000, Math.min(22_000, deadline.remainingMs() - 8_000))
-      : 22_000;
+      ? Math.max(10_000, Math.min(20_000, deadline.remainingMs() - 5_000))
+      : 20_000;
     const aiResult = await Promise.race([
       generateJSON<any>(prompt, {
         systemPrompt,
-        maxTokens: 3000,
+        maxTokens: 6000,
         temperature: 0.7,
       }),
       new Promise<never>((_, reject) =>
@@ -780,10 +780,10 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
               },
               {
                 role: "user",
-                content: `Write a 1500-word article about "${topic.keyword}". Return JSON: {"title":"...","titleTranslation":"...","body":"<h2>...</h2><p>...</p>...","bodyTranslation":"...","excerpt":"...","excerptTranslation":"...","metaTitle":"...","metaTitleTranslation":"...","metaDescription":"...","metaDescriptionTranslation":"...","tags":["..."],"keywords":["..."],"questions":["..."],"pageType":"guide","seoScore":85}`,
+                content: `Write a detailed 1500-2000 word article about "${topic.keyword}" for Arab travelers. Include 4-6 H2 sections, internal links, affiliate links (Booking.com, HalalBooking, GetYourGuide), and a Key Takeaways section. The bodyTranslation must be a FULL translation (1000+ words), not a summary. Return JSON: {"title":"...","titleTranslation":"...","body":"<h2>...</h2><p>...</p>...","bodyTranslation":"Full translation...","excerpt":"...","excerptTranslation":"...","metaTitle":"...","metaTitleTranslation":"...","metaDescription":"...","metaDescriptionTranslation":"...","tags":["..."],"keywords":["..."],"questions":["..."],"pageType":"guide","seoScore":85}`,
               },
             ],
-            max_tokens: 3000,
+            max_tokens: 6000,
             temperature: 0.7,
           }),
         },

@@ -57,6 +57,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const destination = siteConfig?.destination || "London";
   const baseUrl = await getBaseUrl();
 
   return (
@@ -68,6 +70,19 @@ export default async function Layout({ children }: { children: React.ReactNode }
           items: [
             { name: "Home", url: baseUrl },
             { name: "Shop", url: `${baseUrl}/shop` },
+          ],
+        }}
+      />
+      <StructuredData
+        type="itemList"
+        siteId={siteId}
+        data={{
+          name: `${destination} Travel Guides & Digital Products`,
+          description: `Premium travel guides, maps, and planning tools for ${destination}`,
+          items: [
+            { name: `${destination} City Guide`, url: `${baseUrl}/shop` },
+            { name: `${destination} Restaurant Guide`, url: `${baseUrl}/shop` },
+            { name: `${destination} Travel Planner`, url: `${baseUrl}/shop` },
           ],
         }}
       />

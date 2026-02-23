@@ -71,7 +71,7 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="font-editorial text-[11px] font-light text-stone hover:text-yalla-gold-500 transition-colors duration-200"
+                    className="font-sans text-[13px] font-normal text-stone-400 hover:text-yalla-gold-500 transition-colors duration-200"
                   >
                     {language === 'en' ? link.en : link.ar}
                   </Link>
@@ -96,7 +96,7 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="font-editorial text-[11px] font-light text-stone hover:text-yalla-gold-500 transition-colors duration-200"
+                    className="font-sans text-[13px] font-normal text-stone-400 hover:text-yalla-gold-500 transition-colors duration-200"
                   >
                     {language === 'en' ? link.en : link.ar}
                   </Link>
@@ -115,12 +115,12 @@ export function Footer() {
             <div className="space-y-3 mb-5">
               <a
                 href={`mailto:${CONTACT_EMAIL}`}
-                className="flex items-center gap-2.5 font-editorial text-[11px] font-light text-stone hover:text-yalla-gold-500 transition-colors"
+                className="flex items-center gap-2.5 font-sans text-[13px] font-normal text-stone-400 hover:text-yalla-gold-500 transition-colors"
               >
                 <Mail size={14} className="text-yalla-gold-500 shrink-0" />
                 <span>{CONTACT_EMAIL}</span>
               </a>
-              <div className="flex items-center gap-2.5 font-editorial text-[11px] font-light text-stone">
+              <div className="flex items-center gap-2.5 font-sans text-[13px] font-normal text-stone-400">
                 <MapPin size={14} className="text-yalla-gold-500 shrink-0" />
                 <span>{language === 'en' ? 'London, United Kingdom' : 'لندن، المملكة المتحدة'}</span>
               </div>
@@ -128,7 +128,7 @@ export function Footer() {
 
             {/* Newsletter */}
             <div className="bg-graphite/50 rounded p-3 border border-stone/10">
-              <p className="font-editorial text-[11px] font-light text-stone mb-2.5">
+              <p className="font-sans text-[13px] font-normal text-stone-400 mb-2.5">
                 {language === 'en'
                   ? 'Subscribe for exclusive updates'
                   : 'اشترك للحصول على تحديثات حصرية'
@@ -138,11 +138,11 @@ export function Footer() {
                 <input
                   type="email"
                   placeholder={language === 'en' ? 'Your email' : 'بريدك الإلكتروني'}
-                  className="flex-1 px-3 py-1.5 bg-charcoal border border-stone/20 rounded text-cream-100 placeholder:text-stone/50 focus:outline-none focus:border-yalla-gold-500 transition-colors font-editorial text-[11px]"
+                  className="flex-1 px-3 py-1.5 bg-charcoal border border-stone/20 rounded text-cream-100 placeholder:text-stone/50 focus:outline-none focus:border-yalla-gold-500 transition-colors font-sans text-[13px]"
                 />
                 <button
                   type="submit"
-                  className="px-3 py-1.5 bg-yalla-gold-500 text-charcoal rounded font-mono text-[8px] font-semibold uppercase tracking-[1.5px] hover:bg-yalla-gold-400 transition-colors"
+                  className="px-3 py-1.5 bg-yalla-gold-500 text-charcoal rounded font-sans text-[11px] font-semibold uppercase tracking-[1px] hover:bg-yalla-gold-400 transition-colors"
                 >
                   <Mail size={14} />
                 </button>
@@ -151,36 +151,32 @@ export function Footer() {
           </div>
         </div>
 
-        {/* V2 Tri-color divider — 3px, full-width (replaces gold diamond) */}
-        <div className="flex h-[3px] w-full mb-6">
-          <div className="flex-1 bg-london-600" />
-          <div className="flex-1 bg-yalla-gold-500" />
-          <div className="flex-1 bg-thames-500" />
-        </div>
+        {/* Thin separator line */}
+        <div className="h-px w-full bg-stone/20 mb-6" />
 
-        {/* Bottom Bar — Copyright: IBM Plex Mono 8px/400, Stone */}
+        {/* Bottom Bar — Copyright */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-3">
           <div className="text-center md:text-left">
-            <p className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase">
+            <p className="font-sans text-[10px] font-normal text-stone-400 tracking-[0.5px] uppercase">
               {getCopyrightLine(language)}
             </p>
-            <p className="font-mono text-[7px] font-normal text-stone/70 tracking-[0.5px] mt-1">
+            <p className="font-sans text-[9px] font-normal text-stone-500 tracking-[0.25px] mt-1">
               {getBrandDisclosure('Yalla London', language)}
             </p>
           </div>
-          <div className="flex items-center gap-5">
-            <Link href="/privacy" className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors">
+          <div className="flex items-center gap-5 flex-wrap justify-center">
+            <Link href="/privacy" className="font-sans text-[10px] font-normal text-stone-400 tracking-[0.5px] uppercase hover:text-yalla-gold-500 transition-colors">
               {language === 'en' ? 'Privacy Policy' : 'سياسة الخصوصية'}
             </Link>
-            <Link href="/terms" className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors">
+            <Link href="/terms" className="font-sans text-[10px] font-normal text-stone-400 tracking-[0.5px] uppercase hover:text-yalla-gold-500 transition-colors">
               {language === 'en' ? 'Terms of Use' : 'شروط الاستخدام'}
             </Link>
-            <Link href="/affiliate-disclosure" className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors">
+            <Link href="/affiliate-disclosure" className="font-sans text-[10px] font-normal text-stone-400 tracking-[0.5px] uppercase hover:text-yalla-gold-500 transition-colors">
               {language === 'en' ? 'Affiliate Disclosure' : 'إفصاح الإحالة'}
             </Link>
             <a
               href={`mailto:${ENTITY.contact.legalEmail}`}
-              className="font-mono text-[8px] font-normal text-stone tracking-[1px] uppercase hover:text-yalla-gold-500 transition-colors"
+              className="font-sans text-[10px] font-normal text-stone-400 tracking-[0.5px] uppercase hover:text-yalla-gold-500 transition-colors"
             >
               {language === 'en' ? 'Legal' : 'القانونية'}
             </a>

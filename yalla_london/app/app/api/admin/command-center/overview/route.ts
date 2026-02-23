@@ -19,6 +19,7 @@ function health(good: boolean, degraded: boolean): Health {
 }
 
 export const GET = withAdminAuth(async (_request: NextRequest) => {
+  try {
   const { prisma } = await import("@/lib/db");
   const { getActiveSiteIds } = await import("@/config/sites");
 
@@ -26,7 +27,15 @@ export const GET = withAdminAuth(async (_request: NextRequest) => {
   const now = new Date();
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-  // ── Parallel queries ──
+  // Helper: safely run a Prisma query, returning fallback on table/connection errors
+  async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+    try { return await fn(); } catch (e) {
+      console.warn("[command-center] Query failed:", e instanceof Error ? e.message : e);
+      return fallback;
+    }
+  }
+
+  // ── Parallel queries (each individually safe) ──
   const [
     topicsByStatus,
     draftsByPhase,
@@ -42,32 +51,25 @@ export const GET = withAdminAuth(async (_request: NextRequest) => {
     siteDraftCounts,
     siteIndexCounts,
   ] = await Promise.all([
-    // Topics by status
-    prisma.topicProposal.groupBy({
+    safeQuery(() => prisma.topicProposal.groupBy({
       by: ["status"],
       _count: { id: true },
-    }),
-    // Drafts by phase (active only)
-    prisma.articleDraft.groupBy({
+    }), []),
+    safeQuery(() => prisma.articleDraft.groupBy({
       by: ["current_phase"],
       where: { current_phase: { notIn: ["published", "rejected", "failed"] } },
       _count: { id: true },
-    }),
-    // Reservoir count
-    prisma.articleDraft.count({ where: { current_phase: "reservoir" } }),
-    // Total published
-    prisma.blogPost.count({ where: { published: true } }),
-    // Published today (using updated_at as proxy — no publishedAt field)
-    prisma.blogPost.count({
+    }), []),
+    safeQuery(() => prisma.articleDraft.count({ where: { current_phase: "reservoir" } }), 0),
+    safeQuery(() => prisma.blogPost.count({ where: { published: true } }), 0),
+    safeQuery(() => prisma.blogPost.count({
       where: { published: true, updated_at: { gte: yesterday } },
-    }),
-    // Indexing aggregates
-    prisma.uRLIndexingStatus.groupBy({
+    }), 0),
+    safeQuery(() => prisma.uRLIndexingStatus.groupBy({
       by: ["status"],
       _count: { id: true },
-    }),
-    // Recent indexing submissions (last 10)
-    prisma.uRLIndexingStatus.findMany({
+    }), []),
+    safeQuery(() => prisma.uRLIndexingStatus.findMany({
       orderBy: { last_submitted_at: "desc" },
       take: 15,
       select: {
@@ -80,31 +82,25 @@ export const GET = withAdminAuth(async (_request: NextRequest) => {
         indexing_state: true,
         coverage_state: true,
       },
-    }),
-    // Cron logs last 24h
-    prisma.cronJobLog.findMany({
+    }), []),
+    safeQuery(() => prisma.cronJobLog.findMany({
       where: { started_at: { gte: yesterday } },
       orderBy: { started_at: "desc" },
       take: 200,
-    }),
-    // Latest log per job name (for cron health)
-    prisma.cronJobLog.findMany({
+    }), []),
+    safeQuery(() => prisma.cronJobLog.findMany({
       orderBy: { started_at: "desc" },
       distinct: ["job_name"],
       take: 30,
-    }),
-    // Per-site article counts
-    prisma.blogPost.groupBy({ by: ["siteId"], where: { published: true }, _count: { id: true } }),
-    // Per-site topic counts
-    prisma.topicProposal.groupBy({ by: ["site_id"], _count: { id: true } }),
-    // Per-site draft counts
-    prisma.articleDraft.groupBy({
+    }), []),
+    safeQuery(() => prisma.blogPost.groupBy({ by: ["siteId"], where: { published: true }, _count: { id: true } }), []),
+    safeQuery(() => prisma.topicProposal.groupBy({ by: ["site_id"], _count: { id: true } }), []),
+    safeQuery(() => prisma.articleDraft.groupBy({
       by: ["site_id"],
       where: { current_phase: { notIn: ["published", "rejected", "failed"] } },
       _count: { id: true },
-    }),
-    // Per-site indexed counts
-    prisma.uRLIndexingStatus.groupBy({ by: ["site_id"], where: { status: "indexed" }, _count: { id: true } }),
+    }), []),
+    safeQuery(() => prisma.uRLIndexingStatus.groupBy({ by: ["site_id"], where: { status: "indexed" }, _count: { id: true } }), []),
   ]);
 
   // ── Pipeline stages ──
@@ -285,4 +281,11 @@ export const GET = withAdminAuth(async (_request: NextRequest) => {
     recentLogs,
     generatedAt: now.toISOString(),
   });
+  } catch (err) {
+    console.error("[command-center] Overview API crashed:", err instanceof Error ? err.message : err);
+    return NextResponse.json(
+      { error: "Dashboard data unavailable — database may need migration", details: err instanceof Error ? err.message : "Unknown error" },
+      { status: 500 },
+    );
+  }
 });

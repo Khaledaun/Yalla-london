@@ -3,7 +3,7 @@ import { brandConfig } from '@/config/brand-config';
 import { getSiteConfig, getDefaultSiteId, getSiteDomain, getSiteDescription, getSiteNameAr } from '@/config/sites';
 
 interface StructuredDataProps {
-  type?: 'website' | 'article' | 'event' | 'restaurant' | 'organization' | 'place' | 'review' | 'faq' | 'breadcrumb'
+  type?: 'website' | 'article' | 'event' | 'restaurant' | 'organization' | 'place' | 'review' | 'faq' | 'breadcrumb' | 'product' | 'itemList'
   data?: any
   language?: 'en' | 'ar'
   siteId?: string
@@ -325,6 +325,48 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
     };
   }
 
+  const getProductStructuredData = (productData: any) => {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": productData.name || productData.title,
+      "description": productData.description,
+      "image": productData.image,
+      "brand": {
+        "@type": "Organization",
+        "name": siteName
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": productData.price?.toString() || "0",
+        "priceCurrency": productData.currency || (siteCountry === 'UK' ? 'GBP' : 'USD'),
+        "availability": productData.availability || "https://schema.org/InStock",
+        "url": productData.url || baseUrl,
+        "seller": {
+          "@type": "Organization",
+          "name": siteName
+        }
+      },
+      "category": productData.category,
+      "sku": productData.sku
+    };
+  }
+
+  const getItemListStructuredData = (listData: any) => ({
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": listData.name,
+    "description": listData.description,
+    "numberOfItems": listData.items?.length || 0,
+    "itemListElement": listData.items?.map((item: any, index: number) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "name": item.name,
+      "url": item.url
+    })) || []
+  })
+
   const generateStructuredData = () => {
     const { organizationData, websiteData } = getBaseStructuredData()
     
@@ -343,6 +385,10 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
         return [organizationData, getReviewStructuredData(data)]
       case 'faq':
         return [organizationData, getFAQStructuredData(data)]
+      case 'product':
+        return [organizationData, getProductStructuredData(data)]
+      case 'itemList':
+        return [organizationData, getItemListStructuredData(data)]
       case 'breadcrumb':
         return [getBreadcrumbStructuredData(data)]
       case 'organization':

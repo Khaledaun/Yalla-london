@@ -544,7 +544,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   <div className="absolute inset-0 bg-gradient-to-t from-charcoal/50 to-transparent" />
                   <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} bg-white rounded-xl px-3 py-2 text-center shadow-elegant`}>
                     <div className="text-2xl font-display font-bold text-charcoal leading-none">{event.day}</div>
-                    <div className="text-[10px] font-bold text-london-600 uppercase tracking-wider">{event.month}</div>
+                    <div className="text-xs font-bold text-london-600 uppercase tracking-wider">{event.month}</div>
                   </div>
                 </div>
                 <div className="p-5">
@@ -627,7 +627,6 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   )}
                   <div className="absolute bottom-4 left-4 right-4">
                     <h3 className="text-lg font-bold text-white">{guide.title}</h3>
-                    <p className="text-xs text-cream-300 mt-1">{guide.pages}</p>
                   </div>
                 </div>
                 <div className="p-5">
@@ -656,12 +655,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                 <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 shadow-card group-hover:shadow-luxury transition-all">
                   <Image src={exp.image} alt={exp.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                   <div className="absolute inset-0 bg-gradient-to-t from-charcoal/70 via-transparent to-transparent" />
-                  <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} px-2.5 py-1 bg-white/95 backdrop-blur-sm rounded-full text-xs font-bold flex items-center gap-1 shadow-sm`}>
-                    <Star className="w-3 h-3 text-yalla-gold-500 fill-yalla-gold-500" /> {exp.rating}
-                  </div>
                   <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="font-bold text-white text-sm mb-1 group-hover:text-yalla-gold-300 transition-colors">{exp.title}</h3>
-                    <p className="text-xs text-cream-400">{exp.reviews.toLocaleString()} {locale === 'ar' ? 'تقييم' : 'reviews'}</p>
+                    <h3 className="font-bold text-white text-sm group-hover:text-yalla-gold-300 transition-colors">{exp.title}</h3>
                   </div>
                 </div>
                 <div className="flex items-center justify-between px-1">
@@ -686,16 +681,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                 <div className="bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-all border border-sand/50">
                   <div className="relative h-52">
                     <Image src={hotel.image} alt={hotel.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                    <span className={`absolute top-3 ${isRTL ? 'left-3' : 'right-3'} px-3 py-1 bg-yalla-gold-500 text-white text-xs font-bold rounded-full`}>
-                      {hotel.badge}
-                    </span>
                   </div>
                   <div className="p-5">
-                    <div className="flex items-center gap-0.5 mb-2">
-                      {Array.from({ length: hotel.rating }).map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 text-yalla-gold-500 fill-yalla-gold-500" />
-                      ))}
-                    </div>
                     <h3 className="text-lg font-bold text-charcoal mb-1 group-hover:text-london-600 transition-colors">{hotel.name}</h3>
                     <p className="text-sm text-stone flex items-center gap-1.5 mb-4">
                       <MapPin className="w-3.5 h-3.5" /> {hotel.location}

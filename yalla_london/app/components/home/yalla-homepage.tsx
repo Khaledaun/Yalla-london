@@ -372,7 +372,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
         {/* Content */}
         <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16 md:pb-24">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 1, y: 0 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="max-w-2xl"
@@ -411,7 +411,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
           {/* Quick Navigation Pills */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 0 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
             className="flex flex-wrap gap-3 mt-10"

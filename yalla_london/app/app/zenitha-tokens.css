@@ -17,7 +17,7 @@
    1. CSS CUSTOM PROPERTIES (DESIGN TOKENS)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-:root {
+.zenitha-site {
 
   /* ── 1.1  Colors: Deep Maritime ────────────────────────────────────────── */
   --z-navy:          #0A1628;
@@ -28,6 +28,7 @@
 
   /* ── 1.2  Colors: Gold & Warm ──────────────────────────────────────────── */
   --z-gold:          #C9A96E;
+  --z-gold-dark:     #8B6914;       /* WCAG AA safe on white (4.56:1) — use for text on light bg */
   --z-champagne:     #E8D5B5;
   --z-sand:          #F5EDE0;
   --z-pearl:         #FAFAF7;
@@ -99,20 +100,20 @@
   --z-text-subtitle:     clamp(1.25rem, 2vw + 0.25rem, 1.75rem);    /* 20px → 28px  */
   --z-text-heading:      clamp(1.125rem, 1.5vw + 0.25rem, 1.5rem);  /* 18px → 24px  */
 
-  /* Body */
-  --z-text-body-lg:      clamp(1.0625rem, 1vw + 0.25rem, 1.25rem);  /* 17px → 20px  */
-  --z-text-body:         clamp(0.9375rem, 0.8vw + 0.25rem, 1.0625rem); /* 15px → 17px */
-  --z-text-body-sm:      clamp(0.8125rem, 0.6vw + 0.25rem, 0.9375rem); /* 13px → 15px */
+  /* Body — WCAG 2.1 requires 16px minimum for readable body text */
+  --z-text-body-lg:      clamp(1.125rem, 1vw + 0.25rem, 1.25rem);     /* 18px → 20px  */
+  --z-text-body:         clamp(1rem, 0.8vw + 0.25rem, 1.0625rem);     /* 16px → 17px  */
+  --z-text-body-sm:      clamp(0.875rem, 0.6vw + 0.25rem, 0.9375rem); /* 14px → 15px  */
 
-  /* Small / Utility */
-  --z-text-caption:      clamp(0.6875rem, 0.5vw + 0.2rem, 0.8125rem); /* 11px → 13px */
-  --z-text-label:        clamp(0.625rem, 0.4vw + 0.2rem, 0.75rem);    /* 10px → 12px */
-  --z-text-overline:     clamp(0.625rem, 0.4vw + 0.2rem, 0.75rem);    /* 10px → 12px */
-  --z-text-micro:        0.625rem;                                      /* 10px fixed  */
+  /* Small / Utility — WCAG minimum 12px for readable text */
+  --z-text-caption:      clamp(0.75rem, 0.5vw + 0.2rem, 0.8125rem);   /* 12px → 13px */
+  --z-text-label:        clamp(0.75rem, 0.4vw + 0.25rem, 0.8125rem);  /* 12px → 13px */
+  --z-text-overline:     clamp(0.75rem, 0.4vw + 0.25rem, 0.8125rem);  /* 12px → 13px */
+  --z-text-micro:        0.6875rem;                                     /* 11px fixed  */
 
   /* Spec / Data values (mono, large for yacht specs) */
-  --z-text-spec-value:   clamp(1.5rem, 2.5vw + 0.25rem, 2.5rem);   /* 24px → 40px  */
-  --z-text-spec-label:   clamp(0.6875rem, 0.5vw + 0.2rem, 0.8125rem); /* 11px → 13px */
+  --z-text-spec-value:   clamp(1.5rem, 2.5vw + 0.25rem, 2.5rem);     /* 24px → 40px  */
+  --z-text-spec-label:   clamp(0.75rem, 0.5vw + 0.2rem, 0.8125rem);  /* 12px → 13px  */
 
   /* ── 2.4  Line Heights ─────────────────────────────────────────────────── */
   --z-leading-none:      1;
@@ -258,6 +259,20 @@
   --z-bar-gradient:   linear-gradient(90deg, var(--z-gold) 60%, var(--z-champagne) 82%, var(--z-ocean) 100%);
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1B. ZENITHA SITE BASE — sets font family, size, weight for the body
+   WCAG 2.1: body text >= 16px, weight >= 400 for screen readability
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.zenitha-site,
+.font-body {
+  font-family: var(--z-font-body);
+  font-size: var(--z-text-body);          /* 16px → 17px */
+  font-weight: var(--z-weight-regular);   /* 400 — not 300 (too thin for screen) */
+  line-height: var(--z-leading-normal);
+  color: var(--z-fg);
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    2. DARK MODE

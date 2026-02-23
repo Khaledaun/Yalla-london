@@ -1,9 +1,9 @@
 
 import { brandConfig } from '@/config/brand-config';
-import { getSiteConfig, getDefaultSiteId, getSiteDomain } from '@/config/sites';
+import { getSiteConfig, getDefaultSiteId, getSiteDomain, getSiteDescription, getSiteNameAr } from '@/config/sites';
 
 interface StructuredDataProps {
-  type?: 'website' | 'article' | 'event' | 'restaurant' | 'organization' | 'place' | 'review' | 'faq' | 'breadcrumb'
+  type?: 'website' | 'article' | 'event' | 'restaurant' | 'organization' | 'place' | 'review' | 'faq' | 'breadcrumb' | 'product' | 'itemList'
   data?: any
   language?: 'en' | 'ar'
   siteId?: string
@@ -22,39 +22,40 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
 
   const getBaseStructuredData = () => {
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+    // Per-site name and description — avoids falling back to Yalla London brandConfig
+    const nameAr = getSiteNameAr(resolvedSiteId);
+    const descriptionEN = getSiteDescription(resolvedSiteId, 'en');
+    const descriptionAR = getSiteDescription(resolvedSiteId, 'ar');
+    const localizedName = language === 'en' ? siteName : nameAr;
+    const localizedDescription = language === 'en' ? descriptionEN : descriptionAR;
+    const contactEmail = `hello@${siteConfig?.domain || 'zenitha.luxury'}`;
 
     const organizationData = {
       "@context": "https://schema.org",
       "@type": "Organization",
-      "name": language === 'en' ? siteName : (brandConfig.siteNameAr || siteName),
+      "name": localizedName,
       "url": baseUrl,
       "logo": `${baseUrl}/images/${siteSlug}-logo.svg`,
-      "description": language === 'en' ? brandConfig.description : brandConfig.descriptionAr,
-      "address": brandConfig.contact.address ? {
-        "@type": "PostalAddress",
-        "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry,
-        "addressLocality": siteDestination,
-        "streetAddress": language === 'en' ? brandConfig.contact.address.en : brandConfig.contact.address.ar
-      } : {
+      "description": localizedDescription,
+      "address": {
         "@type": "PostalAddress",
         "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry,
         "addressLocality": siteDestination
       },
       "contactPoint": {
         "@type": "ContactPoint",
-        "email": brandConfig.contact.email,
-        "telephone": brandConfig.contact.phone,
+        "email": contactEmail,
         "contactType": "customer service"
       },
-      "sameAs": Object.values(brandConfig.contact.social).filter(Boolean)
+      "sameAs": [] as string[]
     }
 
     const websiteData = {
       "@context": "https://schema.org",
       "@type": "WebSite",
-      "name": language === 'en' ? siteName : (brandConfig.siteNameAr || siteName),
+      "name": localizedName,
       "url": baseUrl,
-      "description": language === 'en' ? brandConfig.description : brandConfig.descriptionAr,
+      "description": localizedDescription,
       "inLanguage": [language],
       "publisher": {
         "@type": "Organization",
@@ -324,6 +325,48 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
     };
   }
 
+  const getProductStructuredData = (productData: any) => {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": productData.name || productData.title,
+      "description": productData.description,
+      "image": productData.image,
+      "brand": {
+        "@type": "Organization",
+        "name": siteName
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": productData.price?.toString() || "0",
+        "priceCurrency": productData.currency || (siteCountry === 'UK' ? 'GBP' : 'USD'),
+        "availability": productData.availability || "https://schema.org/InStock",
+        "url": productData.url || baseUrl,
+        "seller": {
+          "@type": "Organization",
+          "name": siteName
+        }
+      },
+      "category": productData.category,
+      "sku": productData.sku
+    };
+  }
+
+  const getItemListStructuredData = (listData: any) => ({
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": listData.name,
+    "description": listData.description,
+    "numberOfItems": listData.items?.length || 0,
+    "itemListElement": listData.items?.map((item: any, index: number) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "name": item.name,
+      "url": item.url
+    })) || []
+  })
+
   const generateStructuredData = () => {
     const { organizationData, websiteData } = getBaseStructuredData()
     
@@ -342,6 +385,10 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
         return [organizationData, getReviewStructuredData(data)]
       case 'faq':
         return [organizationData, getFAQStructuredData(data)]
+      case 'product':
+        return [organizationData, getProductStructuredData(data)]
+      case 'itemList':
+        return [organizationData, getItemListStructuredData(data)]
       case 'breadcrumb':
         return [getBreadcrumbStructuredData(data)]
       case 'organization':

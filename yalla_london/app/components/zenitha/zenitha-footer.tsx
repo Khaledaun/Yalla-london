@@ -83,7 +83,7 @@ export function ZenithaFooter() {
                 <Mail size={16} /> {CONTACT.email}
               </a>
               {CONTACT.whatsapp && (
-                <a href={`https://wa.me/${CONTACT.whatsapp}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-[var(--z-shallow)] hover:text-[var(--z-gold)] transition-colors">
+                <a href={`https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent('Hello Zenitha, I\'m interested in chartering a yacht. Could you help me plan my trip?')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-[var(--z-shallow)] hover:text-[var(--z-gold)] transition-colors">
                   <MessageCircle size={16} /> WhatsApp
                 </a>
               )}

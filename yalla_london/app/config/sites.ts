@@ -1572,6 +1572,73 @@ export function isYachtSite(siteId: string): boolean {
   return siteId === "zenitha-yachts-med";
 }
 
+// ─── Per-site SEO metadata helpers ──────────────────────────────────
+// These provide site-specific tagline, description, and Arabic name for
+// generateMetadata() so each domain gets correct metadata, not the Yalla
+// London brand-templates.ts fallback.
+
+const SITE_META: Record<string, { tagline: string; taglineAr: string; nameAr: string; description: string; descriptionAr: string }> = {
+  "yalla-london": {
+    tagline: "Luxury London Guide",
+    taglineAr: "دليل لندن الفاخر",
+    nameAr: "يالا لندن",
+    description: "Yalla London connects Arab travellers with London's finest luxury hotels, halal restaurants, and exclusive experiences. Bilingual guide in English & Arabic.",
+    descriptionAr: "يالا لندن يربط المسافرين العرب بأفخم فنادق لندن والمطاعم الحلال والتجارب الحصرية.",
+  },
+  "zenitha-yachts-med": {
+    tagline: "Luxury Yacht Charter",
+    taglineAr: "استئجار يخوت فاخرة",
+    nameAr: "زينيثا يخوت",
+    description: "Zenitha Yachts offers curated luxury yacht charters across the Mediterranean, Arabian Gulf & beyond. Halal catering, professional crews, and bespoke itineraries.",
+    descriptionAr: "زينيثا يخوت تقدم رحلات يخوت فاخرة في البحر المتوسط والخليج العربي. طعام حلال وطواقم محترفة ومسارات مخصصة.",
+  },
+  "arabaldives": {
+    tagline: "Luxury Maldives Guide",
+    taglineAr: "دليل المالديف الفاخر",
+    nameAr: "عرب المالديف",
+    description: "Arabaldives connects Arab travellers with the finest Maldives resorts, halal dining, and overwater experiences. Arabic-first luxury guide.",
+    descriptionAr: "عرب المالديف يربط المسافرين العرب بأفخم منتجعات المالديف والمطاعم الحلال.",
+  },
+  "french-riviera": {
+    tagline: "Luxury Riviera Guide",
+    taglineAr: "دليل الريفيرا الفاخر",
+    nameAr: "يالا ريفييرا",
+    description: "Yalla Riviera connects Arab travellers with the finest French Riviera luxury hotels, halal restaurants, and Côte d'Azur experiences.",
+    descriptionAr: "يالا ريفييرا يربط المسافرين العرب بأفخم فنادق الريفيرا الفرنسية والمطاعم الحلال.",
+  },
+  "istanbul": {
+    tagline: "Luxury Istanbul Guide",
+    taglineAr: "دليل إسطنبول الفاخر",
+    nameAr: "يالا إسطنبول",
+    description: "Yalla Istanbul connects Arab travellers with Istanbul's finest luxury hotels, halal restaurants, and cultural experiences.",
+    descriptionAr: "يالا إسطنبول يربط المسافرين العرب بأفخم فنادق إسطنبول والمطاعم الحلال.",
+  },
+  "thailand": {
+    tagline: "Luxury Thailand Guide",
+    taglineAr: "دليل تايلاند الفاخر",
+    nameAr: "يالا تايلاند",
+    description: "Yalla Thailand connects Arab travellers with Thailand's finest luxury resorts, halal restaurants, and island experiences.",
+    descriptionAr: "يالا تايلاند يربط المسافرين العرب بأفخم منتجعات تايلاند والمطاعم الحلال.",
+  },
+};
+
+/** Get site tagline for metadata. Falls back to generic luxury guide. */
+export function getSiteTagline(siteId: string): string {
+  return SITE_META[siteId]?.tagline || "Luxury Travel Guide";
+}
+
+/** Get site Arabic name for metadata. */
+export function getSiteNameAr(siteId: string): string {
+  return SITE_META[siteId]?.nameAr || SITES[siteId]?.name || "Zenitha";
+}
+
+/** Get site description for metadata. */
+export function getSiteDescription(siteId: string, lang: "en" | "ar" = "en"): string {
+  const meta = SITE_META[siteId];
+  if (!meta) return `Luxury travel guide for ${SITES[siteId]?.destination || "discerning travellers"}`;
+  return lang === "ar" ? meta.descriptionAr : meta.description;
+}
+
 /** Get site config by ID */
 export function getSiteConfig(siteId: string): SiteConfig | undefined {
   return SITES[siteId];

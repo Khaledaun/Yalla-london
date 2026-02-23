@@ -57,14 +57,14 @@ export function DynamicHeader() {
             />
           </Link>
 
-          {/* Desktop Navigation — IBM Plex Mono 10px/500, 1.5px tracking, uppercase, Stone */}
+          {/* Desktop Navigation — Sans 13px/500, 0.75px tracking, uppercase */}
           <nav className="hidden lg:flex items-center gap-1">
             {navigation.map((item) => (
               <Link
                 key={item.key}
                 href={item.href}
-                className={`relative px-3.5 py-2 font-mono text-[10px] font-medium uppercase text-stone transition-all duration-200 hover:text-charcoal group whitespace-nowrap ${
-                  isRTL ? 'font-arabic tracking-normal text-[13px] normal-case' : 'tracking-[1.5px]'
+                className={`relative px-3.5 py-2 font-sans text-[13px] font-medium uppercase text-stone-600 transition-all duration-200 hover:text-charcoal group whitespace-nowrap ${
+                  isRTL ? 'font-arabic tracking-normal text-[14px] normal-case' : 'tracking-[0.75px]'
                 }`}
               >
                 <span className="relative z-10">
@@ -78,23 +78,23 @@ export function DynamicHeader() {
 
           {/* Language Toggle & CTA */}
           <div className="flex items-center gap-3">
-            {/* Language Toggle — Stone, 13px/500 */}
+            {/* Language Toggle — visible on all screen sizes */}
             <button
               onClick={toggleLanguage}
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded transition-all duration-200 hover:bg-cream-100 ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded transition-all duration-200 hover:bg-cream-100 ${
                 language === 'en'
-                  ? 'font-arabic text-[13px] font-medium text-stone hover:text-charcoal'
-                  : 'font-mono text-[10px] font-medium tracking-[1.5px] uppercase text-stone hover:text-charcoal'
+                  ? 'font-arabic text-[13px] font-medium text-stone-600 hover:text-charcoal'
+                  : 'font-sans text-[12px] font-medium tracking-[0.75px] uppercase text-stone-600 hover:text-charcoal'
               }`}
             >
               {language === 'en' ? 'عربي' : 'EN'}
             </button>
 
-            {/* CTA Button — Primary small: London Red bg, Cream text, IBM Plex Mono 9px/600, 1.5px tracking, uppercase */}
+            {/* CTA Button — London Red bg, Cream text, sans 12px/600 */}
             <Link
               href="/contact"
-              className={`hidden lg:flex items-center px-4 py-2 bg-london-600 text-cream rounded font-mono text-[9px] font-semibold uppercase transition-all duration-200 hover:bg-london-700 ${
-                isRTL ? 'font-arabic tracking-normal text-[12px] normal-case' : 'tracking-[1.5px]'
+              className={`hidden lg:flex items-center px-4 py-2 bg-london-600 text-cream rounded font-sans text-[12px] font-semibold uppercase transition-all duration-200 hover:bg-london-700 ${
+                isRTL ? 'font-arabic tracking-normal text-[13px] normal-case' : 'tracking-[1px]'
               }`}
             >
               {language === 'en' ? 'Get in Touch' : 'تواصل معنا'}
@@ -156,8 +156,8 @@ export function DynamicHeader() {
             <div className="pt-3 px-4">
               <Link
                 href="/contact"
-                className={`flex items-center justify-center w-full px-5 py-3 bg-london-600 text-cream rounded font-mono text-[10px] font-semibold uppercase transition-all duration-200 hover:bg-london-700 ${
-                  isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'
+                className={`flex items-center justify-center w-full px-5 py-3 bg-london-600 text-cream rounded font-sans text-[12px] font-semibold uppercase transition-all duration-200 hover:bg-london-700 ${
+                  isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1px]'
                 }`}
                 onClick={() => setIsMenuOpen(false)}
               >

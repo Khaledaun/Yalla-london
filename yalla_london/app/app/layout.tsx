@@ -16,19 +16,32 @@ import { brandConfig } from "@/config/brand-config";
 // HreflangTags component removed — hreflang is handled by generateMetadata().alternates.languages
 // in each layout/page file. The component was causing duplicate hreflang tags on every page.
 import { getBaseUrl } from "@/lib/url-utils";
-import { getDefaultSiteId, getSiteConfig, isYachtSite as checkIsYachtSite } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, getSiteDescription, getSiteTagline, getSiteNameAr, isYachtSite as checkIsYachtSite } from "@/config/sites";
 import type { Language } from "@/lib/types";
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
-  const defaultSiteId = getDefaultSiteId();
-  const siteConfig = getSiteConfig(defaultSiteId);
-  const defaultSiteSlug = siteConfig?.slug || "zenitha-yachts";
+
+  // Read the actual site identity from middleware headers — not the static default.
+  // This is critical for multi-site: zenithayachts.com must NOT fall back to yalla-london.
+  let siteId = getDefaultSiteId();
+  try {
+    const headersList = await headers();
+    siteId = headersList.get("x-site-id") || siteId;
+  } catch {
+    // headers() unavailable during static generation — use default
+  }
+
+  const siteConfig = getSiteConfig(siteId);
+  const siteSlug = siteConfig?.slug || "yalla-london";
   const siteName = siteConfig?.name || brandConfig.siteName;
+  const siteDescription = getSiteDescription(siteId);
+  const siteTagline = getSiteTagline(siteId);
+  const siteNameAr = getSiteNameAr(siteId);
 
   return {
-    title: `${siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
-    description: brandConfig.description,
+    title: `${siteName} - ${siteTagline} | ${siteNameAr}`,
+    description: siteDescription,
     authors: [{ name: siteName }],
     creator: siteName,
     publisher: siteName,
@@ -38,23 +51,23 @@ export async function generateMetadata(): Promise<Metadata> {
       alternateLocale: "ar_SA",
       url: baseUrl,
       siteName,
-      title: `${siteName} - ${brandConfig.tagline}`,
-      description: brandConfig.description,
+      title: `${siteName} - ${siteTagline}`,
+      description: siteDescription,
       images: [
         {
-          url: `${baseUrl}/api/og?siteId=${defaultSiteId}`,
+          url: `${baseUrl}/api/og?siteId=${siteId}`,
           width: 1200,
           height: 630,
-          alt: `${siteName} - ${brandConfig.tagline}`,
+          alt: `${siteName} - ${siteTagline}`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      site: `@${siteConfig?.slug || defaultSiteSlug}`,
-      title: `${siteName} - ${brandConfig.tagline}`,
-      description: brandConfig.description,
-      images: [`${baseUrl}/api/og?siteId=${defaultSiteId}`],
+      site: `@${siteSlug}`,
+      title: `${siteName} - ${siteTagline}`,
+      description: siteDescription,
+      images: [`${baseUrl}/api/og?siteId=${siteId}`],
     },
     robots: {
       index: true,

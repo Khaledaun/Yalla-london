@@ -207,3 +207,61 @@
   border-color: var(--yalla-london);
   box-shadow: 0 0 0 3px rgba(200, 50, 43, 0.15);
 }
+
+/* ═══════════════════════════════════════
+   ACCESSIBILITY: Reduced Motion
+   WCAG 2.1 SC 2.3.3 — respect user preference
+   ═══════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .yalla-stamp-in,
+  .yalla-stamp-bounce,
+  .yalla-bar-london,
+  .yalla-bar-gold,
+  .yalla-bar-sky,
+  .yalla-fade-up,
+  .yalla-fade-up-d1,
+  .yalla-fade-up-d2,
+  .yalla-fade-up-d3,
+  .yalla-fade-up-d4,
+  .yalla-fade-up-d5,
+  .yalla-fade-up-d6,
+  .yalla-fade-up-d7,
+  .yalla-fade-in,
+  .yalla-transition-london,
+  .yalla-transition-gold,
+  .yalla-transition-sky,
+  .yalla-pulse-london,
+  .yalla-pulse-gold,
+  .yalla-pulse-sky,
+  .yalla-slide-up,
+  .yalla-slide-up-d1,
+  .yalla-slide-up-d2,
+  .yalla-slide-up-d3,
+  .yalla-counter-up,
+  .yalla-counter-up-d1,
+  .yalla-counter-up-d2,
+  .yalla-counter-up-d3,
+  .yalla-skeleton,
+  .yalla-float,
+  .yalla-glow,
+  .yalla-glow-london,
+  .yalla-typewriter,
+  .yalla-ticket-tear,
+  .yalla-nav-slide,
+  .yalla-progress-fill {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .yalla-hover-lift:hover {
+    transform: none !important;
+  }
+
+  .yalla-transition-color,
+  .yalla-transition-bg,
+  .yalla-transition-all,
+  .yalla-transition-slow {
+    transition: none !important;
+  }
+}

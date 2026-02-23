@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
+import Image from "next/image";
 import { getBaseUrl } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDomain } from "@/config/sites";
 import {
@@ -13,6 +14,20 @@ import {
   Compass,
   Globe,
 } from "lucide-react";
+
+/* ═══════════════════════════════════════════════════════════════════
+   UNSPLASH PHOTO MAP — free commercial license
+   ═══════════════════════════════════════════════════════════════════ */
+const DEST_IMAGES: Record<string, string> = {
+  "greek-islands": "https://images.unsplash.com/photo-1696227213867-e16c8e082e8c?w=800&q=80&auto=format&fit=crop",
+  "croatian-coast": "https://images.unsplash.com/photo-1626690218773-09d845797704?w=800&q=80&auto=format&fit=crop",
+  "turkish-riviera": "https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=800&q=80&auto=format&fit=crop",
+  "amalfi-coast": "https://images.unsplash.com/photo-1515859005217-8a1f08870f59?w=800&q=80&auto=format&fit=crop",
+  "french-riviera": "https://images.unsplash.com/photo-1491166617655-0723a0999cfc?w=800&q=80&auto=format&fit=crop",
+  "balearic-islands": "https://images.unsplash.com/photo-1662908773886-f1a25e7a1c95?w=800&q=80&auto=format&fit=crop",
+  "arabian-gulf": "https://images.unsplash.com/photo-1732296266498-68a67d84efdc?w=800&q=80&auto=format&fit=crop",
+  "red-sea": "https://images.unsplash.com/photo-1580541631950-7282082b53ce?w=800&q=80&auto=format&fit=crop",
+};
 
 /* ═══════════════════════════════════════════════════════════════════
    STATIC DESTINATION DATA (DB fallback)
@@ -465,17 +480,23 @@ function DestinationCardLarge({ destination }: { destination: Destination }) {
       className="z-card group block"
       style={{ background: "var(--z-surface)" }}
     >
-      {/* Image Placeholder */}
+      {/* Destination photo */}
       <div
-        className="relative z-aspect-video"
+        className="relative z-aspect-video overflow-hidden"
         style={{ background: "var(--z-gradient-card)" }}
       >
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Anchor className="w-12 h-12" style={{ color: "rgba(255,255,255,0.2)" }} />
-        </div>
+        {DEST_IMAGES[destination.slug] && (
+          <Image
+            src={DEST_IMAGES[destination.slug]}
+            alt={`${destination.name_en} yacht charter destination`}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 768px) 100vw, 33vw"
+          />
+        )}
         <div
           className="absolute inset-0"
-          style={{ background: "var(--z-gradient-overlay)" }}
+          style={{ background: "linear-gradient(to top, rgba(10,22,40,0.6), transparent)" }}
         />
         <div className="absolute bottom-4 left-4 right-4 z-10">
           <span className="z-badge z-badge-gold">{destination.season_en}</span>
@@ -535,15 +556,25 @@ function DestinationCard({ destination }: { destination: Destination }) {
       style={{ background: "var(--z-surface)" }}
     >
       <div
-        className="relative z-aspect-photo"
+        className="relative z-aspect-photo overflow-hidden"
         style={{ background: "var(--z-gradient-card)" }}
       >
-        <div className="absolute inset-0 flex items-center justify-center">
-          <MapPin className="w-8 h-8" style={{ color: "rgba(255,255,255,0.15)" }} />
-        </div>
+        {DEST_IMAGES[destination.slug] ? (
+          <Image
+            src={DEST_IMAGES[destination.slug]}
+            alt={`${destination.name_en} charter destination`}
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <MapPin className="w-8 h-8" style={{ color: "rgba(255,255,255,0.15)" }} />
+          </div>
+        )}
         <div
           className="absolute inset-0"
-          style={{ background: "var(--z-gradient-overlay-light)" }}
+          style={{ background: "linear-gradient(to top, rgba(10,22,40,0.5), transparent 60%)" }}
         />
       </div>
       <div className="z-card-body flex-1 flex flex-col">

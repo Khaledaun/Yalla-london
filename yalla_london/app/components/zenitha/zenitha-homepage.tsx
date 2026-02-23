@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Compass, Anchor, Ship, Star, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
@@ -8,6 +9,34 @@ import { useScrollRevealClass } from '@/hooks/use-scroll-reveal';
 
 // ─── Types ──────────────────────────────────────────────────
 type Locale = 'en' | 'ar';
+
+// ─── Unsplash Photo Library ─────────────────────────────────
+// All photos are free under the Unsplash License (commercial use OK).
+// Credit: see PHOTO_CREDITS below.
+const PHOTOS = {
+  hero: 'https://images.unsplash.com/photo-1528154291023-a6525fabe5b4?w=1920&q=85&auto=format&fit=crop',
+  heroAlt: 'https://images.unsplash.com/photo-1714745048611-5fa3ff3e2397?w=1920&q=85&auto=format&fit=crop',
+  greekIslands: 'https://images.unsplash.com/photo-1696227213867-e16c8e082e8c?w=800&q=80&auto=format&fit=crop',
+  croatianCoast: 'https://images.unsplash.com/photo-1626690218773-09d845797704?w=800&q=80&auto=format&fit=crop',
+  turkishRiviera: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=800&q=80&auto=format&fit=crop',
+  frenchRiviera: 'https://images.unsplash.com/photo-1491166617655-0723a0999cfc?w=800&q=80&auto=format&fit=crop',
+  motorYacht: 'https://images.unsplash.com/photo-1569263979104-865ab7cd8d13?w=1200&q=80&auto=format&fit=crop',
+  catamaran: 'https://images.unsplash.com/photo-1724261813677-05803b039805?w=1200&q=80&auto=format&fit=crop',
+  sunset: 'https://images.unsplash.com/photo-1504472478235-9bc48ba4d60f?w=1200&q=80&auto=format&fit=crop',
+  dining: 'https://images.unsplash.com/photo-1721488145498-3a8d7dfbab67?w=1200&q=80&auto=format&fit=crop',
+} as const;
+
+// Photo credits (best practice, displayed in footer or image alt)
+const PHOTO_CREDITS = {
+  hero: 'nikldn on Unsplash',
+  greekIslands: 'Dawid Tkocz on Unsplash',
+  croatianCoast: 'Geio Tischler on Unsplash',
+  turkishRiviera: 'Grant Durr on Unsplash',
+  frenchRiviera: 'Nick Karvounis on Unsplash',
+  sunset: 'Odysseas Chloridis on Unsplash',
+  catamaran: 'Bernd Dittrich on Unsplash',
+  dining: 'Ekaterina Bogdan on Unsplash',
+} as const;
 
 // ─── Trust Stats ─────────────────────────────────────────────
 const TRUST_STATS = [
@@ -19,10 +48,10 @@ const TRUST_STATS = [
 
 // ─── Featured Destinations ──────────────────────────────────
 const DESTINATIONS = [
-  { name: { en: 'Greek Islands', ar: 'الجزر اليونانية' }, season: { en: 'May – Oct', ar: 'مايو – أكتوبر' }, slug: 'greek-islands', yachtCount: 47, priceFrom: '€3,500' },
-  { name: { en: 'Croatian Coast', ar: 'ساحل كرواتيا' }, season: { en: 'Jun – Sep', ar: 'يونيو – سبتمبر' }, slug: 'croatian-coast', yachtCount: 38, priceFrom: '€4,000' },
-  { name: { en: 'Turkish Riviera', ar: 'الريفيرا التركية' }, season: { en: 'May – Oct', ar: 'مايو – أكتوبر' }, slug: 'turkish-riviera', yachtCount: 52, priceFrom: '€2,800' },
-  { name: { en: 'French Riviera', ar: 'الريفيرا الفرنسية' }, season: { en: 'Jun – Sep', ar: 'يونيو – سبتمبر' }, slug: 'french-riviera', yachtCount: 31, priceFrom: '€5,500' },
+  { name: { en: 'Greek Islands', ar: 'الجزر اليونانية' }, season: { en: 'May – Oct', ar: 'مايو – أكتوبر' }, slug: 'greek-islands', yachtCount: 47, priceFrom: '€3,500', image: PHOTOS.greekIslands },
+  { name: { en: 'Croatian Coast', ar: 'ساحل كرواتيا' }, season: { en: 'Jun – Sep', ar: 'يونيو – سبتمبر' }, slug: 'croatian-coast', yachtCount: 38, priceFrom: '€4,000', image: PHOTOS.croatianCoast },
+  { name: { en: 'Turkish Riviera', ar: 'الريفيرا التركية' }, season: { en: 'May – Oct', ar: 'مايو – أكتوبر' }, slug: 'turkish-riviera', yachtCount: 52, priceFrom: '€2,800', image: PHOTOS.turkishRiviera },
+  { name: { en: 'French Riviera', ar: 'الريفيرا الفرنسية' }, season: { en: 'Jun – Sep', ar: 'يونيو – سبتمبر' }, slug: 'french-riviera', yachtCount: 31, priceFrom: '€5,500', image: PHOTOS.frenchRiviera },
 ];
 
 // ─── How It Works Steps ─────────────────────────────────────
@@ -45,9 +74,17 @@ function HeroSection({ locale }: { locale: Locale }) {
 
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-[var(--z-navy)]">
-      {/* Background gradient (placeholder for hero image) */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[var(--z-navy)] via-[var(--z-midnight)] to-[var(--z-aegean)] opacity-90" />
-      <div className="absolute inset-0 bg-[url('/branding/zenitha-yachts/hero-pattern.svg')] bg-cover bg-center opacity-10" />
+      {/* Hero background photo — aerial yacht on deep blue sea */}
+      <Image
+        src={PHOTOS.hero}
+        alt="Luxury yacht on deep blue Mediterranean sea — aerial view"
+        fill
+        priority
+        className="object-cover"
+        sizes="100vw"
+      />
+      {/* Dark overlay for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[var(--z-navy)]/70 via-[var(--z-navy)]/40 to-[var(--z-navy)]/80" />
 
       {/* Content */}
       <div className="relative z-10 max-w-[1280px] mx-auto px-6 text-center">
@@ -139,20 +176,32 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
 
         {/* Fleet Preview — links to full search */}
         <div ref={sectionRef} className="z-reveal-fadeUp">
-          <div className="bg-gradient-to-br from-[var(--z-sand)] to-[var(--z-champagne)] rounded-2xl p-10 sm:p-14 text-center">
-            <Ship size={56} className="text-[var(--z-aegean)] mx-auto mb-6" style={{ opacity: 0.4 }} aria-hidden="true" />
-            <h3 className="font-heading text-xl sm:text-2xl font-semibold text-[var(--z-navy)] mb-3">
-              {t({ en: 'Your Perfect Yacht Awaits', ar: 'يختك المثالي بانتظارك' })}
-            </h3>
-            <p className="font-body text-[var(--z-aegean)] max-w-lg mx-auto mb-8 leading-relaxed">
-              {t({
-                en: 'Browse our curated selection of motor yachts, catamarans, gulets, and sailing yachts — each handpicked for exceptional Mediterranean charters.',
-                ar: 'تصفح مجموعتنا المختارة من اليخوت الآلية والكاتاماران والقوارب التركية واليخوت الشراعية — كل واحد مختار بعناية لرحلات استثنائية في البحر المتوسط.',
-              })}
-            </p>
-            <Link href="/yachts" className="z-btn-primary text-base px-8 py-3.5 inline-flex items-center gap-2">
-              {t({ en: 'Explore Our Fleet', ar: 'استكشف أسطولنا' })} <ArrowRight size={18} />
-            </Link>
+          <div className="relative rounded-2xl overflow-hidden" style={{ minHeight: '420px' }}>
+            {/* Background photo — catamaran on turquoise water */}
+            <Image
+              src={PHOTOS.catamaran}
+              alt="Luxury catamaran anchored in crystal-clear turquoise water"
+              fill
+              className="object-cover"
+              sizes="(max-width: 1280px) 100vw, 1280px"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-[var(--z-navy)]/85 via-[var(--z-navy)]/60 to-[var(--z-navy)]/30" />
+            <div className="relative z-10 p-10 sm:p-14 flex flex-col justify-center" style={{ minHeight: '420px' }}>
+              <h3 className="font-heading text-xl sm:text-2xl font-semibold text-white mb-3">
+                {t({ en: 'Your Perfect Yacht Awaits', ar: 'يختك المثالي بانتظارك' })}
+              </h3>
+              <p className="font-body text-white/80 max-w-lg mb-8 leading-relaxed">
+                {t({
+                  en: 'Browse our curated selection of motor yachts, catamarans, gulets, and sailing yachts — each handpicked for exceptional Mediterranean charters.',
+                  ar: 'تصفح مجموعتنا المختارة من اليخوت الآلية والكاتاماران والقوارب التركية واليخوت الشراعية — كل واحد مختار بعناية لرحلات استثنائية في البحر المتوسط.',
+                })}
+              </p>
+              <div>
+                <Link href="/yachts" className="z-btn-primary text-base px-8 py-3.5 inline-flex items-center gap-2">
+                  {t({ en: 'Explore Our Fleet', ar: 'استكشف أسطولنا' })} <ArrowRight size={18} />
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -181,13 +230,17 @@ function DestinationsSection({ locale }: { locale: Locale }) {
         <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {DESTINATIONS.map((dest, i) => (
             <Link key={i} href={`/destinations/${dest.slug}`} className="group relative z-reveal-scaleIn z-reveal-stagger">
-              <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-gradient-to-br from-[var(--z-midnight)] to-[var(--z-aegean)]">
-                {/* Placeholder for destination image */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Compass size={40} className="text-white/15" aria-hidden="true" />
-                </div>
+              <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-[var(--z-midnight)]">
+                {/* Destination photo */}
+                <Image
+                  src={dest.image}
+                  alt={`${dest.name.en} — yacht charter destination`}
+                  fill
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                />
                 {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[var(--z-navy)]/85 via-[var(--z-navy)]/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[var(--z-navy)]/85 via-[var(--z-navy)]/30 to-transparent" />
                 {/* Content */}
                 <div className="absolute bottom-0 left-0 right-0 p-5">
                   <h3 className="font-heading text-xl font-semibold text-white mb-1">
@@ -285,14 +338,16 @@ function AIPlannerSection({ locale }: { locale: Locale }) {
               {t({ en: 'Try the Charter Planner', ar: 'جرب مخطط الرحلات' })} <ArrowRight size={18} className="inline ml-2" />
             </Link>
           </div>
-          {/* Illustration placeholder */}
-          <div className="relative aspect-square max-w-md mx-auto lg:mx-0 z-reveal-fadeRight z-reveal-stagger">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[var(--z-sand)] to-[var(--z-champagne)] flex items-center justify-center">
-              <div className="text-center">
-                <Compass size={80} className="text-[var(--z-aegean)]/30 mx-auto mb-4" aria-hidden="true" />
-                <p className="text-sm font-heading text-[var(--z-aegean)]/50">{t({ en: 'AI Charter Planner Preview', ar: 'معاينة مخطط الرحلات' })}</p>
-              </div>
-            </div>
+          {/* Sunset lifestyle photo */}
+          <div className="relative aspect-square max-w-md mx-auto lg:mx-0 z-reveal-fadeRight z-reveal-stagger rounded-2xl overflow-hidden">
+            <Image
+              src={PHOTOS.sunset}
+              alt="Yacht sailing at golden hour in the Greek islands"
+              fill
+              className="object-cover"
+              sizes="(max-width: 1024px) 100vw, 448px"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[var(--z-navy)]/40 to-transparent" />
           </div>
         </div>
       </div>

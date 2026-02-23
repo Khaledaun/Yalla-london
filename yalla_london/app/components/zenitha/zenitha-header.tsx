@@ -121,7 +121,7 @@ function MegaMenu({ sections, isOpen, language }: {
         <div className="grid grid-cols-3 gap-8">
           {sections.map((section, i) => (
             <div key={i}>
-              <h3 className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold)] mb-4">
+              <h3 className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)] mb-4">
                 {section.title[language as 'en' | 'ar'] || section.title.en}
               </h3>
               <ul className="space-y-2">
@@ -302,7 +302,7 @@ export function ZenithaHeader() {
                   <div className="pl-6 space-y-0.5">
                     {item.megaMenu.sections.map((section, si) => (
                       <div key={si} className="py-2">
-                        <div className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold)] px-3 mb-1">
+                        <div className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)] px-3 mb-1">
                           {section.title[language as 'en' | 'ar'] || section.title.en}
                         </div>
                         {section.items.map((subItem, sj) => (

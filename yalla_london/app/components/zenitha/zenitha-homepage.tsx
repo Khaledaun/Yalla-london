@@ -142,7 +142,7 @@ function TrustBar({ locale }: { locale: Locale }) {
           {TRUST_STATS.map((stat, i) => (
             <div key={i} className="text-center z-reveal-fadeUp z-reveal-stagger">
               <div className="font-display text-2xl sm:text-3xl font-bold text-[var(--z-navy)]">
-                {stat.value}{'suffix' in stat && <span className="text-[var(--z-gold)]">{stat.suffix}</span>}
+                {stat.value}{'suffix' in stat && <span className="text-[var(--z-gold-dark)]">{stat.suffix}</span>}
               </div>
               <div className="text-xs font-heading font-medium text-[var(--z-aegean)] uppercase tracking-wide mt-1">
                 {t(stat.label)}
@@ -166,7 +166,7 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
       <div className="max-w-[1280px] mx-auto px-6">
         {/* Section Header */}
         <div ref={headerRef} className="text-center mb-12 z-reveal-fadeUp">
-          <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold)]">
+          <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)]">
             {t({ en: 'Our Fleet', ar: 'أسطولنا' })}
           </span>
           <h2 className="font-display text-3xl sm:text-4xl font-bold text-[var(--z-navy)] mt-3" style={{ letterSpacing: '-0.01em' }}>
@@ -219,7 +219,7 @@ function DestinationsSection({ locale }: { locale: Locale }) {
     <section className="py-20 bg-[var(--z-sand)]">
       <div className="max-w-[1280px] mx-auto px-6">
         <div ref={headerRef} className="text-center mb-12 z-reveal-fadeUp">
-          <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold)]">
+          <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)]">
             {t({ en: 'Destinations', ar: 'الوجهات' })}
           </span>
           <h2 className="font-display text-3xl sm:text-4xl font-bold text-[var(--z-navy)] mt-3">
@@ -274,7 +274,7 @@ function HowItWorksSection({ locale }: { locale: Locale }) {
     <section className="py-20 bg-white">
       <div className="max-w-[1280px] mx-auto px-6">
         <div ref={headerRef} className="text-center mb-14 z-reveal-fadeUp">
-          <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold)]">
+          <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)]">
             {t({ en: 'The Process', ar: 'العملية' })}
           </span>
           <h2 className="font-display text-3xl sm:text-4xl font-bold text-[var(--z-navy)] mt-3">
@@ -322,7 +322,7 @@ function AIPlannerSection({ locale }: { locale: Locale }) {
       <div className="max-w-[1280px] mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="z-reveal-fadeLeft z-reveal-stagger">
-            <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold)]">
+            <span className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)]">
               {t({ en: 'AI-Powered', ar: 'مدعوم بالذكاء الاصطناعي' })}
             </span>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-[var(--z-navy)] mt-3 mb-5">
@@ -497,6 +497,23 @@ function NewsletterSection({ locale }: { locale: Locale }) {
   );
 }
 
+// ─── Sticky Mobile Enquire CTA ──────────────────────────────
+function StickyMobileCTA({ locale }: { locale: Locale }) {
+  const t = (obj: { en: string; ar: string }) => obj[locale] || obj.en;
+
+  return (
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 p-3 safe-area-inset-bottom" style={{ background: 'var(--z-white)', borderTop: '1px solid var(--z-border)', boxShadow: '0 -4px 20px rgba(10, 22, 40, 0.08)' }}>
+      <Link
+        href="/inquiry"
+        className="z-btn-primary z-btn-lg z-btn-block flex items-center justify-center gap-2 text-base"
+      >
+        <Ship size={18} />
+        {t({ en: 'Enquire Now', ar: 'استفسر الآن' })}
+      </Link>
+    </div>
+  );
+}
+
 // ─── Main Homepage Export ────────────────────────────────────
 export function ZenithaHomepage({ locale }: { locale: Locale }) {
   return (
@@ -509,6 +526,9 @@ export function ZenithaHomepage({ locale }: { locale: Locale }) {
       <AIPlannerSection locale={locale} />
       <TestimonialsSection locale={locale} />
       <NewsletterSection locale={locale} />
+      <StickyMobileCTA locale={locale} />
+      {/* Bottom padding to prevent sticky CTA from overlapping newsletter on mobile */}
+      <div className="lg:hidden h-16" aria-hidden="true" />
     </div>
   );
 }

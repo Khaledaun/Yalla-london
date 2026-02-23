@@ -514,6 +514,45 @@ export default function InquiryPage() {
                 </div>
               </div>
 
+              {/* Trust Signals */}
+              <div className="p-5 rounded-xl" style={{ background: "var(--z-surface)", border: "1px solid var(--z-border)" }}>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Shield size={18} className="flex-shrink-0 mt-0.5" style={{ color: "var(--z-mediterranean)" }} />
+                    <div>
+                      <p className="font-heading font-semibold" style={{ fontSize: "var(--z-text-body-sm)", color: "var(--z-navy)" }}>
+                        {lang === "ar" ? "استشارة مجانية وبدون التزام" : "Complimentary, no-obligation consultation"}
+                      </p>
+                      <p className="z-text-caption" style={{ color: "var(--z-muted)" }}>
+                        {lang === "ar" ? "لا رسوم حتى تقرر الحجز" : "No fees until you decide to book"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Clock size={18} className="flex-shrink-0 mt-0.5" style={{ color: "var(--z-aegean)" }} />
+                    <div>
+                      <p className="font-heading font-semibold" style={{ fontSize: "var(--z-text-body-sm)", color: "var(--z-navy)" }}>
+                        {lang === "ar" ? "رد خلال 24 ساعة" : "Response within 24 hours"}
+                      </p>
+                      <p className="z-text-caption" style={{ color: "var(--z-muted)" }}>
+                        {lang === "ar" ? "متخصصو الرحلات البحرية يراجعون طلبك شخصياً" : "Charter specialists personally review your request"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Users size={18} className="flex-shrink-0 mt-0.5" style={{ color: "var(--z-gold-dark, #8B6914)" }} />
+                    <div>
+                      <p className="font-heading font-semibold" style={{ fontSize: "var(--z-text-body-sm)", color: "var(--z-navy)" }}>
+                        {lang === "ar" ? "خدمة شخصية مع وسيط مخصص" : "Personal service with a dedicated broker"}
+                      </p>
+                      <p className="z-text-caption" style={{ color: "var(--z-muted)" }}>
+                        {lang === "ar" ? "نقطة اتصال واحدة من الاستفسار حتى الإبحار" : "One point of contact from inquiry to sailing"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* What Happens Next */}
               <div className="p-6 rounded-xl" style={{ background: "var(--z-surface)", border: "1px solid var(--z-border)" }}>
                 <h3 className="z-text-heading mb-5 flex items-center gap-2" style={{ color: "var(--z-navy)" }}>

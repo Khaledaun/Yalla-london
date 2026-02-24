@@ -358,7 +358,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
   useEffect(() => {
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (prefersReduced) return
+    if (prefersReduced) return undefined
     const timer = setInterval(nextSlide, HERO_INTERVAL_MS)
     return () => clearInterval(timer)
   }, [nextSlide])

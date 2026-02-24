@@ -61,6 +61,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           alternates: hreflang(""),
         },
         {
+          url: `${baseUrl}/fleet`,
+          lastModified: staticDate,
+          changeFrequency: "weekly",
+          priority: 0.9,
+          alternates: hreflang("/fleet"),
+        },
+        {
           url: `${baseUrl}/yachts`,
           lastModified: currentDate,
           changeFrequency: "daily",
@@ -73,6 +80,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           changeFrequency: "weekly",
           priority: 0.9,
           alternates: hreflang("/destinations"),
+        },
+        {
+          url: `${baseUrl}/journal`,
+          lastModified: currentDate,
+          changeFrequency: "weekly",
+          priority: 0.8,
+          alternates: hreflang("/journal"),
         },
         {
           url: `${baseUrl}/itineraries`,

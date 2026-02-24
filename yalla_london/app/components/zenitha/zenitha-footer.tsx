@@ -3,18 +3,23 @@
 import Link from 'next/link';
 import { useLanguage } from '@/components/language-provider';
 import { Mail, MessageCircle, Instagram, Linkedin, Anchor } from 'lucide-react';
-import { ENTITY, getCopyrightLine } from '@/config/entity';
+import { getCopyrightLine } from '@/config/entity';
 import { ZENITHA_CONTACT } from './zenitha-config';
 
-// Contact & social links — sourced from zenitha-config.ts (single source of truth)
-const CONTACT = {
-  email: ZENITHA_CONTACT.email,
-  whatsapp: ZENITHA_CONTACT.whatsapp,
-  instagram: ZENITHA_CONTACT.instagram,
-  linkedin: ZENITHA_CONTACT.linkedin,
-};
+/* ════════════════════════════════════════════════════════════════════
+   FOOTER NAV — aligned with header nav + legal/social
+   ════════════════════════════════════════════════════════════════════ */
 
-const FOOTER_NAV = {
+const FOOTER_SECTIONS = {
+  explore: {
+    title: { en: 'Explore', ar: 'استكشف' },
+    links: [
+      { label: { en: 'Fleet', ar: 'الأسطول' }, href: '/fleet' },
+      { label: { en: 'Destinations', ar: 'الوجهات' }, href: '/destinations' },
+      { label: { en: 'How It Works', ar: 'كيف يعمل' }, href: '/how-it-works' },
+      { label: { en: 'Journal', ar: 'المجلة' }, href: '/journal' },
+    ],
+  },
   destinations: {
     title: { en: 'Destinations', ar: 'الوجهات' },
     links: [
@@ -22,82 +27,111 @@ const FOOTER_NAV = {
       { label: { en: 'Croatian Coast', ar: 'ساحل كرواتيا' }, href: '/destinations/croatian-coast' },
       { label: { en: 'Turkish Riviera', ar: 'الريفيرا التركية' }, href: '/destinations/turkish-riviera' },
       { label: { en: 'French Riviera', ar: 'الريفيرا الفرنسية' }, href: '/destinations/french-riviera' },
-      { label: { en: 'Arabian Gulf', ar: 'الخليج العربي' }, href: '/destinations/arabian-gulf' },
-      { label: { en: 'Red Sea', ar: 'البحر الأحمر' }, href: '/destinations/red-sea' },
-    ],
-  },
-  charter: {
-    title: { en: 'Charter', ar: 'استئجار' },
-    links: [
-      { label: { en: 'Browse Yachts', ar: 'تصفح اليخوت' }, href: '/yachts' },
-      { label: { en: 'AI Planner', ar: 'مخطط ذكي' }, href: '/charter-planner' },
-      { label: { en: 'Inquiry Form', ar: 'نموذج الاستفسار' }, href: '/inquiry' },
-      { label: { en: 'Itineraries', ar: 'المسارات' }, href: '/itineraries' },
-      { label: { en: 'Charter Types', ar: 'أنواع الاستئجار' }, href: '/how-it-works' },
+      { label: { en: 'Amalfi Coast', ar: 'ساحل أمالفي' }, href: '/destinations/amalfi-coast' },
+      { label: { en: 'Dubai & Abu Dhabi', ar: 'دبي وأبوظبي' }, href: '/destinations/arabian-gulf' },
     ],
   },
   company: {
     title: { en: 'Company', ar: 'الشركة' },
     links: [
       { label: { en: 'About Us', ar: 'عن زينيثا' }, href: '/about' },
-      { label: { en: 'How It Works', ar: 'كيف يعمل' }, href: '/how-it-works' },
-      { label: { en: 'Blog', ar: 'المدونة' }, href: '/blog' },
-      { label: { en: 'FAQ', ar: 'الأسئلة الشائعة' }, href: '/faq' },
       { label: { en: 'Contact', ar: 'تواصل معنا' }, href: '/contact' },
-      { label: { en: 'Privacy', ar: 'الخصوصية' }, href: '/privacy' },
-      { label: { en: 'Terms', ar: 'الشروط' }, href: '/terms' },
+      { label: { en: 'Privacy Policy', ar: 'سياسة الخصوصية' }, href: '/privacy' },
+      { label: { en: 'Terms of Service', ar: 'الشروط والأحكام' }, href: '/terms' },
     ],
   },
 };
+
+/* ════════════════════════════════════════════════════════════════════
+   FOOTER COMPONENT
+   ════════════════════════════════════════════════════════════════════ */
 
 export function ZenithaFooter() {
   const { language, isRTL } = useLanguage();
   const t = (obj: { en: string; ar: string }) => obj[language as 'en' | 'ar'] || obj.en;
 
   return (
-    <footer className="bg-[var(--z-navy)] text-white" dir={isRTL ? 'rtl' : 'ltr'}>
-      {/* Gold accent line */}
-      <div className="h-[2px] w-full bg-gradient-to-r from-[var(--z-aegean)] via-[var(--z-gold)] to-[var(--z-aegean)]" />
+    <footer
+      className="text-white"
+      style={{ background: 'var(--z-navy, #0a1628)' }}
+      dir={isRTL ? 'rtl' : 'ltr'}
+    >
+      {/* Top accent */}
+      <div
+        className="h-[2px] w-full"
+        style={{ background: 'linear-gradient(to right, var(--z-sea,#0ea5a2), var(--z-gold,#c9a96e), var(--z-sea,#0ea5a2))' }}
+      />
 
-      {/* Main Footer */}
-      <div className="max-w-[1280px] mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
-          {/* Brand Column */}
+      {/* ── Main grid ── */}
+      <div className="max-w-7xl mx-auto px-5 sm:px-8 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 lg:gap-8">
+          {/* Brand column — 2 cols wide */}
           <div className="lg:col-span-2">
             {/* Logo */}
-            <div className="flex items-center gap-2 mb-5">
-              <Anchor size={28} className="text-[var(--z-gold)]" />
+            <div className="flex items-center gap-2.5 mb-5">
+              <Anchor size={26} style={{ color: 'var(--z-gold, #c9a96e)' }} />
               <div className="flex flex-col leading-none">
                 <span className="font-display text-xl font-bold tracking-tight text-white">ZENITHA</span>
-                <span className="text-[11px] font-heading font-semibold tracking-[0.2em] uppercase text-white/50">YACHTS</span>
+                <span className="text-[10px] font-heading font-semibold tracking-[0.22em] uppercase text-white/45">YACHTS</span>
               </div>
             </div>
-            <p className="text-[var(--z-shallow)] text-sm font-body leading-relaxed max-w-xs mb-6">
-              {language === 'ar'
-                ? 'استئجار يخوت فاخرة في البحر المتوسط والخليج العربي وما وراءهما. طعام حلال. طواقم محترفة. رحلات مصممة خصيصاً لك.'
-                : 'Curated yacht charters across the Mediterranean, Arabian Gulf, and beyond. Halal catering. Professional crews. Tailored itineraries.'}
+
+            {/* Brand description — global audience, specific countries */}
+            <p className="text-[15px] font-body leading-relaxed text-white/60 max-w-sm mb-2">
+              {t({
+                en: 'Luxury private yacht charters across the Mediterranean, Adriatic, Aegean, and selected global destinations.',
+                ar: 'استئجار يخوت فاخرة خاصة عبر البحر المتوسط والأدرياتيكي وبحر إيجة ووجهات عالمية مختارة.',
+              })}
             </p>
-            {/* Contact */}
+            <p className="text-sm font-body leading-relaxed text-white/45 max-w-sm mb-6">
+              {t({
+                en: 'Tailored experiences for travellers from the United Kingdom, France, Germany, Italy, the United States, Canada, Saudi Arabia, the UAE, Qatar, Kuwait, Egypt, Singapore, and Australia.',
+                ar: 'تجارب مصممة خصيصاً للمسافرين من المملكة المتحدة وفرنسا وألمانيا وإيطاليا والولايات المتحدة وكندا والسعودية والإمارات وقطر والكويت ومصر وسنغافورة وأستراليا.',
+              })}
+            </p>
+
+            {/* Contact links */}
             <div className="space-y-2.5">
-              <a href={`mailto:${CONTACT.email}`} className="flex items-center gap-2 text-sm text-[var(--z-shallow)] hover:text-[var(--z-gold)] transition-colors">
-                <Mail size={16} /> {CONTACT.email}
+              <a
+                href={`mailto:${ZENITHA_CONTACT.email}`}
+                className="flex items-center gap-2 text-sm text-white/55 hover:text-[var(--z-gold,#c9a96e)] transition-colors"
+              >
+                <Mail size={15} /> {ZENITHA_CONTACT.email}
               </a>
-              {CONTACT.whatsapp && (
-                <a href={`https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent('Hello Zenitha, I\'m interested in chartering a yacht. Could you help me plan my trip?')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-[var(--z-shallow)] hover:text-[var(--z-gold)] transition-colors">
-                  <MessageCircle size={16} /> WhatsApp
+              {ZENITHA_CONTACT.whatsapp && (
+                <a
+                  href={`https://wa.me/${ZENITHA_CONTACT.whatsapp}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-white/55 hover:text-[var(--z-gold,#c9a96e)] transition-colors"
+                >
+                  <MessageCircle size={15} /> WhatsApp
                 </a>
               )}
             </div>
-            {/* Social — only render links that have real URLs */}
-            {(CONTACT.instagram || CONTACT.linkedin) && (
+
+            {/* Social — only render if URLs configured */}
+            {(ZENITHA_CONTACT.instagram || ZENITHA_CONTACT.linkedin) && (
               <div className="flex items-center gap-3 mt-5">
-                {CONTACT.instagram && (
-                  <a href={CONTACT.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-9 h-9 flex items-center justify-center rounded-full border border-white/20 text-white/60 hover:border-[var(--z-gold)] hover:text-[var(--z-gold)] transition-colors">
+                {ZENITHA_CONTACT.instagram && (
+                  <a
+                    href={ZENITHA_CONTACT.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Instagram"
+                    className="w-9 h-9 flex items-center justify-center rounded-full border border-white/15 text-white/50 hover:border-[var(--z-gold,#c9a96e)] hover:text-[var(--z-gold,#c9a96e)] transition-colors"
+                  >
                     <Instagram size={16} />
                   </a>
                 )}
-                {CONTACT.linkedin && (
-                  <a href={CONTACT.linkedin} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="w-9 h-9 flex items-center justify-center rounded-full border border-white/20 text-white/60 hover:border-[var(--z-gold)] hover:text-[var(--z-gold)] transition-colors">
+                {ZENITHA_CONTACT.linkedin && (
+                  <a
+                    href={ZENITHA_CONTACT.linkedin}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="LinkedIn"
+                    className="w-9 h-9 flex items-center justify-center rounded-full border border-white/15 text-white/50 hover:border-[var(--z-gold,#c9a96e)] hover:text-[var(--z-gold,#c9a96e)] transition-colors"
+                  >
                     <Linkedin size={16} />
                   </a>
                 )}
@@ -105,10 +139,13 @@ export function ZenithaFooter() {
             )}
           </div>
 
-          {/* Navigation Columns */}
-          {Object.values(FOOTER_NAV).map((section, index) => (
-            <div key={index}>
-              <h3 className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold)] mb-4">
+          {/* Nav columns */}
+          {Object.values(FOOTER_SECTIONS).map((section, i) => (
+            <div key={i}>
+              <h3
+                className="text-xs font-heading font-semibold uppercase tracking-[0.14em] mb-4"
+                style={{ color: 'var(--z-gold, #c9a96e)' }}
+              >
                 {t(section.title)}
               </h3>
               <ul className="space-y-2.5">
@@ -116,7 +153,7 @@ export function ZenithaFooter() {
                   <li key={li}>
                     <Link
                       href={link.href}
-                      className="text-sm font-body text-[var(--z-shallow)] hover:text-white transition-colors duration-200"
+                      className="text-sm font-body text-white/55 hover:text-white transition-colors duration-200"
                     >
                       {t(link.label)}
                     </Link>
@@ -128,22 +165,21 @@ export function ZenithaFooter() {
         </div>
       </div>
 
-      {/* Bottom Bar */}
+      {/* ── Bottom bar ── */}
       <div className="border-t border-white/10">
-        <div className="max-w-[1280px] mx-auto px-6 py-5 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <p className="text-xs text-white/40 font-body">
+        <div className="max-w-7xl mx-auto px-5 sm:px-8 py-5 flex flex-col sm:flex-row justify-between items-center gap-3">
+          <p className="text-xs text-white/35 font-body">
             {getCopyrightLine((language as 'en' | 'ar') || 'en')}
+            {' · '}
+            <span className="text-white/25">Zenitha.Luxury LLC · Delaware, USA</span>
           </p>
-          <div className="flex items-center gap-4">
-            <Link href="/privacy" className="text-xs text-white/40 hover:text-white/70 transition-colors font-body">
-              {language === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}
+          <div className="flex items-center gap-4 text-xs text-white/35 font-body">
+            <Link href="/privacy" className="hover:text-white/60 transition-colors">
+              {t({ en: 'Privacy', ar: 'الخصوصية' })}
             </Link>
-            <Link href="/terms" className="text-xs text-white/40 hover:text-white/70 transition-colors font-body">
-              {language === 'ar' ? 'الشروط والأحكام' : 'Terms of Service'}
+            <Link href="/terms" className="hover:text-white/60 transition-colors">
+              {t({ en: 'Terms', ar: 'الشروط' })}
             </Link>
-            <span className="text-xs text-white/30 font-body">
-              {language === 'ar' ? 'خيارات حلال معتمدة متوفرة' : 'Certified Halal Options Available'}
-            </span>
           </div>
         </div>
       </div>

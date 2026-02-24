@@ -556,16 +556,18 @@ Zenitha Yachts is a premium yacht charter platform specializing in Mediterranean
 
 ## Site Sections
 
+- /fleet — Fleet overview: motor yachts, sailing yachts, catamarans, and Turkish gulets with descriptions, specs, and links to search.
 - /yachts — Fleet search and browse (filter by type, price, cabins, destination). Each yacht has detailed specs, gallery, pricing, and availability calendar.
 - /yachts/[slug] — Individual yacht pages with Product JSON-LD, amenities, cabin layout, crew details, and charter inquiry CTA.
 - /destinations — Mediterranean and Arabian Gulf charter destinations with region guides, seasonal advice, and yacht availability by area.
 - /destinations/[slug] — Individual destination pages with Place JSON-LD, recommended itineraries, marina info, and local highlights.
 - /itineraries — Curated 7-14 day sailing routes with day-by-day port stops, activities, and recommended yachts.
+- /journal — The Zenitha Journal: charter guides, sailing itineraries, destination deep-dives, and practical advice written by charter specialists.
+- /journal/[slug] — Individual journal articles with Article JSON-LD, byline, reading time, and related content.
 - /charter-planner — AI-powered interactive charter planner (dates, destination, guests, preferences) that generates personalised recommendations.
 - /inquiry — Charter inquiry form with bilingual (EN/AR) support, destination selection, budget ranges, yacht type preferences, and halal catering options.
-- /how-it-works — Four-step charter booking process (Share Your Vision, Expert Curation, Personal Consultation, Set Sail) with Service JSON-LD.
+- /how-it-works — Four-step charter booking process with FAQPage JSON-LD covering booking timing, halal catering, family charters, and first-time destination advice.
 - /faq — Comprehensive FAQ covering booking process, charter experience, halal catering, destinations, sailing conditions, and practical travel information. Bilingual EN/AR.
-- /blog — Charter guides, destination articles, and sailing tips.
 - /about — Company story, mission, and the Zenitha Yachts team.
 - /contact — Direct contact with charter specialists (Dubai HQ, Athens operations).
 

@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { getBaseUrl } from "@/lib/url-utils";
+import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
 import {
   Compass,
   Ship,
@@ -8,6 +11,7 @@ import {
   Heart,
   MapPin,
   Headphones,
+  HelpCircle,
 } from "lucide-react";
 
 /* ─── Step Data ──────────────────────────────────────────────────── */
@@ -96,11 +100,70 @@ const ADVANTAGES = [
   },
 ] as const;
 
+/* ─── FAQ Data ────────────────────────────────────────────────────── */
+
+const CHARTER_FAQS = [
+  {
+    question: "How far in advance should I book a Mediterranean yacht charter?",
+    answer:
+      "For peak season (June through September), we recommend booking 3 to 6 months ahead. The most popular yachts in the Greek Islands and Croatian coast are reserved by February for the summer season. Off-peak charters (April-May, October) can often be arranged with 4 to 6 weeks' notice.",
+  },
+  {
+    question: "Is halal catering available on every charter?",
+    answer:
+      "Yes. We arrange certified halal provisioning on every charter we book, regardless of destination. Our kitchen coordinators work with vetted halal suppliers at every major Mediterranean port — including Athens, Bodrum, Split, Palma de Mallorca, and Dubai. We can also accommodate vegetarian, vegan, kosher, and allergy-specific dietary requirements.",
+  },
+  {
+    question: "Are Zenitha Yachts charters suitable for families with children?",
+    answer:
+      "Absolutely. Many of our catamarans and motor yachts are specifically designed for families. Features include enclosed trampolines, shallow-water toys (paddleboards, kayaks, snorkelling gear), child-sized life jackets, and cabins with connecting doors. Our crew members are experienced with young guests and can adjust itineraries for shorter sailing days and child-friendly anchorages.",
+  },
+  {
+    question: "Which destination do you recommend for a first-time charter?",
+    answer:
+      "For first-time charterers, we typically recommend either the Greek Islands (Ionian or Saronic) or the Croatian coast. Both offer calm waters, short distances between ports, excellent marinas, and reliable summer weather. The Turkish Riviera is another excellent choice, particularly for those interested in a traditional gulet experience with relaxed, bay-to-bay sailing.",
+  },
+  {
+    question: "What is included in the charter price?",
+    answer:
+      "The base charter fee typically covers the yacht, professional crew, insurance, standard equipment, and bed linen. The APA (Advance Provisioning Allowance) — usually 25-35% of the charter fee — covers fuel, food, beverages, port fees, and any extras such as water sports equipment hire or special excursions. We provide a transparent cost breakdown before you commit.",
+  },
+  {
+    question: "Can I charter a yacht if I have no sailing experience?",
+    answer:
+      "Yes. All our crewed charters come with a professional captain and crew who handle all navigation, sailing, and safety. You are a guest — no sailing skills required. For those interested in learning, many of our captains are happy to teach basic sailing techniques during the voyage.",
+  },
+] as const;
+
 /* ─── Page Component ─────────────────────────────────────────────── */
 
-export default function HowItWorksPage() {
+export default async function HowItWorksPage() {
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteName = getSiteConfig(siteId)?.name || "Zenitha Yachts";
+  const baseUrl = await getBaseUrl();
+
+  /* FAQPage JSON-LD */
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: CHARTER_FAQS.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
   return (
     <main>
+      {/* FAQPage structured data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+
       {/* ═══ Hero Section ══════════════════════════════════════════ */}
       <section
         style={{
@@ -429,6 +492,102 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
+      {/* ═══ FAQ Section ═══════════════════════════════════════════ */}
+      <section
+        className="z-section"
+        style={{ background: "var(--z-pearl)" }}
+      >
+        <div className="z-container">
+          <div
+            style={{
+              textAlign: "center",
+              maxWidth: "var(--z-container-text)",
+              marginInline: "auto",
+              marginBottom: "var(--z-space-12)",
+            }}
+          >
+            <p
+              className="z-text-overline"
+              style={{ marginBottom: "var(--z-space-3)" }}
+            >
+              Common Questions
+            </p>
+            <h2
+              className="z-text-title-lg"
+              style={{ marginBottom: "var(--z-space-4)" }}
+            >
+              Frequently Asked Questions
+            </h2>
+            <span className="z-gold-bar-wide" style={{ marginInline: "auto", display: "block" }} />
+          </div>
+
+          <div
+            style={{
+              maxWidth: "var(--z-container-lg)",
+              marginInline: "auto",
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--z-space-4)",
+            }}
+          >
+            {CHARTER_FAQS.map((faq) => (
+              <details
+                key={faq.question}
+                className="z-card"
+                style={{ overflow: "hidden" }}
+              >
+                <summary
+                  style={{
+                    padding: "var(--z-space-5) var(--z-space-6)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--z-space-3)",
+                    listStyle: "none",
+                    fontFamily: "var(--z-font-heading)",
+                    fontSize: "var(--z-text-heading)",
+                    fontWeight: "var(--z-weight-semibold)",
+                    color: "var(--z-navy)",
+                  }}
+                >
+                  <HelpCircle
+                    size={20}
+                    style={{ color: "var(--z-gold)", flexShrink: 0 }}
+                  />
+                  {faq.question}
+                </summary>
+                <div
+                  style={{
+                    padding: "0 var(--z-space-6) var(--z-space-5) calc(var(--z-space-6) + 20px + var(--z-space-3))",
+                    fontFamily: "var(--z-font-body)",
+                    fontSize: "var(--z-text-body)",
+                    color: "var(--z-muted)",
+                    lineHeight: "var(--z-leading-relaxed)",
+                  }}
+                >
+                  {faq.answer}
+                </div>
+              </details>
+            ))}
+          </div>
+
+          <div style={{ textAlign: "center", marginTop: "var(--z-space-8)" }}>
+            <Link
+              href="/faq"
+              className="z-text-body"
+              style={{
+                color: "var(--z-aegean)",
+                fontWeight: "var(--z-weight-semibold)",
+                textDecoration: "underline",
+                textUnderlineOffset: "3px",
+              }}
+            >
+              View All FAQs →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ═══ CTA Section ═══════════════════════════════════════════ */}
       <section
         className="z-section-lg"
@@ -490,7 +649,7 @@ export default function HowItWorksPage() {
                 Start Your Charter Inquiry
               </Link>
               <Link
-                href="/yachts"
+                href="/fleet"
                 className="z-btn z-btn-lg"
                 style={{
                   background: "transparent",

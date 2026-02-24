@@ -70,6 +70,15 @@ export interface BrandConfig {
     };
   };
 
+  // Logos & Branding Assets
+  logos: {
+    wordmark: string;
+    wordmarkAr?: string;
+    stacked: string;
+    alt: string;
+    altAr?: string;
+  };
+
   // SEO & Meta
   seo: {
     keywords: string;
@@ -95,6 +104,14 @@ export const luxuryGuideTemplate: BrandConfig = {
   description: "Yalla London connects Arab travellers with London's finest luxury hotels, halal restaurants, and exclusive experiences. Bilingual guide in English & Arabic.",
   descriptionAr: "يالا لندن يربط المسافرين العرب بأفخم فنادق لندن والمطاعم الحلال والتجارب الحصرية. دليل ثنائي اللغة بالعربية والإنجليزية.",
   businessType: 'luxury-guide',
+
+  logos: {
+    wordmark: '/branding/yalla-london/brand-kit/01-logos-svg/yalla-wordmark-dark.svg',
+    wordmarkAr: '/branding/yalla-london/brand-kit/01-logos-svg/yalla-arabic-dark.svg',
+    stacked: '/branding/yalla-london/brand-kit/01-logos-svg/yalla-stacked-dark.svg',
+    alt: 'Yalla London',
+    altAr: 'يلّا لندن',
+  },
 
   colors: {
     primary: "#C8322B", // London Red

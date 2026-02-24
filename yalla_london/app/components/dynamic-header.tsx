@@ -13,7 +13,7 @@ export function DynamicHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const { language, setLanguage, isRTL } = useLanguage();
-  const { translations, colors } = useBrandConfig();
+  const { translations, colors, logos } = useBrandConfig();
   const { navigation } = useNavigationTranslations();
 
   useEffect(() => {
@@ -48,8 +48,8 @@ export function DynamicHeader() {
           {/* Logo — v2 brand kit wordmark, 3x size (270px) */}
           <Link href="/" className="flex items-center group">
             <Image
-              src="/branding/yalla-london/brand-kit/01-logos-svg/yalla-wordmark-dark.svg"
-              alt="Yalla London"
+              src={logos.wordmark}
+              alt={logos.alt}
               width={600}
               height={108}
               className="h-auto w-[270px] transition-opacity group-hover:opacity-80"
@@ -81,7 +81,7 @@ export function DynamicHeader() {
             {/* Language Toggle — visible on all screen sizes */}
             <button
               onClick={toggleLanguage}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded transition-all duration-200 hover:bg-cream-100 ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded transition-all duration-200 hover:bg-cream-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 ${
                 language === 'en'
                   ? 'font-arabic text-[13px] font-medium text-stone-600 hover:text-charcoal'
                   : 'font-sans text-[12px] font-medium tracking-[0.75px] uppercase text-stone-600 hover:text-charcoal'
@@ -93,7 +93,7 @@ export function DynamicHeader() {
             {/* CTA Button — London Red bg, Cream text, sans 12px/600 */}
             <Link
               href="/contact"
-              className={`hidden lg:flex items-center px-4 py-2 bg-london-600 text-cream rounded font-sans text-[12px] font-semibold uppercase transition-all duration-200 hover:bg-london-700 ${
+              className={`hidden lg:flex items-center px-4 py-2 bg-london-600 text-cream rounded font-sans text-[12px] font-semibold uppercase transition-all duration-200 hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
                 isRTL ? 'font-arabic tracking-normal text-[13px] normal-case' : 'tracking-[1px]'
               }`}
             >
@@ -168,8 +168,8 @@ export function DynamicHeader() {
             {/* Arabic wordmark + tri-bar below mobile nav per v2 spec */}
             <div className="pt-4 px-4 flex flex-col items-center gap-3">
               <Image
-                src="/branding/yalla-london/brand-kit/01-logos-svg/yalla-arabic-dark.svg"
-                alt="يلّا لندن"
+                src={logos.wordmarkAr || logos.wordmark}
+                alt={logos.altAr || logos.alt}
                 width={120}
                 height={30}
                 className="h-auto w-[80px] opacity-40"

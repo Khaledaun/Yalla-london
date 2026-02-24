@@ -547,12 +547,30 @@ We provide structured data (JSON-LD) on all pages.
 
   "zenitha-yachts-med": `# Zenitha Yachts — AI & LLM Information File
 # https://zenithayachts.com/llms.txt
-# Last Updated: 2026-02-21
+# Last Updated: 2026-02-24
 # Part of Zenitha.Luxury LLC
 
 ## About Zenitha Yachts
 
 Zenitha Yachts is a premium yacht charter platform specializing in Mediterranean, Arabian Gulf, and Red Sea sailing experiences. We connect discerning travelers — particularly from the Gulf Cooperation Council (GCC) region — with curated yacht charters, complete with halal catering options, family-friendly vessels, and professionally crewed itineraries.
+
+## Site Sections
+
+- /yachts — Fleet search and browse (filter by type, price, cabins, destination). Each yacht has detailed specs, gallery, pricing, and availability calendar.
+- /yachts/[slug] — Individual yacht pages with Product JSON-LD, amenities, cabin layout, crew details, and charter inquiry CTA.
+- /destinations — Mediterranean and Arabian Gulf charter destinations with region guides, seasonal advice, and yacht availability by area.
+- /destinations/[slug] — Individual destination pages with Place JSON-LD, recommended itineraries, marina info, and local highlights.
+- /itineraries — Curated 7-14 day sailing routes with day-by-day port stops, activities, and recommended yachts.
+- /charter-planner — AI-powered interactive charter planner (dates, destination, guests, preferences) that generates personalised recommendations.
+- /inquiry — Charter inquiry form with bilingual (EN/AR) support, destination selection, budget ranges, yacht type preferences, and halal catering options.
+- /how-it-works — Four-step charter booking process (Share Your Vision, Expert Curation, Personal Consultation, Set Sail) with Service JSON-LD.
+- /faq — Comprehensive FAQ covering booking process, charter experience, halal catering, destinations, sailing conditions, and practical travel information. Bilingual EN/AR.
+- /blog — Charter guides, destination articles, and sailing tips.
+- /about — Company story, mission, and the Zenitha Yachts team.
+- /contact — Direct contact with charter specialists (Dubai HQ, Athens operations).
+
+Publisher: Zenitha.Luxury LLC (Delaware)
+Languages: English (en-GB), Arabic (ar-SA)
 
 ## Primary Topics
 

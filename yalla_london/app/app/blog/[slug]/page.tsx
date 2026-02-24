@@ -271,24 +271,55 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 // ─── FAQ extraction from content ─────────────────────────────────────────
 
 /**
- * Extract Q&A pairs from HTML content by finding headings that look like
- * questions (contain "?") followed by paragraph text. Used for AIO-friendly
- * structured data. Does NOT use deprecated FAQPage — uses Article hasPart.
+ * Extract Q&A pairs from HTML content for AIO-friendly structured data.
+ * Does NOT use deprecated FAQPage schema — uses Article hasPart instead.
+ *
+ * Two extraction strategies:
+ * 1. Headings containing "?" followed by paragraph text (explicit questions)
+ * 2. Headings containing tip/FAQ keywords followed by ordered/unordered lists
+ *    (e.g. "How Can I Verify...", "Tips for...", "What Should I...")
  */
 function extractFaqPairs(html: string): Array<{ question: string; answer: string }> {
   const pairs: Array<{ question: string; answer: string }> = [];
-  // Match h2/h3 containing "?" followed by paragraph(s)
+
+  // Strategy 1: Headings with "?" followed by paragraph(s)
   const faqPattern = /<h[23][^>]*>([^<]*\?[^<]*)<\/h[23]>\s*(?:<[^h][^>]*>)*([\s\S]*?)(?=<h[23]|$)/gi;
   let match;
   while ((match = faqPattern.exec(html)) !== null) {
     const question = match[1].replace(/<[^>]*>/g, "").trim();
     const rawAnswer = match[2].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-    // Only include if answer has real content (>30 chars)
     if (question && rawAnswer.length > 30) {
       pairs.push({ question, answer: rawAnswer.slice(0, 500) });
     }
   }
-  return pairs.slice(0, 8); // Cap at 8 Q&A pairs
+
+  // Strategy 2: Headings with tip/how-to keywords followed by list items
+  const tipKeywords = /\b(tips?|how\s+(?:to|can|do)|verify|check|avoid|what\s+(?:to|should))\b/i;
+  const tipPattern = /<h[23][^>]*>([\s\S]*?)<\/h[23]>\s*([\s\S]*?)(?=<h[23]|$)/gi;
+  let tipMatch;
+  while ((tipMatch = tipPattern.exec(html)) !== null) {
+    const heading = tipMatch[1].replace(/<[^>]*>/g, "").trim();
+    // Skip if already captured by Strategy 1 (has "?")
+    if (heading.includes("?")) continue;
+    if (!tipKeywords.test(heading)) continue;
+
+    const body = tipMatch[2];
+    // Extract list items from <li> tags
+    const items: string[] = [];
+    const liPattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+    let li;
+    while ((li = liPattern.exec(body)) !== null) {
+      const text = li[1].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      if (text.length > 15) items.push(text);
+    }
+    if (items.length >= 2) {
+      // Convert heading to question form if not already
+      const question = heading.endsWith("?") ? heading : `${heading}?`;
+      pairs.push({ question, answer: items.join(" ").slice(0, 500) });
+    }
+  }
+
+  return pairs.slice(0, 8);
 }
 
 // ─── Structured Data (JSON-LD) ─────────────────────────────────────────────
@@ -376,24 +407,29 @@ function generateStructuredData(
     }));
   }
 
+  const breadcrumbItems = [
+    { "@type": "ListItem" as const, position: 1, name: "Home", item: baseUrl },
+    { "@type": "ListItem" as const, position: 2, name: "Blog", item: `${baseUrl}/blog` },
+  ];
+  if (categoryName && categoryName !== "Travel") {
+    breadcrumbItems.push({
+      "@type": "ListItem" as const,
+      position: 3,
+      name: categoryName,
+      item: `${baseUrl}/blog/category/${categoryName.toLowerCase().replace(/\s+&\s+/g, "-").replace(/\s+/g, "-")}`,
+    });
+  }
+  breadcrumbItems.push({
+    "@type": "ListItem" as const,
+    position: breadcrumbItems.length + 1,
+    name: post.title_en,
+    item: `${baseUrl}/blog/${post.slug}`,
+  });
+
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Blog",
-        item: `${baseUrl}/blog`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: post.title_en,
-        item: `${baseUrl}/blog/${post.slug}`,
-      },
-    ],
+    itemListElement: breadcrumbItems,
   };
 
   return { articleSchema, breadcrumbSchema };

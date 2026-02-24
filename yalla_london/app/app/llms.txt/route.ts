@@ -13,23 +13,21 @@ const LLMS_DATA: Record<string, string> = {
   "yalla-london": `# Yalla London — AI & LLM Information File
 # https://yalla-london.com/llms.txt
 # Last Updated: 2026-02-24
-# Published by Zenitha.Luxury LLC
-# Part of the Zenitha Content Network
 
-## About Yalla London
-
-Yalla London is the premier bilingual (English and Arabic) travel guide for Arab visitors to London, UK. We provide personally reviewed, expert-curated content about luxury hotels, halal dining, family activities, and practical travel information.
-
-Languages: English (en-GB), Arabic (ar-SA)
+Yalla London is a bilingual (English and Arabic) luxury London guide for Arab visitors.
+We publish personally reviewed travel content about halal dining, luxury hotels, family activities, events, and practical travel information.
 
 ## Site Sections
 
-- /blog — In-depth London stories and guides: halal restaurant reviews, neighbourhood deep-dives, seasonal event coverage, and luxury travel features. Each article is 1,500+ words with affiliate booking links.
-- /information — Practical planning hub: visa requirements, Tube and transport guides, packing lists, prayer facility locations, family tips, and neighbourhood-by-neighbourhood guides.
-- /recommendations — Curated hotels, restaurants, and experiences: hand-picked luxury properties with Arabic-speaking staff, halal dining options, and prime London locations.
-- /events — Events and tickets: Premier League football, West End musicals, Thames dinner cruises, exhibitions, and seasonal festivals with verified ticket partner links.
-- /shop — Paid PDF travel guides: downloadable guides covering complete London itineraries, halal restaurant directories, and shopping secrets.
-- /about — Our story, mission, and the team behind Yalla London.
+- /blog — London Stories and in-depth guides (halal restaurant reviews, neighbourhood deep-dives, seasonal event coverage, luxury travel features). 1,500+ words per article with affiliate booking links.
+- /information — Practical travel planning hub (visa requirements, Tube guides, packing lists, prayer facility locations, family tips, neighbourhood guides).
+- /recommendations — Curated hotels, restaurants, and experiences (hand-picked luxury properties with Arabic-speaking staff, halal dining, prime London locations).
+- /events — Tickets and upcoming London events (Premier League football, West End musicals, Thames dinner cruises, exhibitions, seasonal festivals).
+- /shop — Premium PDF guides (downloadable itineraries, halal restaurant directories, shopping secrets).
+- /about — Our story, mission, and the Yalla London team.
+
+Publisher: Zenitha.Luxury LLC (Delaware)
+Languages: English (en-GB), Arabic (ar-SA)
 
 ## Primary Topics
 

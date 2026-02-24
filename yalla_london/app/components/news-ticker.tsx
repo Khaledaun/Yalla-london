@@ -141,7 +141,7 @@ export function NewsTicker({ items: propItems, speed = 40, className }: NewsTick
         isRTL ? 'right-0' : 'left-0'
       )}>
         <Newspaper className="w-3.5 h-3.5 text-white mr-1.5" />
-        <span className="font-mono text-[9px] font-bold tracking-[1.5px] uppercase text-white hidden sm:inline">
+        <span className="font-sans text-[11px] font-bold tracking-[1px] uppercase text-white hidden sm:inline">
           {isAr ? 'عاجل' : 'LIVE'}
         </span>
         <span className="relative flex h-2 w-2 ml-2">
@@ -200,7 +200,7 @@ export function NewsTicker({ items: propItems, speed = 40, className }: NewsTick
                 {/* Breaking/Urgent badge */}
                 {(isBreaking || isUrgent) && (
                   <span className={cn(
-                    'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider shrink-0',
+                    'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider shrink-0',
                     isBreaking ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'
                   )}>
                     <Zap className="w-2.5 h-2.5" />
@@ -222,7 +222,7 @@ export function NewsTicker({ items: propItems, speed = 40, className }: NewsTick
                 </span>
 
                 {/* Source */}
-                <span className="text-[9px] text-white/30 font-mono shrink-0">
+                <span className="text-[11px] text-white/30 font-sans shrink-0">
                   {item.source_name}
                 </span>
 

@@ -172,7 +172,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
             </span>
-            <span className="font-mono text-[9px] font-semibold tracking-[2px] uppercase text-yalla-gold-500 border border-yalla-gold-500/30 px-2.5 py-1 rounded">
+            <span className="font-sans text-[11px] font-semibold tracking-[2px] uppercase text-yalla-gold-500 border border-yalla-gold-500/30 px-2.5 py-1 rounded">
               {isAr ? 'لندن اليوم' : 'LONDON TODAY'}
             </span>
           </div>
@@ -199,7 +199,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                   <button
                     key={cat.key}
                     onClick={() => setActiveCategory(cat.key)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-[9px] font-medium tracking-[1px] uppercase transition-all duration-200 whitespace-nowrap shrink-0 ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-sans text-[11px] font-medium tracking-[1px] uppercase transition-all duration-200 whitespace-nowrap shrink-0 ${
                       activeCategory === cat.key
                         ? 'bg-charcoal text-cream'
                         : 'bg-cream-100 text-stone hover:bg-sand/50'
@@ -233,7 +233,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
           <div className="max-w-6xl mx-auto px-6">
             <div className="flex items-center gap-2 mb-5">
               <Zap size={14} className="text-red-500" />
-              <span className="font-mono text-[9px] font-semibold tracking-[2px] uppercase text-red-600">
+              <span className="font-sans text-[11px] font-semibold tracking-[2px] uppercase text-red-600">
                 {isAr ? 'تحديثات عاجلة' : 'BREAKING & IMPORTANT'}
               </span>
             </div>
@@ -275,20 +275,20 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           {/* Urgency badge */}
                           {(item.urgency === 'breaking' || item.urgency === 'urgent') && (
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider ${
                               isBreaking ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'
                             }`}>
                               <Zap size={9} />
                               {isBreaking ? (isAr ? 'عاجل' : 'BREAKING') : (isAr ? 'مهم' : 'URGENT')}
                             </span>
                           )}
-                          <span className={`font-mono text-[8px] font-semibold tracking-[1.5px] uppercase px-2 py-0.5 rounded border bg-white/80 ${getCategoryBadgeColor(item.news_category).replace(/text-\w+-300/g, (m) => m.replace('300', '700')).replace(/bg-\w+-500\/20/g, (m) => m.replace('500/20', '100')).replace(/border-\w+-500\/30/g, (m) => m.replace('500/30', '300'))}`}>
+                          <span className={`font-sans text-[11px] font-semibold tracking-[1.5px] uppercase px-2 py-0.5 rounded border bg-white/80 ${getCategoryBadgeColor(item.news_category).replace(/text-\w+-300/g, (m) => m.replace('300', '700')).replace(/bg-\w+-500\/20/g, (m) => m.replace('500/20', '100')).replace(/border-\w+-500\/30/g, (m) => m.replace('500/30', '300'))}`}>
                             {getCategoryLabel(item.news_category, isAr ? 'ar' : 'en')}
                           </span>
-                          <span className="font-mono text-[8px] text-stone tracking-[1px]">
+                          <span className="font-sans text-[11px] text-stone tracking-[1px]">
                             {timeAgo(item.published_at, isAr)}
                           </span>
-                          <span className="font-mono text-[8px] text-stone tracking-[1px]">
+                          <span className="font-sans text-[11px] text-stone tracking-[1px]">
                             · {item.source_name}
                           </span>
                         </div>
@@ -345,7 +345,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                           {/* Gradient overlay for readability */}
                           <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
                           {/* Category badge */}
-                          <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} font-mono text-[8px] font-semibold tracking-[1.5px] uppercase px-2 py-0.5 rounded border backdrop-blur-sm ${getCategoryBadgeColor(item.news_category)}`}>
+                          <span className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} font-sans text-[11px] font-semibold tracking-[1.5px] uppercase px-2 py-0.5 rounded border backdrop-blur-sm ${getCategoryBadgeColor(item.news_category)}`}>
                             {getCategoryLabel(item.news_category, isAr ? 'ar' : 'en')}
                           </span>
                         </div>
@@ -356,10 +356,10 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                     <div className="p-5">
                       <div className="flex items-center gap-2 mb-3">
                         <Clock size={10} className="text-stone/50" />
-                        <span className="font-mono text-[8px] text-stone tracking-[1px]">
+                        <span className="font-sans text-[11px] text-stone tracking-[1px]">
                           {timeAgo(item.published_at, isAr)}
                         </span>
-                        <span className="font-mono text-[8px] text-stone tracking-[1px]">
+                        <span className="font-sans text-[11px] text-stone tracking-[1px]">
                           · {item.source_name}
                         </span>
                       </div>
@@ -376,7 +376,7 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
                           {item.tags.slice(0, 3).map((tag) => (
                             <span
                               key={tag}
-                              className="font-mono text-[7px] tracking-[1px] uppercase text-stone/60 bg-cream-100 px-1.5 py-0.5 rounded"
+                              className="font-sans text-[11px] tracking-[1px] uppercase text-stone/60 bg-cream-100 px-1.5 py-0.5 rounded"
                             >
                               {tag}
                             </span>
@@ -387,11 +387,11 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
 
                     {/* Boarding pass footer */}
                     <div className="border-t border-dashed border-sand/40 px-5 py-2.5 flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1 font-mono text-[7px] tracking-[1.5px] uppercase text-stone/50">
+                      <span className="inline-flex items-center gap-1 font-sans text-[11px] tracking-[1.5px] uppercase text-stone/50">
                         {isAr ? 'اقرأ المزيد' : 'READ MORE'}
                         <ArrowIcon size={8} />
                       </span>
-                      <span className="inline-flex items-center gap-1 font-mono text-[7px] tracking-[1.5px] uppercase text-stone/50">
+                      <span className="inline-flex items-center gap-1 font-sans text-[11px] tracking-[1.5px] uppercase text-stone/50">
                         <ExternalLink size={7} />
                         {isAr ? 'المصدر' : 'SOURCE'}
                       </span>
@@ -444,13 +444,13 @@ export default function NewsListClient({ items }: { items: NewsItem[] }) {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
             <Link
               href="/information"
-              className={`px-6 py-3 bg-london-600 text-cream rounded font-mono text-[10px] font-semibold uppercase transition-all duration-200 hover:bg-london-700 ${isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'}`}
+              className={`px-6 py-3 bg-london-600 text-cream rounded font-sans text-[11px] font-semibold uppercase transition-all duration-200 hover:bg-london-700 ${isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'}`}
             >
               {isAr ? 'مركز المعلومات' : 'Information Hub'}
             </Link>
             <Link
               href="/blog"
-              className={`px-6 py-3 bg-transparent border border-cream-100/30 text-cream-100 rounded font-mono text-[10px] font-semibold uppercase transition-all duration-200 hover:bg-cream-100/10 ${isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'}`}
+              className={`px-6 py-3 bg-transparent border border-cream-100/30 text-cream-100 rounded font-sans text-[11px] font-semibold uppercase transition-all duration-200 hover:bg-cream-100/10 ${isRTL ? 'font-arabic tracking-normal text-sm normal-case' : 'tracking-[1.5px]'}`}
             >
               {isAr ? 'حكايات لندن' : 'London Stories'}
             </Link>

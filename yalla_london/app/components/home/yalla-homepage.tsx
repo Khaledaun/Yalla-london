@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -19,27 +19,29 @@ interface YallaHomepageProps {
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-const heroSlides = {
-  en: [
-    {
-      title: 'Discover London',
-      subtitle: 'Like Never Before',
-      description: 'Your definitive Arabic guide to the best of London — curated luxury experiences, halal dining, and insider secrets.',
-      image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80',
-      cta: 'Start Exploring',
-      ctaLink: '/blog',
-    },
-  ],
-  ar: [
-    {
-      title: 'اكتشف لندن',
-      subtitle: 'كما لم ترها من قبل',
-      description: 'دليلك العربي الشامل لأفضل ما في لندن — تجارب فاخرة مختارة، مطاعم حلال، وأسرار من الداخل.',
-      image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80',
-      cta: 'ابدأ الاستكشاف',
-      ctaLink: '/blog',
-    },
-  ],
+const HERO_IMAGES = [
+  { src: '/images/hero/tower-bridge.jpg', alt: 'Tower Bridge with London red bus' },
+  { src: '/images/hero/london-city-night.jpg', alt: 'London city view at night' },
+  { src: '/images/hero/london-tube.jpg', alt: 'London Underground station' },
+]
+
+const HERO_INTERVAL_MS = 3000
+
+const heroContent = {
+  en: {
+    title: 'Discover London',
+    subtitle: 'Like Never Before',
+    description: 'Your definitive Arabic guide to the best of London — curated luxury experiences, halal dining, and insider secrets.',
+    cta: 'Start Exploring',
+    ctaLink: '/blog',
+  },
+  ar: {
+    title: 'اكتشف لندن',
+    subtitle: 'كما لم ترها من قبل',
+    description: 'دليلك العربي الشامل لأفضل ما في لندن — تجارب فاخرة مختارة، مطاعم حلال، وأسرار من الداخل.',
+    cta: 'ابدأ الاستكشاف',
+    ctaLink: '/blog',
+  },
 }
 
 const featuredArticle = {
@@ -344,10 +346,22 @@ function SectionHeader({ title, href, linkText, icon: Icon }: { title: string; h
 
 export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   const [email, setEmail] = useState('')
+  const [heroIndex, setHeroIndex] = useState(0)
   const isRTL = locale === 'ar'
   const t = text[locale]
-  const hero = heroSlides[locale][0]
+  const hero = heroContent[locale]
   const featured = featuredArticle[locale]
+
+  const nextSlide = useCallback(() => {
+    setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length)
+  }, [])
+
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReduced) return
+    const timer = setInterval(nextSlide, HERO_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [nextSlide])
 
   return (
     <div className={`bg-cream ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -357,15 +371,18 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
       {/* ═══ HERO ═══ */}
       <section className="relative min-h-[85vh] flex items-end overflow-hidden">
-        {/* Background Image */}
-        <Image
-          src={hero.image}
-          alt="London"
-          fill
-          sizes="100vw"
-          className="object-cover"
-          priority
-        />
+        {/* Rotating Background Images */}
+        {HERO_IMAGES.map((img, i) => (
+          <Image
+            key={img.src}
+            src={img.src}
+            alt={img.alt}
+            fill
+            sizes="100vw"
+            className={`object-cover transition-opacity duration-1000 ease-in-out ${i === heroIndex ? 'opacity-100' : 'opacity-0'}`}
+            priority={i === 0}
+          />
+        ))}
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/60 to-transparent" />
 

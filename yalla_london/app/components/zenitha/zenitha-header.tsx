@@ -2,104 +2,86 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ChevronDown, Globe, Phone, Anchor, Compass, Ship, Waves, ShieldCheck, Users, MapPin, HelpCircle, MessageCircle } from 'lucide-react';
+import { Menu, X, ChevronDown, Globe, Compass } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
 
-// ─── Navigation Config ──────────────────────────────────────────
-const NAV_ITEMS = [
-  {
-    label: { en: 'Yachts', ar: 'اليخوت' },
-    href: '/yachts',
-    megaMenu: {
-      sections: [
-        {
-          title: { en: 'By Type', ar: 'حسب النوع' },
-          items: [
-            { label: { en: 'Sailing Yachts', ar: 'يخوت شراعية' }, href: '/yachts?type=SAILBOAT', icon: Anchor },
-            { label: { en: 'Catamarans', ar: 'كاتاماران' }, href: '/yachts?type=CATAMARAN', icon: Ship },
-            { label: { en: 'Motor Yachts', ar: 'يخوت بمحرك' }, href: '/yachts?type=MOTOR_YACHT', icon: Waves },
-            { label: { en: 'Gulets', ar: 'قوارب تركية' }, href: '/yachts?type=GULET', icon: Compass },
-            { label: { en: 'Superyachts', ar: 'يخوت فاخرة' }, href: '/yachts?type=SUPERYACHT', icon: Ship },
-          ],
-        },
-        {
-          title: { en: 'By Feature', ar: 'حسب الميزة' },
-          items: [
-            { label: { en: 'Halal Catering', ar: 'طعام حلال' }, href: '/yachts?halal=true', icon: ShieldCheck },
-            { label: { en: 'Family Friendly', ar: 'مناسب للعائلات' }, href: '/yachts?family=true', icon: Users },
-            { label: { en: 'With Crew', ar: 'مع طاقم' }, href: '/yachts?crew=true', icon: Users },
-            { label: { en: 'Water Sports', ar: 'رياضات مائية' }, href: '/yachts?watersports=true', icon: Waves },
-          ],
-        },
-        {
-          title: { en: 'Popular', ar: 'الأكثر شعبية' },
-          items: [
-            { label: { en: 'Most Viewed', ar: 'الأكثر مشاهدة' }, href: '/yachts?sort=popular', icon: Ship },
-            { label: { en: 'New Arrivals', ar: 'وصل حديثاً' }, href: '/yachts?sort=newest', icon: Ship },
-            { label: { en: 'Special Offers', ar: 'عروض خاصة' }, href: '/yachts?featured=true', icon: Ship },
-          ],
-        },
-      ],
-    },
-  },
+/* ════════════════════════════════════════════════════════════════════
+   NAV CONFIG — matches the URL structure in the user specification.
+   Primary: Home, Destinations, Fleet, How It Works, Journal, About, Contact
+   CTA: "Plan Your Charter" → /contact
+   ════════════════════════════════════════════════════════════════════ */
+
+interface NavLink {
+  label: { en: string; ar: string };
+  href: string;
+  children?: { label: { en: string; ar: string }; href: string }[];
+}
+
+const NAV_LINKS: NavLink[] = [
   {
     label: { en: 'Destinations', ar: 'الوجهات' },
     href: '/destinations',
-    megaMenu: {
-      sections: [
-        {
-          title: { en: 'Mediterranean', ar: 'البحر المتوسط' },
-          items: [
-            { label: { en: 'Greek Islands', ar: 'الجزر اليونانية' }, href: '/destinations/greek-islands' },
-            { label: { en: 'Croatian Coast', ar: 'ساحل كرواتيا' }, href: '/destinations/croatian-coast' },
-            { label: { en: 'Turkish Riviera', ar: 'الريفيرا التركية' }, href: '/destinations/turkish-riviera' },
-            { label: { en: 'French Riviera', ar: 'الريفيرا الفرنسية' }, href: '/destinations/french-riviera' },
-            { label: { en: 'Amalfi Coast', ar: 'ساحل أمالفي' }, href: '/destinations/italian-amalfi' },
-            { label: { en: 'Balearic Islands', ar: 'جزر البليار' }, href: '/destinations/balearic-islands' },
-          ],
-        },
-        {
-          title: { en: 'Arabian & Red Sea', ar: 'الخليج والبحر الأحمر' },
-          items: [
-            { label: { en: 'Arabian Gulf', ar: 'الخليج العربي' }, href: '/destinations/arabian-gulf' },
-            { label: { en: 'Red Sea', ar: 'البحر الأحمر' }, href: '/destinations/red-sea' },
-          ],
-        },
-        {
-          title: { en: 'Planning', ar: 'التخطيط' },
-          items: [
-            { label: { en: 'AI Trip Planner', ar: 'مخطط الرحلات' }, href: '/charter-planner', icon: Compass },
-            { label: { en: 'Sample Itineraries', ar: 'مسارات نموذجية' }, href: '/itineraries', icon: MapPin },
-            { label: { en: 'How It Works', ar: 'كيف يعمل' }, href: '/how-it-works', icon: HelpCircle },
-          ],
-        },
-      ],
-    },
+    children: [
+      { label: { en: 'Greek Islands', ar: 'الجزر اليونانية' }, href: '/destinations/greek-islands' },
+      { label: { en: 'Croatian Coast', ar: 'ساحل كرواتيا' }, href: '/destinations/croatian-coast' },
+      { label: { en: 'Turkish Riviera', ar: 'الريفيرا التركية' }, href: '/destinations/turkish-riviera' },
+      { label: { en: 'French Riviera', ar: 'الريفيرا الفرنسية' }, href: '/destinations/french-riviera' },
+      { label: { en: 'Amalfi Coast', ar: 'ساحل أمالفي' }, href: '/destinations/amalfi-coast' },
+      { label: { en: 'Dubai & Abu Dhabi', ar: 'دبي وأبوظبي' }, href: '/destinations/arabian-gulf' },
+      { label: { en: 'Ibiza & Balearics', ar: 'إيبيزا والبليار' }, href: '/destinations/balearic-islands' },
+      { label: { en: 'View All Destinations', ar: 'جميع الوجهات' }, href: '/destinations' },
+    ],
   },
-  { label: { en: 'Itineraries', ar: 'المسارات' }, href: '/itineraries' },
-  { label: { en: 'Charter Planner', ar: 'مخطط الرحلات' }, href: '/charter-planner' },
-  { label: { en: 'Blog', ar: 'المدونة' }, href: '/blog' },
+  {
+    label: { en: 'Fleet', ar: 'الأسطول' },
+    href: '/fleet',
+  },
+  {
+    label: { en: 'How It Works', ar: 'كيف يعمل' },
+    href: '/how-it-works',
+  },
+  {
+    label: { en: 'Journal', ar: 'المجلة' },
+    href: '/journal',
+  },
+  {
+    label: { en: 'About', ar: 'من نحن' },
+    href: '/about',
+  },
+  {
+    label: { en: 'Contact', ar: 'تواصل معنا' },
+    href: '/contact',
+  },
 ];
 
-// ─── Logo Component ──────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════════════
+   LOGO — Compass rose + wordmark (placeholder SVG)
+   ════════════════════════════════════════════════════════════════════ */
+
 function ZenithaLogo({ className = '' }: { className?: string }) {
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      {/* Compass Rose Icon */}
-      <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
-        <circle cx="50" cy="50" r="48" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
+    <div className={`flex items-center gap-2.5 ${className}`}>
+      <svg
+        width="34"
+        height="34"
+        viewBox="0 0 100 100"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="flex-shrink-0"
+        aria-hidden="true"
+      >
+        <circle cx="50" cy="50" r="48" stroke="currentColor" strokeWidth="1.5" opacity="0.25" />
         <path d="M50 8L56 44L50 38L44 44L50 8Z" fill="var(--z-gold, #C9A96E)" />
-        <path d="M92 50L56 56L62 50L56 44L92 50Z" fill="currentColor" opacity="0.6" />
-        <path d="M50 92L44 56L50 62L56 56L50 92Z" fill="currentColor" opacity="0.6" />
-        <path d="M8 50L44 44L38 50L44 56L8 50Z" fill="currentColor" opacity="0.6" />
+        <path d="M92 50L56 56L62 50L56 44L92 50Z" fill="currentColor" opacity="0.55" />
+        <path d="M50 92L44 56L50 62L56 56L50 92Z" fill="currentColor" opacity="0.55" />
+        <path d="M8 50L44 44L38 50L44 56L8 50Z" fill="currentColor" opacity="0.55" />
         <circle cx="50" cy="50" r="4" fill="var(--z-gold, #C9A96E)" />
       </svg>
-      {/* Wordmark */}
       <div className="flex flex-col leading-none">
-        <span className="font-display text-[22px] font-bold tracking-tight" style={{ letterSpacing: '-0.02em' }}>
+        <span className="font-display text-[20px] font-bold tracking-tight" style={{ letterSpacing: '-0.02em' }}>
           ZENITHA
         </span>
-        <span className="text-xs font-heading font-semibold tracking-[0.2em] uppercase opacity-60">
+        <span className="text-[10px] font-heading font-semibold tracking-[0.22em] uppercase opacity-55">
           YACHTS
         </span>
       </div>
@@ -107,263 +89,240 @@ function ZenithaLogo({ className = '' }: { className?: string }) {
   );
 }
 
-// ─── Mega Menu Component ─────────────────────────────────────
-function MegaMenu({ sections, isOpen, language }: {
-  sections: typeof NAV_ITEMS[0]['megaMenu']['sections'];
-  isOpen: boolean;
+/* ════════════════════════════════════════════════════════════════════
+   DROPDOWN — Desktop dropdown for nav items with children
+   ════════════════════════════════════════════════════════════════════ */
+
+function NavDropdown({
+  items,
+  language,
+  isOpen,
+}: {
+  items: { label: { en: string; ar: string }; href: string }[];
   language: string;
+  isOpen: boolean;
 }) {
   if (!isOpen) return null;
 
   return (
-    <div className="absolute top-full left-0 w-full bg-white shadow-elevated border-t border-[var(--z-champagne)] z-50 animate-fadeIn">
-      <div className="max-w-[1280px] mx-auto px-6 py-8">
-        <div className="grid grid-cols-3 gap-8">
-          {sections.map((section, i) => (
-            <div key={i}>
-              <h3 className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)] mb-4">
-                {section.title[language as 'en' | 'ar'] || section.title.en}
-              </h3>
-              <ul className="space-y-2">
-                {section.items.map((item, j) => (
-                  <li key={j}>
-                    <Link
-                      href={item.href}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm font-body text-[var(--z-navy)] hover:bg-[var(--z-sand)] hover:text-[var(--z-aegean)] transition-colors duration-200"
-                    >
-                      {'icon' in item && item.icon && <item.icon size={16} className="opacity-50" />}
-                      {item.label[language as 'en' | 'ar'] || item.label.en}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+    <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 z-50">
+      <div
+        className="min-w-[240px] rounded-xl bg-white shadow-lg border border-[var(--z-champagne,#e8e0d0)] py-2"
+        style={{ animation: 'fadeIn 150ms ease-out' }}
+      >
+        {items.map((item, i) => (
+          <Link
+            key={i}
+            href={item.href}
+            className="block px-5 py-2.5 text-sm font-body text-[var(--z-navy,#0a1628)] hover:bg-[var(--z-sand,#f5f0e8)] hover:text-[var(--z-sea,#0ea5a2)] transition-colors"
+          >
+            {item.label[language as 'en' | 'ar'] || item.label.en}
+          </Link>
+        ))}
       </div>
     </div>
   );
 }
 
-// ─── Main Header ─────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════════════
+   HEADER (MAIN EXPORT)
+   ════════════════════════════════════════════════════════════════════ */
+
 export function ZenithaHeader() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [activeMegaMenu, setActiveMegaMenu] = useState<number | null>(null);
-  const megaMenuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
+  const dropdownTimeout = useRef<NodeJS.Timeout | null>(null);
   const { language, setLanguage, isRTL } = useLanguage();
 
+  /* Track scroll for sticky header styling */
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Close mega menu on escape
+  /* Close on Escape */
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setActiveMegaMenu(null);
-        setIsMenuOpen(false);
+        setActiveDropdown(null);
+        setMobileOpen(false);
       }
     };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
   }, []);
 
-  const handleMegaMenuEnter = (index: number) => {
-    if (megaMenuTimeoutRef.current) clearTimeout(megaMenuTimeoutRef.current);
-    setActiveMegaMenu(index);
+  const openDropdown = (idx: number) => {
+    if (dropdownTimeout.current) clearTimeout(dropdownTimeout.current);
+    setActiveDropdown(idx);
   };
-
-  const handleMegaMenuLeave = () => {
-    megaMenuTimeoutRef.current = setTimeout(() => setActiveMegaMenu(null), 200);
+  const closeDropdown = () => {
+    dropdownTimeout.current = setTimeout(() => setActiveDropdown(null), 180);
   };
-
-  const toggleLanguage = () => setLanguage(language === 'en' ? 'ar' : 'en');
+  const t = (obj: { en: string; ar: string }) => obj[language as 'en' | 'ar'] || obj.en;
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? 'bg-white/98 backdrop-blur-md shadow-elevated'
+        scrolled
+          ? 'bg-white/[0.98] backdrop-blur-md shadow-lg'
           : 'bg-white/95 backdrop-blur-sm'
       }`}
       dir={isRTL ? 'rtl' : 'ltr'}
     >
-      {/* Gold accent line */}
-      <div className="h-[2px] w-full bg-gradient-to-r from-[var(--z-navy)] via-[var(--z-gold)] to-[var(--z-aegean)]" />
+      {/* Top accent line */}
+      <div
+        className="h-[2px] w-full"
+        style={{ background: 'linear-gradient(to right, var(--z-navy,#0a1628), var(--z-gold,#c9a96e), var(--z-sea,#0ea5a2))' }}
+      />
 
-      <div className="max-w-[1280px] mx-auto px-6">
-        <div className={`flex justify-between items-center transition-all duration-300 ${isScrolled ? 'py-3' : 'py-4'}`}>
-          {/* Logo */}
-          <Link href="/" className="flex items-center group text-[var(--z-navy)] hover:text-[var(--z-aegean)] transition-colors">
+      <div className="max-w-7xl mx-auto px-5 sm:px-8">
+        <div className={`flex items-center justify-between transition-all duration-300 ${scrolled ? 'h-16' : 'h-[72px]'}`}>
+          {/* ── Logo ── */}
+          <Link href="/" className="text-[var(--z-navy,#0a1628)] hover:text-[var(--z-sea,#0ea5a2)] transition-colors">
             <ZenithaLogo />
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-1" role="navigation" aria-label="Main navigation">
-            {NAV_ITEMS.map((item, index) => (
+          {/* ── Desktop Nav ── */}
+          <nav className="hidden lg:flex items-center gap-1" aria-label="Main navigation">
+            {NAV_LINKS.map((item, idx) => (
               <div
-                key={index}
+                key={idx}
                 className="relative"
-                onMouseEnter={() => item.megaMenu ? handleMegaMenuEnter(index) : undefined}
-                onMouseLeave={() => item.megaMenu ? handleMegaMenuLeave() : undefined}
+                onMouseEnter={() => item.children ? openDropdown(idx) : undefined}
+                onMouseLeave={() => item.children ? closeDropdown() : undefined}
               >
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-1 px-3 py-2 text-sm font-heading font-medium text-[var(--z-navy)] hover:text-[var(--z-aegean)] transition-colors duration-200 ${
-                    activeMegaMenu === index ? 'text-[var(--z-aegean)]' : ''
+                  className={`flex items-center gap-1 px-3.5 py-2 text-[14px] font-heading font-medium transition-colors duration-200 ${
+                    activeDropdown === idx
+                      ? 'text-[var(--z-sea,#0ea5a2)]'
+                      : 'text-[var(--z-navy,#0a1628)] hover:text-[var(--z-sea,#0ea5a2)]'
                   }`}
                 >
-                  {item.label[language as 'en' | 'ar'] || item.label.en}
-                  {item.megaMenu && <ChevronDown size={14} className={`transition-transform duration-200 ${activeMegaMenu === index ? 'rotate-180' : ''}`} />}
+                  {t(item.label)}
+                  {item.children && (
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform duration-200 ${activeDropdown === idx ? 'rotate-180' : ''}`}
+                    />
+                  )}
                 </Link>
+
+                {item.children && (
+                  <NavDropdown
+                    items={item.children}
+                    language={language}
+                    isOpen={activeDropdown === idx}
+                  />
+                )}
               </div>
             ))}
           </nav>
 
-          {/* Right Actions */}
+          {/* ── Right side: language + CTA ── */}
           <div className="hidden lg:flex items-center gap-3">
-            {/* Language Toggle */}
             <button
-              onClick={toggleLanguage}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-heading font-medium text-[var(--z-navy)] hover:text-[var(--z-aegean)] transition-colors"
+              onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-heading font-medium text-[var(--z-navy,#0a1628)] hover:text-[var(--z-sea,#0ea5a2)] transition-colors"
               aria-label={language === 'en' ? 'Switch to Arabic' : 'Switch to English'}
             >
               <Globe size={16} />
               {language === 'en' ? 'AR' : 'EN'}
             </button>
 
-            {/* CTA Button */}
             <Link
-              href="/inquiry"
-              className="z-btn-primary text-sm px-5 py-2.5"
+              href="/contact"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-[14px] font-heading font-semibold text-white transition-all duration-200 hover:brightness-110"
+              style={{ background: 'var(--z-sea, #0ea5a2)' }}
             >
-              {language === 'ar' ? 'استفسر الآن' : 'Inquire Now'}
-              <span className="ml-1.5" aria-hidden="true">&rarr;</span>
+              <Compass size={16} />
+              {t({ en: 'Plan Your Charter', ar: 'خطط رحلتك' })}
             </Link>
           </div>
 
-          {/* Mobile Menu Toggle */}
+          {/* ── Mobile hamburger ── */}
           <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="lg:hidden p-2 text-[var(--z-navy)]"
-            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={isMenuOpen}
-            aria-haspopup="menu"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="lg:hidden p-2 text-[var(--z-navy,#0a1628)]"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
           >
-            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {mobileOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
       </div>
 
-      {/* Desktop Mega Menus */}
-      {NAV_ITEMS.map((item, index) => (
-        item.megaMenu && (
-          <div
-            key={index}
-            onMouseEnter={() => handleMegaMenuEnter(index)}
-            onMouseLeave={handleMegaMenuLeave}
-          >
-            <MegaMenu
-              sections={item.megaMenu.sections}
-              isOpen={activeMegaMenu === index}
-              language={language}
-            />
-          </div>
-        )
-      ))}
-
-      {/* Mobile Drawer */}
-      {isMenuOpen && (
-        <div className="lg:hidden fixed inset-0 top-0 z-50 bg-white overflow-y-auto animate-fadeIn">
-          <div className="px-6 py-4 flex justify-between items-center border-b border-[var(--z-champagne)]">
+      {/* ── Mobile Drawer ── */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 top-0 z-50 bg-white overflow-y-auto" style={{ animation: 'fadeIn 200ms ease-out' }}>
+          {/* Mobile header */}
+          <div className="px-5 py-4 flex items-center justify-between border-b border-[var(--z-champagne,#e8e0d0)]">
             <ZenithaLogo />
-            <button onClick={() => setIsMenuOpen(false)} className="p-2 text-[var(--z-navy)]" aria-label="Close menu">
+            <button onClick={() => setMobileOpen(false)} className="p-2 text-[var(--z-navy,#0a1628)]" aria-label="Close menu">
               <X size={24} />
             </button>
           </div>
 
-          <nav className="px-6 py-6 space-y-1" role="navigation" aria-label="Mobile navigation">
-            <Link href="/" onClick={() => setIsMenuOpen(false)} className="block px-3 py-3 text-base font-heading font-medium text-[var(--z-navy)] hover:bg-[var(--z-sand)] rounded-lg">
-              {language === 'ar' ? 'الرئيسية' : 'Home'}
+          <nav className="px-5 py-6 space-y-1" aria-label="Mobile navigation">
+            {/* Home */}
+            <Link
+              href="/"
+              onClick={() => setMobileOpen(false)}
+              className="block px-4 py-3 text-base font-heading font-medium text-[var(--z-navy,#0a1628)] hover:bg-[var(--z-sand,#f5f0e8)] rounded-lg"
+            >
+              {t({ en: 'Home', ar: 'الرئيسية' })}
             </Link>
-            {NAV_ITEMS.map((item, index) => (
-              <div key={index}>
+
+            {NAV_LINKS.map((item, idx) => (
+              <div key={idx}>
                 <Link
                   href={item.href}
-                  onClick={() => setIsMenuOpen(false)}
-                  className="block px-3 py-3 text-base font-heading font-medium text-[var(--z-navy)] hover:bg-[var(--z-sand)] rounded-lg"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-4 py-3 text-base font-heading font-medium text-[var(--z-navy,#0a1628)] hover:bg-[var(--z-sand,#f5f0e8)] rounded-lg"
                 >
-                  {item.label[language as 'en' | 'ar'] || item.label.en}
+                  {t(item.label)}
                 </Link>
-                {item.megaMenu && (
-                  <div className="pl-6 space-y-0.5">
-                    {item.megaMenu.sections.map((section, si) => (
-                      <div key={si} className="py-2">
-                        <div className="text-xs font-heading font-semibold uppercase tracking-[0.12em] text-[var(--z-gold-dark)] px-3 mb-1">
-                          {section.title[language as 'en' | 'ar'] || section.title.en}
-                        </div>
-                        {section.items.map((subItem, sj) => (
-                          <Link
-                            key={sj}
-                            href={subItem.href}
-                            onClick={() => setIsMenuOpen(false)}
-                            className="block px-3 py-2 text-sm text-[var(--z-midnight)] hover:text-[var(--z-aegean)] hover:bg-[var(--z-sand)] rounded"
-                          >
-                            {subItem.label[language as 'en' | 'ar'] || subItem.label.en}
-                          </Link>
-                        ))}
-                      </div>
+                {item.children && (
+                  <div className="ml-4 space-y-0.5 mb-2">
+                    {item.children.map((child, ci) => (
+                      <Link
+                        key={ci}
+                        href={child.href}
+                        onClick={() => setMobileOpen(false)}
+                        className="block px-4 py-2 text-sm text-[var(--z-navy,#0a1628)]/80 hover:text-[var(--z-sea,#0ea5a2)] hover:bg-[var(--z-sand,#f5f0e8)] rounded"
+                      >
+                        {t(child.label)}
+                      </Link>
                     ))}
                   </div>
                 )}
               </div>
             ))}
 
-            <hr className="my-4 border-[var(--z-champagne)]" />
+            <hr className="my-4 border-[var(--z-champagne,#e8e0d0)]" />
 
-            {/* Mobile extras */}
-            <Link href="/about" onClick={() => setIsMenuOpen(false)} className="block px-3 py-3 text-base font-heading text-[var(--z-navy)] hover:bg-[var(--z-sand)] rounded-lg">
-              {language === 'ar' ? 'عن زينيثا' : 'About'}
-            </Link>
-            <Link href="/faq" onClick={() => setIsMenuOpen(false)} className="block px-3 py-3 text-base font-heading text-[var(--z-navy)] hover:bg-[var(--z-sand)] rounded-lg">
-              {language === 'ar' ? 'الأسئلة الشائعة' : 'FAQ'}
-            </Link>
-            <Link href="/contact" onClick={() => setIsMenuOpen(false)} className="block px-3 py-3 text-base font-heading text-[var(--z-navy)] hover:bg-[var(--z-sand)] rounded-lg">
-              {language === 'ar' ? 'تواصل معنا' : 'Contact'}
-            </Link>
-
-            <hr className="my-4 border-[var(--z-champagne)]" />
-
-            {/* Language toggle */}
+            {/* Language */}
             <button
-              onClick={() => { toggleLanguage(); setIsMenuOpen(false); }}
-              className="flex items-center gap-2 px-3 py-3 text-base font-heading text-[var(--z-navy)] w-full hover:bg-[var(--z-sand)] rounded-lg"
+              onClick={() => { setLanguage(language === 'en' ? 'ar' : 'en'); setMobileOpen(false); }}
+              className="flex items-center gap-2 px-4 py-3 text-base font-heading text-[var(--z-navy,#0a1628)] w-full hover:bg-[var(--z-sand,#f5f0e8)] rounded-lg"
             >
               <Globe size={18} />
               {language === 'en' ? 'العربية' : 'English'}
             </button>
 
-            {/* Contact options — CTA links to inquiry page since phone numbers pending */}
-            <div className="flex items-center gap-3 px-3 py-3">
-              <Link href="/contact" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-1.5 text-sm text-[var(--z-aegean)]">
-                <Phone size={16} /> {language === 'ar' ? 'اتصل بنا' : 'Contact Us'}
-              </Link>
-              <Link href="/inquiry" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-1.5 text-sm text-[var(--z-aegean)]">
-                <MessageCircle size={16} /> {language === 'ar' ? 'استفسار' : 'Enquire'}
-              </Link>
-            </div>
-
             {/* CTA */}
-            <div className="px-3 pt-4">
+            <div className="px-2 pt-4">
               <Link
-                href="/inquiry"
-                onClick={() => setIsMenuOpen(false)}
-                className="z-btn-primary w-full text-center block text-base py-3.5"
+                href="/contact"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center justify-center gap-2 w-full text-center text-base font-heading font-semibold text-white rounded-lg py-3.5 transition-all hover:brightness-110"
+                style={{ background: 'var(--z-sea, #0ea5a2)' }}
               >
-                {language === 'ar' ? 'استفسر الآن' : 'Inquire Now'} &rarr;
+                <Compass size={18} />
+                {t({ en: 'Plan Your Charter', ar: 'خطط رحلتك' })}
               </Link>
             </div>
           </nav>

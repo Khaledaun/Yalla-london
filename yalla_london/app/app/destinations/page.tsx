@@ -525,7 +525,7 @@ function DestinationCardLarge({ destination }: { destination: Destination }) {
               From
             </span>
             <span
-              className="font-mono ml-2"
+              className="font-heading ml-2"
               style={{
                 fontSize: "var(--z-text-heading)",
                 fontWeight: "var(--z-weight-bold)",
@@ -602,7 +602,7 @@ function DestinationCard({ destination }: { destination: Destination }) {
           <div>
             <span className="z-text-caption">From </span>
             <span
-              className="font-mono"
+              className="font-heading"
               style={{
                 fontSize: "var(--z-text-body)",
                 fontWeight: "var(--z-weight-bold)",

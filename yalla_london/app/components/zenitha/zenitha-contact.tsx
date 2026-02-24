@@ -115,11 +115,38 @@ const CATEGORIES = [
   { value: 'other', label: { en: 'Other', ar: 'أخرى' } },
 ]
 
+// ─── Countries (global lead capture) ────────────────────────
+const COUNTRIES = [
+  { value: 'gb', label: { en: 'United Kingdom', ar: 'المملكة المتحدة' } },
+  { value: 'fr', label: { en: 'France', ar: 'فرنسا' } },
+  { value: 'de', label: { en: 'Germany', ar: 'ألمانيا' } },
+  { value: 'it', label: { en: 'Italy', ar: 'إيطاليا' } },
+  { value: 'us', label: { en: 'United States', ar: 'الولايات المتحدة' } },
+  { value: 'ca', label: { en: 'Canada', ar: 'كندا' } },
+  { value: 'sa', label: { en: 'Saudi Arabia', ar: 'المملكة العربية السعودية' } },
+  { value: 'ae', label: { en: 'United Arab Emirates', ar: 'الإمارات العربية المتحدة' } },
+  { value: 'qa', label: { en: 'Qatar', ar: 'قطر' } },
+  { value: 'kw', label: { en: 'Kuwait', ar: 'الكويت' } },
+  { value: 'eg', label: { en: 'Egypt', ar: 'مصر' } },
+  { value: 'sg', label: { en: 'Singapore', ar: 'سنغافورة' } },
+  { value: 'au', label: { en: 'Australia', ar: 'أستراليا' } },
+  { value: 'other', label: { en: 'Other', ar: 'أخرى' } },
+]
+
+// ─── Preferred Contact Channels ─────────────────────────────
+const CONTACT_CHANNELS = [
+  { value: 'email', label: { en: 'Email', ar: 'البريد الإلكتروني' } },
+  { value: 'whatsapp', label: { en: 'WhatsApp', ar: 'واتساب' } },
+  { value: 'phone', label: { en: 'Phone Call', ar: 'مكالمة هاتفية' } },
+]
+
 // ─── Form Data Interface ────────────────────────────────────
 interface ContactFormData {
   name: string
   email: string
   phone: string
+  country: string
+  preferredContact: string
   subject: string
   message: string
   consent: boolean
@@ -134,6 +161,8 @@ export default function ZenithaContactPage({ siteId }: { siteId?: string }) {
     name: '',
     email: '',
     phone: '',
+    country: '',
+    preferredContact: 'email',
     subject: '',
     message: '',
     consent: false,
@@ -194,7 +223,7 @@ export default function ZenithaContactPage({ siteId }: { siteId?: string }) {
             <button
               onClick={() => {
                 setSubmitted(false)
-                setFormData({ name: '', email: '', phone: '', subject: '', message: '', consent: false })
+                setFormData({ name: '', email: '', phone: '', country: '', preferredContact: 'email', subject: '', message: '', consent: false })
               }}
               className="inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-semibold transition-colors"
               style={{ backgroundColor: '#C9A96E', color: '#0A1628' }}
@@ -323,6 +352,29 @@ export default function ZenithaContactPage({ siteId }: { siteId?: string }) {
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1.5" style={{ color: '#0A1628' }}>
+                        {t({ en: 'Country of Residence', ar: 'بلد الإقامة' }, locale)}
+                      </label>
+                      <select
+                        value={formData.country}
+                        onChange={(e) => handleChange('country', e.target.value)}
+                        className="w-full rounded-lg border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 bg-white"
+                        style={{ borderColor: '#D1D5DB', color: formData.country ? '#0A1628' : '#9CA3AF' }}
+                      >
+                        <option value="" disabled>
+                          {t({ en: 'Select your country', ar: 'اختر بلدك' }, locale)}
+                        </option>
+                        {COUNTRIES.map((c) => (
+                          <option key={c.value} value={c.value}>
+                            {t(c.label, locale)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5" style={{ color: '#0A1628' }}>
                         {t({ en: 'Subject', ar: 'الموضوع' }, locale)} *
                       </label>
                       <select
@@ -341,6 +393,28 @@ export default function ZenithaContactPage({ siteId }: { siteId?: string }) {
                           </option>
                         ))}
                       </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5" style={{ color: '#0A1628' }}>
+                        {t({ en: 'Preferred Contact Method', ar: 'طريقة التواصل المفضلة' }, locale)}
+                      </label>
+                      <div className="flex items-center gap-4 py-2.5">
+                        {CONTACT_CHANNELS.map((ch) => (
+                          <label key={ch.value} className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="preferredContact"
+                              value={ch.value}
+                              checked={formData.preferredContact === ch.value}
+                              onChange={(e) => handleChange('preferredContact', e.target.value)}
+                              className="h-4 w-4"
+                            />
+                            <span className="text-sm" style={{ color: '#0A1628' }}>
+                              {t(ch.label, locale)}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </div>
 

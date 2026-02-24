@@ -115,7 +115,7 @@ function HeroSection({ locale }: { locale: Locale }) {
             <Link href="/charter-planner" className="z-btn-primary text-base px-8 py-3.5">
               {t({ en: 'Plan Your Charter', ar: 'خطط رحلتك' })} <ArrowRight size={18} className="inline ml-2" />
             </Link>
-            <Link href="/yachts" className="text-white font-heading font-medium text-base hover:text-[var(--z-gold)] transition-colors underline underline-offset-4 decoration-white/30 hover:decoration-[var(--z-gold)]">
+            <Link href="/fleet" className="text-white font-heading font-medium text-base hover:text-[var(--z-gold)] transition-colors underline underline-offset-4 decoration-white/30 hover:decoration-[var(--z-gold)]">
               {t({ en: 'Browse Our Fleet', ar: 'تصفح أسطولنا' })}
             </Link>
           </div>
@@ -197,7 +197,7 @@ function FeaturedYachtsSection({ locale }: { locale: Locale }) {
                 })}
               </p>
               <div>
-                <Link href="/yachts" className="z-btn-primary text-base px-8 py-3.5 inline-flex items-center gap-2">
+                <Link href="/fleet" className="z-btn-primary text-base px-8 py-3.5 inline-flex items-center gap-2">
                   {t({ en: 'Explore Our Fleet', ar: 'استكشف أسطولنا' })} <ArrowRight size={18} />
                 </Link>
               </div>

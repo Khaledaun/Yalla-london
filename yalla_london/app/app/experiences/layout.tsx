@@ -54,6 +54,41 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+const FEATURED_EXPERIENCES = [
+  {
+    name: "Tower of London",
+    description: "Nearly 1,000 years of royal history. See the Crown Jewels, explore the medieval palace, and hear tales from the Yeoman Warders. Audio guides available in Arabic.",
+    address: "Tower Hill",
+    city: "London",
+    postalCode: "EC3N 4AB",
+    priceRange: "££",
+  },
+  {
+    name: "Afternoon Tea at The Ritz",
+    description: "The quintessential London experience — finger sandwiches, scones with clotted cream, and 18 varieties of loose-leaf tea in the Palm Court. Halal options on request.",
+    address: "150 Piccadilly",
+    city: "London",
+    postalCode: "W1J 9BR",
+    priceRange: "£££",
+  },
+  {
+    name: "Warner Bros. Studio Tour — The Making of Harry Potter",
+    description: "Walk through authentic sets, discover filmmaking secrets, and taste Butterbeer. Located 20 miles northwest of London with direct shuttle buses from Watford Junction.",
+    address: "Studio Tour Drive, Leavesden",
+    city: "Watford",
+    postalCode: "WD25 7LR",
+    priceRange: "££",
+  },
+  {
+    name: "Harrods",
+    description: "The world's most famous department store. Seven floors of luxury fashion, beauty, and the legendary Food Halls. Personal shopping service and Arabic-speaking staff available.",
+    address: "87-135 Brompton Road, Knightsbridge",
+    city: "London",
+    postalCode: "SW1X 7XL",
+    priceRange: "££££",
+  },
+];
+
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
@@ -73,6 +108,34 @@ export default async function Layout({ children }: { children: React.ReactNode }
           ],
         }}
       />
+      <StructuredData
+        type="itemList"
+        siteId={siteId}
+        data={{
+          name: `${destination} Experiences & Tours`,
+          description: `Must-visit attractions and experiences in ${destination} curated for Arab visitors`,
+          items: FEATURED_EXPERIENCES.map((e) => ({
+            name: e.name,
+            url: `${baseUrl}/experiences`,
+          })),
+        }}
+      />
+      {FEATURED_EXPERIENCES.map((exp, i) => (
+        <StructuredData
+          key={`exp-schema-${i}`}
+          type="place"
+          siteId={siteId}
+          data={{
+            type: "TouristAttraction",
+            name: exp.name,
+            description: exp.description,
+            address: exp.address,
+            city: exp.city,
+            postalCode: exp.postalCode,
+            priceRange: exp.priceRange,
+          }}
+        />
+      ))}
       {children}
     </>
   );

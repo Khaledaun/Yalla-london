@@ -9,6 +9,7 @@ import { Mail, MapPin } from 'lucide-react'
 import { FollowUs } from './follow-us'
 import { ENTITY, getCopyrightLine, getBrandDisclosure } from '@/config/entity'
 import { SITES, getDefaultSiteId } from '@/config/sites'
+import { brandConfig } from '@/config/brand-config'
 
 const SITE_DOMAIN = SITES[getDefaultSiteId()]?.domain || Object.values(SITES)[0]?.domain || 'zenitha.luxury'
 const CONTACT_EMAIL = `hello@${SITE_DOMAIN}`
@@ -35,8 +36,8 @@ export function Footer() {
             {/* Logo — v2 stacked SVG (dark variant for dark bg), scale 0.7 */}
             <div className="mb-5">
               <Image
-                src="/branding/yalla-london/brand-kit/01-logos-svg/yalla-stacked-dark.svg"
-                alt="Yalla London — يلّا لندن"
+                src={brandConfig.logos.stacked}
+                alt={`${brandConfig.logos.alt} — ${brandConfig.logos.altAr || ''}`}
                 width={220}
                 height={130}
                 className="h-auto w-[154px] mb-2"

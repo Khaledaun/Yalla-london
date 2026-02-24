@@ -69,7 +69,7 @@ export function ZenithaFooter() {
               <Anchor size={28} className="text-[var(--z-gold)]" />
               <div className="flex flex-col leading-none">
                 <span className="font-display text-xl font-bold tracking-tight text-white">ZENITHA</span>
-                <span className="text-[9px] font-heading font-semibold tracking-[0.2em] uppercase text-white/50">YACHTS</span>
+                <span className="text-[11px] font-heading font-semibold tracking-[0.2em] uppercase text-white/50">YACHTS</span>
               </div>
             </div>
             <p className="text-[var(--z-shallow)] text-sm font-body leading-relaxed max-w-xs mb-6">

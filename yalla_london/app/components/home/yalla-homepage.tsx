@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -19,27 +19,29 @@ interface YallaHomepageProps {
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-const heroSlides = {
-  en: [
-    {
-      title: 'Discover London',
-      subtitle: 'Like Never Before',
-      description: 'Your definitive Arabic guide to the best of London — curated luxury experiences, halal dining, and insider secrets.',
-      image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80',
-      cta: 'Start Exploring',
-      ctaLink: '/blog',
-    },
-  ],
-  ar: [
-    {
-      title: 'اكتشف لندن',
-      subtitle: 'كما لم ترها من قبل',
-      description: 'دليلك العربي الشامل لأفضل ما في لندن — تجارب فاخرة مختارة، مطاعم حلال، وأسرار من الداخل.',
-      image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80',
-      cta: 'ابدأ الاستكشاف',
-      ctaLink: '/blog',
-    },
-  ],
+const HERO_IMAGES = [
+  { src: '/images/hero/tower-bridge.jpg', alt: 'Tower Bridge with London red bus' },
+  { src: '/images/hero/london-city-night.jpg', alt: 'London city view at night' },
+  { src: '/images/hero/london-tube.jpg', alt: 'London Underground station' },
+]
+
+const HERO_INTERVAL_MS = 3000
+
+const heroContent = {
+  en: {
+    title: 'Discover London',
+    subtitle: 'Like Never Before',
+    description: 'Your definitive Arabic guide to the best of London — curated luxury experiences, halal dining, and insider secrets.',
+    cta: 'Start Exploring',
+    ctaLink: '/blog',
+  },
+  ar: {
+    title: 'اكتشف لندن',
+    subtitle: 'كما لم ترها من قبل',
+    description: 'دليلك العربي الشامل لأفضل ما في لندن — تجارب فاخرة مختارة، مطاعم حلال، وأسرار من الداخل.',
+    cta: 'ابدأ الاستكشاف',
+    ctaLink: '/blog',
+  },
 }
 
 const featuredArticle = {
@@ -344,10 +346,22 @@ function SectionHeader({ title, href, linkText, icon: Icon }: { title: string; h
 
 export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   const [email, setEmail] = useState('')
+  const [heroIndex, setHeroIndex] = useState(0)
   const isRTL = locale === 'ar'
   const t = text[locale]
-  const hero = heroSlides[locale][0]
+  const hero = heroContent[locale]
   const featured = featuredArticle[locale]
+
+  const nextSlide = useCallback(() => {
+    setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length)
+  }, [])
+
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReduced) return undefined
+    const timer = setInterval(nextSlide, HERO_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [nextSlide])
 
   return (
     <div className={`bg-cream ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -357,15 +371,18 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
       {/* ═══ HERO ═══ */}
       <section className="relative min-h-[85vh] flex items-end overflow-hidden">
-        {/* Background Image */}
-        <Image
-          src={hero.image}
-          alt="London"
-          fill
-          sizes="100vw"
-          className="object-cover"
-          priority
-        />
+        {/* Rotating Background Images */}
+        {HERO_IMAGES.map((img, i) => (
+          <Image
+            key={img.src}
+            src={img.src}
+            alt={img.alt}
+            fill
+            sizes="100vw"
+            className={`object-cover transition-opacity duration-1000 ease-in-out ${i === heroIndex ? 'opacity-100' : 'opacity-0'}`}
+            priority={i === 0}
+          />
+        ))}
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/60 to-transparent" />
 
@@ -396,13 +413,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             <div className="flex flex-wrap gap-4">
               <Link
                 href={hero.ctaLink}
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-london-600 text-white font-semibold rounded-lg hover:bg-london-700 transition-colors shadow-elegant"
+                className="inline-flex items-center gap-2 px-7 py-3.5 bg-london-600 text-white font-semibold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-colors shadow-elegant"
               >
                 {hero.cta} <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 href="/shop"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-lg border border-white/20 hover:bg-white/20 transition-colors"
+                className="inline-flex items-center gap-2 px-7 py-3.5 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-lg border border-white/20 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-colors"
               >
                 <Download className="w-4 h-4" /> {locale === 'ar' ? 'تحميل الدليل' : 'Get the Guide'}
               </Link>
@@ -417,13 +434,15 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             className="flex flex-wrap gap-3 mt-10"
           >
             {t.quickLinks.map((label, i) => (
-              <Link
-                key={i}
-                href={t.quickLinksHref[i]}
-                className="px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white text-sm font-medium rounded-full border border-white/15 hover:bg-white/20 hover:border-white/30 transition-all"
-              >
-                {label}
-              </Link>
+              <React.Fragment key={i}>
+                {i > 0 && <span className="text-white/25 select-none" aria-hidden="true">·</span>}
+                <Link
+                  href={t.quickLinksHref[i]}
+                  className="px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white text-sm font-medium rounded-full border border-white/15 hover:bg-white/20 hover:border-white/30 hover:underline hover:underline-offset-4 hover:decoration-yalla-gold-400/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-all"
+                >
+                  {label}
+                </Link>
+              </React.Fragment>
             ))}
           </motion.div>
         </div>
@@ -521,7 +540,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   onChange={(e) => setEmail(e.target.value)}
                   className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg bg-white/10 border border-white/20 text-white placeholder-cream-500 focus:outline-none focus:ring-1 focus:ring-london-600"
                 />
-                <button className="px-4 py-2 bg-london-600 text-white text-xs font-bold rounded-lg hover:bg-london-700 transition-colors whitespace-nowrap">
+                <button className="px-4 py-2 bg-london-600 text-white text-xs font-bold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-400 transition-colors whitespace-nowrap">
                   {t.subscribeBtn}
                 </button>
               </div>
@@ -554,7 +573,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   </p>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-charcoal">{event.price}</span>
-                    <Link href="/events" className="px-4 py-2 bg-london-600 text-white text-sm font-semibold rounded-lg hover:bg-london-700 transition-colors">
+                    <Link href="/events" className="px-4 py-2 bg-london-600 text-white text-sm font-semibold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 transition-colors">
                       {t.getTickets}
                     </Link>
                   </div>
@@ -596,7 +615,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           <div className="text-center mt-8">
             <Link
               href="/information"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-london-600 text-white font-semibold rounded-lg hover:bg-london-700 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-london-600 text-white font-semibold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 transition-colors"
             >
               <BookOpen className="w-4 h-4" />
               {t.exploreHub}
@@ -632,7 +651,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                 <div className="p-5">
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-bold text-charcoal">{guide.price}</span>
-                    <Link href="/shop" className="flex items-center gap-2 px-4 py-2.5 bg-charcoal text-white text-sm font-semibold rounded-lg hover:bg-charcoal-light transition-colors">
+                    <Link href="/shop" className="flex items-center gap-2 px-4 py-2.5 bg-charcoal text-white text-sm font-semibold rounded-lg hover:bg-charcoal-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 transition-colors">
                       <Download className="w-4 h-4" /> {t.downloadNow}
                     </Link>
                   </div>

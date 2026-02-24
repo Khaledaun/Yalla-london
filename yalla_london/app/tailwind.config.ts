@@ -101,7 +101,7 @@ const config: Config = {
           light: '#3D3835',    // Graphite — borders, cards
         },
         stone: {
-          DEFAULT: '#78716C',  // Secondary text, metadata
+          DEFAULT: '#5C564F',  // Secondary text, metadata (WCAG AA on cream)
         },
         sand: {
           DEFAULT: '#D6D0C4',  // Light mode borders, dividers

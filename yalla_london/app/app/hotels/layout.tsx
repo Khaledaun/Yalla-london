@@ -54,12 +54,69 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+const FEATURED_HOTELS = [
+  {
+    name: "The Dorchester",
+    description: "Iconic 5-star Mayfair hotel with Arabic-speaking staff, halal dining at CUT, and Park Lane views. A favourite among Gulf travelers since 1931.",
+    address: "53 Park Lane, Mayfair",
+    city: "London",
+    postalCode: "W1K 1QA",
+    priceRange: "££££",
+    url: "https://www.dorchestercollection.com/london/the-dorchester",
+  },
+  {
+    name: "Claridge's",
+    description: "Art Deco masterpiece in Mayfair. Renowned for impeccable service, afternoon tea, and a strong following among Middle Eastern guests.",
+    address: "Brook Street, Mayfair",
+    city: "London",
+    postalCode: "W1K 4HR",
+    priceRange: "££££",
+    url: "https://www.claridges.co.uk",
+  },
+  {
+    name: "The Savoy",
+    description: "Legendary Thames-side hotel since 1889. River-view suites, Gordon Ramsay dining, and Strand location perfect for West End theatre.",
+    address: "Strand",
+    city: "London",
+    postalCode: "WC2R 0EZ",
+    priceRange: "££££",
+    url: "https://www.thesavoylondon.com",
+  },
+  {
+    name: "Shangri-La The Shard",
+    description: "London's highest hotel occupying floors 34-52 of The Shard. Panoramic city views, halal options available, and TING restaurant serving Asian-British cuisine.",
+    address: "31 St Thomas Street",
+    city: "London",
+    postalCode: "SE1 9QU",
+    priceRange: "££££",
+    url: "https://www.shangri-la.com/london/shangrila",
+  },
+];
+
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
   const destination = siteConfig?.destination || "London";
   const baseUrl = await getBaseUrl();
+
+  const hotelSchemas = FEATURED_HOTELS.map((hotel) => ({
+    "@context": "https://schema.org",
+    "@type": "LodgingBusiness",
+    "name": hotel.name,
+    "description": hotel.description,
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": hotel.address,
+      "addressLocality": hotel.city,
+      "postalCode": hotel.postalCode,
+      "addressCountry": "GB",
+    },
+    "priceRange": hotel.priceRange,
+    "url": hotel.url,
+    "brand": { "@type": "Organization", "name": siteName },
+  }));
 
   return (
     <>
@@ -73,6 +130,25 @@ export default async function Layout({ children }: { children: React.ReactNode }
           ],
         }}
       />
+      <StructuredData
+        type="itemList"
+        siteId={siteId}
+        data={{
+          name: `Luxury Hotels in ${destination}`,
+          description: `5-star hotels in ${destination} with Arabic-speaking staff and halal dining options`,
+          items: FEATURED_HOTELS.map((h) => ({
+            name: h.name,
+            url: h.url,
+          })),
+        }}
+      />
+      {hotelSchemas.map((schema, i) => (
+        <script
+          key={`hotel-schema-${i}`}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        />
+      ))}
       {children}
     </>
   );

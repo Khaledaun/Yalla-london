@@ -99,7 +99,7 @@ function ZenithaLogo({ className = '' }: { className?: string }) {
         <span className="font-display text-[22px] font-bold tracking-tight" style={{ letterSpacing: '-0.02em' }}>
           ZENITHA
         </span>
-        <span className="text-[10px] font-heading font-semibold tracking-[0.2em] uppercase opacity-60">
+        <span className="text-[11px] font-heading font-semibold tracking-[0.2em] uppercase opacity-60">
           YACHTS
         </span>
       </div>

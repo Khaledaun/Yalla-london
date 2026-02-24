@@ -112,22 +112,46 @@ export default async function Layout({ children }: { children: React.ReactNode }
     "@context": "https://schema.org",
     "@type": "Person",
     name: "Khaled N. Aun",
-    jobTitle: "Founder",
+    jobTitle: "Founder & CEO",
     knowsAbout: [
       "London travel",
       "Halal dining",
       "Luxury hospitality",
       "Arab tourism",
       "Travel content creation",
+      "Yacht charters",
+      "Mediterranean travel",
     ],
     worksFor: {
       "@type": "Organization",
       name: "Zenitha.Luxury LLC",
-      url: baseUrl,
+      url: "https://zenitha.luxury",
     },
     brand: {
       "@type": "Brand",
       name: siteName,
+    },
+  };
+
+  // Explicit Organization schema with parentOrganization for entity clarity
+  const siteOrgSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: siteName,
+    url: baseUrl,
+    parentOrganization: {
+      "@type": "Organization",
+      name: "Zenitha.Luxury LLC",
+      url: "https://zenitha.luxury",
+      legalName: "Zenitha.Luxury LLC",
+      foundingLocation: {
+        "@type": "Place",
+        name: "Delaware, United States",
+      },
+    },
+    founder: {
+      "@type": "Person",
+      name: "Khaled N. Aun",
     },
   };
 
@@ -147,6 +171,10 @@ export default async function Layout({ children }: { children: React.ReactNode }
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(founderSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(siteOrgSchema) }}
       />
       {children}
     </>

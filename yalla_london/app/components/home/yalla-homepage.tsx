@@ -49,7 +49,7 @@ const featuredArticle = {
     slug: 'best-halal-restaurants-central-london-2025',
     category: 'Editor\'s Pick',
     title: 'Best Halal Restaurants in Central London 2025',
-    excerpt: 'From Mayfair fine dining to hidden gems in Soho — discover the finest halal dining experiences in the heart of London, personally reviewed by our team.',
+    excerpt: '25+ vetted halal restaurants across Mayfair, Soho and Knightsbridge with honest pricing, certification notes and booking tips.',
     image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
     author: 'Yalla London Team',
     date: 'Jan 15, 2026',
@@ -59,7 +59,7 @@ const featuredArticle = {
     slug: 'best-halal-restaurants-central-london-2025',
     category: 'اختيار المحرر',
     title: 'أفضل المطاعم الحلال في وسط لندن 2025',
-    excerpt: 'من المطاعم الفاخرة في مايفير إلى الجواهر المخفية في سوهو — اكتشف أفضل تجارب الطعام الحلال في قلب لندن.',
+    excerpt: 'أكثر من 25 مطعماً حلالاً في مايفير وسوهو ونايتسبريدج مع أسعار دقيقة وملاحظات الاعتماد ونصائح الحجز.',
     image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
     author: 'فريق يلا لندن',
     date: '15 يناير 2026',
@@ -183,14 +183,14 @@ const experiences = {
 
 const hotels = {
   en: [
-    { id: '1', name: 'The Dorchester', location: 'Mayfair', rating: 5, price: 'From £650/night', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80', badge: 'Luxury' },
-    { id: '2', name: 'The Ritz London', location: 'Piccadilly', rating: 5, price: 'From £750/night', image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80', badge: '5 Star' },
-    { id: '3', name: 'Claridges', location: 'Mayfair', rating: 5, price: 'From £580/night', image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80', badge: 'Historic' },
+    { id: '1', name: 'The Dorchester', location: 'Mayfair', category: 'Ultra-Luxury Stays', rating: 5, price: 'From £650/night', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80', badge: 'Luxury' },
+    { id: '2', name: 'The Ritz London', location: 'Piccadilly', category: 'Designer Hotels', rating: 5, price: 'From £750/night', image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80', badge: '5 Star' },
+    { id: '3', name: 'Claridges', location: 'Mayfair', category: 'Heritage Collection', rating: 5, price: 'From £580/night', image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80', badge: 'Historic' },
   ],
   ar: [
-    { id: '1', name: 'دورتشستر', location: 'مايفير', rating: 5, price: 'من £650/ليلة', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80', badge: 'فاخر' },
-    { id: '2', name: 'ريتز لندن', location: 'بيكاديلي', rating: 5, price: 'من £750/ليلة', image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80', badge: '5 نجوم' },
-    { id: '3', name: 'كلاريدجز', location: 'مايفير', rating: 5, price: 'من £580/ليلة', image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80', badge: 'تاريخي' },
+    { id: '1', name: 'دورتشستر', location: 'مايفير', category: 'إقامة فاخرة للغاية', rating: 5, price: 'من £650/ليلة', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80', badge: 'فاخر' },
+    { id: '2', name: 'ريتز لندن', location: 'بيكاديلي', category: 'فنادق مصمّمة', rating: 5, price: 'من £750/ليلة', image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80', badge: '5 نجوم' },
+    { id: '3', name: 'كلاريدجز', location: 'مايفير', category: 'التراث البريطاني', rating: 5, price: 'من £580/ليلة', image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80', badge: 'تاريخي' },
   ],
 }
 
@@ -435,10 +435,10 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           >
             {t.quickLinks.map((label, i) => (
               <React.Fragment key={i}>
-                {i > 0 && <span className="text-white/25 select-none" aria-hidden="true">·</span>}
+                {i > 0 && <span className="text-white/40 select-none mx-1" aria-hidden="true">|</span>}
                 <Link
                   href={t.quickLinksHref[i]}
-                  className="px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white text-sm font-medium rounded-full border border-white/15 hover:bg-white/20 hover:border-white/30 hover:underline hover:underline-offset-4 hover:decoration-yalla-gold-400/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-all"
+                  className="px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white text-sm font-semibold rounded-full border border-white/20 hover:bg-white/25 hover:border-yalla-gold-400/50 hover:text-yalla-gold-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-all"
                 >
                   {label}
                 </Link>
@@ -571,12 +571,10 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   <p className="text-sm text-stone flex items-center gap-1.5 mb-4">
                     <MapPin className="w-3.5 h-3.5" /> {event.venue}
                   </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-charcoal">{event.price}</span>
-                    <Link href="/events" className="px-4 py-2 bg-london-600 text-white text-sm font-semibold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 transition-colors">
-                      {t.getTickets}
-                    </Link>
-                  </div>
+                  <span className="block text-sm font-bold text-charcoal mb-3">{event.price}</span>
+                  <Link href="/events" className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-london-600 text-white text-sm font-semibold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 transition-colors">
+                    {t.getTickets}
+                  </Link>
                 </div>
               </div>
             ))}
@@ -703,9 +701,10 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   </div>
                   <div className="p-5">
                     <h3 className="text-lg font-bold text-charcoal mb-1 group-hover:text-london-600 transition-colors">{hotel.name}</h3>
-                    <p className="text-sm text-stone flex items-center gap-1.5 mb-4">
+                    <p className="text-sm text-stone flex items-center gap-1.5 mb-1">
                       <MapPin className="w-3.5 h-3.5" /> {hotel.location}
                     </p>
+                    <p className="text-xs font-medium text-london-600/80 mb-4">{hotel.category}</p>
                     <div className="flex items-center justify-between pt-4 border-t border-sand">
                       <span className="text-sm font-bold text-charcoal">{hotel.price}</span>
                       <span className="px-4 py-2 border-2 border-charcoal text-charcoal text-sm font-semibold rounded-lg group-hover:bg-charcoal group-hover:text-white transition-colors">

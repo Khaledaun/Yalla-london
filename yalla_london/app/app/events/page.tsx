@@ -130,9 +130,10 @@ export default function EventsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [showVipOnly, setShowVipOnly] = useState(false);
-  const [events, setEvents] = useState<EventItem[]>([]);
+  // Initialize with fallback events so SSR HTML always has content for crawlers
+  const [events, setEvents] = useState<EventItem[]>(FALLBACK_EVENTS);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     async function fetchEvents() {
@@ -145,17 +146,12 @@ export default function EventsPage() {
             if (data.categories?.length > 1) {
               setCategories(data.categories);
             }
-          } else {
-            // No events in DB yet - use fallback
-            setEvents(FALLBACK_EVENTS);
           }
-        } else {
-          setEvents(FALLBACK_EVENTS);
+          // If no DB events, keep the fallback events already initialized
         }
+        // On error, keep the fallback events already initialized
       } catch {
-        setEvents(FALLBACK_EVENTS);
-      } finally {
-        setLoading(false);
+        // Silently keep fallback events
       }
     }
     fetchEvents();
@@ -265,6 +261,17 @@ export default function EventsPage() {
             </Badge>
           </div>
         </motion.div>
+      </section>
+
+      {/* Static explainer — always in SSR HTML for crawlers and slow connections */}
+      <section className="bg-cream-50 border-b border-sand py-6">
+        <div className="max-w-6xl mx-auto px-6">
+          <p className="text-stone text-sm leading-relaxed max-w-3xl">
+            {language === "en"
+              ? "Yalla London curates the best events for Arab visitors — from Premier League football at Emirates Stadium and Stamford Bridge, to award-winning West End musicals like Hamilton and The Lion King, luxury Thames dinner cruises with halal menus, seasonal festivals, world-class exhibitions at the V&A and British Museum, and exclusive VIP experiences across the city."
+              : "يلا لندن تنتقي أفضل الفعاليات للزوار العرب — من مباريات الدوري الإنجليزي الممتاز في ملعب الإمارات وستامفورد بريدج، إلى المسرحيات الموسيقية في ويست إند مثل هاميلتون والأسد الملك، ورحلات العشاء الفاخرة على نهر التايمز مع قوائم حلال، والمهرجانات الموسمية، والمعارض العالمية في متحف فيكتوريا وألبرت والمتحف البريطاني."}
+          </p>
+        </div>
       </section>
 
       {/* Search & Filter Bar */}

@@ -417,13 +417,15 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             className="flex flex-wrap gap-3 mt-10"
           >
             {t.quickLinks.map((label, i) => (
-              <Link
-                key={i}
-                href={t.quickLinksHref[i]}
-                className="px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white text-sm font-medium rounded-full border border-white/15 hover:bg-white/20 hover:border-white/30 transition-all"
-              >
-                {label}
-              </Link>
+              <React.Fragment key={i}>
+                {i > 0 && <span className="text-white/25 select-none" aria-hidden="true">·</span>}
+                <Link
+                  href={t.quickLinksHref[i]}
+                  className="px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white text-sm font-medium rounded-full border border-white/15 hover:bg-white/20 hover:border-white/30 hover:underline hover:underline-offset-4 hover:decoration-yalla-gold-400/60 transition-all"
+                >
+                  {label}
+                </Link>
+              </React.Fragment>
             ))}
           </motion.div>
         </div>

@@ -268,6 +268,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+// ─── FAQ extraction from content ─────────────────────────────────────────
+
+/**
+ * Extract Q&A pairs from HTML content by finding headings that look like
+ * questions (contain "?") followed by paragraph text. Used for AIO-friendly
+ * structured data. Does NOT use deprecated FAQPage — uses Article hasPart.
+ */
+function extractFaqPairs(html: string): Array<{ question: string; answer: string }> {
+  const pairs: Array<{ question: string; answer: string }> = [];
+  // Match h2/h3 containing "?" followed by paragraph(s)
+  const faqPattern = /<h[23][^>]*>([^<]*\?[^<]*)<\/h[23]>\s*(?:<[^h][^>]*>)*([\s\S]*?)(?=<h[23]|$)/gi;
+  let match;
+  while ((match = faqPattern.exec(html)) !== null) {
+    const question = match[1].replace(/<[^>]*>/g, "").trim();
+    const rawAnswer = match[2].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    // Only include if answer has real content (>30 chars)
+    if (question && rawAnswer.length > 30) {
+      pairs.push({ question, answer: rawAnswer.slice(0, 500) });
+    }
+  }
+  return pairs.slice(0, 8); // Cap at 8 Q&A pairs
+}
+
 // ─── Structured Data (JSON-LD) ─────────────────────────────────────────────
 
 function generateStructuredData(
@@ -292,10 +315,12 @@ function generateStructuredData(
     keywords = post.keywords || [];
   }
 
+  const contentHtml = post.content_en || "";
   const contentText =
     source === "static"
-      ? post.content_en
-      : (post.content_en || "").replace(/<[^>]*>/g, "");
+      ? contentHtml
+      : contentHtml.replace(/<[^>]*>/g, "");
+  const wordCount = contentText.split(/\s+/).filter(Boolean).length;
   const createdAt =
     post.created_at instanceof Date
       ? post.created_at.toISOString()
@@ -307,7 +332,10 @@ function generateStructuredData(
 
   const logoPath = `${baseUrl}/images/${siteSlug}-logo.svg`;
 
-  const articleSchema = {
+  // Extract FAQ-like Q&A pairs from content for AIO citation
+  const faqPairs = extractFaqPairs(contentHtml);
+
+  const articleSchema: Record<string, any> = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: post.title_en,
@@ -335,9 +363,18 @@ function generateStructuredData(
     },
     articleSection: categoryName,
     keywords: keywords.join(", "),
-    wordCount: contentText.split(" ").length,
+    wordCount,
     inLanguage: locale === "ar" ? "ar" : "en-GB",
   };
+
+  // Add Q&A pairs as hasPart for AIO systems (not deprecated FAQPage)
+  if (faqPairs.length > 0) {
+    articleSchema.hasPart = faqPairs.map((faq) => ({
+      "@type": "WebPageElement",
+      "name": faq.question,
+      "text": faq.answer,
+    }));
+  }
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",

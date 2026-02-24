@@ -103,7 +103,33 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+  const siteConfig = getSiteConfig(siteId);
+  const siteName = siteConfig?.name || "Yalla London";
   const baseUrl = await getBaseUrl();
+
+  // Person schema for founder — strengthens E-E-A-T entity understanding
+  const founderSchema = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    name: "Khaled N. Aun",
+    jobTitle: "Founder",
+    knowsAbout: [
+      "London travel",
+      "Halal dining",
+      "Luxury hospitality",
+      "Arab tourism",
+      "Travel content creation",
+    ],
+    worksFor: {
+      "@type": "Organization",
+      name: "Zenitha.Luxury LLC",
+      url: baseUrl,
+    },
+    brand: {
+      "@type": "Brand",
+      name: siteName,
+    },
+  };
 
   return (
     <>
@@ -118,6 +144,10 @@ export default async function Layout({ children }: { children: React.ReactNode }
         }}
       />
       <StructuredData type="organization" siteId={siteId} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(founderSchema) }}
+      />
       {children}
     </>
   );

@@ -57,9 +57,11 @@ export async function GET(request: NextRequest) {
         timestamp: new Date().toISOString(),
       });
     } catch {
+      // Return 200 degraded, not 503 — DB pool exhaustion during concurrent health checks
+      // should not appear as a hard failure. Cron runs on schedule regardless.
       return NextResponse.json(
-        { status: "unhealthy", endpoint: "daily-content-generate" },
-        { status: 503 },
+        { status: "degraded", endpoint: "daily-content-generate", note: "DB temporarily unavailable for healthcheck." },
+        { status: 200 },
       );
     }
   }

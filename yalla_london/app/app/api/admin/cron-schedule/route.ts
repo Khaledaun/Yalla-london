@@ -10,6 +10,11 @@ import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/admin-middleware';
 
 // Vercel cron schedule → human-readable + UTC next-run calculation
+//
+// logName: the job_name value stored in CronJobLog.
+// When the CRON_SCHEDULE key differs from the logged job_name (e.g. seo-agent-1 logs
+// as "seo-agent", analytics-sync logs as "analytics"), set logName to the actual value.
+// Omit logName when the key and job_name match exactly.
 const CRON_SCHEDULE: Record<string, {
   label: string;
   schedule: string;         // cron expression
@@ -17,6 +22,7 @@ const CRON_SCHEDULE: Record<string, {
   apiPath: string;          // route to trigger
   category: 'content' | 'seo' | 'indexing' | 'analytics' | 'maintenance';
   critical: boolean;
+  logName?: string;         // actual job_name stored in CronJobLog (if different from key)
 }> = {
   'analytics-sync': {
     label: 'Analytics Sync',
@@ -25,6 +31,7 @@ const CRON_SCHEDULE: Record<string, {
     apiPath: '/api/cron/analytics-sync',
     category: 'analytics',
     critical: false,
+    logName: 'analytics',   // CronJobLog stores job_name: "analytics"
   },
   'weekly-topics': {
     label: 'Weekly Topic Research',
@@ -49,6 +56,7 @@ const CRON_SCHEDULE: Record<string, {
     apiPath: '/api/cron/seo-orchestrator',
     category: 'seo',
     critical: false,
+    logName: 'seo-orchestrator',
   },
   'trends-monitor': {
     label: 'Trends Monitor',
@@ -65,6 +73,7 @@ const CRON_SCHEDULE: Record<string, {
     apiPath: '/api/cron/seo-orchestrator',
     category: 'seo',
     critical: false,
+    logName: 'seo-orchestrator',
   },
   'seo-agent-1': {
     label: 'SEO Agent Run 1',
@@ -73,6 +82,7 @@ const CRON_SCHEDULE: Record<string, {
     apiPath: '/api/cron/seo-agent',
     category: 'indexing',
     critical: false,
+    logName: 'seo-agent',   // all 3 seo-agent runs share the same job_name in CronJobLog
   },
   'seo-cron-daily': {
     label: 'SEO Cron (Daily)',
@@ -81,19 +91,20 @@ const CRON_SCHEDULE: Record<string, {
     apiPath: '/api/seo/cron',
     category: 'seo',
     critical: false,
+    logName: 'seo-cron',
   },
   'content-builder': {
     label: 'Content Builder',
-    schedule: '30 8 * * *',
-    humanSchedule: 'Daily at 8:30 UTC (+ every 15 min)',
+    schedule: '*/15 * * * *',
+    humanSchedule: 'Every 15 minutes',
     apiPath: '/api/cron/content-builder',
     category: 'content',
     critical: true,
   },
   'content-selector': {
     label: 'Content Selector',
-    schedule: '30 8 * * *',
-    humanSchedule: 'Daily at 8:30 UTC',
+    schedule: '0 9,13,17,21 * * *',
+    humanSchedule: '4× daily (9am, 1pm, 5pm, 9pm UTC)',
     apiPath: '/api/cron/content-selector',
     category: 'content',
     critical: true,
@@ -104,7 +115,7 @@ const CRON_SCHEDULE: Record<string, {
     humanSchedule: 'Daily at 9:00 UTC',
     apiPath: '/api/cron/affiliate-injection',
     category: 'content',
-    critical: true,
+    critical: false,
   },
   'scheduled-publish-morning': {
     label: 'Publish (Morning)',
@@ -113,6 +124,7 @@ const CRON_SCHEDULE: Record<string, {
     apiPath: '/api/cron/scheduled-publish',
     category: 'content',
     critical: false,
+    logName: 'scheduled-publish',  // both publish runs share the same job_name
   },
   'seo-agent-2': {
     label: 'SEO Agent Run 2',
@@ -121,6 +133,7 @@ const CRON_SCHEDULE: Record<string, {
     apiPath: '/api/cron/seo-agent',
     category: 'indexing',
     critical: false,
+    logName: 'seo-agent',
   },
   'scheduled-publish-afternoon': {
     label: 'Publish (Afternoon)',
@@ -129,6 +142,7 @@ const CRON_SCHEDULE: Record<string, {
     apiPath: '/api/cron/scheduled-publish',
     category: 'content',
     critical: false,
+    logName: 'scheduled-publish',
   },
   'seo-agent-3': {
     label: 'SEO Agent Run 3',
@@ -137,6 +151,7 @@ const CRON_SCHEDULE: Record<string, {
     apiPath: '/api/cron/seo-agent',
     category: 'indexing',
     critical: false,
+    logName: 'seo-agent',
   },
   'site-health-check': {
     label: 'Site Health Check',
@@ -162,6 +177,7 @@ const CRON_SCHEDULE: Record<string, {
     apiPath: '/api/seo/cron?task=weekly',
     category: 'seo',
     critical: false,
+    logName: 'seo-cron',
   },
   'fact-verification': {
     label: 'Fact Verification',
@@ -244,7 +260,8 @@ export async function GET(request: NextRequest) {
     }
 
     const jobs = Object.entries(CRON_SCHEDULE).map(([key, info]) => {
-      const logs = byJob[key] || [];
+      // Use logName (the actual job_name in CronJobLog) if it differs from the CRON_SCHEDULE key
+      const logs = byJob[info.logName ?? key] || [];
       const lastLog = logs[0] || null;
       const last7d = logs.filter((l) => new Date(l.started_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
       const durLogs = last7d.filter((l) => l.duration_ms);

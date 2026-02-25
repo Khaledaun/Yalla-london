@@ -108,9 +108,11 @@ export function CronSchedulePanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobKey }),
       });
-      const result = await res.json();
+      const result = await res.json().catch(() => ({ success: false, error: 'Invalid response' }));
       setTriggerResult((prev) => ({ ...prev, [jobKey]: result }));
       setTimeout(() => load(), 2000);
+    } catch {
+      setTriggerResult((prev) => ({ ...prev, [jobKey]: { success: false, error: 'Failed to trigger job' } }));
     } finally {
       setTriggering(null);
     }

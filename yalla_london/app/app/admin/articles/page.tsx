@@ -9,29 +9,20 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  FileText, 
-  Plus, 
-  Edit, 
-  Eye, 
+import {
+  FileText,
+  Plus,
+  Edit,
+  Eye,
   Trash2,
   Search,
-  Filter,
   Calendar,
   User,
   Tag,
   TrendingUp,
-  Clock,
   CheckCircle2,
-  AlertCircle,
   XCircle,
-  PlayCircle,
-  ArrowRight,
-  BarChart3,
   Globe,
-  Users,
-  Heart,
-  MessageSquare,
   ClipboardCheck
 } from 'lucide-react'
 

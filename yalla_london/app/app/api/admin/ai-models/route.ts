@@ -8,7 +8,6 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/admin-middleware';
-import { getActiveSiteIds } from '@/config/sites';
 import crypto from 'crypto';
 
 // ── Encryption helpers ──────────────────────────────────────────────────────

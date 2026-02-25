@@ -214,18 +214,18 @@ export async function GET(request: NextRequest) {
 
     // ── 6. Check sites have content ───────────────────────────────────────
     const activeSites = getActiveSiteIds();
-    for (const siteId of activeSites) {
+    for (const activeSite of activeSites) {
       const count = await prisma.blogPost.count({
-        where: { siteId, published: true },
+        where: { siteId: activeSite, published: true },
       }).catch(() => 0);
 
       if (count === 0) {
         todos.push({
-          id: `no-content-${siteId}`,
+          id: `no-content-${activeSite}`,
           priority: 'medium',
           category: 'content',
-          title: `${siteId}: No published articles`,
-          description: `Site ${siteId} has no published content. Start the content pipeline for this site.`,
+          title: `${activeSite}: No published articles`,
+          description: `Site ${activeSite} has no published content. Start the content pipeline for this site.`,
           actionLabel: 'Go to Pipeline',
           actionUrl: '/admin/pipeline',
           resolved: count > 0,

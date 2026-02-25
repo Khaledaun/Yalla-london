@@ -12,6 +12,7 @@
 import { logCronExecution } from "@/lib/cron-logger";
 import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
+import { enhanceReservoirDraft } from "@/lib/content-pipeline/enhance-runner";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
 const MAX_ARTICLES_PER_RUN = 2;
@@ -91,12 +92,63 @@ export async function runContentSelector(
       };
     }
 
-    // Apply keyword diversity filter
+    // Separate candidates into publish-ready (≥ qualityGateScore) and needs-enhancement (60–69).
+    // Articles 60–69 are enhanced inline before publication:
+    //   - Grok expands word count, adds experience signals, internal links, affiliate placeholders
+    //   - Re-scored after enhancement — if score ≥ 70 they are promoted in this run
+    //   - If still < 70, the enhancement is saved to DB and the next run will re-evaluate
+    const PUBLISH_THRESHOLD = CONTENT_QUALITY.qualityGateScore; // 70
+    const publishReady: Array<Record<string, unknown>> = [];
+    const needsEnhancement: Array<Record<string, unknown>> = [];
+
+    for (const candidate of candidates) {
+      const score = (candidate.quality_score as number) || 0;
+      if (score >= PUBLISH_THRESHOLD) {
+        publishReady.push(candidate);
+      } else {
+        needsEnhancement.push(candidate);
+      }
+    }
+
+    // Trigger enhancement for low-quality articles (non-blocking if budget is tight)
+    // Cap at 2 enhancements per run to stay within the 53s budget
+    const enhancementQueue = needsEnhancement.slice(0, 2);
+    const enhancedToPublish: Array<Record<string, unknown>> = [];
+
+    for (const candidate of enhancementQueue) {
+      const remainingMs = (options.timeoutMs || DEFAULT_TIMEOUT_MS) - (Date.now() - cronStart);
+      if (remainingMs < 38_000) {
+        console.log("[content-selector] Budget < 38s — skipping enhancement, will retry next run");
+        break;
+      }
+      try {
+        console.log(`[content-selector] Enhancing draft ${candidate.id} (score: ${candidate.quality_score}, keyword: "${candidate.keyword}")`);
+        const enhResult = await enhanceReservoirDraft(candidate);
+        if (enhResult.success && (enhResult.newScore || 0) >= PUBLISH_THRESHOLD) {
+          // Refresh the candidate record from DB so promoteToBlogPost reads new content
+          const { prisma: prismaDynamic } = await import("@/lib/db");
+          const refreshed = await prismaDynamic.articleDraft.findUnique({ where: { id: candidate.id as string } });
+          if (refreshed) {
+            enhancedToPublish.push(refreshed as unknown as Record<string, unknown>);
+            console.log(`[content-selector] Enhanced draft ${candidate.id} now scores ${enhResult.newScore} — queued for promotion`);
+          }
+        } else {
+          console.log(`[content-selector] Enhanced draft ${candidate.id}: score ${enhResult.previousScore}→${enhResult.newScore || "?"} — needs another pass, saved to DB`);
+        }
+      } catch (enhErr) {
+        console.warn(`[content-selector] Enhancement failed for draft ${candidate.id}:`, enhErr instanceof Error ? enhErr.message : enhErr);
+      }
+    }
+
+    // Combine publish-ready and successfully-enhanced articles
+    const allCandidates = [...publishReady, ...enhancedToPublish];
+
+    // Apply keyword diversity filter across combined list
     const selectedKeywords = new Set<string>();
     const selectedDraftIds = new Set<string>();
     const selected: Array<Record<string, unknown>> = [];
 
-    for (const candidate of candidates) {
+    for (const candidate of allCandidates) {
       if (selected.length >= MAX_ARTICLES_PER_RUN) break;
 
       const candidateId = candidate.id as string;
@@ -174,6 +226,9 @@ export async function runContentSelector(
       itemsProcessed: published.length,
       resultSummary: {
         reservoirCandidates: candidates.length,
+        publishReady: publishReady.length,
+        needsEnhancement: needsEnhancement.length,
+        enhancedAndPromoted: enhancedToPublish.length,
         selected: selected.length,
         published: published.length,
         articles: published,

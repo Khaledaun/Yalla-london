@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useLanguage } from './language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'

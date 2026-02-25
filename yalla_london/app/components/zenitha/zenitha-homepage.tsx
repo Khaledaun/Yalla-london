@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown, Compass, Anchor, Ship, Star, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/components/language-provider';
 import { useScrollRevealClass } from '@/hooks/use-scroll-reveal';

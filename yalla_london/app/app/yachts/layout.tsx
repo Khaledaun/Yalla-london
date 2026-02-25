@@ -1,3 +1,4 @@
+import React from "react";
 import { headers } from "next/headers";
 import { getBaseUrl } from "@/lib/url-utils";
 import { getDefaultSiteId } from "@/config/sites";

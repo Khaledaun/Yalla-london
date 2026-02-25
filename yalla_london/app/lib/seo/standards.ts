@@ -104,6 +104,14 @@ export const CONTENT_QUALITY = {
   maxH1Count: 1,
   /** Minimum SEO score to pass quality gate (out of 100) */
   qualityGateScore: 70,
+  /**
+   * Minimum quality score to fetch articles FROM the reservoir for promotion.
+   * Intentionally lower than qualityGateScore (70) so that articles scoring 60–69
+   * are still fetched and evaluated — the gate's hard blocker is seo_score < 50,
+   * not < 70. This prevents articles from being permanently frozen if the
+   * qualityGateScore threshold is raised after they entered the reservoir.
+   */
+  reservoirMinScore: 60,
 } as const;
 
 // ─── E-E-A-T Requirements (Updated for Jan 2026 Authenticity Update) ────────

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
@@ -971,9 +972,9 @@ function VariableVaultTab() {
       ))}
 
       <div className="text-center">
-        <a href="/admin/variable-vault" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: '#78716C', textDecoration: 'underline' }}>
+        <Link href="/admin/variable-vault" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: '#78716C', textDecoration: 'underline' }}>
           View full Variable Vault (per-site variables) →
-        </a>
+        </Link>
       </div>
     </div>
   );

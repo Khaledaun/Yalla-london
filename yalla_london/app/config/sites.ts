@@ -1586,11 +1586,11 @@ const SITE_META: Record<string, { tagline: string; taglineAr: string; nameAr: st
     descriptionAr: "يالا لندن يربط المسافرين العرب بأفخم فنادق لندن والمطاعم الحلال والتجارب الحصرية.",
   },
   "zenitha-yachts-med": {
-    tagline: "Luxury Yacht Charter",
-    taglineAr: "استئجار يخوت فاخرة",
+    tagline: "Luxury Yacht Charters in the Mediterranean & Arabian Gulf",
+    taglineAr: "رحلات يخوت فاخرة في البحر المتوسط والخليج العربي",
     nameAr: "زينيثا يخوت",
-    description: "Zenitha Yachts offers curated luxury yacht charters across the Mediterranean, Arabian Gulf & beyond. Halal catering, professional crews, and bespoke itineraries.",
-    descriptionAr: "زينيثا يخوت تقدم رحلات يخوت فاخرة في البحر المتوسط والخليج العربي. طعام حلال وطواقم محترفة ومسارات مخصصة.",
+    description: "Private luxury yacht charters in the Greek Islands, Croatian Coast, Turkish Riviera & Arabian Gulf. Halal catering, multilingual crews, bespoke itineraries.",
+    descriptionAr: "رحلات يخت فاخرة خاصة في الجزر اليونانية والساحل الكرواتي والريفيرا التركية والخليج العربي. طعام حلال وطواقم متعددة اللغات ومسارات مخصصة.",
   },
   "arabaldives": {
     tagline: "Luxury Maldives Guide",

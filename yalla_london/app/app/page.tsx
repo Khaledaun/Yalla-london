@@ -35,10 +35,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteNameAr = getSiteNameAr(siteId);
 
   if (isYachtSite(siteId)) {
-    const title = "Zenitha Yachts — Luxury Mediterranean Yacht Charters for GCC Travellers";
-    // Keep description within 120–160 chars per SEO standards (was 183 chars)
+    // Title: broad appeal — Mediterranean + Arabian Gulf, not GCC-only.
+    // 74 chars (slightly over 60-char ideal but covers both key regions).
+    const title = "Zenitha Yachts — Luxury Yacht Charters in the Mediterranean & Arabian Gulf";
+    // Description: 156 chars — specific destinations + target markets (Europe, North America, Arab travellers).
     const description =
-      "Curated luxury yacht charters in the Mediterranean & Arabian Gulf. Halal catering, Arabic-speaking crews, and bespoke itineraries for Gulf travellers.";
+      "Private luxury yacht charters in the Greek Islands, Croatian Coast, Turkish Riviera & Arabian Gulf. Halal catering, multilingual crews, bespoke itineraries.";
 
     return {
       title,
@@ -64,7 +66,7 @@ export async function generateMetadata(): Promise<Metadata> {
             url: `${baseUrl}/api/og?siteId=${siteId}`,
             width: 1200,
             height: 630,
-            alt: "Zenitha Yachts — Luxury Mediterranean Yacht Charters",
+            alt: "Zenitha Yachts — Luxury Yacht Charters in the Mediterranean & Arabian Gulf",
           },
         ],
       },

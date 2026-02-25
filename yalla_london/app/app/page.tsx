@@ -13,6 +13,11 @@ import { StructuredData } from "@/components/structured-data";
 import { YallaHomepage } from "@/components/home/yalla-homepage";
 import { ZenithaHomepage } from "@/components/zenitha/zenitha-homepage";
 
+// Force dynamic rendering so headers() always returns the real request hostname.
+// Without this, Next.js may statically generate the homepage at build time when
+// headers() is unavailable — causing all sites to show the default (Yalla London) metadata.
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
 
@@ -31,8 +36,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
   if (isYachtSite(siteId)) {
     const title = "Zenitha Yachts — Luxury Mediterranean Yacht Charters for GCC Travellers";
+    // Keep description within 120–160 chars per SEO standards (was 183 chars)
     const description =
-      "Curated yacht charters across the Mediterranean, Arabian Gulf, and Red Sea. Halal catering, professional crews, and bespoke itineraries for discerning travellers from the Gulf region.";
+      "Curated luxury yacht charters in the Mediterranean & Arabian Gulf. Halal catering, Arabic-speaking crews, and bespoke itineraries for Gulf travellers.";
 
     return {
       title,

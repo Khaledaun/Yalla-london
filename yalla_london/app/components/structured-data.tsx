@@ -21,7 +21,11 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
   const siteDestination = siteConfig?.destination || 'London';
 
   const getBaseStructuredData = () => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+    // Use config-driven per-site domain directly.
+    // NEXT_PUBLIC_SITE_URL is a build-time constant for the primary domain only —
+    // it overrides all secondary sites in a multi-tenant deployment and must NOT
+    // be used here. siteDomain (from getSiteDomain) is already correct per site.
+    const baseUrl = siteDomain;
     // Per-site name and description — avoids falling back to Yalla London brandConfig
     const nameAr = getSiteNameAr(resolvedSiteId);
     const descriptionEN = getSiteDescription(resolvedSiteId, 'en');
@@ -30,9 +34,12 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
     const localizedDescription = language === 'en' ? descriptionEN : descriptionAR;
     const contactEmail = `hello@${siteConfig?.domain || 'zenitha.luxury'}`;
 
+    // Zenitha Yachts uses TravelAgency as a more precise entity type for yacht charter
+    const isZenitha = resolvedSiteId === "zenitha-yachts-med";
+
     const organizationData = {
       "@context": "https://schema.org",
-      "@type": "Organization",
+      "@type": isZenitha ? "TravelAgency" : "Organization",
       "name": localizedName,
       "url": baseUrl,
       "logo": `${baseUrl}/images/${siteSlug}-logo.svg`,
@@ -47,7 +54,25 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
         "email": contactEmail,
         "contactType": "customer service"
       },
-      "sameAs": [] as string[]
+      "sameAs": [] as string[],
+      // Zenitha Yachts-specific fields for yacht charter entity classification
+      ...(isZenitha ? {
+        "areaServed": [
+          { "@type": "Place", "name": "Mediterranean Sea" },
+          { "@type": "Place", "name": "Arabian Gulf" },
+          { "@type": "Place", "name": "Red Sea" }
+        ],
+        "knowsLanguage": ["en", "ar"],
+        "hasOfferCatalog": {
+          "@type": "OfferCatalog",
+          "name": "Luxury Yacht Charters",
+          "itemListElement": [
+            { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Mediterranean Yacht Charter" } },
+            { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Arabian Gulf Yacht Charter" } },
+            { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Halal Catering Yacht Charter" } }
+          ]
+        }
+      } : {})
     }
 
     const websiteData = {
@@ -61,7 +86,18 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
         "@type": "Organization",
         "name": siteName,
         "logo": `${baseUrl}/images/${siteSlug}-logo.svg`
-      }
+      },
+      // Zenitha Yachts: SearchAction enables Google Sitelinks Searchbox
+      ...(isZenitha ? {
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": `${baseUrl}/yachts?q={search_term_string}`
+          },
+          "query-input": "required name=search_term_string"
+        }
+      } : {})
     }
 
     return { organizationData, websiteData }
@@ -91,12 +127,16 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
     "organizer": {
       "@type": "Organization",
       "name": siteName,
-      "url": process.env.NEXT_PUBLIC_SITE_URL || siteDomain
+      "url": siteDomain
     }
   })
 
   const getArticleStructuredData = (articleData: any) => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+    // Use config-driven per-site domain directly.
+    // NEXT_PUBLIC_SITE_URL is a build-time constant for the primary domain only —
+    // it overrides all secondary sites in a multi-tenant deployment and must NOT
+    // be used here. siteDomain (from getSiteDomain) is already correct per site.
+    const baseUrl = siteDomain;
     return {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -209,7 +249,11 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
   // FAQPage schema deprecated Aug 2023 — restricted to gov/health sites only.
   // Render FAQ content as Article schema with Q&A formatting instead.
   const getFAQStructuredData = (faqData: any) => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+    // Use config-driven per-site domain directly.
+    // NEXT_PUBLIC_SITE_URL is a build-time constant for the primary domain only —
+    // it overrides all secondary sites in a multi-tenant deployment and must NOT
+    // be used here. siteDomain (from getSiteDomain) is already correct per site.
+    const baseUrl = siteDomain;
     return {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -264,7 +308,7 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
     "organizer": {
       "@type": "Organization",
       "name": eventData.organizer || siteName,
-      "url": process.env.NEXT_PUBLIC_SITE_URL || siteDomain
+      "url": siteDomain
     },
     "offers": eventData.price ? {
       "@type": "Offer",
@@ -282,7 +326,11 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
 
   // Enhanced article schema for better AEO
   const getEnhancedArticleStructuredData = (articleData: any) => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+    // Use config-driven per-site domain directly.
+    // NEXT_PUBLIC_SITE_URL is a build-time constant for the primary domain only —
+    // it overrides all secondary sites in a multi-tenant deployment and must NOT
+    // be used here. siteDomain (from getSiteDomain) is already correct per site.
+    const baseUrl = siteDomain;
     return {
       "@context": "https://schema.org",
       "@type": "Article",
@@ -326,7 +374,11 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
   }
 
   const getProductStructuredData = (productData: any) => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
+    // Use config-driven per-site domain directly.
+    // NEXT_PUBLIC_SITE_URL is a build-time constant for the primary domain only —
+    // it overrides all secondary sites in a multi-tenant deployment and must NOT
+    // be used here. siteDomain (from getSiteDomain) is already correct per site.
+    const baseUrl = siteDomain;
     return {
       "@context": "https://schema.org",
       "@type": "Product",

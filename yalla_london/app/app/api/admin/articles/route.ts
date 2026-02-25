@@ -19,13 +19,13 @@ async function getWordCounts(postIds: string[]): Promise<Map<string, { en: numbe
   if (postIds.length === 0) return new Map();
   // Approximate word count: character count / 5 (average English word length)
   // This avoids fetching megabytes of HTML just for word count display
-  const result = await prisma.$queryRawUnsafe<Array<{ id: string; wc_en: number; wc_ar: number }>>(
+  const result = await prisma.$queryRawUnsafe(
     `SELECT id,
        COALESCE(array_length(string_to_array(trim(COALESCE(content_en, '')), ' '), 1), 0) as wc_en,
        COALESCE(array_length(string_to_array(trim(COALESCE(content_ar, '')), ' '), 1), 0) as wc_ar
      FROM "BlogPost" WHERE id = ANY($1::text[])`,
     postIds
-  );
+  ) as Array<{ id: string; wc_en: number; wc_ar: number }>;
   const map = new Map<string, { en: number; ar: number }>();
   for (const r of result) {
     map.set(r.id, { en: Number(r.wc_en), ar: Number(r.wc_ar) });

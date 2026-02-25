@@ -18,8 +18,7 @@ function getEncryptionKey(): Buffer {
   const masterKey = process.env.ENCRYPTION_KEY || process.env.NEXTAUTH_SECRET || '';
 
   if (!masterKey) {
-    console.warn('No ENCRYPTION_KEY set, using default (not secure for production)');
-    return crypto.scryptSync('default-key-not-secure', 'salt', 32);
+    throw new Error('ENCRYPTION_KEY (or NEXTAUTH_SECRET) environment variable is required for encryption');
   }
 
   // Derive a 32-byte key from the master key

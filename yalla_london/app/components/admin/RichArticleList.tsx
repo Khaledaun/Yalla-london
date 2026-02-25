@@ -12,7 +12,7 @@ import {
   FileText, Globe, Search, RefreshCw, ExternalLink, Send, Eye,
   CheckCircle, XCircle, AlertTriangle, Clock, Loader2, ChevronDown,
   ChevronRight, Filter, BarChart3, TrendingUp, Languages, Zap,
-  Star, AlertCircle, Play, BookOpen, Edit3,
+  AlertCircle, Play, BookOpen, Edit3,
 } from 'lucide-react';
 
 interface RichArticle {
@@ -103,7 +103,8 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-const PHASE_STEPS = ['pending','research','outline','drafting','assembly','images','seo','scoring','reservoir'];
+// M-003 fix: align with API's 8-step PHASE_ORDER (no 'pending')
+const PHASE_STEPS = ['research','outline','drafting','assembly','images','seo','scoring','reservoir'];
 
 interface Props {
   siteId?: string;
@@ -117,46 +118,70 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [indexing, setIndexing] = useState<IndexingData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null); // H-008 fix
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState(''); // M-017 fix
   const [statusFilter, setStatusFilter] = useState('all');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null); // H-009 fix
   const [sourceFilter, setSourceFilter] = useState<'all' | 'published' | 'drafts'>(source);
+
+  // M-017 fix: debounce search to avoid request per keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams({
         source: sourceFilter,
         limit: '60',
       });
       if (siteId) params.set('siteId', siteId);
-      if (search) params.set('search', search);
+      if (debouncedSearch) params.set('search', debouncedSearch);
       if (statusFilter !== 'all') params.set('status', statusFilter);
 
       const res = await fetch(`/api/admin/articles?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        setArticles(data.articles || []);
-        setSummary(data.summary || null);
-        setIndexing(data.indexing || null);
+      // M-014 fix: handle non-ok responses
+      if (!res.ok) {
+        setError(res.status === 401 ? 'Not authorized' : 'Failed to load articles');
+        return;
       }
+      const data = await res.json();
+      setArticles(data.articles || []);
+      setSummary(data.summary || null);
+      setIndexing(data.indexing || null);
+    } catch {
+      // H-008 fix: show error state instead of silently failing
+      setError('Failed to load articles — check your connection');
     } finally {
       setLoading(false);
     }
-  }, [siteId, search, statusFilter, sourceFilter]);
+  }, [siteId, debouncedSearch, statusFilter, sourceFilter]);
 
   useEffect(() => { load(); }, [load]);
 
   const submitToIndexNow = async (articleId: string) => {
     setSubmitting(articleId);
+    setSubmitError(null);
     try {
-      await fetch('/api/admin/content-indexing', {
+      const res = await fetch('/api/admin/content-indexing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'submit', articleId }),
       });
+      // H-009 fix: show error feedback for failed submissions
+      if (!res.ok) {
+        setSubmitError('Failed to submit to IndexNow');
+        return;
+      }
       await load();
+    } catch {
+      setSubmitError('IndexNow submission failed — check your connection');
     } finally {
       setSubmitting(null);
     }
@@ -260,6 +285,25 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
         </select>
       </div>
 
+      {/* Error banner */}
+      {error && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl"
+             style={{ backgroundColor: 'rgba(200,50,43,0.08)', border: '1px solid rgba(200,50,43,0.15)' }}>
+          <AlertTriangle size={14} style={{ color: '#C8322B', flexShrink: 0 }} />
+          <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: '#C8322B', flex: 1 }}>{error}</span>
+          <button onClick={load} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#C8322B', textDecoration: 'underline' }}>Retry</button>
+        </div>
+      )}
+
+      {/* Submit error toast */}
+      {submitError && (
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl"
+             style={{ backgroundColor: 'rgba(200,50,43,0.06)', border: '1px solid rgba(200,50,43,0.12)' }}>
+          <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, color: '#C8322B' }}>{submitError}</span>
+          <button onClick={() => setSubmitError(null)} style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 9, color: '#78716C' }}>dismiss</button>
+        </div>
+      )}
+
       {/* ── Article List ── */}
       {loading && articles.length === 0 ? (
         <div className="text-center py-12">
@@ -302,7 +346,6 @@ export function RichArticleList({ siteId, source = 'all', showHeader = true, com
                       <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 700, fontSize: compact ? 12 : 13, color: '#1C1917', lineHeight: 1.3 }}
                             className="flex-1 min-w-0">
                         {article.title}
-                        {article.featured && <Star size={11} className="inline ml-1" style={{ color: '#C49A2A' }} />}
                       </span>
                     </div>
 

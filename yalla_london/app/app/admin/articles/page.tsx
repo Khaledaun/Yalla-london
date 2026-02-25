@@ -35,52 +35,7 @@ import {
   ClipboardCheck
 } from 'lucide-react'
 
-interface Article {
-  id: string
-  title: string
-  slug: string
-  excerpt: string
-  content: string
-  status: 'draft' | 'generated' | 'reviewed' | 'ready-to-publish' | 'published' | 'scheduled'
-  contentType: string
-  author: {
-    id: string
-    name: string
-    avatar?: string
-  }
-  seoScore: number
-  publishedAt?: string
-  scheduledAt?: string
-  createdAt: string
-  updatedAt: string
-  tags: string[]
-  category: string
-  featured: boolean
-  viewCount: number
-  shareCount: number
-  commentCount: number
-  language: 'en' | 'ar'
-  workflow: {
-    currentStep: number
-    totalSteps: number
-    steps: WorkflowStep[]
-  }
-  analytics: {
-    impressions: number
-    clicks: number
-    ctr: number
-    avgPosition: number
-  }
-}
-
-interface WorkflowStep {
-  id: string
-  name: string
-  status: 'pending' | 'in-progress' | 'completed' | 'skipped'
-  assignee?: string
-  completedAt?: string
-  notes?: string
-}
+// M-016 fix: removed dead Article/WorkflowStep interfaces (fields don't exist in schema)
 
 interface BlogPostAdmin {
   id: string
@@ -160,7 +115,8 @@ export default function ArticlesPage() {
           if (value) cleanParams.set(key, value)
         }
 
-        const response = await fetch(`/api/admin/content?${cleanParams}`)
+        // C-004 fix: use /api/admin/articles (new, site-scoped API) instead of /api/admin/content
+        const response = await fetch(`/api/admin/articles?${cleanParams}&source=published`)
 
         // Auth failures — show empty list, not an error
         if (response.status === 401 || response.status === 403) {
@@ -171,15 +127,30 @@ export default function ArticlesPage() {
 
         const data = await response.json().catch(() => null)
 
-        if (data?.success) {
-          setArticles(data.data)
-          // Extract unique categories
+        if (data?.success && data.articles) {
+          // Map from new API shape to BlogPostAdmin shape for Card/Table views
+          const mapped: BlogPostAdmin[] = data.articles.map((a: Record<string, unknown>) => ({
+            id: a.id,
+            title_en: a.title || '',
+            title_ar: a.titleAr || '',
+            slug: a.slug || '',
+            excerpt_en: (a.metaDescription as string) || '',
+            excerpt_ar: '',
+            published: a.status === 'published',
+            page_type: 'blog',
+            author: { id: '', name: (a.author as string) || 'Editorial', email: '' },
+            category: a.category ? { id: '', name_en: a.category as string, name_ar: '', slug: '' } : undefined,
+            seo_score: (a.seoScore as number) || 0,
+            tags: [],
+            created_at: a.createdAt as string,
+            updated_at: a.updatedAt as string,
+          }))
+          setArticles(mapped)
           const uniqueCategories = Array.from(new Set(
-            data.data.map((article: BlogPostAdmin) => article.category?.name_en).filter(Boolean)
+            mapped.map((article: BlogPostAdmin) => article.category?.name_en).filter(Boolean)
           )) as string[]
           setCategories(uniqueCategories)
         } else {
-          // Non-auth API error — show empty state instead of crashing
           console.warn('Articles API error:', data?.error)
           setArticles([])
         }
@@ -289,20 +260,22 @@ export default function ArticlesPage() {
     }
   }
 
+  // H-010 fix: add null-safety to prevent crashes on missing fields
   const filteredArticles = articles.filter(article => {
-    const matchesSearch = searchQuery === '' || 
-      article.title_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.title_ar.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      article.author.name.toLowerCase().includes(searchQuery.toLowerCase())
-    
-    const matchesStatus = selectedStatus === 'all' || 
+    const q = searchQuery.toLowerCase()
+    const matchesSearch = searchQuery === '' ||
+      (article.title_en || '').toLowerCase().includes(q) ||
+      (article.title_ar || '').toLowerCase().includes(q) ||
+      (article.tags || []).some(tag => tag.toLowerCase().includes(q)) ||
+      (article.author?.name || '').toLowerCase().includes(q)
+
+    const matchesStatus = selectedStatus === 'all' ||
       (selectedStatus === 'published' && article.published) ||
       (selectedStatus === 'draft' && !article.published)
-    
-    const matchesCategory = selectedCategory === 'all' || 
+
+    const matchesCategory = selectedCategory === 'all' ||
       article.category?.name_en === selectedCategory
-    
+
     return matchesSearch && matchesStatus && matchesCategory
   })
 
@@ -562,7 +535,7 @@ export default function ArticlesPage() {
               </div>
             ) : viewMode === 'pipeline' ? (
               <div className="mt-2">
-                <RichArticleList source="all" showHeader={true} />
+                <RichArticleList source="all" showHeader={true} siteId={undefined} />
               </div>
             ) : viewMode === 'cards' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -14,7 +14,10 @@ import crypto from 'crypto';
 // ── Encryption helpers ──────────────────────────────────────────────────────
 
 function getDerivedKey(): Buffer {
-  const raw = process.env.ENCRYPTION_KEY || 'default-dev-key-do-not-use-in-prod';
+  const raw = process.env.ENCRYPTION_KEY;
+  if (!raw) {
+    throw new Error('ENCRYPTION_KEY environment variable is required for API key encryption');
+  }
   return crypto.scryptSync(raw, 'ai-model-salt-v1', 32);
 }
 
@@ -39,7 +42,8 @@ function decryptApiKey(ciphertext: string): string | null {
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(authTag);
     return decipher.update(encrypted) + decipher.final('utf8');
-  } catch {
+  } catch (e) {
+    console.warn('[ai-models] Failed to decrypt API key:', e instanceof Error ? e.message : 'unknown error');
     return null;
   }
 }
@@ -302,6 +306,15 @@ export async function POST(request: NextRequest) {
     if (action === 'delete_provider') {
       const { id } = body;
       if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+      // L-002 fix: check for dependent routes before deleting
+      const dependentRoutes = await prisma.modelRoute.count({
+        where: { primary_provider_id: id },
+      });
+      if (dependentRoutes > 0) {
+        return NextResponse.json({
+          error: `Cannot delete — ${dependentRoutes} task route(s) depend on this provider. Reassign them first.`,
+        }, { status: 409 });
+      }
       await prisma.modelProvider.delete({ where: { id } });
       return NextResponse.json({ success: true });
     }

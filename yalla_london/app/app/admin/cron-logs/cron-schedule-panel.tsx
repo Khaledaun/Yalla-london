@@ -78,11 +78,21 @@ export function CronSchedulePanel() {
   const [triggerResult, setTriggerResult] = useState<Record<string, { success: boolean; error?: string }>>({});
   const [categoryFilter, setCategoryFilter] = useState('all');
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await fetch('/api/admin/cron-schedule');
-      if (res.ok) setData(await res.json());
+      if (res.ok) {
+        setData(await res.json());
+      } else {
+        // M-010 fix: show error to user
+        setLoadError(res.status === 401 ? 'Not authorized' : 'Failed to load cron schedule');
+      }
+    } catch {
+      setLoadError('Failed to load — check your connection');
     } finally {
       setLoading(false);
     }

@@ -10,7 +10,10 @@ import { requireAdmin } from '@/lib/admin-middleware';
 import crypto from 'crypto';
 
 function getDerivedKey(): Buffer {
-  const raw = process.env.ENCRYPTION_KEY || 'default-dev-key-do-not-use-in-prod';
+  const raw = process.env.ENCRYPTION_KEY;
+  if (!raw) {
+    throw new Error('ENCRYPTION_KEY environment variable is required');
+  }
   return crypto.scryptSync(raw, 'ai-model-salt-v1', 32);
 }
 
@@ -26,7 +29,8 @@ function decryptApiKey(ciphertext: string): string | null {
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
     decipher.setAuthTag(authTag);
     return decipher.update(encrypted) + decipher.final('utf8');
-  } catch {
+  } catch (e) {
+    console.warn('[ai-models/test] Failed to decrypt API key:', e instanceof Error ? e.message : 'unknown error');
     return null;
   }
 }
@@ -48,10 +52,9 @@ async function testAnthropicKey(apiKey: string): Promise<{ success: boolean; mod
       signal: AbortSignal.timeout(10000),
     });
     if (res.ok) return { success: true, model: 'claude-haiku-4-5-20251001' };
-    const body = await res.json().catch(() => ({}));
-    return { success: false, error: body.error?.message || `HTTP ${res.status}` };
-  } catch (e: unknown) {
-    return { success: false, error: e instanceof Error ? e.message : 'Connection failed' };
+    return { success: false, error: `Authentication failed (HTTP ${res.status})` };
+  } catch {
+    return { success: false, error: 'Connection failed — check your network and API key' };
   }
 }
 
@@ -62,22 +65,31 @@ async function testOpenAIKey(apiKey: string): Promise<{ success: boolean; model?
       signal: AbortSignal.timeout(10000),
     });
     if (res.ok) return { success: true, model: 'gpt-4o-mini' };
-    const body = await res.json().catch(() => ({}));
-    return { success: false, error: body.error?.message || `HTTP ${res.status}` };
-  } catch (e: unknown) {
-    return { success: false, error: e instanceof Error ? e.message : 'Connection failed' };
+    return { success: false, error: `Authentication failed (HTTP ${res.status})` };
+  } catch {
+    return { success: false, error: 'Connection failed — check your network and API key' };
   }
 }
 
 async function testGeminiKey(apiKey: string): Promise<{ success: boolean; model?: string; error?: string }> {
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    // Use POST with key in header instead of URL query parameter (H-006 fix)
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: 'Say ok' }] }],
+        generationConfig: { maxOutputTokens: 5 },
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
     if (res.ok) return { success: true, model: 'gemini-1.5-flash' };
-    const body = await res.json().catch(() => ({}));
-    return { success: false, error: body.error?.message || `HTTP ${res.status}` };
-  } catch (e: unknown) {
-    return { success: false, error: e instanceof Error ? e.message : 'Connection failed' };
+    return { success: false, error: `Authentication failed (HTTP ${res.status})` };
+  } catch {
+    return { success: false, error: 'Connection failed — check your network and API key' };
   }
 }
 
@@ -94,10 +106,9 @@ async function testPerplexityKey(apiKey: string): Promise<{ success: boolean; mo
       signal: AbortSignal.timeout(10000),
     });
     if (res.ok) return { success: true, model: 'sonar' };
-    const body = await res.json().catch(() => ({}));
-    return { success: false, error: body.error?.message || `HTTP ${res.status}` };
-  } catch (e: unknown) {
-    return { success: false, error: e instanceof Error ? e.message : 'Connection failed' };
+    return { success: false, error: `Authentication failed (HTTP ${res.status})` };
+  } catch {
+    return { success: false, error: 'Connection failed — check your network and API key' };
   }
 }
 
@@ -108,10 +119,9 @@ async function testXaiKey(apiKey: string): Promise<{ success: boolean; model?: s
       signal: AbortSignal.timeout(10000),
     });
     if (res.ok) return { success: true, model: 'grok-2-1212' };
-    const body = await res.json().catch(() => ({}));
-    return { success: false, error: body.error?.message || `HTTP ${res.status}` };
-  } catch (e: unknown) {
-    return { success: false, error: e instanceof Error ? e.message : 'Connection failed' };
+    return { success: false, error: `Authentication failed (HTTP ${res.status})` };
+  } catch {
+    return { success: false, error: 'Connection failed — check your network and API key' };
   }
 }
 
@@ -120,7 +130,8 @@ export async function POST(request: NextRequest) {
   if (authError) return authError;
 
   try {
-    const { providerId, apiKey: rawKey } = await request.json();
+    // C-002 fix: read body once and destructure all needed fields
+    const { providerId, apiKey: rawKey, providerName: rawProviderName } = await request.json();
 
     let providerName: string;
     let apiKey: string;
@@ -134,9 +145,11 @@ export async function POST(request: NextRequest) {
       apiKey = decrypted;
       providerName = provider.name;
     } else if (rawKey) {
-      // Testing a key before saving — provider name must be provided
-      const { providerName: name } = await request.json().catch(() => ({}));
-      providerName = name || 'unknown';
+      // Testing a key before saving — providerName must be provided in the same request body
+      if (!rawProviderName) {
+        return NextResponse.json({ error: 'providerName required when testing a raw key' }, { status: 400 });
+      }
+      providerName = rawProviderName;
       apiKey = rawKey;
     } else {
       return NextResponse.json({ error: 'providerId or apiKey required' }, { status: 400 });

@@ -17,7 +17,9 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     const body = await request.json()
 
     const siteId = body.siteId || getDefaultSiteId()
-    const source = body.source || 'manual_refresh'
+    // Accept 'manual' as an alias for 'manual_refresh' (used by test-connections and admin UI)
+    const rawSource = body.source || 'manual_refresh'
+    const source = rawSource === 'manual' ? 'manual_refresh' : rawSource
 
     const now = new Date().toISOString()
 

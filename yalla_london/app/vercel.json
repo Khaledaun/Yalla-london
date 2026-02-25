@@ -115,7 +115,7 @@
     },
     {
       "path": "/api/cron/content-selector",
-      "schedule": "30 8 * * *"
+      "schedule": "0 9,13,17,21 * * *"
     },
     {
       "path": "/api/cron/affiliate-injection",

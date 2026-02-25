@@ -6,6 +6,10 @@
  *   - Destination stats (yachts per destination, most popular)
  *   - Revenue indicators (booked inquiries, avg budget)
  *   - Recent activity (last 10 inquiries, last 5 yacht updates)
+ *
+ * Uses Promise.allSettled so a single failing query (e.g. migration not yet
+ * applied, PgBouncer connection limit) never causes an HTTP 500.
+ * Each query falls back to a safe zero/empty value on failure.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -13,6 +17,13 @@ import { withAdminAuth } from '@/lib/admin-middleware'
 import { getDefaultSiteId } from '@/config/sites'
 
 export const dynamic = 'force-dynamic'
+
+/** Extract the fulfilled value or return the fallback if the query failed. */
+function settled<T>(result: PromiseSettledResult<T>, fallback: T): T {
+  if (result.status === 'fulfilled') return result.value
+  console.warn('[admin-yachts] analytics query failed:', result.reason?.message ?? result.reason)
+  return fallback
+}
 
 export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
@@ -25,61 +36,29 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    // Run all queries in parallel for performance
-    const [
-      // Fleet stats
-      totalYachts,
-      activeYachts,
-      featuredYachts,
-      yachtsByType,
-      yachtsByStatus,
-      avgPriceResult,
-      // Inquiry stats
-      totalInquiries,
-      inquiriesThisMonth,
-      inquiriesByStatus,
-      avgBudgetResult,
-      // Destination stats
-      yachtsPerDestination,
-      // Recent activity
-      recentInquiries,
-      recentYachtUpdates,
-    ] = await Promise.all([
-      // ─── Fleet stats ─────────────────────────
+    // Run all queries in parallel — allSettled so no single failure causes 500
+    const results = await Promise.allSettled([
+      // ─── Fleet stats ─────────────────────────  [0–5]
       prisma.yacht.count({ where: { siteId } }),
       prisma.yacht.count({ where: { siteId, status: 'active' } }),
       prisma.yacht.count({ where: { siteId, featured: true } }),
-      prisma.yacht.groupBy({
-        by: ['type'],
-        where: { siteId },
-        _count: { id: true },
-      }),
-      prisma.yacht.groupBy({
-        by: ['status'],
-        where: { siteId },
-        _count: { id: true },
-      }),
+      prisma.yacht.groupBy({ by: ['type'], where: { siteId }, _count: { id: true } }),
+      prisma.yacht.groupBy({ by: ['status'], where: { siteId }, _count: { id: true } }),
       prisma.yacht.aggregate({
         where: { siteId, pricePerWeekLow: { not: null } },
         _avg: { pricePerWeekLow: true },
       }),
 
-      // ─── Inquiry stats ───────────────────────
+      // ─── Inquiry stats ───────────────────────  [6–9]
       prisma.charterInquiry.count({ where: { siteId } }),
-      prisma.charterInquiry.count({
-        where: { siteId, createdAt: { gte: monthStart } },
-      }),
-      prisma.charterInquiry.groupBy({
-        by: ['status'],
-        where: { siteId },
-        _count: { id: true },
-      }),
+      prisma.charterInquiry.count({ where: { siteId, createdAt: { gte: monthStart } } }),
+      prisma.charterInquiry.groupBy({ by: ['status'], where: { siteId }, _count: { id: true } }),
       prisma.charterInquiry.aggregate({
         where: { siteId, budget: { not: null } },
         _avg: { budget: true },
       }),
 
-      // ─── Destination stats ───────────────────
+      // ─── Destination stats ───────────────────  [10]
       prisma.yachtDestination.findMany({
         where: { siteId },
         select: {
@@ -93,7 +72,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         orderBy: { name: 'asc' },
       }),
 
-      // ─── Recent activity ─────────────────────
+      // ─── Recent activity ─────────────────────  [11–12]
       prisma.charterInquiry.findMany({
         where: { siteId },
         orderBy: { createdAt: 'desc' },
@@ -128,6 +107,21 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         },
       }),
     ])
+
+    // Extract each result with safe fallbacks
+    const totalYachts        = settled(results[0] as PromiseSettledResult<number>, 0)
+    const activeYachts       = settled(results[1] as PromiseSettledResult<number>, 0)
+    const featuredYachts     = settled(results[2] as PromiseSettledResult<number>, 0)
+    const yachtsByType       = settled(results[3] as PromiseSettledResult<{ type: string; _count: { id: number } }[]>, [])
+    const yachtsByStatus     = settled(results[4] as PromiseSettledResult<{ status: string; _count: { id: number } }[]>, [])
+    const avgPriceResult     = settled(results[5] as PromiseSettledResult<{ _avg: { pricePerWeekLow: unknown } }>, { _avg: { pricePerWeekLow: null } })
+    const totalInquiries     = settled(results[6] as PromiseSettledResult<number>, 0)
+    const inquiriesThisMonth = settled(results[7] as PromiseSettledResult<number>, 0)
+    const inquiriesByStatus  = settled(results[8] as PromiseSettledResult<{ status: string; _count: { id: number } }[]>, [])
+    const avgBudgetResult    = settled(results[9] as PromiseSettledResult<{ _avg: { budget: unknown } }>, { _avg: { budget: null } })
+    const yachtsPerDestination = settled(results[10] as PromiseSettledResult<{ id: string; name: string; slug: string; region: string | null; status: string; _count: { yachts: number; itineraries: number } }[]>, [])
+    const recentInquiries    = settled(results[11] as PromiseSettledResult<unknown[]>, [])
+    const recentYachtUpdates = settled(results[12] as PromiseSettledResult<unknown[]>, [])
 
     // ─── Compute derived stats ───────────────────
 
@@ -169,26 +163,26 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         }
       : null
 
-    // Average response time: time between inquiry creation and first status change from NEW
-    // Approximation: use inquiries that have moved past NEW status
-    const contactedInquiries = await prisma.charterInquiry.findMany({
-      where: {
-        siteId,
-        status: { not: 'NEW' },
-      },
-      select: { createdAt: true, updatedAt: true },
-      take: 50,
-      orderBy: { updatedAt: 'desc' },
-    })
-
+    // Average response time — separate query, its own try-catch
     let avgResponseTimeHours: number | null = null
-    if (contactedInquiries.length > 0) {
-      let totalHours = 0
-      for (const inq of contactedInquiries) {
-        const diffMs = new Date(inq.updatedAt).getTime() - new Date(inq.createdAt).getTime()
-        totalHours += diffMs / (1000 * 60 * 60)
+    try {
+      const contactedInquiries = await prisma.charterInquiry.findMany({
+        where: { siteId, status: { not: 'NEW' } },
+        select: { createdAt: true, updatedAt: true },
+        take: 50,
+        orderBy: { updatedAt: 'desc' },
+      })
+
+      if (contactedInquiries.length > 0) {
+        let totalHours = 0
+        for (const inq of contactedInquiries) {
+          const diffMs = new Date(inq.updatedAt).getTime() - new Date(inq.createdAt).getTime()
+          totalHours += diffMs / (1000 * 60 * 60)
+        }
+        avgResponseTimeHours = Math.round((totalHours / contactedInquiries.length) * 10) / 10
       }
-      avgResponseTimeHours = Math.round((totalHours / contactedInquiries.length) * 10) / 10
+    } catch (err) {
+      console.warn('[admin-yachts] avg response time query failed:', err instanceof Error ? err.message : err)
     }
 
     return NextResponse.json({

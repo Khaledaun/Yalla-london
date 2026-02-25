@@ -1,4 +1,8 @@
-'use client';
+// SiteShell is intentionally a SERVER component — no 'use client'.
+// ZenithaHeader, ZenithaFooter, DynamicHeader, Footer each carry their own
+// 'use client' boundary. Making SiteShell a server component ensures the
+// correct header/footer is selected server-side and included in the initial
+// HTML response without any hydration delay or client-side branching.
 
 import React from 'react';
 import { DynamicHeader } from '@/components/dynamic-header';

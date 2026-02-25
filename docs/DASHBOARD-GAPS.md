@@ -58,15 +58,20 @@ Each entry: `[ID] Area | Severity | Status | Description | Fix`
 
 ---
 
-### OPEN ⚠️
+### RESOLVED BY AUDIT ✅
+
+| ID | Area | Description | Fixed By |
+|----|------|-------------|----------|
+| DG-019 | Settings | Model test with raw API key (before saving) not implemented | C-002 fix — single `request.json()` call with `providerName` routing |
+| DG-021 | Dashboard | IndexNow indexing stats in articles page show placeholder counts | M-001 fix — connected to real `URLIndexingStatus` table via batch lookup |
+| DG-022 | Articles | `article.hasAffiliate` always false | M-002 fix — connected to real `AffiliateAssignment` table via batch lookup |
+
+### OPEN ⚠️ (All LOW Priority)
 
 | ID | Area | Severity | Description | Proposed Fix |
 |----|------|----------|-------------|--------------|
 | DG-018 | AI Models | LOW | Token usage stats UI shows job run count, not actual token usage (no real token tracking table) | Build `ApiUsageLog` table or parse `result_summary` JSON for token counts |
-| DG-019 | Settings | LOW | Model test with raw API key (before saving) not implemented | Need `provider` param in POST body to route to correct test function |
 | DG-020 | Cron | LOW | Cron schedule "next run at" time not calculated (shows cron expression only) | Parse cron expression client-side or use `cron-parser` npm package |
-| DG-021 | Dashboard | LOW | IndexNow indexing stats in articles page show `notSubmitted: publishedCount` (no real per-article tracking) | Connect to `URLIndexingStatus` table once data is populated |
-| DG-022 | Articles | LOW | `article.hasAffiliate` always false — not queried from AffiliateLink table | Query `AffiliateLink.count({ where: { blogPostId: id } }) > 0` per article |
 | DG-023 | Settings | LOW | Variable Vault tab links to Vercel but doesn't show current .env.example | Render env.example file content for reference |
 | DG-024 | Test | LOW | test-connections.html subtitle needs title tag update | Update `<title>` element from "24 sections" to "25 sections" |
 
@@ -111,8 +116,10 @@ After each code session, re-run this checklist:
 
 | Priority | Target | Status |
 |----------|--------|--------|
-| DG-018 (Token tracking) | Future session | Open |
-| DG-019 (Model test pre-save) | Future session | Open |
-| DG-020 (Next run time) | Future session | Open |
-| DG-021 (Indexing stats from DB) | Once URLIndexingStatus populated | Open |
-| DG-022, DG-023, DG-024 | Low priority | Open |
+| DG-018 (Token tracking) | Future session | Open (LOW) |
+| DG-019 (Model test pre-save) | Audit branch | **RESOLVED** (C-002) |
+| DG-020 (Next run time) | Future session | Open (LOW) |
+| DG-021 (Indexing stats from DB) | Audit branch | **RESOLVED** (M-001) |
+| DG-022 (hasAffiliate) | Audit branch | **RESOLVED** (M-002) |
+| DG-023 (.env.example display) | Low priority | Open (LOW) |
+| DG-024 (test title tag) | Low priority | Open (LOW) |

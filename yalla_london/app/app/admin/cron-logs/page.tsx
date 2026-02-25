@@ -57,7 +57,7 @@ export default function CronLogsPage() {
       if (jobFilter) params.set('job', jobFilter);
       const res = await fetch(`/api/admin/cron-logs?${params}`);
       setData(res.ok ? await res.json() : null);
-    } catch { setData(null); }
+    } catch (e) { console.warn('[cron-logs] Failed to fetch logs:', e); setData(null); }
     finally { setLoading(false); }
   }, [page, statusFilter, jobFilter, hours]);
 

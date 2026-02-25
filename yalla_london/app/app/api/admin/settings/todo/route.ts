@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/admin-middleware';
-import { getActiveSiteIds } from '@/config/sites';
+import { getActiveSiteIds, getDefaultSiteId } from '@/config/sites';
 
 interface TodoItem {
   id: string;
@@ -40,17 +40,20 @@ export async function GET(request: NextRequest) {
   const authError = await requireAdmin(request);
   if (authError) return authError;
 
+  // H-004 fix: scope all queries by siteId
+  const siteId = request.headers.get('x-site-id') || getDefaultSiteId();
   const todos: TodoItem[] = [];
 
   try {
     // ── 1. Check pipeline health ───────────────────────────────────────────
     const [draftCount, topicCount, publishedToday] = await Promise.allSettled([
-      // ArticleDraft uses current_phase (snake_case)
-      prisma.articleDraft.count({ where: { current_phase: { in: ['research', 'outline', 'drafting'] } } }),
-      prisma.topicProposal.count({ where: { status: 'pending' } }),
-      // BlogPost uses published Boolean and created_at (snake_case)
+      // ArticleDraft uses site_id (snake_case)
+      prisma.articleDraft.count({ where: { site_id: siteId, current_phase: { in: ['research', 'outline', 'drafting'] } } }),
+      prisma.topicProposal.count({ where: { site_id: siteId, status: 'pending' } }),
+      // BlogPost uses siteId (camelCase) + published Boolean + created_at (snake_case)
       prisma.blogPost.count({
         where: {
+          siteId,
           published: true,
           created_at: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
         },
@@ -191,9 +194,9 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 5. Check for unindexed published posts ────────────────────────────
-    // URLIndexingStatus tracks indexing per URL; count discovered (not yet submitted)
+    // M-004 fix: scope URLIndexingStatus by siteId
     const unindexedCount = await prisma.uRLIndexingStatus.count({
-      where: { status: 'discovered' },
+      where: { site_id: siteId, status: 'discovered' },
     }).catch(() => null);
 
     if (unindexedCount !== null && unindexedCount > 5) {
@@ -211,18 +214,18 @@ export async function GET(request: NextRequest) {
 
     // ── 6. Check sites have content ───────────────────────────────────────
     const activeSites = getActiveSiteIds();
-    for (const siteId of activeSites) {
+    for (const activeSite of activeSites) {
       const count = await prisma.blogPost.count({
-        where: { siteId, published: true },
+        where: { siteId: activeSite, published: true },
       }).catch(() => 0);
 
       if (count === 0) {
         todos.push({
-          id: `no-content-${siteId}`,
+          id: `no-content-${activeSite}`,
           priority: 'medium',
           category: 'content',
-          title: `${siteId}: No published articles`,
-          description: `Site ${siteId} has no published content. Start the content pipeline for this site.`,
+          title: `${activeSite}: No published articles`,
+          description: `Site ${activeSite} has no published content. Start the content pipeline for this site.`,
           actionLabel: 'Go to Pipeline',
           actionUrl: '/admin/pipeline',
           resolved: count > 0,

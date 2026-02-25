@@ -154,6 +154,47 @@ const CRON_SCHEDULE: Record<string, {
     category: 'content',
     critical: false,
   },
+  // L-005 fix: add missing scheduled cron jobs from vercel.json
+  'seo-cron-weekly': {
+    label: 'SEO Cron (Weekly)',
+    schedule: '0 8 * * 0',
+    humanSchedule: 'Every Sunday at 8:00 UTC',
+    apiPath: '/api/seo/cron?task=weekly',
+    category: 'seo',
+    critical: false,
+  },
+  'fact-verification': {
+    label: 'Fact Verification',
+    schedule: '0 10 * * *',
+    humanSchedule: 'Daily at 10:00 UTC',
+    apiPath: '/api/cron/fact-verification',
+    category: 'content',
+    critical: false,
+  },
+  'sweeper': {
+    label: 'Data Sweeper',
+    schedule: '0 23 * * *',
+    humanSchedule: 'Daily at 23:00 UTC',
+    apiPath: '/api/cron/sweeper',
+    category: 'maintenance',
+    critical: false,
+  },
+  'google-indexing': {
+    label: 'Google Indexing',
+    schedule: '0 10 * * *',
+    humanSchedule: 'Daily at 10:00 UTC',
+    apiPath: '/api/cron/google-indexing',
+    category: 'indexing',
+    critical: false,
+  },
+  'verify-indexing': {
+    label: 'Verify Indexing',
+    schedule: '0 11 * * *',
+    humanSchedule: 'Daily at 11:00 UTC',
+    apiPath: '/api/cron/verify-indexing',
+    category: 'indexing',
+    critical: false,
+  },
 };
 
 function getHealthFromLogs(logs: Array<{ status: string; timedOut: boolean }>): 'green' | 'yellow' | 'red' | 'gray' {
@@ -270,8 +311,9 @@ export async function POST(request: NextRequest) {
     };
     if (cronSecret) headers['Authorization'] = `Bearer ${cronSecret}`;
 
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+    // M-008 fix: correct operator precedence for baseUrl
+    const baseUrl = process.env.NEXTAUTH_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
     const res = await fetch(`${baseUrl}${job.apiPath}`, {
       method: 'POST',
@@ -281,13 +323,13 @@ export async function POST(request: NextRequest) {
     });
 
     if (res.ok) {
-      const body = await res.json().catch(() => ({}));
-      return NextResponse.json({ success: true, result: body });
+      // M-011 fix: only return success status, not internal cron response body
+      return NextResponse.json({ success: true, message: `${jobKey} triggered successfully` });
     }
-    return NextResponse.json({ success: false, error: `Job returned ${res.status}` });
+    return NextResponse.json({ success: false, error: `Job returned HTTP ${res.status}` });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Trigger failed';
+    // H-001 fix: don't leak internal error messages
     console.warn('[cron-schedule POST]', err);
-    return NextResponse.json({ success: false, error: msg });
+    return NextResponse.json({ success: false, error: 'Failed to trigger cron job' });
   }
 }

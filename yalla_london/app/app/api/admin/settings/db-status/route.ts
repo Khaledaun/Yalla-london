@@ -46,11 +46,13 @@ export async function GET(request: NextRequest) {
       const count = await model.count();
       tableHealth.push({ ...table, count, status: count === 0 ? 'empty' : 'ok' });
     } catch (err: unknown) {
+      // H-002 fix: don't leak Prisma error messages (table names, schema details) to client
+      console.warn(`[db-status] Error querying ${table.name}:`, err);
       tableHealth.push({
         ...table,
         count: null,
         status: 'error',
-        error: err instanceof Error ? err.message : 'Query failed',
+        error: 'Query failed',
       });
     }
   }
@@ -66,7 +68,9 @@ export async function GET(request: NextRequest) {
     await prisma.$queryRaw`SELECT 1`;
     dbLatencyMs = Date.now() - start;
     dbConnected = true;
-  } catch {
+  } catch (e) {
+    // H-003 fix: log connection test failure instead of swallowing
+    console.warn('[db-status] DB connection test failed:', e instanceof Error ? e.message : 'unknown');
     dbConnected = false;
   }
 

@@ -154,12 +154,11 @@ const navigation = [
     icon: Wrench,
     href: '/admin/operations',
     items: [
-      { label: '⚙️ Settings Hub',    href: '/admin/settings' },
+      { label: 'Settings Hub',       href: '/admin/settings' },
       { label: 'To-Do List',       href: '/admin/settings?tab=todo' },
       { label: 'AI Models',        href: '/admin/settings?tab=ai-models' },
       { label: 'Database',         href: '/admin/settings?tab=database' },
       { label: 'Variable Vault',   href: '/admin/settings?tab=variable-vault' },
-      { label: '──────────────',   href: '#', },
       { label: 'Operations Hub',   href: '/admin/operations' },
       { label: 'Skills Engine',    href: '/admin/operations/skills' },
       { label: 'Feature Flags',    href: '/admin/settings/feature-flags' },
@@ -240,7 +239,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
         <div className="text-center">
           <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
                style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)', boxShadow: 'var(--neu-raised)' }}>
-            <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 22, color: '#C8322B' }}>Y</span>
+            <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 22, color: '#C8322B' }}>HQ</span>
           </div>
           <p style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: '#78716C', textTransform: 'uppercase', letterSpacing: 2 }}>Loading HQ…</p>
         </div>
@@ -267,12 +266,12 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
         <Link href="/admin" onClick={onClose} className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-raised)' }}>
-            <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 17, color: '#C8322B' }}>Y</span>
+            <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 17, color: '#C8322B' }}>HQ</span>
           </div>
           {sidebarOpen && (
             <div>
               <div style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 700, fontSize: 14, color: '#1C1917', letterSpacing: -0.3 }}>
-                Yalla London
+                Zenitha HQ
               </div>
               <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 8, color: '#78716C', textTransform: 'uppercase', letterSpacing: 2 }}>
                 HQ OPS
@@ -527,12 +526,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
               New Article
             </Link>
 
-            {/* Notifications */}
-            <button onClick={() => setNotificationsOpen(!notificationsOpen)}
-                    className="relative p-2 rounded-lg transition-all"
-                    style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat)', color: '#78716C' }}>
-              <Bell size={16} />
-            </button>
+            {/* M-013: Notification bell removed — no notification panel exists yet */}
 
             {/* User menu */}
             <div className="relative">

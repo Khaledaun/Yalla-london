@@ -13,9 +13,53 @@ import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/admin-middleware';
 import { getDefaultSiteId } from '@/config/sites';
 
-function wordCount(text: string | null): number {
-  if (!text) return 0;
-  return text.trim().split(/\s+/).filter(Boolean).length;
+// H-007 fix: count words from DB-side text length estimate instead of fetching full content
+// For BlogPost we use a raw count query to avoid loading full content_en/content_ar
+async function getWordCounts(postIds: string[]): Promise<Map<string, { en: number; ar: number }>> {
+  if (postIds.length === 0) return new Map();
+  // Approximate word count: character count / 5 (average English word length)
+  // This avoids fetching megabytes of HTML just for word count display
+  const result = await prisma.$queryRawUnsafe(
+    `SELECT id,
+       COALESCE(array_length(string_to_array(trim(COALESCE(content_en, '')), ' '), 1), 0) as wc_en,
+       COALESCE(array_length(string_to_array(trim(COALESCE(content_ar, '')), ' '), 1), 0) as wc_ar
+     FROM "BlogPost" WHERE id = ANY($1::text[])`,
+    postIds
+  ) as Array<{ id: string; wc_en: number; wc_ar: number }>;
+  const map = new Map<string, { en: number; ar: number }>();
+  for (const r of result) {
+    map.set(r.id, { en: Number(r.wc_en), ar: Number(r.wc_ar) });
+  }
+  return map;
+}
+
+// M-001 fix: get indexing status from URLIndexingStatus table
+async function getIndexingStatuses(slugs: string[], siteId: string): Promise<Map<string, { status: string; lastSubmittedAt: string | null }>> {
+  if (slugs.length === 0) return new Map();
+  const statuses = await prisma.uRLIndexingStatus.findMany({
+    where: { site_id: siteId, slug: { in: slugs } },
+    select: { slug: true, status: true, last_submitted_at: true },
+  });
+  const map = new Map<string, { status: string; lastSubmittedAt: string | null }>();
+  for (const s of statuses) {
+    if (s.slug) {
+      map.set(s.slug, {
+        status: s.status,
+        lastSubmittedAt: s.last_submitted_at?.toISOString() ?? null,
+      });
+    }
+  }
+  return map;
+}
+
+// M-002 fix: check which articles have affiliate assignments
+async function getAffiliateAssignments(postIds: string[], siteId: string): Promise<Set<string>> {
+  if (postIds.length === 0) return new Set();
+  const assignments = await prisma.affiliateAssignment.findMany({
+    where: { siteId, content_id: { in: postIds }, content_type: 'blog_post' },
+    select: { content_id: true },
+  });
+  return new Set(assignments.map(a => a.content_id));
 }
 
 export async function GET(request: NextRequest) {
@@ -38,12 +82,9 @@ export async function GET(request: NextRequest) {
 
     // ── Fetch Published/Draft BlogPosts ──────────────────────────────────────
     if (source === 'all' || source === 'published') {
-      // BlogPost uses `published Boolean` (not a status string)
-      // Map status filter to boolean
       const publishedFilter: Record<string, unknown> = {};
       if (status === 'published') publishedFilter.published = true;
       else if (status === 'draft') publishedFilter.published = false;
-      // else no filter (show all)
 
       const where: Record<string, unknown> = {
         siteId,
@@ -57,6 +98,9 @@ export async function GET(request: NextRequest) {
         } : {}),
       };
 
+      const postLimit = source === 'published' ? limit : Math.floor(limit * 0.7);
+
+      // H-007 fix: DON'T select content_en/content_ar — use DB-side word count instead
       const posts = await prisma.blogPost.findMany({
         where,
         select: {
@@ -65,24 +109,31 @@ export async function GET(request: NextRequest) {
           title_en: true,
           title_ar: true,
           meta_description_en: true,
-          published: true,       // Boolean field (not `status`)
+          published: true,
           siteId: true,
-          created_at: true,      // snake_case
-          updated_at: true,      // snake_case
-          content_en: true,
-          content_ar: true,
-          seo_score: true,       // snake_case
+          created_at: true,
+          updated_at: true,
+          seo_score: true,
           category: { select: { name_en: true, name_ar: true } },
           author: { select: { name: true } },
         },
         orderBy: { updated_at: 'desc' },
-        take: source === 'published' ? limit : Math.floor(limit * 0.7),
+        take: postLimit,
         skip: source === 'published' ? skip : 0,
       });
 
+      // Batch lookups for word counts, indexing, and affiliates
+      const postIds = posts.map(p => p.id);
+      const slugs = posts.map(p => p.slug).filter(Boolean) as string[];
+      const [wordCounts, indexingMap, affiliateSet] = await Promise.all([
+        getWordCounts(postIds),
+        getIndexingStatuses(slugs, siteId),
+        getAffiliateAssignments(postIds, siteId),
+      ]);
+
       for (const p of posts) {
-        const wcEn = wordCount(p.content_en);
-        const wcAr = wordCount(p.content_ar);
+        const wc = wordCounts.get(p.id) ?? { en: 0, ar: 0 };
+        const idx = p.slug ? indexingMap.get(p.slug) : undefined;
         const cat = p.category as { name_en: string; name_ar: string } | null;
         articles.push({
           id: p.id,
@@ -95,27 +146,24 @@ export async function GET(request: NextRequest) {
           siteId: p.siteId,
           createdAt: p.created_at.toISOString(),
           updatedAt: p.updated_at.toISOString(),
-          publishedAt: null,     // Field doesn't exist in current schema
-          scheduledAt: null,     // Field doesn't exist in current schema
-          featured: false,       // Field doesn't exist in current schema
-          wordCountEn: wcEn,
-          wordCountAr: wcAr,
+          publishedAt: null,
+          wordCountEn: wc.en,
+          wordCountAr: wc.ar,
           seoScore: p.seo_score ?? null,
-          qualityScore: null,    // Field doesn't exist in current schema
-          indexingStatus: 'not_submitted', // Field doesn't exist in current schema
+          qualityScore: null,
+          indexingStatus: idx?.status ?? 'not_submitted',
           indexingState: null,
-          lastSubmittedAt: null,
-          lastInspectedAt: null,
+          lastSubmittedAt: idx?.lastSubmittedAt ?? null,
           category: cat?.name_en ?? cat?.name_ar ?? null,
           author: (p.author as { name: string | null } | null)?.name ?? 'Editorial',
-          isBilingual: wcEn > 100 && wcAr > 100,
-          hasAffiliate: false,   // Could query links table
+          isBilingual: wc.en > 100 && wc.ar > 100,
+          hasAffiliate: affiliateSet.has(p.id),
           publicUrl: `/${p.slug}`,
         });
       }
     }
 
-    // ── Fetch In-Progress ArticleDrafts (uses snake_case field names from schema) ─
+    // ── Fetch In-Progress ArticleDrafts ───────────────────────────────────────
     if (source === 'all' || source === 'drafts') {
       const draftWhere: Record<string, unknown> = {
         site_id: siteId,
@@ -149,6 +197,7 @@ export async function GET(request: NextRequest) {
         skip: source === 'drafts' ? skip : 0,
       });
 
+      // M-003 fix: phase order matches frontend (8 steps, no 'pending')
       const PHASE_ORDER = ['research', 'outline', 'drafting', 'assembly', 'images', 'seo', 'scoring', 'reservoir'];
 
       for (const d of drafts) {
@@ -198,13 +247,18 @@ export async function GET(request: NextRequest) {
       prisma.articleDraft.count({ where: { site_id: siteId, current_phase: 'reservoir' } }),
     ]);
 
-    // Indexing summary — from BlogPost.seo_score as a proxy (no indexing fields yet)
-    // Note: indexingStatus does not exist in current BlogPost schema; show placeholder counts
+    // M-001 fix: indexing summary from real URLIndexingStatus table
+    const [indexedCount, submittedCount, indexErrorCount] = await Promise.all([
+      prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: 'indexed' } }),
+      prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: 'submitted' } }),
+      prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: 'error' } }),
+    ]);
+
     const indexingStats = {
-      indexed: 0,
-      submitted: 0,
-      notSubmitted: publishedCount,
-      error: 0,
+      indexed: indexedCount,
+      submitted: submittedCount,
+      notSubmitted: Math.max(0, publishedCount - indexedCount - submittedCount - indexErrorCount),
+      error: indexErrorCount,
     };
 
     return NextResponse.json({
@@ -215,13 +269,14 @@ export async function GET(request: NextRequest) {
         published: publishedCount,
         inProgress: draftCount,
         reservoir: reservoirCount,
-        total: publishedCount + draftCount,
+        total: publishedCount + draftCount + reservoirCount, // L-003 fix: include reservoir
       },
       indexing: indexingStats,
       pagination: {
         page,
         limit,
-        hasMore: articles.length === limit,
+        // M-018 fix: use total DB counts for pagination, not merged array length
+        hasMore: (page * limit) < (publishedCount + draftCount + reservoirCount),
       },
     });
   } catch (err) {
@@ -239,12 +294,20 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const type = searchParams.get('type') || 'published';
+    const siteId = searchParams.get('siteId') ||
+      request.headers.get('x-site-id') ||
+      getDefaultSiteId();
 
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
+    // C-003 fix: verify the record belongs to the requesting site before deletion
     if (type === 'published') {
+      const post = await prisma.blogPost.findFirst({ where: { id, siteId } });
+      if (!post) return NextResponse.json({ error: 'Article not found' }, { status: 404 });
       await prisma.blogPost.delete({ where: { id } });
     } else {
+      const draft = await prisma.articleDraft.findFirst({ where: { id, site_id: siteId } });
+      if (!draft) return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
       await prisma.articleDraft.delete({ where: { id } });
     }
 

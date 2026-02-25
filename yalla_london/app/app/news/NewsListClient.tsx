@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useLanguage } from '@/components/language-provider'
 import { NewsTicker } from '@/components/news-ticker'
 import { FollowUs } from '@/components/follow-us'

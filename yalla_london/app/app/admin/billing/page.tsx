@@ -444,7 +444,7 @@ export default function BillingPage() {
       {/* Plans Tab */}
       {activeTab === "plans" && data?.plans && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {Object.values(data.plans).map((plan) => {
+          {(Object.values(data.plans) as PlanConfig[]).map((plan) => {
             const isCurrentPlan = currentPlan?.id === plan.id;
             return (
               <div

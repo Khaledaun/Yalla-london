@@ -5,7 +5,9 @@ import Link from 'next/link';
 import {
   Activity, AlertTriangle, CheckCircle, ChevronDown, ChevronLeft,
   ChevronRight, Clock, Filter, Loader2, RefreshCw, Server, Timer, XCircle,
+  Calendar,
 } from 'lucide-react';
+import { CronSchedulePanel } from './cron-schedule-panel';
 
 interface CronLog {
   id: string; jobName: string; jobType: string; status: string;
@@ -88,6 +90,8 @@ export default function CronLogsPage() {
       color: summary.total > 0 && summary.completed/summary.total >= 0.9 ? '#2D5A3D' : '#C49A2A' },
   ] : [];
 
+  const [cronTab, setCronTab] = useState<'schedule' | 'logs'>('schedule');
+
   return (
     <div className="max-w-7xl mx-auto space-y-4">
 
@@ -101,10 +105,10 @@ export default function CronLogsPage() {
           </Link>
           <div>
             <h1 style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:24, color:'#1C1917', letterSpacing:-0.5 }}>
-              Cron Logs
+              Cron Monitor
             </h1>
             <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:12, color:'#78716C', letterSpacing:0, marginTop:2 }}>
-              سجلات المهام المجدولة
+              مراقبة المهام المجدولة
             </div>
           </div>
         </div>
@@ -115,7 +119,28 @@ export default function CronLogsPage() {
         </button>
       </div>
 
-      {/* ── KPI Summary ─────────────────────────────────────────────── */}
+      {/* ── Tab switcher ────────────────────────────────────────────── */}
+      <div className="flex gap-1 p-1 rounded-xl"
+           style={{ backgroundColor: 'rgba(120,113,108,0.08)', width: 'fit-content' }}>
+        <button onClick={() => setCronTab('schedule')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all ${cronTab === 'schedule' ? 'bg-white shadow-sm text-red-700' : 'text-stone-600 hover:text-stone-900'}`}
+                style={cronTab === 'schedule' ? { fontFamily: "'Anybody',sans-serif", fontWeight: 700 } : { fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: 0.5 }}>
+          <Calendar size={12} />
+          Schedule & Triggers
+        </button>
+        <button onClick={() => setCronTab('logs')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all ${cronTab === 'logs' ? 'bg-white shadow-sm text-red-700' : 'text-stone-600 hover:text-stone-900'}`}
+                style={cronTab === 'logs' ? { fontFamily: "'Anybody',sans-serif", fontWeight: 700 } : { fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: 0.5 }}>
+          <Activity size={12} />
+          Raw Log History
+        </button>
+      </div>
+
+      {/* ── Schedule Panel ───────────────────────────────────────────── */}
+      {cronTab === 'schedule' && <CronSchedulePanel />}
+
+      {/* ── Raw Logs (original content) ─────────────────────────────── */}
+      {cronTab === 'logs' && (<>
       {summary && (
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
           {SUMCARDS.map(({ label, val, color }) => (
@@ -341,6 +366,7 @@ export default function CronLogsPage() {
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 }

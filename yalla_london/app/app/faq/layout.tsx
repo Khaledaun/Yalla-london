@@ -1,3 +1,4 @@
+import React from 'react';
 import { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { getBaseUrl } from '@/lib/url-utils';

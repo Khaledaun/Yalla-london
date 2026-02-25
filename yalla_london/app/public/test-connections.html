@@ -86,7 +86,7 @@
 <body>
 
 <h1>Yalla London — System Validator</h1>
-<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Yacht Platform, Content, Orchestrator, Indexing, X/Twitter API, Site Health, Schema Audit (24 sections) + One-Click DB Migration + Comprehensive JSON Export</p>
+<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Yacht Platform, Content, Orchestrator, Indexing, X/Twitter API, Site Health, Schema Audit, Settings Hub &amp; AI Models (25 sections) + One-Click DB Migration + Comprehensive JSON Export</p>
 
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchMode('quick')">Quick Test</button>
@@ -2490,6 +2490,62 @@ async function runAllTests() {
       }
 
     } catch (e) { log('  ERROR in section 23: ' + e.message); addResult('yachts-admin', 'Yacht Admin APIs', 'fail', 'JS Error: ' + e.message); }
+
+    // ── 24. Settings Hub & AI Models ──
+    log('Testing Settings Hub & AI Models APIs...');
+    addSection('settings-ai', '24. Settings Hub & AI Models');
+    try {
+      const settingsHeader = { 'Authorization': 'Bearer ' + cronSecret };
+
+      const todoResp = await testFetch('/api/admin/settings/todo', { headers: settingsHeader });
+      if (todoResp.ok && todoResp.json) {
+        const j = todoResp.json;
+        const total = j.summary?.total ?? '?';
+        const critical = j.summary?.critical ?? 0;
+        addResult('settings-ai', 'Settings Todo API', critical > 0 ? 'warn' : 'pass',
+          `${total} action items (${critical} critical)`,
+          critical > 0 ? 'Critical items exist — visit /admin/settings?tab=todo' : null);
+      } else { addResult('settings-ai', 'Settings Todo API', 'fail', 'HTTP ' + (todoResp.status || '?')); }
+
+      const dbStatusResp = await testFetch('/api/admin/settings/db-status', { headers: settingsHeader });
+      if (dbStatusResp.ok && dbStatusResp.json) {
+        const j = dbStatusResp.json;
+        addResult('settings-ai', 'DB Status API', j.overallHealth === 'healthy' ? 'pass' : 'warn',
+          `Health: ${j.overallHealth} | Latency: ${j.dbLatencyMs ?? '?'}ms | ${j.errorCount} table errors`);
+      } else { addResult('settings-ai', 'DB Status API', 'fail', 'HTTP ' + (dbStatusResp.status || '?')); }
+
+      const modelsResp = await testFetch('/api/admin/ai-models', { headers: settingsHeader });
+      if (modelsResp.ok && modelsResp.json) {
+        const j = modelsResp.json;
+        const count = j.providers?.length ?? 0;
+        addResult('settings-ai', 'AI Models API', count > 0 ? 'pass' : 'warn',
+          `${count} providers configured`,
+          count === 0 ? 'No AI providers — visit /admin/settings?tab=ai-models' : null);
+      } else { addResult('settings-ai', 'AI Models API', 'fail', 'HTTP ' + (modelsResp.status || '?')); }
+
+      const routesResp = await testFetch('/api/admin/ai-models?view=routes', { headers: settingsHeader });
+      if (routesResp.ok && routesResp.json) {
+        const j = routesResp.json;
+        addResult('settings-ai', 'Task Router API', 'pass',
+          `${j.routes?.length ?? 0} routes / ${j.tasks?.length ?? 0} tasks`);
+      } else { addResult('settings-ai', 'Task Router API', 'fail', 'HTTP ' + (routesResp.status || '?')); }
+
+      const cronSchedResp = await testFetch('/api/admin/cron-schedule', { headers: settingsHeader });
+      if (cronSchedResp.ok && cronSchedResp.json) {
+        const j = cronSchedResp.json;
+        const s = j.summary || {};
+        addResult('settings-ai', 'Cron Schedule API', s.failing > 0 ? 'warn' : 'pass',
+          `${s.total} jobs | ${s.healthy} healthy | ${s.failing} failing | ${s.neverRun} never run`);
+      } else { addResult('settings-ai', 'Cron Schedule API', 'fail', 'HTTP ' + (cronSchedResp.status || '?')); }
+
+      const articlesResp = await testFetch('/api/admin/articles?limit=5', { headers: settingsHeader });
+      if (articlesResp.ok && articlesResp.json) {
+        const j = articlesResp.json;
+        addResult('settings-ai', 'Rich Articles API', 'pass',
+          `${j.summary?.published ?? 0} published | ${j.summary?.inProgress ?? 0} in pipeline | ${j.indexing?.notSubmitted ?? 0} unindexed`);
+      } else { addResult('settings-ai', 'Rich Articles API', 'fail', 'HTTP ' + (articlesResp.status || '?')); }
+
+    } catch (e) { log('  ERROR in section 24: ' + e.message); addResult('settings-ai', 'Settings Hub', 'fail', 'JS Error: ' + e.message); }
 
   } else if (testMode === 'full' && !cronSecret) {
     addSection('pipeline', '7. Content Generation Pipeline');

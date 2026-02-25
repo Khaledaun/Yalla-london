@@ -10,7 +10,7 @@
  * - Arabic/English support
  */
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { FileText, Download, Mail, CheckCircle, Loader2, Gift, BookOpen } from 'lucide-react';
 
 interface EmailCaptureProps {

@@ -11,7 +11,7 @@
  * - Quick share from other apps
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Camera,
   Image as ImageIcon,

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { SyncStatusIndicator } from '@/components/admin/SyncStatusIndicator'
+import { RichArticleList } from '@/components/admin/RichArticleList'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -131,7 +132,7 @@ export default function ArticlesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [categories, setCategories] = useState<string[]>([])
   const [selectedArticle, setSelectedArticle] = useState<BlogPostAdmin | null>(null)
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
+  const [viewMode, setViewMode] = useState<'cards' | 'table' | 'pipeline'>('pipeline')
   const [bulkAuditing, setBulkAuditing] = useState(false)
   const [bulkAuditResult, setBulkAuditResult] = useState<{
     averageCompliance: number;
@@ -327,7 +328,13 @@ export default function ArticlesPage() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button
-            variant="outline"
+            variant={viewMode === 'pipeline' ? 'default' : 'outline'}
+            onClick={() => setViewMode('pipeline')}
+          >
+            Pipeline View
+          </Button>
+          <Button
+            variant={viewMode === 'cards' ? 'default' : 'outline'}
             onClick={() => setViewMode(viewMode === 'cards' ? 'table' : 'cards')}
           >
             {viewMode === 'cards' ? 'Table View' : 'Card View'}
@@ -552,6 +559,10 @@ export default function ArticlesPage() {
                   <Plus className="h-4 w-4 mr-2" />
                   Create Article
                 </Button>
+              </div>
+            ) : viewMode === 'pipeline' ? (
+              <div className="mt-2">
+                <RichArticleList source="all" showHeader={true} />
               </div>
             ) : viewMode === 'cards' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

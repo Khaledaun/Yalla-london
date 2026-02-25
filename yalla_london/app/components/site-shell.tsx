@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { DynamicHeader } from '@/components/dynamic-header';
 import { Footer } from '@/components/footer';
 import { ZenithaHeader } from '@/components/zenitha/zenitha-header';

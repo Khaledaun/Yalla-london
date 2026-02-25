@@ -154,16 +154,22 @@ const navigation = [
     icon: Wrench,
     href: '/admin/operations',
     items: [
-      { label: 'Operations Hub',  href: '/admin/operations' },
-      { label: 'Skills Engine',   href: '/admin/operations/skills' },
-      { label: 'Feature Flags',   href: '/admin/feature-flags' },
-      { label: 'API Keys',        href: '/admin/command-center/settings/api-keys' },
-      { label: 'Site Control',    href: '/admin/site-control' },
-      { label: 'API Security',    href: '/admin/api-security' },
-      { label: 'Variable Vault',  href: '/admin/variable-vault' },
-      { label: 'Theme',           href: '/admin/settings/theme' },
-      { label: 'Team',            href: '/admin/team' },
-      { label: 'CRM',             href: '/admin/crm' },
+      { label: '⚙️ Settings Hub',    href: '/admin/settings' },
+      { label: 'To-Do List',       href: '/admin/settings?tab=todo' },
+      { label: 'AI Models',        href: '/admin/settings?tab=ai-models' },
+      { label: 'Database',         href: '/admin/settings?tab=database' },
+      { label: 'Variable Vault',   href: '/admin/settings?tab=variable-vault' },
+      { label: '──────────────',   href: '#', },
+      { label: 'Operations Hub',   href: '/admin/operations' },
+      { label: 'Skills Engine',    href: '/admin/operations/skills' },
+      { label: 'Feature Flags',    href: '/admin/settings/feature-flags' },
+      { label: 'API Keys',         href: '/admin/command-center/settings/api-keys' },
+      { label: 'Site Control',     href: '/admin/site-control' },
+      { label: 'API Security',     href: '/admin/api-security' },
+      { label: 'Full Var Vault',   href: '/admin/variable-vault' },
+      { label: 'Theme',            href: '/admin/settings/theme' },
+      { label: 'Team',             href: '/admin/team' },
+      { label: 'CRM',              href: '/admin/crm' },
     ],
   },
 ]
@@ -558,7 +564,8 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                     <div className="p-2 space-y-0.5">
                       {[
                         { label: 'Profile', href: '/admin/team', icon: User },
-                        { label: 'Settings', href: '/admin/settings/theme', icon: Settings },
+                        { label: 'Settings', href: '/admin/settings', icon: Settings },
+                        { label: 'AI Models', href: '/admin/settings?tab=ai-models', icon: Brain },
                         { label: 'API Keys', href: '/admin/command-center/settings/api-keys', icon: Key },
                       ].map(({ label, href, icon: Icon }) => (
                         <Link key={href} href={href} onClick={() => setUserMenuOpen(false)}

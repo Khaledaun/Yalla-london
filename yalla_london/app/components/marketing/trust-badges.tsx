@@ -10,6 +10,7 @@
  * - Guarantees
  */
 
+import React from 'react';
 import { Shield, Lock, CreditCard, Award, CheckCircle, Star, Globe, Headphones } from 'lucide-react';
 import Image from 'next/image';
 

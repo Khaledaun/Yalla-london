@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { MophyAdminLayout } from '@/components/admin/mophy/mophy-admin-layout'
 import { Card, CardContent } from '@/components/ui/card'

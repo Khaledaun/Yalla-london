@@ -53,98 +53,85 @@ async function handleSocialCron(request: NextRequest) {
   try {
     const now = new Date();
 
-    // Get posts scheduled for now or earlier that haven't been published
-    // Retry with backoff to handle PgBouncer MaxClientsInSessionMode errors
-    // when multiple crons fire simultaneously
-    let duePosts: any[];
-    const maxRetries = 3;
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        duePosts = await prisma.scheduledContent.findMany({
-          where: {
-            scheduled_time: { lte: now },
-            status: 'pending',
-            published: false,
-            platform: { not: 'blog' },
-          },
-          take: 20,
-        });
-        break; // success
-      } catch (dbErr) {
-        const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
-        if (attempt < maxRetries && (msg.includes('MaxClients') || msg.includes('FATAL') || msg.includes('connection'))) {
-          const delayMs = attempt * 2000; // 2s, 4s
-          console.warn(`[social-cron] DB connection failed (attempt ${attempt}/${maxRetries}), retrying in ${delayMs}ms: ${msg}`);
-          await new Promise(r => setTimeout(r, delayMs));
-        } else {
-          throw dbErr; // exhausted retries or non-retryable error
+    // Check which platforms can be auto-published via env-var credentials.
+    // Twitter/X: fully automated when TWITTER_* env vars are configured.
+    // All other platforms: require manual publishing via the social calendar dashboard.
+    const twitterConfigured = !!(
+      process.env.TWITTER_API_KEY &&
+      process.env.TWITTER_API_SECRET &&
+      process.env.TWITTER_ACCESS_TOKEN &&
+      (process.env.TWITTER_ACCESS_TOKEN_SECRET || process.env.TWITTER_ACCESS_SECRET)
+    );
+
+    // Only fetch posts for platforms we can actually auto-publish.
+    // Other platforms (Instagram, TikTok, LinkedIn) stay pending until Khaled
+    // publishes them manually via /admin/social-calendar.
+    const autoPublishPlatforms = twitterConfigured ? ['twitter', 'x'] : [];
+
+    // Count pending non-auto posts for dashboard visibility
+    const pendingManualCount = await prisma.scheduledContent.count({
+      where: {
+        scheduled_time: { lte: now },
+        status: 'pending',
+        published: false,
+        platform: { notIn: ['blog', ...autoPublishPlatforms] },
+      },
+    }).catch(() => 0);
+
+    let duePosts: any[] = [];
+    if (autoPublishPlatforms.length > 0) {
+      // Retry with backoff to handle PgBouncer MaxClientsInSessionMode errors
+      const maxRetries = 3;
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          duePosts = await prisma.scheduledContent.findMany({
+            where: {
+              scheduled_time: { lte: now },
+              status: 'pending',
+              published: false,
+              platform: { in: autoPublishPlatforms },
+            },
+            take: 20,
+          });
+          break;
+        } catch (dbErr) {
+          const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+          if (attempt < maxRetries && (msg.includes('MaxClients') || msg.includes('FATAL') || msg.includes('connection'))) {
+            const delayMs = attempt * 2000;
+            console.warn(`[social-cron] DB connection failed (attempt ${attempt}/${maxRetries}), retrying in ${delayMs}ms: ${msg}`);
+            await new Promise(r => setTimeout(r, delayMs));
+          } else {
+            throw dbErr;
+          }
         }
       }
     }
-    duePosts = duePosts!;
 
     const results = [];
 
     for (const post of duePosts) {
+      const platform = (post.platform || '').toLowerCase();
       try {
-        // Get social account for this platform
-        const account = await prisma.modelProvider.findFirst({
-          where: {
-            name: post.platform,
-            provider_type: 'social',
-            is_active: true,
-          },
-        });
-
-        if (!account || !account.api_key_encrypted) {
-          // Mark as failed - no account connected
-          await prisma.scheduledContent.update({
-            where: { id: post.id },
-            data: {
-              status: 'failed',
-              metadata: {
-                ...(post.metadata as any || {}),
-                error: 'Social account not connected — configure a social ModelProvider for this platform',
-                failedAt: now.toISOString(),
-              },
-            },
-          });
-
+        if (platform === 'twitter' || platform === 'x') {
+          // Real Twitter/X publish via twitter-api-v2 (credentials from env vars)
+          const { publishPost } = await import('@/lib/social/scheduler');
+          const result = await publishPost(post.id);
+          if (result.success) {
+            console.log(`[social-cron] Published tweet for post ${post.id}: ${result.postUrl}`);
+          } else {
+            console.warn(`[social-cron] Tweet failed for post ${post.id}: ${result.error}`);
+          }
           results.push({
             postId: post.id,
-            platform: post.platform,
-            status: 'failed',
-            reason: 'Account not connected',
+            platform,
+            status: result.success ? 'published' : 'failed',
+            postUrl: result.postUrl,
+            reason: result.error,
           });
-          continue;
+        } else {
+          // Should not reach here given the query filter — defensive log only
+          console.warn(`[social-cron] Unexpected platform in auto-publish queue: ${platform} (post ${post.id})`);
         }
-
-        // TODO: Integrate real social media APIs (Twitter/X, Instagram, LinkedIn)
-        // Currently a mock — marks as published in DB but does NOT post to any platform.
-        console.warn(
-          `[social-cron] MOCK PUBLISH: Post ${post.id} for ${post.platform} — social API not integrated yet`
-        );
-
-        await prisma.scheduledContent.update({
-          where: { id: post.id },
-          data: {
-            status: 'published',
-            published: true,
-            published_time: now,
-            metadata: {
-              ...(post.metadata as any || {}),
-              publishedAt: now.toISOString(),
-              note: 'Mock publish — social API not integrated yet',
-            },
-          },
-        });
-
-        results.push({
-          postId: post.id,
-          platform: post.platform,
-          status: 'published',
-          note: 'Mock — social API not integrated',
-        });
       } catch (error) {
         // Mark individual post as failed
         await prisma.scheduledContent.update({
@@ -161,7 +148,7 @@ async function handleSocialCron(request: NextRequest) {
 
         results.push({
           postId: post.id,
-          platform: post.platform,
+          platform,
           status: 'failed',
           reason: error instanceof Error ? error.message : 'Unknown error',
         });
@@ -180,7 +167,8 @@ async function handleSocialCron(request: NextRequest) {
         postsProcessed: duePosts.length,
         published,
         failed,
-        mockPublish: true,
+        twitterEnabled: twitterConfigured,
+        pendingManual: pendingManualCount,
       },
     });
 
@@ -190,6 +178,8 @@ async function handleSocialCron(request: NextRequest) {
       postsProcessed: duePosts.length,
       published,
       failed,
+      twitterEnabled: twitterConfigured,
+      pendingManual: pendingManualCount,
       results,
     });
   } catch (error) {

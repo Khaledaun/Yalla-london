@@ -12,6 +12,7 @@
 import { logCronExecution } from "@/lib/cron-logger";
 import { onPromotionFailure } from "@/lib/ops/failure-hooks";
 import { runPrePublicationGate } from "@/lib/seo/orchestrator/pre-publication-gate";
+import { enhanceReservoirDraft } from "@/lib/content-pipeline/enhance-runner";
 
 const DEFAULT_TIMEOUT_MS = 53_000;
 const MAX_ARTICLES_PER_RUN = 2;
@@ -40,7 +41,11 @@ export async function runContentSelector(
     // Import quality gate threshold from centralized SEO standards — single source of truth.
     // When standards.ts is updated (e.g., after algorithm changes), this threshold updates automatically.
     const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
-    const MIN_QUALITY_SCORE = CONTENT_QUALITY.qualityGateScore;
+    // Use reservoirMinScore (60) to fetch — NOT qualityGateScore (70).
+    // The pre-pub gate hard-blocks at seo_score < 50, so articles scoring 60–69 will
+    // pass the gate (with warnings) and get published. Using 70 as the DB filter would
+    // permanently freeze articles that entered the reservoir under the old threshold.
+    const MIN_QUALITY_SCORE = CONTENT_QUALITY.reservoirMinScore;
 
     const activeSites = getActiveSiteIds();
     if (activeSites.length === 0) {
@@ -87,12 +92,63 @@ export async function runContentSelector(
       };
     }
 
-    // Apply keyword diversity filter
+    // Separate candidates into publish-ready (≥ qualityGateScore) and needs-enhancement (60–69).
+    // Articles 60–69 are enhanced inline before publication:
+    //   - Grok expands word count, adds experience signals, internal links, affiliate placeholders
+    //   - Re-scored after enhancement — if score ≥ 70 they are promoted in this run
+    //   - If still < 70, the enhancement is saved to DB and the next run will re-evaluate
+    const PUBLISH_THRESHOLD = CONTENT_QUALITY.qualityGateScore; // 70
+    const publishReady: Array<Record<string, unknown>> = [];
+    const needsEnhancement: Array<Record<string, unknown>> = [];
+
+    for (const candidate of candidates) {
+      const score = (candidate.quality_score as number) || 0;
+      if (score >= PUBLISH_THRESHOLD) {
+        publishReady.push(candidate);
+      } else {
+        needsEnhancement.push(candidate);
+      }
+    }
+
+    // Trigger enhancement for low-quality articles (non-blocking if budget is tight)
+    // Cap at 2 enhancements per run to stay within the 53s budget
+    const enhancementQueue = needsEnhancement.slice(0, 2);
+    const enhancedToPublish: Array<Record<string, unknown>> = [];
+
+    for (const candidate of enhancementQueue) {
+      const remainingMs = (options.timeoutMs || DEFAULT_TIMEOUT_MS) - (Date.now() - cronStart);
+      if (remainingMs < 38_000) {
+        console.log("[content-selector] Budget < 38s — skipping enhancement, will retry next run");
+        break;
+      }
+      try {
+        console.log(`[content-selector] Enhancing draft ${candidate.id} (score: ${candidate.quality_score}, keyword: "${candidate.keyword}")`);
+        const enhResult = await enhanceReservoirDraft(candidate);
+        if (enhResult.success && (enhResult.newScore || 0) >= PUBLISH_THRESHOLD) {
+          // Refresh the candidate record from DB so promoteToBlogPost reads new content
+          const { prisma: prismaDynamic } = await import("@/lib/db");
+          const refreshed = await prismaDynamic.articleDraft.findUnique({ where: { id: candidate.id as string } });
+          if (refreshed) {
+            enhancedToPublish.push(refreshed as unknown as Record<string, unknown>);
+            console.log(`[content-selector] Enhanced draft ${candidate.id} now scores ${enhResult.newScore} — queued for promotion`);
+          }
+        } else {
+          console.log(`[content-selector] Enhanced draft ${candidate.id}: score ${enhResult.previousScore}→${enhResult.newScore || "?"} — needs another pass, saved to DB`);
+        }
+      } catch (enhErr) {
+        console.warn(`[content-selector] Enhancement failed for draft ${candidate.id}:`, enhErr instanceof Error ? enhErr.message : enhErr);
+      }
+    }
+
+    // Combine publish-ready and successfully-enhanced articles
+    const allCandidates = [...publishReady, ...enhancedToPublish];
+
+    // Apply keyword diversity filter across combined list
     const selectedKeywords = new Set<string>();
     const selectedDraftIds = new Set<string>();
     const selected: Array<Record<string, unknown>> = [];
 
-    for (const candidate of candidates) {
+    for (const candidate of allCandidates) {
       if (selected.length >= MAX_ARTICLES_PER_RUN) break;
 
       const candidateId = candidate.id as string;
@@ -170,6 +226,9 @@ export async function runContentSelector(
       itemsProcessed: published.length,
       resultSummary: {
         reservoirCandidates: candidates.length,
+        publishReady: publishReady.length,
+        needsEnhancement: needsEnhancement.length,
+        enhancedAndPromoted: enhancedToPublish.length,
         selected: selected.length,
         published: published.length,
         articles: published,
@@ -425,6 +484,7 @@ async function promoteToBlogPost(
         keywords_json: keywords,
       },
       siteUrl,
+      { skipRouteCheck: true }, // Route will exist once BlogPost is created; HTTP check wastes 5s of budget
     );
 
     if (!gateResult.allowed) {
@@ -503,6 +563,55 @@ async function promoteToBlogPost(
       questions_json: ((draft.research_data as Record<string, unknown>)?.keywordData as Record<string, unknown>)?.questions || [],
     },
   });
+
+  // Auto-queue tweet for newly published article (fires when TWITTER_* env vars are set)
+  try {
+    const twitterEnabled = !!(
+      process.env.TWITTER_API_KEY ||
+      process.env.TWITTER_ACCESS_TOKEN
+    );
+    if (twitterEnabled) {
+      const articleUrl = `${getSiteDomain(siteId)}/blog/${slug}`;
+      // Site-specific hashtags
+      const siteHashtag: Record<string, string> = {
+        'yalla-london': '#YallaLondon #London',
+        'arabaldives': '#Arabaldives #Maldives',
+        'french-riviera': '#YallaRiviera #CoteDazur',
+        'istanbul': '#YallaIstanbul #Istanbul',
+        'thailand': '#YallaThailand #Thailand',
+        'zenitha-yachts-med': '#ZenithaYachts #Mediterranean',
+      };
+      const tagSuffix = siteHashtag[siteId] || '#Zenitha';
+      const contentHashtags = keywords
+        .slice(0, 2)
+        .map(k => '#' + k.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, ''))
+        .filter(h => h.length > 1)
+        .join(' ');
+      // Keep tweet under 280 chars: title (max 100) + newlines + URL (~23 via t.co) + hashtags
+      const titleTruncated = enTitle.length > 100 ? enTitle.substring(0, 97) + '...' : enTitle;
+      const tweetContent = `${titleTruncated}\n\n${articleUrl}\n\n${contentHashtags} ${tagSuffix}`.trim().substring(0, 280);
+
+      await prisma.scheduledContent.create({
+        data: {
+          title: (enTitle || keyword).substring(0, 200),
+          content: tweetContent,
+          content_type: 'twitter_post',
+          platform: 'twitter',
+          language: 'en',
+          status: 'pending',
+          published: false,
+          site_id: siteId,
+          content_id: blogPost.id,
+          scheduled_time: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
+          generation_source: 'content_pipeline_auto',
+          tags: keywords.slice(0, 5),
+        },
+      });
+      console.log(`[content-selector] Auto-queued tweet for BlogPost ${blogPost.id} (keyword: "${keyword}")`);
+    }
+  } catch (tweetErr) {
+    console.warn('[content-selector] Tweet auto-queue failed (non-fatal):', tweetErr instanceof Error ? tweetErr.message : tweetErr);
+  }
 
   // Create SeoMeta entry
   try {

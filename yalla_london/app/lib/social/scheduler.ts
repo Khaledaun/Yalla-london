@@ -153,7 +153,7 @@ export async function publishPost(postId: string): Promise<PublishResult> {
     const apiKey = process.env.TWITTER_API_KEY;
     const apiSecret = process.env.TWITTER_API_SECRET;
     const accessToken = process.env.TWITTER_ACCESS_TOKEN;
-    const accessSecret = process.env.TWITTER_ACCESS_SECRET;
+    const accessSecret = process.env.TWITTER_ACCESS_TOKEN_SECRET || process.env.TWITTER_ACCESS_SECRET;
 
     if (apiKey && apiSecret && accessToken && accessSecret) {
       try {
@@ -210,7 +210,7 @@ export async function publishPost(postId: string): Promise<PublishResult> {
 
     return {
       success: false,
-      error: "Twitter API credentials not configured. Set TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_SECRET environment variables.",
+      error: "Twitter API credentials not configured. Set TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_TOKEN_SECRET environment variables.",
     };
   }
 

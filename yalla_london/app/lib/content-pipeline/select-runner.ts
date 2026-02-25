@@ -504,6 +504,55 @@ async function promoteToBlogPost(
     },
   });
 
+  // Auto-queue tweet for newly published article (fires when TWITTER_* env vars are set)
+  try {
+    const twitterEnabled = !!(
+      process.env.TWITTER_API_KEY ||
+      process.env.TWITTER_ACCESS_TOKEN
+    );
+    if (twitterEnabled) {
+      const articleUrl = `${getSiteDomain(siteId)}/blog/${slug}`;
+      // Site-specific hashtags
+      const siteHashtag: Record<string, string> = {
+        'yalla-london': '#YallaLondon #London',
+        'arabaldives': '#Arabaldives #Maldives',
+        'french-riviera': '#YallaRiviera #CoteDazur',
+        'istanbul': '#YallaIstanbul #Istanbul',
+        'thailand': '#YallaThailand #Thailand',
+        'zenitha-yachts-med': '#ZenithaYachts #Mediterranean',
+      };
+      const tagSuffix = siteHashtag[siteId] || '#Zenitha';
+      const contentHashtags = keywords
+        .slice(0, 2)
+        .map(k => '#' + k.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, ''))
+        .filter(h => h.length > 1)
+        .join(' ');
+      // Keep tweet under 280 chars: title (max 100) + newlines + URL (~23 via t.co) + hashtags
+      const titleTruncated = enTitle.length > 100 ? enTitle.substring(0, 97) + '...' : enTitle;
+      const tweetContent = `${titleTruncated}\n\n${articleUrl}\n\n${contentHashtags} ${tagSuffix}`.trim().substring(0, 280);
+
+      await prisma.scheduledContent.create({
+        data: {
+          title: (enTitle || keyword).substring(0, 200),
+          content: tweetContent,
+          content_type: 'twitter_post',
+          platform: 'twitter',
+          language: 'en',
+          status: 'pending',
+          published: false,
+          site_id: siteId,
+          content_id: blogPost.id,
+          scheduled_time: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
+          generation_source: 'content_pipeline_auto',
+          tags: keywords.slice(0, 5),
+        },
+      });
+      console.log(`[content-selector] Auto-queued tweet for BlogPost ${blogPost.id} (keyword: "${keyword}")`);
+    }
+  } catch (tweetErr) {
+    console.warn('[content-selector] Tweet auto-queue failed (non-fatal):', tweetErr instanceof Error ? tweetErr.message : tweetErr);
+  }
+
   // Create SeoMeta entry
   try {
     const schemaData = enSeoMeta.schema || arSeoMeta.schema || null;

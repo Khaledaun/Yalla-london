@@ -138,8 +138,16 @@ export async function GET(request: NextRequest) {
       _count: true,
     });
 
+    // GSC coverage_state values that actually mean the URL IS indexed — exclude from "not indexed" reasons
+    const INDEXED_COVERAGE_STATES = [
+      "Submitted and indexed",
+      "Indexed, not submitted in sitemap",
+    ];
+
     const reasonsBySite: Record<string, Array<{ reason: string; count: number }>> = {};
     for (const row of notIndexedReasons) {
+      // Skip GSC states that indicate the URL is actually indexed
+      if (INDEXED_COVERAGE_STATES.includes(row.coverage_state)) continue;
       if (!reasonsBySite[row.site_id]) reasonsBySite[row.site_id] = [];
       reasonsBySite[row.site_id].push({
         reason: row.coverage_state || "Unknown",

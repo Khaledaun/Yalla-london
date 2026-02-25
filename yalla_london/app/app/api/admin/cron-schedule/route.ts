@@ -173,66 +173,67 @@ export async function GET(request: NextRequest) {
   const jobName = searchParams.get('job');
 
   try {
-    // Get last run for each cron job
+    // Get last run for each cron job — CronJobLog uses snake_case fields
     const recentLogs = await prisma.cronJobLog.findMany({
-      where: jobName ? { jobName } : {},
-      orderBy: { startedAt: 'desc' },
+      where: jobName ? { job_name: jobName } : {},
+      orderBy: { started_at: 'desc' },
       take: jobName ? 50 : 300,
       select: {
         id: true,
-        jobName: true,
+        job_name: true,
         status: true,
-        startedAt: true,
-        completedAt: true,
-        durationMs: true,
-        itemsProcessed: true,
-        itemsSucceeded: true,
-        itemsFailed: true,
-        errorMessage: true,
-        timedOut: true,
-        resultSummary: true,
-        siteId: true,
+        started_at: true,
+        completed_at: true,
+        duration_ms: true,
+        items_processed: true,
+        items_succeeded: true,
+        items_failed: true,
+        error_message: true,
+        timed_out: true,
+        result_summary: true,
+        site_id: true,
       },
     });
 
     // Group by job name
     const byJob: Record<string, typeof recentLogs> = {};
     for (const log of recentLogs) {
-      if (!byJob[log.jobName]) byJob[log.jobName] = [];
-      byJob[log.jobName].push(log);
+      if (!byJob[log.job_name]) byJob[log.job_name] = [];
+      byJob[log.job_name].push(log);
     }
 
     const jobs = Object.entries(CRON_SCHEDULE).map(([key, info]) => {
       const logs = byJob[key] || [];
       const lastLog = logs[0] || null;
-      const last7d = logs.filter((l) => new Date(l.startedAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-      const avgDuration = last7d.length > 0
-        ? Math.round(last7d.filter((l) => l.durationMs).reduce((sum, l) => sum + (l.durationMs || 0), 0) / last7d.filter((l) => l.durationMs).length)
+      const last7d = logs.filter((l) => new Date(l.started_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+      const durLogs = last7d.filter((l) => l.duration_ms);
+      const avgDuration = durLogs.length > 0
+        ? Math.round(durLogs.reduce((sum, l) => sum + (l.duration_ms || 0), 0) / durLogs.length)
         : null;
 
       return {
         key,
         ...info,
-        lastRunAt: lastLog?.startedAt ?? null,
+        lastRunAt: lastLog?.started_at ?? null,
         lastStatus: lastLog?.status ?? 'never',
-        lastDurationMs: lastLog?.durationMs ?? null,
-        lastError: lastLog?.errorMessage ?? null,
-        lastItemsProcessed: lastLog?.itemsProcessed ?? 0,
-        lastItemsFailed: lastLog?.itemsFailed ?? 0,
-        timedOut: lastLog?.timedOut ?? false,
+        lastDurationMs: lastLog?.duration_ms ?? null,
+        lastError: lastLog?.error_message ?? null,
+        lastItemsProcessed: lastLog?.items_processed ?? 0,
+        lastItemsFailed: lastLog?.items_failed ?? 0,
+        timedOut: lastLog?.timed_out ?? false,
         runs7d: last7d.length,
-        failures7d: last7d.filter((l) => l.status === 'failed' || l.timedOut).length,
+        failures7d: last7d.filter((l) => l.status === 'failed' || l.timed_out).length,
         avgDurationMs: avgDuration,
-        health: getHealthFromLogs(last7d),
+        health: getHealthFromLogs(last7d.map((l) => ({ status: l.status, timedOut: l.timed_out }))),
         recentLogs: logs.slice(0, 10).map((l) => ({
           id: l.id,
           status: l.status,
-          startedAt: l.startedAt,
-          durationMs: l.durationMs,
-          itemsProcessed: l.itemsProcessed,
-          itemsFailed: l.itemsFailed,
-          error: l.errorMessage,
-          timedOut: l.timedOut,
+          startedAt: l.started_at,
+          durationMs: l.duration_ms,
+          itemsProcessed: l.items_processed,
+          itemsFailed: l.items_failed,
+          error: l.error_message,
+          timedOut: l.timed_out,
         })),
       };
     });

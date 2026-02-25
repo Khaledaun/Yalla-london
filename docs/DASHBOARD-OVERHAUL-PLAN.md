@@ -145,6 +145,13 @@ Audit all phases, document in `docs/DASHBOARD-GAPS.md`, fix, repeat.
 | Date | Phase | Status | Notes |
 |------|-------|--------|-------|
 | 2026-02-25 | Plan | ✅ Created | Initial plan document |
+| 2026-02-25 | Phase 1: Settings Hub | ✅ Complete | 5-tab settings hub, AI models CRUD + test, task router, todo API, DB status API, cron schedule API |
+| 2026-02-25 | Phase 2: Content Hub | ✅ Complete | Articles API rewritten to Prisma, RichArticleList with full metadata, Pipeline View in articles page |
+| 2026-02-25 | Phase 3: Schema Alignment | ✅ Complete | Fixed 13 schema mismatches (DG-025 to DG-037) across 4 API routes — BlogPost/ArticleDraft/CronJobLog snake_case fixes |
+| 2026-02-25 | Phase 4: Cron Monitor | ✅ Complete | CronSchedulePanel with health, budget bar, expandable history, Run Now; cron-logs page now has 2 tabs |
+| 2026-02-25 | Phase 5: Navigation | ✅ Complete | Settings Hub with sub-tabs in nav sidebar |
+| 2026-02-25 | Phase 6: Test-Connections | ✅ Complete | Section 24 added (6 new endpoint tests) |
+| 2026-02-25 | Phase 7: Gap Audit | ✅ Complete | 37 gaps documented (DG-001 to DG-037), 33 fixed, 4 low-priority open |
 
 ---
 

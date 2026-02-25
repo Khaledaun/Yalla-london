@@ -45,12 +45,14 @@ export async function GET(request: NextRequest) {
   try {
     // ── 1. Check pipeline health ───────────────────────────────────────────
     const [draftCount, topicCount, publishedToday] = await Promise.allSettled([
-      prisma.articleDraft.count({ where: { status: { in: ['pending', 'research', 'outline', 'drafting'] } } }),
+      // ArticleDraft uses current_phase (snake_case)
+      prisma.articleDraft.count({ where: { current_phase: { in: ['research', 'outline', 'drafting'] } } }),
       prisma.topicProposal.count({ where: { status: 'pending' } }),
+      // BlogPost uses published Boolean and created_at (snake_case)
       prisma.blogPost.count({
         where: {
-          status: 'published',
-          createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+          published: true,
+          created_at: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
         },
       }),
     ]);
@@ -105,8 +107,8 @@ export async function GET(request: NextRequest) {
 
     for (const jobName of criticalJobs) {
       const lastRun = await prisma.cronJobLog.findFirst({
-        where: { jobName },
-        orderBy: { startedAt: 'desc' },
+        where: { job_name: jobName },
+        orderBy: { started_at: 'desc' },
       }).catch(() => null);
 
       if (!lastRun) {
@@ -126,7 +128,7 @@ export async function GET(request: NextRequest) {
           priority: 'critical',
           category: 'pipeline',
           title: `Cron "${jobName}" last run FAILED`,
-          description: lastRun.errorMessage || 'No error details available.',
+          description: lastRun.error_message || 'No error details available.',
           actionLabel: 'View Details',
           actionUrl: '/admin/cron-logs',
           resolved: false,
@@ -189,8 +191,9 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 5. Check for unindexed published posts ────────────────────────────
-    const unindexedCount = await prisma.blogPost.count({
-      where: { status: 'published', indexingStatus: 'not_submitted' },
+    // URLIndexingStatus tracks indexing per URL; count discovered (not yet submitted)
+    const unindexedCount = await prisma.uRLIndexingStatus.count({
+      where: { status: 'discovered' },
     }).catch(() => null);
 
     if (unindexedCount !== null && unindexedCount > 5) {
@@ -210,7 +213,7 @@ export async function GET(request: NextRequest) {
     const activeSites = getActiveSiteIds();
     for (const siteId of activeSites) {
       const count = await prisma.blogPost.count({
-        where: { siteId, status: 'published' },
+        where: { siteId, published: true },
       }).catch(() => 0);
 
       if (count === 0) {

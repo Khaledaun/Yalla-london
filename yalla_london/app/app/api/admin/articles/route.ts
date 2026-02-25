@@ -1,7 +1,10 @@
 /**
  * Articles API — DB-backed article management
- * Reads from BlogPost (published) and ArticleDraft (in-progress) tables.
- * Returns rich metadata: word count, SEO score, indexing status, phase.
+ * Reads from BlogPost (published/draft) and ArticleDraft (in-progress pipeline) tables.
+ * Returns rich metadata: word count, SEO score, phase, bilingual status.
+ *
+ * BlogPost schema uses snake_case for most fields: published Boolean, created_at, updated_at, seo_score
+ * ArticleDraft schema uses snake_case throughout: site_id, current_phase, seo_score, quality_score, etc.
  */
 export const dynamic = 'force-dynamic';
 
@@ -33,11 +36,18 @@ export async function GET(request: NextRequest) {
 
     const articles: Record<string, unknown>[] = [];
 
-    // ── Fetch Published BlogPosts ────────────────────────────────────────────
+    // ── Fetch Published/Draft BlogPosts ──────────────────────────────────────
     if (source === 'all' || source === 'published') {
+      // BlogPost uses `published Boolean` (not a status string)
+      // Map status filter to boolean
+      const publishedFilter: Record<string, unknown> = {};
+      if (status === 'published') publishedFilter.published = true;
+      else if (status === 'draft') publishedFilter.published = false;
+      // else no filter (show all)
+
       const where: Record<string, unknown> = {
         siteId,
-        ...(status && status !== 'all' ? { status } : {}),
+        ...publishedFilter,
         ...(search ? {
           OR: [
             { title_en: { contains: search, mode: 'insensitive' } },
@@ -55,25 +65,17 @@ export async function GET(request: NextRequest) {
           title_en: true,
           title_ar: true,
           meta_description_en: true,
-          status: true,
+          published: true,       // Boolean field (not `status`)
           siteId: true,
-          createdAt: true,
-          updatedAt: true,
-          publishedAt: true,
+          created_at: true,      // snake_case
+          updated_at: true,      // snake_case
           content_en: true,
           content_ar: true,
-          seoScore: true,
-          qualityScore: true,
-          indexingStatus: true,
-          indexingState: true,
-          lastSubmittedAt: true,
-          lastInspectedAt: true,
-          category: { select: { name: true } },
+          seo_score: true,       // snake_case
+          category: { select: { name_en: true, name_ar: true } },
           author: { select: { name: true } },
-          scheduledAt: true,
-          featured: true,
         },
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { updated_at: 'desc' },
         take: source === 'published' ? limit : Math.floor(limit * 0.7),
         skip: source === 'published' ? skip : 0,
       });
@@ -81,6 +83,7 @@ export async function GET(request: NextRequest) {
       for (const p of posts) {
         const wcEn = wordCount(p.content_en);
         const wcAr = wordCount(p.content_ar);
+        const cat = p.category as { name_en: string; name_ar: string } | null;
         articles.push({
           id: p.id,
           type: 'published',
@@ -88,39 +91,39 @@ export async function GET(request: NextRequest) {
           title: p.title_en || p.title_ar || '(Untitled)',
           titleAr: p.title_ar,
           metaDescription: p.meta_description_en,
-          status: p.status,
+          status: p.published ? 'published' : 'draft',
           siteId: p.siteId,
-          createdAt: p.createdAt.toISOString(),
-          updatedAt: p.updatedAt.toISOString(),
-          publishedAt: p.publishedAt?.toISOString() ?? null,
-          scheduledAt: p.scheduledAt?.toISOString() ?? null,
-          featured: p.featured,
+          createdAt: p.created_at.toISOString(),
+          updatedAt: p.updated_at.toISOString(),
+          publishedAt: null,     // Field doesn't exist in current schema
+          scheduledAt: null,     // Field doesn't exist in current schema
+          featured: false,       // Field doesn't exist in current schema
           wordCountEn: wcEn,
           wordCountAr: wcAr,
-          seoScore: p.seoScore,
-          qualityScore: p.qualityScore,
-          indexingStatus: p.indexingStatus || 'not_submitted',
-          indexingState: p.indexingState,
-          lastSubmittedAt: p.lastSubmittedAt?.toISOString() ?? null,
-          lastInspectedAt: p.lastInspectedAt?.toISOString() ?? null,
-          category: (p.category as { name: string } | null)?.name ?? null,
-          author: (p.author as { name: string } | null)?.name ?? 'Editorial',
+          seoScore: p.seo_score ?? null,
+          qualityScore: null,    // Field doesn't exist in current schema
+          indexingStatus: 'not_submitted', // Field doesn't exist in current schema
+          indexingState: null,
+          lastSubmittedAt: null,
+          lastInspectedAt: null,
+          category: cat?.name_en ?? cat?.name_ar ?? null,
+          author: (p.author as { name: string | null } | null)?.name ?? 'Editorial',
           isBilingual: wcEn > 100 && wcAr > 100,
-          hasAffiliate: false, // Could query links table
+          hasAffiliate: false,   // Could query links table
           publicUrl: `/${p.slug}`,
         });
       }
     }
 
-    // ── Fetch In-Progress ArticleDrafts ─────────────────────────────────────
+    // ── Fetch In-Progress ArticleDrafts (uses snake_case field names from schema) ─
     if (source === 'all' || source === 'drafts') {
       const draftWhere: Record<string, unknown> = {
-        siteId,
-        status: { not: 'published' },
+        site_id: siteId,
+        current_phase: { notIn: ['published', 'rejected'] },
         ...(search ? {
           OR: [
-            { topic: { contains: search, mode: 'insensitive' } },
-            { titleEn: { contains: search, mode: 'insensitive' } },
+            { keyword: { contains: search, mode: 'insensitive' } },
+            { topic_title: { contains: search, mode: 'insensitive' } },
           ],
         } : {}),
       };
@@ -129,62 +132,59 @@ export async function GET(request: NextRequest) {
         where: draftWhere,
         select: {
           id: true,
-          topic: true,
-          titleEn: true,
-          titleAr: true,
-          status: true,
-          phase: true,
-          siteId: true,
-          createdAt: true,
-          updatedAt: true,
-          contentEn: true,
-          contentAr: true,
-          seoScore: true,
-          qualityScore: true,
-          wordCountEn: true,
-          wordCountAr: true,
-          errorMessage: true,
-          phaseErrors: true,
+          keyword: true,
+          topic_title: true,
+          current_phase: true,
+          site_id: true,
+          created_at: true,
+          updated_at: true,
+          seo_score: true,
+          quality_score: true,
+          word_count: true,
+          last_error: true,
+          locale: true,
         },
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { updated_at: 'desc' },
         take: source === 'drafts' ? limit : Math.floor(limit * 0.4),
         skip: source === 'drafts' ? skip : 0,
       });
 
-      const PHASE_ORDER = ['pending', 'research', 'outline', 'drafting', 'assembly', 'images', 'seo', 'scoring', 'reservoir'];
+      const PHASE_ORDER = ['research', 'outline', 'drafting', 'assembly', 'images', 'seo', 'scoring', 'reservoir'];
 
       for (const d of drafts) {
-        const phaseIndex = PHASE_ORDER.indexOf(d.phase || 'pending');
+        const phase = d.current_phase || 'research';
+        const phaseIndex = PHASE_ORDER.indexOf(phase);
         articles.push({
           id: d.id,
           type: 'draft',
           slug: null,
-          title: d.titleEn || d.topic || '(Untitled Draft)',
-          titleAr: d.titleAr,
-          status: d.status,
-          phase: d.phase,
+          title: d.topic_title || d.keyword || '(Untitled Draft)',
+          titleAr: null,
+          status: phase === 'reservoir' ? 'reservoir' : 'draft',
+          phase,
           phaseIndex,
-          phaseLabel: d.phase ? d.phase.charAt(0).toUpperCase() + d.phase.slice(1) : 'Pending',
-          siteId: d.siteId,
-          createdAt: d.createdAt.toISOString(),
-          updatedAt: d.updatedAt.toISOString(),
+          phaseLabel: phase.charAt(0).toUpperCase() + phase.slice(1),
+          siteId: d.site_id,
+          createdAt: d.created_at.toISOString(),
+          updatedAt: d.updated_at.toISOString(),
           publishedAt: null,
-          wordCountEn: d.wordCountEn ?? wordCount(d.contentEn),
-          wordCountAr: d.wordCountAr ?? wordCount(d.contentAr),
-          seoScore: d.seoScore,
-          qualityScore: d.qualityScore,
+          wordCountEn: d.word_count || 0,
+          wordCountAr: 0,
+          seoScore: d.seo_score ? Math.round(d.seo_score) : null,
+          qualityScore: d.quality_score ? Math.round(d.quality_score) : null,
           indexingStatus: 'not_applicable',
-          hasError: !!(d.errorMessage || d.phaseErrors),
-          error: d.errorMessage,
-          phaseProgress: phaseIndex >= 0 ? Math.round((phaseIndex / (PHASE_ORDER.length - 1)) * 100) : 0,
+          hasError: !!d.last_error,
+          error: d.last_error,
+          phaseProgress: phaseIndex >= 0 ? Math.round(((phaseIndex + 1) / PHASE_ORDER.length) * 100) : 5,
           isBilingual: false,
           hasAffiliate: false,
           publicUrl: null,
+          locale: d.locale,
         });
       }
     }
 
-    // Sort: published by updatedAt desc, drafts by updatedAt desc
+    // Sort: both by updatedAt desc
     articles.sort((a, b) => {
       const dateA = new Date(a.updatedAt as string).getTime();
       const dateB = new Date(b.updatedAt as string).getTime();
@@ -193,32 +193,19 @@ export async function GET(request: NextRequest) {
 
     // Summary stats
     const [publishedCount, draftCount, reservoirCount] = await Promise.all([
-      prisma.blogPost.count({ where: { siteId, status: 'published' } }),
-      prisma.articleDraft.count({ where: { siteId, status: { notIn: ['published', 'reservoir'] } } }),
-      prisma.articleDraft.count({ where: { siteId, phase: 'reservoir' } }),
+      prisma.blogPost.count({ where: { siteId, published: true } }),
+      prisma.articleDraft.count({ where: { site_id: siteId, current_phase: { notIn: ['published', 'rejected', 'reservoir'] } } }),
+      prisma.articleDraft.count({ where: { site_id: siteId, current_phase: 'reservoir' } }),
     ]);
 
-    // Indexing summary
-    const indexSummary = await prisma.blogPost.groupBy({
-      by: ['indexingStatus'],
-      where: { siteId, status: 'published' },
-      _count: { id: true },
-    }).catch(() => []);
-
+    // Indexing summary — from BlogPost.seo_score as a proxy (no indexing fields yet)
+    // Note: indexingStatus does not exist in current BlogPost schema; show placeholder counts
     const indexingStats = {
       indexed: 0,
       submitted: 0,
-      notSubmitted: 0,
+      notSubmitted: publishedCount,
       error: 0,
     };
-    for (const row of indexSummary) {
-      const s = row.indexingStatus || 'not_submitted';
-      const c = row._count.id;
-      if (s === 'indexed') indexingStats.indexed = c;
-      else if (s === 'submitted' || s === 'pending') indexingStats.submitted = c;
-      else if (s === 'error' || s === 'failed') indexingStats.error = c;
-      else indexingStats.notSubmitted += c;
-    }
 
     return NextResponse.json({
       success: true,
@@ -243,7 +230,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// DELETE: Delete a blog post (admin only)
+// DELETE: Delete a blog post or article draft (admin only)
 export async function DELETE(request: NextRequest) {
   const authError = await requireAdmin(request);
   if (authError) return authError;

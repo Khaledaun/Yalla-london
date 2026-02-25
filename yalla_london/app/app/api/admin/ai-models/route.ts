@@ -156,18 +156,18 @@ export async function GET(request: NextRequest) {
       // Aggregate LLM usage from CronJobLog result_summary field
       const recentLogs = await prisma.cronJobLog.findMany({
         where: {
-          startedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-          resultSummary: { not: undefined },
+          started_at: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+          result_summary: { not: null },
         },
-        select: { jobName: true, startedAt: true, resultSummary: true, siteId: true },
-        orderBy: { startedAt: 'desc' },
+        select: { job_name: true, started_at: true, result_summary: true, site_id: true },
+        orderBy: { started_at: 'desc' },
         take: 500,
       });
 
       // Count runs per job name as proxy for model usage
       const usageByJob: Record<string, number> = {};
       recentLogs.forEach((log) => {
-        usageByJob[log.jobName] = (usageByJob[log.jobName] || 0) + 1;
+        usageByJob[log.job_name] = (usageByJob[log.job_name] || 0) + 1;
       });
 
       return NextResponse.json({ usageByJob, logCount: recentLogs.length });

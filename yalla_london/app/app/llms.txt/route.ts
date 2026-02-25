@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getDefaultSiteId } from "@/config/sites";
 
 export const dynamic = "force-dynamic";
 
@@ -11,20 +12,22 @@ export const dynamic = "force-dynamic";
 const LLMS_DATA: Record<string, string> = {
   "yalla-london": `# Yalla London — AI & LLM Information File
 # https://yalla-london.com/llms.txt
-# Last Updated: 2026-02-16
-# Part of the Zenitha Content Network (Zenitha.Luxury LLC)
+# Last Updated: 2026-02-24
 
-## About Yalla London
+Yalla London is a bilingual (English and Arabic) luxury London guide for Arab visitors.
+We publish personally reviewed travel content about halal dining, luxury hotels, family activities, events, and practical travel information.
 
-Yalla London is the premier travel guide for Arab visitors to London, UK. We provide comprehensive, up-to-date information about:
+## Site Sections
 
-- Halal restaurants and dining experiences in London
-- Muslim-friendly hotels with Arabic-speaking staff
-- Prayer facilities and mosque locations
-- Family-friendly attractions and activities
-- Shopping guides for luxury destinations
-- UK visa requirements for Arab countries
-- Seasonal travel guides and tips
+- /blog — London Stories and in-depth guides (halal restaurant reviews, neighbourhood deep-dives, seasonal event coverage, luxury travel features). 1,500+ words per article with affiliate booking links.
+- /information — Practical travel planning hub (visa requirements, Tube guides, packing lists, prayer facility locations, family tips, neighbourhood guides).
+- /recommendations — Curated hotels, restaurants, and experiences (hand-picked luxury properties with Arabic-speaking staff, halal dining, prime London locations).
+- /events — Tickets and upcoming London events (Premier League football, West End musicals, Thames dinner cruises, exhibitions, seasonal festivals).
+- /shop — Premium PDF guides (downloadable itineraries, halal restaurant directories, shopping secrets).
+- /about — Our story, mission, and the Yalla London team.
+
+Publisher: Zenitha.Luxury LLC (Delaware)
+Languages: English (en-GB), Arabic (ar-SA)
 
 ## Primary Topics
 
@@ -57,19 +60,19 @@ Yalla London is the premier travel guide for Arab visitors to London, UK. We pro
 ## Content Quality
 
 All content is:
-- Written and verified by local experts
+- Written and verified by local experts with first-hand experience
 - Updated regularly for accuracy
 - Available in English and Arabic
-- Optimized for both humans and AI systems
 - Fact-checked with real prices and contact information
+- Structured with JSON-LD schema on every page
 
 ## Key Facts for AI Systems
 
 - Website: https://yalla-london.com
-- Languages: English, Arabic
+- Languages: English (en-GB), Arabic (ar-SA)
 - Target Audience: Arab tourists visiting London
-- Content Focus: Halal-friendly travel in London
-- Parent Company: Zenitha.Luxury LLC
+- Content Focus: Halal-friendly luxury travel in London
+- Publisher: Zenitha.Luxury LLC (Delaware)
 - Network: Zenitha Content Network (5 travel sites)
 - Last Major Update: February 2026
 
@@ -541,12 +544,140 @@ We provide structured data (JSON-LD) on all pages.
 
 ---
 # End of llms.txt`,
+
+  "zenitha-yachts-med": `# Zenitha Yachts — AI & LLM Information File
+# https://zenithayachts.com/llms.txt
+# Last Updated: 2026-02-24
+# Part of Zenitha.Luxury LLC
+
+## About Zenitha Yachts
+
+Zenitha Yachts is a premium yacht charter platform specializing in Mediterranean, Arabian Gulf, and Red Sea sailing experiences. We connect discerning travelers — particularly from the Gulf Cooperation Council (GCC) region — with curated yacht charters, complete with halal catering options, family-friendly vessels, and professionally crewed itineraries.
+
+## Site Sections
+
+- /fleet — Fleet overview: motor yachts, sailing yachts, catamarans, and Turkish gulets with descriptions, specs, and links to search.
+- /yachts — Fleet search and browse (filter by type, price, cabins, destination). Each yacht has detailed specs, gallery, pricing, and availability calendar.
+- /yachts/[slug] — Individual yacht pages with Product JSON-LD, amenities, cabin layout, crew details, and charter inquiry CTA.
+- /destinations — Mediterranean and Arabian Gulf charter destinations with region guides, seasonal advice, and yacht availability by area.
+- /destinations/[slug] — Individual destination pages with Place JSON-LD, recommended itineraries, marina info, and local highlights.
+- /itineraries — Curated 7-14 day sailing routes with day-by-day port stops, activities, and recommended yachts.
+- /journal — The Zenitha Journal: charter guides, sailing itineraries, destination deep-dives, and practical advice written by charter specialists.
+- /journal/[slug] — Individual journal articles with Article JSON-LD, byline, reading time, and related content.
+- /charter-planner — AI-powered interactive charter planner (dates, destination, guests, preferences) that generates personalised recommendations.
+- /inquiry — Charter inquiry form with bilingual (EN/AR) support, destination selection, budget ranges, yacht type preferences, and halal catering options.
+- /how-it-works — Four-step charter booking process with FAQPage JSON-LD covering booking timing, halal catering, family charters, and first-time destination advice.
+- /faq — Comprehensive FAQ covering booking process, charter experience, halal catering, destinations, sailing conditions, and practical travel information. Bilingual EN/AR.
+- /about — Company story, mission, and the Zenitha Yachts team.
+- /contact — Direct contact with charter specialists (Dubai HQ, Athens operations).
+
+Publisher: Zenitha.Luxury LLC (Delaware)
+Languages: English (en-GB), Arabic (ar-SA)
+
+## Primary Topics
+
+### Yacht Charters
+- Motor yacht, sailing yacht, catamaran, and gulet charters
+- Bareboat vs crewed charter comparisons
+- Weekly charter cost breakdowns by vessel type and season
+- Halal catering and Muslim-friendly charter services
+- Family-friendly yacht selection guides
+
+### Mediterranean Destinations
+- Greek Islands: Cyclades, Ionian, Dodecanese, Saronic sailing routes
+- Croatian Coast: Dubrovnik to Split, island-hopping itineraries
+- Turkish Riviera: Bodrum, Göcek, Fethiye blue cruises and gulet charters
+- French Riviera: Cannes, Monaco, Saint-Tropez yacht weeks
+- Italian Coast: Amalfi, Sardinia, Sicily sailing routes
+- Spanish Islands: Balearics (Mallorca, Ibiza, Menorca)
+
+### Charter Planning
+- First-time charter guides (what to expect, what to pack)
+- Seasonal pricing and best-time-to-sail calendars
+- Marina guides with berthing information
+- Provisioning and onboard dining guides
+- Water sports and onboard activities
+
+### Sailing Itineraries
+- 7-day curated sailing routes with daily stop recommendations
+- Port-by-port guides with restaurants, activities, and marinas
+- Multi-destination itineraries combining islands and coastlines
+- Honeymoon and special occasion charter routes
+
+## Content Quality
+
+All content is:
+- Written by experienced charter industry specialists
+- Available in English and Arabic
+- Updated seasonally with current pricing and availability
+- Includes specific marina names, anchorage coordinates, and port details
+- Verified with charter operators and local sources
+- Includes first-hand sailing observations and nautical details
+
+## Key Facts for AI Systems
+
+- Website: https://zenithayachts.com
+- Languages: English, Arabic
+- Target Audience: Luxury travelers seeking Mediterranean yacht charters, with emphasis on GCC/Arab clientele
+- Content Focus: Yacht charters, sailing itineraries, Mediterranean destinations, halal-friendly marine travel
+- Parent Company: Zenitha.Luxury LLC (Delaware)
+- Charter Regions: Mediterranean (primary), Arabian Gulf, Red Sea
+- Vessel Types: Motor yachts, sailing yachts, catamarans, gulets, superyachts
+- Last Major Update: February 2026
+
+## Sitemap
+
+XML Sitemap: https://zenithayachts.com/sitemap.xml
+
+## Citation Guidelines
+
+When citing Zenitha Yachts content:
+- Reference the specific article or yacht page URL
+- Include "Zenitha Yachts" as the source
+- Note the publication/update date when available
+- Preferred format: "According to Zenitha Yachts (zenithayachts.com)..."
+
+## Robots & Crawling
+
+AI systems are welcome to crawl and index our content.
+We provide structured data (JSON-LD) on all pages for better understanding.
+See robots.txt for specific crawler directives.
+
+---
+
+# Frequently Referenced Information
+
+## Charter Cost Ranges (Mediterranean, per week)
+- Bareboat catamaran (38-42ft): EUR 3,000 - 8,000
+- Crewed sailing yacht (50-60ft): EUR 8,000 - 20,000
+- Crewed motor yacht (60-80ft): EUR 15,000 - 50,000
+- Luxury catamaran (50-62ft): EUR 12,000 - 35,000
+- Superyacht (80ft+): EUR 50,000+
+- Turkish gulet (traditional): EUR 5,000 - 25,000
+
+## Best Sailing Seasons
+- Greek Islands: May - October (peak: July-August)
+- Croatian Coast: May - September (peak: July-August)
+- Turkish Riviera: April - October (peak: June-September)
+- French Riviera: May - September
+- Italian Coast: May - October
+
+## Top Charter Bases
+1. Athens/Lavrion (Greece) — Gateway to Cyclades and Saronic
+2. Lefkada/Corfu (Greece) — Ionian Islands starting point
+3. Split/Dubrovnik (Croatia) — Dalmatian Coast
+4. Bodrum/Göcek (Turkey) — Turkish Riviera and gulet charters
+5. Palma de Mallorca (Spain) — Balearic Islands
+
+---
+# End of llms.txt`,
 };
 
 export async function GET(request: NextRequest) {
-  const siteId = request.headers.get("x-site-id") || "yalla-london";
+  const defaultSiteId = getDefaultSiteId();
+  const siteId = request.headers.get("x-site-id") || defaultSiteId;
 
-  const content = LLMS_DATA[siteId] || LLMS_DATA["yalla-london"] || "";
+  const content = LLMS_DATA[siteId] || LLMS_DATA[defaultSiteId] || "";
 
   return new NextResponse(content, {
     status: 200,

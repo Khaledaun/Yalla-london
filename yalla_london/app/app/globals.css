@@ -7,6 +7,9 @@
 @import './yalla-tokens.css';
 @import './yalla-animations.css';
 
+/* Zenitha Yachts — Maritime Design Tokens */
+@import './zenitha-tokens.css';
+
 /* Google Fonts — Brand Kit v2 Typography Stack */
 @import url('https://fonts.googleapis.com/css2?family=Anybody:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
 
@@ -18,14 +21,14 @@
   --color-accent: #3B7EA1;
   --color-background: #FAF8F4;
   --color-text: #1C1917;
-  --color-muted: #78716C;
+  --color-muted: #5c564f;
 
   /* Extended palette */
   --color-cream: #FAF8F4;
   --color-sand: #D6D0C4;
   --color-deep-burgundy: #8b1f1c;
   --color-gold-light: #d9b938;
-  --color-warm-gray: #78716C;
+  --color-warm-gray: #5C564F;
   --color-charcoal: #1C1917;
   --color-graphite: #3D3835;
   --color-thames: #3B7EA1;

@@ -277,7 +277,7 @@ export default function ShopPage() {
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 ${
                       selectedCategory === cat.id
                         ? 'bg-charcoal text-white'
                         : 'bg-cream-100 text-stone hover:bg-cream-200'
@@ -383,7 +383,7 @@ export default function ShopPage() {
                       </div>
                       <button
                         onClick={() => addToCart(product.id)}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors ${
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 ${
                           cart.includes(product.id)
                             ? 'bg-forest text-white'
                             : 'bg-london-600 hover:bg-london-700 text-white'

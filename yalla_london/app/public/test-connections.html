@@ -86,7 +86,7 @@
 <body>
 
 <h1>Yalla London — System Validator</h1>
-<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Content, Orchestrator, Indexing, X/Twitter API, Site Health, Schema Audit (23 sections) + One-Click DB Migration + Comprehensive JSON Export</p>
+<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Yacht Platform, Content, Orchestrator, Indexing, X/Twitter API, Site Health, Schema Audit, Settings Hub &amp; AI Models (25 sections) + One-Click DB Migration + Comprehensive JSON Export</p>
 
 <div class="tab-bar">
   <button class="tab-btn active" onclick="switchMode('quick')">Quick Test</button>
@@ -398,6 +398,11 @@ async function migrateDatabase() {
         j.after.missingTables + ' missing tables, ' + j.after.missingColumns + ' missing columns',
         j.after.missingTables > 0 || j.after.missingColumns > 0 ? 'Some items could not be created. Check the errors below for details.' : undefined);
 
+      // Enums created
+      if (r.enumsCreated && r.enumsCreated.length > 0) {
+        addResult('dbmigrate', 'Enums Created', 'pass', r.enumsCreated.length + ' enums: ' + r.enumsCreated.join(', '));
+      }
+
       // Tables created
       if (r.tablesCreated && r.tablesCreated.length > 0) {
         for (const t of r.tablesCreated) {
@@ -417,9 +422,16 @@ async function migrateDatabase() {
         addResult('dbmigrate', 'Indexes Created', 'pass', r.indexesCreated.length + ' indexes: ' + r.indexesCreated.slice(0, 8).join(', ') + (r.indexesCreated.length > 8 ? '...' : ''));
       }
 
+      // Foreign keys created
+      if (r.foreignKeysCreated && r.foreignKeysCreated.length > 0) {
+        addResult('dbmigrate', 'Foreign Keys Created', 'pass', r.foreignKeysCreated.length + ' FKs: ' + r.foreignKeysCreated.join(', '));
+      }
+
       // Nothing to do
-      if ((!r.tablesCreated || r.tablesCreated.length === 0) &&
-          (!r.columnsAdded || r.columnsAdded.length === 0)) {
+      if ((!r.enumsCreated || r.enumsCreated.length === 0) &&
+          (!r.tablesCreated || r.tablesCreated.length === 0) &&
+          (!r.columnsAdded || r.columnsAdded.length === 0) &&
+          (!r.foreignKeysCreated || r.foreignKeysCreated.length === 0)) {
         addResult('dbmigrate', 'Result', 'pass', 'Nothing to migrate — database is already in sync');
       }
 
@@ -1522,6 +1534,151 @@ async function runAllTests() {
       'Unexpected response — check Vercel function logs for <code>/api/ai/generate</code>.');
   }
 
+  // ── 6b. Yacht Platform — Public APIs ──
+  log('Testing Yacht Platform public APIs...');
+  addSection('yachts-public', '6b. Yacht Platform — Public APIs');
+
+  // GET /api/yachts — Public yacht search
+  try {
+    const yachtsResp = await testFetch('/api/yachts?limit=3');
+    if (yachtsResp.ok && yachtsResp.json) {
+      const j = yachtsResp.json;
+      const count = j.total ?? j.yachts?.length ?? j.length ?? '?';
+      addResult('yachts-public', 'Yacht Search API', 'pass', 'Connected — ' + count + ' yachts returned');
+      if (j.yachts && j.yachts.length > 0) {
+        addResult('yachts-public', 'Sample Yacht', 'pass', j.yachts[0].name + ' (' + (j.yachts[0].type || 'unknown type') + ')');
+      }
+    } else if (yachtsResp.status === 404) {
+      addResult('yachts-public', 'Yacht Search API', 'warn', 'HTTP 404 — endpoint not deployed yet',
+        'The <code>/api/yachts</code> route does not exist. Ensure <code>app/api/yachts/route.ts</code> is deployed. The yacht platform may not be active yet.');
+    } else {
+      addResult('yachts-public', 'Yacht Search API', yachtsResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + yachtsResp.status + ' — ' + (yachtsResp.errorDetail || ''),
+        yachtsResp.status === 500 ? 'Server error. The <code>Yacht</code> table may not exist in the database. Click <strong>"Fix Missing Tables & Columns"</strong> or run <code>npx prisma db push</code>.' :
+        'Unexpected response from yacht search API.');
+    }
+  } catch (e) { log('  ERROR: ' + e.message); addResult('yachts-public', 'Yacht Search API', 'fail', 'JS Error: ' + e.message); }
+
+  // GET /api/yachts/destinations — Public destinations
+  try {
+    const destResp = await testFetch('/api/yachts/destinations');
+    if (destResp.ok && destResp.json) {
+      const j = destResp.json;
+      const count = j.total ?? j.destinations?.length ?? j.length ?? '?';
+      addResult('yachts-public', 'Destinations API', 'pass', 'Connected — ' + count + ' destinations returned');
+    } else if (destResp.status === 404) {
+      addResult('yachts-public', 'Destinations API', 'warn', 'HTTP 404 — endpoint not deployed yet',
+        'The <code>/api/yachts/destinations</code> route is not deployed. Ensure <code>app/api/yachts/destinations/route.ts</code> exists.');
+    } else {
+      addResult('yachts-public', 'Destinations API', destResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + destResp.status + ' — ' + (destResp.errorDetail || ''));
+    }
+  } catch (e) { log('  ERROR: ' + e.message); addResult('yachts-public', 'Destinations API', 'fail', 'JS Error: ' + e.message); }
+
+  // GET /api/yachts/itineraries — Public itineraries
+  try {
+    const itinResp = await testFetch('/api/yachts/itineraries');
+    if (itinResp.ok && itinResp.json) {
+      const j = itinResp.json;
+      const count = j.total ?? j.itineraries?.length ?? j.length ?? '?';
+      addResult('yachts-public', 'Itineraries API', 'pass', 'Connected — ' + count + ' itineraries returned');
+    } else if (itinResp.status === 404) {
+      addResult('yachts-public', 'Itineraries API', 'warn', 'HTTP 404 — endpoint not deployed yet',
+        'The <code>/api/yachts/itineraries</code> route is not deployed.');
+    } else {
+      addResult('yachts-public', 'Itineraries API', itinResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + itinResp.status + ' — ' + (itinResp.errorDetail || ''));
+    }
+  } catch (e) { log('  ERROR: ' + e.message); addResult('yachts-public', 'Itineraries API', 'fail', 'JS Error: ' + e.message); }
+
+  // POST /api/inquiry — Charter inquiry submission (test with sample data)
+  try {
+    const inquiryResp = await testFetch('/api/inquiry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        firstName: '__TEST__',
+        lastName: 'Validator',
+        email: 'test-validator@example.com',
+        destination: 'Mediterranean',
+        guestCount: 4,
+        message: 'Automated connectivity test — please ignore',
+        _testMode: true,
+      }),
+    });
+    if (inquiryResp.ok) {
+      addResult('yachts-public', 'Charter Inquiry API (POST)', 'pass', 'Accepted — inquiry endpoint is functional');
+    } else if (inquiryResp.status === 400) {
+      addResult('yachts-public', 'Charter Inquiry API (POST)', 'pass', 'Exists — returned 400 (validation active, expected for test payload)');
+    } else if (inquiryResp.status === 404) {
+      addResult('yachts-public', 'Charter Inquiry API (POST)', 'warn', 'HTTP 404 — endpoint not deployed yet',
+        'The <code>/api/inquiry</code> route is not deployed. Ensure <code>app/api/inquiry/route.ts</code> exists.');
+    } else if (inquiryResp.status === 401 || inquiryResp.status === 403) {
+      addResult('yachts-public', 'Charter Inquiry API (POST)', 'pass', 'Exists (auth-protected) — HTTP ' + inquiryResp.status);
+    } else {
+      addResult('yachts-public', 'Charter Inquiry API (POST)', inquiryResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + inquiryResp.status + ' — ' + (inquiryResp.errorDetail || ''),
+        inquiryResp.status === 500 ? 'The <code>CharterInquiry</code> table may not exist. Run <code>npx prisma db push</code> to create it.' :
+        'Unexpected response from inquiry endpoint.');
+    }
+  } catch (e) { log('  ERROR: ' + e.message); addResult('yachts-public', 'Charter Inquiry API (POST)', 'fail', 'JS Error: ' + e.message); }
+
+  // GET /api/yachts/[id] — Public yacht detail (uses first yacht from search if available)
+  try {
+    // Attempt to get a yacht ID from the search results above
+    let testYachtId = null;
+    try {
+      const searchResp = await testFetch('/api/yachts?limit=1');
+      if (searchResp.ok && searchResp.json && searchResp.json.yachts && searchResp.json.yachts.length > 0) {
+        testYachtId = searchResp.json.yachts[0].id;
+      }
+    } catch (_) { /* use fallback */ }
+
+    if (testYachtId) {
+      const detailResp = await testFetch('/api/yachts/' + testYachtId);
+      if (detailResp.ok && detailResp.json) {
+        const y = detailResp.json.yacht || detailResp.json;
+        addResult('yachts-public', 'Yacht Detail API (GET /[id])', 'pass', 'Connected — ' + (y.name || 'yacht') + ' (' + (y.type || 'unknown') + ')');
+      } else {
+        addResult('yachts-public', 'Yacht Detail API (GET /[id])', detailResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + detailResp.status + ' — ' + (detailResp.errorDetail || ''));
+      }
+    } else {
+      // No yachts in DB yet — test the route exists with a dummy ID
+      const detailResp = await testFetch('/api/yachts/test-nonexistent-id');
+      if (detailResp.status === 404) {
+        addResult('yachts-public', 'Yacht Detail API (GET /[id])', 'pass', 'Route exists — returned 404 for nonexistent yacht (no yachts in DB yet)');
+      } else if (detailResp.status === 500) {
+        addResult('yachts-public', 'Yacht Detail API (GET /[id])', 'fail', 'HTTP 500 — Yacht table may not exist. Run npx prisma db push.');
+      } else {
+        addResult('yachts-public', 'Yacht Detail API (GET /[id])', 'warn', 'HTTP ' + detailResp.status + ' — route returned unexpected status');
+      }
+    }
+  } catch (e) { log('  ERROR: ' + e.message); addResult('yachts-public', 'Yacht Detail API (GET /[id])', 'fail', 'JS Error: ' + e.message); }
+
+  // POST /api/yachts/recommend — AI yacht recommendation
+  try {
+    const recommendResp = await testFetch('/api/yachts/recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        destination: 'Mediterranean',
+        guestCount: 4,
+        budget: 'luxury',
+        preferences: 'sailing, snorkeling',
+        _testMode: true,
+      }),
+    });
+    if (recommendResp.ok && recommendResp.json) {
+      const recs = recommendResp.json.recommendations || recommendResp.json.yachts || [];
+      addResult('yachts-public', 'AI Yacht Recommend API (POST)', 'pass', 'Connected — ' + recs.length + ' recommendation(s) returned');
+    } else if (recommendResp.status === 400) {
+      addResult('yachts-public', 'AI Yacht Recommend API (POST)', 'pass', 'Route exists — returned 400 (validation active)');
+    } else if (recommendResp.status === 404) {
+      addResult('yachts-public', 'AI Yacht Recommend API (POST)', 'warn', 'HTTP 404 — endpoint not deployed yet',
+        'The <code>/api/yachts/recommend</code> route is not deployed. Ensure <code>app/api/yachts/recommend/route.ts</code> exists.');
+    } else {
+      addResult('yachts-public', 'AI Yacht Recommend API (POST)', recommendResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + recommendResp.status + ' — ' + (recommendResp.errorDetail || ''),
+        recommendResp.status === 500 ? 'AI recommendation may require an AI provider key (XAI_API_KEY, ANTHROPIC_API_KEY, etc.).' :
+        'Unexpected response from recommend endpoint.');
+    }
+  } catch (e) { log('  ERROR: ' + e.message); addResult('yachts-public', 'AI Yacht Recommend API (POST)', 'fail', 'JS Error: ' + e.message); }
+
   // ── Full pipeline tests (need CRON_SECRET) ──
   if (testMode === 'full' && cronSecret) {
     const cronHeaders = { 'Authorization': 'Bearer ' + cronSecret };
@@ -2210,6 +2367,186 @@ async function runAllTests() {
         '4. Similarly for Instagram (Meta Graph API), LinkedIn (LinkedIn API), etc.');
     } catch (e) { log('  ERROR in section 21b: ' + e.message); addResult('xapi', 'X/Twitter API', 'fail', 'JS Error: ' + e.message); }
 
+    // ── 23. Yacht Platform — Admin APIs ──
+    log('Testing Yacht Platform admin APIs...');
+    addSection('yachts-admin', '23. Yacht Platform — Admin APIs (Auth Required)');
+    try {
+      // GET /api/admin/yachts — Admin fleet list
+      log('  Testing admin fleet list...');
+      const fleetResp = await testFetch('/api/admin/yachts', { headers: cronHeaders });
+      if (fleetResp.ok && fleetResp.json) {
+        const j = fleetResp.json;
+        const count = j.total ?? j.yachts?.length ?? j.length ?? '?';
+        addResult('yachts-admin', 'Fleet Inventory (Admin)', 'pass', 'Connected — ' + count + ' yacht(s) in fleet');
+        if (j.yachts && j.yachts.length > 0) {
+          addJsonBlock('yachts-admin', { sampleYacht: { name: j.yachts[0].name, type: j.yachts[0].type, status: j.yachts[0].status, builder: j.yachts[0].builder } });
+        }
+      } else if (fleetResp.status === 401 || fleetResp.status === 403) {
+        addResult('yachts-admin', 'Fleet Inventory (Admin)', 'warn', 'HTTP ' + fleetResp.status + ' — Auth rejected. Admin endpoint may require session auth instead of CRON_SECRET',
+          'The <code>/api/admin/yachts</code> endpoint uses <code>withAdminAuth</code> which may require a browser session cookie rather than a Bearer token. Try accessing this route from the admin dashboard.');
+      } else if (fleetResp.status === 404) {
+        addResult('yachts-admin', 'Fleet Inventory (Admin)', 'warn', 'HTTP 404 — endpoint not deployed yet',
+          'The <code>/api/admin/yachts</code> route is not deployed. Ensure <code>app/api/admin/yachts/route.ts</code> exists.');
+      } else {
+        addResult('yachts-admin', 'Fleet Inventory (Admin)', fleetResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + fleetResp.status + ' — ' + (fleetResp.errorDetail || ''),
+          fleetResp.status === 500 ? 'The <code>Yacht</code> table may not exist. Run DB migration to create yacht tables.' : '');
+      }
+
+      // GET /api/admin/yachts/inquiries — Admin inquiries
+      log('  Testing admin inquiries...');
+      const inqResp = await testFetch('/api/admin/yachts/inquiries', { headers: cronHeaders });
+      if (inqResp.ok && inqResp.json) {
+        const j = inqResp.json;
+        const count = j.total ?? j.inquiries?.length ?? j.length ?? '?';
+        const newCount = j.inquiries ? j.inquiries.filter(i => i.status === 'NEW').length : (j.newCount ?? '?');
+        addResult('yachts-admin', 'Charter Inquiries (Admin)', 'pass', 'Connected — ' + count + ' inquiry/ies (' + newCount + ' NEW)');
+        if (j.inquiries && j.inquiries.length > 0) {
+          addJsonBlock('yachts-admin', { recentInquiry: { ref: j.inquiries[0].referenceNumber, status: j.inquiries[0].status, destination: j.inquiries[0].destination, createdAt: j.inquiries[0].createdAt } });
+        }
+      } else if (inqResp.status === 401 || inqResp.status === 403) {
+        addResult('yachts-admin', 'Charter Inquiries (Admin)', 'warn', 'HTTP ' + inqResp.status + ' — Auth rejected (may require session auth)',
+          'The <code>/api/admin/yachts/inquiries</code> endpoint may require a browser session. Test from the admin dashboard.');
+      } else if (inqResp.status === 404) {
+        addResult('yachts-admin', 'Charter Inquiries (Admin)', 'warn', 'HTTP 404 — endpoint not deployed yet',
+          'The <code>/api/admin/yachts/inquiries</code> route is not deployed.');
+      } else {
+        addResult('yachts-admin', 'Charter Inquiries (Admin)', inqResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + inqResp.status + ' — ' + (inqResp.errorDetail || ''),
+          inqResp.status === 500 ? 'The <code>CharterInquiry</code> table may not exist. Run <code>npx prisma db push</code> to create it.' : '');
+      }
+
+      // GET /api/admin/yachts/analytics — Admin analytics
+      log('  Testing admin yacht analytics...');
+      const analyticsResp = await testFetch('/api/admin/yachts/analytics', { headers: cronHeaders });
+      if (analyticsResp.ok && analyticsResp.json) {
+        const j = analyticsResp.json;
+        addResult('yachts-admin', 'Yacht Analytics (Admin)', 'pass', 'Connected — analytics data available');
+        addJsonBlock('yachts-admin', {
+          fleetSize: j.fleetSize ?? j.totalYachts ?? '?',
+          totalInquiries: j.totalInquiries ?? '?',
+          conversionRate: j.conversionRate ?? '?',
+          topDestination: j.topDestination ?? j.topDestinations?.[0]?.name ?? '?',
+        });
+      } else if (analyticsResp.status === 401 || analyticsResp.status === 403) {
+        addResult('yachts-admin', 'Yacht Analytics (Admin)', 'warn', 'HTTP ' + analyticsResp.status + ' — Auth rejected (may require session auth)',
+          'The <code>/api/admin/yachts/analytics</code> endpoint may require a browser session. Test from the admin dashboard.');
+      } else if (analyticsResp.status === 404) {
+        addResult('yachts-admin', 'Yacht Analytics (Admin)', 'warn', 'HTTP 404 — endpoint not deployed yet',
+          'The <code>/api/admin/yachts/analytics</code> route is not deployed.');
+      } else {
+        addResult('yachts-admin', 'Yacht Analytics (Admin)', analyticsResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + analyticsResp.status + ' — ' + (analyticsResp.errorDetail || ''),
+          analyticsResp.status === 500 ? 'Yacht analytics tables may not exist. Ensure all yacht-related Prisma models are migrated.' : '');
+      }
+      // GET /api/admin/yachts/destinations — Admin destinations
+      log('  Testing admin yacht destinations...');
+      const destResp = await testFetch('/api/admin/yachts/destinations', { headers: cronHeaders });
+      if (destResp.ok && destResp.json) {
+        addResult('yachts-admin', 'Yacht Destinations (Admin)', 'pass', 'Connected — ' + (destResp.json.destinations?.length ?? 0) + ' destinations');
+      } else if (destResp.status === 401 || destResp.status === 403) {
+        addResult('yachts-admin', 'Yacht Destinations (Admin)', 'warn', 'HTTP ' + destResp.status + ' — Auth rejected (may require session auth)');
+      } else {
+        addResult('yachts-admin', 'Yacht Destinations (Admin)', destResp.status === 404 ? 'warn' : 'fail', 'HTTP ' + destResp.status);
+      }
+
+      // GET /api/admin/yachts/itineraries — Admin itineraries
+      log('  Testing admin yacht itineraries...');
+      const itinResp = await testFetch('/api/admin/yachts/itineraries', { headers: cronHeaders });
+      if (itinResp.ok && itinResp.json) {
+        addResult('yachts-admin', 'Yacht Itineraries (Admin)', 'pass', 'Connected — ' + (itinResp.json.itineraries?.length ?? 0) + ' itineraries');
+      } else if (itinResp.status === 401 || itinResp.status === 403) {
+        addResult('yachts-admin', 'Yacht Itineraries (Admin)', 'warn', 'HTTP ' + itinResp.status + ' — Auth rejected (may require session auth)');
+      } else {
+        addResult('yachts-admin', 'Yacht Itineraries (Admin)', itinResp.status === 404 ? 'warn' : 'fail', 'HTTP ' + itinResp.status);
+      }
+
+      // GET /api/admin/yachts/brokers — Admin brokers
+      log('  Testing admin yacht brokers...');
+      const brokerResp = await testFetch('/api/admin/yachts/brokers', { headers: cronHeaders });
+      if (brokerResp.ok && brokerResp.json) {
+        addResult('yachts-admin', 'Yacht Brokers (Admin)', 'pass', 'Connected — ' + (brokerResp.json.brokers?.length ?? 0) + ' broker partners');
+      } else if (brokerResp.status === 401 || brokerResp.status === 403) {
+        addResult('yachts-admin', 'Yacht Brokers (Admin)', 'warn', 'HTTP ' + brokerResp.status + ' — Auth rejected (may require session auth)');
+      } else {
+        addResult('yachts-admin', 'Yacht Brokers (Admin)', brokerResp.status === 404 ? 'warn' : 'fail', 'HTTP ' + brokerResp.status);
+      }
+
+      // POST /api/admin/yachts/sync — Admin sync/import
+      log('  Testing admin yacht sync...');
+      const syncResp = await testFetch('/api/admin/yachts/sync', {
+        method: 'POST',
+        headers: { ...cronHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'manual', force: false }),
+      });
+      if (syncResp.ok && syncResp.json) {
+        addResult('yachts-admin', 'Yacht Sync/Import (Admin POST)', 'pass', 'Connected — sync endpoint functional');
+      } else if (syncResp.status === 401 || syncResp.status === 403) {
+        addResult('yachts-admin', 'Yacht Sync/Import (Admin POST)', 'warn', 'HTTP ' + syncResp.status + ' — Auth rejected (may require session auth)',
+          'The <code>/api/admin/yachts/sync</code> endpoint uses <code>withAdminAuth</code>. Try from the admin dashboard.');
+      } else if (syncResp.status === 404) {
+        addResult('yachts-admin', 'Yacht Sync/Import (Admin POST)', 'warn', 'HTTP 404 — endpoint not deployed yet',
+          'The <code>/api/admin/yachts/sync</code> route is not deployed.');
+      } else {
+        addResult('yachts-admin', 'Yacht Sync/Import (Admin POST)', syncResp.status === 500 ? 'fail' : 'warn', 'HTTP ' + syncResp.status + ' — ' + (syncResp.errorDetail || ''),
+          syncResp.status === 500 ? 'Sync tables may not exist. Run <code>npx prisma db push</code> to create them.' : '');
+      }
+
+    } catch (e) { log('  ERROR in section 23: ' + e.message); addResult('yachts-admin', 'Yacht Admin APIs', 'fail', 'JS Error: ' + e.message); }
+
+    // ── 24. Settings Hub & AI Models ──
+    log('Testing Settings Hub & AI Models APIs...');
+    addSection('settings-ai', '24. Settings Hub & AI Models');
+    try {
+      const settingsHeader = { 'Authorization': 'Bearer ' + cronSecret };
+
+      const todoResp = await testFetch('/api/admin/settings/todo', { headers: settingsHeader });
+      if (todoResp.ok && todoResp.json) {
+        const j = todoResp.json;
+        const total = j.summary?.total ?? '?';
+        const critical = j.summary?.critical ?? 0;
+        addResult('settings-ai', 'Settings Todo API', critical > 0 ? 'warn' : 'pass',
+          `${total} action items (${critical} critical)`,
+          critical > 0 ? 'Critical items exist — visit /admin/settings?tab=todo' : null);
+      } else { addResult('settings-ai', 'Settings Todo API', 'fail', 'HTTP ' + (todoResp.status || '?')); }
+
+      const dbStatusResp = await testFetch('/api/admin/settings/db-status', { headers: settingsHeader });
+      if (dbStatusResp.ok && dbStatusResp.json) {
+        const j = dbStatusResp.json;
+        addResult('settings-ai', 'DB Status API', j.overallHealth === 'healthy' ? 'pass' : 'warn',
+          `Health: ${j.overallHealth} | Latency: ${j.dbLatencyMs ?? '?'}ms | ${j.errorCount} table errors`);
+      } else { addResult('settings-ai', 'DB Status API', 'fail', 'HTTP ' + (dbStatusResp.status || '?')); }
+
+      const modelsResp = await testFetch('/api/admin/ai-models', { headers: settingsHeader });
+      if (modelsResp.ok && modelsResp.json) {
+        const j = modelsResp.json;
+        const count = j.providers?.length ?? 0;
+        addResult('settings-ai', 'AI Models API', count > 0 ? 'pass' : 'warn',
+          `${count} providers configured`,
+          count === 0 ? 'No AI providers — visit /admin/settings?tab=ai-models' : null);
+      } else { addResult('settings-ai', 'AI Models API', 'fail', 'HTTP ' + (modelsResp.status || '?')); }
+
+      const routesResp = await testFetch('/api/admin/ai-models?view=routes', { headers: settingsHeader });
+      if (routesResp.ok && routesResp.json) {
+        const j = routesResp.json;
+        addResult('settings-ai', 'Task Router API', 'pass',
+          `${j.routes?.length ?? 0} routes / ${j.tasks?.length ?? 0} tasks`);
+      } else { addResult('settings-ai', 'Task Router API', 'fail', 'HTTP ' + (routesResp.status || '?')); }
+
+      const cronSchedResp = await testFetch('/api/admin/cron-schedule', { headers: settingsHeader });
+      if (cronSchedResp.ok && cronSchedResp.json) {
+        const j = cronSchedResp.json;
+        const s = j.summary || {};
+        addResult('settings-ai', 'Cron Schedule API', s.failing > 0 ? 'warn' : 'pass',
+          `${s.total} jobs | ${s.healthy} healthy | ${s.failing} failing | ${s.neverRun} never run`);
+      } else { addResult('settings-ai', 'Cron Schedule API', 'fail', 'HTTP ' + (cronSchedResp.status || '?')); }
+
+      const articlesResp = await testFetch('/api/admin/articles?limit=5', { headers: settingsHeader });
+      if (articlesResp.ok && articlesResp.json) {
+        const j = articlesResp.json;
+        addResult('settings-ai', 'Rich Articles API', 'pass',
+          `${j.summary?.published ?? 0} published | ${j.summary?.inProgress ?? 0} in pipeline | ${j.indexing?.notSubmitted ?? 0} unindexed`);
+      } else { addResult('settings-ai', 'Rich Articles API', 'fail', 'HTTP ' + (articlesResp.status || '?')); }
+
+    } catch (e) { log('  ERROR in section 24: ' + e.message); addResult('settings-ai', 'Settings Hub', 'fail', 'JS Error: ' + e.message); }
+
   } else if (testMode === 'full' && !cronSecret) {
     addSection('pipeline', '7. Content Generation Pipeline');
     addResult('pipeline', 'Pipeline Tests', 'fail', 'Enter CRON_SECRET above and re-run');
@@ -2335,7 +2672,7 @@ function renderJsonResult() {
     platform: {
       url: window.location.origin,
       activeSites: ['yalla-london'],
-      allSites: ['yalla-london', 'arabaldives', 'french-riviera', 'istanbul', 'thailand'],
+      allSites: ['yalla-london', 'arabaldives', 'french-riviera', 'istanbul', 'thailand', 'zenitha-yachts-med'],
     },
     summary: {
       passed: pass,

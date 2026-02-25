@@ -76,8 +76,17 @@ const FALLBACK_DEFAULTS: AuditConfig = {
       thinContent: true,
       duplicateContent: true,
       orphanPages: true,
+      scaledContentAbuse: true,
+      siteReputationAbuse: true,
+      expiredDomainAbuse: true,
     },
     minWordCount: 1000,
+    thinContentThreshold: 300,
+    duplicateSimilarityThreshold: 0.85,
+    scaledContentMinClusterSize: 3,
+    entityCoverageMinScore: 0.3,
+    outboundDominanceThreshold: 0.7,
+    topicPivotScoreThreshold: 0.6,
   },
   hardGates: [
     {

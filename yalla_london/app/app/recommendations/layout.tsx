@@ -1,3 +1,4 @@
+import React from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { getBaseUrl } from "@/lib/url-utils";
@@ -71,6 +72,30 @@ export default async function Layout({ children }: { children: React.ReactNode }
             { name: "Home", url: baseUrl },
             { name: `${destination} Recommendations`, url: `${baseUrl}/recommendations` },
           ],
+        }}
+      />
+      <StructuredData
+        type="itemList"
+        siteId={siteId}
+        data={{
+          name: `Curated ${destination} Recommendations`,
+          description: `Hand-picked luxury hotels, restaurants, and attractions in ${destination} for Arab travelers`,
+          items: [
+            { name: `Luxury Hotels in ${destination}`, url: `${baseUrl}/hotels` },
+            { name: `${destination} Experiences & Tours`, url: `${baseUrl}/experiences` },
+            { name: `${destination} Events`, url: `${baseUrl}/events` },
+            { name: `${destination} Travel Guides`, url: `${baseUrl}/shop` },
+          ],
+        }}
+      />
+      <StructuredData
+        type="place"
+        siteId={siteId}
+        data={{
+          type: "TouristAttraction",
+          name: `${destination} Curated Recommendations`,
+          description: `Hand-picked luxury hotels, fine dining restaurants, and must-visit attractions in ${destination} for discerning Arab travelers.`,
+          city: destination,
         }}
       />
       {children}

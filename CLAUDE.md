@@ -54,18 +54,45 @@ These are not suggestions. These are hard rules for every commit:
 
 4. **Actionable next steps**: Every response that involves deployment or changes should end with exactly what Khaled needs to do (deploy, wait, check dashboard) and what he should expect to see.
 
+## Active Workstreams (What We Are Building)
+
+There are **3 distinct workstreams** in this repo. They share infrastructure but are separate products. Never confuse them.
+
+| # | Workstream | What It Is | Site ID(s) | Status |
+|---|-----------|-----------|------------|--------|
+| 1 | **Content Engine** | The shared multi-tenant platform: cron jobs, content pipeline, SEO engine, admin dashboard, affiliate injection, design system. Powers ALL sites. | N/A (shared) | Production |
+| 2 | **Yalla London** | Luxury travel blog for Arab travelers visiting London. First site on the engine. Content + affiliate monetization. | `yalla-london` | Active |
+| 3 | **Zenitha Yachts** | Yacht charter platform for the Mediterranean. Reuses 80% of the engine + adds yacht-specific features (fleet inventory, search, AI matchmaker, charter inquiry CRM, itinerary planner). | `zenitha-yachts-med` | **Built — Pending Deploy** |
+
+### Separation Rules (MANDATORY)
+
+1. **Never cross-contaminate site data**: Every DB query for content, articles, topics, affiliates MUST include `siteId` in the where clause. No global queries that return data from all sites.
+2. **Never hardcode site-specific values in shared code**: Use `getSiteConfig(siteId)` for all site-specific branding, domains, prompts, affiliate partners.
+3. **Yacht-specific code lives in yacht-specific paths**: New yacht models, yacht API routes, yacht admin pages — all clearly namespaced. Not mixed into Yalla London paths.
+4. **Shared engine changes must work for ALL sites**: If you modify the content pipeline, SEO gate, cron infrastructure, or admin dashboard — verify it works for both Yalla London AND Zenitha Yachts.
+5. **Design/branding is per-site**: Each site has its own branding folder (`public/branding/{site}/`), destination theme, and design tokens. Never apply one site's visual identity to another.
+
+### Key Reference Docs
+
+| Doc | Purpose |
+|-----|---------|
+| `docs/business-plans/YACHT-CHARTER-DEVELOPMENT-PLAN.md` | Full technical blueprint for Zenitha Yachts (Prisma models, API routes, phase plan) |
+| `config/sites/zenitha-yachts-med.audit.json` | SEO audit config for yacht site |
+| `public/branding/zenitha-yachts/` | Design & branding assets (upload here) |
+
 ## Platform Overview
 
-Multi-tenant luxury travel content platform under **Zenitha.Luxury LLC** (Delaware). 5 branded sites, bilingual (EN/AR), autonomous SEO and content agents, affiliate monetization. Built on Next.js 14 App Router, Prisma ORM, Supabase PostgreSQL, deployed on Vercel Pro.
+Multi-tenant luxury travel content platform under **Zenitha.Luxury LLC** (Delaware). 5 branded travel blog sites + 1 yacht charter platform, bilingual (EN/AR), autonomous SEO and content agents, affiliate monetization. Built on Next.js 14 App Router, Prisma ORM, Supabase PostgreSQL, deployed on Vercel Pro.
 
 ### Parent Entity
 
 **Zenitha.Luxury LLC** — Delaware limited liability company, founded by Khaled N. Aun.
-- **Content Arm:** Zenitha Content Network (5 travel sites below)
+- **Content Arm:** Zenitha Content Network (5 travel blog sites)
+- **Yacht Arm:** Zenitha Yachts (yacht charter platform — zenithayachts.com)
 - **Tech Arm:** ZenithaOS (travel tech, future SaaS)
 - Config: `config/entity.ts`
 
-### Sites
+### Sites — Travel Blogs (Content Engine)
 | Site | Domain | Site ID | Locale | Aesthetic | Status |
 |------|--------|---------|--------|-----------|--------|
 | Yalla London | yalla-london.com | yalla-london | en | Deep navy + gold | Active (primary) |
@@ -73,6 +100,11 @@ Multi-tenant luxury travel content platform under **Zenitha.Luxury LLC** (Delawa
 | Yalla Riviera | yallariviera.com | french-riviera | en | Mediterranean navy + champagne gold + lavender | Planned |
 | Yalla Istanbul | yallaistanbul.com | istanbul | en | Burgundy + copper | Planned |
 | Yalla Thailand | yallathailand.com | thailand | en | Emerald + golden amber | Planned |
+
+### Sites — Yacht Charter Platform
+| Site | Domain | Site ID | Locale | Aesthetic | Status |
+|------|--------|---------|--------|-----------|--------|
+| Zenitha Yachts | zenithayachts.com | zenitha-yachts-med | en | Navy + Gold + Aegean Blue | **Built — Pending Deploy** |
 
 **Note:** Yalla Dubai was replaced by Yalla Riviera (French Riviera / Côte d'Azur) — higher affiliate value, stronger Gulf tourist presence, and uncontested Arabic-language niche.
 
@@ -1143,3 +1175,218 @@ Following the owner's instruction to "Audit → Check connectivity → Fix → L
 5. `7b29393` — fix: critical runtime crashes in content engine + render engine
 
 **Final Status:** All 48+ files created, audited, and verified connected. Zero TypeScript errors. Development plan updated at `docs/DESIGN-SYSTEM-DEVELOPMENT-PLAN.md`
+
+### Session: February 21, 2026 — Master Audit Engine: Risk Scanners, Test Suite Expansion & Phase Completion
+
+**Master Audit Engine — Risk Scanner Implementation (3 new scanner modules):**
+
+Completed the master audit engine by implementing the 3 Google spam policy risk scanners that were previously stubs, plus comprehensive test coverage and integration testing.
+
+**New Risk Scanner Modules:**
+
+1. **`lib/master-audit/risk-scanners/scaled-content.ts`** — Scaled Content Abuse Scanner
+   - Jaccard similarity with 3-word shingles for near-duplicate detection
+   - Union-find algorithm for clustering duplicate pages
+   - Thin content cluster detection (configurable threshold, default 300 words)
+   - Entity coverage scoring (heading topics vs metadata alignment)
+   - Exports `scanScaledContentAbuse(allSignals, config)`
+
+2. **`lib/master-audit/risk-scanners/site-reputation.ts`** — Site Reputation Abuse Scanner
+   - Topic vocabulary extraction from key pages (homepage, blog, about)
+   - Topic drift detection for content pages (blog, information, news)
+   - Outbound link dominance detection (configurable threshold, default 0.7)
+   - Missing editorial ownership detection (checks JSON-LD for author field)
+   - Exports `scanSiteReputationAbuse(allSignals, config)`
+
+3. **`lib/master-audit/risk-scanners/expired-domain.ts`** — Expired Domain Abuse Scanner
+   - Domain topic extraction from hostname (splits camelCase, hyphens, underscores)
+   - Topic pivot score calculation (content vs domain name alignment)
+   - Site-level and page-level pivot analysis
+   - Legacy orphan detection (no inbound links + off-topic content)
+   - Exports `scanExpiredDomainAbuse(allSignals, config, baseUrl)`
+
+**Engine Updates:**
+- `lib/master-audit/index.ts`: Replaced stub `runRiskScanners` with real implementation wiring all 3 scanners
+- `lib/master-audit/types.ts`: Extended `AuditMode` with `'preview' | 'prod'`, extended `RiskScannerConfig` with 6 new threshold fields
+- `lib/master-audit/config-loader.ts`: Added all new risk scanner default values to `FALLBACK_DEFAULTS`
+- `scripts/master-audit.ts`: Fixed TS2448 variable ordering bug, added preview/prod mode support
+- `scripts/weekly-policy-monitor.ts`: Added dated copy storage to `docs/seo/policy-monitor/<date>/`
+
+**Config Files:**
+- `config/sites/_default.audit.json`: Updated with risk scanner enable flags and thresholds
+- `config/sites/zenitha-yachts-med.audit.json`: New yacht site-specific config
+
+**Test Suite Expansion (82 tests across 6 files):**
+
+| Test File | Tests | Coverage |
+|-----------|-------|----------|
+| `config-loader.spec.ts` | 9 | Config loading, deep merge, validation |
+| `extractor.spec.ts` | 16 | HTML signal extraction |
+| `validators.spec.ts` | 19 | HTTP, canonical, schema, sitemap validators |
+| `state-manager.spec.ts` | 11 | Run ID, state persistence, batch management |
+| `risk-scanners.spec.ts` | 17 | All 3 risk scanners (scaled, reputation, expired) |
+| `integration.spec.ts` | 10 | Hard gate evaluation, report generation, full pipeline |
+| **Total** | **82** | **All passing** |
+
+**Documentation Created:**
+- `docs/master-audit/README.md` — Comprehensive guide: quick start, modes, CLI options, outputs, hard gates, validators, risk scanners, batch+resume, configuration, adding new sites
+- `docs/seo/WEEKLY_POLICY_MONITOR.md` — Documents sources monitored, run schedule, output files, diffing mechanism, acting on changes, multi-site support
+
+**Dev Audit Checks (All Green):**
+- TypeScript: 0 errors
+- Lint: Only pre-existing warnings (no new issues)
+- Build: Successful (all pages compiled)
+- Unit tests: 82/82 passing
+- Integration tests: 10/10 passing
+
+**Baseline Audit Run:**
+- Engine ran end-to-end against live site (32 URLs: 16 static + 16 AR variants)
+- Generated all output files: EXEC_SUMMARY.md, FIX_PLAN.md, issues.json, result.json, config_snapshot.json, url_inventory.json, CHANGELOG.md, state.json, crawl-results.json
+- Hard gates evaluated correctly (5/6 pass — HTTP gate fails due to sandbox network restriction, not code issue)
+- Reports archived under `docs/master-audit/<runId>/`
+
+**CLI Usage:**
+```bash
+# Full audit against live site
+npm run audit:master -- --site=yalla-london
+
+# Preview mode (localhost:3000)
+npm run audit:master -- --site=yalla-london --mode=preview
+
+# Custom batch size and concurrency
+npm run audit:master -- --site=yalla-london --mode=prod --batchSize=50 --concurrency=3
+
+# Resume interrupted run
+npm run audit:master -- --resume=<runId>
+
+# Weekly policy monitor
+npm run audit:weekly-policy-monitor -- --site=yalla-london
+```
+
+**Key Files:**
+
+| File | Purpose |
+|------|---------|
+| `lib/master-audit/index.ts` | Main orchestrator — `runMasterAudit()` |
+| `lib/master-audit/types.ts` | All TypeScript interfaces and types |
+| `lib/master-audit/config-loader.ts` | 3-layer config merge with validation |
+| `lib/master-audit/crawler.ts` | Concurrent batch crawler with retry |
+| `lib/master-audit/extractor.ts` | HTML signal extraction (regex-based) |
+| `lib/master-audit/risk-scanners/scaled-content.ts` | Near-duplicate + thin content detection |
+| `lib/master-audit/risk-scanners/site-reputation.ts` | Topic drift + outbound dominance |
+| `lib/master-audit/risk-scanners/expired-domain.ts` | Domain-content mismatch detection |
+| `lib/master-audit/validators/*.ts` | 8 validators (http, canonical, hreflang, sitemap, schema, links, metadata, robots) |
+| `lib/master-audit/reporter.ts` | Markdown report generator |
+| `lib/master-audit/state-manager.ts` | Resume/batch state persistence |
+| `lib/master-audit/inventory-builder.ts` | URL inventory from sitemap + static routes |
+| `config/sites/_default.audit.json` | Default audit config (all sites) |
+| `config/sites/yalla-london.audit.json` | Yalla London-specific overrides |
+| `config/sites/zenitha-yachts-med.audit.json` | Yacht site-specific config |
+| `scripts/master-audit.ts` | CLI entry point |
+| `scripts/weekly-policy-monitor.ts` | Weekly policy check CLI |
+| `test/master-audit/*.spec.ts` | 82 unit + integration tests (6 files) |
+
+### Session: February 21, 2026 — Zenitha Yachts Website: Full Build (68+ files, 8 Prisma models)
+
+**Complete Zenitha Yachts Website — From Zero to Production-Ready:**
+
+Built the entire Zenitha Yachts charter platform (zenithayachts.com) as the second site on the multi-tenant engine. 68+ new files across 6 phases, hermetic separation from Yalla London, full admin dashboard control.
+
+**Phase 0: Database Models (8 models, 8 enums):**
+- `Yacht`, `YachtDestination`, `CharterItinerary`, `CharterInquiry`, `BrokerPartner`, `YachtAvailability`, `YachtAmenity`, `YachtImage`
+- Enums: `YachtType`, `YachtSource`, `InquiryStatus`, `InquiryPriority`, `ItineraryDifficulty`, `BrokerTier`, `AvailabilityType`, `AmenityCategory`
+- Migration SQL: `prisma/migrations/20260221_add_yacht_charter_models/`
+
+**Phase 1: Site Shell + Core Pages (5 files):**
+- `components/site-shell.tsx` — Hermetic site separation (detects siteId, renders ZenithaHeader/Footer vs DynamicHeader/Footer)
+- `components/zenitha/zenitha-header.tsx` — Responsive nav with mobile hamburger, yacht-specific menu items
+- `components/zenitha/zenitha-footer.tsx` — Multi-column footer with destination links, legal
+- `components/zenitha/zenitha-homepage.tsx` — Hero section, featured yachts grid, destinations, how-it-works, testimonials
+- `app/zenitha-tokens.css` (49KB) — Full CSS custom property design system (--z-navy, --z-gold, --z-aegean, etc.)
+
+**Phase 1B-1E: Public Pages (14 pages total):**
+
+| Page | Path | Features |
+|------|------|----------|
+| Homepage | `/` | Hero, featured yachts, destinations, trust signals |
+| Yacht Search | `/yachts` | Filters (type, price, cabins, destination), grid/list view, pagination |
+| Yacht Detail | `/yachts/[slug]` | Gallery, specs, pricing, availability, inquiry CTA, Product JSON-LD |
+| Destinations Hub | `/destinations` | Region grid, filters, yacht counts per destination |
+| Destination Detail | `/destinations/[slug]` | Hero, related yachts, itineraries, Place JSON-LD |
+| Itineraries Hub | `/itineraries` | Duration/difficulty filters, route cards |
+| Itinerary Detail | `/itineraries/[slug]` | Day-by-day timeline, recommended yachts, Trip JSON-LD |
+| Charter Planner | `/charter-planner` | AI multi-step planner (dates, guests, preferences, budget) |
+| Inquiry Form | `/inquiry` | Multi-step form with validation, submits to CharterInquiry table |
+| FAQ | `/faq` | Accordion with FAQPage JSON-LD |
+| How It Works | `/how-it-works` | 4-step visual process guide |
+| About | `/about` | Site-aware (routes to about-zenitha-yachts or about-yalla-london) |
+| Contact | `/contact` | Site-aware (routes to zenitha-contact or yalla-contact) |
+
+**Phase 3: Admin Dashboard (11 pages + 7 API routes):**
+
+| Admin Page | Path | Features |
+|-----------|------|----------|
+| Fleet Inventory | `/admin/yachts` | Table with search, filters, pagination, summary cards |
+| Add Yacht | `/admin/yachts/new` | Full creation form (specs, pricing, capacity, GCC features, images) |
+| Inquiries CRM | `/admin/yachts/inquiries` | Status management, priority, notes, response tracking |
+| Destinations | `/admin/yachts/destinations` | CRUD grid with season, pricing, yacht counts |
+| Itineraries | `/admin/yachts/itineraries` | CRUD with difficulty, duration, destination filters |
+| Brokers | `/admin/yachts/brokers` | Partner table with commission rates, lead tracking |
+| Analytics | `/admin/yachts/analytics` | KPI cards, fleet by type, inquiry funnel, revenue |
+| Sync & Imports | `/admin/yachts/sync` | Manual refresh + future NauSYS/MMK/Charter Index integration |
+
+| API Route | Methods | Auth |
+|-----------|---------|------|
+| `/api/admin/yachts` | GET, POST | withAdminAuth |
+| `/api/admin/yachts/destinations` | GET, POST, PUT, DELETE | withAdminAuth |
+| `/api/admin/yachts/inquiries` | GET, PUT | withAdminAuth |
+| `/api/admin/yachts/itineraries` | GET, POST, PUT, DELETE | withAdminAuth |
+| `/api/admin/yachts/brokers` | GET, POST, PUT, DELETE | withAdminAuth |
+| `/api/admin/yachts/analytics` | GET | withAdminAuth |
+| `/api/admin/yachts/sync` | POST | withAdminAuth |
+| `/api/yachts` | GET | Public |
+| `/api/yachts/[id]` | GET | Public |
+| `/api/yachts/destinations` | GET | Public |
+| `/api/yachts/itineraries` | GET | Public |
+| `/api/yachts/recommend` | POST | Public |
+| `/api/inquiry` | POST | Public (rate-limited) |
+
+**Phase 4: SEO/AIO Compliance:**
+- All `[slug]` pages have `generateMetadata()` with canonical, hreflang, Open Graph, Twitter cards
+- All layout pages have BreadcrumbList structured data
+- Yacht detail: Product JSON-LD, Destination detail: Place JSON-LD, Itinerary detail: Trip JSON-LD, FAQ: FAQPage JSON-LD
+- `app/sitemap.ts` updated with yacht, destination, itinerary URLs
+- `app/llms.txt/route.ts` updated with Zenitha Yachts content
+- `lib/seo/indexing-service.ts` updated with yacht IndexNow integration
+
+**Phase 5: Dashboard Integration:**
+- Admin sidebar updated with "Yacht Management" section (8 items)
+- CommandCenter.tsx updated with YachtPlatformCard
+- test-connections.html updated with 10 yacht API test routes
+
+**Phase 6: Deep Audit + Fixes:**
+- 6-dimension audit: import resolution, API connectivity, Prisma models, SEO, auth, siteId scoping
+- All imports resolve correctly (CLEAN)
+- All auth boundaries enforced (EXCELLENT)
+- All siteId scoping correct (EXCELLENT)
+- Fixed API response mismatch: `stats` → `summary` with `pendingReview` field
+- Fixed pagination interface alignment (`pageSize` → `limit`)
+- Built 3 missing admin pages: itineraries, sync, new (was uncommitted)
+- Created sync API endpoint with manual refresh + future external source support
+
+**Architecture Patterns:**
+1. **SiteShell** for hermetic separation — detects siteId from headers, renders site-specific header/footer
+2. **Server component pages** that route to site-specific client components (about, contact)
+3. **CSS custom properties** for design tokens (not Tailwind config) — `zenitha-tokens.css`
+4. **All DB queries scoped by siteId** — no cross-site data leakage
+5. **withAdminAuth** on all admin APIs, public APIs unprotected
+6. **JSON-LD structured data** on all content pages (Product, Place, Trip, FAQPage, BreadcrumbList)
+
+**TypeScript Status:** ZERO errors across entire codebase (including all 68+ new files)
+
+**Files Created/Modified:** 68+ files — see commit history on `claude/luxury-travel-business-plan-LDaOT`
+
+**Deployment Requirements:**
+- Run `npx prisma migrate deploy` (or `npx prisma db push`) on Supabase for 8 new models
+- Add Vercel env vars: `GA4_MEASUREMENT_ID_ZENITHA_YACHTS_MED`, `GSC_SITE_URL_ZENITHA_YACHTS_MED`, `GA4_PROPERTY_ID_ZENITHA_YACHTS_MED`, `GOOGLE_SITE_VERIFICATION_ZENITHA_YACHTS_MED`
+- Domain `zenithayachts.com` must be pointed to Vercel and added to middleware domain mapping

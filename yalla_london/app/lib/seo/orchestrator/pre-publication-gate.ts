@@ -524,7 +524,7 @@ function countWords(html: string): number {
  * Dynamically builds regex from configured sites — no hardcoded domains.
  */
 async function countInternalLinks(html: string): Promise<number> {
-  let domainPattern = "yalla-london|arabaldives|yallariviera|yallaistanbul|yallathailand";
+  let domainPattern = "yalla-london|arabaldives|yallariviera|yallaistanbul|yallathailand|zenithayachts|zenitha-yachts-med";
   try {
     const { SITES } = await import("@/config/sites");
     const domains = Object.values(SITES)

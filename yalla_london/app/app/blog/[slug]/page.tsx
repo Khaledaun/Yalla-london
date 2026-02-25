@@ -36,7 +36,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   ]);
 }
 
-async function getDbPost(slug: string, siteId?: string) {
+async function getDbPost(slug: string, siteId: string) {
   try {
     const { prisma } = await import("@/lib/db");
     // 3s timeout — fail fast to static fallback. On cold start the Prisma
@@ -45,7 +45,7 @@ async function getDbPost(slug: string, siteId?: string) {
     // Use select instead of include to skip heavy JSON columns (~40% less data)
     return await withTimeout(
       prisma.blogPost.findFirst({
-        where: { slug, published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
+        where: { slug, published: true, deletedAt: null, siteId },
         select: {
           id: true,
           title_en: true,
@@ -82,7 +82,7 @@ async function getDbSlugs(siteId?: string): Promise<string[]> {
     const { prisma } = await import("@/lib/db");
     const posts = await withTimeout(
       prisma.blogPost.findMany({
-        where: { published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
+        where: { published: true, deletedAt: null, siteId },
         select: { slug: true },
       }),
       8000,
@@ -111,7 +111,7 @@ type PostResult =
  * Without this, Prisma fires the identical query twice per page render
  * (Next.js only auto-deduplicates fetch(), not Prisma calls).
  */
-const findPost = cache(async function findPost(slug: string, siteId?: string): Promise<PostResult | null> {
+const findPost = cache(async function findPost(slug: string, siteId: string): Promise<PostResult | null> {
   // Database first — this is where pipeline-generated articles live
   const dbPost = await getDbPost(slug, siteId);
   if (dbPost) return { source: "db", post: dbPost };
@@ -268,6 +268,60 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+// ─── FAQ extraction from content ─────────────────────────────────────────
+
+/**
+ * Extract Q&A pairs from HTML content for AIO-friendly structured data.
+ * Does NOT use deprecated FAQPage schema — uses Article hasPart instead.
+ *
+ * Two extraction strategies:
+ * 1. Headings containing "?" followed by paragraph text (explicit questions)
+ * 2. Headings containing tip/FAQ keywords followed by ordered/unordered lists
+ *    (e.g. "How Can I Verify...", "Tips for...", "What Should I...")
+ */
+function extractFaqPairs(html: string): Array<{ question: string; answer: string }> {
+  const pairs: Array<{ question: string; answer: string }> = [];
+
+  // Strategy 1: Headings with "?" followed by paragraph(s)
+  const faqPattern = /<h[23][^>]*>([^<]*\?[^<]*)<\/h[23]>\s*(?:<[^h][^>]*>)*([\s\S]*?)(?=<h[23]|$)/gi;
+  let match;
+  while ((match = faqPattern.exec(html)) !== null) {
+    const question = match[1].replace(/<[^>]*>/g, "").trim();
+    const rawAnswer = match[2].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    if (question && rawAnswer.length > 30) {
+      pairs.push({ question, answer: rawAnswer.slice(0, 500) });
+    }
+  }
+
+  // Strategy 2: Headings with tip/how-to keywords followed by list items
+  const tipKeywords = /\b(tips?|how\s+(?:to|can|do)|verify|check|avoid|what\s+(?:to|should))\b/i;
+  const tipPattern = /<h[23][^>]*>([\s\S]*?)<\/h[23]>\s*([\s\S]*?)(?=<h[23]|$)/gi;
+  let tipMatch;
+  while ((tipMatch = tipPattern.exec(html)) !== null) {
+    const heading = tipMatch[1].replace(/<[^>]*>/g, "").trim();
+    // Skip if already captured by Strategy 1 (has "?")
+    if (heading.includes("?")) continue;
+    if (!tipKeywords.test(heading)) continue;
+
+    const body = tipMatch[2];
+    // Extract list items from <li> tags
+    const items: string[] = [];
+    const liPattern = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+    let li;
+    while ((li = liPattern.exec(body)) !== null) {
+      const text = li[1].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      if (text.length > 15) items.push(text);
+    }
+    if (items.length >= 2) {
+      // Convert heading to question form if not already
+      const question = heading.endsWith("?") ? heading : `${heading}?`;
+      pairs.push({ question, answer: items.join(" ").slice(0, 500) });
+    }
+  }
+
+  return pairs.slice(0, 8);
+}
+
 // ─── Structured Data (JSON-LD) ─────────────────────────────────────────────
 
 function generateStructuredData(
@@ -292,10 +346,12 @@ function generateStructuredData(
     keywords = post.keywords || [];
   }
 
+  const contentHtml = post.content_en || "";
   const contentText =
     source === "static"
-      ? post.content_en
-      : post.content_en.replace(/<[^>]*>/g, "");
+      ? contentHtml
+      : contentHtml.replace(/<[^>]*>/g, "");
+  const wordCount = contentText.split(/\s+/).filter(Boolean).length;
   const createdAt =
     post.created_at instanceof Date
       ? post.created_at.toISOString()
@@ -307,7 +363,10 @@ function generateStructuredData(
 
   const logoPath = `${baseUrl}/images/${siteSlug}-logo.svg`;
 
-  const articleSchema = {
+  // Extract FAQ-like Q&A pairs from content for AIO citation
+  const faqPairs = extractFaqPairs(contentHtml);
+
+  const articleSchema: Record<string, any> = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: post.title_en,
@@ -335,28 +394,42 @@ function generateStructuredData(
     },
     articleSection: categoryName,
     keywords: keywords.join(", "),
-    wordCount: contentText.split(" ").length,
+    wordCount,
     inLanguage: locale === "ar" ? "ar" : "en-GB",
   };
+
+  // Add Q&A pairs as hasPart for AIO systems (not deprecated FAQPage)
+  if (faqPairs.length > 0) {
+    articleSchema.hasPart = faqPairs.map((faq) => ({
+      "@type": "WebPageElement",
+      "name": faq.question,
+      "text": faq.answer,
+    }));
+  }
+
+  const breadcrumbItems = [
+    { "@type": "ListItem" as const, position: 1, name: "Home", item: baseUrl },
+    { "@type": "ListItem" as const, position: 2, name: "Blog", item: `${baseUrl}/blog` },
+  ];
+  if (categoryName && categoryName !== "Travel") {
+    breadcrumbItems.push({
+      "@type": "ListItem" as const,
+      position: 3,
+      name: categoryName,
+      item: `${baseUrl}/blog/category/${categoryName.toLowerCase().replace(/\s+&\s+/g, "-").replace(/\s+/g, "-")}`,
+    });
+  }
+  breadcrumbItems.push({
+    "@type": "ListItem" as const,
+    position: breadcrumbItems.length + 1,
+    name: post.title_en,
+    item: `${baseUrl}/blog/${post.slug}`,
+  });
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Blog",
-        item: `${baseUrl}/blog`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: post.title_en,
-        item: `${baseUrl}/blog/${post.slug}`,
-      },
-    ],
+    itemListElement: breadcrumbItems,
   };
 
   return { articleSchema, breadcrumbSchema };

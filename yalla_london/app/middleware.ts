@@ -72,6 +72,17 @@ const DOMAIN_TO_SITE: Record<
     siteName: "Yalla Thailand",
     locale: "en",
   },
+  // Zenitha Yachts (Mediterranean)
+  "zenithayachts.com": {
+    siteId: "zenitha-yachts-med",
+    siteName: "Zenitha Yachts",
+    locale: "en",
+  },
+  "www.zenithayachts.com": {
+    siteId: "zenitha-yachts-med",
+    siteName: "Zenitha Yachts",
+    locale: "en",
+  },
   // Legacy/deprecated domains (redirect to main brands)
   "gulfmaldives.com": {
     siteId: "arabaldives",
@@ -140,6 +151,8 @@ const ALLOWED_ORIGINS = new Set([
   "https://www.yallalondon.com",
   "https://yalla-london.com",
   "https://www.yalla-london.com",
+  "https://zenithayachts.com",
+  "https://www.zenithayachts.com",
   "https://arabaldives.com",
   "https://www.arabaldives.com",
   "https://yallariviera.com",
@@ -212,7 +225,11 @@ export function middleware(request: NextRequest) {
       effectivePathname === "/api/admin/setup" ||
       effectivePathname === "/api/admin/migrate" ||
       effectivePathname === "/api/admin/session";
-    if (!isInternalRoute) {
+    // Requests with Bearer token auth (e.g. test-connections.html using
+    // CRON_SECRET) are validated by route-level requireAdminOrCron /
+    // withAdminAuth — no Origin check needed.
+    const hasBearerAuth = (request.headers.get("authorization") || "").startsWith("Bearer ");
+    if (!isInternalRoute && !hasBearerAuth) {
       if (!origin || !ALLOWED_ORIGINS.has(origin)) {
         return NextResponse.json(
           { error: "Forbidden: Invalid origin" },

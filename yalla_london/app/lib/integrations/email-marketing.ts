@@ -51,7 +51,7 @@ export class MailchimpAPI {
               LNAME: subscriber.lastName || '',
               LANGUAGE: subscriber.language,
             },
-            tags: subscriber.tags || ['yalla-london-subscriber'],
+            tags: subscriber.tags || [`${subscriber.source || 'general'}-subscriber`],
           }),
         }
       );

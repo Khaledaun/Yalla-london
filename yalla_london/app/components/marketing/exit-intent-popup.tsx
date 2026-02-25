@@ -10,7 +10,7 @@
  * - Session-aware (won't show repeatedly)
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Gift, FileText, Mail, Loader2, CheckCircle, Clock, Sparkles } from 'lucide-react';
 
 interface ExitIntentPopupProps {

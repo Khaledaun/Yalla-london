@@ -1272,6 +1272,230 @@ Always respond with valid JSON.`,
     ],
     categoryName: { en: "Thailand Guide", ar: "دليل تايلاند" },
   },
+
+  "zenitha-yachts-med": {
+    id: "zenitha-yachts-med",
+    name: "Zenitha Yachts",
+    slug: "zenitha-yachts",
+    domain: "zenithayachts.com",
+    locale: "en",
+    direction: "ltr",
+    status: "development",
+    destination: "Mediterranean",
+    country: "International",
+    currency: "EUR",
+    primaryColor: "#0A1628",
+    secondaryColor: "#C9A96E",
+    systemPromptEN:
+      `You are a senior luxury yacht charter content writer for Zenitha Yachts, a premium bilingual platform for discerning travelers seeking Mediterranean, Arabian Gulf, and Red Sea yacht charters. You combine first-hand sailing expertise with SEO mastery.
+
+Content Standards (mandatory):
+- Write 1,500–2,000 words minimum. Thin content will be rejected.
+- Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed. Never skip heading levels.
+- Include 3+ internal links to other Zenitha Yachts pages (e.g., /blog/*, /yachts, /destinations, /itineraries, /charter-planner).
+- Include 2+ affiliate/booking links (Boatbookings, Click&Boat, GetYourGuide, Booking.com for pre/post-charter hotels) with descriptive anchor text — never "click here".
+- Meta title: 50–60 characters with focus keyword near the start.
+- Meta description: 120–160 characters, compelling with a call to action.
+- Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
+- End with a clear CTA and "Key Takeaways" summary section.
+- Include specific nautical details, marina names, and first-hand sailing observations for authenticity.
+- Avoid generic AI phrases: "nestled in the heart of", "hidden gem", "paradise on earth", "look no further".
+Always respond with valid JSON.`,
+    systemPromptAR:
+      `أنت كاتب محتوى متخصص في تأجير اليخوت الفاخرة لمنصة زينيثا يخوت، منصة ثنائية اللغة متميزة للمسافرين الباحثين عن تأجير اليخوت في البحر الأبيض المتوسط والخليج العربي والبحر الأحمر.
+
+معايير المحتوى (إلزامية):
+- اكتب 1,500–2,000 كلمة كحد أدنى.
+- استخدم تسلسل عناوين صحيح: H1 واحد (العنوان فقط)، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
+- أضف 3+ روابط داخلية لصفحات زينيثا يخوت الأخرى.
+- أضف 2+ روابط حجز/شراكة (Boatbookings، Click&Boat، GetYourGuide) بنص وصفي.
+- عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
+- وصف SEO: 120–160 حرف مع دعوة للعمل.
+- ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+- استخدم تفاصيل بحرية حقيقية وأسماء موانئ محددة لتعزيز المصداقية.
+أجب دائماً بـ JSON صالح.`,
+    topicsEN: [
+      {
+        keyword: "luxury yacht charter Mediterranean guide 2026",
+        longtails: [
+          "best sailing destinations Mediterranean",
+          "catamaran charter Greek Islands",
+          "motor yacht hire French Riviera",
+        ],
+        questions: [
+          "How much does a yacht charter cost in the Mediterranean?",
+          "What is the best time to charter a yacht in Greece?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "halal yacht charter Mediterranean family friendly",
+        longtails: [
+          "halal catering yacht charter",
+          "family friendly catamaran charter",
+          "Muslim friendly sailing holidays",
+        ],
+        questions: [
+          "Can I get halal food on a yacht charter?",
+          "Which yacht charter companies offer halal catering?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "Greek Islands yacht itinerary 7 days sailing",
+        longtails: [
+          "Cyclades sailing route guide",
+          "Ionian Islands yacht itinerary",
+          "Athens to Santorini sailing route",
+        ],
+        questions: [
+          "What is the best 7-day sailing route in Greece?",
+          "Can beginners charter a yacht in the Greek Islands?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "Croatian coast yacht charter Dubrovnik Split guide",
+        longtails: [
+          "Dubrovnik to Split sailing route",
+          "best anchorages Croatian islands",
+          "luxury yacht charter Croatia 2026",
+        ],
+        questions: [
+          "Is Croatia good for yacht charter?",
+          "What is the best route from Dubrovnik to Split by yacht?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "yacht charter cost guide per week breakdown",
+        longtails: [
+          "catamaran charter price per week",
+          "superyacht charter costs Mediterranean",
+          "bareboat vs crewed charter costs",
+        ],
+        questions: [
+          "How much does a catamaran charter cost per week?",
+          "What is included in a yacht charter price?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "Turkish Riviera gulet charter luxury sailing",
+        longtails: [
+          "Bodrum gulet charter guide",
+          "Göcek blue cruise luxury",
+          "traditional Turkish gulet experience",
+        ],
+        questions: [
+          "What is a gulet and how is it different from a yacht?",
+          "What are the best gulet charter routes in Turkey?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "first time yacht charter guide what to expect",
+        longtails: [
+          "first time sailing charter tips",
+          "what to pack for yacht charter",
+          "bareboat vs crewed charter for beginners",
+        ],
+        questions: [
+          "Do I need sailing experience to charter a yacht?",
+          "What should I pack for a week on a yacht?",
+        ],
+        pageType: "guide",
+      },
+    ],
+    topicsAR: [
+      {
+        keyword: "تأجير يخوت فاخرة البحر المتوسط دليل 2026",
+        longtails: [
+          "أفضل وجهات الإبحار المتوسط",
+          "تأجير كاتاماران الجزر اليونانية",
+          "يخت موتور الريفييرا الفرنسية",
+        ],
+        questions: [
+          "كم تكلفة تأجير يخت في البحر المتوسط؟",
+          "ما أفضل وقت لتأجير يخت في اليونان؟",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "تأجير يخوت حلال البحر المتوسط عائلي",
+        longtails: [
+          "طعام حلال على اليخوت",
+          "تأجير كاتاماران عائلي",
+          "رحلات إبحار للمسلمين",
+        ],
+        questions: [
+          "هل يمكن الحصول على طعام حلال على اليخت؟",
+          "أي شركات تأجير يخوت توفر طعام حلال؟",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "مسار إبحار الجزر اليونانية 7 أيام",
+        longtails: [
+          "مسار إبحار جزر سيكلاديز",
+          "مسار يخت جزر أيونيان",
+          "مسار أثينا إلى سانتوريني",
+        ],
+        questions: [
+          "ما أفضل مسار إبحار 7 أيام في اليونان؟",
+          "هل يمكن للمبتدئين تأجير يخت في اليونان؟",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "تكلفة تأجير يخت دليل أسبوعي شامل",
+        longtails: [
+          "سعر تأجير كاتاماران أسبوعي",
+          "تكاليف تأجير سوبريخت المتوسط",
+          "مقارنة تكاليف بيرفوت وطاقم",
+        ],
+        questions: [
+          "كم تكلفة تأجير كاتاماران أسبوعياً؟",
+          "ماذا يشمل سعر تأجير اليخت؟",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "دليل تأجير يخت لأول مرة ماذا تتوقع",
+        longtails: [
+          "نصائح رحلة إبحار أولى",
+          "ماذا تحزم لرحلة يخت",
+          "بيرفوت أم طاقم للمبتدئين",
+        ],
+        questions: [
+          "هل أحتاج خبرة إبحار لتأجير يخت؟",
+          "ماذا يجب أن أحزم لأسبوع على يخت؟",
+        ],
+        pageType: "guide",
+      },
+    ],
+    affiliateCategories: [
+      "yacht",
+      "hotel",
+      "activity",
+      "transport",
+      "restaurant",
+    ],
+    primaryKeywordsEN: [
+      "yacht charter mediterranean",
+      "luxury yacht charter",
+      "catamaran charter greece",
+      "halal yacht charter",
+      "yacht charter cost",
+    ],
+    primaryKeywordsAR: [
+      "تأجير يخوت البحر المتوسط",
+      "تأجير يخوت فاخرة",
+      "تأجير كاتاماران اليونان",
+      "تأجير يخوت حلال",
+    ],
+    categoryName: { en: "Yacht Charter Guide", ar: "دليل تأجير اليخوت" },
+  },
 };
 
 /** Get all configured site IDs (all sites, any status) */
@@ -1322,6 +1546,97 @@ export function getDefaultSiteId(): string {
 export function getDefaultSiteName(): string {
   const id = getDefaultSiteId();
   return SITES[id]?.name || "Yalla London";
+}
+
+/**
+ * Resolve siteId from hostname string.
+ * Useful when x-site-id header might be missing and you have the hostname.
+ * Returns undefined if hostname is not mapped.
+ */
+export function getSiteIdFromHostname(hostname: string): string | undefined {
+  // Match against configured site domains
+  for (const [id, site] of Object.entries(SITES)) {
+    if (
+      hostname === site.domain ||
+      hostname === `www.${site.domain}` ||
+      hostname.endsWith(`.${site.domain}`)
+    ) {
+      return id;
+    }
+  }
+  return undefined;
+}
+
+/** Check if a site is a yacht charter platform (as opposed to a content blog) */
+export function isYachtSite(siteId: string): boolean {
+  return siteId === "zenitha-yachts-med";
+}
+
+// ─── Per-site SEO metadata helpers ──────────────────────────────────
+// These provide site-specific tagline, description, and Arabic name for
+// generateMetadata() so each domain gets correct metadata, not the Yalla
+// London brand-templates.ts fallback.
+
+const SITE_META: Record<string, { tagline: string; taglineAr: string; nameAr: string; description: string; descriptionAr: string }> = {
+  "yalla-london": {
+    tagline: "Luxury London Guide",
+    taglineAr: "دليل لندن الفاخر",
+    nameAr: "يالا لندن",
+    description: "Yalla London connects Arab travellers with London's finest luxury hotels, halal restaurants, and exclusive experiences. Bilingual guide in English & Arabic.",
+    descriptionAr: "يالا لندن يربط المسافرين العرب بأفخم فنادق لندن والمطاعم الحلال والتجارب الحصرية.",
+  },
+  "zenitha-yachts-med": {
+    tagline: "Luxury Yacht Charter",
+    taglineAr: "استئجار يخوت فاخرة",
+    nameAr: "زينيثا يخوت",
+    description: "Zenitha Yachts offers curated luxury yacht charters across the Mediterranean, Arabian Gulf & beyond. Halal catering, professional crews, and bespoke itineraries.",
+    descriptionAr: "زينيثا يخوت تقدم رحلات يخوت فاخرة في البحر المتوسط والخليج العربي. طعام حلال وطواقم محترفة ومسارات مخصصة.",
+  },
+  "arabaldives": {
+    tagline: "Luxury Maldives Guide",
+    taglineAr: "دليل المالديف الفاخر",
+    nameAr: "عرب المالديف",
+    description: "Arabaldives connects Arab travellers with the finest Maldives resorts, halal dining, and overwater experiences. Arabic-first luxury guide.",
+    descriptionAr: "عرب المالديف يربط المسافرين العرب بأفخم منتجعات المالديف والمطاعم الحلال.",
+  },
+  "french-riviera": {
+    tagline: "Luxury Riviera Guide",
+    taglineAr: "دليل الريفيرا الفاخر",
+    nameAr: "يالا ريفييرا",
+    description: "Yalla Riviera connects Arab travellers with the finest French Riviera luxury hotels, halal restaurants, and Côte d'Azur experiences.",
+    descriptionAr: "يالا ريفييرا يربط المسافرين العرب بأفخم فنادق الريفيرا الفرنسية والمطاعم الحلال.",
+  },
+  "istanbul": {
+    tagline: "Luxury Istanbul Guide",
+    taglineAr: "دليل إسطنبول الفاخر",
+    nameAr: "يالا إسطنبول",
+    description: "Yalla Istanbul connects Arab travellers with Istanbul's finest luxury hotels, halal restaurants, and cultural experiences.",
+    descriptionAr: "يالا إسطنبول يربط المسافرين العرب بأفخم فنادق إسطنبول والمطاعم الحلال.",
+  },
+  "thailand": {
+    tagline: "Luxury Thailand Guide",
+    taglineAr: "دليل تايلاند الفاخر",
+    nameAr: "يالا تايلاند",
+    description: "Yalla Thailand connects Arab travellers with Thailand's finest luxury resorts, halal restaurants, and island experiences.",
+    descriptionAr: "يالا تايلاند يربط المسافرين العرب بأفخم منتجعات تايلاند والمطاعم الحلال.",
+  },
+};
+
+/** Get site tagline for metadata. Falls back to generic luxury guide. */
+export function getSiteTagline(siteId: string): string {
+  return SITE_META[siteId]?.tagline || "Luxury Travel Guide";
+}
+
+/** Get site Arabic name for metadata. */
+export function getSiteNameAr(siteId: string): string {
+  return SITE_META[siteId]?.nameAr || SITES[siteId]?.name || "Zenitha";
+}
+
+/** Get site description for metadata. */
+export function getSiteDescription(siteId: string, lang: "en" | "ar" = "en"): string {
+  const meta = SITE_META[siteId];
+  if (!meta) return `Luxury travel guide for ${SITES[siteId]?.destination || "discerning travellers"}`;
+  return lang === "ar" ? meta.descriptionAr : meta.description;
 }
 
 /** Get site config by ID */

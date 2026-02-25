@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   MapPin, Search, Heart, Star, Clock, CheckCircle, Globe,
   Bookmark, Calendar, MessageCircle, Mail, Share, Image,

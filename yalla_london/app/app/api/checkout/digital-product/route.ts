@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { getBaseUrl } from "@/lib/url-utils";
+import { getDefaultSiteId } from "@/config/sites";
 
 /**
  * Digital Product Checkout
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
 
       await prisma.purchase.create({
         data: {
-          site_id: product.site_id || "yalla-london",
+          site_id: product.site_id || getDefaultSiteId(),
           product_id: product.id,
           customer_email: customerEmail,
           customer_name: customerName || null,
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
     // Create a pending purchase record first
     const purchase = await prisma.purchase.create({
       data: {
-        site_id: product.site_id || "yalla-london",
+        site_id: product.site_id || getDefaultSiteId(),
         product_id: product.id,
         customer_email: customerEmail,
         customer_name: customerName || null,

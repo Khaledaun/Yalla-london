@@ -12,7 +12,7 @@ import {
   ShoppingCart, Command, Plus, Zap, Link2, Store, Activity,
   BookOpen, Newspaper, ShieldCheck, Edit3, Home, AlertTriangle,
   Clock, Play, Database, RefreshCw, Layers, Cpu, Hash, Radio,
-  Send, Eye, Shield, Wrench, Package,
+  Send, Eye, Shield, Wrench, Package, Ship, Anchor, MapPin,
 } from 'lucide-react'
 
 // ── Navigation Structure ──────────────────────────────────────────────────────
@@ -117,6 +117,23 @@ const navigation = [
     ],
   },
   {
+    id: 'yachts',
+    label: 'Yacht Management',
+    labelAr: 'إدارة اليخوت',
+    icon: Ship,
+    href: '/admin/yachts',
+    items: [
+      { label: 'Fleet Inventory',     href: '/admin/yachts' },
+      { label: 'Add Yacht',           href: '/admin/yachts/new' },
+      { label: 'Destinations',        href: '/admin/yachts/destinations' },
+      { label: 'Charter Inquiries',   href: '/admin/yachts/inquiries' },
+      { label: 'Itineraries',         href: '/admin/yachts/itineraries' },
+      { label: 'Broker Partners',     href: '/admin/yachts/brokers' },
+      { label: 'Sync & Imports',      href: '/admin/yachts/sync' },
+      { label: 'Yacht Analytics',     href: '/admin/yachts/analytics' },
+    ],
+  },
+  {
     id: 'monetization',
     label: 'Monetization',
     labelAr: 'الإيرادات',
@@ -137,16 +154,21 @@ const navigation = [
     icon: Wrench,
     href: '/admin/operations',
     items: [
-      { label: 'Operations Hub',  href: '/admin/operations' },
-      { label: 'Skills Engine',   href: '/admin/operations/skills' },
-      { label: 'Feature Flags',   href: '/admin/feature-flags' },
-      { label: 'API Keys',        href: '/admin/command-center/settings/api-keys' },
-      { label: 'Site Control',    href: '/admin/site-control' },
-      { label: 'API Security',    href: '/admin/api-security' },
-      { label: 'Variable Vault',  href: '/admin/variable-vault' },
-      { label: 'Theme',           href: '/admin/settings/theme' },
-      { label: 'Team',            href: '/admin/team' },
-      { label: 'CRM',             href: '/admin/crm' },
+      { label: 'Settings Hub',       href: '/admin/settings' },
+      { label: 'To-Do List',       href: '/admin/settings?tab=todo' },
+      { label: 'AI Models',        href: '/admin/settings?tab=ai-models' },
+      { label: 'Database',         href: '/admin/settings?tab=database' },
+      { label: 'Variable Vault',   href: '/admin/settings?tab=variable-vault' },
+      { label: 'Operations Hub',   href: '/admin/operations' },
+      { label: 'Skills Engine',    href: '/admin/operations/skills' },
+      { label: 'Feature Flags',    href: '/admin/settings/feature-flags' },
+      { label: 'API Keys',         href: '/admin/command-center/settings/api-keys' },
+      { label: 'Site Control',     href: '/admin/site-control' },
+      { label: 'API Security',     href: '/admin/api-security' },
+      { label: 'Full Var Vault',   href: '/admin/variable-vault' },
+      { label: 'Theme',            href: '/admin/settings/theme' },
+      { label: 'Team',             href: '/admin/team' },
+      { label: 'CRM',              href: '/admin/crm' },
     ],
   },
 ]
@@ -217,7 +239,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
         <div className="text-center">
           <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
                style={{ backgroundColor: 'var(--neu-bg,#EDE9E1)', boxShadow: 'var(--neu-raised)' }}>
-            <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 22, color: '#C8322B' }}>Y</span>
+            <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 22, color: '#C8322B' }}>HQ</span>
           </div>
           <p style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, color: '#78716C', textTransform: 'uppercase', letterSpacing: 2 }}>Loading HQ…</p>
         </div>
@@ -244,12 +266,12 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
         <Link href="/admin" onClick={onClose} className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
                style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-raised)' }}>
-            <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 17, color: '#C8322B' }}>Y</span>
+            <span style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 800, fontSize: 17, color: '#C8322B' }}>HQ</span>
           </div>
           {sidebarOpen && (
             <div>
               <div style={{ fontFamily: "'Anybody',sans-serif", fontWeight: 700, fontSize: 14, color: '#1C1917', letterSpacing: -0.3 }}>
-                Yalla London
+                Zenitha HQ
               </div>
               <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 8, color: '#78716C', textTransform: 'uppercase', letterSpacing: 2 }}>
                 HQ OPS
@@ -504,12 +526,7 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
               New Article
             </Link>
 
-            {/* Notifications */}
-            <button onClick={() => setNotificationsOpen(!notificationsOpen)}
-                    className="relative p-2 rounded-lg transition-all"
-                    style={{ backgroundColor: 'var(--neu-bg)', boxShadow: 'var(--neu-flat)', color: '#78716C' }}>
-              <Bell size={16} />
-            </button>
+            {/* M-013: Notification bell removed — no notification panel exists yet */}
 
             {/* User menu */}
             <div className="relative">
@@ -541,7 +558,8 @@ export function MophyAdminLayout({ children, pageTitle }: Props) {
                     <div className="p-2 space-y-0.5">
                       {[
                         { label: 'Profile', href: '/admin/team', icon: User },
-                        { label: 'Settings', href: '/admin/settings/theme', icon: Settings },
+                        { label: 'Settings', href: '/admin/settings', icon: Settings },
+                        { label: 'AI Models', href: '/admin/settings?tab=ai-models', icon: Brain },
                         { label: 'API Keys', href: '/admin/command-center/settings/api-keys', icon: Key },
                       ].map(({ label, href, icon: Icon }) => (
                         <Link key={href} href={href} onClick={() => setUserMenuOpen(false)}

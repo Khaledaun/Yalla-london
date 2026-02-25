@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -397,7 +397,7 @@ export function NewsCarousel({ items: propItems }: NewsCarouselProps) {
 
                           {/* Image credit */}
                           {item.image_credit && (
-                            <span className="absolute bottom-2 right-2 text-[10px] text-white/70 bg-charcoal/50 px-1.5 py-0.5 rounded">
+                            <span className="absolute bottom-2 right-2 text-[11px] text-white/70 bg-charcoal/50 px-1.5 py-0.5 rounded">
                               {item.image_credit}
                             </span>
                           )}

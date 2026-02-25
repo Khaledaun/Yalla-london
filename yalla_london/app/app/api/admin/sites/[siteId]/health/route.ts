@@ -171,7 +171,7 @@ export async function GET(
   } catch (error) {
     console.error("[Site Health] Error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch site health" },
+      { error: "Failed to fetch site health" },
       { status: 500 },
     );
   }

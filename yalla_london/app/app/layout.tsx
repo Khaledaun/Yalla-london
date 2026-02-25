@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
+import React, { Suspense } from "react";
 import { headers } from "next/headers";
 import Script from "next/script";
 import "./globals.css";
+import "./zenitha-tokens.css";
 import { LanguageProvider } from "@/components/language-provider";
-import { DynamicHeader } from "@/components/dynamic-header";
-import { Footer } from "@/components/footer";
+import { SiteShell } from "@/components/site-shell";
 import { ThemeProvider } from "@/components/theme-provider";
 import { BrandThemeProvider } from "@/components/brand-theme-provider";
 import { StructuredData } from "@/components/structured-data";
@@ -16,17 +16,32 @@ import { brandConfig } from "@/config/brand-config";
 // HreflangTags component removed — hreflang is handled by generateMetadata().alternates.languages
 // in each layout/page file. The component was causing duplicate hreflang tags on every page.
 import { getBaseUrl } from "@/lib/url-utils";
-import { getDefaultSiteId, getSiteConfig } from "@/config/sites";
+import { getDefaultSiteId, getSiteConfig, getSiteDescription, getSiteTagline, getSiteNameAr, isYachtSite as checkIsYachtSite } from "@/config/sites";
 import type { Language } from "@/lib/types";
 
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
-  const siteConfig = getSiteConfig(getDefaultSiteId());
+
+  // Read the actual site identity from middleware headers — not the static default.
+  // This is critical for multi-site: zenithayachts.com must NOT fall back to yalla-london.
+  let siteId = getDefaultSiteId();
+  try {
+    const headersList = await headers();
+    siteId = headersList.get("x-site-id") || siteId;
+  } catch {
+    // headers() unavailable during static generation — use default
+  }
+
+  const siteConfig = getSiteConfig(siteId);
+  const siteSlug = siteConfig?.slug || "yalla-london";
   const siteName = siteConfig?.name || brandConfig.siteName;
+  const siteDescription = getSiteDescription(siteId);
+  const siteTagline = getSiteTagline(siteId);
+  const siteNameAr = getSiteNameAr(siteId);
 
   return {
-    title: `${siteName} - ${brandConfig.tagline} | ${brandConfig.siteNameAr}`,
-    description: brandConfig.description,
+    title: `${siteName} - ${siteTagline} | ${siteNameAr}`,
+    description: siteDescription,
     authors: [{ name: siteName }],
     creator: siteName,
     publisher: siteName,
@@ -36,23 +51,23 @@ export async function generateMetadata(): Promise<Metadata> {
       alternateLocale: "ar_SA",
       url: baseUrl,
       siteName,
-      title: `${siteName} - ${brandConfig.tagline}`,
-      description: brandConfig.description,
+      title: `${siteName} - ${siteTagline}`,
+      description: siteDescription,
       images: [
         {
-          url: `${baseUrl}/images/${siteConfig?.slug || 'yalla-london'}-og.jpg`,
+          url: `${baseUrl}/api/og?siteId=${siteId}`,
           width: 1200,
           height: 630,
-          alt: `${siteName} - ${brandConfig.tagline}`,
+          alt: `${siteName} - ${siteTagline}`,
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      site: `@${siteConfig?.slug || 'yallalondon'}`,
-      title: `${siteName} - ${brandConfig.tagline}`,
-      description: brandConfig.description,
-      images: [`${baseUrl}/images/${siteConfig?.slug || 'yalla-london'}-og.jpg`],
+      site: `@${siteSlug}`,
+      title: `${siteName} - ${siteTagline}`,
+      description: siteDescription,
+      images: [`${baseUrl}/api/og?siteId=${siteId}`],
     },
     robots: {
       index: true,
@@ -95,8 +110,10 @@ export default async function RootLayout({
     "French Riviera": { region: "FR-PAC", placename: "Nice", position: "43.7102;7.2620", icbm: "43.7102, 7.2620" },
     "Istanbul": { region: "TR-34", placename: "Istanbul", position: "41.0082;28.9784", icbm: "41.0082, 28.9784" },
     "Thailand": { region: "TH-10", placename: "Bangkok", position: "13.7563;100.5018", icbm: "13.7563, 100.5018" },
+    "Mediterranean": { region: "GR", placename: "Athens", position: "37.9838;23.7275", icbm: "37.9838, 23.7275" },
   };
   const geo = geoData[currentSiteConfig?.destination || "London"] || geoData["London"];
+  const isYachtSite = checkIsYachtSite(siteId);
 
   return (
     <html lang={locale} dir={dir} suppressHydrationWarning>
@@ -110,13 +127,23 @@ export default async function RootLayout({
           crossOrigin=""
         />
 
+        {/* Zenitha Yachts font preloading — only loaded for yacht site */}
+        {isYachtSite && (
+          <>
+            <link
+              href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
+              rel="stylesheet"
+            />
+          </>
+        )}
+
         {/* PWA Meta Tags — theme-color and title from site config */}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content={currentSiteConfig?.primaryColor || "#C8322B"} />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content={currentSiteConfig?.name || "Yalla London"} />
+        <meta name="apple-mobile-web-app-title" content={currentSiteConfig?.name || brandConfig.siteName} />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
 
         {/* Geo-targeting Meta Tags — per-site destination */}
@@ -136,7 +163,7 @@ export default async function RootLayout({
           ) : null;
         })()}
       </head>
-      <body className="font-editorial antialiased" suppressHydrationWarning>
+      <body className={`antialiased ${isYachtSite ? 'font-body' : 'font-editorial'}`} suppressHydrationWarning>
         <NextAuthSessionProvider>
           <BrandThemeProvider>
             <ThemeProvider
@@ -152,11 +179,9 @@ export default async function RootLayout({
                 <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-white focus:text-charcoal focus:rounded focus:shadow-lg focus:text-sm focus:font-semibold">
                   Skip to content
                 </a>
-                <div className="min-h-screen flex flex-col">
-                  <DynamicHeader />
-                  <main id="main-content" className="flex-1 pt-20">{children}</main>
-                  <Footer />
-                </div>
+                <SiteShell siteId={siteId}>
+                  {children}
+                </SiteShell>
                 <CookieConsentBanner />
               </LanguageProvider>
             </ThemeProvider>

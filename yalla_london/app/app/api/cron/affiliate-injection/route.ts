@@ -230,9 +230,44 @@ function getAffiliateRulesForSite(siteId: string): AffiliateRule[] {
         ],
       },
     ],
+    'zenitha-yachts-med': [
+      {
+        keywords: ["yacht", "yachts", "charter", "sailing", "boat", "catamaran", "gulet", "يخت", "إبحار", "قارب"],
+        affiliates: [
+          { name: "Boatbookings", url: "https://www.boatbookings.com", param: `?ref=${process.env.BOATBOOKINGS_AFFILIATE_ID || ""}`, category: "yacht" },
+          { name: "Click&Boat", url: "https://www.clickandboat.com", param: `?aff=${process.env.CLICKANDBOAT_AFFILIATE_ID || ""}`, category: "yacht" },
+        ],
+      },
+      {
+        keywords: ["tour", "tours", "experience", "excursion", "marine", "snorkeling", "diving", "جولة", "تجربة", "غوص"],
+        affiliates: [
+          { name: "GetYourGuide", url: "https://www.getyourguide.com", param: `?partner_id=${process.env.GETYOURGUIDE_AFFILIATE_ID || ""}`, category: "activity" },
+          { name: "Viator", url: "https://www.viator.com", param: `?pid=${process.env.VIATOR_AFFILIATE_ID || ""}`, category: "activity" },
+        ],
+      },
+      {
+        keywords: ["hotel", "hotels", "accommodation", "stay", "marina", "port", "فندق", "فنادق", "ميناء"],
+        affiliates: [
+          { name: "Booking.com", url: "https://www.booking.com", param: `?aid=${process.env.BOOKING_AFFILIATE_ID || ""}`, category: "hotel" },
+          { name: "Agoda", url: "https://www.agoda.com", param: `?cid=${process.env.AGODA_AFFILIATE_ID || ""}`, category: "hotel" },
+        ],
+      },
+      {
+        keywords: ["transfer", "airport", "taxi", "car", "transport", "نقل", "مطار"],
+        affiliates: [
+          { name: "Blacklane", url: "https://www.blacklane.com", param: `?aff=${process.env.BLACKLANE_AFFILIATE_ID || ""}`, category: "transport" },
+        ],
+      },
+      {
+        keywords: ["insurance", "travel insurance", "safety", "protection", "تأمين"],
+        affiliates: [
+          { name: "Allianz Travel", url: "https://www.allianztravelinsurance.com", param: `?utm_source=${utmSource}`, category: "insurance" },
+        ],
+      },
+    ],
   };
 
-  return SITE_RULES[siteId] || SITE_RULES['yalla-london'] || [];
+  return SITE_RULES[siteId] || [];
 }
 
 function escapeHtml(str: string): string {
@@ -325,7 +360,7 @@ async function handleAffiliateInjection(request: NextRequest) {
     const { prisma } = await import("@/lib/db");
 
     // Find published posts that still have affiliate placeholders OR no affiliate links
-    const { getActiveSiteIds } = await import("@/config/sites");
+    const { getActiveSiteIds, getDefaultSiteId } = await import("@/config/sites");
     const activeSiteIds = getActiveSiteIds();
     const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const posts = await prisma.blogPost.findMany({
@@ -358,7 +393,7 @@ async function handleAffiliateInjection(request: NextRequest) {
     for (const post of needsInjection) {
       if (Date.now() - startTime > BUDGET_MS) break;
 
-      const postSiteId = post.siteId || "yalla-london";
+      const postSiteId = post.siteId || getDefaultSiteId();
       const enResult = injectAffiliates(post.content_en, postSiteId);
       const arResult = injectAffiliates(post.content_ar, postSiteId);
 

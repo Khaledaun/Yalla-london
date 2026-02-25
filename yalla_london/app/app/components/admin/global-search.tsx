@@ -7,7 +7,7 @@
  * Accessible via Cmd/Ctrl+K shortcut from anywhere in the admin dashboard.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search,

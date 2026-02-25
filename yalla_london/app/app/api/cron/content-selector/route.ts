@@ -26,11 +26,14 @@ async function handleContentSelector(request: NextRequest) {
   if (request.nextUrl.searchParams.get("healthcheck") === "true") {
     try {
       const { prisma } = await import("@/lib/db");
+      const { getActiveSiteIds } = await import("@/config/sites");
+      const activeSites = getActiveSiteIds();
+      const siteFilter = activeSites.length > 0 ? { site_id: { in: activeSites } } : {};
       const reservoirCount = await prisma.articleDraft.count({
-        where: { current_phase: "reservoir" },
+        where: { current_phase: "reservoir", ...siteFilter },
       }).catch(() => 0);
       const publishedCount = await prisma.articleDraft.count({
-        where: { current_phase: "published" },
+        where: { current_phase: "published", ...siteFilter },
       }).catch(() => 0);
       return NextResponse.json({
         status: "healthy",

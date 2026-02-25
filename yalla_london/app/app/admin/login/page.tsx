@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Eye, EyeOff, Lock, Mail, User, Shield, RefreshCw } from 'lucide-react'
 
 export default function AdminLogin() {
@@ -393,8 +393,9 @@ export default function AdminLogin() {
             <p className="text-xs font-medium text-gray-500 mb-2">System Status</p>
             <div className="flex flex-wrap gap-2">
               {Object.entries(systemHealth).map(([key, value]) => {
-                const isOk = value === 'SET' || value === 'working' || value === 'available' || value.startsWith('connected')
-                const isMissing = value === 'MISSING' || value.startsWith('error') || value.startsWith('import error')
+                const strVal = value as string
+                const isOk = strVal === 'SET' || strVal === 'working' || strVal === 'available' || strVal.startsWith('connected')
+                const isMissing = strVal === 'MISSING' || strVal.startsWith('error') || strVal.startsWith('import error')
                 return (
                   <span
                     key={key}

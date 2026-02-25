@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
@@ -19,27 +19,29 @@ interface YallaHomepageProps {
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-const heroSlides = {
-  en: [
-    {
-      title: 'Discover London',
-      subtitle: 'Like Never Before',
-      description: 'Your definitive Arabic guide to the best of London — curated luxury experiences, halal dining, and insider secrets.',
-      image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80',
-      cta: 'Start Exploring',
-      ctaLink: '/blog',
-    },
-  ],
-  ar: [
-    {
-      title: 'اكتشف لندن',
-      subtitle: 'كما لم ترها من قبل',
-      description: 'دليلك العربي الشامل لأفضل ما في لندن — تجارب فاخرة مختارة، مطاعم حلال، وأسرار من الداخل.',
-      image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1920&q=80',
-      cta: 'ابدأ الاستكشاف',
-      ctaLink: '/blog',
-    },
-  ],
+const HERO_IMAGES = [
+  { src: '/images/hero/tower-bridge.jpg', alt: 'Tower Bridge with London red bus' },
+  { src: '/images/hero/london-city-night.jpg', alt: 'London city view at night' },
+  { src: '/images/hero/london-tube.jpg', alt: 'London Underground station' },
+]
+
+const HERO_INTERVAL_MS = 3000
+
+const heroContent = {
+  en: {
+    title: 'Discover London',
+    subtitle: 'Like Never Before',
+    description: 'Your definitive Arabic guide to the best of London — curated luxury experiences, halal dining, and insider secrets.',
+    cta: 'Start Exploring',
+    ctaLink: '/blog',
+  },
+  ar: {
+    title: 'اكتشف لندن',
+    subtitle: 'كما لم ترها من قبل',
+    description: 'دليلك العربي الشامل لأفضل ما في لندن — تجارب فاخرة مختارة، مطاعم حلال، وأسرار من الداخل.',
+    cta: 'ابدأ الاستكشاف',
+    ctaLink: '/blog',
+  },
 }
 
 const featuredArticle = {
@@ -47,7 +49,7 @@ const featuredArticle = {
     slug: 'best-halal-restaurants-central-london-2025',
     category: 'Editor\'s Pick',
     title: 'Best Halal Restaurants in Central London 2025',
-    excerpt: 'From Mayfair fine dining to hidden gems in Soho — discover the finest halal dining experiences in the heart of London, personally reviewed by our team.',
+    excerpt: '25+ vetted halal restaurants across Mayfair, Soho and Knightsbridge with honest pricing, certification notes and booking tips.',
     image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
     author: 'Yalla London Team',
     date: 'Jan 15, 2026',
@@ -57,7 +59,7 @@ const featuredArticle = {
     slug: 'best-halal-restaurants-central-london-2025',
     category: 'اختيار المحرر',
     title: 'أفضل المطاعم الحلال في وسط لندن 2025',
-    excerpt: 'من المطاعم الفاخرة في مايفير إلى الجواهر المخفية في سوهو — اكتشف أفضل تجارب الطعام الحلال في قلب لندن.',
+    excerpt: 'أكثر من 25 مطعماً حلالاً في مايفير وسوهو ونايتسبريدج مع أسعار دقيقة وملاحظات الاعتماد ونصائح الحجز.',
     image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
     author: 'فريق يلا لندن',
     date: '15 يناير 2026',
@@ -181,14 +183,14 @@ const experiences = {
 
 const hotels = {
   en: [
-    { id: '1', name: 'The Dorchester', location: 'Mayfair', rating: 5, price: 'From £650/night', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80', badge: 'Luxury' },
-    { id: '2', name: 'The Ritz London', location: 'Piccadilly', rating: 5, price: 'From £750/night', image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80', badge: '5 Star' },
-    { id: '3', name: 'Claridges', location: 'Mayfair', rating: 5, price: 'From £580/night', image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80', badge: 'Historic' },
+    { id: '1', name: 'The Dorchester', location: 'Mayfair', category: 'Ultra-Luxury Stays', rating: 5, price: 'From £650/night', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80', badge: 'Luxury' },
+    { id: '2', name: 'The Ritz London', location: 'Piccadilly', category: 'Designer Hotels', rating: 5, price: 'From £750/night', image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80', badge: '5 Star' },
+    { id: '3', name: 'Claridges', location: 'Mayfair', category: 'Heritage Collection', rating: 5, price: 'From £580/night', image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80', badge: 'Historic' },
   ],
   ar: [
-    { id: '1', name: 'دورتشستر', location: 'مايفير', rating: 5, price: 'من £650/ليلة', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80', badge: 'فاخر' },
-    { id: '2', name: 'ريتز لندن', location: 'بيكاديلي', rating: 5, price: 'من £750/ليلة', image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80', badge: '5 نجوم' },
-    { id: '3', name: 'كلاريدجز', location: 'مايفير', rating: 5, price: 'من £580/ليلة', image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80', badge: 'تاريخي' },
+    { id: '1', name: 'دورتشستر', location: 'مايفير', category: 'إقامة فاخرة للغاية', rating: 5, price: 'من £650/ليلة', image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80', badge: 'فاخر' },
+    { id: '2', name: 'ريتز لندن', location: 'بيكاديلي', category: 'فنادق مصمّمة', rating: 5, price: 'من £750/ليلة', image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=400&q=80', badge: '5 نجوم' },
+    { id: '3', name: 'كلاريدجز', location: 'مايفير', category: 'التراث البريطاني', rating: 5, price: 'من £580/ليلة', image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=400&q=80', badge: 'تاريخي' },
   ],
 }
 
@@ -344,10 +346,22 @@ function SectionHeader({ title, href, linkText, icon: Icon }: { title: string; h
 
 export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
   const [email, setEmail] = useState('')
+  const [heroIndex, setHeroIndex] = useState(0)
   const isRTL = locale === 'ar'
   const t = text[locale]
-  const hero = heroSlides[locale][0]
+  const hero = heroContent[locale]
   const featured = featuredArticle[locale]
+
+  const nextSlide = useCallback(() => {
+    setHeroIndex((prev) => (prev + 1) % HERO_IMAGES.length)
+  }, [])
+
+  useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReduced) return undefined
+    const timer = setInterval(nextSlide, HERO_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [nextSlide])
 
   return (
     <div className={`bg-cream ${isRTL ? 'font-arabic' : 'font-editorial'}`} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -357,22 +371,25 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
       {/* ═══ HERO ═══ */}
       <section className="relative min-h-[85vh] flex items-end overflow-hidden">
-        {/* Background Image */}
-        <Image
-          src={hero.image}
-          alt="London"
-          fill
-          sizes="100vw"
-          className="object-cover"
-          priority
-        />
+        {/* Rotating Background Images */}
+        {HERO_IMAGES.map((img, i) => (
+          <Image
+            key={img.src}
+            src={img.src}
+            alt={img.alt}
+            fill
+            sizes="100vw"
+            className={`object-cover transition-opacity duration-1000 ease-in-out ${i === heroIndex ? 'opacity-100' : 'opacity-0'}`}
+            priority={i === 0}
+          />
+        ))}
         {/* Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/60 to-transparent" />
 
         {/* Content */}
         <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-16 md:pb-24">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 1, y: 0 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="max-w-2xl"
@@ -396,13 +413,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
             <div className="flex flex-wrap gap-4">
               <Link
                 href={hero.ctaLink}
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-london-600 text-white font-semibold rounded-lg hover:bg-london-700 transition-colors shadow-elegant"
+                className="inline-flex items-center gap-2 px-7 py-3.5 bg-london-600 text-white font-semibold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-colors shadow-elegant"
               >
                 {hero.cta} <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
                 href="/shop"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-lg border border-white/20 hover:bg-white/20 transition-colors"
+                className="inline-flex items-center gap-2 px-7 py-3.5 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-lg border border-white/20 hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-colors"
               >
                 <Download className="w-4 h-4" /> {locale === 'ar' ? 'تحميل الدليل' : 'Get the Guide'}
               </Link>
@@ -411,19 +428,21 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
 
           {/* Quick Navigation Pills */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 0 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
             className="flex flex-wrap gap-3 mt-10"
           >
             {t.quickLinks.map((label, i) => (
-              <Link
-                key={i}
-                href={t.quickLinksHref[i]}
-                className="px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white text-sm font-medium rounded-full border border-white/15 hover:bg-white/20 hover:border-white/30 transition-all"
-              >
-                {label}
-              </Link>
+              <React.Fragment key={i}>
+                {i > 0 && <span className="text-white/40 select-none mx-1" aria-hidden="true">|</span>}
+                <Link
+                  href={t.quickLinksHref[i]}
+                  className="px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white text-sm font-semibold rounded-full border border-white/20 hover:bg-white/25 hover:border-yalla-gold-400/50 hover:text-yalla-gold-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white transition-all"
+                >
+                  {label}
+                </Link>
+              </React.Fragment>
             ))}
           </motion.div>
         </div>
@@ -521,7 +540,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   onChange={(e) => setEmail(e.target.value)}
                   className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg bg-white/10 border border-white/20 text-white placeholder-cream-500 focus:outline-none focus:ring-1 focus:ring-london-600"
                 />
-                <button className="px-4 py-2 bg-london-600 text-white text-xs font-bold rounded-lg hover:bg-london-700 transition-colors whitespace-nowrap">
+                <button className="px-4 py-2 bg-london-600 text-white text-xs font-bold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-400 transition-colors whitespace-nowrap">
                   {t.subscribeBtn}
                 </button>
               </div>
@@ -544,7 +563,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   <div className="absolute inset-0 bg-gradient-to-t from-charcoal/50 to-transparent" />
                   <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} bg-white rounded-xl px-3 py-2 text-center shadow-elegant`}>
                     <div className="text-2xl font-display font-bold text-charcoal leading-none">{event.day}</div>
-                    <div className="text-[10px] font-bold text-london-600 uppercase tracking-wider">{event.month}</div>
+                    <div className="text-xs font-bold text-london-600 uppercase tracking-wider">{event.month}</div>
                   </div>
                 </div>
                 <div className="p-5">
@@ -552,12 +571,10 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   <p className="text-sm text-stone flex items-center gap-1.5 mb-4">
                     <MapPin className="w-3.5 h-3.5" /> {event.venue}
                   </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-charcoal">{event.price}</span>
-                    <Link href="/events" className="px-4 py-2 bg-london-600 text-white text-sm font-semibold rounded-lg hover:bg-london-700 transition-colors">
-                      {t.getTickets}
-                    </Link>
-                  </div>
+                  <span className="block text-sm font-bold text-charcoal mb-3">{event.price}</span>
+                  <Link href="/events" className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-london-600 text-white text-sm font-semibold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 transition-colors">
+                    {t.getTickets}
+                  </Link>
                 </div>
               </div>
             ))}
@@ -596,7 +613,7 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
           <div className="text-center mt-8">
             <Link
               href="/information"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-london-600 text-white font-semibold rounded-lg hover:bg-london-700 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-london-600 text-white font-semibold rounded-lg hover:bg-london-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 transition-colors"
             >
               <BookOpen className="w-4 h-4" />
               {t.exploreHub}
@@ -627,13 +644,12 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   )}
                   <div className="absolute bottom-4 left-4 right-4">
                     <h3 className="text-lg font-bold text-white">{guide.title}</h3>
-                    <p className="text-xs text-cream-300 mt-1">{guide.pages}</p>
                   </div>
                 </div>
                 <div className="p-5">
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-bold text-charcoal">{guide.price}</span>
-                    <Link href="/shop" className="flex items-center gap-2 px-4 py-2.5 bg-charcoal text-white text-sm font-semibold rounded-lg hover:bg-charcoal-light transition-colors">
+                    <Link href="/shop" className="flex items-center gap-2 px-4 py-2.5 bg-charcoal text-white text-sm font-semibold rounded-lg hover:bg-charcoal-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 transition-colors">
                       <Download className="w-4 h-4" /> {t.downloadNow}
                     </Link>
                   </div>
@@ -656,12 +672,8 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                 <div className="relative aspect-[3/4] rounded-2xl overflow-hidden mb-3 shadow-card group-hover:shadow-luxury transition-all">
                   <Image src={exp.image} alt={exp.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                   <div className="absolute inset-0 bg-gradient-to-t from-charcoal/70 via-transparent to-transparent" />
-                  <div className={`absolute top-3 ${isRTL ? 'right-3' : 'left-3'} px-2.5 py-1 bg-white/95 backdrop-blur-sm rounded-full text-xs font-bold flex items-center gap-1 shadow-sm`}>
-                    <Star className="w-3 h-3 text-yalla-gold-500 fill-yalla-gold-500" /> {exp.rating}
-                  </div>
                   <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="font-bold text-white text-sm mb-1 group-hover:text-yalla-gold-300 transition-colors">{exp.title}</h3>
-                    <p className="text-xs text-cream-400">{exp.reviews.toLocaleString()} {locale === 'ar' ? 'تقييم' : 'reviews'}</p>
+                    <h3 className="font-bold text-white text-sm group-hover:text-yalla-gold-300 transition-colors">{exp.title}</h3>
                   </div>
                 </div>
                 <div className="flex items-center justify-between px-1">
@@ -686,20 +698,13 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                 <div className="bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-luxury transition-all border border-sand/50">
                   <div className="relative h-52">
                     <Image src={hotel.image} alt={hotel.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                    <span className={`absolute top-3 ${isRTL ? 'left-3' : 'right-3'} px-3 py-1 bg-yalla-gold-500 text-white text-xs font-bold rounded-full`}>
-                      {hotel.badge}
-                    </span>
                   </div>
                   <div className="p-5">
-                    <div className="flex items-center gap-0.5 mb-2">
-                      {Array.from({ length: hotel.rating }).map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 text-yalla-gold-500 fill-yalla-gold-500" />
-                      ))}
-                    </div>
                     <h3 className="text-lg font-bold text-charcoal mb-1 group-hover:text-london-600 transition-colors">{hotel.name}</h3>
-                    <p className="text-sm text-stone flex items-center gap-1.5 mb-4">
+                    <p className="text-sm text-stone flex items-center gap-1.5 mb-1">
                       <MapPin className="w-3.5 h-3.5" /> {hotel.location}
                     </p>
+                    <p className="text-xs font-medium text-london-600/80 mb-4">{hotel.category}</p>
                     <div className="flex items-center justify-between pt-4 border-t border-sand">
                       <span className="text-sm font-bold text-charcoal">{hotel.price}</span>
                       <span className="px-4 py-2 border-2 border-charcoal text-charcoal text-sm font-semibold rounded-lg group-hover:bg-charcoal group-hover:text-white transition-colors">

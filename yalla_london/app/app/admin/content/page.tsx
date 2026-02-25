@@ -11,20 +11,23 @@ import {
   Upload,
   Eye,
   Edit,
-  Trash2,
   Share,
   Download,
   Image,
   Video,
   Globe,
   Calendar,
-  User,
   TrendingUp,
   CheckCircle,
   Clock,
   AlertCircle,
   Activity,
   SearchCheck,
+  Layers,
+  Link2,
+  BarChart2,
+  XCircle,
+  RefreshCw,
 } from "lucide-react";
 
 const ContentGenerationMonitor = dynamic(
@@ -39,17 +42,43 @@ const ContentIndexingTab = dynamic(
 
 interface Article {
   id: string;
+  type: "published" | "draft";
   title: string;
-  titleAr: string;
-  slug: string;
-  locale: string;
+  titleAr: string | null;
+  slug: string | null;
   status: string;
-  seoScore: number;
+  phase?: string;
+  phaseLabel?: string;
+  phaseIndex?: number;
+  phaseProgress?: number;
+  seoScore: number | null;
+  qualityScore: number | null;
+  wordCountEn: number;
+  wordCountAr: number;
+  indexingStatus: string;
+  lastSubmittedAt: string | null;
+  isBilingual: boolean;
+  hasAffiliate: boolean;
+  hasError?: boolean;
+  error?: string | null;
   author: string;
   updatedAt: string;
-  tags: string[];
-  featuredImage: string | null;
-  url: string | null;
+  publicUrl: string | null;
+  locale?: string;
+}
+
+interface Summary {
+  published: number;
+  inProgress: number;
+  reservoir: number;
+  total: number;
+}
+
+interface IndexingStats {
+  indexed: number;
+  submitted: number;
+  notSubmitted: number;
+  error: number;
 }
 
 export default function ContentHub() {
@@ -58,8 +87,10 @@ export default function ContentHub() {
   const [activeTab, setActiveTab] = useState(tabFromUrl || "articles");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [filterLocale, setFilterLocale] = useState("all");
+  const [filterIndexing, setFilterIndexing] = useState("all");
   const [articles, setArticles] = useState<Article[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [indexingStats, setIndexingStats] = useState<IndexingStats | null>(null);
   const [mediaAssets, setMediaAssets] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -74,29 +105,41 @@ export default function ContentHub() {
   const loadContent = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/admin/content?limit=50");
+      const res = await fetch("/api/admin/articles?limit=100");
       if (res.ok) {
         const data = await res.json();
-        const posts = data.data || [];
-        setArticles(
-          posts.map((p: any) => ({
-            id: p.id,
-            title: p.title_en || "",
-            titleAr: p.title_ar || "",
-            slug: p.slug,
-            locale: p.title_ar && !p.title_en ? "ar" : "en",
-            status: p.published ? "published" : "draft",
-            seoScore: p.seo_score || 0,
-            author: p.author?.name || "Unknown",
-            updatedAt: p.updated_at,
-            tags: p.tags || [],
-            featuredImage: p.featured_image,
-            url: p.published ? `/blog/${p.slug}` : null,
-          })),
-        );
+        const raw = data.articles || [];
+        setArticles(raw.map((a: any) => ({
+          id: a.id,
+          type: a.type || "published",
+          title: a.title || "(Untitled)",
+          titleAr: a.titleAr || null,
+          slug: a.slug || null,
+          status: a.status || "draft",
+          phase: a.phase,
+          phaseLabel: a.phaseLabel,
+          phaseIndex: a.phaseIndex ?? -1,
+          phaseProgress: a.phaseProgress ?? 0,
+          seoScore: a.seoScore ?? null,
+          qualityScore: a.qualityScore ?? null,
+          wordCountEn: a.wordCountEn || 0,
+          wordCountAr: a.wordCountAr || 0,
+          indexingStatus: a.indexingStatus || "not_submitted",
+          lastSubmittedAt: a.lastSubmittedAt || null,
+          isBilingual: !!a.isBilingual,
+          hasAffiliate: !!a.hasAffiliate,
+          hasError: !!a.hasError,
+          error: a.error || null,
+          author: a.author || "Editorial",
+          updatedAt: a.updatedAt,
+          publicUrl: a.publicUrl || null,
+          locale: a.locale || "en",
+        })));
+        if (data.summary) setSummary(data.summary);
+        if (data.indexing) setIndexingStats(data.indexing);
       }
     } catch (error) {
-      console.error("Failed to load content:", error);
+      console.error("Failed to load articles:", error);
     }
 
     try {
@@ -137,46 +180,52 @@ export default function ContentHub() {
     { id: "upload", name: "Upload Content", icon: Upload },
   ];
 
-  const getStatusColor = (status: string) => {
+  const PHASE_ORDER = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring", "reservoir"];
+
+  const getStatusBadge = (article: Article) => {
+    if (article.status === "published") return { color: "bg-green-100 text-green-800", icon: <CheckCircle className="h-3 w-3" />, label: "Published" };
+    if (article.status === "reservoir") return { color: "bg-blue-100 text-blue-800", icon: <Layers className="h-3 w-3" />, label: "Reservoir" };
+    if (article.hasError) return { color: "bg-red-100 text-red-800", icon: <AlertCircle className="h-3 w-3" />, label: "Error" };
+    return { color: "bg-gray-100 text-gray-700", icon: <Clock className="h-3 w-3" />, label: article.phaseLabel || "Draft" };
+  };
+
+  const getIndexingBadge = (status: string) => {
     switch (status) {
-      case "published":
-        return "bg-green-100 text-green-800";
-      case "ready":
-        return "bg-blue-100 text-blue-800";
-      case "review":
-        return "bg-yellow-100 text-yellow-800";
-      case "draft":
-        return "bg-gray-100 text-gray-800";
-      default:
-        return "bg-gray-100 text-gray-800";
+      case "indexed": return { color: "bg-green-100 text-green-700", label: "Indexed" };
+      case "submitted": return { color: "bg-blue-100 text-blue-700", label: "Submitted" };
+      case "error": return { color: "bg-red-100 text-red-700", label: "Error" };
+      case "not_applicable": return null;
+      default: return { color: "bg-yellow-100 text-yellow-700", label: "Not Indexed" };
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "published":
-        return <CheckCircle className="h-4 w-4" />;
-      case "ready":
-        return <Clock className="h-4 w-4" />;
-      case "review":
-        return <AlertCircle className="h-4 w-4" />;
-      case "draft":
-        return <Edit className="h-4 w-4" />;
-      default:
-        return <Edit className="h-4 w-4" />;
-    }
+  const getWordCountColor = (count: number) => {
+    if (count === 0) return "text-gray-400";
+    if (count < 1000) return "text-red-600";
+    if (count < 1200) return "text-yellow-600";
+    return "text-green-600";
+  };
+
+  const getScoreColor = (score: number | null) => {
+    if (!score) return "text-gray-400";
+    if (score < 50) return "text-red-600";
+    if (score < 70) return "text-yellow-600";
+    return "text-green-600";
   };
 
   const filteredArticles = articles.filter((article) => {
     const matchesSearch =
       article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      article.titleAr.toLowerCase().includes(searchTerm.toLowerCase());
+      (article.titleAr || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus =
-      filterStatus === "all" || article.status === filterStatus;
-    const matchesLocale =
-      filterLocale === "all" || article.locale === filterLocale;
-
-    return matchesSearch && matchesStatus && matchesLocale;
+      filterStatus === "all" ||
+      article.status === filterStatus ||
+      (filterStatus === "in-progress" && article.type === "draft" && article.status !== "reservoir");
+    const matchesIndexing =
+      filterIndexing === "all" ||
+      article.indexingStatus === filterIndexing ||
+      (filterIndexing === "not_submitted" && (article.indexingStatus === "not_submitted" || article.indexingStatus === "not_applicable"));
+    return matchesSearch && matchesStatus && matchesIndexing;
   });
 
   if (isLoading) {
@@ -249,176 +298,281 @@ export default function ContentHub() {
       {/* Tab Content */}
       {activeTab === "articles" && (
         <div>
-          {/* Filters */}
-          <div className="bg-white p-6 rounded-lg border border-gray-200 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Search
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search articles..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
-                  />
+          {/* Summary Stats */}
+          {(summary || indexingStats) && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+              {summary && (
+                <>
+                  <div className="bg-white border border-gray-200 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-green-600">{summary.published}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Published</div>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-blue-600">{summary.reservoir}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Reservoir</div>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-gray-600">{summary.inProgress}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">In Pipeline</div>
+                  </div>
+                </>
+              )}
+              {indexingStats && (
+                <div className="bg-white border border-gray-200 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-green-600">{indexingStats.indexed}</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Indexed by Google</div>
                 </div>
-              </div>
+              )}
+            </div>
+          )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Status
-                </label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="published">Published</option>
-                  <option value="draft">Draft</option>
-                </select>
+          {/* Filters */}
+          <div className="bg-white p-4 rounded-lg border border-gray-200 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search articles..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full text-sm"
+                />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Locale
-                </label>
-                <select
-                  value={filterLocale}
-                  onChange={(e) => setFilterLocale(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="all">All Locales</option>
-                  <option value="en">English</option>
-                  <option value="ar">Arabic</option>
-                </select>
-              </div>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              >
+                <option value="all">All Statuses</option>
+                <option value="published">Published</option>
+                <option value="reservoir">Reservoir (Ready to Publish)</option>
+                <option value="in-progress">In Pipeline</option>
+              </select>
+              <select
+                value={filterIndexing}
+                onChange={(e) => setFilterIndexing(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              >
+                <option value="all">All Indexing States</option>
+                <option value="indexed">Indexed by Google</option>
+                <option value="submitted">Submitted (Pending)</option>
+                <option value="not_submitted">Not Yet Indexed</option>
+                <option value="error">Indexing Error</option>
+              </select>
             </div>
           </div>
 
-          {/* Articles Grid */}
+          {/* Articles List */}
           {filteredArticles.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
               <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No Articles Found
-              </h3>
-              <p className="text-gray-600">
-                Create your first article to get started.
-              </p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Articles Found</h3>
+              <p className="text-gray-600">Create your first article or adjust the filters.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredArticles.map((article) => (
-                <div
-                  key={article.id}
-                  className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
-                >
-                  <div className="aspect-video bg-gray-200 relative">
-                    {article.featuredImage ? (
-                      <img
-                        src={article.featuredImage}
-                        alt={article.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Image className="h-12 w-12 text-gray-400" />
-                      </div>
-                    )}
-                    <div className="absolute top-2 left-2">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(article.status)}`}
-                      >
-                        {getStatusIcon(article.status)}
-                        {article.status}
-                      </span>
-                    </div>
-                    <div className="absolute top-2 right-2">
-                      <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          article.locale === "en"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-green-100 text-green-800"
-                        }`}
-                      >
-                        {article.locale.toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              {/* Column headers — desktop only */}
+              <div className="hidden sm:grid grid-cols-12 gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                <div className="col-span-5">Article</div>
+                <div className="col-span-2">Pipeline / Status</div>
+                <div className="col-span-1 text-center">Words</div>
+                <div className="col-span-1 text-center">SEO</div>
+                <div className="col-span-1 text-center">Quality</div>
+                <div className="col-span-1 text-center">Index</div>
+                <div className="col-span-1 text-right">Actions</div>
+              </div>
 
-                  <div className="p-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                      {article.title}
-                    </h3>
-                    {article.titleAr && article.titleAr !== article.title && (
-                      <h4 className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {article.titleAr}
-                      </h4>
-                    )}
+              <div className="divide-y divide-gray-100">
+                {filteredArticles.map((article) => {
+                  const statusBadge = getStatusBadge(article);
+                  const indexingBadge = getIndexingBadge(article.indexingStatus);
 
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-                      {article.seoScore > 0 && (
-                        <span className="flex items-center gap-1">
-                          <TrendingUp className="h-3 w-3" />
-                          SEO: {article.seoScore}%
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 mb-3 flex-wrap">
-                      {article.tags.slice(0, 3).map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {article.author}
+                  return (
+                    <div key={article.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                      {/* Desktop layout */}
+                      <div className="hidden sm:grid grid-cols-12 gap-2 items-center">
+                        {/* Title column */}
+                        <div className="col-span-5 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate leading-tight">{article.title}</p>
+                          {article.titleAr && (
+                            <p className="text-xs text-gray-400 truncate mt-0.5" dir="rtl">{article.titleAr}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {article.isBilingual && (
+                              <span className="inline-flex items-center gap-0.5 text-xs text-purple-600">
+                                <Globe className="h-2.5 w-2.5" /> EN+AR
+                              </span>
+                            )}
+                            {article.hasAffiliate && (
+                              <span className="inline-flex items-center gap-0.5 text-xs text-teal-600">
+                                <Link2 className="h-2.5 w-2.5" /> Affiliate
+                              </span>
+                            )}
+                            {article.hasError && (
+                              <span className="inline-flex items-center gap-0.5 text-xs text-red-600" title={article.error || "Error"}>
+                                <XCircle className="h-2.5 w-2.5" /> Error
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-400">
+                              {article.updatedAt ? new Date(article.updatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {article.updatedAt
-                            ? new Date(article.updatedAt).toLocaleDateString()
-                            : "Not updated"}
+
+                        {/* Phase/Status column */}
+                        <div className="col-span-2">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusBadge.color}`}>
+                            {statusBadge.icon}
+                            {statusBadge.label}
+                          </span>
+                          {article.type === "draft" && article.phaseIndex !== undefined && article.phaseIndex >= 0 && (
+                            <div className="mt-1.5 flex items-center gap-1">
+                              <div className="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className="bg-blue-500 h-1.5 rounded-full transition-all"
+                                  style={{ width: `${article.phaseProgress ?? 0}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-gray-400 whitespace-nowrap">
+                                {article.phaseIndex + 1}/{PHASE_ORDER.length}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Word count */}
+                        <div className={`col-span-1 text-center text-xs font-medium ${getWordCountColor(article.wordCountEn)}`}>
+                          {article.wordCountEn > 0 ? `${(article.wordCountEn / 1000).toFixed(1)}k` : "—"}
+                        </div>
+
+                        {/* SEO score */}
+                        <div className={`col-span-1 text-center text-xs font-medium ${getScoreColor(article.seoScore)}`}>
+                          {article.seoScore !== null ? `${article.seoScore}` : "—"}
+                        </div>
+
+                        {/* Quality score */}
+                        <div className={`col-span-1 text-center text-xs font-medium ${getScoreColor(article.qualityScore)}`}>
+                          {article.qualityScore !== null ? `${article.qualityScore}` : "—"}
+                        </div>
+
+                        {/* Indexing status */}
+                        <div className="col-span-1 text-center">
+                          {indexingBadge ? (
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${indexingBadge.color}`}>
+                              {indexingBadge.label}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-300">—</span>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="col-span-1 flex items-center justify-end gap-1">
+                          {article.publicUrl && (
+                            <a
+                              href={article.publicUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                              title="View Live"
+                            >
+                              <Globe className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                          {article.slug && (
+                            <Link
+                              href={`/admin/editor?slug=${article.slug}`}
+                              className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Link>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        {article.url && (
-                          <a
-                            href={article.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2 text-gray-400 hover:text-gray-600"
-                            title="View Live"
-                          >
-                            <Globe className="h-4 w-4" />
-                          </a>
+                      {/* Mobile layout */}
+                      <div className="sm:hidden">
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <p className="text-sm font-medium text-gray-900 leading-tight">{article.title}</p>
+                          <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusBadge.color}`}>
+                            {statusBadge.icon}
+                            {statusBadge.label}
+                          </span>
+                        </div>
+
+                        {/* Phase progress for drafts */}
+                        {article.type === "draft" && article.phaseIndex !== undefined && article.phaseIndex >= 0 && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="bg-blue-500 h-2 rounded-full"
+                                style={{ width: `${article.phaseProgress ?? 0}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500 whitespace-nowrap">Phase {article.phaseIndex + 1}/8</span>
+                          </div>
                         )}
-                        <Link
-                          href={`/admin/editor?slug=${article.slug}`}
-                          className="p-2 text-gray-400 hover:text-gray-600"
-                          title="Edit"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Link>
+
+                        {/* Metrics */}
+                        <div className="flex items-center gap-3 text-xs flex-wrap mt-1">
+                          {article.wordCountEn > 0 && (
+                            <span className={`font-medium ${getWordCountColor(article.wordCountEn)}`}>
+                              {(article.wordCountEn / 1000).toFixed(1)}k words
+                            </span>
+                          )}
+                          {article.seoScore !== null && (
+                            <span className={`flex items-center gap-0.5 ${getScoreColor(article.seoScore)}`}>
+                              <TrendingUp className="h-3 w-3" /> SEO {article.seoScore}
+                            </span>
+                          )}
+                          {article.qualityScore !== null && (
+                            <span className={`flex items-center gap-0.5 ${getScoreColor(article.qualityScore)}`}>
+                              <BarChart2 className="h-3 w-3" /> Q {article.qualityScore}
+                            </span>
+                          )}
+                          {indexingBadge && (
+                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${indexingBadge.color}`}>
+                              {indexingBadge.label}
+                            </span>
+                          )}
+                          {article.isBilingual && <span className="text-purple-600">EN+AR</span>}
+                          {article.hasAffiliate && <span className="text-teal-600">Affiliate</span>}
+                          {article.hasError && <span className="text-red-600">⚠ Error</span>}
+                        </div>
+
+                        {/* Date + actions */}
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-gray-400">
+                            {article.updatedAt ? new Date(article.updatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" }) : ""}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {article.publicUrl && (
+                              <a href={article.publicUrl} target="_blank" rel="noopener noreferrer" className="p-1 text-gray-400 hover:text-blue-600">
+                                <Globe className="h-4 w-4" />
+                              </a>
+                            )}
+                            {article.slug && (
+                              <Link href={`/admin/editor?slug=${article.slug}`} className="p-1 text-gray-400 hover:text-gray-700">
+                                <Edit className="h-4 w-4" />
+                              </Link>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
+              </div>
+
+              {/* Footer count + refresh */}
+              <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-500 flex items-center justify-between">
+                <span>Showing {filteredArticles.length} of {articles.length} articles</span>
+                <button onClick={loadContent} className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700">
+                  <RefreshCw className="h-3 w-3" /> Refresh
+                </button>
+              </div>
             </div>
           )}
         </div>

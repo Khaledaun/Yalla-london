@@ -44,9 +44,11 @@ async function handleContentBuilder(request: NextRequest) {
         timestamp: new Date().toISOString(),
       });
     } catch {
+      // Return 200 degraded, not 503 — DB pool exhaustion during concurrent health checks
+      // should not appear as a hard failure. Cron runs on schedule regardless.
       return NextResponse.json(
-        { status: "unhealthy", endpoint: "content-builder", note: "ArticleDraft table may not exist yet. Run DB migration." },
-        { status: 503 },
+        { status: "degraded", endpoint: "content-builder", note: "DB temporarily unavailable for healthcheck — cron runs on schedule." },
+        { status: 200 },
       );
     }
   }
@@ -65,10 +67,13 @@ async function handleContentBuilder(request: NextRequest) {
       const { onCronFailure } = await import("@/lib/ops/failure-hooks");
       onCronFailure({ jobName: "content-builder", error: result.message }).catch(() => {});
 
+      // Wrap in try-catch: DB pool exhaustion should not prevent the route from returning
       await logCronExecution("content-builder", "failed", {
         durationMs,
         errorMessage: result.message,
         resultSummary: { phase: resultAny.phase, draftsProcessed: resultAny.draftsProcessed },
+      }).catch((logErr: unknown) => {
+        console.warn("[content-builder] logCronExecution (failed) error:", logErr instanceof Error ? logErr.message : logErr);
       });
     } else {
       await logCronExecution("content-builder", "completed", {
@@ -76,6 +81,8 @@ async function handleContentBuilder(request: NextRequest) {
         itemsProcessed: (resultAny.draftsProcessed as number) || 0,
         itemsSucceeded: (resultAny.draftsProcessed as number) || 0,
         resultSummary: { message: result.message, phase: resultAny.phase },
+      }).catch((logErr: unknown) => {
+        console.warn("[content-builder] logCronExecution (completed) error:", logErr instanceof Error ? logErr.message : logErr);
       });
     }
 
@@ -87,9 +94,12 @@ async function handleContentBuilder(request: NextRequest) {
     const errMsg = error instanceof Error ? error.message : String(error);
     const durationMs = Date.now() - cronStart;
 
+    // Wrap in try-catch: log failure should not mask the original error response
     await logCronExecution("content-builder", "failed", {
       durationMs,
       errorMessage: errMsg,
+    }).catch((logErr: unknown) => {
+      console.warn("[content-builder] logCronExecution (catch) error:", logErr instanceof Error ? logErr.message : logErr);
     });
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");

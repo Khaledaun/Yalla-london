@@ -140,33 +140,41 @@ export async function GET(request: NextRequest) {
     }
 
     // ── 3. Check AI provider configuration ────────────────────────────────
+    // The content pipeline uses XAI_API_KEY (or GROK_API_KEY) directly from env vars.
+    // The ModelProvider DB table is for optional advanced routing — not required for basic operation.
     const providerCount = await prisma.modelProvider.count({ where: { is_active: true } }).catch(() => 0);
+    const grokConfiguredViaEnv = !!(process.env.XAI_API_KEY || process.env.GROK_API_KEY);
     if (providerCount === 0) {
       todos.push({
         id: 'no-ai-providers',
-        priority: 'high',
+        // Downgrade to 'low' when content pipeline already has Grok via env var
+        priority: grokConfiguredViaEnv ? 'low' : 'high',
         category: 'config',
-        title: 'No AI providers configured',
-        description: 'Add at least one AI provider (xAI Grok, Claude, OpenAI, etc.) to enable content generation.',
+        title: grokConfiguredViaEnv
+          ? 'AI Models admin not configured (optional)'
+          : 'No AI providers configured',
+        description: grokConfiguredViaEnv
+          ? 'Content pipeline is working via XAI_API_KEY env var. Add providers to the AI Models admin for advanced routing and fallback control.'
+          : 'Add at least one AI provider (xAI Grok, Claude, OpenAI, etc.) to enable content generation.',
         actionLabel: 'Configure AI Models',
         actionUrl: '/admin/settings?tab=ai-models',
-        resolved: false,
+        resolved: grokConfiguredViaEnv,
       });
     }
 
-    // Check if GROK_API_KEY is set (primary content provider)
-    if (!process.env.GROK_API_KEY) {
+    // Check if Grok API key is set — accepts either XAI_API_KEY (current) or GROK_API_KEY (legacy)
+    if (!process.env.XAI_API_KEY && !process.env.GROK_API_KEY) {
       todos.push({
         id: 'missing-grok-key',
         priority: 'critical',
         category: 'config',
         title: 'xAI Grok API key missing',
-        description: 'GROK_API_KEY is not set. This is the primary content generation model. Content pipeline will fail.',
+        description: 'Neither XAI_API_KEY nor GROK_API_KEY is set. This is the primary content generation model. Content pipeline will fail.',
         actionLabel: 'Add API Key',
         actionUrl: '/admin/settings?tab=ai-models',
         instructions: [
           '1. Get your Grok API key from console.x.ai',
-          '2. Add GROK_API_KEY to your Vercel environment variables',
+          '2. Add XAI_API_KEY to your Vercel environment variables',
           '3. Redeploy the app for the key to take effect',
           '4. Add the key to the AI Models tab to test connectivity',
         ],

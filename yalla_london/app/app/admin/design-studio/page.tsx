@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
 import { sanitizeHtml } from "@/lib/html-sanitizer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

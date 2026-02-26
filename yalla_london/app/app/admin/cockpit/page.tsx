@@ -16,6 +16,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 
 // ─── Types from API responses ────────────────────────────────────────────────
 
@@ -1423,12 +1424,12 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
           <a href="/test-connections.html" target="_blank" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
             🔬 test-connections.html
           </a>
-          <a href="/admin/cron-logs" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
+          <Link href="/admin/cron-logs" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
             📋 Full Cron History
-          </a>
-          <a href="/admin" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
+          </Link>
+          <Link href="/admin" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
             📁 Full Admin
-          </a>
+          </Link>
         </div>
       </Card>
 
@@ -1466,13 +1467,13 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
           <p>Platform: Vercel Pro</p>
           <p>Cockpit v1.0.0</p>
           <p>
-            <a href="/admin/cockpit/design" className="text-blue-400 hover:underline">→ Design Studio</a>
+            <Link href="/admin/cockpit/design" className="text-blue-400 hover:underline">→ Design Studio</Link>
           </p>
           <p>
-            <a href="/admin/cockpit/email" className="text-blue-400 hover:underline">→ Email Center</a>
+            <Link href="/admin/cockpit/email" className="text-blue-400 hover:underline">→ Email Center</Link>
           </p>
           <p>
-            <a href="/admin/cockpit/new-site" className="text-blue-400 hover:underline">→ New Website Builder</a>
+            <Link href="/admin/cockpit/new-site" className="text-blue-400 hover:underline">→ New Website Builder</Link>
           </p>
         </div>
       </Card>

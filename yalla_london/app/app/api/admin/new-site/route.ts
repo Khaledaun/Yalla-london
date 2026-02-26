@@ -131,7 +131,6 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   }
 
   // Validate that the builder module is available before attempting the build
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let buildNewSite: ((config: any) => Promise<{ success: boolean; siteId: string; steps: Array<{ step: string; status: string; message: string; error?: string }>; topicsCreated: number; errors: string[]; nextSteps: string[] }>) | null = null;
   try {
     const builderModule = await import("@/lib/new-site/builder");

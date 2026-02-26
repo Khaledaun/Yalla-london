@@ -236,7 +236,6 @@ export const GET = withAdminAuth(async (_req: NextRequest) => {
 // Pipeline builder
 // ─────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function buildPipeline(prisma: any, activeSiteIds: string[]): Promise<PipelineStatus> {
   const pipeline = emptyPipeline();
 
@@ -350,7 +349,6 @@ async function buildPipeline(prisma: any, activeSiteIds: string[]): Promise<Pipe
 // Indexing builder
 // ─────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<IndexingStatus> {
   const indexing = emptyIndexing();
 
@@ -400,7 +398,6 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
 // Cron health builder
 // ─────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function buildCronHealth(prisma: any): Promise<CronHealth> {
   const cronHealth = emptyCronHealth();
 
@@ -456,7 +453,6 @@ async function buildCronHealth(prisma: any): Promise<CronHealth> {
 // Per-site summaries
 // ─────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSummary[]> {
   const results: SiteSummary[] = [];
 

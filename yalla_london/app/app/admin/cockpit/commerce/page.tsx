@@ -145,6 +145,17 @@ export default function CommerceHQPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [briefFilter, setBriefFilter] = useState<string>("all");
+  const [quickCreateIdea, setQuickCreateIdea] = useState("");
+  const [quickCreateResult, setQuickCreateResult] = useState<{
+    success: boolean;
+    title?: string;
+    tags?: string[];
+    price?: number;
+    draftId?: string;
+    complianceValid?: boolean;
+    complianceIssues?: { field: string; message: string }[];
+    error?: string;
+  } | null>(null);
 
   // ─── Data fetching ──────────────────────────────────────
 
@@ -402,6 +413,45 @@ export default function CommerceHQPage() {
     }
   };
 
+  const quickCreateProduct = async () => {
+    if (!quickCreateIdea.trim() || quickCreateIdea.trim().length < 5) {
+      showToast("Product idea must be at least 5 characters");
+      return;
+    }
+    setActionLoading("quick-create");
+    setQuickCreateResult(null);
+    try {
+      const res = await fetch("/api/admin/commerce/quick-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idea: quickCreateIdea.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setQuickCreateResult({
+          success: true,
+          title: data.title,
+          tags: data.tags,
+          price: data.price,
+          draftId: data.draftId,
+          complianceValid: data.complianceValid,
+          complianceIssues: data.complianceIssues,
+        });
+        setQuickCreateIdea("");
+        showToast(`Created: ${data.title}`);
+        await Promise.all([fetchEtsyDrafts(), fetchStats(), fetchBriefs()]);
+      } else {
+        setQuickCreateResult({ success: false, error: data.error });
+        showToast(`Error: ${data.error}`);
+      }
+    } catch {
+      showToast("Quick create failed");
+      setQuickCreateResult({ success: false, error: "Network error" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // ─── Helpers ────────────────────────────────────────────
 
   const formatCents = (cents: number) =>
@@ -553,6 +603,10 @@ export default function CommerceHQPage() {
             onTestConnection={testEtsyConnection}
             onPublish={publishToEtsy}
             onDisconnect={disconnectEtsy}
+            quickCreateIdea={quickCreateIdea}
+            onQuickCreateIdeaChange={setQuickCreateIdea}
+            onQuickCreate={quickCreateProduct}
+            quickCreateResult={quickCreateResult}
             actionLoading={actionLoading}
           />
         )}
@@ -1127,6 +1181,10 @@ function EtsyTab({
   onTestConnection,
   onPublish,
   onDisconnect,
+  quickCreateIdea,
+  onQuickCreateIdeaChange,
+  onQuickCreate,
+  quickCreateResult,
   actionLoading,
 }: {
   status: EtsyStatus | null;
@@ -1137,6 +1195,19 @@ function EtsyTab({
   onTestConnection: () => void;
   onPublish: (draftId: string) => void;
   onDisconnect: () => void;
+  quickCreateIdea: string;
+  onQuickCreateIdeaChange: (v: string) => void;
+  onQuickCreate: () => void;
+  quickCreateResult: {
+    success: boolean;
+    title?: string;
+    tags?: string[];
+    price?: number;
+    draftId?: string;
+    complianceValid?: boolean;
+    complianceIssues?: { field: string; message: string }[];
+    error?: string;
+  } | null;
   actionLoading: string | null;
 }) {
   return (
@@ -1270,6 +1341,106 @@ function EtsyTab({
         )}
       </div>
 
+      {/* Quick Create — One-tap product creation */}
+      <div className="bg-white rounded-lg border p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-2">
+          Quick Create
+        </h3>
+        <p className="text-xs text-gray-500 mb-3">
+          Type a product idea and AI creates an Etsy-ready listing in one tap.
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={quickCreateIdea}
+            onChange={(e) => onQuickCreateIdeaChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && quickCreateIdea.trim().length >= 5) {
+                onQuickCreate();
+              }
+            }}
+            placeholder="e.g. London 3-day luxury itinerary"
+            className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            disabled={actionLoading === "quick-create"}
+          />
+          <button
+            onClick={onQuickCreate}
+            disabled={actionLoading === "quick-create" || quickCreateIdea.trim().length < 5}
+            className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 whitespace-nowrap"
+          >
+            {actionLoading === "quick-create" ? (
+              <span className="flex items-center gap-1">
+                <span className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full inline-block" />
+                Creating...
+              </span>
+            ) : (
+              "Create"
+            )}
+          </button>
+        </div>
+
+        {/* Quick Create Result */}
+        {quickCreateResult && quickCreateResult.success && (
+          <div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-green-600 text-sm font-medium">Listing Created</span>
+              {quickCreateResult.complianceValid ? (
+                <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full">
+                  Compliant
+                </span>
+              ) : (
+                <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full">
+                  Needs Review
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-900 font-medium">{quickCreateResult.title}</p>
+            <p className="text-xs text-gray-500 mt-1">
+              Price: ${((quickCreateResult.price ?? 0) / 100).toFixed(2)}
+            </p>
+            {quickCreateResult.tags && quickCreateResult.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {quickCreateResult.tags.slice(0, 6).map((tag, i) => (
+                  <span
+                    key={i}
+                    className="text-xs px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {quickCreateResult.tags.length > 6 && (
+                  <span className="text-xs text-gray-400">
+                    +{quickCreateResult.tags.length - 6} more
+                  </span>
+                )}
+              </div>
+            )}
+            {quickCreateResult.complianceIssues && quickCreateResult.complianceIssues.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {quickCreateResult.complianceIssues.map((issue, i) => (
+                  <p key={i} className="text-xs text-amber-700">
+                    {issue.field}: {issue.message}
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {quickCreateResult && !quickCreateResult.success && (
+          <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
+            <p className="text-sm text-red-700">
+              Failed: {quickCreateResult.error}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-3 text-xs text-gray-400">
+          Examples: &quot;London afternoon tea guide PDF&quot;, &quot;Luxury hotel checklist printable&quot;,
+          &quot;Arabic calligraphy wall art set&quot;
+        </div>
+      </div>
+
       {/* Listing Drafts */}
       {status?.connected && (
         <div className="bg-white rounded-lg border p-4">
@@ -1280,7 +1451,7 @@ function EtsyTab({
           {drafts.length === 0 ? (
             <div className="text-center py-6">
               <p className="text-sm text-gray-500">
-                No listing drafts yet. Approve a product brief to generate one.
+                No listing drafts yet. Use Quick Create above or approve a product brief.
               </p>
             </div>
           ) : (
@@ -1375,15 +1546,27 @@ function EtsyTab({
       {/* Help / Setup Guide */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="text-sm font-semibold text-blue-900 mb-2">
-          How Etsy Publishing Works
+          Two Ways to Create Products
         </h3>
-        <ol className="text-xs text-blue-800 space-y-1.5 list-decimal list-inside">
-          <li>Run a <strong>Trend Scan</strong> to discover product opportunities</li>
-          <li><strong>Approve</strong> a product brief from the Briefs tab</li>
-          <li>AI generates an <strong>Etsy-optimized listing</strong> (title, tags, description)</li>
-          <li>Review the listing draft, then tap <strong>Publish to Etsy</strong></li>
-          <li>Upload your <strong>digital file</strong> + images on Etsy (manual for now)</li>
-        </ol>
+        <div className="space-y-3">
+          <div>
+            <p className="text-xs text-blue-900 font-medium mb-1">Quick Create (fastest)</p>
+            <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
+              <li>Type a product idea in the <strong>Quick Create</strong> box above</li>
+              <li>AI generates a full Etsy listing (title, 13 tags, description, price)</li>
+              <li>Review the draft, then tap <strong>Publish to Etsy</strong></li>
+            </ol>
+          </div>
+          <div>
+            <p className="text-xs text-blue-900 font-medium mb-1">Full Pipeline</p>
+            <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
+              <li>Run a <strong>Trend Scan</strong> (Trends tab) to discover opportunities</li>
+              <li><strong>Approve</strong> a product brief from the Briefs tab</li>
+              <li>AI generates an <strong>Etsy-optimized listing</strong></li>
+              <li>Review and <strong>Publish to Etsy</strong></li>
+            </ol>
+          </div>
+        </div>
       </div>
     </div>
   );

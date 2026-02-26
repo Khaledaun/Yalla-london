@@ -350,9 +350,42 @@ export default function DesignStudioPage() {
                     {aiLoading ? "Generating…" : "✨ Generate Image"}
                   </button>
                   {aiResult && (
-                    <p className={`mt-2 text-xs rounded px-2 py-1 ${aiResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
-                      {aiResult}
-                    </p>
+                    aiResult.includes("OPENAI_API_KEY") || aiResult.includes("STABILITY_API_KEY") || aiResult.includes("No AI image provider") || aiResult.includes("not yet active") ? (
+                      <div className="mt-3 p-3 bg-zinc-800 border border-zinc-700 rounded-xl">
+                        <p className="text-sm font-semibold text-amber-300 mb-2">🔑 AI Image Generation — Setup Required</p>
+                        <p className="text-xs text-zinc-400 mb-2">Add one of these to Vercel Environment Variables and redeploy:</p>
+                        <div className="space-y-1 mb-3">
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="font-mono text-zinc-200 bg-zinc-900 px-2 py-0.5 rounded">OPENAI_API_KEY</span>
+                            <span className="text-zinc-500">→ enables DALL-E 3 image generation</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="font-mono text-zinc-200 bg-zinc-900 px-2 py-0.5 rounded">STABILITY_API_KEY</span>
+                            <span className="text-zinc-500">→ enables Stable Diffusion generation</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <a
+                            href="https://vercel.com/dashboard"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium"
+                          >
+                            Open Vercel Dashboard →
+                          </a>
+                          <button
+                            onClick={() => setActiveSection("gallery")}
+                            className="px-3 py-1.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-xs font-medium"
+                          >
+                            Use Quick Create instead
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className={`mt-2 text-xs rounded px-2 py-1 ${aiResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+                        {aiResult}
+                      </p>
+                    )
                   )}
                 </div>
               </div>
@@ -385,9 +418,16 @@ export default function DesignStudioPage() {
                     ))}
                   </div>
                   {bulkResult && (
-                    <p className={`mt-3 text-xs rounded px-2 py-1 ${bulkResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
-                      {bulkResult}
-                    </p>
+                    bulkResult.includes("not yet active") || bulkResult.includes("future release") ? (
+                      <div className="mt-3 p-3 bg-zinc-800 border border-zinc-700 rounded-xl">
+                        <p className="text-sm font-semibold text-amber-300 mb-1">🔧 Bulk Generation — Coming Soon</p>
+                        <p className="text-xs text-zinc-400">Bulk image generation queues will be enabled in a future release. Add <span className="font-mono text-zinc-200">OPENAI_API_KEY</span> or <span className="font-mono text-zinc-200">STABILITY_API_KEY</span> to prepare your environment.</p>
+                      </div>
+                    ) : (
+                      <p className={`mt-3 text-xs rounded px-2 py-1 ${bulkResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+                        {bulkResult}
+                      </p>
+                    )
                   )}
                 </div>
               </div>

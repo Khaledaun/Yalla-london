@@ -89,9 +89,25 @@ async function runTests() {
 
   report("GET /api/admin/cockpit → 200", cockpit.status === 200, `HTTP ${cockpit.status}`);
   report("Response time < 2000ms", cockpit.ms < 2000, `${cockpit.ms}ms`);
-  report("system.db present", !!(cockpitBody?.system as Record<string, unknown>)?.db, JSON.stringify(cockpitBody?.system).slice(0, 60));
+  report("system.db present", !!(cockpitBody?.system as Record<string, unknown>)?.db, (JSON.stringify(cockpitBody?.system) ?? "n/a").slice(0, 60));
   report("alerts is array (not hardcoded string)", Array.isArray(cockpitBody?.alerts), `${(cockpitBody?.alerts as unknown[])?.length ?? "n/a"} alerts`);
   report("pipeline.byPhase has phase keys", Object.keys((cockpitBody?.pipeline as Record<string, unknown>)?.byPhase ?? {}).length >= 4, `keys: ${Object.keys((cockpitBody?.pipeline as Record<string, unknown>)?.byPhase ?? {}).join(", ")}`);
+
+  // Cockpit scenario 2: system has nextAuthSecret + email fields
+  const sys = cockpitBody?.system as Record<string, unknown> | undefined;
+  report("system has nextAuthSecret field", !!(sys && "nextAuthSecret" in sys), sys ? `keys: ${Object.keys(sys).join(", ")}` : "no system object");
+  report("system has email field (ENH-A)", !!(sys && "email" in sys), sys ? `email: ${JSON.stringify((sys as Record<string, unknown>).email)}` : "no system object");
+
+  // Cockpit scenario 3: sites[0] has inPipeline, reservoir, avgSeoScore
+  const sites = (cockpitBody?.sites as Array<Record<string, unknown>>) ?? [];
+  if (sites.length > 0) {
+    const s0 = sites[0];
+    const hasFields = "inPipeline" in s0 && "reservoir" in s0 && "avgSeoScore" in s0;
+    report("sites[0] has inPipeline, reservoir, avgSeoScore", hasFields, `keys: ${Object.keys(s0).join(", ")}`);
+  } else {
+    report("sites[0] has inPipeline, reservoir, avgSeoScore", true, "SKIP — no sites in DB", true);
+    warnings++; passed--;
+  }
 
   console.log("");
 
@@ -103,7 +119,7 @@ async function runTests() {
 
   report("GET /api/admin/content-matrix → 200", matrix.status === 200, `HTTP ${matrix.status}`);
   report("articles is array", Array.isArray(matrixBody?.articles), `${(matrixBody?.articles as unknown[])?.length ?? 0} articles`);
-  report("summary object present", !!(matrixBody?.summary), JSON.stringify(matrixBody?.summary).slice(0, 60));
+  report("summary object present", !!(matrixBody?.summary), (JSON.stringify(matrixBody?.summary) ?? "n/a").slice(0, 60));
 
   const articles = (matrixBody?.articles as Array<Record<string, unknown>>) ?? [];
   const allowedStatuses = new Set(["published", "reservoir", "research", "outline", "drafting", "assembly", "images", "seo", "scoring", "rejected", "stuck"]);
@@ -122,6 +138,14 @@ async function runTests() {
     report("gate_check returns checks array", true, "SKIP — no draft", true);
     warnings += 2; passed -= 2;
   }
+
+  // Scenario 6: re_queue nonexistent draftId → 404 (not 500)
+  const reQueue = await post("/api/admin/content-matrix", { action: "re_queue", draftId: "nonexistent-draft-99xyz" });
+  report("POST re_queue nonexistent draftId → 404 not 500", reQueue.status === 404, `HTTP ${reQueue.status} (expected 404)`);
+
+  // Scenario 7: invalid action → 400
+  const badAction = await post("/api/admin/content-matrix", { action: "definitely_not_a_real_action_xyz" });
+  report("POST invalid_action → 400", badAction.status === 400, `HTTP ${badAction.status} (expected 400)`);
 
   // No Math.random() in route
   const contentMatrixFile = "/home/user/Yalla-london/yalla_london/app/app/api/admin/content-matrix/route.ts";
@@ -145,6 +169,11 @@ async function runTests() {
   const routeWithPrimary = routes.filter((r) => r.primary && r.taskType);
   report("Routes have primary and taskType fields", routeWithPrimary.length === routes.length || routes.length === 0, `${routeWithPrimary.length}/${routes.length} valid`);
 
+  // Scenario 11: test_all → results array
+  const testAll = await post("/api/admin/ai-config", { action: "test_all" });
+  const testAllBody = testAll.body as Record<string, unknown>;
+  report("POST ai-config test_all → 200 + results array", testAll.status === 200 && Array.isArray(testAllBody?.results), `HTTP ${testAll.status}, results: ${Array.isArray(testAllBody?.results) ? (testAllBody.results as unknown[]).length : "not array"}`);
+
   // PUT routes (idempotent)
   if (routes.length > 0) {
     const saveResult = await post("/api/admin/ai-config", { routes: routes.slice(0, 1) }, true);
@@ -163,7 +192,7 @@ async function runTests() {
   const cronBody = cronLogs.body as Record<string, unknown>;
 
   report("GET /api/admin/cron-logs → 200", cronLogs.status === 200, `HTTP ${cronLogs.status}`);
-  report("summary object present", !!(cronBody?.summary), JSON.stringify(cronBody?.summary).slice(0, 60));
+  report("summary object present", !!(cronBody?.summary), (JSON.stringify(cronBody?.summary) ?? "n/a").slice(0, 60));
 
   const logs = (cronBody?.logs as Array<Record<string, unknown>>) ?? [];
   report("Log entries have jobName field", logs.length === 0 || !!logs[0]?.jobName, logs.length > 0 ? String(logs[0]?.jobName) : "No logs");
@@ -197,6 +226,10 @@ async function runTests() {
   report("POST force-publish → 200", fpPost.status === 200, `HTTP ${fpPost.status}`);
   report("force-publish response has published + skipped arrays", Array.isArray(fpBody?.published) && Array.isArray(fpBody?.skipped), `published: ${(fpBody?.published as unknown[])?.length ?? "?"}, skipped: ${(fpBody?.skipped as unknown[])?.length ?? "?"}`);
 
+  // Scenario 9: invalid siteId → 400
+  const fpBadSite = await post("/api/admin/force-publish", { siteId: "this-site-does-not-exist-xyz123" });
+  report("POST force-publish invalid siteId → 400", fpBadSite.status === 400, `HTTP ${fpBadSite.status} (expected 400)`);
+
   console.log("");
 
   // ── Security (4 tests) ───────────────────────────────────────────────────
@@ -210,6 +243,10 @@ async function runTests() {
 
   const noAuth3 = await get("/api/admin/ai-config", false);
   report("Unauthenticated GET /api/admin/ai-config → 401/403", noAuth3.status === 401 || noAuth3.status === 403, `HTTP ${noAuth3.status}`);
+
+  // Scenario 20: POST /api/admin/force-publish without auth → 401 or 302
+  const noAuthFP = await post("/api/admin/force-publish", {}, false);
+  report("Unauthenticated POST /api/admin/force-publish → 401/403", noAuthFP.status === 401 || noAuthFP.status === 403 || noAuthFP.status === 302, `HTTP ${noAuthFP.status}`);
 
   // No API key logging in new files
   const newFiles = [
@@ -272,14 +309,41 @@ async function runTests() {
   const testSend = await post("/api/admin/email-center", { action: "test_send", to: "smoke@test.example.com" });
   report("test_send doesn't crash (returns response)", testSend.status === 200 || testSend.status === 400, `HTTP ${testSend.status}`);
 
+  // Scenario 13: test_send invalid email → 400
+  const testSendBad = await post("/api/admin/email-center", { action: "test_send", to: "not-an-email" });
+  report("POST test_send invalid email → 400", testSendBad.status === 400, `HTTP ${testSendBad.status} (expected 400)`);
+
   console.log("");
 
   // ── Website Builder (2 tests) ─────────────────────────────────────────────
 
+  // ── Design Studio (scenarios 14, 15) ─────────────────────────────────────
+
+  console.log("🎨 Design Studio");
+  const designStudio = await get("/api/admin/design-studio?siteId=yalla-london");
+  const dsBody = designStudio.body as Record<string, unknown>;
+  const dsBrand = dsBody?.brand as Record<string, unknown> | undefined;
+  report("GET /api/admin/design-studio?siteId=yalla-london → 200", designStudio.status === 200, `HTTP ${designStudio.status}`);
+  report("designs, templates, siteId, siteName present", !!(dsBody?.designs !== undefined && dsBody?.templates !== undefined && dsBody?.siteId && dsBody?.siteName), `siteId: ${dsBody?.siteId}, siteName: ${dsBody?.siteName}`);
+  report("brand.primaryColor present", !!(dsBrand && "primaryColor" in dsBrand), `primaryColor: ${dsBrand?.primaryColor}`);
+
+  // Scenario 15: generate_ai without keys → 501 graceful
+  const genAI = await post("/api/admin/design-studio", { action: "generate_ai", siteId: "yalla-london", prompt: "test" });
+  const genAIBody = genAI.body as Record<string, unknown>;
+  report("POST generate_ai without keys → 501 graceful", genAI.status === 501 && genAIBody?.success === false, `HTTP ${genAI.status} success=${genAIBody?.success}`);
+
+  console.log("");
+
   console.log("🌐 Website Builder");
-  const validate = await get("/api/admin/new-site?siteId=smoke-test-xyz&domain=smoke-test-xyz.example.com");
+  // Scenario 16: yalla-london already exists → available: false
+  const validateExisting = await get("/api/admin/new-site?siteId=yalla-london&domain=yalla-london.com");
+  const veBody = validateExisting.body as Record<string, unknown>;
+  report("GET /api/admin/new-site?siteId=yalla-london → available:false", validateExisting.status === 200 && veBody?.available === false, `HTTP ${validateExisting.status}, available: ${veBody?.available}`);
+
+  // Scenario 17: brand new siteId → available: true
+  const validate = await get("/api/admin/new-site?siteId=brand-new-cockpit-test-999xyz&domain=brandnew999xyz.example.com");
   const validateBody = validate.body as Record<string, unknown>;
-  report("GET /api/admin/new-site (validate) → 200", validate.status === 200, `HTTP ${validate.status}`);
+  report("GET /api/admin/new-site (new siteId) → available:true", validate.status === 200 && validateBody?.available === true, `HTTP ${validate.status}, available: ${validateBody?.available}`);
   report("validate returns available boolean", typeof validateBody?.available === "boolean", `available: ${validateBody?.available}`);
 
   console.log("");

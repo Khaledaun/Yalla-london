@@ -27,6 +27,7 @@ interface SystemStatus {
   gsc: { configured: boolean };
   cronSecret: { configured: boolean };
   nextAuthSecret: { configured: boolean };
+  email?: { configured: boolean; provider: string | null };
 }
 
 interface PipelineStatus {
@@ -446,7 +447,38 @@ function MissionTab({ data, onRefresh, onSwitchTab }: { data: CockpitData | null
       {/* Stuck drafts */}
       {pipeline.stuckDrafts.length > 0 && (
         <Card className="border-orange-900/40">
-          <SectionTitle>⚠️ Stuck Drafts ({pipeline.stuckDrafts.length})</SectionTitle>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <SectionTitle>⚠️ Stuck Drafts ({pipeline.stuckDrafts.length})</SectionTitle>
+            <ActionButton
+              onClick={async () => {
+                setActionLoading("fix-stuck");
+                setActionResult(null);
+                const results = await Promise.allSettled(
+                  pipeline.stuckDrafts.map((d) =>
+                    fetch("/api/admin/content-matrix", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ action: "re_queue", draftId: d.id }),
+                    }).then((r) => r.json())
+                  )
+                );
+                const succeeded = results.filter(
+                  (r) => r.status === "fulfilled" && (r.value as { success?: boolean }).success !== false
+                ).length;
+                const failed = results.length - succeeded;
+                setActionResult(
+                  failed === 0
+                    ? `✅ Re-queued ${succeeded} stuck draft${succeeded !== 1 ? "s" : ""}`
+                    : `⚠️ ${succeeded}/${results.length} re-queued (${failed} failed)`
+                );
+                onRefresh();
+              }}
+              loading={actionLoading === "fix-stuck"}
+              variant="amber"
+            >
+              ⚡ Fix All Stuck ({pipeline.stuckDrafts.length})
+            </ActionButton>
+          </div>
           <div className="space-y-2">
             {pipeline.stuckDrafts.map((d) => (
               <div key={d.id} className="text-xs">
@@ -713,9 +745,9 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       onClick={async () => {
                         setActionLoading(`enhance-${item.id}`);
                         try {
-                          const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: item.id, action: "enhance" }) });
+                          const r = await fetch("/api/admin/content-matrix", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "enhance", draftId: item.id }) });
                           const j = await r.json();
-                          setActionResult((prev) => ({ ...prev, [item.id]: j.success ? "✅ Expanding…" : `❌ ${j.error ?? "Failed"}` }));
+                          setActionResult((prev) => ({ ...prev, [item.id]: j.success !== false ? "✅ Enhancing content — reload in 30s" : `❌ ${j.error ?? "Failed"}` }));
                           fetchData();
                         } catch (e) {
                           setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
@@ -814,17 +846,21 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
 function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     setLoading(true);
+    setFetchError(null);
     fetch(`/api/admin/content-generation-monitor?siteId=${activeSiteId}`)
       .then((r) => r.json())
       .then(setData)
-      .catch(() => setData(null))
+      .catch((e) => { setFetchError(e instanceof Error ? e.message : "Failed to load pipeline data"); setData(null); })
       .finally(() => setLoading(false));
   }, [activeSiteId]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const trigger = async (endpoint: string, body: object, label: string) => {
     setActionLoading(label);
@@ -841,6 +877,14 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
   };
 
   if (loading) return <div className="flex items-center justify-center h-48"><p className="text-zinc-500 text-sm">Loading pipeline…</p></div>;
+  if (fetchError) return (
+    <Card>
+      <p className="text-red-400 text-sm">⚠️ Failed to load pipeline: {fetchError}</p>
+      <button onClick={fetchData} className="mt-2 px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
+        ↺ Retry
+      </button>
+    </Card>
+  );
 
   const summary = (data as { summary?: Record<string, number> })?.summary ?? {};
   const byPhase = (data as { byPhase?: Record<string, number> })?.byPhase ?? {};
@@ -873,7 +917,7 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
                 <div className="flex-1 bg-zinc-800 rounded-full h-1.5">
                   <div
                     className="bg-blue-500 h-1.5 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, ((count as number) / Math.max(...Object.values(byPhase) as number[])) * 100)}%` }}
+                    style={{ width: `${Math.min(100, ((count as number) / Math.max(1, ...Object.values(byPhase).map(v => Number(v)))) * 100)}%` }}
                   />
                 </div>
                 <span className="text-zinc-400 w-6 text-right">{count}</span>
@@ -946,16 +990,18 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
 function CronsTab() {
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
   const [actionResult, setActionResult] = useState<Record<string, string>>({});
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchData = useCallback(() => {
     setLoading(true);
+    setFetchError(null);
     fetch("/api/admin/cron-logs?hours=24&limit=100")
       .then((r) => r.json())
       .then(setData)
-      .catch(() => setData(null))
+      .catch((e) => { setFetchError(e instanceof Error ? e.message : "Failed to load cron data"); setData(null); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -976,6 +1022,14 @@ function CronsTab() {
   };
 
   if (loading) return <div className="flex items-center justify-center h-48"><p className="text-zinc-500 text-sm">Loading cron logs…</p></div>;
+  if (fetchError) return (
+    <Card>
+      <p className="text-red-400 text-sm">⚠️ Failed to load cron logs: {fetchError}</p>
+      <button onClick={fetchData} className="mt-2 px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
+        ↺ Retry
+      </button>
+    </Card>
+  );
 
   const logs = (data as { logs?: unknown[] })?.logs ?? [];
   const summary = (data as { summary?: Record<string, number> })?.summary ?? {};
@@ -1101,6 +1155,37 @@ function CronsTab() {
           );
         })}
       </div>
+
+      {/* Not Run Today — crons that should have run but have 0 runs in last 24h */}
+      {(() => {
+        const EXPECTED_DAILY = ["content-builder", "content-selector", "seo-agent", "affiliate-injection", "trends-monitor", "analytics-sync", "seo-health-report", "site-health-check", "scheduled-publish"];
+        const EXPECTED_WEEKLY = ["weekly-topics", "indexing-cron"];
+        const notRunToday = [
+          ...EXPECTED_DAILY.filter((name) => !byName[name]),
+          ...EXPECTED_WEEKLY.filter((name) => !byName[name]),
+        ];
+        if (notRunToday.length === 0) return null;
+        return (
+          <Card className="border-amber-900/40">
+            <SectionTitle>⚠️ Not Run Today ({notRunToday.length})</SectionTitle>
+            <div className="space-y-1.5">
+              {notRunToday.map((name) => (
+                <div key={name} className="flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-amber-300">{name}</span>
+                    <span className="ml-2 text-zinc-500">{EXPECTED_WEEKLY.includes(name) ? "weekly" : "daily"}</span>
+                  </div>
+                  {cronEndpoints[name] && (
+                    <ActionButton onClick={() => runCron(cronEndpoints[name], name)} loading={actionLoading === name} variant="amber">
+                      ▶ Run
+                    </ActionButton>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Bulk actions */}
       <Card>
@@ -1462,6 +1547,20 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
     { key: "CRON_SECRET", ok: system?.cronSecret.configured ?? false },
     { key: "OPENAI_API_KEY", ok: system?.ai.activeProviders.includes("openai") ?? false },
     { key: "GOOGLE_AI_API_KEY", ok: system?.ai.activeProviders.includes("gemini") ?? false },
+    { key: "Email (RESEND/SENDGRID/SMTP)", ok: system?.email?.configured ?? false },
+  ];
+
+  const API_KEYS = [
+    { key: "DATABASE_URL", status: system?.db.connected ?? false, capability: "Supabase PostgreSQL — all data", emoji: "🗄" },
+    { key: "XAI_API_KEY", status: system?.ai.activeProviders.includes("grok") ?? false, capability: "Grok (xAI) — EN content + topics", emoji: "🤖" },
+    { key: "ANTHROPIC_API_KEY", status: system?.ai.activeProviders.includes("claude") ?? false, capability: "Claude — AR translation + editing", emoji: "🧠" },
+    { key: "OPENAI_API_KEY", status: system?.ai.activeProviders.includes("openai") ?? false, capability: "OpenAI DALL-E — AI image generation", emoji: "🎨" },
+    { key: "GOOGLE_AI_API_KEY", status: system?.ai.activeProviders.includes("gemini") ?? false, capability: "Gemini — alternative AI provider", emoji: "✨" },
+    { key: "INDEXNOW_KEY", status: system?.indexNow.configured ?? false, capability: "IndexNow — instant Google indexing", emoji: "🔍" },
+    { key: "GSC_CREDENTIALS", status: system?.gsc.configured ?? false, capability: "Google Search Console — search analytics", emoji: "📊" },
+    { key: "CRON_SECRET", status: system?.cronSecret.configured ?? false, capability: "Cron job authentication", emoji: "⏰" },
+    { key: "NEXTAUTH_SECRET", status: system?.nextAuthSecret.configured ?? false, capability: "Admin session security", emoji: "🔐" },
+    { key: "Email Provider", status: system?.email?.configured ?? false, capability: `${system?.email?.provider ? `${system.email.provider} — email campaigns` : "No email provider configured"}`, emoji: "📧" },
   ];
 
   return (
@@ -1476,6 +1575,37 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
               <span className={ok ? "text-zinc-300" : "text-zinc-500"}>{key}</span>
             </div>
           ))}
+        </div>
+      </Card>
+
+      {/* API Keys monitoring panel */}
+      <Card>
+        <SectionTitle>API Keys Status</SectionTitle>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {API_KEYS.map(({ key, status, capability, emoji }) => (
+            <div key={key} className={`flex items-start gap-2 rounded-lg p-2 text-xs ${status ? "bg-zinc-800/40" : "bg-red-950/10 border border-red-900/30"}`}>
+              <span className="text-base mt-0.5">{emoji}</span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className={status ? "text-emerald-400" : "text-red-500"}>
+                    {status ? "✅" : "❌"}
+                  </span>
+                  <span className={`font-mono font-medium ${status ? "text-zinc-200" : "text-zinc-400"}`}>{key}</span>
+                </div>
+                <p className="text-zinc-500 mt-0.5">{capability}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 border-t border-zinc-800 pt-2">
+          <a
+            href="https://vercel.com/dashboard"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-blue-400 hover:underline"
+          >
+            → Add missing keys in Vercel Dashboard → Settings → Environment Variables
+          </a>
         </div>
       </Card>
 

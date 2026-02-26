@@ -1390,3 +1390,231 @@ Built the entire Zenitha Yachts charter platform (zenithayachts.com) as the seco
 - Run `npx prisma migrate deploy` (or `npx prisma db push`) on Supabase for 8 new models
 - Add Vercel env vars: `GA4_MEASUREMENT_ID_ZENITHA_YACHTS_MED`, `GSC_SITE_URL_ZENITHA_YACHTS_MED`, `GA4_PROPERTY_ID_ZENITHA_YACHTS_MED`, `GOOGLE_SITE_VERIFICATION_ZENITHA_YACHTS_MED`
 - Domain `zenithayachts.com` must be pointed to Vercel and added to middleware domain mapping
+
+### Session: February 26, 2026 — Cockpit Mission Control Dashboard
+
+**Complete admin cockpit built (`/admin/cockpit`) — 17 new files, 7,147 lines:**
+
+The entire admin experience was rebuilt around a single mobile-first mission control centre. Khaled can now operate the entire platform from his iPhone in one place.
+
+**Cockpit UI (`app/admin/cockpit/page.tsx` — 1,614 lines):**
+- 7-tab layout, mobile-first (375px), auto-refresh every 60s
+- **Tab 1 Mission Control:** alert banners, pipeline flow, today stats, quick actions, cron log
+- **Tab 2 Content Matrix:** article table with "Why Not Published?" per-row diagnosis panel; actions: Publish Now, Expand, Re-queue, Delete, Submit to Google
+- **Tab 3 Pipeline:** phase breakdown bar chart, per-step Run buttons, active drafts
+- **Tab 4 Crons:** health summary, per-cron cards with plain-English errors + Run button
+- **Tab 5 Sites:** per-site cards with metrics, Content/Publish/View links
+- **Tab 6 AI Config:** provider status, task routing dropdowns, test-all providers
+- **Tab 7 Settings:** env var status, inline tests, feature flags
+
+**3 sub-pages inside cockpit:**
+- `cockpit/design/` — Design Studio: gallery, brand kit, AI generation, bulk ops
+- `cockpit/email/` — Email Center: provider status, test send, auto-campaigns
+- `cockpit/new-site/` — 8-step new website wizard with live availability check
+
+**9 new API routes:**
+
+| Route | Purpose |
+|-------|---------|
+| `GET /api/admin/cockpit` | Aggregated mission control data (<500ms, graceful degradation) |
+| `GET+POST /api/admin/content-matrix` | BlogPost+ArticleDraft merged; gate_check, re_queue, enhance, delete, unpublish |
+| `GET+PUT+POST /api/admin/ai-config` | ModelProvider+ModelRoute CRUD, test_all with latency |
+| `GET+POST /api/admin/email-center` | Provider status, campaigns, templates, subscribers, test_send |
+| `GET+POST /api/admin/new-site` | New site wizard validation + DB creation + 30 seed topics |
+| `GET /api/admin/new-site/status/[siteId]` | Build progress polling |
+
+**5 new utility libraries:**
+- `lib/error-interpreter.ts` — 17 raw error patterns → plain English + fix suggestion + severity
+- `lib/ai/provider-config.ts` — 10 task types, `getProviderForTask()`, `seedDefaultRoutes()`, `getAllRoutes()`, `saveRoutes()`. Routes from ModelRoute DB table with env-var fallback
+- `lib/new-site/builder.ts` — `validateNewSite()`, `buildNewSite()` (DB write + 30 topic seed)
+
+**Smoke test:** `scripts/cockpit-smoke-test.ts` — 45 tests across 9 categories. All passing.
+
+**Documentation:** `docs/COCKPIT-BUILD-REPORT.md` (411 lines)
+
+---
+
+### Session: February 26, 2026 — Cockpit Audit Rounds (#29–#31 + Deep Audit)
+
+**4 audit rounds fixing ~15 issues across cockpit and connected systems:**
+
+**Audits #29–#31 (6 fixes):**
+1. `locale_en` crash — gate check safely handles undefined locale
+2. `email-center` API response shape normalized to match page expectations
+3. Hardcoded `siteId` in cockpit replaced with dynamic first-site fallback
+4. `SiteSummary` field names corrected (`pendingReview`, `topicCount`)
+5. Gate check response shape aligned between API and cockpit Content Matrix tab
+6. New-site wizard: all 8 steps return consistent `{ success, message, data }` shape
+
+**User-oriented audit (5 fixes):**
+1. 3 dead loading states fixed: Publish Now, Expand, Submit to Google buttons now show spinners
+2. Sites tab Publish button: added loading state + result feedback toast
+3. 2 silent catch blocks fixed: `runGateCheck` and `toggleFlag` now log warnings
+
+**Build error fixes:**
+1. 5 bare `<a>` internal hrefs replaced with Next.js `<Link>` in cockpit
+2. 4 invalid `@typescript-eslint/no-explicit-any` eslint-disable comments removed
+
+**Deep audit (5 critical fixes):**
+1. `force-publish`: replaced hardcoded `site_id: "yalla-london"` with `getDefaultSiteId()` + accepts validated `siteId` body param
+2. Cockpit page: added `cockpitError` state + red banner with Retry on dashboard fetch failure
+3. `onRefresh()` moved to `finally` block — runs after both success and failure
+4. **Critical:** Expand button was POSTing to `/api/admin/force-publish` (publishes reservoir article); fixed to POST `/api/admin/content-matrix` with `{ action: "enhance", draftId }`
+5. Pipeline bar chart `NaN%` bug when `byPhase` empty — added safe divide guard
+
+---
+
+### Session: February 26, 2026 — Content Pipeline Quality & Auto-Fix Cron
+
+**Content generation quality fixes (4 changes to `phases.ts`):**
+1. Drafting `maxTokens`: 1,500 → 3,000 for English (was cutting sections short)
+2. Drafting prompt: enforces 250+ words per section with concrete detail requirements
+3. Assembly prompt: explicit 1,500-word minimum with expand-if-short instructions
+4. Assembly: post-AI word count check + expansion pass if result < 1,200 words
+
+**New cron: `content-auto-fix` (runs 11:00 + 18:00 UTC daily):**
+- Finds reservoir drafts with < 1,000 words → calls `enhanceReservoirDraft()`
+- Auto-trims `BlogPost.meta_description_en` > 160 chars to ≤ 155 chars
+- Auto-trims `ArticleDraft.seo_meta.metaDescription` > 160 chars
+- Budget-guarded (53s), logs to CronJobLog, registered in `vercel.json`
+
+**Cockpit stuck-label improvements:**
+- Reservoir + word count < 1,000: `📝 Needs expansion (Xw)` in amber
+- Reservoir + word count ≥ 1,000 + waiting > 6h: `📦 Ready — Xh in queue` in blue
+- Active pipeline stuck: `⚠️ Xh stuck in pipeline` in orange
+- Word count column: red < 1,000, amber < 1,200, neutral otherwise
+- Meta description length warning inline in article row
+
+---
+
+### Session: February 26, 2026 — SEO Agent Upgrade & AIO Gate (Check 14)
+
+**SEO agent auto-fix: 4 fix types (was 1):**
+1. Generates missing meta titles (up to 50 posts per run)
+2. Generates missing meta descriptions (up to 50 posts per run)
+3. Trims meta titles > 60 chars at word boundary (up to 100 per run)
+4. Trims meta descriptions > 160 chars at word boundary (up to 100 per run)
+- Schema injection batch: `take:5` → `take:20` per run
+- Internal link auto-injection: posts with < 3 links get `<section class="related-articles">` with up to 3 recent post links (5 posts per run)
+- `seo-intelligence.ts`: meta optimization limit 2 → 8 per run; content expansion limit 1 → 3 per run
+
+**Pre-publication gate — Check 14: AIO Readiness (warning-only, never blocks):**
+- Checks: direct answer in first 80 words, question-format H2 headings, no excessive preamble
+- Signals eligibility for Google AI Overview citation (60%+ of searches show AI Overviews)
+- **Total pre-publication checks: 14** (route, ar-route, SEO minimums, SEO score, heading hierarchy, word count, internal links, readability, image alt text, author, structured data, authenticity signals, affiliate links, AIO readiness)
+
+---
+
+### Session: February 26, 2026 — Indexing Fixes & Arabic Content Crash
+
+**Indexing false-alarm fix:**
+- Quality warnings (word count, SEO score, meta) now only appended to `notIndexedReasons` when `indexingStatus !== "indexed"`
+- Previously fired unconditionally — every indexed article showed contradictory red "NOT INDEXED REASONS"
+
+**Arabic content JSON parse crash fixed:**
+- Root cause: AI returned `<div dir="rtl">` HTML attributes inside a JSON string — inner quotes broke `repairJSON` lookbehind regex, leaving unescaped newlines
+- Fix: two-pass approach — escape newlines inside string values first, then parse
+
+**Clickable Indexed panel in cockpit:**
+- "Indexed" stat card is now a tappable button
+- Opens full-screen `IndexingPanel` overlay (mobile-optimised) with per-article rows, GSC clicks/impressions
+
+---
+
+### Session: February 26, 2026 — Per-Content-Type Quality Gates
+
+**Problem solved:** News (150-400w), information hub (300-800w), and guides (400-1,000w) were all blocked by blog thresholds (1,000w minimum). Arabic drafts showed "0 chars English content" false blocker.
+
+**`lib/seo/standards.ts` — new `CONTENT_TYPE_THRESHOLDS`:**
+
+| Type | Min Words | Internal Links | Affiliates | Auth Signals |
+|------|-----------|----------------|------------|--------------|
+| `blog` | 1,000 | 3 | Required | Required |
+| `news` | 150 | 1 | Optional | Skipped |
+| `information` | 300 | 1 | Optional | Skipped |
+| `guide` | 400 | 1 | Required | Skipped |
+
+- `getThresholdsForUrl()` detects type from URL prefix (`/news/`, `/information/`, `/guides/`, `/blog/`)
+- Arabic-only drafts (`locale="ar"` + no `content_en`) now use `content_ar` for all content checks
+- Flesch-Kincaid skipped for Arabic-only (algorithm is English-specific)
+- `content-matrix/route.ts`: `detectArticleType()` helper + builds correct target URL prefix for type detection
+
+---
+
+### Session: February 26, 2026 — AI Token Monitoring & Cost Dashboard
+
+**New Prisma model: `ApiUsageLog` (migration: `20260226_add_api_usage_log`):**
+Fields: `siteId`, `provider`, `model`, `taskType`, `calledFrom`, `promptTokens`, `completionTokens`, `totalTokens`, `estimatedCostUsd`, `success`, `errorMessage`
+
+**`lib/ai/provider.ts` upgrades:**
+- `MODEL_PRICING` table — all 4 providers × models at Feb 2026 prices
+- `estimateCost()` helper
+- `logUsage()` fire-and-forget writer wired into `generateCompletion()` — every AI call logged with cost, tokens, siteId, task, caller
+
+**New: `/admin/ai-costs` + `/api/admin/ai-costs`:**
+- Period filter (today / week / month / all) + per-site scope toggle
+- Per-site cost bars, provider breakdown, task-type breakdown, 30-day daily sparkline, live call feed (last 50 calls)
+- All real DB data
+
+**Security fixes (3 in this commit):**
+1. `CRITICAL`: `/api/content/bulk-publish` POST — added `requireAdmin` (was public)
+2. `CRITICAL`: `/api/homepage-blocks/[id]` DELETE — added `requireAdmin`
+3. `HIGH`: `/api/homepage-blocks/reorder` POST — added `requireAdmin`
+
+**Other fixes:**
+- `sitemap.ts`: added `take:500/200/200` guards on Yacht, YachtDestination, CharterItinerary to prevent OOM
+- Cockpit page: removed last hardcoded `"yalla-london"` fallback
+
+---
+
+### Session: February 26, 2026 — Zenitha Yachts Connectivity Audit
+
+**3 targeted fixes for Zenitha Yachts site isolation:**
+1. `trends-monitor`: skip `zenitha-yachts-med` in `TopicProposal` creation loop (yachts don't use content pipeline)
+2. `content-indexing` API: extended to surface yacht pages in indexing dashboard
+3. `/admin/yachts` fleet page: added `siteId` guard — only renders for `zenitha-yachts-med`
+
+---
+
+### Session: February 26, 2026 — Departures Board (Airport-Style)
+
+**New page: `/admin/departures` — 801 lines across 2 files:**
+
+Airport-style departures board showing every scheduled platform event with live countdown timers and one-tap "Do Now" buttons. Built for iPhone.
+
+**Features:**
+- All 24 cron jobs with next-fire time computed from cron expressions (UTC)
+- Scheduled content publications from `ScheduledContent` table
+- Articles sitting in reservoir (ready to publish now)
+- Live per-row countdown ticking every second
+- Status badges: `scheduled` | `overdue` (red pulse) | `ready` (violet)
+- Overdue alert banner + reservoir ready banner
+- Filter tabs: All / Overdue / Ready / Cron / Publication / Content
+- "Do Now" button: POSTs to `/api/admin/departures`, calls cron internally with `CRON_SECRET`, returns result toast
+- Auto-refresh every 60s (pauseable)
+- Last run time + success/failure indicator per cron job
+
+**API `/api/admin/departures`:**
+- `GET`: parses cron schedules, queries `CronJobLog`, `ScheduledContent`, `ArticleDraft`; sorts by urgency
+- `POST`: validates path against known cron whitelist, fires internal fetch with `CRON_SECRET`
+
+Sidebar: "✈️ Departures Board" added as 2nd item in Cockpit group.
+
+---
+
+### Session: February 26, 2026 — Build Fix: Wrong Auth Import Path
+
+**Build failure fixed (1 fix, 5 files):**
+
+Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin'` across 5 route files. The path `@/lib/auth/admin` does not exist — the correct canonical import is `@/lib/admin-middleware` (which exports `requireAdmin`, `withAdminAuth`, `requireAdminOrCron`).
+
+**Files fixed:**
+- `app/api/admin/ai-costs/route.ts`
+- `app/api/admin/departures/route.ts`
+- `app/api/content/bulk-publish/route.ts`
+- `app/api/homepage-blocks/[id]/route.ts`
+- `app/api/homepage-blocks/reorder/route.ts`
+
+**Root cause:** 5 routes introduced with a non-existent import path. All corrected to `@/lib/admin-middleware`.
+
+**Rule added:** The canonical auth import path for all API routes is `@/lib/admin-middleware`. Never use `@/lib/auth/admin` — it does not exist.

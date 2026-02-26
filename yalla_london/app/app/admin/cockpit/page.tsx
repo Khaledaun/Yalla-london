@@ -236,11 +236,389 @@ function ActionButton({
   );
 }
 
+// ─── Indexing Status Panel ────────────────────────────────────────────────────
+
+interface IndexingArticleInfo {
+  id: string;
+  title: string;
+  slug: string;
+  url: string;
+  publishedAt: string | null;
+  seoScore: number;
+  wordCount: number;
+  indexingStatus: "indexed" | "submitted" | "not_indexed" | "error" | "never_submitted";
+  submittedAt: string | null;
+  lastCrawledAt: string | null;
+  lastInspectedAt: string | null;
+  coverageState: string | null;
+  submittedIndexnow: boolean;
+  submittedSitemap: boolean;
+  submissionAttempts: number;
+  notIndexedReasons: string[];
+  fixAction: string | null;
+  gscClicks: number | null;
+  gscImpressions: number | null;
+  gscCtr: number | null;
+  gscPosition: number | null;
+}
+
+interface IndexingPanelData {
+  siteId: string;
+  baseUrl: string;
+  config: { hasIndexNowKey: boolean; hasGscCredentials: boolean; gscSiteUrl: string };
+  summary: { total: number; indexed: number; submitted: number; notIndexed: number; neverSubmitted: number; errors: number };
+  healthDiagnosis: { status: string; message: string; detail: string; indexingRate: number };
+  articles: IndexingArticleInfo[];
+  systemIssues: Array<{ severity: string; category: string; message: string; detail: string; fixAction?: string }>;
+  recentActivity: Array<{ jobName: string; status: string; startedAt: string; durationMs: number; itemsProcessed: number; itemsSucceeded: number; errorMessage: string | null }>;
+}
+
+function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => void }) {
+  const [data, setData] = useState<IndexingPanelData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [submitLoading, setSubmitLoading] = useState<string | null>(null);
+  const [submitResult, setSubmitResult] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/content-indexing?siteId=${siteId}`);
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || `HTTP ${res.status}`);
+      setData(json);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load indexing data");
+    } finally {
+      setLoading(false);
+    }
+  }, [siteId]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const submitArticle = async (slug: string) => {
+    setSubmitLoading(slug);
+    setSubmitResult(null);
+    try {
+      const res = await fetch("/api/admin/content-indexing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "submit", slugs: [slug] }),
+      });
+      const json = await res.json();
+      setSubmitResult(json.success ? `✅ Submitted "${slug}" for indexing` : `❌ ${json.error || "Submit failed"}`);
+      await fetchData();
+    } catch (e) {
+      setSubmitResult(`❌ ${e instanceof Error ? e.message : "Error"}`);
+    } finally {
+      setSubmitLoading(null);
+    }
+  };
+
+  const submitAll = async () => {
+    setSubmitLoading("all");
+    setSubmitResult(null);
+    try {
+      const res = await fetch("/api/admin/content-indexing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "submit_all" }),
+      });
+      const json = await res.json();
+      setSubmitResult(json.success ? `✅ Submitted all articles for indexing` : `❌ ${json.error || "Submit failed"}`);
+      await fetchData();
+    } catch (e) {
+      setSubmitResult(`❌ ${e instanceof Error ? e.message : "Error"}`);
+    } finally {
+      setSubmitLoading(null);
+    }
+  };
+
+  const statusColor = {
+    indexed: "text-emerald-400 bg-emerald-950/40 border-emerald-800",
+    submitted: "text-blue-400 bg-blue-950/40 border-blue-800",
+    not_indexed: "text-amber-400 bg-amber-950/40 border-amber-800",
+    error: "text-red-400 bg-red-950/40 border-red-800",
+    never_submitted: "text-zinc-400 bg-zinc-800/60 border-zinc-700",
+  } as const;
+
+  const statusLabel = {
+    indexed: "✅ Indexed",
+    submitted: "⏳ Submitted",
+    not_indexed: "⚠️ Not Indexed",
+    error: "❌ Error",
+    never_submitted: "— Not Submitted",
+  } as const;
+
+  const healthColor = {
+    healthy: "border-emerald-700 bg-emerald-950/30",
+    warning: "border-amber-700 bg-amber-950/30",
+    critical: "border-red-700 bg-red-950/30",
+    not_started: "border-zinc-700 bg-zinc-800/30",
+  } as const;
+
+  const filtered = (data?.articles ?? []).filter((a) => {
+    if (statusFilter === "all") return true;
+    return a.indexingStatus === statusFilter;
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950" role="dialog" aria-label="Indexing Status">
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
+        <div>
+          <h2 className="text-sm font-bold text-white">🔍 Indexing Status</h2>
+          <p className="text-xs text-zinc-500">{siteId} — all published articles</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchData}
+            disabled={loading}
+            className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs disabled:opacity-50"
+            title="Refresh"
+          >
+            {loading ? "⏳" : "↻"}
+          </button>
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium"
+          >
+            ✕ Close
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 max-w-screen-xl mx-auto w-full">
+        {loading && !data && (
+          <div className="flex items-center justify-center h-48">
+            <p className="text-zinc-500 text-sm">Loading indexing data…</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-xl border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-300">
+            ⚠️ {error}
+            <button onClick={fetchData} className="ml-3 underline text-xs">Retry</button>
+          </div>
+        )}
+
+        {data && (
+          <>
+            {/* Health Diagnosis */}
+            <div className={`rounded-xl border px-4 py-3 ${healthColor[data.healthDiagnosis.status as keyof typeof healthColor] || healthColor.not_started}`}>
+              <div className="font-semibold text-sm text-zinc-100">{data.healthDiagnosis.message}</div>
+              <div className="text-xs text-zinc-400 mt-1">{data.healthDiagnosis.detail}</div>
+              {typeof data.healthDiagnosis.indexingRate === "number" && data.healthDiagnosis.indexingRate > 0 && (
+                <div className="mt-2 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all"
+                    style={{ width: `${data.healthDiagnosis.indexingRate}%` }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Summary Stats */}
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              {[
+                ["Total", data.summary.total, "text-zinc-300", "all"],
+                ["Indexed", data.summary.indexed, "text-emerald-400", "indexed"],
+                ["Submitted", data.summary.submitted, "text-blue-400", "submitted"],
+                ["Not Indexed", data.summary.notIndexed, "text-amber-400", "not_indexed"],
+                ["Never Sent", data.summary.neverSubmitted, "text-zinc-400", "never_submitted"],
+                ["Errors", data.summary.errors, "text-red-400", "error"],
+              ].map(([label, val, color, filter]) => (
+                <button
+                  key={label as string}
+                  onClick={() => setStatusFilter(filter as string)}
+                  className={`rounded-xl border text-center py-2.5 px-1 transition-colors ${
+                    statusFilter === filter
+                      ? "border-zinc-500 bg-zinc-800"
+                      : "border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800/60"
+                  }`}
+                >
+                  <div className={`text-lg font-bold ${color}`}>{val}</div>
+                  <div className="text-[10px] text-zinc-500 mt-0.5 leading-tight">{label}</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Config warnings */}
+            {(!data.config.hasIndexNowKey || !data.config.hasGscCredentials) && (
+              <div className="rounded-xl border border-amber-700 bg-amber-950/20 px-4 py-3 text-xs space-y-1">
+                <p className="font-semibold text-amber-300">⚠️ Indexing Not Fully Configured</p>
+                {!data.config.hasIndexNowKey && <p className="text-amber-400/80">INDEXNOW_KEY not set — cannot submit to Bing/Yandex</p>}
+                {!data.config.hasGscCredentials && <p className="text-amber-400/80">Google Search Console credentials not configured</p>}
+                <p className="text-zinc-500">Add missing keys in Vercel Dashboard → Settings → Environment Variables</p>
+              </div>
+            )}
+
+            {/* Action row */}
+            <div className="flex flex-wrap gap-2 items-center">
+              <button
+                onClick={submitAll}
+                disabled={submitLoading === "all"}
+                className="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 text-white text-xs font-semibold disabled:opacity-50"
+              >
+                {submitLoading === "all" ? "⏳ Submitting…" : "📤 Submit All Unsubmitted"}
+              </button>
+              {submitResult && (
+                <span className={`text-xs px-2 py-1 rounded-lg ${submitResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+                  {submitResult}
+                </span>
+              )}
+            </div>
+
+            {/* Article List */}
+            <div className="space-y-2">
+              {filtered.length === 0 ? (
+                <div className="rounded-xl border border-zinc-800 py-8 text-center">
+                  <p className="text-zinc-500 text-sm">No articles match this filter.</p>
+                </div>
+              ) : (
+                filtered.map((article) => {
+                  const isExpanded = expanded === article.id;
+                  const statusCls = statusColor[article.indexingStatus] || statusColor.never_submitted;
+                  const statusLbl = statusLabel[article.indexingStatus] || article.indexingStatus;
+                  return (
+                    <div key={article.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden">
+                      {/* Row */}
+                      <div className="px-3 py-2.5 flex flex-col gap-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-zinc-100 truncate">{article.title}</p>
+                            <p className="text-[10px] text-zinc-500 truncate mt-0.5">/blog/{article.slug}</p>
+                          </div>
+                          <span className={`flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusCls}`}>
+                            {statusLbl}
+                          </span>
+                        </div>
+
+                        {/* Metrics row */}
+                        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[10px] text-zinc-500">
+                          {article.publishedAt && (
+                            <span>📅 Published: {new Date(article.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                          )}
+                          {article.lastCrawledAt && (
+                            <span>🕷 Crawled: {new Date(article.lastCrawledAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                          )}
+                          {article.submittedAt && (
+                            <span>📤 Submitted: {new Date(article.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                          )}
+                          <span className={article.wordCount < 300 ? "text-red-400" : article.wordCount < 800 ? "text-amber-400" : "text-zinc-500"}>
+                            📝 {article.wordCount.toLocaleString()} words
+                          </span>
+                          {article.seoScore > 0 && (
+                            <span className={article.seoScore >= 70 ? "text-emerald-400" : article.seoScore >= 50 ? "text-amber-400" : "text-red-400"}>
+                              SEO: {article.seoScore}/100
+                            </span>
+                          )}
+                          {/* GSC performance */}
+                          {article.gscImpressions !== null ? (
+                            <span className="text-purple-400">👁 {article.gscImpressions.toLocaleString()} impressions</span>
+                          ) : (
+                            <span className="text-zinc-600">👁 — impressions</span>
+                          )}
+                          {article.gscClicks !== null ? (
+                            <span className="text-cyan-400">🖱 {article.gscClicks.toLocaleString()} clicks</span>
+                          ) : (
+                            <span className="text-zinc-600">🖱 — clicks</span>
+                          )}
+                          {article.gscPosition !== null && (
+                            <span className="text-zinc-400">Pos: #{Math.round(article.gscPosition)}</span>
+                          )}
+                        </div>
+
+                        {/* Issues + expand */}
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
+                          <div className="flex-1 min-w-0">
+                            {article.notIndexedReasons.length > 0 && !isExpanded && (
+                              <p className="text-[10px] text-amber-400/80 truncate">
+                                ⚠️ {article.notIndexedReasons[0]}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {article.indexingStatus !== "indexed" && (
+                              <button
+                                onClick={() => submitArticle(article.slug)}
+                                disabled={submitLoading === article.slug}
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-blue-900/40 hover:bg-blue-900/70 text-blue-300 border border-blue-800 disabled:opacity-50"
+                              >
+                                {submitLoading === article.slug ? "⏳" : "Submit"}
+                              </button>
+                            )}
+                            {(article.notIndexedReasons.length > 0 || article.coverageState) && (
+                              <button
+                                onClick={() => setExpanded(isExpanded ? null : article.id)}
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-400"
+                              >
+                                {isExpanded ? "▲ Hide" : "▼ Issues"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Expanded reasons */}
+                        {isExpanded && (
+                          <div className="mt-2 pt-2 border-t border-zinc-800 space-y-1.5">
+                            {article.coverageState && (
+                              <p className="text-[10px] text-zinc-400 bg-zinc-800/60 rounded px-2 py-1">
+                                <span className="font-medium text-zinc-300">Google coverage: </span>{article.coverageState}
+                              </p>
+                            )}
+                            {article.notIndexedReasons.map((reason, i) => (
+                              <p key={i} className="text-[10px] text-amber-400/90 bg-amber-950/20 rounded px-2 py-1">
+                                • {reason}
+                              </p>
+                            ))}
+                            <div className="flex gap-3 text-[10px] text-zinc-500 pt-1">
+                              <span>IndexNow: {article.submittedIndexnow ? "✅" : "❌"}</span>
+                              <span>Sitemap: {article.submittedSitemap ? "✅" : "❌"}</span>
+                              <span>Attempts: {article.submissionAttempts}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* System Issues */}
+            {data.systemIssues.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-zinc-400">System Issues</p>
+                {data.systemIssues.map((issue, i) => (
+                  <div key={i} className={`rounded-xl border px-3 py-2 text-xs ${
+                    issue.severity === "critical" ? "border-red-800 bg-red-950/20 text-red-300" :
+                    issue.severity === "warning" ? "border-amber-800 bg-amber-950/20 text-amber-300" :
+                    "border-zinc-700 bg-zinc-800/30 text-zinc-400"
+                  }`}>
+                    <div className="font-medium">{issue.category}: {issue.message}</div>
+                    <div className="text-[10px] mt-0.5 opacity-80">{issue.detail}</div>
+                    {issue.fixAction && <div className="text-[10px] mt-1 opacity-60">Fix: {issue.fixAction}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Tab 1: Mission Control ───────────────────────────────────────────────────
 
-function MissionTab({ data, onRefresh, onSwitchTab }: { data: CockpitData | null; onRefresh: () => void; onSwitchTab: (tab: TabId) => void }) {
+function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitData | null; onRefresh: () => void; onSwitchTab: (tab: TabId) => void; siteId: string }) {
   const [actionResult, setActionResult] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showIndexPanel, setShowIndexPanel] = useState(false);
 
   const triggerAction = useCallback(async (endpoint: string, body: object, label: string) => {
     setActionLoading(label);
@@ -276,8 +654,14 @@ function MissionTab({ data, onRefresh, onSwitchTab }: { data: CockpitData | null
   }
 
   const { system, pipeline, indexing, cronHealth, alerts } = data;
+  const effectiveSiteId = siteId || data.sites?.[0]?.id || "yalla-london";
 
   return (
+    <>
+    {/* Indexing Panel Overlay */}
+    {showIndexPanel && (
+      <IndexingPanel siteId={effectiveSiteId} onClose={() => setShowIndexPanel(false)} />
+    )}
     <div className="space-y-4">
       {/* System Status Row */}
       <Card>
@@ -384,10 +768,14 @@ function MissionTab({ data, onRefresh, onSwitchTab }: { data: CockpitData | null
           <div className="text-2xl font-bold text-emerald-400">{pipeline.publishedToday}</div>
           <div className="text-xs text-zinc-500 mt-1">Published Today</div>
         </Card>
-        <Card className="text-center">
+        <button
+          onClick={() => setShowIndexPanel(true)}
+          className="rounded-xl border border-zinc-800 bg-zinc-900 text-center p-3 hover:bg-zinc-800 hover:border-blue-700 transition-colors group w-full"
+          title="View indexing status for all articles"
+        >
           <div className="text-2xl font-bold text-blue-400">{indexing.indexed}</div>
-          <div className="text-xs text-zinc-500 mt-1">Indexed</div>
-        </Card>
+          <div className="text-xs text-zinc-500 mt-1 group-hover:text-blue-400 transition-colors">Indexed 🔍</div>
+        </button>
         <Card className="text-center">
           <div className={`text-2xl font-bold ${cronHealth.failedLast24h > 0 ? "text-red-400" : "text-emerald-400"}`}>
             {cronHealth.failedLast24h > 0 ? `${cronHealth.failedLast24h} ❌` : "OK ✅"}
@@ -494,6 +882,7 @@ function MissionTab({ data, onRefresh, onSwitchTab }: { data: CockpitData | null
         </Card>
       )}
     </div>
+    </>
   );
 }
 
@@ -1831,7 +2220,7 @@ export default function CockpitPage() {
       {/* Content */}
       <main className="max-w-screen-xl mx-auto px-4 py-4 pb-20">
         {activeTab === "mission" && (
-          <MissionTab data={cockpitData} onRefresh={fetchCockpit} onSwitchTab={setActiveTab} />
+          <MissionTab data={cockpitData} onRefresh={fetchCockpit} onSwitchTab={setActiveTab} siteId={activeSiteId} />
         )}
         {activeTab === "content" && (
           <ContentTab activeSiteId={activeSiteId} />

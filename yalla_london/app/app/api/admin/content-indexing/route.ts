@@ -34,6 +34,11 @@ interface ArticleIndexingInfo {
   notIndexedReasons: string[];
   // Suggested fix
   fixAction: string | null;
+  // GSC performance (from inspection_result JSON if available)
+  gscClicks: number | null;
+  gscImpressions: number | null;
+  gscCtr: number | null;
+  gscPosition: number | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -329,6 +334,14 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      // Extract GSC performance data from inspection_result JSON if available
+      const inspection = record?.inspection_result as Record<string, any> | null;
+      const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
+      const gscClicks = typeof perfMetrics?.clicks === "number" ? perfMetrics.clicks : null;
+      const gscImpressions = typeof perfMetrics?.impressions === "number" ? perfMetrics.impressions : null;
+      const gscCtr = typeof perfMetrics?.ctr === "number" ? perfMetrics.ctr : null;
+      const gscPosition = typeof perfMetrics?.position === "number" ? perfMetrics.position : null;
+
       return {
         id: post.id,
         title: post.title_en || post.title_ar || "(Untitled)",
@@ -347,6 +360,10 @@ export async function GET(request: NextRequest) {
         submissionAttempts: record?.submission_attempts || 0,
         notIndexedReasons: reasons,
         fixAction,
+        gscClicks,
+        gscImpressions,
+        gscCtr,
+        gscPosition,
       };
     });
 

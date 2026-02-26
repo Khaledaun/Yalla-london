@@ -34,7 +34,8 @@ export interface TrendSignal {
     | "etsy_search"
     | "pinterest"
     | "internal"
-    | "seasonal";
+    | "seasonal"
+    | "ai_research";
   volume?: number;
   competition?: "low" | "medium" | "high";
   timeWindow?: string; // "rising", "stable", "declining"
@@ -47,9 +48,18 @@ export interface NicheOpportunity {
   keywords: string[];
   competitorCount: number;
   avgPrice: number; // cents
-  demandSignal: "rising" | "stable" | "seasonal" | "declining";
-  suggestedProductType: string;
-  suggestedTier: 1 | 2 | 3;
+  demandSignal: "high" | "medium" | "low" | "rising" | "stable" | "seasonal" | "declining";
+  ontologyCategory?: string;
+  suggestedProductType?: string;
+  suggestedTier?: 1 | 2 | 3;
+  // Scoring dimensions (0-100 each)
+  buyerIntent?: number;
+  trendVelocity?: number;
+  competitionGap?: number;
+  productionEase?: number;
+  authorityFit?: number;
+  seasonalTiming?: number;
+  bundlePotential?: number;
 }
 
 export interface ProductOpportunityBrief {
@@ -121,33 +131,36 @@ export interface EtsyComplianceResult {
 // ─── CSV Import ───────────────────────────────────────────
 
 export interface EtsyOrderCsvRow {
-  sale_date: string;
-  item_name: string;
-  quantity: string;
-  price: string;
-  shipping: string;
-  sales_tax: string;
-  order_id: string;
-  currency: string;
-  buyer_email?: string;
-  coupon_code?: string;
+  saleDate: string;
+  itemName: string;
+  buyer: string;
+  buyerEmail?: string;
+  quantity: number;
+  price: number;
+  couponCode?: string;
+  discountAmount: number;
+  shipping: number;
+  salesTax: number;
+  orderTotal: number;
+  status: string;
+  transactionId?: string;
+  listingId?: string;
 }
 
 export interface EtsyStatsCsvRow {
   date: string;
-  views: string;
-  visits: string;
-  orders: string;
-  revenue: string;
-  favorited?: string;
-  conversion_rate?: string;
+  views: number;
+  visits: number;
+  orders: number;
+  revenue: number;
+  conversionRate: number;
 }
 
 export interface CsvImportResult {
-  rowsParsed: number;
-  rowsImported: number;
-  rowsSkipped: number;
+  imported: number;
+  skipped: number;
   errors: string[];
+  totalRows: number;
 }
 
 // ─── Campaign ─────────────────────────────────────────────

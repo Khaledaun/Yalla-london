@@ -25,7 +25,9 @@ export type TaskType =
   | 'quality_scoring'
   | 'arabic_translation'
   | 'image_alt_generation'
-  | 'affiliate_copy';
+  | 'affiliate_copy'
+  | 'commerce_trends'
+  | 'commerce_listing_copy';
 
 /** Human-readable labels for the admin UI. */
 export const TASK_LABELS: Record<TaskType, string> = {
@@ -39,6 +41,8 @@ export const TASK_LABELS: Record<TaskType, string> = {
   arabic_translation: 'Arabic Translation',
   image_alt_generation: 'Image Alt Text',
   affiliate_copy: 'Affiliate Copy',
+  commerce_trends: 'Commerce Trend Research',
+  commerce_listing_copy: 'Commerce Listing Copy',
 };
 
 /** All task types as a constant array — used to drive seeding loops. */

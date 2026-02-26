@@ -1252,12 +1252,12 @@ function EtsyTab({
             <p className="text-sm text-gray-600">
               Your Etsy API keys are configured. Connect your shop to start publishing listings.
             </p>
-            <a
-              href="/api/auth/etsy?siteId=yalla-london"
+            <button
+              onClick={() => { window.location.href = "/api/auth/etsy?siteId=yalla-london"; }}
               className="block w-full text-center px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm font-medium transition-colors"
             >
               Connect Etsy Shop
-            </a>
+            </button>
           </div>
         )}
 

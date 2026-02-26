@@ -419,6 +419,18 @@ export async function runPrePublicationGate(
     }
   }
 
+  // ── 14. AIO Readiness (AI Overview citation eligibility) ──────────
+  // Google AI Overviews cite content that leads with a direct, concise answer
+  // before expanding. 60%+ of searches now show AI Overviews — this signals
+  // whether the article is structured for citation in generative results.
+  if (content.content_en) {
+    const { check: aioCheck } = checkAIOReadiness(content.content_en);
+    checks.push(aioCheck);
+    if (!aioCheck.passed) {
+      warnings.push(aioCheck.message);
+    }
+  }
+
   return {
     allowed: blockers.length === 0,
     checks,
@@ -718,6 +730,89 @@ function countAffiliateLinks(html: string): number {
     if (matches) count += matches.length;
   }
   return count;
+}
+
+/**
+ * Check AIO (AI Overview) readiness.
+ *
+ * Google AI Overviews are shown on 60%+ of searches. Content gets cited when it:
+ *   1. Opens with a direct, concise answer in the first 80 words
+ *   2. Has at least one H2 in question format (signals question-answer alignment)
+ *   3. Avoids excessive preamble before answering the core question
+ *
+ * This is a WARNING-only check — it never blocks publication. It surfaces
+ * structural improvements that increase the chance of AI Overview citation.
+ */
+function checkAIOReadiness(html: string): { check: GateCheck } {
+  // Strip tags, collapse whitespace, get first 100 words as intro
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const words = text.split(/\s+/).filter((w) => w.length > 0);
+  const introWords = words.slice(0, 100);
+  const introText = introWords.join(" ").toLowerCase();
+
+  // ── Signal 1: Direct answer in intro (40–90 word window) ──────────
+  // AIO-cited intros typically contain a short declarative sentence that
+  // directly answers a who/what/where/when/why/how query.
+  const directAnswerPatterns = [
+    // "X is a …" / "X are …" direct definition patterns
+    /\b(?:is|are|was|were)\s+(?:a|an|the|one of)\b/,
+    // Imperative answer ("The best way to … is …")
+    /\bthe (?:best|easiest|quickest|most|top)\b/,
+    // Located/found ("X is located in …")
+    /\b(?:located|found|situated|based)\s+in\b/,
+    // How-to direct open ("To … you need to …")
+    /\bto [a-z]+ (?:you|your|a|the)\b/,
+    // Yes/no answer opening
+    /^(?:yes|no),?\s/,
+  ];
+  const hasDirectAnswer = directAnswerPatterns.some((p) => p.test(introText));
+
+  // ── Signal 2: Question-format H2 headings ─────────────────────────
+  const questionH2Regex = /<h2[^>]*>[^<]*\?[^<]*<\/h2>/gi;
+  const questionH2Count = (html.match(questionH2Regex) || []).length;
+
+  // ── Signal 3: No excessive preamble (first substantive content ≤ 50 words in) ──
+  // AIO avoids articles that lead with backstory/context before answering.
+  const preamblePatterns = [
+    /\b(?:throughout history|since ancient times|for centuries|over the years)\b/,
+    /\bwelcome to (?:this|our|my)\b/,
+    /\bare you looking for\b/,
+    /\bhave you ever wondered\b/,
+    /\bin this (?:article|guide|post) (?:we will|we'll|i will|i'll)\b/,
+  ];
+  const hasPreamble = preamblePatterns.some((p) => p.test(introText));
+
+  // ── Scoring ────────────────────────────────────────────────────────
+  const issues: string[] = [];
+  if (!hasDirectAnswer) {
+    issues.push("intro lacks a direct, concise answer in the first 80 words");
+  }
+  if (questionH2Count === 0) {
+    issues.push("no question-format H2 headings (e.g. 'What is…?', 'How to…?')");
+  }
+  if (hasPreamble) {
+    issues.push("excessive preamble detected before the core answer");
+  }
+
+  if (issues.length === 0) {
+    return {
+      check: {
+        name: "AIO Readiness",
+        passed: true,
+        message: `AI Overview ready: answer-first intro, ${questionH2Count} question H2(s), no preamble detected`,
+        severity: "info",
+      },
+    };
+  }
+
+  return {
+    check: {
+      name: "AIO Readiness",
+      passed: false,
+      message: `AIO citation risk — ${issues.join("; ")}. Structure content with a direct answer first, then detail. 60%+ of searches show AI Overviews.`,
+      severity: "warning",
+    },
+  };
 }
 
 /**

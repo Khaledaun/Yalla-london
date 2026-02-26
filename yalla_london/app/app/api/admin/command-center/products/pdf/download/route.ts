@@ -59,34 +59,36 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // If email provided, create/update lead (if Lead model exists)
+    // If email provided, create/update lead
     if (email) {
       try {
-        const existingLead = await (prisma as any).lead?.findFirst({
+        const existingLead = await prisma.lead.findFirst({
           where: { email, site_id: guide.site },
         });
 
         if (existingLead) {
-          await (prisma as any).lead.update({
+          // Update lead score to reflect engagement
+          await prisma.lead.update({
             where: { id: existingLead.id },
             data: {
-              last_interaction: new Date(),
-              interaction_count: { increment: 1 },
+              score: { increment: 5 },
             },
           });
-        } else if ((prisma as any).lead) {
-          await (prisma as any).lead.create({
+        } else {
+          await prisma.lead.create({
             data: {
               email,
               name: name || null,
               site_id: guide.site,
-              source: source || 'pdf_download',
-              status: 'new',
+              lead_source: source || 'pdf_download',
+              status: 'NEW',
+              lead_type: 'GUIDE_DOWNLOAD',
+              score: 20,
             },
           });
         }
       } catch (leadErr) {
-        console.warn('[pdf-download] Lead tracking skipped (model may not exist):', leadErr);
+        console.warn('[pdf-download] Lead tracking failed:', leadErr instanceof Error ? leadErr.message : leadErr);
       }
     }
 

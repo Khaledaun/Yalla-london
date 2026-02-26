@@ -169,13 +169,23 @@ async function distributeEmailHeader(
       templateId = defaultTemplate.id;
     }
 
+    // Read existing jsonContent so we can merge (not overwrite) the header reference
+    const existing = await prisma.emailTemplate.findUnique({
+      where: { id: templateId },
+      select: { jsonContent: true },
+    });
+    const currentJson = existing?.jsonContent && typeof existing.jsonContent === "object"
+      ? (existing.jsonContent as Record<string, unknown>)
+      : {};
+
     const updated = await prisma.emailTemplate.update({
       where: { id: templateId },
       data: {
         thumbnail: imageUrl,
-        // Store design reference in jsonContent so the email renderer can
-        // pull the header image at send-time.
+        // Merge design reference into jsonContent so the email renderer can
+        // pull the header image at send-time without losing existing block data.
         jsonContent: {
+          ...currentJson,
           headerImageUrl: imageUrl,
           headerDesignId: design.id,
         },

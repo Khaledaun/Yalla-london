@@ -85,8 +85,8 @@ export async function GET(request: NextRequest) {
         thumbnailUrl: d.thumbnail ?? null,
         publishedTo: d.status === "published" ? d.status : null,
       }));
-    } catch {
-      // Table may not exist yet — return empty array silently
+    } catch (designErr) {
+      console.warn("[design-studio] Failed to load designs:", designErr instanceof Error ? designErr.message : designErr);
     }
 
     // Flatten brand to the shape BrandProfile interface expects
@@ -110,13 +110,9 @@ export async function GET(request: NextRequest) {
       templates,
     });
   } catch (error) {
+    console.error("[design-studio] GET error:", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to generate templates",
-      },
+      { error: "Failed to generate templates" },
       { status: 500 },
     );
   }
@@ -172,16 +168,18 @@ export async function POST(request: NextRequest) {
       try {
         const { prisma } = await import("@/lib/db");
         if (target === "og_image" || target === "article_hero") {
-          const field = target === "og_image" ? "og_image" : "featured_image";
+          // og_image_id stores the Design record ID; featured_image stores the URL
+          const field = target === "og_image" ? "og_image_id" : "featured_image";
           // Find design image URL
-          const design = await prisma.design.findUnique({ where: { id: designId }, select: { thumbnail: true } });
+          const design = await prisma.design.findUnique({ where: { id: designId }, select: { id: true, thumbnail: true } });
           if (!design?.thumbnail) {
             return NextResponse.json({ success: false, error: "Design has no preview image yet. Export the design first." }, { status: 404 });
           }
-          // Update blog post with the design image (use postId if provided)
+          // Update blog post with the design reference (use postId if provided)
           const postId = body.postId as string | undefined;
           if (postId) {
-            await (prisma.blogPost as any).update({ where: { id: postId }, data: { [field]: design.thumbnail } });
+            const value = target === "og_image" ? design.id : design.thumbnail;
+            await prisma.blogPost.update({ where: { id: postId }, data: { [field]: value } });
             return NextResponse.json({ success: true, message: `Design published as ${target}` });
           }
         }
@@ -209,13 +207,9 @@ export async function POST(request: NextRequest) {
       html,
     });
   } catch (error) {
+    console.error("[design-studio] POST error:", error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to generate template",
-      },
+      { error: "Failed to generate template" },
       { status: 500 },
     );
   }

@@ -1112,7 +1112,7 @@ export default function ProductFileGeneratorPage() {
                   display: "block",
                 }}
                 title="Template Preview"
-                sandbox="allow-same-origin"
+                sandbox=""
               />
             </div>
           </div>

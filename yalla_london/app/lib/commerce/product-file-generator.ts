@@ -1096,7 +1096,8 @@ export async function generateFromBlogPost(
     throw new Error(`[product-file-generator] BlogPost not found: ${postId}`);
   }
 
-  const siteId = post.siteId || "yalla-london";
+  const { getDefaultSiteId } = await import("@/config/sites");
+  const siteId = post.siteId || getDefaultSiteId();
   const brand = getBrandProfile(siteId);
 
   console.log(

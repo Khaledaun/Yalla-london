@@ -2,6 +2,9 @@
  * HTML-to-PDF Converter
  *
  * Wraps Puppeteer to convert HTML strings into PDF buffers.
+ * Uses @sparticuz/chromium on Vercel serverless (no bundled Chromium).
+ * Falls back to local Puppeteer in development.
+ *
  * Includes retry logic, timeout guards, and proper resource cleanup.
  */
 
@@ -31,20 +34,56 @@ const DEFAULT_MARGIN = {
 };
 
 /**
+ * Detect if running in Vercel serverless (no local Chromium available).
+ * Uses @sparticuz/chromium for serverless environments.
+ */
+async function getChromiumConfig(): Promise<{
+  executablePath?: string;
+  args: string[];
+}> {
+  const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+  if (isServerless) {
+    try {
+      // Dynamic import to avoid bundling issues in local dev
+      const chromium = await import("@sparticuz/chromium");
+      const executablePath = await chromium.default.executablePath();
+      return {
+        executablePath,
+        args: chromium.default.args,
+      };
+    } catch (err) {
+      console.warn(
+        "[html-to-pdf] @sparticuz/chromium not available, falling back to local Puppeteer:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
+  // Local development: use Puppeteer's bundled Chromium
+  return {
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+    ],
+  };
+}
+
+/**
  * Launch a Puppeteer browser with retry logic.
  * If the first launch fails, waits 1s and retries once.
  */
 async function launchBrowserWithRetry(): Promise<Browser> {
+  const chromiumConfig = await getChromiumConfig();
+
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       const browser = await puppeteer.launch({
         headless: true,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-gpu",
-        ],
+        executablePath: chromiumConfig.executablePath,
+        args: chromiumConfig.args,
       });
       return browser;
     } catch (error) {

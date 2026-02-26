@@ -23,13 +23,16 @@ export interface EmailBlock {
   id: string;
   type:
     | "header"
+    | "hero"
     | "text"
     | "image"
     | "button"
+    | "cta"
     | "divider"
     | "columns"
     | "footer"
-    | "social-links";
+    | "social-links"
+    | "testimonial";
   content: Record<string, any>;
   styles?: {
     backgroundColor?: string;
@@ -191,12 +194,15 @@ function renderBlock(block: EmailBlock, ctx: BlockRenderContext): string {
 
   switch (block.type) {
     case "header":
+    case "hero":
       return renderHeader(block, ctx, s);
     case "text":
+    case "testimonial":
       return renderText(block, s);
     case "image":
       return renderImage(block, s);
     case "button":
+    case "cta":
       return renderButton(block, ctx, s);
     case "divider":
       return renderDivider(block, s);
@@ -589,12 +595,14 @@ function renderBlockPlainText(
   ctx: BlockRenderContext
 ): string {
   switch (block.type) {
-    case "header": {
+    case "header":
+    case "hero": {
       const title: string = block.content.title || ctx.siteName;
       return `=== ${title} ===`;
     }
 
-    case "text": {
+    case "text":
+    case "testimonial": {
       const text: string = block.content.text || block.content.html || "";
       return stripHtml(text);
     }
@@ -607,7 +615,8 @@ function renderBlockPlainText(
       return "";
     }
 
-    case "button": {
+    case "button":
+    case "cta": {
       const text: string = block.content.text || block.content.label || "Click Here";
       const url: string = block.content.url || block.content.href || ctx.siteUrl;
       return `${text}: ${url}`;

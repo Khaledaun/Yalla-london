@@ -462,7 +462,7 @@ export async function autoOptimizeLowCTRMeta(
     ...searchData.lowCTRPages,
   ]
     .filter((p) => p.fix === "auto_optimize_meta")
-    .slice(0, 2); // Limit to 2 per run to prevent timeout (was 5)
+    .slice(0, 8); // 8 per run (was 2) — agent runs 3x daily = up to 24 meta improvements/day
 
   if (pagesToOptimize.length === 0) return optimizations;
 
@@ -691,8 +691,8 @@ export async function flagContentForStrengthening(
   const expandedPosts: string[] = [];
   const flaggedPosts: string[] = [];
 
-  // Only process top 1 per run to prevent timeout (was 3)
-  for (const page of searchData.almostPage1.slice(0, 1)) {
+  // 3 per run (was 1) — agent runs 3x daily = up to 9 expansions/day
+  for (const page of searchData.almostPage1.slice(0, 3)) {
     if (!page.slug || page.slug === "") continue;
 
     try {

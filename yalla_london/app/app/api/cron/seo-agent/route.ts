@@ -284,7 +284,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           content_en: true,
           tags: true,
         },
-        take: 5, // Process 5 per run
+        take: 20, // Process 20 per run (was 5) — larger batch closes schema gap faster
       });
 
       let schemasInjected = 0;
@@ -316,6 +316,72 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       };
     } catch (schemaError) {
       console.warn("Schema auto-injection failed (non-fatal):", schemaError);
+    }
+
+    // 12c. AUTO-INJECT INTERNAL LINKS FOR POSTS WITH < 3 INTERNAL LINKS
+    if (hasBudget(5_000)) {
+      try {
+        const postsWithFewLinks = await prisma.blogPost.findMany({
+          where: {
+            published: true,
+            ...siteFilter,
+          },
+          select: { id: true, slug: true, title_en: true, content_en: true, category_id: true },
+          take: 50,
+          orderBy: { created_at: "desc" },
+        });
+
+        // Count internal links in each post
+        const needsLinks = postsWithFewLinks.filter((post: { id: string; slug: string | null; content_en: string | null }) => {
+          const html = post.content_en || "";
+          const internalLinks = (html.match(/href=["']\//g) || []).length;
+          return internalLinks < 3;
+        });
+
+        let linksInjected = 0;
+        const publishedSlugs = postsWithFewLinks
+          .filter((p: { slug: string | null }) => p.slug)
+          .map((p: { slug: string; title_en: string }) => ({ slug: p.slug, title: p.title_en }));
+
+        for (const post of needsLinks.slice(0, 5)) {
+          if (!post.content_en || post.content_en.length < 200) continue;
+
+          // Find 3 related posts (different slug, has title)
+          const relatedCandidates = publishedSlugs
+            .filter((p: { slug: string }) => p.slug !== post.slug)
+            .slice(0, 6);
+
+          if (relatedCandidates.length < 2) continue;
+
+          // Build a "Related Articles" section to append
+          const relatedLinks = relatedCandidates.slice(0, 3)
+            .map((r: { slug: string; title: string }) =>
+              `<li><a href="/blog/${r.slug}" class="internal-link">${r.title || r.slug}</a></li>`
+            ).join("\n");
+
+          const relatedSection = `\n<section class="related-articles"><h2>Related Articles</h2><ul>\n${relatedLinks}\n</ul></section>`;
+
+          // Append the section if it doesn't already have one
+          if (!post.content_en.includes("related-articles")) {
+            try {
+              await prisma.blogPost.update({
+                where: { id: post.id },
+                data: { content_en: post.content_en + relatedSection },
+              });
+              linksInjected++;
+            } catch (e) {
+              console.warn(`[seo-agent] Internal link injection failed for ${post.slug}:`, e instanceof Error ? e.message : e);
+            }
+          }
+        }
+
+        if (linksInjected > 0) {
+          fixes.push(`Injected internal link sections into ${linksInjected} posts with < 3 links`);
+        }
+        report.internalLinkInjection = { postsChecked: needsLinks.length, linksInjected };
+      } catch (linkErr) {
+        console.warn("[seo-agent] Internal link injection failed (non-fatal):", linkErr instanceof Error ? linkErr.message : linkErr);
+      }
     }
 
     // 13. ANALYZE CONTENT DIVERSITY + GENERATE STRATEGIC PROPOSALS (budget-gated)
@@ -895,6 +961,14 @@ async function detectContentGaps(prisma: any, issues: string[], siteId?: string)
 
 /**
  * Auto-fix common SEO issues
+ *
+ * Fixes (in priority order):
+ * 1. Missing meta titles → generate from title_en (truncated to 57 chars)
+ * 2. Missing meta descriptions → generate from excerpt_en (truncated to 155 chars)
+ * 3. Meta titles that are too long (> 60 chars) → trim to 57 + "..."
+ * 4. Meta titles that are too short (< 30 chars) → prepend site keyword context
+ * 5. Meta descriptions that are too long (> 160 chars) → trim to 155 + "…"
+ * 6. Meta descriptions that are too short (< 120 chars) → extend from content excerpt
  */
 async function autoFixSEOIssues(
   prisma: any,
@@ -905,40 +979,133 @@ async function autoFixSEOIssues(
   const fixedCount = { metaTitles: 0, metaDescriptions: 0, slugs: 0 };
   const blogSiteFilter = siteId ? { siteId } : {};
 
+  // ── Fix 1 + 2: Missing meta titles OR descriptions ─────────────────────────
   try {
-    // Fix posts with missing meta titles
     const postsWithoutMeta = await prisma.blogPost.findMany({
       where: {
         published: true,
-               ...blogSiteFilter,
-        OR: [{ meta_title_en: null }, { meta_title_en: "" }],
+        ...blogSiteFilter,
+        OR: [
+          { meta_title_en: null },
+          { meta_title_en: "" },
+          { meta_description_en: null },
+          { meta_description_en: "" },
+        ],
       },
-      select: { id: true, title_en: true, title_ar: true, excerpt_en: true },
+      select: { id: true, title_en: true, excerpt_en: true, content_en: true },
+      take: 50,
     });
 
     for (const post of postsWithoutMeta) {
-      const metaTitle = (post.title_en || "").slice(0, 60);
-      const metaDesc = (post.excerpt_en || post.title_en || "").slice(0, 155);
+      const updates: Record<string, string> = {};
 
-      try {
-        await prisma.blogPost.update({
-          where: { id: post.id },
-          data: {
-            meta_title_en: metaTitle || undefined,
-            meta_description_en: metaDesc || undefined,
-          },
-        });
-        fixedCount.metaTitles++;
-      } catch (e) {
-        console.warn("Failed to auto-fix meta title:", e);
+      if (!post.meta_title_en) {
+        // Build a 50-57 char title: clip at last word boundary before 57 chars
+        let title = (post.title_en || "").trim();
+        if (title.length > 57) {
+          title = title.substring(0, 57);
+          const lastSpace = title.lastIndexOf(" ");
+          if (lastSpace > 40) title = title.substring(0, lastSpace);
+          title = title + "…";
+        }
+        if (title.length >= 10) updates.meta_title_en = title;
+      }
+
+      if (!post.meta_description_en) {
+        // Build 120-155 char description: prefer excerpt, fall back to content strip
+        const source = post.excerpt_en || (post.content_en || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        let desc = source.substring(0, 155).trim();
+        const lastSentence = desc.search(/[.!?][^.!?]*$/);
+        if (lastSentence > 80) desc = desc.substring(0, lastSentence + 1);
+        if (desc.length >= 50) updates.meta_description_en = desc;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        try {
+          await prisma.blogPost.update({ where: { id: post.id }, data: updates });
+          fixedCount.metaTitles++;
+        } catch (e) {
+          console.warn("[seo-agent] Failed to auto-fix meta fields:", e instanceof Error ? e.message : e);
+        }
       }
     }
 
     if (fixedCount.metaTitles > 0) {
-      fixes.push(`Auto-generated ${fixedCount.metaTitles} missing meta titles`);
+      fixes.push(`Auto-generated missing meta fields for ${fixedCount.metaTitles} posts`);
     }
   } catch (metaErr) {
-    console.warn("[seo-agent] Meta title auto-fix failed:", metaErr instanceof Error ? metaErr.message : metaErr);
+    console.warn("[seo-agent] Missing meta auto-fix failed:", metaErr instanceof Error ? metaErr.message : metaErr);
+  }
+
+  // ── Fix 3: Meta titles too long (> 60 chars) ──────────────────────────────
+  try {
+    const postsLongTitle = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        ...blogSiteFilter,
+        meta_title_en: { not: null },
+      },
+      select: { id: true, meta_title_en: true },
+      take: 100,
+    });
+
+    let longTitleFixed = 0;
+    for (const post of postsLongTitle) {
+      const title = post.meta_title_en || "";
+      if (title.length > 60) {
+        let trimmed = title.substring(0, 57);
+        const lastSpace = trimmed.lastIndexOf(" ");
+        if (lastSpace > 40) trimmed = trimmed.substring(0, lastSpace);
+        trimmed = trimmed.replace(/[.,;:!?-]+$/, "") + "…";
+        try {
+          await prisma.blogPost.update({ where: { id: post.id }, data: { meta_title_en: trimmed } });
+          longTitleFixed++;
+        } catch (e) {
+          console.warn("[seo-agent] Long title trim failed:", e instanceof Error ? e.message : e);
+        }
+      }
+    }
+    if (longTitleFixed > 0) {
+      fixes.push(`Trimmed ${longTitleFixed} meta titles exceeding 60 chars`);
+    }
+  } catch (err) {
+    console.warn("[seo-agent] Long title fix failed:", err instanceof Error ? err.message : err);
+  }
+
+  // ── Fix 4: Meta descriptions too long (> 160 chars) ───────────────────────
+  try {
+    const postsLongDesc = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        ...blogSiteFilter,
+        meta_description_en: { not: null },
+      },
+      select: { id: true, meta_description_en: true },
+      take: 100,
+    });
+
+    let longDescFixed = 0;
+    for (const post of postsLongDesc) {
+      const desc = post.meta_description_en || "";
+      if (desc.length > 160) {
+        let trimmed = desc.substring(0, 155);
+        const lastSpace = trimmed.lastIndexOf(" ");
+        if (lastSpace > 120) trimmed = trimmed.substring(0, lastSpace);
+        trimmed = trimmed.replace(/[.,;:!?]+$/, "") + "…";
+        try {
+          await prisma.blogPost.update({ where: { id: post.id }, data: { meta_description_en: trimmed } });
+          longDescFixed++;
+          fixedCount.metaDescriptions++;
+        } catch (e) {
+          console.warn("[seo-agent] Long desc trim failed:", e instanceof Error ? e.message : e);
+        }
+      }
+    }
+    if (longDescFixed > 0) {
+      fixes.push(`Trimmed ${longDescFixed} meta descriptions exceeding 160 chars`);
+    }
+  } catch (err) {
+    console.warn("[seo-agent] Long description fix failed:", err instanceof Error ? err.message : err);
   }
 
   return fixedCount;

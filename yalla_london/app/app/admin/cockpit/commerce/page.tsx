@@ -88,9 +88,44 @@ const TABS = [
   { key: "trends", label: "Trends" },
   { key: "briefs", label: "Briefs" },
   { key: "products", label: "Products" },
+  { key: "etsy", label: "Etsy" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
+
+// ─── Etsy Types ──────────────────────────────────────────
+
+interface EtsyStatus {
+  configured: boolean;
+  connected: boolean;
+  connectionStatus?: string;
+  shopName?: string;
+  shopId?: string;
+  shopUrl?: string;
+  tokenExpiresAt?: string;
+  lastTestedAt?: string;
+  stats?: {
+    totalDrafts: number;
+    publishedOnEtsy: number;
+    pendingPublish: number;
+  };
+  message?: string;
+  error?: string;
+}
+
+interface EtsyDraft {
+  id: string;
+  title: string;
+  status: string;
+  price: number;
+  tags: string[];
+  etsyListingId?: string;
+  etsyUrl?: string;
+  etsyState?: string;
+  errorMessage?: string;
+  publishedAt?: string;
+  createdAt: string;
+}
 
 // ─── Component ────────────────────────────────────────────
 
@@ -103,6 +138,8 @@ export default function CommerceHQPage() {
     total: number;
     byStatus: Record<string, number>;
   } | null>(null);
+  const [etsyStatus, setEtsyStatus] = useState<EtsyStatus | null>(null);
+  const [etsyDrafts, setEtsyDrafts] = useState<EtsyDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -148,12 +185,53 @@ export default function CommerceHQPage() {
     }
   }, [briefFilter]);
 
+  const fetchEtsyStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/commerce/etsy");
+      if (!res.ok) throw new Error("Failed to load Etsy status");
+      const data = await res.json();
+      setEtsyStatus(data);
+    } catch (err) {
+      console.warn("[commerce-hq] Etsy status error:", err);
+    }
+  }, []);
+
+  const fetchEtsyDrafts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/commerce/listings");
+      if (!res.ok) return;
+      const data = await res.json();
+      setEtsyDrafts(data.data ?? []);
+    } catch (err) {
+      console.warn("[commerce-hq] Etsy drafts error:", err);
+    }
+  }, []);
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchStats(), fetchTrends(), fetchBriefs()])
+    Promise.all([fetchStats(), fetchTrends(), fetchBriefs(), fetchEtsyStatus(), fetchEtsyDrafts()])
       .catch(() => setError("Failed to load dashboard data"))
       .finally(() => setLoading(false));
-  }, [fetchStats, fetchTrends, fetchBriefs]);
+  }, [fetchStats, fetchTrends, fetchBriefs, fetchEtsyStatus, fetchEtsyDrafts]);
+
+  // Check URL params for Etsy OAuth callback messages
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("etsy_connected") === "true") {
+      showToast("Etsy connected successfully!");
+      setActiveTab("etsy");
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+      fetchEtsyStatus();
+    }
+    const etsyError = params.get("etsy_error");
+    if (etsyError) {
+      showToast(`Etsy error: ${etsyError}`);
+      setActiveTab("etsy");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-refresh every 60s
   useEffect(() => {
@@ -252,6 +330,73 @@ export default function CommerceHQPage() {
       }
     } catch {
       showToast("Reject failed");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const testEtsyConnection = async () => {
+    setActionLoading("etsy-test");
+    try {
+      const res = await fetch("/api/admin/commerce/etsy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "test_connection" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Connected to ${data.shopName} (${data.listingCount} listings)`);
+        await fetchEtsyStatus();
+      } else {
+        showToast(`Connection failed: ${data.error}`);
+      }
+    } catch {
+      showToast("Connection test failed");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const publishToEtsy = async (draftId: string) => {
+    setActionLoading(`publish-${draftId}`);
+    try {
+      const res = await fetch("/api/admin/commerce/etsy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "publish_draft", draftId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Published! ${data.etsyUrl}`);
+        await Promise.all([fetchEtsyStatus(), fetchEtsyDrafts()]);
+      } else {
+        showToast(`Publish failed: ${data.error}`);
+      }
+    } catch {
+      showToast("Publish to Etsy failed");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const disconnectEtsy = async () => {
+    if (!confirm("Disconnect Etsy shop? You can reconnect anytime.")) return;
+    setActionLoading("etsy-disconnect");
+    try {
+      const res = await fetch("/api/admin/commerce/etsy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "disconnect" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Etsy disconnected");
+        await fetchEtsyStatus();
+      } else {
+        showToast(`Error: ${data.error}`);
+      }
+    } catch {
+      showToast("Disconnect failed");
     } finally {
       setActionLoading(null);
     }
@@ -397,6 +542,19 @@ export default function CommerceHQPage() {
         )}
         {activeTab === "products" && (
           <ProductsTab stats={stats} formatCents={formatCents} tierLabel={tierLabel} />
+        )}
+        {activeTab === "etsy" && (
+          <EtsyTab
+            status={etsyStatus}
+            drafts={etsyDrafts}
+            formatCents={formatCents}
+            formatDate={formatDate}
+            statusColor={statusColor}
+            onTestConnection={testEtsyConnection}
+            onPublish={publishToEtsy}
+            onDisconnect={disconnectEtsy}
+            actionLoading={actionLoading}
+          />
         )}
       </div>
     </div>
@@ -954,6 +1112,279 @@ function ProductsTab({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Etsy Tab ────────────────────────────────────────────
+
+function EtsyTab({
+  status,
+  drafts,
+  formatCents,
+  formatDate,
+  statusColor,
+  onTestConnection,
+  onPublish,
+  onDisconnect,
+  actionLoading,
+}: {
+  status: EtsyStatus | null;
+  drafts: EtsyDraft[];
+  formatCents: (c: number) => string;
+  formatDate: (d: string) => string;
+  statusColor: (s: string) => string;
+  onTestConnection: () => void;
+  onPublish: (draftId: string) => void;
+  onDisconnect: () => void;
+  actionLoading: string | null;
+}) {
+  return (
+    <div className="space-y-4">
+      {/* Connection Status Card */}
+      <div className="bg-white rounded-lg border p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-900">
+            Etsy Shop Connection
+          </h3>
+          {status?.connected && (
+            <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">
+              Connected
+            </span>
+          )}
+          {status && !status.connected && status.configured && (
+            <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">
+              Not Connected
+            </span>
+          )}
+          {status && !status.configured && (
+            <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-medium">
+              Not Configured
+            </span>
+          )}
+        </div>
+
+        {/* Not configured state */}
+        {status && !status.configured && (
+          <div className="bg-red-50 rounded-lg p-3 mb-3">
+            <p className="text-sm text-red-700">
+              Set <code className="bg-red-100 px-1 rounded text-xs">ETSY_API_KEY</code> and{" "}
+              <code className="bg-red-100 px-1 rounded text-xs">ETSY_SHARED_SECRET</code> in
+              Vercel environment variables.
+            </p>
+          </div>
+        )}
+
+        {/* Configured but not connected */}
+        {status?.configured && !status.connected && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              Your Etsy API keys are configured. Connect your shop to start publishing listings.
+            </p>
+            <a
+              href="/api/auth/etsy?siteId=yalla-london"
+              className="block w-full text-center px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 text-sm font-medium transition-colors"
+            >
+              Connect Etsy Shop
+            </a>
+          </div>
+        )}
+
+        {/* Connected */}
+        {status?.connected && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs text-gray-500">Shop Name</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {status.shopName ?? "Unknown"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Shop ID</p>
+                <p className="text-sm font-mono text-gray-900">
+                  {status.shopId ?? "—"}
+                </p>
+              </div>
+            </div>
+
+            {status.shopUrl && (
+              <a
+                href={status.shopUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:underline"
+              >
+                View shop on Etsy →
+              </a>
+            )}
+
+            {status.lastTestedAt && (
+              <p className="text-xs text-gray-400">
+                Last tested: {formatDate(status.lastTestedAt)}
+              </p>
+            )}
+
+            {/* Stats */}
+            {status.stats && (
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <div className="bg-gray-50 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-gray-900">
+                    {status.stats.totalDrafts}
+                  </p>
+                  <p className="text-xs text-gray-500">Drafts</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-green-600">
+                    {status.stats.publishedOnEtsy}
+                  </p>
+                  <p className="text-xs text-gray-500">Published</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2 text-center">
+                  <p className="text-lg font-bold text-blue-600">
+                    {status.stats.pendingPublish}
+                  </p>
+                  <p className="text-xs text-gray-500">Pending</p>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={onTestConnection}
+                disabled={actionLoading === "etsy-test"}
+                className="flex-1 px-3 py-2 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {actionLoading === "etsy-test" ? "Testing..." : "Test Connection"}
+              </button>
+              <button
+                onClick={onDisconnect}
+                disabled={actionLoading === "etsy-disconnect"}
+                className="px-3 py-2 text-xs bg-red-100 text-red-700 rounded-lg hover:bg-red-200 disabled:opacity-50"
+              >
+                {actionLoading === "etsy-disconnect" ? "..." : "Disconnect"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Listing Drafts */}
+      {status?.connected && (
+        <div className="bg-white rounded-lg border p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">
+            Listing Drafts
+          </h3>
+
+          {drafts.length === 0 ? (
+            <div className="text-center py-6">
+              <p className="text-sm text-gray-500">
+                No listing drafts yet. Approve a product brief to generate one.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {drafts.map((draft) => (
+                <div
+                  key={draft.id}
+                  className="border rounded-lg p-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-medium text-gray-900 truncate">
+                        {draft.title}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${statusColor(draft.status)}`}
+                        >
+                          {draft.status}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatCents(draft.price)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tags */}
+                  {draft.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {draft.tags.slice(0, 5).map((tag, i) => (
+                        <span
+                          key={i}
+                          className="text-xs px-1.5 py-0.5 bg-orange-50 text-orange-600 rounded"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                      {draft.tags.length > 5 && (
+                        <span className="text-xs text-gray-400">
+                          +{draft.tags.length - 5} more
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Error message */}
+                  {draft.errorMessage && (
+                    <p className="text-xs text-red-600 mt-2 bg-red-50 rounded p-2">
+                      {draft.errorMessage}
+                    </p>
+                  )}
+
+                  {/* Published link */}
+                  {draft.etsyUrl && (
+                    <a
+                      href={draft.etsyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:underline mt-2 inline-block"
+                    >
+                      View on Etsy →
+                    </a>
+                  )}
+
+                  {/* Publish button — only for approved unpublished drafts */}
+                  {!draft.etsyListingId &&
+                    (draft.status === "draft" || draft.status === "approved") && (
+                      <button
+                        onClick={() => onPublish(draft.id)}
+                        disabled={actionLoading === `publish-${draft.id}`}
+                        className="w-full mt-3 px-3 py-2 text-xs bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 font-medium"
+                      >
+                        {actionLoading === `publish-${draft.id}`
+                          ? "Publishing to Etsy..."
+                          : "Publish to Etsy"}
+                      </button>
+                    )}
+
+                  {/* Meta */}
+                  <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                    <span>{formatDate(draft.createdAt)}</span>
+                    {draft.etsyState && <span>Etsy: {draft.etsyState}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Help / Setup Guide */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-blue-900 mb-2">
+          How Etsy Publishing Works
+        </h3>
+        <ol className="text-xs text-blue-800 space-y-1.5 list-decimal list-inside">
+          <li>Run a <strong>Trend Scan</strong> to discover product opportunities</li>
+          <li><strong>Approve</strong> a product brief from the Briefs tab</li>
+          <li>AI generates an <strong>Etsy-optimized listing</strong> (title, tags, description)</li>
+          <li>Review the listing draft, then tap <strong>Publish to Etsy</strong></li>
+          <li>Upload your <strong>digital file</strong> + images on Etsy (manual for now)</li>
+        </ol>
+      </div>
     </div>
   );
 }

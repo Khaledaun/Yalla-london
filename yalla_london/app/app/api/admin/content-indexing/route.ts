@@ -124,27 +124,73 @@ export async function GET(request: NextRequest) {
     }
     const posts = [...dbPosts, ...staticPosts];
 
+    // 1b. For yacht sites — also pull Yacht, YachtDestination, CharterItinerary pages
+    const { isYachtSite } = await import("@/config/sites");
+    const isYacht = isYachtSite(siteId);
+    type YachtPage = { id: string; title: string; slug: string; urlPrefix: string; updatedAt: Date | null };
+    let yachtPages: YachtPage[] = [];
+    if (isYacht) {
+      try {
+        const [yachts, destinations, itineraries] = await Promise.allSettled([
+          prisma.yacht.findMany({
+            where: { siteId, status: "active" },
+            select: { id: true, name: true, slug: true, updatedAt: true },
+            orderBy: { updatedAt: "desc" },
+            take: 200,
+          }),
+          prisma.yachtDestination.findMany({
+            where: { siteId, status: "active" },
+            select: { id: true, name_en: true, slug: true, updatedAt: true },
+            orderBy: { updatedAt: "desc" },
+            take: 100,
+          }),
+          prisma.charterItinerary.findMany({
+            where: { siteId, status: "active" },
+            select: { id: true, title_en: true, slug: true, updatedAt: true },
+            orderBy: { updatedAt: "desc" },
+            take: 100,
+          }),
+        ]);
+        if (yachts.status === "fulfilled") {
+          for (const y of yachts.value) yachtPages.push({ id: y.id, title: y.name, slug: y.slug, urlPrefix: "yachts", updatedAt: y.updatedAt });
+        }
+        if (destinations.status === "fulfilled") {
+          for (const d of destinations.value) yachtPages.push({ id: d.id, title: d.name_en, slug: d.slug, urlPrefix: "destinations", updatedAt: d.updatedAt });
+        }
+        if (itineraries.status === "fulfilled") {
+          for (const it of itineraries.value) yachtPages.push({ id: it.id, title: it.title_en, slug: it.slug, urlPrefix: "itineraries", updatedAt: it.updatedAt });
+        }
+      } catch (err) {
+        console.warn("[content-indexing] Failed to load yacht pages:", err);
+      }
+    }
+
     // 2. Get indexing status for all article URLs
     //    Match by BOTH exact URL and slug to handle URL format mismatches
     //    (e.g., www vs non-www, http vs https, trailing slash differences)
     const articleSlugs = posts.map((p) => p.slug);
     const articleUrls = posts.map((p) => `${baseUrl}/blog/${p.slug}`);
+    // Also include yacht page URLs in lookup
+    const yachtPageSlugs = yachtPages.map((y) => `${y.urlPrefix}/${y.slug}`);
+    const yachtPageUrls = yachtPages.map((y) => `${baseUrl}/${y.urlPrefix}/${y.slug}`);
     let indexingRecords: Record<string, any> = {};
     try {
       const records = await prisma.uRLIndexingStatus.findMany({
         where: {
           site_id: siteId,
           OR: [
-            { url: { in: articleUrls } },
-            { slug: { in: articleSlugs } },
+            { url: { in: [...articleUrls, ...yachtPageUrls] } },
+            { slug: { in: [...articleSlugs, ...yachtPageSlugs] } },
           ],
         },
       });
       // Index by slug for resilient matching (URL format may vary)
       for (const r of records) {
-        const slug = r.slug || r.url.split("/blog/")[1]?.replace(/\/$/, "") || null;
+        // Try to extract slug from URL: works for /blog/x, /yachts/x, /destinations/x, /itineraries/x
+        const urlParts = r.url.split("/");
+        const slugFromUrl = urlParts.slice(-2).join("/"); // "urlPrefix/slug"
+        const slug = r.slug || slugFromUrl || null;
         if (slug) {
-          // Prefer the record with the most recent activity
           const existing = indexingRecords[slug];
           if (!existing || (r.last_submitted_at && (!existing.last_submitted_at || r.last_submitted_at > existing.last_submitted_at))) {
             indexingRecords[slug] = r;
@@ -366,6 +412,46 @@ export async function GET(request: NextRequest) {
         gscPosition,
       };
     });
+
+    // 4b. Append yacht pages to articles array for yacht sites
+    if (isYacht && yachtPages.length > 0) {
+      for (const yp of yachtPages) {
+        const compositeSlug = `${yp.urlPrefix}/${yp.slug}`;
+        const record = indexingRecords[compositeSlug] || indexingRecords[yp.slug];
+        let indexingStatus: ArticleIndexingInfo["indexingStatus"] = "never_submitted";
+        if (record) {
+          if (record.status === "indexed" || record.indexing_state === "INDEXED") indexingStatus = "indexed";
+          else if (record.status === "error") indexingStatus = "error";
+          else if (record.status === "submitted") indexingStatus = "submitted";
+          else indexingStatus = "not_indexed";
+        }
+        const inspection = record?.inspection_result as Record<string, any> | null;
+        const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
+        articles.push({
+          id: yp.id,
+          title: yp.title,
+          slug: compositeSlug,
+          url: `/${yp.urlPrefix}/${yp.slug}`,
+          publishedAt: yp.updatedAt?.toISOString() || null,
+          seoScore: 0,
+          wordCount: 0,
+          indexingStatus,
+          submittedAt: record?.last_submitted_at?.toISOString() || null,
+          lastCrawledAt: record?.last_crawled_at?.toISOString() || null,
+          lastInspectedAt: record?.last_inspected_at?.toISOString() || null,
+          coverageState: record?.coverage_state || null,
+          submittedIndexnow: record?.submitted_indexnow || false,
+          submittedSitemap: record?.submitted_sitemap || false,
+          submissionAttempts: record?.submission_attempts || 0,
+          notIndexedReasons: indexingStatus === "never_submitted" ? ["Page has never been submitted to search engines"] : [],
+          fixAction: null,
+          gscClicks: typeof perfMetrics?.clicks === "number" ? perfMetrics.clicks : null,
+          gscImpressions: typeof perfMetrics?.impressions === "number" ? perfMetrics.impressions : null,
+          gscCtr: typeof perfMetrics?.ctr === "number" ? perfMetrics.ctr : null,
+          gscPosition: typeof perfMetrics?.position === "number" ? perfMetrics.position : null,
+        });
+      }
+    }
 
     // 5. Summary counts
     const indexed = articles.filter((a) => a.indexingStatus === "indexed").length;

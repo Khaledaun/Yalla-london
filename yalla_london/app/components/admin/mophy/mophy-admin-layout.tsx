@@ -28,6 +28,7 @@ const navigation = [
     href: '/admin/cockpit',
     items: [
       { label: '🚀 Mission Control',  href: '/admin/cockpit' },
+      { label: '✈️ Departures Board', href: '/admin/departures' },
       { label: '📋 Content Matrix',   href: '/admin/cockpit?tab=content' },
       { label: '⚙️ Pipeline',         href: '/admin/cockpit?tab=pipeline' },
       { label: '⏱ Cron Control',     href: '/admin/cockpit?tab=crons' },
@@ -182,6 +183,7 @@ const navigation = [
       { label: 'Feature Flags',    href: '/admin/settings/feature-flags' },
       { label: 'API Keys',         href: '/admin/command-center/settings/api-keys' },
       { label: 'Site Control',     href: '/admin/site-control' },
+      { label: 'AI Costs',         href: '/admin/ai-costs' },
       { label: 'API Security',     href: '/admin/api-security' },
       { label: 'Full Var Vault',   href: '/admin/variable-vault' },
       { label: 'Theme',            href: '/admin/settings/theme' },

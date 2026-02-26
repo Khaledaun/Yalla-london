@@ -443,6 +443,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const yachts = await prisma.yacht.findMany({
         where: { siteId, status: "active" },
         select: { slug: true, updatedAt: true },
+        take: 500,
       });
       yachtPages = yachts.map((yacht) => ({
         url: `${baseUrl}/yachts/${yacht.slug}`,
@@ -460,6 +461,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const destinations = await prisma.yachtDestination.findMany({
         where: { siteId, status: "active" },
         select: { slug: true, updatedAt: true },
+        take: 200,
       });
       destinationPages = destinations.map((dest) => ({
         url: `${baseUrl}/destinations/${dest.slug}`,
@@ -477,6 +479,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const itineraries = await prisma.charterItinerary.findMany({
         where: { siteId, status: "active" },
         select: { slug: true, updatedAt: true },
+        take: 200,
       });
       itineraryPages = itineraries.map((itin) => ({
         url: `${baseUrl}/itineraries/${itin.slug}`,

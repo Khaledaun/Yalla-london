@@ -89,6 +89,24 @@ const statusColor: Record<string, string> = {
 export default function YachtsFleetPage() {
   const siteId = useSiteId()
 
+  // Guard: yacht management is only for the Zenitha Yachts site
+  if (siteId !== 'zenitha-yachts-med') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-6 text-center">
+        <Ship className="w-16 h-16 text-zinc-600" />
+        <h2 className="text-xl font-semibold text-zinc-200">Yacht Management — Zenitha Yachts Only</h2>
+        <p className="text-zinc-400 max-w-md">
+          The fleet inventory, charter inquiries, and yacht-specific tools are exclusive to the{' '}
+          <span className="text-white font-medium">Zenitha Yachts</span> site. Switch to Zenitha Yachts in
+          the site selector to access these tools.
+        </p>
+        <Link href="/admin/cockpit">
+          <Button variant="outline" className="mt-2">← Back to Cockpit</Button>
+        </Link>
+      </div>
+    )
+  }
+
   // Data
   const [yachts, setYachts] = useState<Yacht[]>([])
   const [summary, setSummary] = useState<YachtSummary>({ total: 0, active: 0, featured: 0, pendingReview: 0 })

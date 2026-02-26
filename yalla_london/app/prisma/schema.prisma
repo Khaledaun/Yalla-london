@@ -3312,3 +3312,42 @@ model YachtSyncLog {
   @@index([startedAt])
   @@map("yacht_sync_logs")
 }
+
+// ---------------------------------------------------------------------------
+// AI / Token Usage Tracking
+// ---------------------------------------------------------------------------
+
+/// One row per AI API call — used for token monitoring and per-site cost separation.
+/// Written as a fire-and-forget insert from lib/ai/provider.ts; never blocks the caller.
+model ApiUsageLog {
+  id               String   @id @default(cuid())
+  /// Site this call was made for (passed via AICompletionOptions.siteId)
+  siteId           String   @default("unknown")
+  /// AI provider: grok | claude | openai | gemini
+  provider         String
+  /// Exact model string returned by the API or used in the request
+  model            String
+  /// Task category from provider-config.ts TaskType
+  taskType         String?
+  /// Which cron/API route triggered this call (e.g. "daily-content-generate", "weekly-topics")
+  calledFrom       String?
+  /// Tokens in the prompt / system message
+  promptTokens     Int      @default(0)
+  /// Tokens in the completion / response
+  completionTokens Int      @default(0)
+  /// promptTokens + completionTokens
+  totalTokens      Int      @default(0)
+  /// Estimated cost in USD based on published model pricing
+  estimatedCostUsd Float    @default(0)
+  /// false when the AI call threw an error
+  success          Boolean  @default(true)
+  /// Error message (if success = false)
+  errorMessage     String?
+  createdAt        DateTime @default(now())
+
+  @@index([siteId, createdAt])
+  @@index([provider, createdAt])
+  @@index([taskType, createdAt])
+  @@index([createdAt])
+  @@map("api_usage_logs")
+}

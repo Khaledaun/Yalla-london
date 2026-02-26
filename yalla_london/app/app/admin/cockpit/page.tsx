@@ -654,7 +654,8 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
   }
 
   const { system, pipeline, indexing, cronHealth, alerts } = data;
-  const effectiveSiteId = siteId || data.sites?.[0]?.id || "yalla-london";
+  // Use the site from context, or fall back to the first configured site from the API response
+  const effectiveSiteId = siteId || data.sites?.[0]?.id || "";
 
   return (
     <>

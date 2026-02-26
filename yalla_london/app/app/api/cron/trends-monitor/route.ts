@@ -471,7 +471,7 @@ async function saveTrendsData(data: any): Promise<void> {
     // Feed high-relevance trending topics into the content pipeline as TopicProposals
     // This connects trends → content-builder → articles
     // Creates proposals for ALL active sites, not just the first one
-    const { getActiveSiteIds, getDefaultSiteId } = await import("@/config/sites");
+    const { getActiveSiteIds, getDefaultSiteId, isYachtSite } = await import("@/config/sites");
     const activeSites = getActiveSiteIds();
     const targetSites = activeSites.length > 0 ? activeSites : [getDefaultSiteId()];
 
@@ -481,6 +481,11 @@ async function saveTrendsData(data: any): Promise<void> {
 
     let trendsQueued = 0;
     for (const siteId of targetSites) {
+      // Yacht sites use a different content model (fleet inventory) — skip blog topic generation
+      if (isYachtSite(siteId)) {
+        console.log(`[Trends Monitor] Skipping ${siteId} — yacht site does not use TopicProposals`);
+        continue;
+      }
       for (const topic of relevantTopics.slice(0, 5)) {
         const keyword = (topic.title || "").toLowerCase().trim();
         if (!keyword || keyword.length < 5) continue;

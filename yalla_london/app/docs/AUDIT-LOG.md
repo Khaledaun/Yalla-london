@@ -32,6 +32,93 @@
 | 26 | 2026-02-22 | Admin API auth comprehensive audit (162 routes) | 0 issues | N/A | 0 — 100% auth coverage |
 | 27 | 2026-02-22 | Cron chain integrity: seo/cron budget guards, orphan routes, GET handlers | 4 issues | 3 | 1 (orphan route decisions) |
 | 28 | 2026-02-22 | Middleware + public routes: newsletter siteId, blog API site scoping | 2 issues | 2 | 0 |
+| 29 | 2026-02-26 | Cockpit dashboard audit: 6 new API routes + 3 lib utilities + 4 admin pages | 4 issues | 4 | 0 |
+| 30 | 2026-02-26 | Cockpit page audit round 2: SiteSummary field mismatch, gate check shape mismatch | 2 issues | 2 | 0 |
+| 31 | 2026-02-26 | Cockpit audit round 3: new-site wizard step response normalization | 1 issue | 1 | 0 |
+
+---
+
+## Audit #29 — Cockpit Dashboard: 6 API Routes + Lib Utilities
+
+**Date:** 2026-02-26
+**Trigger:** Post-build iterative audit of all cockpit files built this session
+**Scope:** 6 new admin API routes, 3 lib utilities (error-interpreter, provider-config, builder), 4 cockpit admin pages
+**Files Audited:**
+- `app/api/admin/cockpit/route.ts`
+- `app/api/admin/content-matrix/route.ts`
+- `app/api/admin/ai-config/route.ts`
+- `app/api/admin/email-center/route.ts`
+- `app/api/admin/new-site/route.ts`
+- `app/api/admin/new-site/status/[siteId]/route.ts`
+- `lib/error-interpreter.ts`
+- `lib/ai/provider-config.ts`
+- `lib/new-site/builder.ts`
+- `app/admin/cockpit/page.tsx`
+- `app/admin/cockpit/design/page.tsx`
+- `app/admin/cockpit/email/page.tsx`
+- `app/admin/cockpit/new-site/page.tsx`
+
+### Findings
+
+#### A29-001: BlogPost Filtered by Non-Existent Field `locale_en`
+- **File:** `app/api/admin/content-matrix/route.ts`, line 160
+- **Severity:** CRITICAL
+- **Issue:** `if (locale) postWhere.locale_en = locale;` — `locale_en` does not exist in the BlogPost Prisma model. Any request with `?locale=en` or `?locale=ar` would crash with Prisma error: "Unknown argument 'locale_en' on type BlogPostWhereInput".
+- **Root Cause:** BlogPost is bilingual by design — it stores both EN and AR content in `title_en`/`title_ar`. There is no `locale` or `locale_en` field. Locale filtering applies to ArticleDraft (which does have a `locale` field), not BlogPost.
+- **Fix:** Removed the line. BlogPost locale filtering removed from POST query. ArticleDraft locale filtering still works correctly.
+- **Status:** FIXED
+
+#### A29-002: Hardcoded `"yalla-london"` in email-center create_template
+- **File:** `app/api/admin/email-center/route.ts`, line 273
+- **Severity:** HIGH
+- **Issue:** `const siteId = (body.siteId as string | undefined) ?? "yalla-london";` — hardcodes the Yalla London site ID as default, violating multi-tenant isolation.
+- **Fix:** Changed to `getDefaultSiteId()` from `@/config/sites`. Added import.
+- **Status:** FIXED
+
+#### A29-003: Email Center API Response Shape Mismatch with Email Page
+- **File:** `app/api/admin/email-center/route.ts` (GET handler)
+- **Severity:** HIGH
+- **Issue:** The GET response returned `providerStatus.providers.resend.configured` (nested), but `app/admin/cockpit/email/page.tsx` expected `providerStatus.resend` (flat boolean). Similarly, the API returned `subscribers.total` but the page expected `subscriberCount`. Templates were missing `type` and `updatedAt` fields (page used both). All four mismatches would cause the UI to show undefined/incorrect values silently.
+- **Fix:**
+  - Added `flatProviderStatus` object with flat `resend`, `sendgrid`, `smtp` booleans that the page interface expects
+  - Added `subscriberCount` at root level of response
+  - Added `type` and `updatedAt` to template select query and response mapping
+- **Status:** FIXED
+
+#### A29-004: Inconsistent Auth Pattern — `requireAdmin` vs `withAdminAuth`
+- **File:** `app/api/admin/new-site/status/[siteId]/route.ts`
+- **Severity:** LOW (code is secure, just inconsistent)
+- **Issue:** Route uses `requireAdmin(request)` manual call pattern while all other 10 handlers in the cockpit suite use the `withAdminAuth` higher-order wrapper. Both are valid and both protect the endpoint correctly.
+- **Fix:** No code change — `requireAdmin` is the correct pattern for dynamic route segments in Next.js App Router when the handler needs to access `params` as a typed Promise (Next.js 15 param style). `withAdminAuth` wrapper doesn't easily support the `{ params }` second argument. Left as-is and noted as intentional.
+- **Status:** DOCUMENTED (no fix needed — pattern is correct for dynamic route)
+
+### Import Resolution: ALL PASS
+All imports resolved correctly:
+- `@/lib/admin-middleware` → exports `withAdminAuth`, `requireAdmin` ✓
+- `@/lib/error-interpreter` → exports `interpretError`, `InterpretedError` ✓
+- `@/lib/ai/provider-config` → exports `getAllRoutes`, `saveRoutes`, `TASK_LABELS`, `TaskType` ✓
+- `@/lib/email/sender` → exports `sendEmail` ✓
+- `@/lib/new-site/builder` → exports `buildNewSite`, `validateNewSite` ✓
+- `@/config/sites` → exports `SITES`, `getActiveSiteIds`, `getSiteDomain`, `getDefaultSiteId` ✓
+- `@/lib/ai/provider` → exports `generateCompletion` ✓
+
+### Prisma Field Names: ALL PASS (except A29-001 above)
+- ArticleDraft: all 15 fields verified ✓
+- BlogPost: all valid fields verified; `locale_en` was invalid → FIXED ✓
+- TopicProposal: all fields verified ✓
+- URLIndexingStatus: all fields verified ✓
+- CronJobLog: all fields verified ✓
+- ModelProvider: all fields verified ✓
+- ModelRoute: all fields verified ✓
+- EmailTemplate: all fields verified (added `type` field to select) ✓
+- EmailCampaign: all fields verified ✓
+- Subscriber: all fields verified ✓
+
+### Auth Coverage: 100%
+All 11 handlers protected. Zero unauthenticated admin endpoints.
+
+### Empty Catch Blocks: NONE
+All catch blocks log with `[module]` context prefix. No silent failures.
 
 ---
 
@@ -1362,6 +1449,41 @@ Total test suite: 90 tests across 16 categories.
 | HIGH | Wrong behavior, incorrect data, broken pipeline step | Fix in current session |
 | MEDIUM | Suboptimal behavior, inconsistency, degraded output | Fix when touching related code |
 | LOW | Code smell, minor inconsistency, cosmetic | Track for future cleanup |
+
+---
+
+## Audit #30 — Cockpit Page Round 2: SiteSummary and Gate Check Field Mismatches
+
+**Date:** 2026-02-26
+**Trigger:** Iterative audit of cockpit admin pages after Audit #29 API fixes
+**Scope:** cockpit/page.tsx SiteSummary type vs API response, gate_check response shape
+
+### Findings
+
+#### A30-001: SiteSummary Field Name Mismatches (Sites Tab)
+- **Files:** `app/api/admin/cockpit/route.ts`, `app/admin/cockpit/page.tsx`
+- **Severity:** HIGH
+- **Issue:** The cockpit API returned `articles`, `indexingRate`, `lastArticleAt` for each site, but the cockpit page `SiteSummary` interface declared and rendered `articlesPublished`, `articlesTotal`, `reservoir`, `inPipeline`, `indexRate`, `lastPublishedAt`, `lastCronAt`. The Sites tab would display empty/undefined values for all article counts, indexing rate, and last-published timestamp.
+- **Fix:** Updated `buildSites()` in cockpit API to:
+  - Rename `articles` → `articlesPublished` + `articlesTotal` (both = published count)
+  - Rename `indexingRate` → `indexRate`
+  - Rename `lastArticleAt` → `lastPublishedAt`
+  - Add `reservoir` per-site (new DB query: `articleDraft.count { current_phase: "reservoir" }`)
+  - Add `inPipeline` per-site (new DB query: `articleDraft.count { current_phase: { in: [...active phases] } }`)
+  - Add `lastCronAt: null` (CronJobLog has no site_id — cannot be computed per-site)
+- **Status:** FIXED
+
+#### A30-002: Gate Check Response Field Name Mismatch
+- **Files:** `app/api/admin/content-matrix/route.ts`, `app/admin/cockpit/page.tsx`
+- **Severity:** HIGH
+- **Issue:** Content-matrix API returned gate check items as `{ name, status, message, fix }` but the cockpit page's `GateCheck` interface expected `{ check, pass, label, detail, isBlocker }`. The "Why Not Published?" panel would render the check list completely empty/blank even when the API returned valid data.
+- **Fix:** Changed the `gate_check` response mapping in content-matrix route to:
+  - `name` → `check`
+  - `status === "pass"` → `pass: true`
+  - `c.message` → `label`
+  - `null` → `detail` (pre-pub gate doesn't return per-check fix text yet)
+  - `!c.passed && c.severity !== "warning"` → `isBlocker`
+- **Status:** FIXED
 
 ---
 

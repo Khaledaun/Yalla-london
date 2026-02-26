@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { sendEmail } from "@/lib/email/sender";
-import { getDefaultSiteId } from "@/config/sites";
+import { getDefaultSiteId, getActiveSiteIds } from "@/config/sites";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -73,6 +73,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   const { prisma } = await import("@/lib/db");
 
   const providerStatus = buildProviderStatus();
+  const activeSiteIds = getActiveSiteIds();
 
   // -------------------------------------------------------------------------
   // Campaigns — P2021 = table does not exist; return [] gracefully
@@ -88,6 +89,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
   try {
     const rows = await prisma.emailCampaign.findMany({
+      where: { site: { in: activeSiteIds } },
       orderBy: { createdAt: "desc" },
       take: 50,
       select: {
@@ -131,6 +133,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
   try {
     const rows = await prisma.emailTemplate.findMany({
+      where: { site: { in: activeSiteIds } },
       orderBy: { createdAt: "desc" },
       take: 50,
       select: {

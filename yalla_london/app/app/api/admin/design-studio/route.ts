@@ -52,31 +52,61 @@ export async function GET(request: NextRequest) {
       ? categories.filter((c) => c === categoryParam)
       : categories;
 
+    // Map templates to the shape DesignStudioData.templates expects: { id, name, type, thumbnail }
     const templates = filtered.map((cat) => {
       const template = generateBrandedTemplate(siteId, cat, locale);
       return {
         id: template.id,
         name: template.name,
-        nameAr: template.nameAr,
-        category: template.category,
-        format: template.format,
-        siteId: template.siteId,
-        pageCount: template.pages.length,
-        elementCount: template.pages.reduce(
-          (sum, p) => sum + p.elements.length,
-          0,
-        ),
+        type: template.category,
+        thumbnail: null as string | null,
       };
     });
 
+    // Fetch saved designs for this site — gracefully ignore if table doesn't exist yet
+    let designs: Array<{
+      id: string; name: string; type: string; siteId: string;
+      createdAt: string; thumbnailUrl: string | null; publishedTo: string | null;
+    }> = [];
+    try {
+      const { prisma } = await import("@/lib/db");
+      const rows = await prisma.design.findMany({
+        where: { site: siteId },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: { id: true, title: true, type: true, site: true, thumbnail: true, status: true, createdAt: true },
+      });
+      designs = rows.map((d) => ({
+        id: d.id,
+        name: d.title,
+        type: d.type,
+        siteId: d.site,
+        createdAt: d.createdAt.toISOString(),
+        thumbnailUrl: d.thumbnail ?? null,
+        publishedTo: d.status === "published" ? d.status : null,
+      }));
+    } catch {
+      // Table may not exist yet — return empty array silently
+    }
+
+    // Flatten brand to the shape BrandProfile interface expects
+    const brandFlat = {
+      siteId: brand.siteId,
+      siteName: brand.siteName,
+      primaryColor: brand.colors.primary,
+      secondaryColor: brand.colors.secondary,
+      accentColor: brand.colors.accent,
+      headingFont: brand.fonts.heading,
+      bodyFont: brand.fonts.body,
+      logoUrl: null as string | null,
+    };
+
     return NextResponse.json({
       success: true,
-      brand: {
-        siteId: brand.siteId,
-        siteName: brand.siteName,
-        colors: brand.colors,
-        fonts: brand.fonts,
-      },
+      siteId,
+      siteName: brand.siteName,
+      brand: brandFlat,
+      designs,
       templates,
     });
   } catch (error) {

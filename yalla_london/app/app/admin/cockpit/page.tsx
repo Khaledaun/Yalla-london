@@ -26,6 +26,7 @@ interface SystemStatus {
   indexNow: { configured: boolean };
   gsc: { configured: boolean };
   cronSecret: { configured: boolean };
+  nextAuthSecret: { configured: boolean };
 }
 
 interface PipelineStatus {
@@ -235,7 +236,7 @@ function ActionButton({
 
 // ─── Tab 1: Mission Control ───────────────────────────────────────────────────
 
-function MissionTab({ data, onRefresh }: { data: CockpitData | null; onRefresh: () => void }) {
+function MissionTab({ data, onRefresh, onSwitchTab }: { data: CockpitData | null; onRefresh: () => void; onSwitchTab: (tab: TabId) => void }) {
   const [actionResult, setActionResult] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -256,11 +257,11 @@ function MissionTab({ data, onRefresh }: { data: CockpitData | null; onRefresh: 
       } else {
         setActionResult(`✅ ${label} triggered`);
       }
-      onRefresh();
     } catch (e) {
       setActionResult(`❌ Network error: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setActionLoading(null);
+      onRefresh(); // Always refresh — shows current state regardless of success/failure
     }
   }, [onRefresh]);
 
@@ -288,8 +289,10 @@ function MissionTab({ data, onRefresh }: { data: CockpitData | null; onRefresh: 
           <div className="flex items-center gap-2 text-sm">
             <StatusDot ok={system.ai.configured} title={system.ai.activeProviders.join(", ") || "No AI key"} />
             <span className="text-zinc-300">AI</span>
-            {system.ai.activeProviders.length > 0 && (
+            {system.ai.activeProviders.length > 0 ? (
               <span className="text-zinc-500 text-xs">{system.ai.activeProviders.join(", ")}</span>
+            ) : (
+              <span className="text-red-400 text-xs font-medium">No keys configured</span>
             )}
           </div>
           <div className="flex items-center gap-2 text-sm">
@@ -339,29 +342,29 @@ function MissionTab({ data, onRefresh }: { data: CockpitData | null; onRefresh: 
         </div>
       )}
 
-      {/* Pipeline Flow */}
+      {/* Pipeline Flow — each counter is a tap target that jumps to the relevant tab */}
       <Card>
         <SectionTitle>Pipeline</SectionTitle>
         <div className="flex items-center gap-2 flex-wrap text-sm">
-          <div className="bg-zinc-800 rounded-lg px-3 py-2 text-center min-w-[70px]">
+          <button onClick={() => onSwitchTab("pipeline")} className="bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-2 text-center min-w-[70px] transition-colors cursor-pointer">
             <div className="text-lg font-bold text-blue-400">{pipeline.topicsReady}</div>
             <div className="text-xs text-zinc-500">Topics</div>
-          </div>
+          </button>
           <span className="text-zinc-600">→</span>
-          <div className="bg-zinc-800 rounded-lg px-3 py-2 text-center min-w-[70px]">
+          <button onClick={() => onSwitchTab("pipeline")} className="bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-2 text-center min-w-[70px] transition-colors cursor-pointer">
             <div className="text-lg font-bold text-amber-400">{pipeline.draftsActive}</div>
             <div className="text-xs text-zinc-500">Building</div>
-          </div>
+          </button>
           <span className="text-zinc-600">→</span>
-          <div className="bg-zinc-800 rounded-lg px-3 py-2 text-center min-w-[70px]">
+          <button onClick={() => onSwitchTab("content")} className="bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-2 text-center min-w-[70px] transition-colors cursor-pointer">
             <div className="text-lg font-bold text-blue-400">{pipeline.reservoir}</div>
             <div className="text-xs text-zinc-500">Reservoir</div>
-          </div>
+          </button>
           <span className="text-zinc-600">→</span>
-          <div className="bg-zinc-800 rounded-lg px-3 py-2 text-center min-w-[70px]">
+          <button onClick={() => onSwitchTab("content")} className="bg-zinc-800 hover:bg-zinc-700 rounded-lg px-3 py-2 text-center min-w-[70px] transition-colors cursor-pointer">
             <div className="text-lg font-bold text-emerald-400">{pipeline.publishedTotal}</div>
             <div className="text-xs text-zinc-500">Live</div>
-          </div>
+          </button>
         </div>
         <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-center">
           {Object.entries(pipeline.byPhase).map(([phase, count]) => (
@@ -466,6 +469,7 @@ function MissionTab({ data, onRefresh }: { data: CockpitData | null; onRefresh: 
 function ContentTab({ activeSiteId }: { activeSiteId: string }) {
   const [data, setData] = useState<ContentMatrixData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -476,12 +480,20 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch(`/api/admin/content-matrix?siteId=${activeSiteId}&limit=100`);
+      if (!res.ok) throw new Error(`API error: HTTP ${res.status}`);
       const json = await res.json();
-      if (json.articles) setData(json);
+      if (json.articles) {
+        setData(json);
+      } else if (json.error) {
+        throw new Error(json.error);
+      }
     } catch (e) {
-      console.warn("Content matrix fetch failed:", e);
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      console.warn("[cockpit] Content matrix fetch failed:", msg);
+      setFetchError(msg);
     } finally {
       setLoading(false);
     }
@@ -501,7 +513,13 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
       const json = await res.json();
       if (json.checks) setGateResults((prev) => ({ ...prev, [item.id]: json.checks }));
     } catch (e) {
-      console.warn("[cockpit] runGateCheck failed:", e instanceof Error ? e.message : e);
+      const msg = e instanceof Error ? e.message : "Network error";
+      console.warn("[cockpit] runGateCheck failed:", msg);
+      // Store error as a visible gate check item so user sees what went wrong
+      setGateResults((prev) => ({
+        ...prev,
+        [item.id]: [{ check: "gate_api", pass: false, label: `Gate check failed: ${msg}`, detail: "Tap 'Run gate check' to retry.", isBlocker: false }],
+      }));
     } finally {
       setGateLoading(null);
     }
@@ -539,6 +557,13 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
   });
 
   if (loading) return <div className="flex items-center justify-center h-48"><p className="text-zinc-500 text-sm">Loading content…</p></div>;
+
+  if (fetchError) return (
+    <Card className="text-center py-8 space-y-2">
+      <p className="text-red-400 text-sm">⚠️ Failed to load articles: {fetchError}</p>
+      <button onClick={fetchData} className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs">Retry</button>
+    </Card>
+  );
 
   return (
     <div className="space-y-4">
@@ -622,7 +647,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                   {item.seoScore !== null && (
                     <span className={scoreColor(item.seoScore)}>SEO {item.seoScore}</span>
                   )}
-                  {item.internalLinksCount > 0 && <span>{item.internalLinksCount} links</span>}
+                  <span className={item.internalLinksCount < 3 ? "text-amber-400" : "text-zinc-500"}>{item.internalLinksCount} links{item.internalLinksCount < 3 ? " ⚠️" : ""}</span>
                 </div>
               </div>
 
@@ -898,12 +923,12 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
             {(drafts as ContentItem[]).slice(0, 10).map((d) => (
               <div key={d.id} className="flex items-center justify-between text-xs">
                 <div className="min-w-0">
-                  <span className="text-zinc-300 truncate block">{(d as unknown as { keyword: string }).keyword || d.title}</span>
-                  <span className="text-zinc-500 capitalize">{d.phase}</span>
+                  <span className="text-zinc-300 truncate block">{d.title || d.slug || d.id}</span>
+                  <span className="text-zinc-500 capitalize">{d.phase ?? "unknown"}</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 text-zinc-500">
-                  {(d as unknown as { qualityScore?: number }).qualityScore !== undefined && (
-                    <span className={scoreColor((d as unknown as { qualityScore?: number }).qualityScore ?? null)}>Q{(d as unknown as { qualityScore?: number }).qualityScore}</span>
+                  {d.seoScore !== null && d.seoScore !== undefined && (
+                    <span className={scoreColor(d.seoScore)}>SEO{d.seoScore}</span>
                   )}
                   <span>{d.wordCount > 0 ? `${d.wordCount}w` : ""}</span>
                 </div>
@@ -1152,7 +1177,7 @@ function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite:
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-center">
+          <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-center">
             <div className="bg-zinc-800/50 rounded p-2">
               <div className="font-bold text-emerald-400">{site.articlesPublished}</div>
               <div className="text-zinc-500">Published</div>
@@ -1162,14 +1187,18 @@ function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite:
               <div className="text-zinc-500">Reservoir</div>
             </div>
             <div className="bg-zinc-800/50 rounded p-2">
-              <div className="font-bold text-amber-400">{site.topicsQueued}</div>
+              <div className="font-bold text-amber-400">{site.inPipeline}</div>
+              <div className="text-zinc-500">Pipeline</div>
+            </div>
+            <div className="bg-zinc-800/50 rounded p-2">
+              <div className="font-bold text-zinc-400">{site.topicsQueued}</div>
               <div className="text-zinc-500">Topics</div>
             </div>
           </div>
 
           <div className="mt-2 flex flex-wrap gap-1 text-xs text-zinc-500">
-            {site.avgSeoScore > 0 && <span>Avg SEO: <span className={scoreColor(site.avgSeoScore)}>{site.avgSeoScore}</span></span>}
-            {site.indexRate > 0 && <span className="ml-2">Index rate: {site.indexRate}%</span>}
+            <span>Avg SEO: <span className={site.avgSeoScore >= 70 ? "text-emerald-400" : site.avgSeoScore > 0 ? "text-amber-400" : "text-red-400"}>{site.avgSeoScore > 0 ? site.avgSeoScore : "n/a"}</span></span>
+            <span className="ml-2">Indexed: <span className={site.indexRate >= 80 ? "text-emerald-400" : site.indexRate > 0 ? "text-amber-400" : "text-red-400"}>{site.indexRate}%</span></span>
             {site.lastPublishedAt && <span className="ml-2">Last article: {timeAgo(site.lastPublishedAt)}</span>}
           </div>
 
@@ -1427,11 +1456,12 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
     { key: "DATABASE_URL", ok: system?.db.connected ?? false },
     { key: "XAI_API_KEY / GROK_API_KEY", ok: system?.ai.activeProviders.includes("grok") ?? false },
     { key: "ANTHROPIC_API_KEY", ok: system?.ai.activeProviders.includes("claude") ?? false },
+    { key: "NEXTAUTH_SECRET", ok: system?.nextAuthSecret.configured ?? false },
     { key: "INDEXNOW_KEY", ok: system?.indexNow.configured ?? false },
     { key: "GSC_CREDENTIALS", ok: system?.gsc.configured ?? false },
     { key: "CRON_SECRET", ok: system?.cronSecret.configured ?? false },
-    { key: "NEXTAUTH_SECRET", ok: true }, // can't check, assume ok
     { key: "OPENAI_API_KEY", ok: system?.ai.activeProviders.includes("openai") ?? false },
+    { key: "GOOGLE_AI_API_KEY", ok: system?.ai.activeProviders.includes("gemini") ?? false },
   ];
 
   return (
@@ -1551,13 +1581,19 @@ export default function CockpitPage() {
   const [activeTab, setActiveTab] = useState<TabId>("mission");
   const [cockpitData, setCockpitData] = useState<CockpitData | null>(null);
   const [cockpitLoading, setCockpitLoading] = useState(true);
+  const [cockpitError, setCockpitError] = useState<string | null>(null);
   const [activeSiteId, setActiveSiteId] = useState<string>("");
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchCockpit = useCallback(async () => {
+    setCockpitError(null);
     try {
       const res = await fetch("/api/admin/cockpit");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+      }
       const json = await res.json();
       setCockpitData(json);
       setLastRefresh(new Date());
@@ -1565,7 +1601,9 @@ export default function CockpitPage() {
         setActiveSiteId(json.sites[0].id);
       }
     } catch (e) {
-      console.warn("Cockpit fetch failed:", e);
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      console.warn("[cockpit] Cockpit fetch failed:", msg);
+      setCockpitError(msg);
     } finally {
       setCockpitLoading(false);
     }
@@ -1638,10 +1676,18 @@ export default function CockpitPage() {
         </div>
       </div>
 
+      {/* Error banner */}
+      {cockpitError && (
+        <div className="bg-red-950/60 border-b border-red-800 px-4 py-2 text-xs text-red-300 flex items-center justify-between gap-2">
+          <span>⚠️ Dashboard data failed to load: {cockpitError}</span>
+          <button onClick={fetchCockpit} className="underline hover:text-red-200">Retry</button>
+        </div>
+      )}
+
       {/* Content */}
       <main className="max-w-screen-xl mx-auto px-4 py-4 pb-20">
         {activeTab === "mission" && (
-          <MissionTab data={cockpitData} onRefresh={fetchCockpit} />
+          <MissionTab data={cockpitData} onRefresh={fetchCockpit} onSwitchTab={setActiveTab} />
         )}
         {activeTab === "content" && (
           <ContentTab activeSiteId={activeSiteId} />

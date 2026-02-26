@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
+import { getDefaultSiteId, getActiveSiteIds } from "@/config/sites";
 
 // Allow up to 5 minutes — enhancement calls Grok (~30s each), promotion ~10s each.
 // 4 articles × 40s each = 160s well within Vercel Pro limit.
@@ -26,10 +27,16 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
   let locale: "en" | "ar" | "both" = "both";
   let count = 2; // per language
 
+  let siteId = getDefaultSiteId();
+
   try {
     const body = await req.json().catch(() => ({}));
     if (body.locale && ["en", "ar", "both"].includes(body.locale)) locale = body.locale;
     if (body.count && [1, 2].includes(body.count)) count = body.count;
+    // Accept siteId override — validate it's a known active site
+    if (body.siteId && typeof body.siteId === "string" && getActiveSiteIds().includes(body.siteId)) {
+      siteId = body.siteId;
+    }
   } catch {
     // Use defaults
   }
@@ -54,7 +61,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
 
       const candidates = await prisma.articleDraft.findMany({
         where: {
-          site_id: "yalla-london",
+          site_id: siteId,
           current_phase: "reservoir",
           locale: lang,
           assembled_html: { not: null },

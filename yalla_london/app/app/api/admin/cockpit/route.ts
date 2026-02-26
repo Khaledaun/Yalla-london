@@ -34,6 +34,7 @@ interface SystemStatus {
   indexNow: { configured: boolean };
   gsc: { configured: boolean };
   cronSecret: { configured: boolean };
+  nextAuthSecret: { configured: boolean };
 }
 
 interface PipelineStatus {
@@ -167,6 +168,7 @@ export const GET = withAdminAuth(async (_req: NextRequest) => {
     configured: !!(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || process.env.GSC_CREDENTIALS),
   };
   const cronSecretStatus = { configured: !!process.env.CRON_SECRET };
+  const nextAuthSecretStatus = { configured: !!process.env.NEXTAUTH_SECRET };
 
   const system: SystemStatus = {
     db: dbResult,
@@ -174,6 +176,7 @@ export const GET = withAdminAuth(async (_req: NextRequest) => {
     indexNow: indexNowStatus,
     gsc: gscStatus,
     cronSecret: cronSecretStatus,
+    nextAuthSecret: nextAuthSecretStatus,
   };
 
   // ── Early exit if DB is down ──────────────────────────

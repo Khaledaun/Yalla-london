@@ -464,11 +464,14 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
           { skipRouteCheck: true },
         );
 
+        // Map to the shape the cockpit page expects:
+        // { check, pass, label, detail, isBlocker }
         const checks = gateResult.checks.map((c) => ({
-          name: c.name,
-          status: c.passed ? "pass" : c.severity === "warning" ? "warn" : "fail",
-          message: c.message,
-          fix: undefined as string | undefined,
+          check: c.name,
+          pass: c.passed,
+          label: c.message,
+          detail: null as string | null, // pre-pub gate doesn't return per-check fix text yet
+          isBlocker: !c.passed && c.severity !== "warning",
         }));
 
         return NextResponse.json({ checks });

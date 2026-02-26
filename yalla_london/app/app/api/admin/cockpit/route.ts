@@ -100,11 +100,15 @@ interface SiteSummary {
   id: string;
   name: string;
   domain: string;
-  articles: number;
+  articlesTotal: number;
+  articlesPublished: number;
+  reservoir: number;
+  inPipeline: number;
   avgSeoScore: number;
   topicsQueued: number;
-  indexingRate: number;
-  lastArticleAt: string | null;
+  indexRate: number;
+  lastPublishedAt: string | null;
+  lastCronAt: string | null;
   isActive: boolean;
 }
 
@@ -461,7 +465,9 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
     if (!siteConfig) continue;
 
     try {
-      const [articleAgg, topicsQueued, indexingGroups, latestPost] = await Promise.all([
+      const PIPELINE_PHASES = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"];
+
+      const [articleAgg, topicsQueued, indexingGroups, latestPost, reservoirCount, inPipelineCount] = await Promise.all([
         prisma.blogPost.aggregate({
           _count: { id: true },
           _avg: { seo_score: true },
@@ -483,6 +489,12 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
           orderBy: { created_at: "desc" },
           select: { created_at: true },
         }),
+        prisma.articleDraft.count({
+          where: { site_id: siteId, current_phase: "reservoir" },
+        }),
+        prisma.articleDraft.count({
+          where: { site_id: siteId, current_phase: { in: PIPELINE_PHASES } },
+        }),
       ]);
 
       let totalUrls = 0;
@@ -492,15 +504,21 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         if (g.status === "indexed") indexedUrls += g._count.id;
       }
 
+      const published = articleAgg._count.id;
+
       results.push({
         id: siteId,
         name: siteConfig.name,
         domain: getSiteDomain(siteId),
-        articles: articleAgg._count.id,
+        articlesTotal: published,
+        articlesPublished: published,
+        reservoir: reservoirCount,
+        inPipeline: inPipelineCount,
         avgSeoScore: Math.round(articleAgg._avg.seo_score ?? 0),
         topicsQueued,
-        indexingRate: totalUrls > 0 ? Math.round((indexedUrls / totalUrls) * 100) : 0,
-        lastArticleAt: latestPost?.created_at?.toISOString() ?? null,
+        indexRate: totalUrls > 0 ? Math.round((indexedUrls / totalUrls) * 100) : 0,
+        lastPublishedAt: latestPost?.created_at?.toISOString() ?? null,
+        lastCronAt: null, // CronJobLog has no siteId column — shown as N/A
         isActive: siteConfig.status === "active",
       });
     } catch (err) {
@@ -509,11 +527,15 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         id: siteId,
         name: siteConfig.name,
         domain: getSiteDomain(siteId),
-        articles: 0,
+        articlesTotal: 0,
+        articlesPublished: 0,
+        reservoir: 0,
+        inPipeline: 0,
         avgSeoScore: 0,
         topicsQueued: 0,
-        indexingRate: 0,
-        lastArticleAt: null,
+        indexRate: 0,
+        lastPublishedAt: null,
+        lastCronAt: null,
         isActive: siteConfig.status === "active",
       });
     }

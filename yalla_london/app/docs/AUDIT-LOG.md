@@ -33,6 +33,7 @@
 | 27 | 2026-02-22 | Cron chain integrity: seo/cron budget guards, orphan routes, GET handlers | 4 issues | 3 | 1 (orphan route decisions) |
 | 28 | 2026-02-22 | Middleware + public routes: newsletter siteId, blog API site scoping | 2 issues | 2 | 0 |
 | 29 | 2026-02-26 | Cockpit dashboard audit: 6 new API routes + 3 lib utilities + 4 admin pages | 4 issues | 4 | 0 |
+| 30 | 2026-02-26 | Cockpit page audit round 2: SiteSummary field mismatch, gate check shape mismatch | 2 issues | 2 | 0 |
 
 ---
 
@@ -1447,6 +1448,41 @@ Total test suite: 90 tests across 16 categories.
 | HIGH | Wrong behavior, incorrect data, broken pipeline step | Fix in current session |
 | MEDIUM | Suboptimal behavior, inconsistency, degraded output | Fix when touching related code |
 | LOW | Code smell, minor inconsistency, cosmetic | Track for future cleanup |
+
+---
+
+## Audit #30 — Cockpit Page Round 2: SiteSummary and Gate Check Field Mismatches
+
+**Date:** 2026-02-26
+**Trigger:** Iterative audit of cockpit admin pages after Audit #29 API fixes
+**Scope:** cockpit/page.tsx SiteSummary type vs API response, gate_check response shape
+
+### Findings
+
+#### A30-001: SiteSummary Field Name Mismatches (Sites Tab)
+- **Files:** `app/api/admin/cockpit/route.ts`, `app/admin/cockpit/page.tsx`
+- **Severity:** HIGH
+- **Issue:** The cockpit API returned `articles`, `indexingRate`, `lastArticleAt` for each site, but the cockpit page `SiteSummary` interface declared and rendered `articlesPublished`, `articlesTotal`, `reservoir`, `inPipeline`, `indexRate`, `lastPublishedAt`, `lastCronAt`. The Sites tab would display empty/undefined values for all article counts, indexing rate, and last-published timestamp.
+- **Fix:** Updated `buildSites()` in cockpit API to:
+  - Rename `articles` → `articlesPublished` + `articlesTotal` (both = published count)
+  - Rename `indexingRate` → `indexRate`
+  - Rename `lastArticleAt` → `lastPublishedAt`
+  - Add `reservoir` per-site (new DB query: `articleDraft.count { current_phase: "reservoir" }`)
+  - Add `inPipeline` per-site (new DB query: `articleDraft.count { current_phase: { in: [...active phases] } }`)
+  - Add `lastCronAt: null` (CronJobLog has no site_id — cannot be computed per-site)
+- **Status:** FIXED
+
+#### A30-002: Gate Check Response Field Name Mismatch
+- **Files:** `app/api/admin/content-matrix/route.ts`, `app/admin/cockpit/page.tsx`
+- **Severity:** HIGH
+- **Issue:** Content-matrix API returned gate check items as `{ name, status, message, fix }` but the cockpit page's `GateCheck` interface expected `{ check, pass, label, detail, isBlocker }`. The "Why Not Published?" panel would render the check list completely empty/blank even when the API returned valid data.
+- **Fix:** Changed the `gate_check` response mapping in content-matrix route to:
+  - `name` → `check`
+  - `status === "pass"` → `pass: true`
+  - `c.message` → `label`
+  - `null` → `detail` (pre-pub gate doesn't return per-check fix text yet)
+  - `!c.passed && c.severity !== "warning"` → `isBlocker`
+- **Status:** FIXED
 
 ---
 

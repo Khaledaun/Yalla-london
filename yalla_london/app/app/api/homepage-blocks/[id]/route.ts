@@ -1,9 +1,9 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { requireAdmin } from '@/lib/auth/admin'
 
 export async function GET(
   request: NextRequest,
@@ -80,6 +80,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const auth = await requireAdmin(request);
+  if (auth) return auth;
+
   try {
     await prisma.homepageBlock.delete({
       where: { id: params.id }

@@ -26,6 +26,78 @@ export interface AICompletionOptions {
   maxTokens?: number;
   temperature?: number;
   systemPrompt?: string;
+  /** Site this call is for — used for per-site cost separation */
+  siteId?: string;
+  /** Task category (matches TaskType in provider-config.ts) */
+  taskType?: string;
+  /** Cron/API route that triggered this call — for attribution */
+  calledFrom?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Cost pricing table — USD per 1M tokens [input, output]
+// Sources: xAI / Anthropic / OpenAI / Google pricing pages, Feb 2026
+// ---------------------------------------------------------------------------
+const MODEL_PRICING: Record<string, [number, number]> = {
+  // xAI Grok
+  'grok-4-1-fast': [0.20, 0.50],
+  'grok-4-latest': [3.00, 15.00],
+  'grok-beta': [5.00, 15.00],
+  'grok-2-1212': [2.00, 10.00],
+  // Anthropic Claude
+  'claude-3-5-sonnet-20241022': [3.00, 15.00],
+  'claude-3-5-haiku-20241022': [0.80, 4.00],
+  'claude-3-opus-20240229': [15.00, 75.00],
+  'claude-sonnet-4-6': [3.00, 15.00],
+  'claude-haiku-4-5-20251001': [0.80, 4.00],
+  // OpenAI
+  'gpt-4-turbo-preview': [10.00, 30.00],
+  'gpt-4o': [5.00, 15.00],
+  'gpt-4o-mini': [0.15, 0.60],
+  'gpt-3.5-turbo': [0.50, 1.50],
+  // Google Gemini
+  'gemini-pro': [0.125, 0.375],
+  'gemini-1.5-pro': [3.50, 10.50],
+  'gemini-1.5-flash': [0.075, 0.30],
+};
+
+function estimateCost(model: string, promptTokens: number, completionTokens: number): number {
+  const pricing = MODEL_PRICING[model] ?? [1.00, 3.00]; // safe fallback
+  return (promptTokens / 1_000_000) * pricing[0] + (completionTokens / 1_000_000) * pricing[1];
+}
+
+/** Fire-and-forget — logs token usage to ApiUsageLog without blocking the caller */
+function logUsage(
+  result: AICompletionResult | null,
+  options: AICompletionOptions,
+  error?: string,
+): void {
+  const provider = result?.provider ?? (options.provider ?? 'unknown');
+  const model = result?.model ?? (options.model ?? 'unknown');
+  const promptTokens = result?.usage.promptTokens ?? 0;
+  const completionTokens = result?.usage.completionTokens ?? 0;
+
+  import('@/lib/db')
+    .then(({ prisma }) =>
+      prisma.apiUsageLog.create({
+        data: {
+          siteId: options.siteId ?? 'unknown',
+          provider,
+          model,
+          taskType: options.taskType ?? null,
+          calledFrom: options.calledFrom ?? null,
+          promptTokens,
+          completionTokens,
+          totalTokens: promptTokens + completionTokens,
+          estimatedCostUsd: estimateCost(model, promptTokens, completionTokens),
+          success: !error,
+          errorMessage: error ? error.slice(0, 500) : null,
+        },
+      })
+    )
+    .catch((err) => {
+      console.warn('[ai/provider] logUsage failed (non-fatal):', err instanceof Error ? err.message : err);
+    });
 }
 
 export interface AICompletionResult {
@@ -357,7 +429,8 @@ async function callProvider(
 
 /**
  * Generate completion using the AI provider
- * Automatically falls back to other providers if the primary fails
+ * Automatically falls back to other providers if the primary fails.
+ * Every call — success or failure — is logged to ApiUsageLog (fire-and-forget).
  */
 export async function generateCompletion(
   messages: AIMessage[],
@@ -367,9 +440,19 @@ export async function generateCompletion(
   if (options.provider) {
     const apiKey = await getApiKey(options.provider);
     if (!apiKey) {
-      throw new Error(`No API key configured for ${options.provider}`);
+      const err = `No API key configured for ${options.provider}`;
+      logUsage(null, { ...options, provider: options.provider }, err);
+      throw new Error(err);
     }
-    return callProvider(options.provider, messages, apiKey, options);
+    try {
+      const result = await callProvider(options.provider, messages, apiKey, options);
+      logUsage(result, options);
+      return result;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logUsage(null, options, msg);
+      throw error;
+    }
   }
 
   // Try providers in priority order: grok → claude → openai → gemini
@@ -380,14 +463,19 @@ export async function generateCompletion(
     if (!apiKey) continue;
 
     try {
-      return await callProvider(provider, messages, apiKey, options);
+      const result = await callProvider(provider, messages, apiKey, options);
+      logUsage(result, options);
+      return result;
     } catch (error) {
-      errors.push(`${provider}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const msg = `${provider}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      errors.push(msg);
       continue;
     }
   }
 
-  throw new Error(`All AI providers failed: ${errors.join('; ')}`);
+  const finalErr = `All AI providers failed: ${errors.join('; ')}`;
+  logUsage(null, options, finalErr);
+  throw new Error(finalErr);
 }
 
 /**

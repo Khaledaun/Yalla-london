@@ -104,6 +104,7 @@ async function handleIndexing(request: NextRequest) {
         }
 
         // Also include static articles that have never been tracked in URLIndexingStatus
+        // Only Yalla London has static blog content files — other sites are fully DB-driven
         let untrackedStaticUrls: string[] = [];
         if (siteId === "yalla-london") {
           try {

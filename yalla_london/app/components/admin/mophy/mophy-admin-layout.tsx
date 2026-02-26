@@ -182,6 +182,7 @@ const navigation = [
       { label: 'Feature Flags',    href: '/admin/settings/feature-flags' },
       { label: 'API Keys',         href: '/admin/command-center/settings/api-keys' },
       { label: 'Site Control',     href: '/admin/site-control' },
+      { label: 'AI Costs',         href: '/admin/ai-costs' },
       { label: 'API Security',     href: '/admin/api-security' },
       { label: 'Full Var Vault',   href: '/admin/variable-vault' },
       { label: 'Theme',            href: '/admin/settings/theme' },

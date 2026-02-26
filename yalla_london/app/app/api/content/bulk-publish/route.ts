@@ -11,6 +11,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth/admin';
 import { z } from 'zod';
 
 // Validation schema
@@ -119,6 +120,9 @@ export async function GET(request: NextRequest) {
 
 // Bulk publish content
 export async function POST(request: NextRequest) {
+  const auth = await requireAdmin(request);
+  if (auth) return auth;
+
   try {
     const body = await request.json();
 

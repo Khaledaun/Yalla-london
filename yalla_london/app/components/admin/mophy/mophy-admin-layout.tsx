@@ -21,6 +21,24 @@ import {
 
 const navigation = [
   {
+    id: 'cockpit',
+    label: '🚀 Cockpit',
+    labelAr: '🚀 كوكبيت',
+    icon: Zap,
+    href: '/admin/cockpit',
+    items: [
+      { label: '🚀 Mission Control',  href: '/admin/cockpit' },
+      { label: '📋 Content Matrix',   href: '/admin/cockpit?tab=content' },
+      { label: '⚙️ Pipeline',         href: '/admin/cockpit?tab=pipeline' },
+      { label: '⏱ Cron Control',     href: '/admin/cockpit?tab=crons' },
+      { label: '🌍 Sites',            href: '/admin/cockpit?tab=sites' },
+      { label: '🤖 AI Config',        href: '/admin/cockpit?tab=ai' },
+      { label: '🎨 Design Studio',    href: '/admin/cockpit/design' },
+      { label: '📧 Email Center',     href: '/admin/cockpit/email' },
+      { label: '🌐 New Website',      href: '/admin/cockpit/new-site' },
+    ],
+  },
+  {
     id: 'overview',
     label: 'Overview',
     labelAr: 'نظرة عامة',

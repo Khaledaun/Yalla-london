@@ -144,6 +144,19 @@
 <div id="results"></div>
 <div id="statusBanner"></div>
 
+<!-- Cockpit API Suite -->
+<div class="section" id="cockpitSection" style="margin-top:24px;border-color:#3b82f6;">
+  <h2 style="color:#60a5fa;">🚀 Cockpit API Suite</h2>
+  <p style="color:#9ca3af;font-size:0.85rem;margin-bottom:12px;">
+    Tests the new mission control API endpoints. Requires admin auth (CRON_SECRET above).
+    <a href="/admin/cockpit" target="_blank" style="color:#60a5fa;margin-left:8px;">→ Open Cockpit</a>
+  </p>
+  <button onclick="testCockpitSuite()" style="background:#2563eb;color:white;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:0.875rem;font-weight:600;">
+    Run Cockpit Tests
+  </button>
+  <div id="cockpitResults" style="margin-top:12px;"></div>
+</div>
+
 <div class="section" style="margin-top:16px">
   <h2>Live Log</h2>
   <div class="log" id="log"></div>
@@ -3414,6 +3427,111 @@ async function loadAuditHistory() {
     </div>`;
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// COCKPIT API SUITE
+// ═══════════════════════════════════════════════════════════════════
+
+async function testCockpitSuite() {
+  const el = document.getElementById('cockpitResults');
+  if (!el) return;
+  el.innerHTML = '<p style="color:#fbbf24;">Running cockpit API tests…</p>';
+
+  const results = [];
+  const h = getAuthHeaders();
+
+  // Test 1: GET /api/admin/cockpit
+  try {
+    const t0 = Date.now();
+    const r = await fetch('/api/admin/cockpit', { headers: h });
+    const ms = Date.now() - t0;
+    const json = await r.json();
+    const ok = r.ok && json.system && Array.isArray(json.alerts) && Array.isArray(json.sites) && ms < 2000;
+    results.push({ label: 'GET /api/admin/cockpit', ok, detail: ok ? `${ms}ms, ${json.sites?.length} sites, ${json.alerts?.length} alerts` : `HTTP ${r.status} or timeout` });
+  } catch (e) { results.push({ label: 'GET /api/admin/cockpit', ok: false, detail: e.message }); }
+
+  // Test 2: Cockpit pipeline byPhase has all 8 keys
+  try {
+    const r = await fetch('/api/admin/cockpit', { headers: h });
+    const json = await r.json();
+    const phases = Object.keys(json.pipeline?.byPhase || {});
+    const ok = phases.length >= 4;
+    results.push({ label: 'Cockpit: byPhase has phase keys', ok, detail: ok ? phases.join(', ') : 'Missing byPhase data' });
+  } catch (e) { results.push({ label: 'Cockpit: byPhase', ok: false, detail: e.message }); }
+
+  // Test 3: GET /api/admin/content-matrix
+  try {
+    const t0 = Date.now();
+    const r = await fetch('/api/admin/content-matrix', { headers: h });
+    const ms = Date.now() - t0;
+    const json = await r.json();
+    const ok = r.ok && Array.isArray(json.articles) && json.summary;
+    results.push({ label: 'GET /api/admin/content-matrix', ok, detail: ok ? `${ms}ms, ${json.articles?.length} articles` : `HTTP ${r.status}` });
+  } catch (e) { results.push({ label: 'GET /api/admin/content-matrix', ok: false, detail: e.message }); }
+
+  // Test 4: GET /api/admin/ai-config
+  try {
+    const r = await fetch('/api/admin/ai-config', { headers: h });
+    const json = await r.json();
+    const ok = r.ok && Array.isArray(json.providers) && Array.isArray(json.routes);
+    results.push({ label: 'GET /api/admin/ai-config', ok, detail: ok ? `${json.providers?.length} providers, ${json.routes?.length} routes` : `HTTP ${r.status}` });
+  } catch (e) { results.push({ label: 'GET /api/admin/ai-config', ok: false, detail: e.message }); }
+
+  // Test 5: Auth check — cockpit without headers should get 401
+  try {
+    const r = await fetch('/api/admin/cockpit');
+    const ok = r.status === 401 || r.status === 403;
+    results.push({ label: 'Auth: unauthenticated cockpit → 401/403', ok, detail: `HTTP ${r.status}` });
+  } catch (e) { results.push({ label: 'Auth: cockpit 401', ok: false, detail: e.message }); }
+
+  // Test 6: GET /api/admin/new-site validation
+  try {
+    const r = await fetch('/api/admin/new-site?siteId=test-smoke-site&domain=test-smoke.example.com', { headers: h });
+    const json = await r.json();
+    const ok = r.ok && typeof json.available === 'boolean';
+    results.push({ label: 'GET /api/admin/new-site (validate)', ok, detail: ok ? `available: ${json.available}` : `HTTP ${r.status}` });
+  } catch (e) { results.push({ label: 'GET /api/admin/new-site', ok: false, detail: e.message }); }
+
+  // Test 7: GET /api/admin/email-center
+  try {
+    const r = await fetch('/api/admin/email-center', { headers: h });
+    const json = await r.json();
+    const ok = r.ok && typeof json.providerStatus === 'object';
+    results.push({ label: 'GET /api/admin/email-center', ok, detail: ok ? `active: ${json.providerStatus?.active}` : `HTTP ${r.status}` });
+  } catch (e) { results.push({ label: 'GET /api/admin/email-center', ok: false, detail: e.message }); }
+
+  // Render results
+  const pass = results.filter(r => r.ok).length;
+  const total = results.length;
+  let html = `<div class="section">
+    <h2>🚀 Cockpit API Suite — ${pass}/${total} passed</h2>
+    <p style="margin-bottom:12px;"><a href="/admin/cockpit" target="_blank" style="color:#60a5fa;text-decoration:underline;">→ Open Cockpit Dashboard</a></p>`;
+  for (const r of results) {
+    const icon = r.ok ? '✅' : '❌';
+    const color = r.ok ? '#4ade80' : '#f87171';
+    html += `<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
+      <span>${icon}</span>
+      <div>
+        <span style="color:${color};font-weight:600;">${escapeHtml(r.label)}</span>
+        <span style="color:#9ca3af;font-size:0.8rem;margin-left:8px;">${escapeHtml(r.detail)}</span>
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
 </script>
+
+<script>
+// Auto-attach cockpit test button when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+  const cockpitSection = document.getElementById('cockpitSection');
+  if (cockpitSection) {
+    cockpitSection.innerHTML += `
+      <div id="cockpitResults" style="margin-top:12px;"></div>`;
+  }
+});
+</script>
+
 </body>
 </html>

@@ -292,12 +292,14 @@ export async function phaseDrafting(
 
     const writeLang = isArabic(draft.locale) ? "Arabic" : "English";
 
+    const minWordsPerSection = Math.max(section.targetWords || 0, 250);
+
     const prompt = `You are a luxury travel content writer for "${site.name}" (${site.destination}).
 
 Write section ${sectionIdx + 1} of ${sections.length} for a ${writeLang} article about "${draft.keyword}".
 
 Section heading: "${section.heading}" (H${section.level})
-Target words: ${section.targetWords}
+MINIMUM words for this section: ${minWordsPerSection} — you MUST write at least ${minWordsPerSection} words of real content.
 Key points to cover: ${JSON.stringify(section.keyPoints)}
 Keywords to include naturally: ${JSON.stringify(section.keywords)}
 ${section.linkOpportunities?.length ? `Internal link opportunities: ${JSON.stringify(section.linkOpportunities)}` : ""}
@@ -305,11 +307,18 @@ ${isIntro && intro ? `\nThis is the FIRST section. Start with this hook: "${intr
 ${isLast && conclusion ? `\nThis is the LAST section. End with CTA: "${conclusion.callToAction}"` : ""}
 ${contextSections ? `\nPrevious sections for context:\n${contextSections}` : ""}
 
+WRITING REQUIREMENTS (mandatory):
+- Write ${minWordsPerSection}–${minWordsPerSection + 150} words of detailed, specific content
+- Include at least 2 concrete facts, prices, names, or practical details readers can act on
+- Use sensory language and specific local knowledge — avoid generic travel-brochure phrases
+- Structure with short paragraphs (2–4 sentences each) and use <ul>/<li> for tips or lists
+- NO phrases like "look no further", "in this section we will", "in conclusion", or "whether you're a"
+
 Return JSON:
 {
   "heading": "${section.heading}",
   "content": "<p>HTML content with proper formatting...</p>",
-  "wordCount": ${section.targetWords},
+  "wordCount": ${minWordsPerSection},
   "keywords_used": ["kw1", "kw2"]
 }
 
@@ -317,8 +326,8 @@ Write in ${writeLang}. Use HTML tags: h2, h3, p, ul, ol, li, strong, em. NO mark
 
     try {
       const result = await generateJSON<Record<string, unknown>>(prompt, {
-        systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content. Use HTML formatting. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
-        maxTokens: isArabic(draft.locale) ? 2500 : 1500,
+        systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
+        maxTokens: isArabic(draft.locale) ? 3000 : 3000,
         temperature: 0.7,
       });
 
@@ -399,16 +408,19 @@ Review and polish this assembled ${writeLang} article about "${draft.keyword}".
 Raw article HTML (${totalWords} words, ${sections.length} sections):
 ${rawHtml.substring(0, 6000)}
 
+CRITICAL REQUIREMENT: The final article MUST be at least 1,500 words. If the raw content is under 1,500 words, you MUST expand every section with additional paragraphs, details, insider tips, and practical information until the total reaches 1,500+ words. Do not skip this.
+
 Tasks:
 1. Add smooth transitions between sections
 2. Remove any repetition across sections
 3. Ensure consistent tone (luxury, authoritative, helpful)
 4. Add 3+ internal link placeholders as: <a href="/blog/TOPIC_SLUG" class="internal-link">anchor text</a>
 5. Add ${affiliatePlacements.length || 2} affiliate placeholders as: <div class="affiliate-placeholder" data-type="TYPE">Affiliate recommendation block</div>
-6. Ensure minimum 1,200 words total
-7. Add a proper introduction if missing
-8. Add a conclusion with CTA if missing
-${isArabic(draft.locale) ? '9. Wrap the entire article in <article dir="rtl" lang="ar">...</article>\n10. Ensure all Arabic punctuation is correct (، ؛ ؟)' : ""}
+6. MANDATORY: Final word count MUST be at least 1,500 words — expand sections if needed
+7. Add a proper introduction (minimum 80 words) if missing
+8. Add a conclusion with CTA (minimum 80 words) if missing
+9. Add an "Insider Tips" or "Practical Information" section if total word count is still under 1,500
+${isArabic(draft.locale) ? '10. Wrap the entire article in <article dir="rtl" lang="ar">...</article>\n11. Ensure all Arabic punctuation is correct (، ؛ ؟)' : ""}
 
 Internal link targets: ${JSON.stringify(internalLinkPlan).substring(0, 500)}
 
@@ -424,17 +436,71 @@ Return JSON:
 
   try {
     const result = await generateJSON<Record<string, unknown>>(prompt, {
-      systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. Maintain existing content but improve flow and add links. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
+      systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. The final article MUST be at least 1,500 words — expand content if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
       maxTokens: 4096,
       temperature: 0.4,
     });
+
+    const assembledHtml = (result.html as string) || rawHtml;
+    let assembledWordCount = (result.wordCount as number) || totalWords;
+
+    // Verify actual word count (AI sometimes lies about wordCount in JSON)
+    const actualWords = assembledHtml.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+    assembledWordCount = Math.max(assembledWordCount, actualWords);
+
+    // If still too short, run an expansion pass
+    if (assembledWordCount < 1200) {
+      try {
+        const expansionPrompt = `You are a luxury travel editor expanding a short article to meet the 1,500-word minimum.
+
+ARTICLE ABOUT: "${draft.keyword}"
+CURRENT WORD COUNT: ${assembledWordCount} — NEED AT LEAST 1,500 WORDS
+
+CURRENT ARTICLE HTML:
+${assembledHtml.substring(0, 8000)}
+
+TASK: Add content to reach 1,500+ words. For each existing H2 section, add 1–2 additional paragraphs with:
+- Specific practical details (addresses, prices, opening hours, booking tips)
+- Insider knowledge and firsthand observations
+- Sensory descriptions that help readers picture the experience
+Also add a new "Practical Tips" H2 section at the end with at least 5 bullet points.
+
+Return JSON:
+{
+  "html": "<article...>full expanded HTML</article>",
+  "wordCount": 1600
+}`;
+
+        const expansionResult = await generateJSON<Record<string, unknown>>(expansionPrompt, {
+          systemPrompt: `You are a luxury travel editor. Expand articles to meet minimum word counts while maintaining quality. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
+          maxTokens: 4096,
+          temperature: 0.5,
+        });
+
+        const expandedHtml = (expansionResult.html as string) || assembledHtml;
+        const expandedWords = expandedHtml.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+        if (expandedWords > assembledWordCount) {
+          return {
+            success: true,
+            nextPhase: "images",
+            data: {
+              assembled_html: expandedHtml,
+              word_count: expandedWords,
+            },
+            aiModelUsed: "auto",
+          };
+        }
+      } catch {
+        console.warn(`[phases] Assembly expansion pass failed for draft ${draft.id} — proceeding with ${assembledWordCount} words`);
+      }
+    }
 
     return {
       success: true,
       nextPhase: "images",
       data: {
-        assembled_html: result.html || rawHtml,
-        word_count: result.wordCount || totalWords,
+        assembled_html: assembledHtml,
+        word_count: assembledWordCount,
       },
       aiModelUsed: "auto",
     };

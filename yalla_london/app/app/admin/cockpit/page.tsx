@@ -100,6 +100,7 @@ interface ContentItem {
   phaseProgress: number;
   hoursInPhase: number;
   tags: string[];
+  metaDescriptionEn: string | null;
 }
 
 interface ContentMatrixData {
@@ -662,8 +663,14 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       {badge.label}
                     </span>
                     <span className="text-xs text-zinc-500 uppercase">{item.locale}</span>
-                    {item.hoursInPhase > 3 && item.type === "draft" && (
-                      <span className="text-xs text-orange-400">⚠️ {item.hoursInPhase}h stuck</span>
+                    {item.type === "draft" && item.phase === "reservoir" && item.wordCount < 1000 && (
+                      <span className="text-xs text-amber-400">📝 Needs expansion ({item.wordCount} words)</span>
+                    )}
+                    {item.type === "draft" && item.phase === "reservoir" && item.wordCount >= 1000 && item.hoursInPhase > 6 && (
+                      <span className="text-xs text-blue-400">📦 Ready — {item.hoursInPhase}h in queue</span>
+                    )}
+                    {item.type === "draft" && item.status === "stuck" && (
+                      <span className="text-xs text-orange-400">⚠️ {item.hoursInPhase}h stuck in pipeline</span>
                     )}
                   </div>
                   <p className="text-sm text-zinc-100 font-medium mt-1 truncate">{item.title || item.slug || item.id}</p>
@@ -675,7 +682,14 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0 text-xs text-zinc-500">
                   <span>{timeAgo(item.generatedAt)}</span>
-                  {item.wordCount > 0 && <span>{item.wordCount.toLocaleString()} words</span>}
+                  {item.wordCount > 0 && (
+                    <span className={item.wordCount < 1000 ? "text-red-400 font-medium" : item.wordCount < 1200 ? "text-amber-400" : "text-zinc-500"}>
+                      {item.wordCount.toLocaleString()} words{item.wordCount < 1000 ? " ✗" : item.wordCount < 1200 ? " ⚠" : ""}
+                    </span>
+                  )}
+                  {item.metaDescriptionEn && item.metaDescriptionEn.length > 160 && (
+                    <span className="text-amber-400">Meta {item.metaDescriptionEn.length}ch ⚠</span>
+                  )}
                   {item.seoScore !== null && (
                     <span className={scoreColor(item.seoScore)}>SEO {item.seoScore}</span>
                   )}

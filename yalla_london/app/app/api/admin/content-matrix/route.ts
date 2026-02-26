@@ -1,4 +1,20 @@
 /**
+ * Detect article type from keyword/title — used to apply correct quality thresholds
+ * in the pre-publication gate. News, information, and guide articles are intentionally
+ * shorter than blog posts; applying blog thresholds permanently blocks them.
+ */
+function detectArticleType(keyword: string): "news" | "information" | "guide" | "blog" {
+  const k = keyword.toLowerCase();
+  // News signals
+  if (/\b(news|alert|update|announcement|breaking|strike|closure|warning|ban)\b/.test(k)) return "news";
+  // Information / reference signals
+  if (/\b(what is|how (does|do)|facts about|history of|overview|introduction to|guide to|faq)\b/.test(k)) return "information";
+  // Guide / practical signals
+  if (/\b(guide|tips|advice|how to|top \d|best \d|ways to|checklist|step[s]? to|itinerary|transport|getting around|travel (with|by))\b/.test(k)) return "guide";
+  return "blog";
+}
+
+/**
  * Content Matrix API
  *
  * GET  — Full article list merging BlogPosts (published) + ArticleDrafts (in-pipeline).
@@ -446,17 +462,34 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
 
         const meta = draft.seo_meta as Record<string, unknown> | null;
         const slug = (meta?.slug as string) || draft.keyword.toLowerCase().replace(/\s+/g, "-");
-        const targetUrl = `/blog/${slug}`;
+
+        // Detect article type to apply correct quality thresholds.
+        // Priority: explicit articleType in seo_meta → keyword-based detection → default "blog".
+        // This determines the URL prefix fed to the gate, which maps to per-type thresholds
+        // (news 150w, information 300w, guide 400w, blog 1000w).
+        const explicitType = meta?.articleType as string | undefined;
+        const articleType = explicitType || detectArticleType(draft.keyword);
+        const urlPrefix =
+          articleType === "news" ? "/news"
+          : articleType === "information" ? "/information"
+          : articleType === "guide" ? "/guides"
+          : "/blog";
+        const targetUrl = `${urlPrefix}/${slug}`;
         const siteUrl = `https://${getDomain(draft.site_id)}`;
 
+        // Locale-aware content mapping:
+        // Arabic drafts (locale="ar") store their body in assembled_html (not assembled_html_alt).
+        // Passing an Arabic body as content_en causes the gate to report "0 chars English content"
+        // and block publication — when the content is actually complete, just in Arabic.
+        const isArabicDraft = draft.locale === "ar";
         const gateResult = await runPrePublicationGate(
           targetUrl,
           {
             title_en: draft.keyword,
             meta_title_en: (meta?.metaTitle as string) ?? undefined,
             meta_description_en: (meta?.metaDescription as string) ?? undefined,
-            content_en: draft.assembled_html ?? undefined,
-            content_ar: draft.assembled_html_alt ?? undefined,
+            content_en: isArabicDraft ? undefined : (draft.assembled_html ?? undefined),
+            content_ar: isArabicDraft ? (draft.assembled_html ?? undefined) : (draft.assembled_html_alt ?? undefined),
             locale: draft.locale,
             seo_score: draft.seo_score ?? undefined,
           },

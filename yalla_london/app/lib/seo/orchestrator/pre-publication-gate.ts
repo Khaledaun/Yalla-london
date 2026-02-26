@@ -58,7 +58,11 @@ export async function runPrePublicationGate(
   // ── Import SEO standards dynamically — single source of truth ──
   // When standards.ts is updated (e.g., after algorithm changes),
   // all enforcement thresholds in this gate update automatically.
-  const { CONTENT_QUALITY, EEAT_REQUIREMENTS } = await import("@/lib/seo/standards");
+  const { CONTENT_QUALITY, EEAT_REQUIREMENTS, getThresholdsForUrl } = await import("@/lib/seo/standards");
+
+  // Per-content-type thresholds: news/information/guides have intentionally
+  // shorter content than blog posts. Use URL to detect type and select thresholds.
+  const typeThresholds = getThresholdsForUrl(targetUrl);
   const {
     metaTitleMin,
     metaTitleOptimal,
@@ -68,11 +72,21 @@ export async function runPrePublicationGate(
     minWords,
     targetWords,
     thinContentThreshold,
-    readabilityMax,
     minInternalLinks,
-    maxH1Count,
     minH2Count,
-  } = CONTENT_QUALITY;
+    requireAffiliateLinks,
+    requireAuthenticitySignals,
+    seoScoreBlocker,
+  } = typeThresholds;
+  const { readabilityMax, maxH1Count } = CONTENT_QUALITY;
+
+  // ── Content body: use locale-aware field ───────────────────────────────────
+  // Arabic drafts (locale="ar") have assembled_html in content_ar, not content_en.
+  // The gate must check the body that actually EXISTS, not always content_en.
+  // Checks that are English-language-specific (authenticity signals, affiliate patterns)
+  // are skipped when only Arabic content is available.
+  const isArabicOnly = content.locale === "ar" && !content.content_en && !!content.content_ar;
+  const contentBody = isArabicOnly ? content.content_ar : content.content_en;
 
   let baseUrl = siteUrl || process.env.NEXT_PUBLIC_SITE_URL;
   if (!baseUrl) {
@@ -219,35 +233,35 @@ export async function runPrePublicationGate(
     warnings.push(`Meta description is ${content.meta_description_en.length} chars — will be truncated in search results`);
   }
 
-  if (!content.content_en || content.content_en.length < thinContentThreshold) {
+  if (!contentBody || contentBody.length < thinContentThreshold) {
     checks.push({
       name: "Content Length",
       passed: false,
-      message: `English content too short (${content.content_en?.length || 0} chars, min ${thinContentThreshold})`,
+      message: `Content too short (${contentBody?.length || 0} chars, min ${thinContentThreshold} for this content type)${isArabicOnly ? " [Arabic content]" : ""}`,
       severity: "blocker",
     });
     blockers.push("Content is too short for indexing");
   }
 
-  // ── 4. SEO score check — threshold from standards.ts ───
+  // ── 4. SEO score check — per-type thresholds ───────────────────────
   if (content.seo_score !== undefined && content.seo_score < qualityGateScore) {
     const seoCheck: GateCheck = {
       name: "SEO Score",
       passed: false,
-      message: `SEO score ${content.seo_score} is below minimum threshold (${qualityGateScore})`,
-      severity: content.seo_score < 50 ? "blocker" : "warning",
+      message: `SEO score ${content.seo_score} is below minimum threshold (${qualityGateScore} for this content type)`,
+      severity: content.seo_score < seoScoreBlocker ? "blocker" : "warning",
     };
     checks.push(seoCheck);
-    if (content.seo_score < 50) {
+    if (content.seo_score < seoScoreBlocker) {
       blockers.push(`SEO score critically low: ${content.seo_score}/100`);
     } else {
       warnings.push(`Low SEO score: ${content.seo_score}/100 (target: ${qualityGateScore}+)`);
     }
   }
 
-  // ── 5. Heading hierarchy check — thresholds from standards.ts ─────
-  if (content.content_en && content.content_en.length > 300) {
-    const headingResult = validateHeadingHierarchy(content.content_en, maxH1Count, minH2Count);
+  // ── 5. Heading hierarchy check ─────────────────────────────────────
+  if (contentBody && contentBody.length > 300) {
+    const headingResult = validateHeadingHierarchy(contentBody, maxH1Count, minH2Count);
     checks.push(headingResult.check);
     if (!headingResult.check.passed) {
       if (headingResult.check.severity === "blocker") {
@@ -258,14 +272,14 @@ export async function runPrePublicationGate(
     }
   }
 
-  // ── 6. Word count check — thresholds from standards.ts ──
-  if (content.content_en) {
-    const wordCount = countWords(content.content_en);
+  // ── 6. Word count check — per-type thresholds ──────────────────────
+  if (contentBody) {
+    const wordCount = countWords(contentBody);
     if (wordCount < targetWords) {
       const check: GateCheck = {
         name: "Word Count",
         passed: false,
-        message: `Content has ${wordCount} words (target ${targetWords.toLocaleString()}+ for indexing quality, ${wordCount < minWords ? `below ${minWords.toLocaleString()} minimum — blocked` : "close to target"})`,
+        message: `Content has ${wordCount} words (target ${targetWords.toLocaleString()}+ for this content type, ${wordCount < minWords ? `below ${minWords.toLocaleString()} minimum — blocked` : "close to target"})`,
         severity: wordCount < minWords ? "blocker" : "warning",
       };
       checks.push(check);
@@ -284,14 +298,14 @@ export async function runPrePublicationGate(
     }
   }
 
-  // ── 7. Internal links check — threshold from standards.ts ─────────
-  if (content.content_en) {
-    const internalLinkCount = await countInternalLinks(content.content_en);
+  // ── 7. Internal links check ─────────────────────────────────────────
+  if (contentBody) {
+    const internalLinkCount = await countInternalLinks(contentBody);
     if (internalLinkCount < minInternalLinks) {
       checks.push({
         name: "Internal Links",
         passed: false,
-        message: `Content has ${internalLinkCount} internal links (minimum ${minInternalLinks} required)`,
+        message: `Content has ${internalLinkCount} internal links (minimum ${minInternalLinks} for this content type)`,
         severity: "warning",
       });
       warnings.push(`Only ${internalLinkCount} internal links (need at least ${minInternalLinks})`);
@@ -305,9 +319,10 @@ export async function runPrePublicationGate(
     }
   }
 
-  // ── 8. Readability check — threshold from standards.ts ────────────
-  if (content.content_en && content.content_en.length > 500) {
-    const readability = estimateReadability(content.content_en);
+  // ── 8. Readability check ───────────────────────────────────────────
+  // Skip for Arabic-only content — Flesch-Kincaid is designed for English
+  if (contentBody && contentBody.length > 500 && !isArabicOnly) {
+    const readability = estimateReadability(contentBody);
     if (readability.gradeLevel > readabilityMax) {
       checks.push({
         name: "Readability",
@@ -327,8 +342,8 @@ export async function runPrePublicationGate(
   }
 
   // ── 9. Image alt text check ───────────────────────────────────────
-  if (content.content_en) {
-    const imgResult = checkImageAltText(content.content_en);
+  if (contentBody) {
+    const imgResult = checkImageAltText(contentBody);
     if (imgResult.totalImages > 0 && imgResult.missingAlt > 0) {
       checks.push({
         name: "Image Alt Text",
@@ -388,10 +403,11 @@ export async function runPrePublicationGate(
   }
 
   // ── 12. First-Hand Experience signals (Jan 2026 Authenticity Update) ──
-  // Google's Jan 2026 Core Update heavily rewards content with first-hand experience
-  // signals and demotes "second-hand knowledge" (repackaged summaries).
-  if (content.content_en && content.content_en.length > 500) {
-    const authenticityResult = checkAuthenticitySignals(content.content_en);
+  // Only checked for blog posts — news, info, and guide content types are
+  // exempt because they serve a different intent (factual/reference/timely).
+  // Also skipped for Arabic-only content (signals are English patterns).
+  if (requireAuthenticitySignals && contentBody && contentBody.length > 500 && !isArabicOnly) {
+    const authenticityResult = checkAuthenticitySignals(contentBody);
     checks.push(authenticityResult.check);
     if (!authenticityResult.check.passed) {
       warnings.push(authenticityResult.check.message);
@@ -399,8 +415,10 @@ export async function runPrePublicationGate(
   }
 
   // ── 13. Affiliate/booking links check (revenue requirement) ──────
-  if (content.content_en) {
-    const affiliateCount = countAffiliateLinks(content.content_en);
+  // Only required for blog posts and guides — news and information hub
+  // articles serve informational intent and don't need booking links.
+  if (requireAffiliateLinks && contentBody) {
+    const affiliateCount = countAffiliateLinks(contentBody);
     if (affiliateCount === 0) {
       checks.push({
         name: "Affiliate Links",
@@ -420,11 +438,10 @@ export async function runPrePublicationGate(
   }
 
   // ── 14. AIO Readiness (AI Overview citation eligibility) ──────────
-  // Google AI Overviews cite content that leads with a direct, concise answer
-  // before expanding. 60%+ of searches now show AI Overviews — this signals
-  // whether the article is structured for citation in generative results.
-  if (content.content_en) {
-    const { check: aioCheck } = checkAIOReadiness(content.content_en);
+  // Applied to all content types — even short news items benefit from
+  // answer-first structure for AI Overview citation. Skip Arabic-only.
+  if (contentBody && !isArabicOnly) {
+    const { check: aioCheck } = checkAIOReadiness(contentBody);
     checks.push(aioCheck);
     if (!aioCheck.passed) {
       warnings.push(aioCheck.message);

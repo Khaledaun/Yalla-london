@@ -114,6 +114,96 @@ export const CONTENT_QUALITY = {
   reservoirMinScore: 60,
 } as const;
 
+// ─── Per-Content-Type Quality Thresholds ─────────────────────────────────────
+// News items, information hub articles, and guides are intentionally shorter
+// than blog posts. Applying blog thresholds to them causes them to be permanently
+// blocked from publication even though they are high-quality for their format.
+//
+// URL detection in the gate:
+//   /blog/...        → blog thresholds (default)
+//   /news/...        → news thresholds
+//   /information/... → information thresholds
+//   /guides/...      → guide thresholds
+export const CONTENT_TYPE_THRESHOLDS = {
+  blog: {
+    minWords: 1000,
+    targetWords: 1800,
+    thinContentThreshold: 300,
+    metaTitleMin: 30,
+    metaTitleOptimal: { min: 50, max: 60 },
+    metaDescriptionMin: 120,
+    metaDescriptionOptimal: { min: 120, max: 160 },
+    qualityGateScore: 70,
+    seoScoreBlocker: 50,
+    minInternalLinks: 3,
+    minH2Count: 2,
+    requireAffiliateLinks: true,
+    requireAuthenticitySignals: true,
+  },
+  news: {
+    /** News items: 150–500 words — timely and scannable by design */
+    minWords: 150,
+    targetWords: 400,
+    thinContentThreshold: 80,
+    metaTitleMin: 20,
+    metaTitleOptimal: { min: 40, max: 60 },
+    metaDescriptionMin: 80,
+    metaDescriptionOptimal: { min: 80, max: 160 },
+    qualityGateScore: 40,
+    seoScoreBlocker: 20,
+    minInternalLinks: 1,
+    minH2Count: 0,
+    requireAffiliateLinks: false,
+    requireAuthenticitySignals: false,
+  },
+  information: {
+    /** Information hub articles: 300–900 words — reference content, factual depth */
+    minWords: 300,
+    targetWords: 800,
+    thinContentThreshold: 150,
+    metaTitleMin: 20,
+    metaTitleOptimal: { min: 40, max: 60 },
+    metaDescriptionMin: 80,
+    metaDescriptionOptimal: { min: 80, max: 160 },
+    qualityGateScore: 50,
+    seoScoreBlocker: 30,
+    minInternalLinks: 1,
+    minH2Count: 1,
+    requireAffiliateLinks: false,
+    requireAuthenticitySignals: false,
+  },
+  guide: {
+    /** Guides: 400–1000 words — practical, step-oriented, may include booking links */
+    minWords: 400,
+    targetWords: 1000,
+    thinContentThreshold: 200,
+    metaTitleMin: 20,
+    metaTitleOptimal: { min: 40, max: 60 },
+    metaDescriptionMin: 80,
+    metaDescriptionOptimal: { min: 80, max: 160 },
+    qualityGateScore: 50,
+    seoScoreBlocker: 30,
+    minInternalLinks: 1,
+    minH2Count: 1,
+    requireAffiliateLinks: true,
+    requireAuthenticitySignals: false,
+  },
+} as const;
+
+export type ContentTypeKey = keyof typeof CONTENT_TYPE_THRESHOLDS;
+
+/**
+ * Detect which content type a target URL belongs to, and return its quality
+ * thresholds. Falls back to blog (strictest) if the URL doesn't match.
+ */
+export function getThresholdsForUrl(targetUrl: string) {
+  const path = targetUrl.toLowerCase();
+  if (path.startsWith("/news/") || path.includes("/ar/news/")) return CONTENT_TYPE_THRESHOLDS.news;
+  if (path.startsWith("/information/") || path.includes("/ar/information/")) return CONTENT_TYPE_THRESHOLDS.information;
+  if (path.startsWith("/guides/") || path.includes("/ar/guides/")) return CONTENT_TYPE_THRESHOLDS.guide;
+  return CONTENT_TYPE_THRESHOLDS.blog;
+}
+
 // ─── E-E-A-T Requirements (Updated for Jan 2026 Authenticity Update) ────────
 export const EEAT_REQUIREMENTS = {
   /** Articles should have identifiable author attribution */

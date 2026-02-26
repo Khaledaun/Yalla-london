@@ -17,7 +17,7 @@ const CORE_TABLES = [
   { name: 'ModelRoute', label: 'AI Model Routes' },
   { name: 'SeoReport', label: 'SEO Reports' },
   { name: 'FeatureFlag', label: 'Feature Flags' },
-  { name: 'Admin', label: 'Admin Users' },
+  { name: 'User', label: 'Users' },
   { name: 'ScheduledContent', label: 'Scheduled Content' },
   { name: 'AuditLog', label: 'Audit Logs' },
 ];

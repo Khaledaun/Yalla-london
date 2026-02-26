@@ -296,7 +296,26 @@ async function collectSiteHealth(
     );
   }
 
-  // ── Indexing rate ──────────────────────────────────────────────────
+  // ── Indexing rate (prefer URLIndexingStatus table, fall back to GSC) ──
+  // GSC may not provide indexedPages — use URLIndexingStatus as primary source
+  if (indexedPages === null) {
+    try {
+      const [idxCount, totalTracked] = await Promise.all([
+        db.uRLIndexingStatus.count({
+          where: { site_id: siteId, status: "indexed" },
+        }),
+        db.uRLIndexingStatus.count({
+          where: { site_id: siteId },
+        }),
+      ]);
+      if (totalTracked > 0) {
+        indexedPages = idxCount;
+      }
+    } catch {
+      // URLIndexingStatus table may not exist yet
+    }
+  }
+
   const totalPages = postsPublished;
   const indexingRate =
     totalPages > 0 && indexedPages !== null
@@ -356,70 +375,79 @@ function calculateHealthScore(inputs: ScoreInputs): number {
   let score = 0;
   let weights = 0;
 
+  // IMPORTANT: Only count weights for metrics that have data.
+  // If GSC/GA4/indexing aren't configured, don't penalize the site —
+  // normalize against what we CAN measure.
+
   // 1. Content volume (0-15 pts)
   //    At least 10 published posts = full marks
   if (inputs.totalPosts > 0) {
     const contentScore = Math.min(inputs.postsPublished / 10, 1) * 15;
     score += contentScore;
+    weights += 15;
+  } else {
+    // No content at all = still count this weight (0 content = low score)
+    weights += 15;
   }
-  weights += 15;
 
   // 2. Average SEO score (0-25 pts)
   //    Maps SEO score (0-100) to 0-25 pts
   if (inputs.avgSeoScore !== null) {
     score += (inputs.avgSeoScore / 100) * 25;
+    weights += 25;
   }
-  weights += 25;
 
   // 3. Indexing rate (0-20 pts)
   //    100% indexed = full marks
   if (inputs.indexingRate !== null) {
     score += (inputs.indexingRate / 100) * 20;
+    weights += 20;
   }
-  weights += 20;
 
   // 4. GSC CTR (0-10 pts)
-  //    CTR >= 5% = full marks
+  //    CTR >= 5% = full marks — only counted if GSC is configured
   if (inputs.gscCtr !== null) {
     const ctrScore = Math.min(inputs.gscCtr / 5, 1) * 10;
     score += ctrScore;
+    weights += 10;
   }
-  weights += 10;
 
   // 5. GA4 engagement rate (0-10 pts)
-  //    Engagement >= 80% = full marks
+  //    Engagement >= 80% = full marks — only counted if GA4 is configured
   if (inputs.ga4EngagementRate !== null) {
     const engScore = Math.min(inputs.ga4EngagementRate / 80, 1) * 10;
     score += engScore;
+    weights += 10;
   }
-  weights += 10;
 
   // 6. Content freshness (0-10 pts)
   //    Agent ran in last 24h = 5 pts, content generated in last 48h = 5 pts
   const now = Date.now();
   const oneDayMs = 24 * 60 * 60 * 1000;
+  let freshnessScore = 0;
 
   if (inputs.lastAgentRun) {
     const agentAge = now - inputs.lastAgentRun.getTime();
     if (agentAge < oneDayMs) {
-      score += 5;
+      freshnessScore += 5;
     } else if (agentAge < 3 * oneDayMs) {
-      score += 3;
+      freshnessScore += 3;
     } else if (agentAge < 7 * oneDayMs) {
-      score += 1;
+      freshnessScore += 1;
     }
   }
 
   if (inputs.lastContentGen) {
     const contentAge = now - inputs.lastContentGen.getTime();
     if (contentAge < 2 * oneDayMs) {
-      score += 5;
+      freshnessScore += 5;
     } else if (contentAge < 7 * oneDayMs) {
-      score += 3;
+      freshnessScore += 3;
     } else if (contentAge < 14 * oneDayMs) {
-      score += 1;
+      freshnessScore += 1;
     }
   }
+  score += freshnessScore;
   weights += 10;
 
   // 7. Pipeline health (0-10 pts)
@@ -440,6 +468,6 @@ function calculateHealthScore(inputs: ScoreInputs): number {
   }
   weights += 10;
 
-  // Normalize to 0-100
+  // Normalize to 0-100 — only against metrics we could measure
   return weights > 0 ? Math.round((score / weights) * 100) : 0;
 }

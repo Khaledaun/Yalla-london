@@ -322,36 +322,60 @@ Return JSON:
   "keywords_used": ["kw1", "kw2"]
 }
 
-Write in ${writeLang}. Use HTML tags: h2, h3, p, ul, ol, li, strong, em. NO markdown.${isArabic(draft.locale) ? '\nUse Arabic punctuation (، ؛ ؟). Do NOT add dir="rtl" or lang attributes to any element — the wrapper adds them automatically.' : ""}`;
+Write in ${writeLang}. Use HTML tags: h2, h3, p, ul, ol, li, strong, em. NO markdown.${isArabic(draft.locale) ? '\nUse Arabic punctuation (، ؛ ؟). Do NOT add dir="rtl" or lang attributes to any HTML element — the outer wrapper adds them automatically.' : ""}
 
-    try {
-      const result = await generateJSON<Record<string, unknown>>(prompt, {
-        systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
-        maxTokens: isArabic(draft.locale) ? 3000 : 3000,
-        temperature: 0.7,
-      });
+CRITICAL JSON RULES:
+- Return ONLY valid JSON. No markdown fences, no comments.
+- All newlines inside string values MUST be escaped as \\n
+- All double quotes inside string values MUST be escaped as \\"
+- Do NOT use actual line breaks inside JSON string values.`;
 
-      existingSections = [...existingSections, {
-        heading: result.heading || section.heading,
-        content: result.content || "",
-        wordCount: result.wordCount || 0,
-        keywords_used: result.keywords_used || [],
-        level: section.level || 2,
-        index: sectionIdx,
-      }];
+    // Per-section retry: if JSON parse fails on first try, retry once.
+    // This handles transient AI output issues (especially Arabic with dir attributes).
+    const maxSectionRetries = 2;
+    let sectionSuccess = false;
 
-      sectionsWritten++;
-    } catch (error) {
-      // If first section fails, report error. If later sections fail, save partial progress.
-      if (sectionsWritten === 0) {
-        return {
-          success: false,
-          nextPhase: "drafting",
-          data: {},
-          error: error instanceof Error ? error.message : "Drafting phase failed",
-        };
+    for (let retry = 0; retry < maxSectionRetries; retry++) {
+      try {
+        const result = await generateJSON<Record<string, unknown>>(prompt, {
+          systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${getLocaleDirectives(draft.locale, site)}`,
+          maxTokens: 3000,
+          temperature: 0.7,
+        });
+
+        existingSections = [...existingSections, {
+          heading: result.heading || section.heading,
+          content: result.content || "",
+          wordCount: result.wordCount || 0,
+          keywords_used: result.keywords_used || [],
+          level: section.level || 2,
+          index: sectionIdx,
+        }];
+
+        sectionsWritten++;
+        sectionSuccess = true;
+        break; // Section succeeded, exit retry loop
+      } catch (error) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (retry < maxSectionRetries - 1) {
+          console.warn(`[drafting] Section ${sectionIdx + 1} retry ${retry + 1} failed (${draft.locale}): ${errMsg.substring(0, 150)}`);
+          continue; // Try again
+        }
+        // Final retry failed
+        if (sectionsWritten === 0) {
+          return {
+            success: false,
+            nextPhase: "drafting",
+            data: {},
+            error: `Drafting section ${sectionIdx + 1} failed after ${maxSectionRetries} tries: ${errMsg}`,
+          };
+        }
+        // Save partial progress from previous sections
       }
-      break; // Save what we have
+    }
+
+    if (!sectionSuccess && sectionsWritten > 0) {
+      break; // Save what we have from earlier sections
     }
 
     // Update remaining budget estimate

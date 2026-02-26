@@ -228,6 +228,61 @@ async function handleIndexing(request: NextRequest) {
       }
     }
 
+    // ── Resubmit stuck pages (submitted >7d ago, not yet indexed) ────
+    let stuckResubmitted = 0;
+    if (Date.now() - _cronStart < 50_000) {
+      try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const stuckPages = await prisma.uRLIndexingStatus.findMany({
+          where: {
+            status: { in: ["submitted", "pending_review"] },
+            last_submitted_at: { lt: sevenDaysAgo },
+          },
+          select: { url: true, site_id: true },
+          take: 20, // cap per run to avoid timeout
+        });
+
+        if (stuckPages.length > 0) {
+          // Group by site for batch IndexNow submission
+          const bySite = new Map<string, string[]>();
+          for (const page of stuckPages) {
+            const sid = page.site_id || "yalla-london";
+            if (!bySite.has(sid)) bySite.set(sid, []);
+            bySite.get(sid)!.push(page.url);
+          }
+
+          for (const [sid, urls] of bySite) {
+            if (Date.now() - _cronStart > 53_000) break;
+            try {
+              const { getSiteDomain: getDomain } = await import("@/config/sites");
+              const siteUrl = getDomain(sid);
+              const indexNowKey = process.env.INDEXNOW_KEY;
+              if (indexNowKey) {
+                const resubResults = await submitToIndexNow(urls, siteUrl, indexNowKey);
+                const resubSuccess = resubResults.some((r) => r.success);
+                if (resubSuccess) {
+                  // Update submission timestamp
+                  await Promise.allSettled(
+                    urls.map((url) =>
+                      prisma.uRLIndexingStatus.update({
+                        where: { site_id_url: { site_id: sid, url } },
+                        data: { last_submitted_at: new Date() },
+                      })
+                    )
+                  );
+                  stuckResubmitted += urls.length;
+                }
+              }
+            } catch (e) {
+              console.warn(`[google-indexing] Stuck page resubmit failed for ${sid}:`, e instanceof Error ? e.message : e);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[google-indexing] Stuck page scan failed:", e instanceof Error ? e.message : e);
+      }
+    }
+
     await logCronExecution("google-indexing", "completed", {
       durationMs: Date.now() - _cronStart,
       itemsProcessed: results.reduce((a, r) => a + r.urlsFound, 0),
@@ -237,6 +292,7 @@ async function handleIndexing(request: NextRequest) {
         sites: results.length,
         totalUrlsSubmitted,
         totalErrors,
+        stuckResubmitted,
       },
     });
 

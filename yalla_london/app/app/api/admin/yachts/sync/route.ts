@@ -8,6 +8,7 @@ import { withAdminAuth } from '@/lib/admin-middleware'
 import { getDefaultSiteId } from '@/config/sites'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 // ─── POST: Trigger sync ─────────────────────────────────
 
@@ -33,29 +34,38 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         prisma.yacht.count({ where: { siteId, slug: '' } }),
       ])
 
-      // Fix any yachts with empty slugs
+      // Fix any yachts with empty slugs (batched to avoid N+1 timeouts)
       let slugsFixed = 0
       if (missingSlug > 0) {
         const yachtsWithoutSlug = await prisma.yacht.findMany({
           where: { siteId, slug: '' },
           select: { id: true, name: true },
+          take: 100, // cap to prevent unbounded query
         })
 
-        for (const yacht of yachtsWithoutSlug) {
-          const slug = yacht.name
-            .toLowerCase()
-            .replace(/[^\w\s-]/g, '')
-            .replace(/\s+/g, '-')
-            .replace(/-+/g, '-')
-            .trim()
+        // Batch all slug updates in a single transaction
+        const slugUpdates = yachtsWithoutSlug
+          .map((yacht) => {
+            const slug = yacht.name
+              .toLowerCase()
+              .replace(/[^\w\s-]/g, '')
+              .replace(/\s+/g, '-')
+              .replace(/-+/g, '-')
+              .trim()
+            return slug ? { id: yacht.id, slug } : null
+          })
+          .filter(Boolean) as Array<{ id: string; slug: string }>
 
-          if (slug) {
-            await prisma.yacht.update({
-              where: { id: yacht.id },
-              data: { slug, lastSyncedAt: new Date() },
-            })
-            slugsFixed++
-          }
+        if (slugUpdates.length > 0) {
+          await prisma.$transaction(
+            slugUpdates.map((u) =>
+              prisma.yacht.update({
+                where: { id: u.id },
+                data: { slug: u.slug, lastSyncedAt: new Date() },
+              })
+            )
+          )
+          slugsFixed = slugUpdates.length
         }
       }
 

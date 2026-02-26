@@ -11,7 +11,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { requireAdmin } from '@/lib/auth/admin';
+import { requireAdmin } from '@/lib/admin-middleware';
 import { z } from 'zod';
 
 // Validation schema

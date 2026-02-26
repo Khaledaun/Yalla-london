@@ -3,7 +3,7 @@ export const revalidate = 0;
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { requireAdmin } from '@/lib/auth/admin'
+import { requireAdmin } from '@/lib/admin-middleware'
 
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin(request);

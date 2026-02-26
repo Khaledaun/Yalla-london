@@ -217,11 +217,12 @@ export async function alertBriefDecision(
 /**
  * Mark alert(s) as read.
  */
-export async function markAlertsRead(alertIds: string[]): Promise<number> {
+export async function markAlertsRead(alertIds: string[], siteId: string): Promise<number> {
   const { prisma } = await import("@/lib/db");
 
+  // Scope to siteId to prevent cross-site alert manipulation
   const result = await prisma.commerceAlert.updateMany({
-    where: { id: { in: alertIds } },
+    where: { id: { in: alertIds }, siteId },
     data: { read: true, readAt: new Date() },
   });
 

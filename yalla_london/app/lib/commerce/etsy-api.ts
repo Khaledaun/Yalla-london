@@ -382,8 +382,8 @@ export async function resolveShopId(
           };
         }
       }
-    } catch {
-      // Fall through to name-based search
+    } catch (err) {
+      console.warn("[etsy-api] User-based shop lookup failed, falling back to name search:", err instanceof Error ? err.message : err);
     }
   }
 
@@ -761,8 +761,8 @@ export async function testConnection(
           lastTestedAt: new Date(),
         },
       });
-    } catch {
-      // If config doesn't exist yet, that's fine
+    } catch (configErr) {
+      console.warn("[etsy-api] Failed to update EtsyShopConfig error status:", configErr instanceof Error ? configErr.message : configErr);
     }
 
     return { connected: false, error: message };

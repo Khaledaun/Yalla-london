@@ -94,12 +94,16 @@ export async function importEtsyOrdersCsv(
         continue;
       }
 
-      // Check for duplicate by transactionId
+      // Check for duplicate by payment_id (Purchase uses snake_case fields)
+      const paymentId = orderRow.transactionId
+        ? `etsy_${orderRow.transactionId}`
+        : `etsy_import_${Date.now()}_${result.imported}`;
+
       if (orderRow.transactionId) {
         const existing = await prisma.purchase.findFirst({
           where: {
             channel: "etsy",
-            stripeSessionId: `etsy_${orderRow.transactionId}`,
+            payment_id: paymentId,
           },
         });
         if (existing) {
@@ -108,28 +112,37 @@ export async function importEtsyOrdersCsv(
         }
       }
 
-      // Find matching DigitalProduct by etsyListingId or title
+      // Find matching DigitalProduct via EtsyListingDraft → ProductBrief
       let productId: string | null = null;
       if (orderRow.listingId) {
-        const product = await prisma.digitalProduct.findFirst({
+        const draft = await prisma.etsyListingDraft.findFirst({
           where: { etsyListingId: orderRow.listingId },
+          select: { brief: { select: { digitalProductId: true } } },
         });
-        productId = product?.id ?? null;
+        productId = draft?.brief?.digitalProductId ?? null;
       }
 
-      // Create Purchase record
+      // Purchase.product_id is required — skip if no matching product
+      if (!productId) {
+        console.warn(
+          `[etsy-csv-import] No matching DigitalProduct for CSV txn ${orderRow.transactionId} — skipping`,
+        );
+        result.skipped++;
+        continue;
+      }
+
+      // Create Purchase record (fields match prisma/schema.prisma)
       await prisma.purchase.create({
         data: {
-          siteId,
-          digitalProductId: productId ?? "unknown",
-          email: orderRow.buyerEmail ?? `etsy_buyer_${orderRow.transactionId}@import.local`,
+          site_id: siteId,
+          product_id: productId,
+          customer_email: orderRow.buyerEmail ?? `etsy_buyer_${orderRow.transactionId}@import.local`,
           amount: orderRow.orderTotal,
           currency: "USD",
-          status: orderRow.status === "Completed" ? "completed" : "pending",
+          payment_provider: "etsy",
+          payment_id: paymentId,
+          status: orderRow.status === "Completed" ? "COMPLETED" : "PENDING",
           channel: "etsy",
-          stripeSessionId: orderRow.transactionId
-            ? `etsy_${orderRow.transactionId}`
-            : `etsy_import_${Date.now()}_${result.imported}`,
         },
       });
 

@@ -123,7 +123,7 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
     const topProductIds = topProducts
       .map((p) => p.product_id)
       .filter(Boolean);
-    const productDetails =
+    const productDetails: { id: string; name_en: string; tier: number | null }[] =
       topProductIds.length > 0
         ? await prisma.digitalProduct.findMany({
             where: { id: { in: topProductIds } },

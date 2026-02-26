@@ -77,18 +77,19 @@ export async function generateWeeklyReport(
   prevPeriodStart.setDate(prevPeriodStart.getDate() - 7);
 
   // ── Revenue Data ──
+  // Purchase model uses snake_case fields: site_id, created_at, product_id
   const [thisWeekPurchases, lastWeekPurchases] = await Promise.all([
     prisma.purchase.findMany({
       where: {
-        siteId,
-        createdAt: { gte: periodStart, lte: periodEnd },
+        site_id: siteId,
+        created_at: { gte: periodStart, lte: periodEnd },
       },
       include: { product: { select: { name_en: true } } },
     }),
     prisma.purchase.findMany({
       where: {
-        siteId,
-        createdAt: { gte: prevPeriodStart, lte: prevPeriodEnd },
+        site_id: siteId,
+        created_at: { gte: prevPeriodStart, lte: prevPeriodEnd },
       },
     }),
   ]);
@@ -110,10 +111,10 @@ export async function generateWeeklyReport(
   const productMap = new Map<string, { name: string; revenue: number; orders: number; channel: string }>();
   for (const p of thisWeekPurchases) {
     const name = p.product?.name_en ?? "Unknown";
-    const existing = productMap.get(p.productId) ?? { name, revenue: 0, orders: 0, channel: p.channel ?? "website" };
+    const existing = productMap.get(p.product_id) ?? { name, revenue: 0, orders: 0, channel: p.channel ?? "website" };
     existing.revenue += p.amount;
     existing.orders += 1;
-    productMap.set(p.productId, existing);
+    productMap.set(p.product_id, existing);
   }
 
   const topProducts = [...productMap.values()]

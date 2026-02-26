@@ -57,13 +57,18 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
 
     // ── Mark alerts as read ──
     if (action === "mark_read") {
-      const { alertIds } = body as { alertIds: string[] };
+      const { alertIds, siteId: requestedSiteId } = body as { alertIds: string[]; siteId?: string };
       if (!alertIds || !Array.isArray(alertIds) || alertIds.length === 0) {
         return NextResponse.json({ error: "alertIds array required" }, { status: 400 });
       }
 
+      const activeSiteIds = getActiveSiteIds();
+      const siteId = requestedSiteId && activeSiteIds.includes(requestedSiteId)
+        ? requestedSiteId
+        : getDefaultSiteId();
+
       const { markAlertsRead } = await import("@/lib/commerce/alert-engine");
-      const count = await markAlertsRead(alertIds);
+      const count = await markAlertsRead(alertIds, siteId);
 
       return NextResponse.json({
         success: true,

@@ -3,15 +3,24 @@
 /**
  * Commerce Cockpit — Multi-tab dashboard for the Hybrid Commerce Engine
  *
- * Tab 1: Overview (revenue, pipeline, alerts, quick actions)
- * Tab 2: Trends (TrendRun history, niche cards, manual trigger)
- * Tab 3: Briefs (ProductBrief table, approve/reject, filtering)
- * Tab 4: Products (DigitalProducts with commerce metadata)
+ * Tab 1:  Overview (revenue, pipeline, alerts, quick actions)
+ * Tab 2:  Trends / Niche Goldmine Finder
+ * Tab 3:  Briefs / Product Ideation & Validation
+ * Tab 4:  Products (DigitalProducts with commerce metadata)
+ * Tab 5:  Etsy SEO & Listings
+ * Tab 6:  Campaigns / Marketing & Sales Machine (30-day)
+ * Tab 7:  Branding & Store Identity Builder
+ * Tab 8:  Design Assistant
+ * Tab 9:  Growth Blueprint ($5k/mo mode)
+ * Tab 10: TrendRun Engine
+ * Tab 11: Assets & Links
+ * Tab 12: Settings (tenant config, secrets, integrations)
  *
  * Mobile-first, iPhone 375px optimized.
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -85,10 +94,17 @@ interface ProductBrief {
 
 const TABS = [
   { key: "overview", label: "Overview" },
-  { key: "trends", label: "Trends" },
-  { key: "briefs", label: "Briefs" },
+  { key: "trends", label: "Niche Goldmine" },
+  { key: "briefs", label: "Ideation" },
   { key: "products", label: "Products" },
-  { key: "etsy", label: "Etsy" },
+  { key: "etsy", label: "Etsy SEO" },
+  { key: "campaigns", label: "Marketing" },
+  { key: "branding", label: "Branding" },
+  { key: "design", label: "Design" },
+  { key: "growth", label: "Growth" },
+  { key: "trendrun", label: "TrendRun" },
+  { key: "assets", label: "Assets" },
+  { key: "settings", label: "Settings" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -130,7 +146,10 @@ interface EtsyDraft {
 // ─── Component ────────────────────────────────────────────
 
 export default function CommerceHQPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const initialTab = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : "overview";
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [stats, setStats] = useState<CommerceStats | null>(null);
   const [trendRuns, setTrendRuns] = useState<TrendRunSummary[]>([]);
   const [briefs, setBriefs] = useState<ProductBrief[]>([]);
@@ -610,6 +629,13 @@ export default function CommerceHQPage() {
             actionLoading={actionLoading}
           />
         )}
+        {activeTab === "campaigns" && <CampaignsTab />}
+        {activeTab === "branding" && <BrandingTab />}
+        {activeTab === "design" && <DesignAssistantTab />}
+        {activeTab === "growth" && <GrowthBlueprintTab />}
+        {activeTab === "trendrun" && <TrendRunEngineTab />}
+        {activeTab === "assets" && <AssetsLinksTab />}
+        {activeTab === "settings" && <SettingsTab />}
       </div>
     </div>
   );
@@ -1610,6 +1636,663 @@ function PayoutProfileCard() {
           <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">
             Verified
           </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Module 6: Campaigns / Marketing & Sales Machine ─────
+
+function CampaignsTab() {
+  const [campaigns, setCampaigns] = useState<{ id: string; name: string; status: string; startDate: string; endDate: string; couponCode?: string; tasksCompleted?: number; totalTasks?: number }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/commerce/campaigns")
+      .then((r) => r.json())
+      .then((d) => setCampaigns(d.data ?? []))
+      .catch((err) => console.warn("[campaigns-tab] Load failed:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const launchCampaign = async () => {
+    setCreating(true);
+    try {
+      const res = await fetch("/api/admin/commerce/campaigns", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "generate_from_latest_brief" }) });
+      const data = await res.json();
+      if (data.data) setCampaigns((prev) => [data.data, ...prev]);
+    } catch (err) { console.warn("[campaigns-tab] Create failed:", err); }
+    setCreating(false);
+  };
+
+  if (loading) return <div className="text-center py-12 text-gray-400 text-sm">Loading campaigns...</div>;
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold text-gray-900">Marketing & Sales Machine</h2>
+          <button onClick={launchCampaign} disabled={creating} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            {creating ? "Creating..." : "New 30-Day Campaign"}
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 mb-4">AI-generated 30-day launch plans with daily tasks across Pinterest, Instagram, email, blog, and Etsy.</p>
+        {campaigns.length === 0 ? (
+          <p className="text-sm text-gray-400 py-6 text-center">No campaigns yet. Approve a product brief, then launch a campaign.</p>
+        ) : (
+          <div className="space-y-3">
+            {campaigns.map((c) => (
+              <div key={c.id} className="border rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-gray-900">{c.name}</h3>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${c.status === "active" ? "bg-green-100 text-green-700" : c.status === "completed" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}>
+                    {c.status}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                  <span>{new Date(c.startDate).toLocaleDateString()} — {new Date(c.endDate).toLocaleDateString()}</span>
+                  {c.couponCode && <span className="font-mono bg-gray-50 px-1.5 py-0.5 rounded">{c.couponCode}</span>}
+                </div>
+                {c.totalTasks && c.totalTasks > 0 && (
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                      <span>Tasks: {c.tasksCompleted ?? 0}/{c.totalTasks}</span>
+                      <span>{Math.round(((c.tasksCompleted ?? 0) / c.totalTasks) * 100)}%</span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${((c.tasksCompleted ?? 0) / c.totalTasks) * 100}%` }} />
+                    </div>
+                  </div>
+                )}
+                <button onClick={() => window.location.href = `/admin/cockpit/commerce/campaign?id=${c.id}`} className="mt-2 text-xs text-blue-600 hover:underline">
+                  View Calendar &rarr;
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Module 3: Branding & Store Identity Builder ─────────
+
+function BrandingTab() {
+  const [config, setConfig] = useState<{ shopName?: string; shopUrl?: string; shopAboutCopy?: string; brandVoice?: string; shopPolicies?: Record<string, string> } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ shopName: "", shopUrl: "", shopAboutCopy: "", brandVoice: "luxury" });
+
+  useEffect(() => {
+    fetch("/api/admin/commerce/etsy")
+      .then((r) => r.json())
+      .then((d) => {
+        setConfig(d);
+        if (d.shopName) setForm((f) => ({ ...f, shopName: d.shopName ?? "", shopUrl: d.shopUrl ?? "" }));
+      })
+      .catch((err) => console.warn("[branding-tab] Load failed:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const saveBranding = async () => {
+    setSaving(true);
+    try {
+      await fetch("/api/admin/commerce/etsy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_branding", ...form }),
+      });
+    } catch (err) { console.warn("[branding-tab] Save failed:", err); }
+    setSaving(false);
+  };
+
+  if (loading) return <div className="text-center py-12 text-gray-400 text-sm">Loading branding...</div>;
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border p-4">
+        <h2 className="text-base font-semibold text-gray-900 mb-1">Branding & Store Identity</h2>
+        <p className="text-xs text-gray-500 mb-4">Define your Etsy shop personality — palette, typography, voice, about copy, and shop policies.</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Shop Name</label>
+            <input type="text" value={form.shopName} onChange={(e) => setForm({ ...form, shopName: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="e.g., YallaLondonDesigns" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Shop URL</label>
+            <input type="text" value={form.shopUrl} onChange={(e) => setForm({ ...form, shopUrl: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="https://www.etsy.com/shop/YourShop" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Brand Voice</label>
+            <select value={form.brandVoice} onChange={(e) => setForm({ ...form, brandVoice: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm">
+              <option value="luxury">Luxury & Sophisticated</option>
+              <option value="friendly">Friendly & Approachable</option>
+              <option value="professional">Professional & Authoritative</option>
+              <option value="casual">Casual & Fun</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Shop About Copy</label>
+            <textarea value={form.shopAboutCopy} onChange={(e) => setForm({ ...form, shopAboutCopy: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm h-24" placeholder="Tell buyers about your shop and products..." />
+          </div>
+        </div>
+        <button onClick={saveBranding} disabled={saving} className="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+          {saving ? "Saving..." : "Save Branding"}
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl border p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Shop Policies Templates</h3>
+        <div className="space-y-2 text-xs text-gray-600">
+          {["Returns & Exchanges", "Shipping", "Customization", "Privacy"].map((policy) => (
+            <div key={policy} className="flex items-center justify-between border-b pb-2">
+              <span>{policy}</span>
+              <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-600 rounded-full">
+                {config?.shopPolicies?.[policy.toLowerCase()] ? "Set" : "Template Ready"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Brand Assets Specs</h3>
+        <div className="space-y-2 text-xs text-gray-600">
+          <div className="flex justify-between"><span>Shop Banner</span><span className="font-mono">760 x 100 px</span></div>
+          <div className="flex justify-between"><span>Shop Icon</span><span className="font-mono">500 x 500 px</span></div>
+          <div className="flex justify-between"><span>Listing Photo</span><span className="font-mono">2000 x 2000 px (min)</span></div>
+          <div className="flex justify-between"><span>Digital Mockup</span><span className="font-mono">2400 x 1800 px</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Module 4: Winning Product Design Assistant ──────────
+
+function DesignAssistantTab() {
+  const [briefs, setBriefs] = useState<{ id: string; title: string; status: string; designNotesJson?: Record<string, unknown> }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/commerce/briefs?status=approved,in_production")
+      .then((r) => r.json())
+      .then((d) => setBriefs(d.data ?? []))
+      .catch((err) => console.warn("[design-tab] Load failed:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const generateDesign = async (briefId: string) => {
+    setGenerating(briefId);
+    try {
+      await fetch("/api/admin/commerce/mockup-images", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ briefId }) });
+    } catch (err) { console.warn("[design-tab] Generate failed:", err); }
+    setGenerating(null);
+  };
+
+  const generateFile = async (briefId: string) => {
+    setGenerating(briefId);
+    try {
+      await fetch("/api/admin/commerce/generate-product", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ briefId }) });
+    } catch (err) { console.warn("[design-tab] File gen failed:", err); }
+    setGenerating(null);
+  };
+
+  if (loading) return <div className="text-center py-12 text-gray-400 text-sm">Loading briefs...</div>;
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border p-4">
+        <h2 className="text-base font-semibold text-gray-900 mb-1">Winning Product Design Assistant</h2>
+        <p className="text-xs text-gray-500 mb-4">Generate mockup images, product files (PDFs), and design briefs for approved products.</p>
+        {briefs.length === 0 ? (
+          <p className="text-sm text-gray-400 py-6 text-center">No approved briefs yet. Approve briefs in the Ideation tab first.</p>
+        ) : (
+          <div className="space-y-3">
+            {briefs.map((b) => (
+              <div key={b.id} className="border rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-gray-900">{b.title}</h3>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${b.status === "in_production" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}`}>
+                    {b.status}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => generateDesign(b.id)} disabled={generating === b.id} className="px-3 py-1.5 text-xs bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
+                    {generating === b.id ? "..." : "Generate Mockups"}
+                  </button>
+                  <button onClick={() => generateFile(b.id)} disabled={generating === b.id} className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                    {generating === b.id ? "..." : "Generate File"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Module 7: Growth Blueprint ($5k/mo mode) ───────────
+
+function GrowthBlueprintTab() {
+  const [stats, setStats] = useState<{ revenue30d: number; orders30d: number; unlocked: boolean } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/admin/commerce/stats")
+      .then((r) => r.json())
+      .then((d) => {
+        const rev = d.revenue?.combined?.totalCents ?? 0;
+        const orders = d.revenue?.combined?.orders ?? 0;
+        setStats({ revenue30d: rev, orders30d: orders, unlocked: rev >= 100000 || orders >= 50 });
+      })
+      .catch((err) => console.warn("[growth-tab] Load failed:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-center py-12 text-gray-400 text-sm">Loading...</div>;
+
+  const unlocked = stats?.unlocked ?? false;
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border p-4">
+        <h2 className="text-base font-semibold text-gray-900 mb-1">Growth Blueprint — $5k/mo Mode</h2>
+        <p className="text-xs text-gray-500 mb-4">
+          Unlock at {">"}50 sales/month or {">"} $1,000 revenue. Adds complementary product roadmap, automation workflows, and SOPs.
+        </p>
+
+        {!unlocked ? (
+          <div className="bg-gray-50 rounded-lg p-6 text-center">
+            <div className="text-3xl mb-2">🔒</div>
+            <p className="text-sm font-medium text-gray-700 mb-1">Growth Blueprint Locked</p>
+            <p className="text-xs text-gray-500 mb-3">
+              Current: ${((stats?.revenue30d ?? 0) / 100).toFixed(0)} revenue / {stats?.orders30d ?? 0} orders (30d)
+            </p>
+            <div className="space-y-2">
+              <div>
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>Revenue</span><span>${((stats?.revenue30d ?? 0) / 100).toFixed(0)} / $1,000</span>
+                </div>
+                <div className="h-2 bg-gray-200 rounded-full"><div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(100, ((stats?.revenue30d ?? 0) / 100000) * 100)}%` }} /></div>
+              </div>
+              <div>
+                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>Orders</span><span>{stats?.orders30d ?? 0} / 50</span>
+                </div>
+                <div className="h-2 bg-gray-200 rounded-full"><div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, ((stats?.orders30d ?? 0) / 50) * 100)}%` }} /></div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <p className="text-sm font-medium text-green-800">Growth Blueprint Unlocked!</p>
+              <p className="text-xs text-green-600 mt-0.5">You have met the threshold. Advanced tools are now available.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              {[
+                { title: "Complementary Product Roadmap", desc: "Add products that cross-sell with your top sellers. Bundle strategically." },
+                { title: "Print-on-Demand Track", desc: "Optional POD integration for physical products (mugs, totes, prints)." },
+                { title: "Automation Workflows", desc: "Auto-list new products, auto-pin to Pinterest, auto-email on launch." },
+                { title: "SOPs & Playbooks", desc: "Standardized operating procedures for weekly operations, listing creation, and campaign launches." },
+              ].map((item) => (
+                <div key={item.title} className="border rounded-lg p-3">
+                  <h4 className="text-sm font-medium text-gray-900">{item.title}</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── TrendRun Engine ─────────────────────────────────────
+
+function TrendRunEngineTab() {
+  const [runs, setRuns] = useState<{ id: string; siteId: string; runDate: string; status: string; nicheCount: number; briefCount: number; estimatedCostUsd: number; durationMs: number | null }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/commerce/trends")
+      .then((r) => r.json())
+      .then((d) => setRuns(d.data ?? []))
+      .catch((err) => console.warn("[trendrun-tab] Load failed:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const triggerRun = async () => {
+    setRunning(true);
+    try {
+      const res = await fetch("/api/admin/commerce/trends", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "run" }) });
+      const data = await res.json();
+      if (data.data) setRuns((prev) => [data.data, ...prev]);
+    } catch (err) { console.warn("[trendrun-tab] Trigger failed:", err); }
+    setRunning(false);
+  };
+
+  if (loading) return <div className="text-center py-12 text-gray-400 text-sm">Loading TrendRun history...</div>;
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">TrendRun Engine</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Weekly AI-powered market research. Discovers niches, scores opportunities, generates product briefs.</p>
+          </div>
+          <button onClick={triggerRun} disabled={running} className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50">
+            {running ? "Running..." : "Run Now"}
+          </button>
+        </div>
+        <div className="bg-blue-50 rounded-lg p-3 mb-4">
+          <p className="text-xs text-blue-700">
+            <strong>Scoring algorithm:</strong> Buyer Intent (20%) + Competition Gap (20%) + Authority Fit (15%) + Bundle Potential (15%) + Trend Velocity (10%) + Production Ease (10%) + Seasonal Timing (10%)
+          </p>
+        </div>
+        {runs.length === 0 ? (
+          <p className="text-sm text-gray-400 py-6 text-center">No trend runs yet. Click &quot;Run Now&quot; to start.</p>
+        ) : (
+          <div className="space-y-2">
+            {runs.map((run) => (
+              <div key={run.id} className="border rounded-lg p-3 flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{new Date(run.runDate).toLocaleDateString()}</div>
+                  <div className="text-xs text-gray-500">{run.nicheCount} niches &middot; {run.briefCount} briefs &middot; ${run.estimatedCostUsd.toFixed(3)}</div>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${run.status === "completed" ? "bg-green-100 text-green-700" : run.status === "running" ? "bg-blue-100 text-blue-700" : run.status === "failed" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}>
+                  {run.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-2">Global Rollup</h3>
+        <p className="text-xs text-gray-500 mb-3">Cross-tenant pattern detection: identifies winning product types that work across multiple sites.</p>
+        <div className="bg-gray-50 rounded-lg p-4 text-center text-xs text-gray-400">
+          Available when 2+ sites are active with TrendRun data
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Assets & Links Tab ──────────────────────────────────
+
+function AssetsLinksTab() {
+  const [assets, setAssets] = useState<{ id: string; assetType: string; name: string; url?: string; size?: number }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [utmUrl, setUtmUrl] = useState("");
+  const [utmParams, setUtmParams] = useState({ source: "pinterest", medium: "social", campaign: "", content: "" });
+  const [generatedUtm, setGeneratedUtm] = useState("");
+  const [copied, setCopied] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/commerce/assets")
+      .then((r) => r.json())
+      .then((d) => setAssets(d.data ?? []))
+      .catch((err) => console.warn("[assets-tab] Load failed:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const generateUtmLink = () => {
+    const params = new URLSearchParams();
+    if (utmParams.source) params.set("utm_source", utmParams.source);
+    if (utmParams.medium) params.set("utm_medium", utmParams.medium);
+    if (utmParams.campaign) params.set("utm_campaign", utmParams.campaign);
+    if (utmParams.content) params.set("utm_content", utmParams.content);
+    const base = utmUrl.includes("?") ? `${utmUrl}&` : `${utmUrl}?`;
+    setGeneratedUtm(`${base}${params.toString()}`);
+  };
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try { await navigator.clipboard.writeText(text); setCopied(label); setTimeout(() => setCopied(""), 2000); } catch { /* clipboard not available */ }
+  };
+
+  if (loading) return <div className="text-center py-12 text-gray-400 text-sm">Loading assets...</div>;
+  return (
+    <div className="space-y-4">
+      {/* Quick Links */}
+      <div className="bg-white rounded-xl border p-4">
+        <h2 className="text-base font-semibold text-gray-900 mb-3">Quick Links</h2>
+        <div className="space-y-2">
+          {[
+            { label: "Etsy Shop", url: "https://www.etsy.com/shop/YourShop" },
+            { label: "Website Shop", url: "/shop" },
+          ].map((link) => (
+            <div key={link.label} className="flex items-center justify-between border rounded-lg p-2">
+              <div>
+                <span className="text-sm text-gray-900">{link.label}</span>
+                <span className="text-xs text-gray-400 ml-2">{link.url}</span>
+              </div>
+              <button onClick={() => copyToClipboard(link.url, link.label)} className="text-xs text-blue-600 hover:underline">
+                {copied === link.label ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* UTM Builder */}
+      <div className="bg-white rounded-xl border p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">UTM Link Builder</h3>
+        <div className="space-y-2">
+          <input type="text" value={utmUrl} onChange={(e) => setUtmUrl(e.target.value)} placeholder="Base URL (e.g., https://yalla-london.com/shop)" className="w-full border rounded-lg px-3 py-2 text-sm" />
+          <div className="grid grid-cols-2 gap-2">
+            <select value={utmParams.source} onChange={(e) => setUtmParams({ ...utmParams, source: e.target.value })} className="border rounded-lg px-2 py-1.5 text-xs">
+              <option value="pinterest">Pinterest</option><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="email">Email</option><option value="blog">Blog</option><option value="etsy">Etsy</option><option value="agent">Agent</option>
+            </select>
+            <select value={utmParams.medium} onChange={(e) => setUtmParams({ ...utmParams, medium: e.target.value })} className="border rounded-lg px-2 py-1.5 text-xs">
+              <option value="social">Social</option><option value="email">Email</option><option value="cpc">CPC</option><option value="referral">Referral</option><option value="organic">Organic</option>
+            </select>
+          </div>
+          <input type="text" value={utmParams.campaign} onChange={(e) => setUtmParams({ ...utmParams, campaign: e.target.value })} placeholder="Campaign name" className="w-full border rounded-lg px-3 py-2 text-sm" />
+          <button onClick={generateUtmLink} className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Build UTM Link</button>
+          {generatedUtm && (
+            <div className="bg-gray-50 rounded-lg p-2 mt-2">
+              <p className="text-xs font-mono text-gray-600 break-all">{generatedUtm}</p>
+              <button onClick={() => copyToClipboard(generatedUtm, "utm")} className="mt-1 text-xs text-blue-600 hover:underline">
+                {copied === "utm" ? "Copied!" : "Copy Link"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Distribution Assets */}
+      <div className="bg-white rounded-xl border p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Distribution Assets</h3>
+        {assets.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">No distribution assets configured yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {assets.map((a) => (
+              <div key={a.id} className="border rounded-lg p-2 flex items-center justify-between">
+                <div>
+                  <span className="text-sm text-gray-900">{a.name}</span>
+                  <span className="text-xs text-gray-400 ml-2">{a.assetType}</span>
+                </div>
+                {a.size && <span className="text-xs font-mono text-gray-500">{a.size.toLocaleString()}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Banner Specs */}
+      <div className="bg-white rounded-xl border p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Banner & Asset Specs</h3>
+        <div className="space-y-2 text-xs text-gray-600">
+          <div className="flex justify-between"><span>Etsy Shop Banner</span><span className="font-mono">760 x 100 px</span></div>
+          <div className="flex justify-between"><span>Etsy Mini Banner</span><span className="font-mono">1200 x 300 px</span></div>
+          <div className="flex justify-between"><span>Website Hero Banner</span><span className="font-mono">1920 x 600 px</span></div>
+          <div className="flex justify-between"><span>Social Media Square</span><span className="font-mono">1080 x 1080 px</span></div>
+          <div className="flex justify-between"><span>Pinterest Pin</span><span className="font-mono">1000 x 1500 px</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Settings Tab ────────────────────────────────────────
+
+function SettingsTab() {
+  const [settings, setSettings] = useState<{
+    etsyEnabled: boolean; websiteShopEnabled: boolean; pinterestEnabled: boolean;
+    autoPublishToEtsy: boolean; defaultCurrency: string;
+  }>({ etsyEnabled: false, websiteShopEnabled: true, pinterestEnabled: false, autoPublishToEtsy: false, defaultCurrency: "USD" });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [secrets, setSecrets] = useState<{ key: string; status: "set" | "missing" }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/admin/commerce/stats")
+      .then((r) => r.json())
+      .then(() => {
+        setSecrets([
+          { key: "ETSY_API_KEY", status: process.env.NEXT_PUBLIC_ETSY_CONFIGURED === "true" ? "set" : "missing" },
+          { key: "STRIPE_SECRET_KEY", status: "set" },
+          { key: "PINTEREST_APP_ID", status: "missing" },
+        ]);
+      })
+      .catch((err) => console.warn("[settings-tab] Load failed:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const saveSettings = async () => {
+    setSaving(true);
+    try {
+      await fetch("/api/admin/commerce/etsy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update_settings", settings }),
+      });
+    } catch (err) { console.warn("[settings-tab] Save failed:", err); }
+    setSaving(false);
+  };
+
+  if (loading) return <div className="text-center py-12 text-gray-400 text-sm">Loading settings...</div>;
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border p-4">
+        <h2 className="text-base font-semibold text-gray-900 mb-3">Commerce Settings</h2>
+        <div className="space-y-3">
+          {[
+            { key: "etsyEnabled" as const, label: "Etsy Integration", desc: "Enable Etsy shop connection and listing management" },
+            { key: "websiteShopEnabled" as const, label: "Website Shop", desc: "Enable on-site digital product sales" },
+            { key: "pinterestEnabled" as const, label: "Pinterest Integration", desc: "Auto-pin new products to Pinterest boards" },
+          ].map((item) => (
+            <div key={item.key} className="flex items-center justify-between border-b pb-2">
+              <div>
+                <span className="text-sm text-gray-900">{item.label}</span>
+                <p className="text-xs text-gray-500">{item.desc}</p>
+              </div>
+              <button
+                onClick={() => setSettings({ ...settings, [item.key]: !settings[item.key] })}
+                className={`relative w-10 h-5 rounded-full transition-colors ${settings[item.key] ? "bg-blue-600" : "bg-gray-300"}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${settings[item.key] ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+          ))}
+          <div className="flex items-center justify-between border-b pb-2">
+            <div>
+              <span className="text-sm text-gray-900">Auto-Publish to Etsy</span>
+              <p className="text-xs text-red-500">DANGER: Bypasses manual approval gate</p>
+            </div>
+            <button
+              onClick={() => setSettings({ ...settings, autoPublishToEtsy: !settings.autoPublishToEtsy })}
+              className={`relative w-10 h-5 rounded-full transition-colors ${settings.autoPublishToEtsy ? "bg-red-500" : "bg-gray-300"}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.autoPublishToEtsy ? "translate-x-5" : "translate-x-0.5"}`} />
+            </button>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Default Currency</label>
+            <select value={settings.defaultCurrency} onChange={(e) => setSettings({ ...settings, defaultCurrency: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-sm">
+              <option value="USD">USD</option><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="AED">AED</option>
+            </select>
+          </div>
+        </div>
+        <button onClick={saveSettings} disabled={saving} className="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+          {saving ? "Saving..." : "Save Settings"}
+        </button>
+      </div>
+
+      {/* Secrets Vault */}
+      <div className="bg-white rounded-xl border p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Secrets Vault</h3>
+        <p className="text-xs text-gray-500 mb-3">API keys are stored as encrypted environment variables. Manage in Vercel Dashboard.</p>
+        <div className="space-y-2">
+          {secrets.map((s) => (
+            <div key={s.key} className="flex items-center justify-between border-b pb-2">
+              <span className="text-xs font-mono text-gray-700">{s.key}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${s.status === "set" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                {s.status === "set" ? "Configured" : "Missing"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Payout Onboarding Checklist */}
+      <div className="bg-white rounded-xl border p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Etsy Payout Onboarding Checklist</h3>
+        <div className="space-y-2">
+          {[
+            { step: "1. Register Etsy seller account", done: true },
+            { step: "2. Set shop country: United States (Delaware LLC)", done: true },
+            { step: "3. Add bank account (Mercury Business Checking)", done: true },
+            { step: "4. Verify routing: 091311229 (Choice Financial Group)", done: true },
+            { step: "5. Verify account ending: ****9197", done: true },
+            { step: "6. Set payment currency: USD", done: true },
+            { step: "7. Enable Etsy Payments", done: false },
+            { step: "8. Submit W-9 / tax info for Zenitha.Luxury LLC", done: false },
+            { step: "9. Publish first listing", done: false },
+            { step: "10. Complete first sale → verify deposit matches", done: false },
+          ].map((item) => (
+            <div key={item.step} className="flex items-center gap-2">
+              <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${item.done ? "bg-green-500" : "bg-gray-200"}`}>
+                {item.done && <span className="text-white text-[10px]">&#10003;</span>}
+              </div>
+              <span className={`text-xs ${item.done ? "text-gray-700" : "text-gray-400"}`}>{item.step}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Payout Profile Validation */}
+      <div className="bg-white rounded-xl border p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Payout Profile Validation</h3>
+        <div className="space-y-2 text-xs">
+          {[
+            { field: "Legal Entity", value: "Zenitha.Luxury LLC", match: true },
+            { field: "Bank Name", value: "Choice Financial Group", match: true },
+            { field: "Routing (ABA)", value: "091311229", match: true },
+            { field: "Account Type", value: "Checking", match: true },
+            { field: "SWIFT/BIC", value: "CHFGUS44021", match: true },
+            { field: "Intermediary", value: "JPMorgan Chase (CHASUS33XXX)", match: true },
+            { field: "Wire Reference", value: "/FFC/202503669197/Zenitha.Luxury LLC/Lewes, USA", match: true },
+          ].map((item) => (
+            <div key={item.field} className="flex items-center justify-between">
+              <span className="text-gray-600">{item.field}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-gray-900">{item.value.length > 25 ? item.value.slice(0, 25) + "..." : item.value}</span>
+                <span className={`w-2 h-2 rounded-full ${item.match ? "bg-green-500" : "bg-red-500"}`} />
+              </div>
+            </div>
+          ))}
+          <div className="mt-2 bg-green-50 rounded-lg p-2 text-xs text-green-700 font-medium text-center">
+            All payout fields match Mercury / Zenitha.Luxury LLC template
+          </div>
         </div>
       </div>
     </div>

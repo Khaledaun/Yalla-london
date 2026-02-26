@@ -384,22 +384,21 @@ test(SCHEMA_CATEGORY, "DigitalProduct model — stats route field name check", (
   const statsRoute = readFile("app/api/admin/commerce/stats/route.ts");
   const issues: string[] = [];
 
-  // Schema has: is_active (not "active"), name_en (not "name"), site_id (not "siteId")
-  if (statsRoute.includes("active: true") && schemaFields.includes("is_active") && !schemaFields.includes("active")) {
-    issues.push('stats route uses "active: true" but schema field is "is_active"');
-  }
-
   // Check if stats route references "name" on DigitalProduct (should be "name_en")
   if (statsRoute.includes("select: { id: true, name: true") && !schemaFields.includes("name")) {
     issues.push('stats route selects "name" but schema field is "name_en"');
   }
 
-  // Check if stats route uses "siteId" for DigitalProduct (schema has "site_id")
-  const dpQuery = statsRoute.includes("digitalProduct.count");
-  if (dpQuery) {
-    const dpSection = statsRoute.slice(statsRoute.indexOf("digitalProduct.count"));
-    if (dpSection.includes("siteId:") && schemaFields.includes("site_id") && !schemaFields.includes("siteId")) {
-      issues.push('stats route uses "siteId" for DigitalProduct but schema has "site_id"');
+  // Check DigitalProduct queries specifically use site_id and is_active (not siteId / active)
+  // Extract DigitalProduct.count sections — there should be "site_id:" near "digitalProduct.count"
+  const dpCountMatches = [...statsRoute.matchAll(/digitalProduct\.count\(\{[\s\S]*?where:\s*\{([^}]+)\}/g)];
+  for (const match of dpCountMatches) {
+    const whereClause = match[1];
+    if (whereClause.includes("siteId:") && schemaFields.includes("site_id")) {
+      issues.push('stats route uses "siteId" for DigitalProduct.count but schema has "site_id"');
+    }
+    if (/\bactive:/.test(whereClause) && !whereClause.includes("is_active") && schemaFields.includes("is_active")) {
+      issues.push('stats route uses "active" for DigitalProduct but schema has "is_active"');
     }
   }
 
@@ -420,9 +419,13 @@ test(SCHEMA_CATEGORY, "Purchase model — stats route groupBy field check", () =
     issues.push('stats route groupBy "digitalProductId" but schema field is "product_id"');
   }
 
-  // Stats route uses "siteId" on Purchase but schema has "site_id"
-  if (statsRoute.includes("siteId: targetSiteId") && schemaFields.includes("site_id") && !schemaFields.includes("siteId")) {
-    issues.push('stats route uses "siteId" for Purchase where clause but schema has "site_id"');
+  // Check Purchase-specific queries: purchase.aggregate and purchase.groupBy should use site_id
+  const purchaseQueryMatches = [...statsRoute.matchAll(/purchase\.(aggregate|groupBy)\(\{[\s\S]*?where:\s*\{([^}]+)\}/g)];
+  for (const match of purchaseQueryMatches) {
+    const whereClause = match[2];
+    if (whereClause.includes("siteId:") && schemaFields.includes("site_id") && !schemaFields.includes("siteId")) {
+      issues.push(`stats route uses "siteId" in purchase.${match[1]} but schema has "site_id"`);
+    }
   }
 
   return {
@@ -437,13 +440,16 @@ test(SCHEMA_CATEGORY, "Purchase model — report-generator field name alignment"
   const reportGen = readFile("lib/commerce/report-generator.ts");
   const issues: string[] = [];
 
-  // Report generator queries Purchase with siteId and createdAt — schema has site_id and created_at
-  if (reportGen.includes("siteId,") && schemaFields.includes("site_id") && !schemaFields.includes("siteId")) {
-    issues.push('report-generator uses "siteId" for Purchase but schema has "site_id"');
-  }
-
-  if (reportGen.includes("createdAt:") && schemaFields.includes("created_at") && !schemaFields.includes("createdAt")) {
-    issues.push('report-generator uses "createdAt" for Purchase but schema has "created_at"');
+  // Check Purchase-specific queries: purchase.findMany should use site_id and created_at
+  const purchaseQueryMatches = [...reportGen.matchAll(/purchase\.findMany\(\{[\s\S]*?where:\s*\{([^}]+)\}/g)];
+  for (const match of purchaseQueryMatches) {
+    const whereClause = match[1];
+    if (whereClause.includes("siteId:") && schemaFields.includes("site_id") && !schemaFields.includes("siteId")) {
+      issues.push('report-generator uses "siteId" in purchase.findMany but schema has "site_id"');
+    }
+    if (whereClause.includes("createdAt:") && schemaFields.includes("created_at") && !schemaFields.includes("createdAt")) {
+      issues.push('report-generator uses "createdAt" in purchase.findMany but schema has "created_at"');
+    }
   }
 
   // Uses p.productId but schema has product_id

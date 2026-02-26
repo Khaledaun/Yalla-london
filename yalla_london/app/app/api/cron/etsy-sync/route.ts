@@ -300,15 +300,15 @@ async function syncOrders(
     let imported = 0;
 
     for (const txn of data.results) {
-      // Skip if already imported (dedup by transaction_id)
+      // Skip if already imported (dedup by payment_id = "etsy_{transaction_id}")
       const existing = await prisma.purchase.findFirst({
         where: {
-          stripeSessionId: `etsy_${txn.transaction_id}`,
+          payment_id: `etsy_${txn.transaction_id}`,
         },
       });
       if (existing) continue;
 
-      // Match to a DigitalProduct if possible
+      // Match to a DigitalProduct via EtsyListingDraft → ProductBrief → digitalProductId
       let productId: string | undefined;
       if (txn.listing_id) {
         const draft = await prisma.etsyListingDraft.findFirst({
@@ -318,20 +318,29 @@ async function syncOrders(
         productId = draft?.brief?.digitalProductId ?? undefined;
       }
 
-      // Create Purchase record
+      // Purchase.product_id is required — skip if we can't match to a product
+      if (!productId) {
+        console.warn(
+          `[etsy-sync] No matching DigitalProduct for Etsy txn ${txn.transaction_id} (listing ${txn.listing_id}) — skipping`,
+        );
+        continue;
+      }
+
+      // Create Purchase record (fields match prisma/schema.prisma Purchase model)
       try {
         await prisma.purchase.create({
           data: {
-            siteId,
-            digitalProductId: productId ?? null,
-            email: txn.buyer_email ?? "etsy-buyer@unknown",
+            site_id: siteId,
+            product_id: productId,
+            customer_email: txn.buyer_email ?? "etsy-buyer@unknown",
             amount: txn.price?.amount
               ? Math.round(txn.price.amount / (txn.price.divisor || 100) * 100)
               : 0,
             currency: txn.price?.currency_code ?? "USD",
-            status: txn.paid_tsz ? "completed" : "pending",
+            payment_provider: "etsy",
+            payment_id: `etsy_${txn.transaction_id}`,
+            status: txn.paid_tsz ? "COMPLETED" : "PENDING",
             channel: "etsy",
-            stripeSessionId: `etsy_${txn.transaction_id}`,
           },
         });
         imported++;

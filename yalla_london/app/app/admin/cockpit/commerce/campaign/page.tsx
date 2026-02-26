@@ -16,6 +16,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 interface CampaignTask {
   day: number;
@@ -183,9 +184,9 @@ export default function CampaignCalendarPage() {
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <p className="text-amber-800 text-sm">
             No campaign ID specified. Go to{" "}
-            <a href="/admin/cockpit/commerce?tab=briefs" className="underline">
+            <Link href="/admin/cockpit/commerce?tab=briefs" className="underline">
               Briefs
-            </a>{" "}
+            </Link>{" "}
             to generate a campaign.
           </p>
         </div>

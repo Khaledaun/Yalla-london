@@ -17,6 +17,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 interface ListingDraft {
   id: string;
@@ -198,12 +199,12 @@ export default function ListingEditorPage() {
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <p className="text-amber-800 text-sm">
             No listing ID specified. Go to{" "}
-            <a
+            <Link
               href="/admin/cockpit/commerce?tab=briefs"
               className="underline"
             >
               Briefs
-            </a>{" "}
+            </Link>{" "}
             to generate a listing.
           </p>
         </div>

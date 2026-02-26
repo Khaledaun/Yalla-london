@@ -735,10 +735,22 @@ Return JSON:
       temperature: 0.3,
     });
 
+    // Store articleType in seo_meta so the cockpit gate_check can apply the right
+    // quality thresholds (news 150w, information 300w, guide 400w, blog 1000w).
+    const keyword = draft.keyword.toLowerCase();
+    let articleType = "blog";
+    if (/\b(news|alert|update|announcement|breaking|strike|closure|warning)\b/.test(keyword)) {
+      articleType = "news";
+    } else if (/\b(what is|how does|facts|history of|overview|introduction|faq)\b/.test(keyword)) {
+      articleType = "information";
+    } else if (/\b(guide|tips|how to|top \d|best \d|ways to|transport|getting around|itinerary)\b/.test(keyword)) {
+      articleType = "guide";
+    }
+
     return {
       success: true,
       nextPhase: "scoring",
-      data: { seo_meta: seoResult },
+      data: { seo_meta: { ...seoResult, articleType } },
       aiModelUsed: "auto",
     };
   } catch (error) {

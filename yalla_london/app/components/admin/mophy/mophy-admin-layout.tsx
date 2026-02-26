@@ -28,6 +28,7 @@ const navigation = [
     href: '/admin/cockpit',
     items: [
       { label: '🚀 Mission Control',  href: '/admin/cockpit' },
+      { label: '✈️ Departures Board', href: '/admin/departures' },
       { label: '📋 Content Matrix',   href: '/admin/cockpit?tab=content' },
       { label: '⚙️ Pipeline',         href: '/admin/cockpit?tab=pipeline' },
       { label: '⏱ Cron Control',     href: '/admin/cockpit?tab=crons' },

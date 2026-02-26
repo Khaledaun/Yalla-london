@@ -192,6 +192,27 @@ export default function CommerceHQPage() {
     }
   };
 
+  const generateReport = async () => {
+    setActionLoading("report");
+    try {
+      const res = await fetch("/api/admin/commerce/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "generate" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message);
+      } else {
+        showToast(`Error: ${data.error}`);
+      }
+    } catch {
+      showToast("Report generation failed");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const approveBrief = async (briefId: string) => {
     setActionLoading(briefId);
     try {
@@ -346,6 +367,7 @@ export default function CommerceHQPage() {
             stats={stats}
             formatCents={formatCents}
             onRunTrendScan={runTrendScan}
+            onGenerateReport={generateReport}
             actionLoading={actionLoading}
           />
         )}
@@ -387,11 +409,13 @@ function OverviewTab({
   stats,
   formatCents,
   onRunTrendScan,
+  onGenerateReport,
   actionLoading,
 }: {
   stats: CommerceStats | null;
   formatCents: (c: number) => string;
   onRunTrendScan: () => void;
+  onGenerateReport: () => void;
   actionLoading: string | null;
 }) {
   if (!stats) return <p className="text-gray-500 text-sm">No data available</p>;
@@ -557,8 +581,26 @@ function OverviewTab({
           >
             View Shop
           </button>
+          <button
+            onClick={onGenerateReport}
+            disabled={actionLoading === "report"}
+            className="px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+          >
+            {actionLoading === "report" ? "Generating..." : "Weekly Report"}
+          </button>
+          <button
+            onClick={() =>
+              (window.location.href = "/admin/cockpit/commerce?tab=briefs")
+            }
+            className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+          >
+            View Briefs
+          </button>
         </div>
       </div>
+
+      {/* Payout Profile */}
+      <PayoutProfileCard />
     </div>
   );
 }
@@ -912,6 +954,50 @@ function ProductsTab({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Payout Profile Card ─────────────────────────────────
+
+function PayoutProfileCard() {
+  return (
+    <div className="bg-white rounded-lg border p-4">
+      <h3 className="text-sm font-semibold text-gray-900 mb-3">
+        Payout Profile
+      </h3>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">Bank</span>
+          <span className="text-sm text-gray-900">Mercury Business Checking</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">Entity</span>
+          <span className="text-sm text-gray-900">Zenitha.Luxury LLC</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">ABA Routing</span>
+          <span className="text-sm font-mono text-gray-900">091311229</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">Account</span>
+          <span className="text-sm font-mono text-gray-900">****9197</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">SWIFT</span>
+          <span className="text-sm font-mono text-gray-900">CHFGUS44021</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">Non-USD Intermediary</span>
+          <span className="text-sm text-gray-900">JPMorgan Chase</span>
+        </div>
+        <div className="flex items-center justify-between mt-2">
+          <span className="text-xs text-gray-500">Status</span>
+          <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">
+            Verified
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

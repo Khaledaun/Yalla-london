@@ -308,20 +308,25 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // SEO quality issues that could prevent indexing — thresholds from standards.ts
-      if (wordCount < thinContentThreshold) {
-        reasons.push(`Very thin content (${wordCount} words) — Google rarely indexes pages under ${thinContentThreshold} words`);
-      } else if (wordCount < targetWordCount) {
-        reasons.push(`Content below target length (${wordCount}/${targetWordCount.toLocaleString()} words) — may affect indexing priority`);
-      }
-      if ((post.seo_score || 0) < lowSeoScoreThreshold) {
-        reasons.push(`Low SEO score (${post.seo_score || 0}/100) — improve meta tags, headings, and content structure`);
-      }
-      if (!post.meta_title_en) {
-        reasons.push("Missing meta title — critical for SEO");
-      }
-      if (!post.meta_description_en) {
-        reasons.push("Missing meta description — important for click-through rate");
+      // SEO quality issues — only surface as "reasons" for non-indexed articles.
+      // For indexed articles these become improvement notes, not blockers.
+      // Showing word count warnings as "not indexed reasons" on an already-indexed
+      // article is a direct contradiction and confuses the dashboard owner.
+      if (indexingStatus !== "indexed") {
+        if (wordCount < thinContentThreshold) {
+          reasons.push(`Very thin content (${wordCount} words) — Google rarely indexes pages under ${thinContentThreshold} words`);
+        } else if (wordCount < targetWordCount) {
+          reasons.push(`Content below target length (${wordCount}/${targetWordCount.toLocaleString()} words) — may affect indexing priority`);
+        }
+        if ((post.seo_score || 0) < lowSeoScoreThreshold) {
+          reasons.push(`Low SEO score (${post.seo_score || 0}/100) — improve meta tags, headings, and content structure`);
+        }
+        if (!post.meta_title_en) {
+          reasons.push("Missing meta title — critical for SEO");
+        }
+        if (!post.meta_description_en) {
+          reasons.push("Missing meta description — important for click-through rate");
+        }
       }
 
       return {

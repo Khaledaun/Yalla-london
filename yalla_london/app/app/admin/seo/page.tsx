@@ -549,11 +549,11 @@ export default function IndexingCenter() {
                           {article.submittedSitemap && <span className="neu-badge" style={{ backgroundColor:"rgba(45,90,61,0.1)", color:"#2D5A3D", border:"1px solid rgba(45,90,61,0.2)", fontSize:7 }}>Sitemap</span>}
                         </div>
 
-                        {/* Not indexed reasons */}
+                        {/* Indexing notes — only appear for non-indexed articles */}
                         {article.notIndexedReasons && article.notIndexedReasons.length > 0 && (
                           <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor:"rgba(200,50,43,0.04)", border:"1px solid rgba(200,50,43,0.12)" }}>
                             <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, color:"#C8322B", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>
-                              Not Indexed Reasons:
+                              {article.indexingStatus === "submitted" ? "Pending — Notes:" : "Not Indexed — Reasons:"}
                             </div>
                             {article.notIndexedReasons.map((r, i) => (
                               <div key={i} style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#78716C", lineHeight:1.6 }}>

@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
-import { getActiveSiteIds, getDefaultSiteId, getSiteDomain } from "@/config/sites";
+import { getActiveSiteIds, getDefaultSiteId } from "@/config/sites";
 import { interpretError } from "@/lib/error-interpreter";
 
 // ─────────────────────────────────────────────
@@ -562,12 +562,50 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       }
     }
 
-    return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
+    // -------------------------------------------------------------------------
+    // rewrite — Reset draft to research phase to trigger a fresh AI rewrite
+    // -------------------------------------------------------------------------
+    if (action === "rewrite") {
+      const draftId = (body.draftId as string | undefined) ?? "";
+      if (!draftId) return NextResponse.json({ error: "draftId is required" }, { status: 400 });
+      try {
+        await prisma.articleDraft.update({
+          where: { id: draftId },
+          data: { current_phase: "research", last_error: null, updated_at: new Date() },
+        });
+        return NextResponse.json({ success: true, message: "Draft reset to research phase — will be rewritten on next content builder run" });
+      } catch (err) {
+        console.warn("[content-matrix] rewrite failed:", err instanceof Error ? err.message : err);
+        return NextResponse.json({ success: false, error: "Failed to queue rewrite" }, { status: 500 });
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // enhance — Run enhance-runner to expand content word count
+    // -------------------------------------------------------------------------
+    if (action === "enhance") {
+      const draftId = (body.draftId as string | undefined) ?? "";
+      if (!draftId) return NextResponse.json({ error: "draftId is required" }, { status: 400 });
+      try {
+        const draft = await prisma.articleDraft.findUnique({ where: { id: draftId } });
+        if (!draft) return NextResponse.json({ success: false, error: "Draft not found" }, { status: 404 });
+        const { enhanceReservoirDraft } = await import("@/lib/content-pipeline/enhance-runner");
+        const result = await enhanceReservoirDraft(draft as Record<string, unknown>);
+        return NextResponse.json({
+          success: result.success,
+          message: result.success
+            ? `Expanded — score: ${result.previousScore} → ${result.newScore}`
+            : `Expand failed: ${result.error}`,
+        });
+      } catch (err) {
+        console.warn("[content-matrix] enhance failed:", err instanceof Error ? err.message : err);
+        return NextResponse.json({ success: false, error: "Failed to run expand — check AI provider configuration" }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ error: `Unknown action: ${action}. Supported: gate_check, re_queue, delete_draft, delete_post, unpublish, rewrite, enhance` }, { status: 400 });
   } catch (err) {
     console.warn("[content-matrix] POST handler error:", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Action failed" }, { status: 500 });
   }
 });
-
-// Suppress unused import warning
-void getSiteDomain;

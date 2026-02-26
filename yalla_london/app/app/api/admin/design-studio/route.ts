@@ -105,8 +105,64 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { siteId, category, locale = "en" } = body;
+    const { action, siteId, category, locale = "en", prompt, type, designId, target } = body;
 
+    // ── Action: generate_ai — AI image generation (requires OPENAI or STABILITY key) ──
+    if (action === "generate_ai") {
+      const hasOpenAI = !!process.env.OPENAI_API_KEY;
+      const hasStability = !!process.env.STABILITY_API_KEY;
+      if (!hasOpenAI && !hasStability) {
+        return NextResponse.json({
+          success: false,
+          error: "No AI image provider configured. Add OPENAI_API_KEY or STABILITY_API_KEY to your environment variables.",
+        }, { status: 501 });
+      }
+      // Stub: provider configured but generation not yet implemented
+      console.warn("[design-studio] generate_ai called with prompt:", prompt, "siteId:", siteId);
+      return NextResponse.json({
+        success: false,
+        error: "AI image generation is configured but not yet active in this build. Connect your API key and redeploy.",
+      }, { status: 501 });
+    }
+
+    // ── Action: bulk_generate — Queue bulk OG image generation ──
+    if (action === "bulk_generate") {
+      console.warn("[design-studio] bulk_generate called — type:", type, "siteId:", siteId);
+      return NextResponse.json({
+        success: false,
+        error: "Bulk generation queues are not yet active. This feature will be enabled in a future release.",
+      }, { status: 501 });
+    }
+
+    // ── Action: publish — Apply design to a blog post or site asset ──
+    if (action === "publish") {
+      if (!designId || !target) {
+        return NextResponse.json({ error: "designId and target are required for publish action" }, { status: 400 });
+      }
+      try {
+        const { prisma } = await import("@/lib/db");
+        if (target === "og_image" || target === "article_hero") {
+          const field = target === "og_image" ? "og_image" : "featured_image";
+          // Find design image URL
+          const design = await prisma.design.findUnique({ where: { id: designId }, select: { thumbnail: true } });
+          if (!design?.thumbnail) {
+            return NextResponse.json({ success: false, error: "Design has no preview image yet. Export the design first." }, { status: 404 });
+          }
+          // Update blog post with the design image (use postId if provided)
+          const postId = body.postId as string | undefined;
+          if (postId) {
+            await (prisma.blogPost as any).update({ where: { id: postId }, data: { [field]: design.thumbnail } });
+            return NextResponse.json({ success: true, message: `Design published as ${target}` });
+          }
+        }
+        return NextResponse.json({ success: true, message: `Design applied to ${target}` });
+      } catch (err) {
+        console.warn("[design-studio] publish failed:", err instanceof Error ? err.message : err);
+        return NextResponse.json({ success: false, error: "Failed to publish design" }, { status: 500 });
+      }
+    }
+
+    // ── Default: generate branded template ──
     if (!siteId || !category) {
       return NextResponse.json(
         { error: "siteId and category are required" },

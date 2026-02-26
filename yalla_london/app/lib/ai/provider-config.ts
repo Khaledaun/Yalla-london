@@ -60,7 +60,7 @@ const PROVIDER_ENV_KEYS: Record<string, string[]> = {
   grok: ['XAI_API_KEY', 'GROK_API_KEY'],
   claude: ['ANTHROPIC_API_KEY'],
   openai: ['OPENAI_API_KEY'],
-  gemini: ['GOOGLE_API_KEY'],
+  gemini: ['GOOGLE_AI_API_KEY', 'GOOGLE_API_KEY'],
 };
 
 // ---------------------------------------------------------------------------

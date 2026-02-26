@@ -388,7 +388,7 @@ export default function NewSitePage() {
             <div className="space-y-3">
               <p className="text-sm text-zinc-400 mb-3">AI will generate for <strong className="text-zinc-200">{config.name}</strong>:</p>
               {[
-                "30 topic proposals (EN + " + (config.primaryLanguage === "ar" ? "AR" : "bilingual") + ")",
+                `30 topic proposals (${config.primaryLanguage === "ar" && config.secondaryLanguage === "en" ? "AR + EN" : config.primaryLanguage === "ar" ? "AR only" : config.secondaryLanguage === "ar" ? "EN + AR" : config.secondaryLanguage === "none" ? "EN only" : "EN + bilingual"})`,
                 "3 seed articles ready in reservoir",
                 "Brand kit (logo SVG, OG image, email header)",
                 "Homepage structure seeded",

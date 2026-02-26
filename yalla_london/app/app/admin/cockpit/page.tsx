@@ -500,8 +500,8 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
       });
       const json = await res.json();
       if (json.checks) setGateResults((prev) => ({ ...prev, [item.id]: json.checks }));
-    } catch {
-      // silently fail
+    } catch (e) {
+      console.warn("[cockpit] runGateCheck failed:", e instanceof Error ? e.message : e);
     } finally {
       setGateLoading(null);
     }
@@ -668,14 +668,34 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       {isExpanded ? "Hide Diagnosis" : "Why Not Published?"}
                     </button>
                     <ActionButton
-                      onClick={() => fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: item.id, locale: item.locale, count: 1 }) }).then(() => fetchData())}
+                      onClick={async () => {
+                        setActionLoading(`publish-${item.id}`);
+                        try {
+                          const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: item.id, locale: item.locale, count: 1 }) });
+                          const j = await r.json();
+                          setActionResult((prev) => ({ ...prev, [item.id]: j.success ? "✅ Published!" : `❌ ${j.error ?? "Failed"}` }));
+                          fetchData();
+                        } catch (e) {
+                          setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
+                        } finally { setActionLoading(null); }
+                      }}
                       loading={actionLoading === `publish-${item.id}`}
                       variant="success"
                     >
                       Publish Now
                     </ActionButton>
                     <ActionButton
-                      onClick={() => fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: item.id, action: "enhance" }) }).then(() => fetchData())}
+                      onClick={async () => {
+                        setActionLoading(`enhance-${item.id}`);
+                        try {
+                          const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: item.id, action: "enhance" }) });
+                          const j = await r.json();
+                          setActionResult((prev) => ({ ...prev, [item.id]: j.success ? "✅ Expanding…" : `❌ ${j.error ?? "Failed"}` }));
+                          fetchData();
+                        } catch (e) {
+                          setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
+                        } finally { setActionLoading(null); }
+                      }}
                       loading={actionLoading === `enhance-${item.id}`}
                     >
                       Expand
@@ -704,7 +724,17 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                       </a>
                     )}
                     <ActionButton
-                      onClick={() => fetch(`/api/admin/content-indexing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "submit", slugs: [item.slug] }) }).then(() => fetchData())}
+                      onClick={async () => {
+                        setActionLoading(`index-${item.id}`);
+                        try {
+                          const r = await fetch(`/api/admin/content-indexing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "submit", slugs: [item.slug] }) });
+                          const j = await r.json();
+                          setActionResult((prev) => ({ ...prev, [item.id]: j.success !== false ? "✅ Submitted to Google" : `❌ ${j.error ?? "Failed"}` }));
+                          fetchData();
+                        } catch (e) {
+                          setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
+                        } finally { setActionLoading(null); }
+                      }}
                       loading={actionLoading === `index-${item.id}`}
                     >
                       Submit to Google
@@ -1074,10 +1104,30 @@ function CronsTab() {
 // ─── Tab 5: Sites Overview ────────────────────────────────────────────────────
 
 function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite: (id: string) => void }) {
+  const [publishLoading, setPublishLoading] = useState<string | null>(null);
+  const [publishResult, setPublishResult] = useState<Record<string, string>>({});
+
+  const publishSite = async (siteId: string) => {
+    setPublishLoading(siteId);
+    try {
+      const r = await fetch("/api/admin/force-publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId, locale: "both", count: 1 }),
+      });
+      const j = await r.json();
+      setPublishResult((prev) => ({ ...prev, [siteId]: j.success ? `✅ ${j.published?.length ?? 0} article(s) published` : `❌ ${j.error ?? "No articles ready"}` }));
+    } catch (e) {
+      setPublishResult((prev) => ({ ...prev, [siteId]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
+    } finally {
+      setPublishLoading(null);
+    }
+  };
+
   if (sites.length === 0) {
     return (
       <Card className="text-center py-8">
-        <p className="text-zinc-500 text-sm">No site data available.</p>
+        <p className="text-zinc-500 text-sm">No site data available. Check database connection in Settings.</p>
       </Card>
     );
   }
@@ -1137,18 +1187,18 @@ function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite:
               🌐 View Site
             </button>
             <ActionButton
-              onClick={async () => {
-                await fetch("/api/admin/force-publish", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ siteId: site.id, locale: "both", count: 1 }),
-                });
-              }}
+              onClick={() => publishSite(site.id)}
+              loading={publishLoading === site.id}
               variant="success"
             >
               📤 Publish
             </ActionButton>
           </div>
+          {publishResult[site.id] && (
+            <p className={`mt-2 text-xs rounded px-2 py-1 ${publishResult[site.id].startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+              {publishResult[site.id]}
+            </p>
+          )}
         </Card>
       ))}
     </div>
@@ -1366,8 +1416,10 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
         body: JSON.stringify({ action: "toggle", key, enabled: !enabled }),
       });
       setFlags((prev) => prev.map((f) => f.key === key ? { ...f, enabled: !f.enabled } : f));
-    } catch {
-      // silent fail
+    } catch (e) {
+      console.warn("[cockpit] toggleFlag failed:", e instanceof Error ? e.message : e);
+      // Revert optimistic update on failure
+      setFlags((prev) => prev.map((f) => f.key === key ? { ...f, enabled } : f));
     }
   };
 

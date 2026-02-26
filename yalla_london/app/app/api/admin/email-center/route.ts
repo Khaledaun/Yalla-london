@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { sendEmail } from "@/lib/email/sender";
+import { getDefaultSiteId } from "@/config/sites";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -124,7 +125,8 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     id: string;
     name: string;
     subject: string;
-    createdAt: string;
+    type: string;
+    updatedAt: string;
   }> = [];
 
   try {
@@ -135,6 +137,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         id: true,
         name: true,
         subject: true,
+        type: true,
         createdAt: true,
       },
     });
@@ -142,7 +145,8 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       id: r.id,
       name: r.name,
       subject: r.subject ?? "",
-      createdAt: r.createdAt.toISOString(),
+      type: r.type ?? "campaign",
+      updatedAt: r.createdAt.toISOString(),
     }));
   } catch (err: unknown) {
     const code =
@@ -198,10 +202,21 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       recipients: c.recipientCount,
     }));
 
+  // Flatten providerStatus into the shape the Email Center page expects:
+  // { resend: boolean, sendgrid: boolean, smtp: boolean, active: boolean, activeProvider: string | null }
+  const flatProviderStatus = {
+    active: providerStatus.active,
+    activeProvider: providerStatus.activeProvider,
+    resend: providerStatus.providers.resend.configured,
+    sendgrid: providerStatus.providers.sendgrid.configured,
+    smtp: providerStatus.providers.smtp.configured,
+  };
+
   return NextResponse.json({
-    providerStatus,
+    providerStatus: flatProviderStatus,
     campaigns,
     templates,
+    subscriberCount: subscriberTotal,
     subscribers: {
       total: subscriberTotal,
       bySite: subscribersBySite,
@@ -270,7 +285,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     const name = body.name as string | undefined;
     const subject = body.subject as string | undefined;
     const htmlBody = body.htmlBody as string | undefined;
-    const siteId = (body.siteId as string | undefined) ?? "yalla-london";
+    const siteId = (body.siteId as string | undefined) ?? getDefaultSiteId();
 
     if (!name || !subject || !htmlBody) {
       return NextResponse.json(

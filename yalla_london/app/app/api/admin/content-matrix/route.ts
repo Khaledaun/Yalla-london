@@ -157,7 +157,8 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
       siteId: targetSiteId,
       deletedAt: null,
     };
-    if (locale) postWhere.locale_en = locale;
+    // Note: BlogPost is inherently bilingual (title_en + title_ar) — no locale field exists.
+    // Locale filtering applies to ArticleDraft only (below).
     if (search) {
       postWhere.OR = [
         { title_en: { contains: search, mode: "insensitive" } },

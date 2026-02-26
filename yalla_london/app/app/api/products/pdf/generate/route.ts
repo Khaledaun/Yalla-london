@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
           : `${destination} Travel Guide`,
       subtitle:
         locale === "ar"
-          ? "دليلك الشامل من يالا لندن"
-          : "Your Complete Guide by Yalla London",
+          ? `دليلك الشامل من ${siteName}`
+          : `Your Complete Guide by ${siteName}`,
       destination,
       locale: locale as "ar" | "en",
       siteId: currentSiteId,
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       branding: {
         primaryColor: siteConfig?.primaryColor || "#7c3aed",
         secondaryColor: siteConfig?.secondaryColor || "#d4af37",
-        logoUrl: `${siteUrl}/images/yalla-london-logo.svg`,
+        logoUrl: `${siteUrl}/images/${siteConfig?.slug || "yalla-london"}-logo.svg`,
         siteName,
         contactEmail: `hello@${siteConfig?.domain || "zenitha.luxury"}`,
         website: siteUrl,
@@ -156,8 +156,9 @@ export async function POST(request: NextRequest) {
             landing_page: `/products/pdf/${product?.slug || "guide"}`,
           },
         });
-      } catch {
+      } catch (leadErr) {
         // Lead might already exist (unique constraint on site_id + email)
+        console.warn("[pdf-generate] Lead capture skipped:", leadErr instanceof Error ? leadErr.message : leadErr);
       }
     }
 
@@ -198,9 +199,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("PDF generation failed:", error);
     return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "PDF generation failed",
-      },
+      { error: "PDF generation failed" },
       { status: 500 },
     );
   }
@@ -292,6 +291,7 @@ export async function GET(request: NextRequest) {
 }
 
 function generateToken(): string {
-  const { randomBytes } = require("crypto");
-  return `pdf_${randomBytes(24).toString("hex")}`;
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return `pdf_${Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("")}`;
 }

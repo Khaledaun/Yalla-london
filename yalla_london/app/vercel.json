@@ -164,6 +164,14 @@
     {
       "path": "/api/cron/content-auto-fix",
       "schedule": "0 11,18 * * *"
+    },
+    {
+      "path": "/api/cron/commerce-trends",
+      "schedule": "30 4 * * 1"
+    },
+    {
+      "path": "/api/cron/etsy-sync",
+      "schedule": "0 10 * * *"
     }
   ]
 }

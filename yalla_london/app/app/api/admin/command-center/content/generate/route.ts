@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to scheduled content (as draft)
+    const { getDefaultSiteId } = await import("@/config/sites");
     const scheduledContent = await prisma.scheduledContent.create({
       data: {
         title: article.title,
@@ -107,6 +108,7 @@ export async function POST(request: NextRequest) {
                    template === 'travel-guide' ? 'guide' : 'article',
         seo_score: 0,
         generation_source: 'ai_generator',
+        site_id: getDefaultSiteId(),
       },
     });
 
@@ -121,10 +123,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Failed to generate content:', error);
     return NextResponse.json(
-      {
-        error: 'Failed to generate content',
-        details: String(error),
-      },
+      { error: 'Failed to generate content' },
       { status: 500 }
     );
   }

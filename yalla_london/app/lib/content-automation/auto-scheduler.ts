@@ -257,8 +257,9 @@ export class AutoContentScheduler {
             generatedAt: new Date().toISOString()
           },
           scheduled_time: scheduledTime,
-          status: autoPublish ? 'pending' : 'pending',
-          platform: 'blog'
+          status: 'pending',
+          platform: 'blog',
+          site_id: getDefaultSiteId(),
         }
       });
 

@@ -114,15 +114,18 @@ async function handleSaveDraft(data: any) {
   })
 
   // Create scheduled content record
+  const { getDefaultSiteId } = await import("@/config/sites");
   const scheduledContent = await prisma.scheduledContent.create({
     data: {
       title: title,
       content: content,
       content_type: 'blog_post',
       language: locale,
+      scheduled_time: new Date(),
       status: 'draft',
       page_type: pageType,
-      generation_source: 'manual'
+      generation_source: 'manual',
+      site_id: data.siteId || getDefaultSiteId(),
     }
   })
 

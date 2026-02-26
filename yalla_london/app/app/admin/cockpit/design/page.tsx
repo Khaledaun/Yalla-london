@@ -83,7 +83,7 @@ export default function DesignStudioPage() {
         setSites(s);
         if (s.length > 0 && !siteId) setSiteId(s[0].id);
       })
-      .catch(() => {});
+      .catch((err) => { console.warn("[cockpit-design] Failed to load sites:", err); });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

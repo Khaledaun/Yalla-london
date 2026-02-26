@@ -1799,12 +1799,15 @@ model SeoStructuredData {
 // Feature Flags for Command Center
 model FeatureFlag {
   id          String   @id @default(cuid())
-  name        String   @unique
+  name        String
   description String?
   enabled     Boolean  @default(false)
+  siteId      String?  // null = global flag, set = per-site flag
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
-  
+
+  @@unique([name, siteId])
+  @@index([siteId])
   @@map(name: "feature_flags")
 }
 
@@ -2333,6 +2336,12 @@ model DigitalProduct {
   is_active       Boolean  @default(true)
   featured        Boolean  @default(false)
 
+  // Commerce Engine extensions
+  tier              Int?       // 1=high priority, 2=medium, 3=low (from product ontology)
+  ontologyCategory  String?    // "itinerary_template", "wall_art", "travel_guide", etc.
+  etsyListingId     String?    @unique // Cross-reference to Etsy listing
+  briefId           String?    // Link back to ProductBrief that spawned this product
+
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
@@ -2340,6 +2349,7 @@ model DigitalProduct {
 
   @@index([site_id])
   @@index([product_type])
+  @@index([tier])
   @@map("digital_products")
 }
 
@@ -2370,6 +2380,9 @@ model Purchase {
   utm_source      String?
   utm_campaign    String?
 
+  // Commerce Engine: sales channel tracking
+  channel         String   @default("website") // "website" | "etsy"
+
   created_at      DateTime @default(now())
   completed_at    DateTime?
 
@@ -2378,6 +2391,7 @@ model Purchase {
   @@index([site_id, created_at])
   @@index([customer_email])
   @@index([download_token])
+  @@index([channel])
   @@map("purchases")
 }
 
@@ -2387,6 +2401,13 @@ enum ProductType {
   TEMPLATE         // Planning templates
   BUNDLE           // Multiple products
   MEMBERSHIP       // Recurring access
+  // Commerce Engine extensions
+  WALL_ART         // Vintage travel posters, prints (digital download)
+  PRESET           // Lightroom presets, photo filters
+  PLANNER          // Trip planner bundles, journal templates
+  STICKER          // GoodNotes stickers, digital stickers
+  WORKSHEET        // Educational worksheets, checklists
+  EVENT_GUIDE      // Seasonal event guides, holiday specials
 }
 
 enum PurchaseStatus {
@@ -3350,4 +3371,255 @@ model ApiUsageLog {
   @@index([taskType, createdAt])
   @@index([createdAt])
   @@map("api_usage_logs")
+}
+
+// =============================================================================
+// COMMERCE ENGINE — Hybrid Commerce + Etsy Integration
+// =============================================================================
+
+/// Weekly AI-generated market research run per site
+model TrendRun {
+  id                String   @id @default(cuid())
+  siteId            String
+  runDate           DateTime @default(now())
+  status            String   @default("pending") // pending, running, completed, failed
+
+  // AI-generated research output
+  nichesJson        Json?    // Array of niche opportunities with scores
+  trendsJson        Json?    // Array of trend signals with sources
+  opportunitiesJson Json?    // Array of product opportunity briefs
+
+  // Run metadata
+  aiProvider        String?
+  aiModel           String?
+  promptTokens      Int      @default(0)
+  completionTokens  Int      @default(0)
+  estimatedCostUsd  Float    @default(0)
+  durationMs        Int?
+  errorMessage      String?
+
+  createdAt         DateTime @default(now())
+
+  // Relations
+  briefs            ProductBrief[]
+
+  @@index([siteId, runDate])
+  @@index([status])
+  @@map("trend_runs")
+}
+
+/// Product opportunity brief — AI-generated, requires operator approval before production
+model ProductBrief {
+  id                String      @id @default(cuid())
+  siteId            String
+  trendRunId        String?
+
+  // Product concept
+  title             String
+  description       String      @db.Text
+  productType       ProductType @default(TEMPLATE)
+  tier              Int         @default(1) // 1=high priority, 2=medium, 3=low
+  ontologyCategory  String      // "itinerary_template", "travel_guide", "wall_art", etc.
+
+  // Market data
+  targetPrice       Int?        // cents
+  currency          String      @default("USD")
+  keywordsJson      Json?       // Array of target keywords
+  competitorUrls    Json?       // Array of competitor listing URLs (manually entered)
+
+  // Design brief (AI-generated, human-editable)
+  designNotesJson   Json?       // { format, dimensions, colorPalette, fontSuggestions, styleNotes }
+  listingCopyJson   Json?       // { title, description, tags[], section, materials }
+
+  // Workflow
+  status            String      @default("draft") // draft, approved, in_production, listed, archived
+  approvedAt        DateTime?
+  approvedBy        String?
+  rejectionNote     String?
+
+  // Link to final product
+  digitalProductId  String?
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  trendRun          TrendRun?          @relation(fields: [trendRunId], references: [id])
+  etsyDraft         EtsyListingDraft?
+
+  @@index([siteId, status])
+  @@index([trendRunId])
+  @@index([tier, status])
+  @@map("product_briefs")
+}
+
+/// Etsy listing staging area — human approval required before publish
+model EtsyListingDraft {
+  id                String   @id @default(cuid())
+  siteId            String
+  briefId           String   @unique
+
+  // Etsy listing fields
+  title             String   // max 140 chars
+  description       String   @db.Text
+  tags              String[] // max 13 tags, each max 20 chars
+  price             Int      // cents
+  currency          String   @default("USD")
+  quantity          Int      @default(999)
+  section           String?  // Etsy shop section
+  materials         String[] // Listed materials
+
+  // Digital delivery
+  fileUrl           String?  // S3/R2 URL to the product file
+  previewImages     Json?    // Array of image URLs (up to 10)
+
+  // Etsy API fields (populated after publish)
+  etsyListingId     String?  @unique // Etsy's listing ID after creation
+  etsyState         String?  // draft, active, inactive, removed
+  etsyUrl           String?  // Published listing URL
+
+  // Workflow
+  status            String   @default("draft") // draft, ready_for_review, approved, publishing, published, failed, archived
+  reviewNote        String?
+  approvedAt        DateTime?
+  publishedAt       DateTime?
+  lastSyncAt        DateTime?
+  errorMessage      String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  brief             ProductBrief @relation(fields: [briefId], references: [id])
+
+  @@index([siteId, status])
+  @@index([etsyListingId])
+  @@map("etsy_listing_drafts")
+}
+
+/// Per-site Etsy shop connection configuration
+model EtsyShopConfig {
+  id                        String   @id @default(cuid())
+  siteId                    String   @unique
+
+  // Shop identification
+  shopId                    String?  // Etsy shop ID (from API)
+  shopName                  String?
+  shopUrl                   String?
+
+  // OAuth2 tokens (referenced by Credential.id — encrypted)
+  accessTokenCredentialId   String?
+  refreshTokenCredentialId  String?
+  apiKeyCredentialId        String?
+
+  // API config
+  scopes                    String[] // ["listings_r", "listings_w", "transactions_r"]
+  tokenExpiresAt            DateTime?
+
+  // Shop stats (manually entered or CSV import — Etsy has no stats API)
+  statsJson                 Json?    // { views, favorites, orders, revenue, conversionRate, lastUpdated }
+  lastCsvImportAt           DateTime?
+
+  // Status
+  connectionStatus          String   @default("not_connected") // not_connected, connected, token_expired, error
+  lastTestedAt              DateTime?
+
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@map("etsy_shop_configs")
+}
+
+/// Bundle / collection of digital products
+model ProductPack {
+  id              String   @id @default(cuid())
+  siteId          String
+
+  name_en         String
+  name_ar         String?
+  slug            String   @unique
+  description_en  String   @db.Text
+  description_ar  String?  @db.Text
+
+  // Pricing (bundle discount)
+  price           Int      // cents
+  compare_price   Int?     // sum of individual prices
+  currency        String   @default("USD")
+
+  // Products in this pack
+  productIds      String[]
+
+  // Display
+  cover_image     String?
+  is_active       Boolean  @default(true)
+  featured        Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([siteId])
+  @@map("product_packs")
+}
+
+/// 30-day marketing launch calendar entry
+model CommerceCampaign {
+  id              String   @id @default(cuid())
+  siteId          String
+  briefId         String?
+
+  name            String
+  description     String?
+
+  // Schedule
+  startDate       DateTime
+  endDate         DateTime
+
+  // UTM tracking
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String   // auto-generated slug
+  couponCode      String?  // Etsy coupon or Stripe coupon code
+  discountPercent Int?     // 0-100
+
+  // Tasks (JSON array of { day, task, channel, status, completedAt })
+  tasksJson       Json?
+
+  // Results (populated after campaign ends)
+  resultsJson     Json?    // { views, clicks, conversions, revenue }
+
+  status          String   @default("planned") // planned, active, paused, completed
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([siteId, status])
+  @@index([startDate])
+  @@map("commerce_campaigns")
+}
+
+/// Commerce notification / alert
+model CommerceAlert {
+  id              String   @id @default(cuid())
+  siteId          String
+
+  type            String   // "sale", "trend_spike", "campaign_milestone", "weekly_report"
+  severity        String   @default("info") // critical, warning, info
+  title           String
+  message         String
+
+  // Context references
+  productId       String?
+  briefId         String?
+  campaignId      String?
+
+  // State
+  read            Boolean  @default(false)
+  readAt          DateTime?
+  actionUrl       String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([siteId, read, createdAt])
+  @@index([type])
+  @@map("commerce_alerts")
 }

@@ -247,6 +247,59 @@ export function interpretError(raw: string | null | undefined): InterpretedError
   }
 
   // -----------------------------------------------------------------------
+  // COMMERCE ENGINE — Etsy & product errors
+  // -----------------------------------------------------------------------
+
+  if (
+    s.includes('etsy') &&
+    (s.includes('oauth') || s.includes('token') || s.includes('expired'))
+  ) {
+    return {
+      plain: 'Etsy connection expired or invalid',
+      fix: 'Go to Commerce → Etsy tab and click "Reconnect Etsy Shop"',
+      severity: 'critical',
+      fixAction: '/admin/cockpit/commerce?tab=etsy',
+    };
+  }
+
+  if (s.includes('etsy') && (s.includes('rate limit') || s.includes('429'))) {
+    return {
+      plain: 'Etsy API rate limit hit',
+      fix: 'Will retry in 1 hour automatically',
+      severity: 'warning',
+    };
+  }
+
+  if (
+    s.includes('etsy') &&
+    (s.includes('listing') || s.includes('create') || s.includes('publish'))
+  ) {
+    return {
+      plain: 'Etsy listing operation failed',
+      fix: 'Check listing title/tags comply with Etsy rules (140 char title, 13 tags max)',
+      severity: 'warning',
+      fixAction: '/admin/cockpit/commerce?tab=briefs',
+    };
+  }
+
+  if (s.includes('trend') && (s.includes('no data') || s.includes('failed'))) {
+    return {
+      plain: 'Trend research failed — no data returned',
+      fix: 'Run a manual trend scan from Commerce → Trends',
+      severity: 'warning',
+      fixAction: '/admin/cockpit/commerce?tab=trends',
+    };
+  }
+
+  if (s.includes('csv') && (s.includes('parse') || s.includes('import'))) {
+    return {
+      plain: 'CSV import failed — file format may be incorrect',
+      fix: 'Ensure you are using the standard Etsy CSV export format',
+      severity: 'warning',
+    };
+  }
+
+  // -----------------------------------------------------------------------
   // DEFAULT FALLBACK
   // -----------------------------------------------------------------------
 

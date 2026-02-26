@@ -1048,7 +1048,7 @@ export async function publishPipeline(
       where: { id: pipelineId },
       data: {
         scripts: scripterOutput as any,
-        status: 'scripting',
+        status: 'complete',
         generatedArticleId: result.articleId || null,
         generatedEmailId: result.emailTemplateId || null,
         generatedVideoIds: result.videoProjectIds.length > 0 ? result.videoProjectIds : undefined,

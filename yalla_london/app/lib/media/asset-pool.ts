@@ -376,10 +376,11 @@ export async function listAssetPool(filter: AssetPoolFilter) {
   const { prisma } = await import("@/lib/db");
 
   const where: Record<string, unknown> = { deletedAt: null };
+  const andConditions: Record<string, unknown>[] = [];
 
   if (filter.siteId) {
     // Include both site-specific AND shared assets
-    where.OR = [{ site_id: filter.siteId }, { site_id: null }];
+    andConditions.push({ OR: [{ site_id: filter.siteId }, { site_id: null }] });
   }
   if (filter.category) where.category = filter.category;
   if (filter.folder) where.folder = { startsWith: filter.folder };
@@ -388,11 +389,16 @@ export async function listAssetPool(filter: AssetPoolFilter) {
     where.tags = { hasSome: filter.tags };
   }
   if (filter.search) {
-    where.OR = [
-      { title: { contains: filter.search, mode: "insensitive" } },
-      { alt_text: { contains: filter.search, mode: "insensitive" } },
-      { original_name: { contains: filter.search, mode: "insensitive" } },
-    ];
+    andConditions.push({
+      OR: [
+        { title: { contains: filter.search, mode: "insensitive" } },
+        { alt_text: { contains: filter.search, mode: "insensitive" } },
+        { original_name: { contains: filter.search, mode: "insensitive" } },
+      ],
+    });
+  }
+  if (andConditions.length > 0) {
+    where.AND = andConditions;
   }
 
   const [assets, total] = await Promise.all([

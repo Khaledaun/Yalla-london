@@ -329,7 +329,7 @@ function getAffiliateRules(siteId: string) {
 
 // ─── Promote ArticleDraft → BlogPost ──────────────────────────────────────
 
-async function promoteToBlogPost(
+export async function promoteToBlogPost(
   draft: Record<string, unknown>,
   prisma: any,
   SITES: Record<string, any>,

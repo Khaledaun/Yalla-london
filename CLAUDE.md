@@ -1390,3 +1390,20 @@ Built the entire Zenitha Yachts charter platform (zenithayachts.com) as the seco
 - Run `npx prisma migrate deploy` (or `npx prisma db push`) on Supabase for 8 new models
 - Add Vercel env vars: `GA4_MEASUREMENT_ID_ZENITHA_YACHTS_MED`, `GSC_SITE_URL_ZENITHA_YACHTS_MED`, `GA4_PROPERTY_ID_ZENITHA_YACHTS_MED`, `GOOGLE_SITE_VERIFICATION_ZENITHA_YACHTS_MED`
 - Domain `zenithayachts.com` must be pointed to Vercel and added to middleware domain mapping
+
+### Session: February 26, 2026 — Build Fix: Wrong Auth Import Path
+
+**Build failure fixed (1 fix, 5 files):**
+
+Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin'` across 5 route files. The path `@/lib/auth/admin` does not exist — the correct canonical import is `@/lib/admin-middleware` (which exports `requireAdmin`, `withAdminAuth`, `requireAdminOrCron`).
+
+**Files fixed:**
+- `app/api/admin/ai-costs/route.ts`
+- `app/api/admin/departures/route.ts`
+- `app/api/content/bulk-publish/route.ts`
+- `app/api/homepage-blocks/[id]/route.ts`
+- `app/api/homepage-blocks/reorder/route.ts`
+
+**Root cause:** 5 routes introduced with a non-existent import path. All corrected to `@/lib/admin-middleware`.
+
+**Rule added:** The canonical auth import path for all API routes is `@/lib/admin-middleware`. Never use `@/lib/auth/admin` — it does not exist.

@@ -163,6 +163,7 @@ const navigation = [
       { label: 'Shop',           href: '/admin/shop' },
       { label: 'Trends',         href: '/admin/cockpit/commerce?tab=trends' },
       { label: 'Briefs',         href: '/admin/cockpit/commerce?tab=briefs' },
+      { label: 'Campaigns',      href: '/admin/cockpit/commerce?tab=campaigns' },
       { label: 'Transactions',   href: '/admin/transactions' },
       { label: 'Billing',        href: '/admin/billing' },
     ],

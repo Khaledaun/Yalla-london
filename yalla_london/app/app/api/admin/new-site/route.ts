@@ -132,7 +132,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
   // Validate that the builder module is available before attempting the build
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let buildNewSite: ((config: any) => Promise<unknown>) | null = null;
+  let buildNewSite: ((config: any) => Promise<{ success: boolean; siteId: string; steps: Array<{ step: string; status: string; message: string; error?: string }>; topicsCreated: number; errors: string[]; nextSteps: string[] }>) | null = null;
   try {
     const builderModule = await import("@/lib/new-site/builder");
     buildNewSite = builderModule.buildNewSite;
@@ -161,7 +161,24 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
   try {
     const result = await buildNewSite(body);
-    return NextResponse.json(result);
+
+    // Normalize the BuildProgress[] into the shape the wizard page expects:
+    // builder: { step, status: "done"|"error"|"running"|"pending", message }
+    // page:    { name, status: "ok"|"failed"|"skipped" }
+    const normalizedSteps = result.steps.map((s: { step: string; status: string; message: string; error?: string }) => ({
+      name: s.step,
+      status: s.status === "done" ? "ok" : s.status === "error" ? "failed" : "skipped",
+    }));
+
+    return NextResponse.json({
+      success: result.success,
+      siteId: result.siteId,
+      steps: normalizedSteps,
+      topicsCreated: result.topicsCreated,
+      nextSteps: result.nextSteps,
+      errors: result.errors,
+      error: result.errors.length > 0 ? result.errors[0] : undefined,
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Site creation failed";

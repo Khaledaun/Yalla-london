@@ -34,6 +34,7 @@
 | 28 | 2026-02-22 | Middleware + public routes: newsletter siteId, blog API site scoping | 2 issues | 2 | 0 |
 | 29 | 2026-02-26 | Cockpit dashboard audit: 6 new API routes + 3 lib utilities + 4 admin pages | 4 issues | 4 | 0 |
 | 30 | 2026-02-26 | Cockpit page audit round 2: SiteSummary field mismatch, gate check shape mismatch | 2 issues | 2 | 0 |
+| 31 | 2026-02-26 | Cockpit audit round 3: new-site wizard step response normalization | 1 issue | 1 | 0 |
 
 ---
 

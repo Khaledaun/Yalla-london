@@ -28,7 +28,79 @@ import {
   BarChart2,
   XCircle,
   RefreshCw,
+  Zap,
+  Loader2,
 } from "lucide-react";
+
+// ── Force Publish button — enhances + publishes best 2 EN + 2 AR articles ──
+function ForcePublishButton() {
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [result, setResult] = useState<{ published: number; skipped: number; articles: string[] } | null>(null);
+
+  const handleForcePublish = async () => {
+    setState("loading");
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin/force-publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale: "both", count: 2 }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const articles = (data.published || []).map((p: { keyword: string; locale: string }) => `${p.keyword} (${p.locale.toUpperCase()})`);
+        setResult({ published: data.published?.length || 0, skipped: data.skipped?.length || 0, articles });
+        setState("done");
+      } else {
+        setResult({ published: 0, skipped: 0, articles: [data.error || "Unknown error"] });
+        setState("error");
+      }
+    } catch (e) {
+      setResult({ published: 0, skipped: 0, articles: [e instanceof Error ? e.message : "Network error"] });
+      setState("error");
+    }
+    // Auto-reset after 8s
+    setTimeout(() => { setState("idle"); setResult(null); }, 8000);
+  };
+
+  if (state === "loading") {
+    return (
+      <button disabled className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-md opacity-80 cursor-wait">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Publishing... (up to 2 min)
+      </button>
+    );
+  }
+
+  if (state === "done" && result) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-800 rounded-md text-sm font-medium">
+        <CheckCircle className="h-4 w-4" />
+        {result.published > 0 ? `Published ${result.published}: ${result.articles.join(", ")}` : "Nothing new to publish"}
+      </div>
+    );
+  }
+
+  if (state === "error" && result) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-800 rounded-md text-sm font-medium">
+        <XCircle className="h-4 w-4" />
+        {result.articles[0]}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleForcePublish}
+      className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors"
+      title="Find and publish the best reservoir articles now (enhances short articles first)"
+    >
+      <Zap className="h-4 w-4" />
+      Force Publish
+    </button>
+  );
+}
 
 const ContentGenerationMonitor = dynamic(
   () => import("@/components/admin/ContentGenerationMonitor"),
@@ -256,6 +328,7 @@ export default function ContentHub() {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            <ForcePublishButton />
             <Link
               href="/admin/editor"
               className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"

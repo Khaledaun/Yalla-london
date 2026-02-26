@@ -59,10 +59,9 @@ export async function POST(request: NextRequest) {
       complianceIssues: result.complianceIssues,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Quick create failed";
-    console.error("[quick-create]", message);
+    console.warn("[quick-create]", err instanceof Error ? err.message : err);
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: "Quick create failed" },
       { status: 500 },
     );
   }

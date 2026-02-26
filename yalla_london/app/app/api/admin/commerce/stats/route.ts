@@ -2,6 +2,9 @@
  * Commerce Stats API — Aggregated dashboard data
  *
  * GET: Revenue by channel, top products, alerts, pipeline counts
+ *
+ * IMPORTANT: DigitalProduct and Purchase models use snake_case field names
+ * in Prisma schema. All queries must use snake_case for these models.
  */
 
 export const dynamic = "force-dynamic";
@@ -34,8 +37,9 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
       startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     }
 
+    // Purchase uses snake_case: created_at, site_id, etc.
     const dateFilter = startDate
-      ? { createdAt: { gte: startDate } }
+      ? { created_at: { gte: startDate } }
       : {};
 
     // Run all queries in parallel
@@ -50,54 +54,54 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
       trendRunCount,
       activeCampaigns,
     ] = await Promise.all([
-      // Website revenue
+      // Website revenue (Purchase model: snake_case fields)
       prisma.purchase.aggregate({
         where: {
-          siteId: targetSiteId,
+          site_id: targetSiteId,
           channel: "website",
-          status: "completed",
+          status: "COMPLETED",
           ...dateFilter,
         },
         _sum: { amount: true },
         _count: true,
       }),
-      // Etsy revenue
+      // Etsy revenue (Purchase model: snake_case fields)
       prisma.purchase.aggregate({
         where: {
-          siteId: targetSiteId,
+          site_id: targetSiteId,
           channel: "etsy",
-          status: "completed",
+          status: "COMPLETED",
           ...dateFilter,
         },
         _sum: { amount: true },
         _count: true,
       }),
-      // Total products
+      // Total products (DigitalProduct model: snake_case fields)
       prisma.digitalProduct.count({
-        where: { siteId: targetSiteId },
+        where: { site_id: targetSiteId },
       }),
-      // Active products
+      // Active products (DigitalProduct: is_active not active)
       prisma.digitalProduct.count({
-        where: { siteId: targetSiteId, active: true },
+        where: { site_id: targetSiteId, is_active: true },
       }),
-      // Brief status counts
+      // Brief status counts (ProductBrief: camelCase)
       prisma.productBrief.groupBy({
         by: ["status"],
         where: { siteId: targetSiteId },
         _count: true,
       }),
-      // Recent unread alerts
+      // Recent unread alerts (CommerceAlert: camelCase)
       prisma.commerceAlert.findMany({
         where: { siteId: targetSiteId, read: false },
         orderBy: { createdAt: "desc" },
         take: 10,
       }),
-      // Top products by revenue
+      // Top products by revenue (Purchase: snake_case, group by product_id)
       prisma.purchase.groupBy({
-        by: ["digitalProductId"],
+        by: ["product_id"],
         where: {
-          siteId: targetSiteId,
-          status: "completed",
+          site_id: targetSiteId,
+          status: "COMPLETED",
           ...dateFilter,
         },
         _sum: { amount: true },
@@ -105,25 +109,25 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
         orderBy: { _sum: { amount: "desc" } },
         take: 5,
       }),
-      // Trend runs count
+      // Trend runs count (TrendRun: camelCase)
       prisma.trendRun.count({
         where: { siteId: targetSiteId },
       }),
-      // Active campaigns
+      // Active campaigns (CommerceCampaign: camelCase)
       prisma.commerceCampaign.count({
         where: { siteId: targetSiteId, status: "active" },
       }),
     ]);
 
-    // Resolve product names for top products
+    // Resolve product names for top products (DigitalProduct: name_en not name)
     const topProductIds = topProducts
-      .map((p) => p.digitalProductId)
+      .map((p) => p.product_id)
       .filter(Boolean);
-    const productDetails: { id: string; name: string; tier: number | null }[] =
+    const productDetails =
       topProductIds.length > 0
         ? await prisma.digitalProduct.findMany({
             where: { id: { in: topProductIds } },
-            select: { id: true, name: true, tier: true },
+            select: { id: true, name_en: true, tier: true },
           })
         : [];
 
@@ -164,9 +168,9 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
         activeCampaigns,
       },
       topProducts: topProducts.map((p) => ({
-        productId: p.digitalProductId,
-        name: productMap.get(p.digitalProductId)?.name ?? "Unknown",
-        tier: productMap.get(p.digitalProductId)?.tier ?? null,
+        productId: p.product_id,
+        name: productMap.get(p.product_id)?.name_en ?? "Unknown",
+        tier: productMap.get(p.product_id)?.tier ?? null,
         revenueCents: p._sum.amount ?? 0,
         orders: p._count,
       })),

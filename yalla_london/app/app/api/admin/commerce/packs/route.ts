@@ -89,7 +89,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
           name_en,
           name_ar: name_ar ?? null,
           slug,
-          description_en: description_en ?? null,
+          description_en: description_en ?? "",
           description_ar: description_ar ?? null,
           price,
           compare_price: compare_price ?? null,

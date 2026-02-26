@@ -146,7 +146,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
           description: description ?? "",
           productType: productType ?? "TEMPLATE",
           tier: tier ?? 2,
-          ontologyCategory: ontologyCategory ?? null,
+          ontologyCategory: ontologyCategory ?? "general",
           targetPrice: targetPrice ?? 999,
           currency: "USD",
           keywordsJson: keywords ?? [],

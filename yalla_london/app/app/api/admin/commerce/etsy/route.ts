@@ -51,7 +51,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Get listing stats
-    let listingCount = 0;
     const drafts = await prisma.etsyListingDraft.count({
       where: { siteId },
     });
@@ -74,7 +73,6 @@ export async function GET(request: NextRequest) {
         publishedOnEtsy: publishedDrafts,
         pendingPublish: drafts - publishedDrafts,
       },
-      listingCount,
     });
   } catch (err) {
     console.warn("[etsy-api] GET error:", err instanceof Error ? err.message : err);

@@ -461,6 +461,47 @@ export async function generateJSON<T>(
 }
 
 /**
+ * Escape unescaped control characters (newline, tab, carriage return) that appear
+ * inside JSON string values. Uses a character-by-character state machine so it
+ * correctly handles strings that contain embedded HTML attribute quotes like
+ * dir="rtl" — the old lookbehind regex (/(?<=":[ ]*"[^"]*)\n/) stopped working
+ * at the first inner quote, leaving subsequent newlines unescaped and crashing
+ * JSON.parse on Arabic HTML content sections.
+ */
+function escapeControlCharsInStrings(s: string): string {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+
+    if (escaped) {
+      result += ch;
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      result += ch;
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      result += ch;
+      continue;
+    }
+    if (inString) {
+      if (ch === '\n') { result += '\\n'; continue; }
+      if (ch === '\r') { result += '\\r'; continue; }
+      if (ch === '\t') { result += '\\t'; continue; }
+    }
+    result += ch;
+  }
+  return result;
+}
+
+/**
  * Attempt to repair common JSON issues from AI responses:
  * - Truncated output (missing closing brackets/braces)
  * - Unescaped control characters in strings
@@ -476,9 +517,10 @@ function repairJSON(input: string): string {
     s = s.substring(firstBrace);
   }
 
-  // Fix unescaped newlines/tabs inside strings
-  s = s.replace(/(?<=":[ ]*"[^"]*)\n/g, '\\n');
-  s = s.replace(/(?<=":[ ]*"[^"]*)\t/g, '\\t');
+  // Fix unescaped control characters (newline, tab, carriage return) inside strings.
+  // Uses a state machine instead of a lookbehind regex — the lookbehind approach
+  // breaks as soon as the string contains embedded HTML attribute quotes like dir="rtl".
+  s = escapeControlCharsInStrings(s);
 
   // Remove trailing commas before } or ]
   s = s.replace(/,\s*([}\]])/g, '$1');

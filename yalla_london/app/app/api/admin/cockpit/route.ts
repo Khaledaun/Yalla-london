@@ -35,6 +35,7 @@ interface SystemStatus {
   gsc: { configured: boolean };
   cronSecret: { configured: boolean };
   nextAuthSecret: { configured: boolean };
+  email: { configured: boolean; provider: string | null };
 }
 
 interface PipelineStatus {
@@ -170,6 +171,12 @@ export const GET = withAdminAuth(async (_req: NextRequest) => {
   const cronSecretStatus = { configured: !!process.env.CRON_SECRET };
   const nextAuthSecretStatus = { configured: !!process.env.NEXTAUTH_SECRET };
 
+  const emailProvider = process.env.RESEND_API_KEY ? "resend"
+    : process.env.SENDGRID_API_KEY ? "sendgrid"
+    : (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) ? "smtp"
+    : null;
+  const emailStatus = { configured: !!emailProvider, provider: emailProvider };
+
   const system: SystemStatus = {
     db: dbResult,
     ai: aiStatus,
@@ -177,6 +184,7 @@ export const GET = withAdminAuth(async (_req: NextRequest) => {
     gsc: gscStatus,
     cronSecret: cronSecretStatus,
     nextAuthSecret: nextAuthSecretStatus,
+    email: emailStatus,
   };
 
   // ── Early exit if DB is down ──────────────────────────

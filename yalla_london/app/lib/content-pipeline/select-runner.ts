@@ -92,20 +92,35 @@ export async function runContentSelector(
       };
     }
 
-    // Separate candidates into publish-ready (≥ qualityGateScore) and needs-enhancement (60–69).
-    // Articles 60–69 are enhanced inline before publication:
-    //   - Grok expands word count, adds experience signals, internal links, affiliate placeholders
-    //   - Re-scored after enhancement — if score ≥ 70 they are promoted in this run
-    //   - If still < 70, the enhancement is saved to DB and the next run will re-evaluate
+    // Separate candidates into publish-ready and needs-enhancement.
+    //
+    // An article needs enhancement if EITHER:
+    //   A. Quality score < 70 (quality gate threshold), OR
+    //   B. Word count < 1,000 (pre-pub gate hard block — even a 90-score article
+    //      gets blocked at publication time if it has fewer than 1,000 words, since
+    //      the quality scorer and pre-pub gate use DIFFERENT word count rules)
+    //
+    // Enhancement: Grok researches fresh angles, expands to 2,000+ words, adds
+    // experience signals, headings, internal links, affiliate placeholders, and
+    // rewrites the meta description. Re-scored after enhancement.
     const PUBLISH_THRESHOLD = CONTENT_QUALITY.qualityGateScore; // 70
+    const MIN_WORD_COUNT = CONTENT_QUALITY.minWords || 1000; // pre-pub gate hard block
     const publishReady: Array<Record<string, unknown>> = [];
     const needsEnhancement: Array<Record<string, unknown>> = [];
 
     for (const candidate of candidates) {
       const score = (candidate.quality_score as number) || 0;
-      if (score >= PUBLISH_THRESHOLD) {
+      const html = (candidate.assembled_html as string) || "";
+      const wordCount = html.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+      const wouldFailWordCount = wordCount < MIN_WORD_COUNT;
+
+      if (score >= PUBLISH_THRESHOLD && !wouldFailWordCount) {
         publishReady.push(candidate);
       } else {
+        const reason = wouldFailWordCount
+          ? `word count too low (${wordCount}/${MIN_WORD_COUNT})`
+          : `score too low (${score}/${PUBLISH_THRESHOLD})`;
+        console.log(`[content-selector] Draft ${candidate.id} ("${candidate.keyword}"): needs enhancement — ${reason}`);
         needsEnhancement.push(candidate);
       }
     }

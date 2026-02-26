@@ -322,7 +322,7 @@ Return JSON:
   "keywords_used": ["kw1", "kw2"]
 }
 
-Write in ${writeLang}. Use HTML tags: h2, h3, p, ul, ol, li, strong, em. NO markdown.${isArabic(draft.locale) ? '\nAdd dir="rtl" to the root element. Use Arabic punctuation (، ؛ ؟).' : ""}`;
+Write in ${writeLang}. Use HTML tags: h2, h3, p, ul, ol, li, strong, em. NO markdown.${isArabic(draft.locale) ? '\nUse Arabic punctuation (، ؛ ؟). Do NOT add dir="rtl" or lang attributes to any element — the wrapper adds them automatically.' : ""}`;
 
     try {
       const result = await generateJSON<Record<string, unknown>>(prompt, {

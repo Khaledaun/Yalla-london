@@ -81,10 +81,19 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await generateDailyContentAllSites();
+
+    // Extract per-article counts for accurate CronLog (not just site count)
+    const siteEntries = Object.values(result.sites || {}) as Array<Record<string, any>>;
+    const totalArticles = siteEntries.reduce((sum, s) => sum + (Array.isArray(s.results) ? s.results.length : 0), 0);
+    const successArticles = siteEntries.reduce((sum, s) => sum + (Array.isArray(s.results) ? s.results.filter((r: any) => r.status === "success").length : 0), 0);
+
     await logCronExecution("daily-content-generate", result.timedOut ? "timed_out" : "completed", {
       durationMs: Date.now() - _cronStart,
+      itemsProcessed: totalArticles,
+      itemsSucceeded: successArticles,
+      itemsFailed: totalArticles - successArticles,
       sitesProcessed: Object.keys(result.sites || {}),
-      resultSummary: { message: result.message, sites: Object.keys(result.sites || {}).length },
+      resultSummary: { message: result.message, totalArticles, successArticles, sitesCount: Object.keys(result.sites || {}).length },
     });
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
@@ -347,7 +356,7 @@ async function generateArticle(
       await prisma.topicProposal.update({
         where: { id: topic.id },
         data: { status: "published" },
-      }).catch(() => {});
+      }).catch((e: unknown) => console.warn(`[daily-content-generate] Failed to mark dedup topic ${topic.id} as published:`, e instanceof Error ? e.message : e));
     }
     return { slug: existingByKeyword.slug, deduplicated: true };
   }
@@ -359,7 +368,7 @@ async function generateArticle(
       await prisma.topicProposal.update({
         where: { id: topic.id },
         data: { status: "published" },
-      }).catch(() => {});
+      }).catch((e: unknown) => console.warn(`[daily-content-generate] Failed to mark slug-collision topic ${topic.id} as published:`, e instanceof Error ? e.message : e));
     }
     return { slug: rawSlug, deduplicated: true };
   }

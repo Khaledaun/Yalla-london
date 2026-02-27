@@ -23,7 +23,6 @@ export const maxDuration = 60;
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import {
   fetchGA4Metrics,
   isGA4Configured,
@@ -47,6 +46,7 @@ export async function GET(request: NextRequest) {
   console.log(`[ANALYTICS-CRON] Starting at ${new Date().toISOString()}`);
 
   try {
+    const { prisma } = await import("@/lib/db");
     const results: Record<string, unknown> = {
       ga4: null,
       gsc: null,
@@ -158,8 +158,10 @@ export async function GET(request: NextRequest) {
         }))
       : [];
 
+    const { getDefaultSiteId } = await import("@/config/sites");
     await prisma.analyticsSnapshot.create({
       data: {
+        site_id: getDefaultSiteId(),
         date_range: "30d",
         data_json: {
           synced_at: new Date().toISOString(),

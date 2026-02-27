@@ -297,7 +297,8 @@ export async function GET(request: NextRequest) {
         pendingFacts,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (hcErr) {
+      console.warn("[fact-verification] Healthcheck failed:", hcErr instanceof Error ? hcErr.message : hcErr);
       return NextResponse.json(
         { status: "unhealthy", endpoint: "fact-verification" },
         { status: 503 },

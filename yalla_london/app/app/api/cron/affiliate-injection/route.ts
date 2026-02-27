@@ -394,8 +394,8 @@ async function handleAffiliateInjection(request: NextRequest) {
       if (Date.now() - startTime > BUDGET_MS) break;
 
       const postSiteId = post.siteId || getDefaultSiteId();
-      const enResult = injectAffiliates(post.content_en, postSiteId);
-      const arResult = injectAffiliates(post.content_ar, postSiteId);
+      const enResult = injectAffiliates(post.content_en || "", postSiteId);
+      const arResult = post.content_ar ? injectAffiliates(post.content_ar, postSiteId) : { content: post.content_ar || "", count: 0, partners: [] };
 
       if (enResult.count > 0 || arResult.count > 0) {
         await prisma.blogPost.update({

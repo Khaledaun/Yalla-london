@@ -913,7 +913,7 @@ async function detectContentGaps(prisma: any, issues: string[], siteId?: string)
     const categories = await prisma.category.findMany({
       include: {
         posts: {
-          where: { published: true },
+          where: { published: true, ...(siteId ? { siteId } : {}) },
           orderBy: { created_at: "desc" },
           take: 1,
           select: { created_at: true },

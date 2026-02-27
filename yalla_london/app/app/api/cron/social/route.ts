@@ -13,8 +13,9 @@ export const maxDuration = 60;
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
 import { logCronExecution } from '@/lib/cron-logger';
+
+const BUDGET_MS = 53_000;
 
 async function handleSocialCron(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -23,6 +24,8 @@ async function handleSocialCron(request: NextRequest) {
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const { prisma } = await import('@/lib/db');
 
   // Healthcheck mode — quick status without processing
   if (request.nextUrl.searchParams.get("healthcheck") === "true") {
@@ -40,7 +43,8 @@ async function handleSocialCron(request: NextRequest) {
         pendingPosts,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (hcErr) {
+      console.warn("[social-cron] Healthcheck failed:", hcErr instanceof Error ? hcErr.message : hcErr);
       return NextResponse.json(
         { status: 'unhealthy', endpoint: 'social cron' },
         { status: 503 },
@@ -110,6 +114,10 @@ async function handleSocialCron(request: NextRequest) {
     const results = [];
 
     for (const post of duePosts) {
+      if (Date.now() - _cronStart > BUDGET_MS) {
+        console.log('[social-cron] Budget exhausted, stopping post loop');
+        break;
+      }
       const platform = (post.platform || '').toLowerCase();
       try {
         if (platform === 'twitter' || platform === 'x') {

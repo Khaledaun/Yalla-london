@@ -21,8 +21,6 @@ export async function POST(request: NextRequest) {
 
     const { prisma } = await import("@/lib/db");
 
-    const BUDGET_MS = 53_000;
-
     // Extract optional siteId from query params or request body
     const url = new URL(request.url);
     const siteId = url.searchParams.get("siteId") || undefined;
@@ -111,7 +109,8 @@ export async function GET(request: NextRequest) {
         lastReport: latestReport?.generatedAt || null,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (hcErr) {
+      console.warn("[seo-health-report] Healthcheck failed:", hcErr instanceof Error ? hcErr.message : hcErr);
       return NextResponse.json(
         { status: "unhealthy", endpoint: "seo-health-report" },
         { status: 503 },
@@ -132,7 +131,7 @@ async function generateWeeklyReport(prisma: any, siteId?: string) {
 
   const auditStats = await generateAuditStats(prisma, oneWeekAgo, siteId);
   const topIssues = await analyzeTopIssues(prisma, oneWeekAgo, siteId);
-  const schemaCoverage = await analyzeSchemacoverage(prisma);
+  const schemaCoverage = await analyzeSchemacoverage(prisma, siteId);
   const recommendations = generateRecommendations(
     auditStats,
     topIssues,
@@ -239,20 +238,23 @@ async function analyzeTopIssues(prisma: any, since: Date, siteId?: string) {
 /**
  * Analyze which articles have proper meta data (proxy for schema coverage)
  */
-async function analyzeSchemacoverage(prisma: any) {
+async function analyzeSchemacoverage(prisma: any, siteId?: string) {
+  const siteFilter = siteId ? { siteId } : {};
   const [total, withMeta, withImage] = await Promise.all([
-    prisma.blogPost.count({ where: { published: true } }),
+    prisma.blogPost.count({ where: { published: true, ...siteFilter } }),
     prisma.blogPost.count({
       where: {
         published: true,
         meta_title_en: { not: null },
         meta_description_en: { not: null },
+        ...siteFilter,
       },
     }),
     prisma.blogPost.count({
       where: {
         published: true,
         featured_image: { not: null },
+        ...siteFilter,
       },
     }),
   ]);

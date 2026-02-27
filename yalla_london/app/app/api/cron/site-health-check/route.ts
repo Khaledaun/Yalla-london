@@ -20,7 +20,6 @@ export const maxDuration = 60;
 import { withCronLog } from "@/lib/cron-logger";
 import { forEachSite } from "@/lib/resilience";
 import { getActiveSiteIds, getSiteSeoConfig } from "@/config/sites";
-import { getSiteSeoConfigFromVault } from "@/lib/seo/config-vault";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -134,8 +133,9 @@ async function collectSiteHealth(
     postsPublished = pp;
     postsPending = ppend;
     avgSeoScore = avgRes._avg.seo_score ?? null;
-  } catch {
-    // siteId column doesn't exist yet — fall back to global counts
+  } catch (siteColErr) {
+    console.warn(`[site-health-check] siteId column query failed for ${siteId}, falling back to global counts:`, siteColErr instanceof Error ? siteColErr.message : siteColErr);
+    // Fall back to global counts
     const [tp, pp, ppend, avgRes] = await Promise.all([
       db.blogPost.count({ where: { deletedAt: null } }),
       db.blogPost.count({ where: { published: true, deletedAt: null } }),
@@ -311,8 +311,8 @@ async function collectSiteHealth(
       if (totalTracked > 0) {
         indexedPages = idxCount;
       }
-    } catch {
-      // URLIndexingStatus table may not exist yet
+    } catch (idxErr) {
+      console.warn(`[site-health-check] URLIndexingStatus query failed for ${siteId}:`, idxErr instanceof Error ? idxErr.message : idxErr);
     }
   }
 

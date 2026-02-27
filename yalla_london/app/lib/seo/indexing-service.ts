@@ -216,8 +216,8 @@ export async function pingSitemaps(siteUrl?: string, siteId?: string): Promise<R
       try {
         const { getSiteSeoConfig } = await import("@/config/sites");
         gscPropertyUrl = getSiteSeoConfig(siteId).gscSiteUrl || GSC_SITE_URL;
-      } catch {
-        // Fall back to global GSC_SITE_URL
+      } catch (cfgErr) {
+        console.warn(`[SEO] Failed to load GSC config for ${siteId}, using global fallback:`, cfgErr instanceof Error ? cfgErr.message : cfgErr);
       }
     }
     const gsc = new GoogleSearchConsoleAPI(gscPropertyUrl);
@@ -226,7 +226,8 @@ export async function pingSitemaps(siteUrl?: string, siteId?: string): Promise<R
     if (!gscResult.success) {
       console.warn(`[SEO] GSC sitemap submission failed: ${gscResult.error || "unknown"}`);
     }
-  } catch {
+  } catch (gscOuterErr) {
+    console.warn("[SEO] GSC sitemap ping threw:", gscOuterErr instanceof Error ? gscOuterErr.message : gscOuterErr);
     results["google_gsc"] = false;
   }
 
@@ -816,6 +817,7 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
     const dbPosts = await prisma.blogPost.findMany({
       where: { published: true, ...siteFilter },
       select: { slug: true },
+      take: 2000, // Cap to prevent OOM on large sites
     });
     for (const post of dbPosts) {
       if (!staticSlugs.has(post.slug)) {
@@ -824,6 +826,31 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
     }
   } catch (err) {
     console.warn("[indexing-service] DB query for all indexable URLs failed:", err instanceof Error ? err.message : String(err));
+  }
+
+  // ── News pages ──
+  if (!isYachtSite) {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const siteFilter = siteId ? { siteId } : {};
+      const newsItems = await prisma.newsItem.findMany({
+        where: {
+          status: "published",
+          ...siteFilter,
+          OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
+        },
+        select: { slug: true },
+        take: 500,
+      });
+      for (const item of newsItems) {
+        urls.push(`${baseUrl}/news/${item.slug}`);
+      }
+      if (newsItems.length > 0) {
+        urls.push(`${baseUrl}/news`); // News landing page
+      }
+    } catch (err) {
+      console.warn("[indexing-service] News URL discovery failed:", err instanceof Error ? err.message : String(err));
+    }
   }
 
   // ── Yacht-specific dynamic pages ──
@@ -905,6 +932,29 @@ export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUr
     console.warn("[indexing-service] DB query for new URLs failed:", err instanceof Error ? err.message : String(err));
   }
 
+  // ── New news items ──
+  if (!isYachtSite) {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const siteFilter = siteId ? { siteId } : {};
+      const newNews = await prisma.newsItem.findMany({
+        where: {
+          status: "published",
+          ...siteFilter,
+          created_at: { gte: cutoffDate },
+          OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
+        },
+        select: { slug: true },
+        take: 200,
+      });
+      for (const item of newNews) {
+        urls.push(`${baseUrl}/news/${item.slug}`);
+      }
+    } catch (err) {
+      console.warn("[indexing-service] News new-URL discovery failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   // ── New yacht content ──
   if (isYachtSite && siteId) {
     try {
@@ -913,18 +963,21 @@ export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUr
       const newYachts = await prisma.yacht.findMany({
         where: { siteId, status: "active", createdAt: { gte: cutoffDate } },
         select: { slug: true },
+        take: 500,
       });
       for (const y of newYachts) urls.push(`${baseUrl}/yachts/${y.slug}`);
 
       const newDests = await prisma.yachtDestination.findMany({
         where: { siteId, status: "active", createdAt: { gte: cutoffDate } },
         select: { slug: true },
+        take: 500,
       });
       for (const d of newDests) urls.push(`${baseUrl}/destinations/${d.slug}`);
 
       const newItins = await prisma.charterItinerary.findMany({
         where: { siteId, status: "active", createdAt: { gte: cutoffDate } },
         select: { slug: true },
+        take: 500,
       });
       for (const i of newItins) urls.push(`${baseUrl}/itineraries/${i.slug}`);
     } catch (error) {
@@ -966,6 +1019,7 @@ export async function getUpdatedUrls(
         updated_at: { gte: cutoffDate },
       },
       select: { slug: true },
+      take: 2000,
     });
     const existingSlugs = new Set(
       urls.map((u) => u.split("/blog/")[1]).filter(Boolean),
@@ -979,6 +1033,29 @@ export async function getUpdatedUrls(
     console.warn("[indexing-service] DB query for updated URLs failed:", err instanceof Error ? err.message : String(err));
   }
 
+  // ── Updated news items ──
+  if (!isYachtSite) {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const siteFilter = siteId ? { siteId } : {};
+      const updatedNews = await prisma.newsItem.findMany({
+        where: {
+          status: "published",
+          ...siteFilter,
+          updated_at: { gte: cutoffDate },
+          OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
+        },
+        select: { slug: true },
+        take: 200,
+      });
+      for (const item of updatedNews) {
+        urls.push(`${baseUrl}/news/${item.slug}`);
+      }
+    } catch (err) {
+      console.warn("[indexing-service] News updated-URL discovery failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   // ── Updated yacht content ──
   if (isYachtSite && siteId) {
     try {
@@ -987,18 +1064,21 @@ export async function getUpdatedUrls(
       const updatedYachts = await prisma.yacht.findMany({
         where: { siteId, status: "active", updatedAt: { gte: cutoffDate } },
         select: { slug: true },
+        take: 500,
       });
       for (const y of updatedYachts) urls.push(`${baseUrl}/yachts/${y.slug}`);
 
       const updatedDests = await prisma.yachtDestination.findMany({
         where: { siteId, status: "active", updatedAt: { gte: cutoffDate } },
         select: { slug: true },
+        take: 500,
       });
       for (const d of updatedDests) urls.push(`${baseUrl}/destinations/${d.slug}`);
 
       const updatedItins = await prisma.charterItinerary.findMany({
         where: { siteId, status: "active", updatedAt: { gte: cutoffDate } },
         select: { slug: true },
+        take: 500,
       });
       for (const i of updatedItins) urls.push(`${baseUrl}/itineraries/${i.slug}`);
     } catch (error) {
@@ -1078,8 +1158,8 @@ export async function runAutomatedIndexing(
             console.log(`[SEO] Added ${added} "discovered" URLs from URLIndexingStatus to submission batch`);
           }
         }
-      } catch {
-        // URLIndexingStatus table may not exist yet — proceed with original URLs
+      } catch (urlStatusErr) {
+        console.warn(`[SEO] URLIndexingStatus query failed for ${siteId} (table may not exist yet):`, urlStatusErr instanceof Error ? urlStatusErr.message : urlStatusErr);
       }
     }
 
@@ -1100,8 +1180,8 @@ export async function runAutomatedIndexing(
       try {
         const { getSiteSeoConfig } = await import("@/config/sites");
         gscPropertyUrl = getSiteSeoConfig(siteId).gscSiteUrl || GSC_SITE_URL;
-      } catch {
-        // Fall back to global GSC_SITE_URL
+      } catch (cfgErr2) {
+        console.warn(`[SEO] Failed to load GSC config for ${siteId} in runAutomatedIndexing, using global fallback:`, cfgErr2 instanceof Error ? cfgErr2.message : cfgErr2);
       }
     }
     const gsc = new GoogleSearchConsoleAPI(gscPropertyUrl);
@@ -1123,6 +1203,163 @@ export async function runAutomatedIndexing(
 // EXPORT SINGLETON INSTANCE
 // ============================================
 
+// ============================================
+// AGGRESSIVE INDEXING: RETRY FAILED + STALE URLs
+// ============================================
+
+/**
+ * Retry failed and stale URL submissions.
+ *
+ * Finds URLs that are:
+ *   1. Still "discovered" after 6+ hours (never submitted)
+ *   2. Status "error" (failed previous submission)
+ *   3. Status "submitted" but > 7 days old with no indexing confirmation
+ *
+ * Resubmits them to IndexNow + pings sitemap.
+ * Called by the seo-deep-review cron and can be triggered manually.
+ */
+export async function retryFailedIndexing(
+  siteId: string,
+  siteUrl: string,
+  options?: { maxUrls?: number; budgetMs?: number },
+): Promise<{ retried: number; succeeded: number; errors: string[] }> {
+  const maxUrls = options?.maxUrls || 50;
+  const startTime = Date.now();
+  const budgetMs = options?.budgetMs || 30_000;
+  const errors: string[] = [];
+  let retried = 0;
+  let succeeded = 0;
+
+  try {
+    const { prisma } = await import("@/lib/db");
+
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // Find URLs needing retry
+    const staleUrls = await prisma.uRLIndexingStatus.findMany({
+      where: {
+        site_id: siteId,
+        OR: [
+          // Never submitted (discovered > 6h ago)
+          { status: "discovered", created_at: { lt: sixHoursAgo } },
+          // Failed submission
+          { status: "error" },
+          // Submitted but not indexed after 7 days — resubmit
+          {
+            status: "submitted",
+            last_submitted_at: { lt: sevenDaysAgo },
+            submission_attempts: { lt: 5 }, // Don't retry endlessly
+          },
+        ],
+      },
+      select: { id: true, url: true, status: true, submission_attempts: true },
+      take: maxUrls,
+      orderBy: { created_at: "asc" }, // Oldest first
+    });
+
+    if (staleUrls.length === 0) {
+      return { retried: 0, succeeded: 0, errors: [] };
+    }
+
+    const urls = staleUrls.map((u) => u.url);
+    retried = urls.length;
+
+    console.log(`[indexing-retry] Retrying ${urls.length} stale/failed URL(s) for ${siteId}`);
+
+    // Batch submit to IndexNow
+    const indexNowResults = await submitToIndexNow(urls, siteUrl);
+    const indexNowOk = indexNowResults.some((r) => r.success);
+
+    if (indexNowOk) {
+      succeeded = urls.length;
+    }
+
+    // Update status
+    const newStatus = indexNowOk ? "submitted" : "error";
+    for (const record of staleUrls) {
+      if (Date.now() - startTime > budgetMs) break;
+
+      await prisma.uRLIndexingStatus.update({
+        where: { id: record.id },
+        data: {
+          status: newStatus,
+          submitted_indexnow: indexNowOk,
+          last_submitted_at: new Date(),
+          submission_attempts: { increment: 1 },
+          last_error: indexNowOk ? null : "IndexNow batch submission failed",
+        },
+      }).catch((e: unknown) => errors.push(`DB update ${record.url}: ${e instanceof Error ? e.message : e}`));
+    }
+
+    // Also ping sitemap to signal Google
+    if (indexNowOk) {
+      await pingSitemaps(siteUrl, siteId).catch(() => {});
+    }
+
+    console.log(`[indexing-retry] ${siteId}: retried ${retried}, succeeded ${succeeded}`);
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : String(err));
+  }
+
+  return { retried, succeeded, errors };
+}
+
+/**
+ * Immediate post-publish indexing — submit a single URL to all available channels.
+ * Called right after a BlogPost is created. Faster than waiting for the next seo-cron.
+ */
+export async function submitUrlImmediately(
+  url: string,
+  siteId: string,
+  siteUrl: string,
+): Promise<{ indexNow: boolean; sitemap: boolean }> {
+  let indexNow = false;
+  let sitemap = false;
+
+  // 1. IndexNow batch (accepts single URL)
+  try {
+    const results = await submitToIndexNow([url], siteUrl);
+    indexNow = results.some((r) => r.success);
+  } catch (e) {
+    console.warn(`[immediate-index] IndexNow failed for ${url}:`, e instanceof Error ? e.message : e);
+  }
+
+  // 2. Track in URLIndexingStatus
+  try {
+    const { prisma } = await import("@/lib/db");
+    await prisma.uRLIndexingStatus.upsert({
+      where: { site_id_url: { site_id: siteId, url } },
+      create: {
+        site_id: siteId,
+        url,
+        slug: url.split("/blog/").pop() || null,
+        status: indexNow ? "submitted" : "discovered",
+        submitted_indexnow: indexNow,
+        last_submitted_at: indexNow ? new Date() : null,
+      },
+      update: {
+        status: indexNow ? "submitted" : undefined,
+        submitted_indexnow: indexNow || undefined,
+        last_submitted_at: indexNow ? new Date() : undefined,
+        submission_attempts: { increment: 1 },
+      },
+    });
+  } catch (trackErr) {
+    console.warn(`[immediate-index] URLIndexingStatus upsert failed for ${url}:`, trackErr instanceof Error ? trackErr.message : trackErr);
+  }
+
+  // 3. Ping sitemap — await so return value is accurate
+  try {
+    const pingResult = await pingSitemaps(siteUrl, siteId);
+    sitemap = pingResult.google_gsc === true;
+  } catch {
+    // Sitemap ping failure is non-critical — IndexNow is the primary channel
+  }
+
+  return { indexNow, sitemap };
+}
+
 export const gscApi = new GoogleSearchConsoleAPI();
 export default {
   submitToIndexNow,
@@ -1131,5 +1368,7 @@ export default {
   getNewUrls,
   getUpdatedUrls,
   runAutomatedIndexing,
+  retryFailedIndexing,
+  submitUrlImmediately,
   gscApi,
 };

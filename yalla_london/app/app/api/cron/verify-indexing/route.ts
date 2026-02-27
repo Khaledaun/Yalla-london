@@ -61,6 +61,8 @@ async function handleVerifyIndexing(request: NextRequest) {
     }
 
     const activeSites = getActiveSiteIds();
+    // Check interval: 6h for unverified URLs, ensures we don't hammer GSC API
+    // GSC API quota: 2000 inspections/day per property
     const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
 
     let totalChecked = 0;

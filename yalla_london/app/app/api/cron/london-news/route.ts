@@ -585,7 +585,8 @@ export async function GET(request: NextRequest) {
         trustedSources: TRUSTED_SOURCES.length,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (hcErr) {
+      console.warn("[london-news] Healthcheck failed:", hcErr instanceof Error ? hcErr.message : hcErr);
       return NextResponse.json(
         { status: "unhealthy", endpoint: "london-news" },
         { status: 503 },
@@ -944,6 +945,25 @@ export async function GET(request: NextRequest) {
         console.warn(`[london-news] Failed to create Grok live news item: ${errMsg}`);
         errors.push(errMsg);
         itemsSkipped++;
+      }
+    }
+
+    // 7c. Submit newly created news URLs to IndexNow for fast indexing
+    if (createdItems.length > 0 && Date.now() - startTime < BUDGET_MS - 5_000) {
+      try {
+        const { submitUrlImmediately } = await import("@/lib/seo/indexing-service");
+        const { getSiteDomain } = await import("@/config/sites");
+        const siteUrl = getSiteDomain(siteId);
+        for (const item of createdItems) {
+          if (Date.now() - startTime > BUDGET_MS - 3_000) break;
+          const url = `${siteUrl}/news/${item.slug}`;
+          const result = await submitUrlImmediately(url, siteId, siteUrl);
+          if (result.indexNow) {
+            console.log(`[london-news] IndexNow submitted: ${url}`);
+          }
+        }
+      } catch (indexErr) {
+        console.warn("[london-news] IndexNow submission failed:", indexErr instanceof Error ? indexErr.message : indexErr);
       }
     }
 

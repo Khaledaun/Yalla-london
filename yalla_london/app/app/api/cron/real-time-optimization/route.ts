@@ -20,6 +20,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { prisma } = await import('@/lib/db');
+    const { getActiveSiteIds } = await import('@/config/sites');
+    const activeSites = getActiveSiteIds();
 
     // Get published articles from the last 30 days
     const thirtyDaysAgo = new Date();
@@ -31,6 +33,7 @@ export async function POST(request: NextRequest) {
         created_at: {
           gte: thirtyDaysAgo,
         },
+        ...(activeSites.length > 0 ? { siteId: { in: activeSites } } : {}),
       },
       select: {
         id: true,

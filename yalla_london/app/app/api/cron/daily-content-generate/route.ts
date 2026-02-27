@@ -347,7 +347,7 @@ async function generateArticle(
       await prisma.topicProposal.update({
         where: { id: topic.id },
         data: { status: "published" },
-      }).catch(() => {});
+      }).catch((e: unknown) => console.warn(`[daily-content-generate] Failed to mark dedup topic ${topic.id} as published:`, e instanceof Error ? e.message : e));
     }
     return { slug: existingByKeyword.slug, deduplicated: true };
   }
@@ -359,7 +359,7 @@ async function generateArticle(
       await prisma.topicProposal.update({
         where: { id: topic.id },
         data: { status: "published" },
-      }).catch(() => {});
+      }).catch((e: unknown) => console.warn(`[daily-content-generate] Failed to mark slug-collision topic ${topic.id} as published:`, e instanceof Error ? e.message : e));
     }
     return { slug: rawSlug, deduplicated: true };
   }

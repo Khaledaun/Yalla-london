@@ -367,19 +367,18 @@ Current word count: ${wordCount}`;
       for (const [siteId, urls] of bySite) {
         try {
           const results = await submitToIndexNow(urls, getSiteDomain(siteId));
-          if (results.some((r) => r.success)) {
+          const indexNowSuccess = results.some((r) => r.success);
+          if (indexNowSuccess) {
             resubmittedCount += urls.length;
             console.log(`[seo-deep-review] Resubmitted ${urls.length} fixed URL(s) for ${siteId}`);
           }
 
-          // Update URLIndexingStatus
+          // Update URLIndexingStatus — only mark as "submitted" if IndexNow succeeded
           for (const url of urls) {
             await prisma.uRLIndexingStatus.updateMany({
               where: { site_id: siteId, url },
               data: {
-                status: "submitted",
-                submitted_indexnow: true,
-                last_submitted_at: new Date(),
+                ...(indexNowSuccess ? { status: "submitted", submitted_indexnow: true, last_submitted_at: new Date() } : {}),
                 submission_attempts: { increment: 1 },
               },
             }).catch((e: unknown) => console.warn(`[seo-deep-review] URLIndexingStatus update failed for ${url}:`, e instanceof Error ? e.message : e));

@@ -246,10 +246,10 @@ async function handleIndexing(request: NextRequest) {
 
         if (stuckPages.length > 0) {
           // Group by site for batch IndexNow submission
+          const { getDefaultSiteId: getDefSiteId } = await import("@/config/sites");
           const bySite = new Map<string, string[]>();
           for (const page of stuckPages) {
-            const { getDefaultSiteId } = await import("@/config/sites");
-            const sid = page.site_id || getDefaultSiteId();
+            const sid = page.site_id || getDefSiteId();
             if (!bySite.has(sid)) bySite.set(sid, []);
             bySite.get(sid)!.push(page.url);
           }
@@ -300,9 +300,13 @@ async function handleIndexing(request: NextRequest) {
     });
 
     // 4. Query current indexing status summary from URLIndexingStatus table
+    // Scoped to active sites only — prevents cross-site data leakage in response
     let indexingStatusSummary: Record<string, unknown> | null = null;
     try {
       const allStatuses = await prisma.uRLIndexingStatus.findMany({
+        where: {
+          site_id: { in: siteIds },
+        },
         select: {
           url: true,
           slug: true,

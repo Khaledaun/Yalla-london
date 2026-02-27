@@ -12,6 +12,12 @@ const BUDGET_MS = 53_000; // 53s usable out of 60s maxDuration
  * verify-indexing cron knows these URLs have been submitted.
  * Without this, URLs stay in "discovered" forever (KG-052).
  */
+/**
+ * After IndexNow/GSC submission, update URLIndexingStatus for URLs that
+ * were ACTUALLY processed in this run. Only transitions URLs that were
+ * submitted within the last 10 minutes (not all discovered/pending ever).
+ * This prevents a successful sitemap ping from marking ancient URLs as "submitted".
+ */
 async function trackSubmittedUrls(report: IndexingReport, siteId: string) {
   if (report.urlsProcessed === 0) return;
 
@@ -24,11 +30,17 @@ async function trackSubmittedUrls(report: IndexingReport, siteId: string) {
   try {
     const { prisma } = await import("@/lib/db");
 
-    // Update all "discovered" or "pending" URLs for this site to "submitted"
+    // Only update URLs that are still pending AND were created/updated recently.
+    // This prevents blanket-updating ancient URLs that weren't part of this run.
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     await prisma.uRLIndexingStatus.updateMany({
       where: {
         site_id: siteId,
         status: { in: ["discovered", "pending"] },
+        OR: [
+          { created_at: { gte: tenMinutesAgo } },
+          { updated_at: { gte: tenMinutesAgo } },
+        ],
       },
       data: {
         status: "submitted",

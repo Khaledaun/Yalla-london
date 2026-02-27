@@ -135,8 +135,35 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
     console.warn("[Scheduled Publish] Query error (non-fatal):", err);
   }
 
+  // Submit newly published URLs to IndexNow using batch POST (not per-URL GET)
+  // Separated from orphan check so IndexNow failure doesn't kill diagnostics
+  if (results.length > 0) {
+    try {
+      const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+      // Group URLs by site for proper batch submission
+      const bySite = new Map<string, string[]>();
+      for (const post of results) {
+        const siteUrl = getSiteDomain(post.site_id);
+        const url = `${siteUrl}/blog/${post.slug}`;
+        if (!bySite.has(post.site_id)) bySite.set(post.site_id, []);
+        bySite.get(post.site_id)!.push(url);
+      }
+      for (const [sid, urls] of bySite) {
+        const siteUrl = getSiteDomain(sid);
+        const indexResults = await submitToIndexNow(urls, siteUrl);
+        const success = indexResults.some((r) => r.success);
+        if (success) {
+          console.log(`[scheduled-publish] Batch IndexNow submitted ${urls.length} URL(s) for ${sid}`);
+        }
+      }
+    } catch (indexErr) {
+      console.warn("[scheduled-publish] IndexNow batch submission failed:", indexErr instanceof Error ? indexErr.message : indexErr);
+    }
+  }
+
   // Also check for unpublished blog posts that were created by the content
   // pipeline but never published (safety net)
+  let orphanedDraftCount = 0;
   try {
     const { getActiveSiteIds } = await import("@/config/sites");
     const activeSites = getActiveSiteIds();
@@ -155,33 +182,16 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
     if (orphanedDrafts.length > 0) {
       log.trackItem(true); // tracking observation
     }
-
-    // Submit newly published URLs to IndexNow
-    if (results.length > 0) {
-      const indexNowKey = process.env.INDEXNOW_KEY;
-      if (indexNowKey) {
-        for (const post of results) {
-          const siteUrl = getSiteDomain(post.site_id);
-          const url = `${siteUrl}/blog/${post.slug}`;
-          await fetch(
-            `https://api.indexnow.org/indexnow?url=${encodeURIComponent(url)}&key=${indexNowKey}`,
-          ).catch(err => console.warn(`[scheduled-publish] IndexNow submission failed for ${url}:`, err instanceof Error ? err.message : err));
-        }
-      }
-    }
-
-    return {
-      published_count: results.length,
-      published: results,
-      orphaned_drafts: orphanedDrafts.length,
-    };
+    orphanedDraftCount = orphanedDrafts.length;
   } catch (err) {
-    console.warn("[scheduled-publish] Orphan check or IndexNow submission error:", err instanceof Error ? err.message : err);
-    return {
-      published_count: results.length,
-      published: results,
-    };
+    console.warn("[scheduled-publish] Orphan check failed:", err instanceof Error ? err.message : err);
   }
+
+  return {
+    published_count: results.length,
+    published: results,
+    orphaned_drafts: orphanedDraftCount,
+  };
 }, { maxDurationMs: 53_000 });
 
 export const POST = withCronLog("scheduled-publish-manual", async (log) => {

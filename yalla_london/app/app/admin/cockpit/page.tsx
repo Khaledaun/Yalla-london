@@ -79,7 +79,14 @@ interface RevenueSnapshot {
 interface CockpitData {
   system: SystemStatus;
   pipeline: PipelineStatus;
-  indexing: { total: number; indexed: number; submitted: number; neverSubmitted: number; errors: number; rate: number };
+  indexing: {
+    total: number; indexed: number; submitted: number; discovered: number; neverSubmitted: number; errors: number; rate: number;
+    staleCount: number; orphanedCount: number; deindexedCount: number; velocity7d: number;
+    avgTimeToIndexDays: number | null; topBlocker: string | null;
+    blockers: Array<{ reason: string; count: number; severity: "critical" | "warning" | "info" }>;
+    lastSubmissionAge: string | null; lastVerificationAge: string | null;
+    channelBreakdown: { indexnow: number; sitemap: number; googleApi: number };
+  };
   cronHealth: { failedLast24h: number; timedOutLast24h: number; lastRunAt: string | null; recentJobs: Array<{ name: string; status: string; durationMs: number | null; startedAt: string; error: string | null; plainError: string | null; itemsProcessed: number }> };
   revenue: RevenueSnapshot;
   alerts: Alert[];
@@ -809,6 +816,115 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
           <div className="text-xs text-zinc-500 mt-1">Cron Status</div>
         </Card>
       </div>
+
+      {/* Indexing Health — Comprehensive Overview */}
+      <Card>
+        <button
+          onClick={() => setShowIndexPanel(true)}
+          className="w-full text-left"
+        >
+          <SectionTitle>Indexing Health</SectionTitle>
+        </button>
+
+        {/* Rate + Velocity Row */}
+        <div className="grid grid-cols-4 gap-2 text-center text-xs">
+          <div className="bg-zinc-800/50 rounded-lg p-2">
+            <div className={`text-lg font-bold ${indexing.rate >= 80 ? "text-emerald-400" : indexing.rate >= 50 ? "text-amber-400" : "text-red-400"}`}>
+              {indexing.rate}%
+            </div>
+            <div className="text-zinc-500 text-[10px]">Indexed</div>
+          </div>
+          <div className="bg-zinc-800/50 rounded-lg p-2">
+            <div className={`text-lg font-bold ${(indexing.velocity7d ?? 0) > 0 ? "text-blue-400" : "text-zinc-500"}`}>
+              {indexing.velocity7d ?? 0}
+            </div>
+            <div className="text-zinc-500 text-[10px]">This Week</div>
+          </div>
+          <div className="bg-zinc-800/50 rounded-lg p-2">
+            <div className={`text-lg font-bold ${indexing.submitted > 0 ? "text-purple-400" : "text-zinc-600"}`}>
+              {indexing.submitted}
+            </div>
+            <div className="text-zinc-500 text-[10px]">Pending</div>
+          </div>
+          <div className="bg-zinc-800/50 rounded-lg p-2">
+            <div className={`text-lg font-bold ${indexing.errors > 0 ? "text-red-400" : "text-emerald-400"}`}>
+              {indexing.errors > 0 ? indexing.errors : "0"}
+            </div>
+            <div className="text-zinc-500 text-[10px]">Errors</div>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        {indexing.total > 0 && (
+          <div className="mt-2">
+            <div className="h-2 rounded-full bg-zinc-800 overflow-hidden flex">
+              {indexing.indexed > 0 && (
+                <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(indexing.indexed / Math.max(indexing.total, indexing.indexed + indexing.submitted + (indexing.discovered ?? 0) + indexing.errors)) * 100}%` }} title={`${indexing.indexed} indexed`} />
+              )}
+              {indexing.submitted > 0 && (
+                <div className="h-full bg-blue-500 transition-all" style={{ width: `${(indexing.submitted / Math.max(indexing.total, indexing.indexed + indexing.submitted + (indexing.discovered ?? 0) + indexing.errors)) * 100}%` }} title={`${indexing.submitted} submitted`} />
+              )}
+              {(indexing.discovered ?? 0) > 0 && (
+                <div className="h-full bg-zinc-600 transition-all" style={{ width: `${((indexing.discovered ?? 0) / Math.max(indexing.total, indexing.indexed + indexing.submitted + (indexing.discovered ?? 0) + indexing.errors)) * 100}%` }} title={`${indexing.discovered} discovered`} />
+              )}
+              {indexing.errors > 0 && (
+                <div className="h-full bg-red-500 transition-all" style={{ width: `${(indexing.errors / Math.max(indexing.total, indexing.indexed + indexing.submitted + (indexing.discovered ?? 0) + indexing.errors)) * 100}%` }} title={`${indexing.errors} errors`} />
+              )}
+            </div>
+            <div className="flex justify-between mt-1 text-[9px] text-zinc-600">
+              <span>{indexing.indexed} indexed</span>
+              <span>{indexing.submitted} pending</span>
+              <span>{(indexing.orphanedCount ?? 0) + (indexing.discovered ?? 0)} unsubmitted</span>
+            </div>
+          </div>
+        )}
+
+        {/* Blockers — the key diagnostic info */}
+        {(indexing.blockers ?? []).length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            {(indexing.blockers ?? []).slice(0, 4).map((blocker, i) => (
+              <div
+                key={i}
+                className={`text-[11px] rounded-lg px-2.5 py-1.5 ${
+                  blocker.severity === "critical"
+                    ? "bg-red-950/30 text-red-300 border border-red-900/50"
+                    : blocker.severity === "warning"
+                    ? "bg-amber-950/20 text-amber-300 border border-amber-900/40"
+                    : "bg-zinc-800/40 text-zinc-400 border border-zinc-700/50"
+                }`}
+              >
+                {blocker.severity === "critical" ? "🚨" : "⚠️"} {blocker.reason}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Meta line */}
+        <div className="mt-2 flex flex-wrap gap-x-3 text-[10px] text-zinc-600">
+          {indexing.avgTimeToIndexDays != null && (
+            <span>Avg index time: {indexing.avgTimeToIndexDays}d</span>
+          )}
+          {indexing.lastSubmissionAge && (
+            <span>Last submit: {indexing.lastSubmissionAge}</span>
+          )}
+          {indexing.lastVerificationAge && (
+            <span>Last check: {indexing.lastVerificationAge}</span>
+          )}
+          {indexing.channelBreakdown && (indexing.channelBreakdown.indexnow > 0 || indexing.channelBreakdown.sitemap > 0) && (
+            <span>
+              Channels: {indexing.channelBreakdown.indexnow > 0 ? `IN:${indexing.channelBreakdown.indexnow}` : ""}{indexing.channelBreakdown.sitemap > 0 ? ` SM:${indexing.channelBreakdown.sitemap}` : ""}
+            </span>
+          )}
+        </div>
+
+        {/* Tap to see full details */}
+        <button
+          onClick={() => setShowIndexPanel(true)}
+          className="mt-2 w-full text-center text-[10px] text-blue-400 hover:text-blue-300 py-1"
+        >
+          Tap for full indexing details →
+        </button>
+      </Card>
 
       {/* Revenue & Costs */}
       {data?.revenue && (

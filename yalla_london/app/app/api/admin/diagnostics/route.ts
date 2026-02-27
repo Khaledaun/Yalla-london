@@ -10,7 +10,7 @@ import { getDefaultSiteId } from "@/config/sites";
 const AVAILABLE_GROUPS = [
   { id: "general", label: "General Platform", description: "Database, AI providers, env vars, assets, core pages", tests: 40 },
   { id: "pipeline", label: "Content Pipeline", description: "Topics, drafts, phases, reservoir, publishing", tests: 25 },
-  { id: "indexing", label: "Indexing & SEO", description: "IndexNow, GSC, URL status, sitemap, schema.org", tests: 20 },
+  { id: "indexing", label: "Indexing & SEO", description: "Config validation, submission tracking, Google coverage, velocity, blocker detection, cron health, content quality", tests: 25 },
   { id: "seo", label: "SEO Agent", description: "SEO orchestrator, health reports, pre-pub gate", tests: 15 },
   { id: "crons", label: "Cron Jobs", description: "Schedule verification, last-run health, timeouts", tests: 20 },
   { id: "yachts", label: "Zenitha Yachts", description: "Public APIs, admin APIs, yacht DB models", tests: 15 },

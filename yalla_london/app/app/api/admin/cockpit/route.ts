@@ -69,9 +69,21 @@ interface IndexingStatus {
   total: number;
   indexed: number;
   submitted: number;
+  discovered: number;
   neverSubmitted: number;
   errors: number;
   rate: number;
+  // Enhanced fields for Mission tab indexing health
+  staleCount: number; // submitted >14d ago, not indexed
+  orphanedCount: number; // published articles with no tracking record
+  deindexedCount: number;
+  velocity7d: number; // pages indexed in last 7 days
+  avgTimeToIndexDays: number | null; // avg submission-to-index time
+  topBlocker: string | null; // plain-English top blocker reason
+  blockers: Array<{ reason: string; count: number; severity: "critical" | "warning" | "info" }>;
+  lastSubmissionAge: string | null; // "2h ago" / "3d ago"
+  lastVerificationAge: string | null;
+  channelBreakdown: { indexnow: number; sitemap: number; googleApi: number };
 }
 
 interface CronHealth {
@@ -382,42 +394,176 @@ async function buildPipeline(prisma: any, activeSiteIds: string[]): Promise<Pipe
 
 async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<IndexingStatus> {
   const indexing = emptyIndexing();
+  const siteFilter = activeSiteIds.length ? { site_id: { in: activeSiteIds } } : {};
+  const siteIdFilter = activeSiteIds.length ? { siteId: { in: activeSiteIds } } : {};
 
   try {
+    // ── 1. Status counts from URLIndexingStatus ──────────────────────
     const groups = await prisma.uRLIndexingStatus.groupBy({
       by: ["status"],
       _count: { id: true },
-      where: activeSiteIds.length ? { site_id: { in: activeSiteIds } } : {},
+      where: siteFilter,
     });
 
     let total = 0;
     let indexed = 0;
     let submitted = 0;
+    let discovered = 0;
     let errors = 0;
+    let deindexed = 0;
 
     for (const g of groups) {
       const count = g._count.id;
       total += count;
       if (g.status === "indexed") indexed += count;
       else if (g.status === "submitted") submitted += count;
+      else if (g.status === "discovered") discovered += count;
       else if (g.status === "error") errors += count;
+      else if (g.status === "deindexed") deindexed += count;
     }
 
-    const neverSubmitted = await prisma.uRLIndexingStatus.count({
+    // ── 2. Orphaned articles (published but not tracked) ──────────────
+    const publishedCount = await prisma.blogPost.count({
+      where: { ...siteIdFilter, published: true },
+    });
+    const orphanedCount = Math.max(0, publishedCount - total);
+
+    // ── 3. Stale submissions (submitted >14d, not indexed) ────────────
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const staleCount = await prisma.uRLIndexingStatus.count({
       where: {
-        submitted_indexnow: false,
-        submitted_google_api: false,
-        submitted_sitemap: false,
-        ...(activeSiteIds.length ? { site_id: { in: activeSiteIds } } : {}),
+        ...siteFilter,
+        status: "submitted",
+        last_submitted_at: { lt: fourteenDaysAgo },
       },
     });
 
+    // ── 4. Velocity: indexed in last 7 days ───────────────────────────
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const velocity7d = await prisma.uRLIndexingStatus.count({
+      where: {
+        ...siteFilter,
+        status: "indexed",
+        updated_at: { gte: sevenDaysAgo },
+      },
+    });
+
+    // ── 5. Submission channel breakdown ───────────────────────────────
+    const [viaIndexNow, viaSitemap, viaGoogleApi] = await Promise.all([
+      prisma.uRLIndexingStatus.count({ where: { ...siteFilter, submitted_indexnow: true } }),
+      prisma.uRLIndexingStatus.count({ where: { ...siteFilter, submitted_sitemap: true } }),
+      prisma.uRLIndexingStatus.count({ where: { ...siteFilter, submitted_google_api: true } }),
+    ]);
+
+    // ── 6. Last submission & verification timestamps ──────────────────
+    const lastSubmission = await prisma.uRLIndexingStatus.findFirst({
+      where: { ...siteFilter, last_submitted_at: { not: null } },
+      orderBy: { last_submitted_at: "desc" },
+      select: { last_submitted_at: true },
+    });
+    const lastVerification = await prisma.uRLIndexingStatus.findFirst({
+      where: { ...siteFilter, last_inspected_at: { not: null } },
+      orderBy: { last_inspected_at: "desc" },
+      select: { last_inspected_at: true },
+    });
+
+    function ageStr(date: Date | null | undefined): string | null {
+      if (!date) return null;
+      const ms = Date.now() - date.getTime();
+      const hours = Math.round(ms / (1000 * 60 * 60));
+      if (hours < 1) return "< 1h ago";
+      if (hours < 24) return `${hours}h ago`;
+      return `${Math.round(hours / 24)}d ago`;
+    }
+
+    // ── 7. Average time-to-index ──────────────────────────────────────
+    let avgTimeToIndexDays: number | null = null;
+    try {
+      const indexedWithDates = await prisma.uRLIndexingStatus.findMany({
+        where: { ...siteFilter, status: "indexed", last_submitted_at: { not: null } },
+        select: { last_submitted_at: true, updated_at: true },
+        take: 30,
+      });
+      const deltas = indexedWithDates
+        .filter((r: any) => r.last_submitted_at)
+        .map((r: any) => r.updated_at.getTime() - r.last_submitted_at.getTime())
+        .filter((d: number) => d > 0);
+      if (deltas.length >= 3) {
+        avgTimeToIndexDays = Math.round(deltas.reduce((a: number, b: number) => a + b, 0) / deltas.length / (1000 * 60 * 60 * 24));
+      }
+    } catch { /* non-critical */ }
+
+    // ── 8. Build blockers list ────────────────────────────────────────
+    const blockers: IndexingStatus["blockers"] = [];
+
+    if (!process.env.INDEXNOW_KEY) {
+      blockers.push({ reason: "IndexNow key not set — search engines can't be notified of new content", count: publishedCount, severity: "critical" });
+    }
+    if (orphanedCount > 0) {
+      blockers.push({ reason: `${orphanedCount} articles not tracked — SEO agent never discovered them`, count: orphanedCount, severity: "critical" });
+    }
+    if (staleCount > 0) {
+      blockers.push({ reason: `${staleCount} articles submitted 14+ days ago but still not indexed by Google`, count: staleCount, severity: "critical" });
+    }
+    if (errors > 0) {
+      blockers.push({ reason: `${errors} articles had submission errors`, count: errors, severity: "critical" });
+    }
+    if (discovered > 0) {
+      blockers.push({ reason: `${discovered} articles discovered but never submitted to search engines`, count: discovered, severity: "warning" });
+    }
+    if (deindexed > 0) {
+      blockers.push({ reason: `${deindexed} articles were REMOVED from Google's index`, count: deindexed, severity: "critical" });
+    }
+
+    // Check cron health for indexing-related crons
+    try {
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+      const seoAgentRuns = await prisma.cronJobLog.count({
+        where: { job_name: "seo-agent", started_at: { gte: threeDaysAgo } },
+      });
+      if (seoAgentRuns === 0) {
+        blockers.push({ reason: "SEO agent hasn't run in 3 days — new URLs not being discovered", count: 0, severity: "warning" });
+      }
+      const seoCronRuns = await prisma.cronJobLog.count({
+        where: { job_name: "seo-cron", started_at: { gte: threeDaysAgo } },
+      });
+      if (seoCronRuns === 0 && process.env.INDEXNOW_KEY) {
+        blockers.push({ reason: "SEO submission cron hasn't run in 3 days — URLs not being sent to Google", count: 0, severity: "warning" });
+      }
+    } catch { /* non-critical */ }
+
+    // Thin content blocker
+    try {
+      const thinCount = await prisma.blogPost.count({
+        where: { ...siteIdFilter, published: true, word_count_en: { lt: 800 } },
+      });
+      if (thinCount > 0) {
+        blockers.push({ reason: `${thinCount} articles under 800 words — Google may reject thin content`, count: thinCount, severity: "warning" });
+      }
+    } catch { /* non-critical */ }
+
+    // Sort blockers by severity
+    const severityOrder = { critical: 0, warning: 1, info: 2 };
+    blockers.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+
+    // ── 9. Assemble result ────────────────────────────────────────────
     indexing.total = total;
     indexing.indexed = indexed;
     indexing.submitted = submitted;
-    indexing.neverSubmitted = neverSubmitted;
+    indexing.discovered = discovered;
+    indexing.neverSubmitted = Math.max(0, orphanedCount + discovered);
     indexing.errors = errors;
-    indexing.rate = total > 0 ? Math.round((indexed / total) * 100) : 0;
+    indexing.rate = publishedCount > 0 ? Math.round((indexed / publishedCount) * 100) : 0;
+    indexing.staleCount = staleCount;
+    indexing.orphanedCount = orphanedCount;
+    indexing.deindexedCount = deindexed;
+    indexing.velocity7d = velocity7d;
+    indexing.avgTimeToIndexDays = avgTimeToIndexDays;
+    indexing.topBlocker = blockers.length > 0 ? blockers[0].reason : null;
+    indexing.blockers = blockers;
+    indexing.lastSubmissionAge = ageStr(lastSubmission?.last_submitted_at);
+    indexing.lastVerificationAge = ageStr(lastVerification?.last_inspected_at);
+    indexing.channelBreakdown = { indexnow: viaIndexNow, sitemap: viaSitemap, googleApi: viaGoogleApi };
   } catch (err) {
     console.warn("[cockpit] indexing query failed:", err instanceof Error ? err.message : err);
   }
@@ -704,7 +850,13 @@ function emptyPipeline(): PipelineStatus {
 }
 
 function emptyIndexing(): IndexingStatus {
-  return { total: 0, indexed: 0, submitted: 0, neverSubmitted: 0, errors: 0, rate: 0 };
+  return {
+    total: 0, indexed: 0, submitted: 0, discovered: 0, neverSubmitted: 0, errors: 0, rate: 0,
+    staleCount: 0, orphanedCount: 0, deindexedCount: 0, velocity7d: 0,
+    avgTimeToIndexDays: null, topBlocker: null, blockers: [],
+    lastSubmissionAge: null, lastVerificationAge: null,
+    channelBreakdown: { indexnow: 0, sitemap: 0, googleApi: 0 },
+  };
 }
 
 function emptyCronHealth(): CronHealth {

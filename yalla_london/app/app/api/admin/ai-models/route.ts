@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { requireAdmin } from '@/lib/admin-middleware';
+import { requireAdminOrCron } from '@/lib/admin-middleware';
 import crypto from 'crypto';
 
 // ── Encryption helpers ──────────────────────────────────────────────────────
@@ -120,7 +120,7 @@ const PIPELINE_TASKS = [
 // ── GET: List providers + routes ─────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   try {
@@ -215,7 +215,7 @@ export async function GET(request: NextRequest) {
 // ── POST: Create or update provider / route ──────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   try {

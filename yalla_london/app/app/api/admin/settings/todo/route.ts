@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { requireAdmin } from '@/lib/admin-middleware';
+import { requireAdminOrCron } from '@/lib/admin-middleware';
 import { getActiveSiteIds, getDefaultSiteId } from '@/config/sites';
 
 interface TodoItem {
@@ -37,7 +37,7 @@ const IMPORTANT_ENV_VARS = [
 ];
 
 export async function GET(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   // H-004 fix: scope all queries by siteId

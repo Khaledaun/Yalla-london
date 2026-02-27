@@ -1904,6 +1904,21 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState<string | null>(null);
 
+  // Migration state
+  const [migrationStatus, setMigrationStatus] = useState<"idle" | "scanning" | "migrating" | "done">("idle");
+  const [migrationResult, setMigrationResult] = useState<{
+    type: "scan" | "migrate";
+    missingTables: number;
+    missingColumns: number;
+    missingIndexes: number;
+    needsMigration: boolean;
+    indexesCreated?: string[];
+    foreignKeysCreated?: string[];
+    errors?: string[];
+    durationMs?: number;
+  } | null>(null);
+  const [migrationError, setMigrationError] = useState<string | null>(null);
+
   useEffect(() => {
     fetch("/api/admin/feature-flags")
       .then((r) => r.json())
@@ -1938,6 +1953,53 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
       console.warn("[cockpit] toggleFlag failed:", e instanceof Error ? e.message : e);
       // Revert optimistic update on failure
       setFlags((prev) => prev.map((f) => f.key === key ? { ...f, enabled } : f));
+    }
+  };
+
+  const runMigrationScan = async () => {
+    setMigrationStatus("scanning");
+    setMigrationError(null);
+    setMigrationResult(null);
+    try {
+      const res = await fetch("/api/admin/db-migrate");
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "Scan failed");
+      setMigrationResult({
+        type: "scan",
+        missingTables: json.summary?.missingTables ?? 0,
+        missingColumns: json.summary?.missingColumns ?? 0,
+        missingIndexes: json.missingIndexes ?? 0,
+        needsMigration: json.summary?.needsMigration ?? false,
+      });
+    } catch (e) {
+      setMigrationError(e instanceof Error ? e.message : "Scan failed");
+    } finally {
+      setMigrationStatus("idle");
+    }
+  };
+
+  const runMigrationFix = async () => {
+    setMigrationStatus("migrating");
+    setMigrationError(null);
+    try {
+      const res = await fetch("/api/admin/db-migrate", { method: "POST" });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "Migration failed");
+      setMigrationResult({
+        type: "migrate",
+        missingTables: json.after?.missingTables ?? 0,
+        missingColumns: json.after?.missingColumns ?? 0,
+        missingIndexes: 0,
+        needsMigration: false,
+        indexesCreated: json.result?.indexesCreated ?? [],
+        foreignKeysCreated: json.result?.foreignKeysCreated ?? [],
+        errors: json.result?.errors ?? [],
+        durationMs: json.durationMs,
+      });
+      setMigrationStatus("done");
+    } catch (e) {
+      setMigrationError(e instanceof Error ? e.message : "Migration failed");
+      setMigrationStatus("idle");
     }
   };
 
@@ -2047,6 +2109,75 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
             📁 Full Admin
           </Link>
         </div>
+      </Card>
+
+      {/* Database Migration */}
+      <Card>
+        <SectionTitle>Database Migration</SectionTitle>
+        <p className="text-zinc-500 text-xs mb-3">Scan for missing tables, columns, and indexes. Fix applies all pending schema changes.</p>
+        <div className="flex gap-2">
+          <ActionButton onClick={runMigrationScan} loading={migrationStatus === "scanning"}>
+            🔍 Scan Schema
+          </ActionButton>
+          <ActionButton
+            onClick={runMigrationFix}
+            loading={migrationStatus === "migrating"}
+          >
+            🔧 Fix All
+          </ActionButton>
+        </div>
+        {migrationError && (
+          <p className="mt-2 text-xs bg-red-950/30 text-red-300 rounded px-2 py-1">{migrationError}</p>
+        )}
+        {migrationResult && (
+          <div className="mt-2 text-xs space-y-1">
+            {migrationResult.type === "scan" ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className={migrationResult.needsMigration ? "text-amber-400" : "text-emerald-400"}>
+                    {migrationResult.needsMigration ? "⚠️" : "✅"}
+                  </span>
+                  <span className="text-zinc-300">
+                    {migrationResult.needsMigration
+                      ? "Migration needed"
+                      : "Schema is up to date"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  <div className={`rounded px-2 py-1 text-center ${migrationResult.missingTables > 0 ? "bg-red-950/30 text-red-300" : "bg-zinc-800 text-zinc-400"}`}>
+                    {migrationResult.missingTables} tables
+                  </div>
+                  <div className={`rounded px-2 py-1 text-center ${migrationResult.missingColumns > 0 ? "bg-red-950/30 text-red-300" : "bg-zinc-800 text-zinc-400"}`}>
+                    {migrationResult.missingColumns} columns
+                  </div>
+                  <div className={`rounded px-2 py-1 text-center ${migrationResult.missingIndexes > 0 ? "bg-amber-950/30 text-amber-300" : "bg-zinc-800 text-zinc-400"}`}>
+                    {migrationResult.missingIndexes} indexes
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className={(migrationResult.errors?.length ?? 0) > 0 ? "text-amber-400" : "text-emerald-400"}>
+                    {(migrationResult.errors?.length ?? 0) > 0 ? "⚠️" : "✅"}
+                  </span>
+                  <span className="text-zinc-300">
+                    Migration complete{migrationResult.durationMs ? ` (${(migrationResult.durationMs / 1000).toFixed(1)}s)` : ""}
+                  </span>
+                </div>
+                {(migrationResult.indexesCreated?.length ?? 0) > 0 && (
+                  <p className="text-emerald-400">+ {migrationResult.indexesCreated!.length} indexes created</p>
+                )}
+                {(migrationResult.foreignKeysCreated?.length ?? 0) > 0 && (
+                  <p className="text-emerald-400">+ {migrationResult.foreignKeysCreated!.length} foreign keys created</p>
+                )}
+                {(migrationResult.errors?.length ?? 0) > 0 && (
+                  <p className="text-red-400">{migrationResult.errors!.length} errors — check logs</p>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Feature flags */}

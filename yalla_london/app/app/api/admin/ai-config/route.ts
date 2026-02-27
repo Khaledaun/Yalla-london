@@ -10,7 +10,7 @@
  * POST — { action: 'test_all' } — calls each configured provider with a simple
  *        test prompt and returns latency + success/failure for each.
  *
- * Auth: withAdminAuth on all handlers.
+ * Auth: withAdminOrCronAuth on all handlers.
  *
  * Note: This route delegates heavily to lib/ai/provider-config.ts which already
  * implements the canonical getAllRoutes / saveRoutes / getProviderForTask logic.
@@ -19,7 +19,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { withAdminAuth } from "@/lib/admin-middleware";
+import { withAdminOrCronAuth } from "@/lib/admin-middleware";
 import { getAllRoutes, saveRoutes, TASK_LABELS, TaskType } from "@/lib/ai/provider-config";
 
 // ─────────────────────────────────────────────
@@ -75,7 +75,7 @@ function providerHasKey(name: string): boolean {
 // GET — Read current config
 // ─────────────────────────────────────────────
 
-export const GET = withAdminAuth(async (_req: NextRequest) => {
+export const GET = withAdminOrCronAuth(async (_req: NextRequest) => {
   try {
     const { prisma } = await import("@/lib/db");
 
@@ -201,7 +201,7 @@ export const GET = withAdminAuth(async (_req: NextRequest) => {
 // PUT — Save route assignments
 // ─────────────────────────────────────────────
 
-export const PUT = withAdminAuth(async (req: NextRequest) => {
+export const PUT = withAdminOrCronAuth(async (req: NextRequest) => {
   try {
     const body = await req.json();
 
@@ -255,7 +255,7 @@ export const PUT = withAdminAuth(async (req: NextRequest) => {
 // POST — Test all providers
 // ─────────────────────────────────────────────
 
-export const POST = withAdminAuth(async (req: NextRequest) => {
+export const POST = withAdminOrCronAuth(async (req: NextRequest) => {
   try {
     const body = await req.json();
 

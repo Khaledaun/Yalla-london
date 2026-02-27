@@ -875,11 +875,12 @@ function extractJobDetails(jobName, json) {
       if (json.summary) {
         d('Relevant Trending Topics', json.summary.relevantTrendingTopics || 0);
         if (json.summary.risingKeywords?.length) d('Rising Keywords', json.summary.risingKeywords.join(', '));
-        d('Content Opportunities', json.summary.contentOpportunities || 0);
+        d('Content Opportunities', json.contentOpportunities?.length || json.summary.topOpportunities?.length || 0);
       }
       if (json.trendingTopics?.length) d('Top Trend', json.trendingTopics[0].title + ' (traffic: ' + json.trendingTopics[0].traffic + ')');
       if (json.keywordTrends?.length) d('Keywords Tracked', json.keywordTrends.length + ' keywords');
-      if (json.grokSocialTrends?.length) d('X/Twitter Trends (via Grok)', json.grokSocialTrends.length + ' social trends captured');
+      const grokTrends = (json.trendingTopics || []).filter(t => t.source === 'grok_social' || (t.title && t.title.startsWith('[X]')));
+      if (grokTrends.length) d('X/Twitter Trends (via Grok)', grokTrends.length + ' social trends captured');
       else w('X/Twitter Trends', 'Not available — XAI_API_KEY needed for Grok live X search');
       d('Data Saved', 'SeoReport table (type: trends-monitor)');
       break;

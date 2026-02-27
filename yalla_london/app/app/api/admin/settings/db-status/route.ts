@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { requireAdmin } from '@/lib/admin-middleware';
+import { requireAdminOrCron } from '@/lib/admin-middleware';
 
 const CORE_TABLES = [
   { name: 'BlogPost', label: 'Blog Posts' },
@@ -23,7 +23,7 @@ const CORE_TABLES = [
 ];
 
 export async function GET(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   const tableHealth: Array<{
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   try {

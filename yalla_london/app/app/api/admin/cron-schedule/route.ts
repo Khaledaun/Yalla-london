@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { requireAdmin } from '@/lib/admin-middleware';
+import { requireAdminOrCron } from '@/lib/admin-middleware';
 
 // Vercel cron schedule → human-readable + UTC next-run calculation
 //
@@ -211,6 +211,38 @@ const CRON_SCHEDULE: Record<string, {
     category: 'indexing',
     critical: false,
   },
+  'content-auto-fix': {
+    label: 'Content Auto-Fix',
+    schedule: '0 11,18 * * *',
+    humanSchedule: '2× daily (11am, 6pm UTC)',
+    apiPath: '/api/cron/content-auto-fix',
+    category: 'content',
+    critical: false,
+  },
+  'commerce-trends': {
+    label: 'Commerce Trends',
+    schedule: '30 4 * * 1',
+    humanSchedule: 'Every Monday at 4:30 UTC',
+    apiPath: '/api/cron/commerce-trends',
+    category: 'content',
+    critical: false,
+  },
+  'etsy-sync': {
+    label: 'Etsy Sync',
+    schedule: '0 10 * * *',
+    humanSchedule: 'Daily at 10:00 UTC',
+    apiPath: '/api/cron/etsy-sync',
+    category: 'content',
+    critical: false,
+  },
+  'social': {
+    label: 'Social Media Publisher',
+    schedule: '0 10,15,20 * * *',
+    humanSchedule: '3× daily (10am, 3pm, 8pm UTC)',
+    apiPath: '/api/cron/social',
+    category: 'content',
+    critical: false,
+  },
 };
 
 function getHealthFromLogs(logs: Array<{ status: string; timedOut: boolean }>): 'green' | 'yellow' | 'red' | 'gray' {
@@ -223,7 +255,7 @@ function getHealthFromLogs(logs: Array<{ status: string; timedOut: boolean }>): 
 }
 
 export async function GET(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   const { searchParams } = new URL(request.url);
@@ -313,7 +345,7 @@ export async function GET(request: NextRequest) {
 
 // POST: Trigger a cron job manually
 export async function POST(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   try {

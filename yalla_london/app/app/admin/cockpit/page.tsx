@@ -836,6 +836,9 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
           <ActionButton onClick={() => triggerAction("/api/cron/seo-agent", {}, "SEO")} loading={actionLoading === "SEO"}>
             🔍 Submit to Google
           </ActionButton>
+          <Link href="/admin/cockpit/validator" className="col-span-2 px-3 py-2 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-center block">
+            🩺 System Validator
+          </Link>
         </div>
         {actionResult && (
           <p className={`mt-3 text-xs p-2 rounded-lg ${actionResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
@@ -1523,6 +1526,42 @@ function CronsTab() {
           <div className="text-xs text-zinc-500 mt-1">Timed Out</div>
         </Card>
       </div>
+
+      {/* Run All Critical */}
+      <Card>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-zinc-300">Run Critical Sequence</p>
+            <p className="text-[10px] text-zinc-500 mt-0.5">Topics → Builder → Selector → SEO</p>
+          </div>
+          <ActionButton
+            onClick={async () => {
+              setActionLoading("critical-seq");
+              const sequence = [
+                { path: "/api/cron/weekly-topics", name: "Topics" },
+                { path: "/api/cron/content-builder", name: "Builder" },
+                { path: "/api/cron/content-selector", name: "Selector" },
+                { path: "/api/cron/seo-agent", name: "SEO" },
+              ];
+              for (const step of sequence) {
+                try {
+                  await fetch(step.path, { method: "POST" });
+                } catch { /* continue sequence */ }
+              }
+              setActionLoading(null);
+              setActionResult((prev) => ({ ...prev, "critical-seq": "✅ All 4 steps triggered" }));
+              fetchData();
+            }}
+            loading={actionLoading === "critical-seq"}
+            variant="success"
+          >
+            ▶ Run All
+          </ActionButton>
+        </div>
+        {actionResult["critical-seq"] && (
+          <p className="mt-2 text-xs bg-emerald-950/30 text-emerald-300 rounded px-2 py-1">{actionResult["critical-seq"]}</p>
+        )}
+      </Card>
 
       {/* Filters */}
       <div className="flex gap-2">

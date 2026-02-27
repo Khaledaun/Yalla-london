@@ -90,8 +90,8 @@ const aiModelsSection = async (
         const dailyTokens = costData._sum.totalTokens || 0;
 
         results.push(pass("daily-cost", "Daily AI Cost", `$${dailyCost.toFixed(4)} — ${dailyTokens.toLocaleString()} tokens`, "Estimated AI spending for today. Monitor this to keep costs predictable. Typical daily cost: $0.50-$5.00 depending on content volume."));
-      } catch {
-        // Aggregate might fail if column doesn't exist
+      } catch (err) {
+        console.warn("[diagnostics:ai-models] Cost aggregate failed:", err instanceof Error ? err.message : String(err));
       }
     } else {
       results.push(warn("usage-logging", "Usage Logging", "No API calls logged yet", "AI usage logging tracks every API call with costs.", "The ApiUsageLog table exists but has no records. AI calls will start logging automatically."));

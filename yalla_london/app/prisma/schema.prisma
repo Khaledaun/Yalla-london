@@ -3623,3 +3623,71 @@ model CommerceAlert {
   @@index([type])
   @@map("commerce_alerts")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COCKPIT UPGRADE MODELS (Feb 27, 2026)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Persistent development/operational tasks with "Do Now" actions
+/// Auto-generated from diagnostics, cron failures, pipeline stalls
+model DevTask {
+  id            String    @id @default(cuid())
+  siteId        String
+  title         String
+  description   String?   @db.Text
+  category      String    // content, seo, pipeline, config, security, automation, database
+  priority      String    @default("medium") // critical, high, medium, low
+  status        String    @default("pending") // pending, in_progress, completed, dismissed
+  dueDate       DateTime?
+  source        String    @default("manual") // manual, diagnostic, cron, audit, builder
+  sourceRef     String?   // diagnostic runId, cron name, audit finding ID
+  actionLabel   String?   // "Run Content Builder", "Fix DB Schema"
+  actionApi     String?   // "/api/cron/content-builder"
+  actionPayload Json?     // { manual: true }
+  completedAt   DateTime?
+  completedBy   String?   // userId or "system"
+  metadata      Json?     // extra context (error details, diagnostic result)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  @@index([siteId, status])
+  @@index([priority, status])
+  @@index([dueDate])
+  @@index([source, sourceRef])
+  @@map("dev_tasks")
+}
+
+/// Persistent system diagnostic run results for trend tracking
+/// Referenced by SEO agent and CLAUDE.md for system health history
+model SystemDiagnostic {
+  id              String    @id @default(cuid())
+  siteId          String?   // null for cross-site diagnostics
+  runId           String    @unique // groups tests from a single run
+  mode            String    // quick, full, group
+  groups          String[]  // ["general", "pipeline", "indexing"]
+
+  // Aggregate results
+  totalTests      Int       @default(0)
+  passed          Int       @default(0)
+  warnings        Int       @default(0)
+  failed          Int       @default(0)
+  healthScore     Int       @default(0) // 0-100
+  verdict         String    @default("unknown") // ALL_SYSTEMS_GO, OPERATIONAL, NEEDS_ATTENTION, CRITICAL
+
+  // Detailed results
+  results         Json      // Array of DiagnosticResult objects
+  envStatus       Json?     // { confirmed: [], missing: [] }
+  recommendations Json?     // string[]
+
+  // Fix tracking
+  fixesAttempted  Int       @default(0)
+  fixesSucceeded  Int       @default(0)
+
+  durationMs      Int?
+  ranBy           String?   // userId
+  created_at      DateTime  @default(now())
+
+  @@index([siteId, created_at])
+  @@index([verdict])
+  @@map("system_diagnostics")
+}

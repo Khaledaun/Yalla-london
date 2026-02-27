@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { withCronLog } from "@/lib/cron-logger";
-import { getSiteDomain, getDefaultSiteId } from "@/config/sites";
+import { getSiteDomain, getDefaultSiteId, getActiveSiteIds } from "@/config/sites";
 
 /**
  * Scheduled Content Publishing Cron Job
@@ -19,13 +19,17 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
 
   const results: { id: string; title: string; slug: string; site_id: string }[] = [];
 
-  // Find scheduled content that is due for publishing
+  // Find scheduled content that is due for publishing.
+  // Filter by active site IDs to prevent cross-site content mixing —
+  // each item's site context (domain, SEO gate, IndexNow) must be correct.
+  const activeSites = getActiveSiteIds();
   try {
     const dueContent = await prisma.scheduledContent.findMany({
       where: {
         content_type: "blog_post",
         status: { in: ["pending", "scheduled"] },
         scheduled_time: { lte: now },
+        ...(activeSites.length > 0 ? { site_id: { in: activeSites } } : {}),
       },
       select: {
         id: true,
@@ -204,12 +208,14 @@ export const POST = withCronLog("scheduled-publish-manual", async (log) => {
   let published = 0;
   const skipped: { id: string; slug: string; reason: string }[] = [];
 
+  const activeSitesPost = getActiveSiteIds();
   try {
     const dueContent = await prisma.scheduledContent.findMany({
       where: {
         content_type: "blog_post",
         status: { in: ["pending", "scheduled"] },
         scheduled_time: { lte: now },
+        ...(activeSitesPost.length > 0 ? { site_id: { in: activeSitesPost } } : {}),
       },
       select: { id: true, content_id: true, site_id: true },
       take: 20,

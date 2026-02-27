@@ -322,15 +322,19 @@ export class AutoContentScheduler {
     return prompts[category]?.[language] || prompts['london-guide'][language];
   }
 
-  // Publish content that's ready to be published
+  // Publish content that's ready to be published.
+  // Scoped to active sites to prevent publishing orphaned/disabled-site content.
   private async publishReadyContent(): Promise<void> {
     try {
+      const { getActiveSiteIds: getActive } = await import('@/config/sites');
+      const activeSiteIds = getActive();
       const readyContent = await prisma.scheduledContent.findMany({
         where: {
           status: 'pending',
-          scheduled_time: { lte: new Date() }
+          scheduled_time: { lte: new Date() },
+          ...(activeSiteIds.length > 0 ? { site_id: { in: activeSiteIds } } : {}),
         },
-        take: 10 // Process max 10 items at a time
+        take: AutoContentScheduler.MAX_PUBLISHES_PER_RUN,
       });
 
       console.log(`Found ${readyContent.length} content items ready for publishing`);
@@ -422,7 +426,9 @@ export class AutoContentScheduler {
         }
       }
 
-      // Create the blog post with proper bilingual content
+      // Create the blog post with proper bilingual content.
+      // Use site_id from the ScheduledContent record (falls back to default site).
+      const blogSiteId = content.site_id || getDefaultSiteId();
       await prisma.blogPost.create({
         data: {
           title_en: isArabicContent ? content.title : content.title,
@@ -438,18 +444,20 @@ export class AutoContentScheduler {
           meta_description_ar: metaDescriptionAr,
           tags: content.tags,
           published: true,
+          siteId: blogSiteId,
           category_id: defaultCategory.id,
           author_id: systemUser.id
         }
       });
 
-      // Submit to search console if configured
+      // Submit to search console if configured — use per-site domain, not global env var
       try {
         const { searchConsole } = await import('@/lib/integrations/google-search-console');
         const slug = this.generateSlug(content.title);
-        await searchConsole.submitUrl(`${process.env.NEXT_PUBLIC_SITE_URL}/blog/${slug}`);
+        const siteDomain = getSiteDomain(blogSiteId);
+        await searchConsole.submitUrl(`${siteDomain}/blog/${slug}`);
       } catch (error) {
-        console.warn('Failed to submit to Search Console:', error);
+        console.warn('[auto-scheduler] Failed to submit to Search Console:', error instanceof Error ? error.message : error);
       }
     }
   }

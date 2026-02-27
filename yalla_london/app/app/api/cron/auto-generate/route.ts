@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
     });
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "auto-generate", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "auto-generate", error: errMsg }).catch((e) =>
+      console.warn("[auto-generate] Failure hook error:", e instanceof Error ? e.message : e));
 
     // SECURITY: Do not leak error details to client
     return NextResponse.json(

@@ -86,12 +86,27 @@
 <body>
 
 <h1>Yalla London — System Validator</h1>
-<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Yacht Platform, Content, Orchestrator, Indexing, X/Twitter API, Site Health, Schema Audit, Settings Hub &amp; AI Models (25 sections) + One-Click DB Migration + Comprehensive JSON Export</p>
+<p class="subtitle">Full pipeline test: GA4, Assets, Pages, SEO, Crons, Database, AI, Yacht Platform, Content, Orchestrator, Indexing, X/Twitter API, Site Health, Schema Audit, Settings Hub &amp; AI Models (31 sections) + One-Click DB Migration + Comprehensive JSON Export</p>
 
-<div class="tab-bar">
+<div class="tab-bar" id="mainTabs">
   <button class="tab-btn active" onclick="switchMode('quick')">Quick Test</button>
-  <button class="tab-btn" onclick="switchMode('full')">Full Pipeline Test (needs CRON_SECRET)</button>
+  <button class="tab-btn" onclick="switchMode('full')">Full (All Tests)</button>
   <button class="tab-btn audit-tab" onclick="switchMode('audit')">Master SEO Audit</button>
+</div>
+
+<div id="groupSelector" style="display:none; margin-bottom:16px;">
+  <p style="color:#888;font-size:0.82rem;text-align:center;margin-bottom:10px;">Or pick specific test groups:</p>
+  <div class="tab-bar" id="groupTabs" style="gap:6px;">
+    <button class="tab-btn grp-btn" data-group="general" onclick="toggleGroup(this,'general')">General System</button>
+    <button class="tab-btn grp-btn" data-group="yalla" onclick="toggleGroup(this,'yalla')">Yalla London</button>
+    <button class="tab-btn grp-btn" data-group="yachts" onclick="toggleGroup(this,'yachts')">Zenitha Yachts</button>
+    <button class="tab-btn grp-btn" data-group="pipeline" onclick="toggleGroup(this,'pipeline')">Content Pipeline</button>
+    <button class="tab-btn grp-btn" data-group="indexing" onclick="toggleGroup(this,'indexing')">Indexing</button>
+    <button class="tab-btn grp-btn" data-group="topics" onclick="toggleGroup(this,'topics')">Topics &amp; Reservoir</button>
+    <button class="tab-btn grp-btn" data-group="crons" onclick="toggleGroup(this,'crons')">Cron Schedule</button>
+    <button class="tab-btn grp-btn" data-group="ai-costs" onclick="toggleGroup(this,'ai-costs')">AI Tokens</button>
+    <button class="tab-btn grp-btn" data-group="etsy" onclick="toggleGroup(this,'etsy')">Etsy Commerce</button>
+  </div>
 </div>
 
 <div class="section" id="cronSection" style="display:none">
@@ -165,14 +180,71 @@
 <script>
 let pass = 0, fail = 0, warn = 0;
 let testMode = 'quick';
+let activeGroups = new Set(); // Which group buttons are toggled on
 let allResults = []; // Collect all results for JSON export
+
+// Map: group name → which test sections it includes
+const GROUP_SECTIONS = {
+  general:  ['ga4', 'assets', 'pages', 'meta', 'db', 'ai', 'healthmon', 'seoreports', 'multisite', 'dbcheck', 'settings-ai'],
+  yalla:    ['ga4', 'assets', 'pages', 'meta', 'db', 'ai', 'healthmon', 'seoreports', 'multisite', 'dbcheck', 'settings-ai',
+             'pipeline', 'publish', 'topics', 'trends', 'analytics', 'seoagent', 'orchestrator', 'blogaudit',
+             'indexing', 'ga4server', 'contentaudit', 'xapi'],
+  yachts:   ['ga4', 'assets', 'pages', 'meta', 'db', 'ai', 'healthmon', 'dbcheck', 'settings-ai',
+             'yachts-public', 'yachts-admin'],
+  pipeline: ['pipeline', 'pipeline-deep', 'publish', 'topics', 'trends'],
+  indexing: ['indexing', 'indexing-ext', 'contentaudit', 'seoagent', 'ga4server'],
+  topics:   ['topic-pipeline', 'reservoir', 'pipeline-deep'],
+  crons:    ['upcoming-crons', 'healthmon'],
+  'ai-costs': ['ai-tokens'],
+  etsy:     ['etsy'],
+};
+
+function shouldRunSection(sectionId) {
+  if (testMode === 'quick') return ['ga4','assets','pages','meta','db','ai','yachts-public'].includes(sectionId);
+  if (testMode === 'full') return true; // Run everything
+  // Group mode: check if any active group includes this section
+  for (const g of activeGroups) {
+    if (GROUP_SECTIONS[g] && GROUP_SECTIONS[g].includes(sectionId)) return true;
+  }
+  return false;
+}
+
+function needsCronSecret() {
+  if (testMode === 'full') return true;
+  // All groups except pure general need CRON_SECRET for extended/admin tests
+  if (activeGroups.size === 0) return false;
+  // If only 'general' is active, still need auth for healthmon, dbcheck, settings-ai
+  return true;
+}
+
+function toggleGroup(btn, group) {
+  if (activeGroups.has(group)) {
+    activeGroups.delete(group);
+    btn.classList.remove('active');
+  } else {
+    activeGroups.add(group);
+    btn.classList.add('active');
+  }
+  // If any group is active, switch to group mode
+  if (activeGroups.size > 0) {
+    testMode = 'groups';
+    document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('cronSection').style.display = needsCronSecret() ? 'block' : 'none';
+  } else {
+    switchMode('quick');
+  }
+}
 
 function switchMode(mode) {
   testMode = mode;
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  activeGroups.clear();
+  document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.grp-btn').forEach(b => b.classList.remove('active'));
   const tabIdx = mode === 'quick' ? 0 : mode === 'full' ? 1 : 2;
-  document.querySelectorAll('.tab-btn')[tabIdx].classList.add('active');
-  document.getElementById('cronSection').style.display = mode === 'full' ? 'block' : 'none';
+  document.querySelectorAll('#mainTabs .tab-btn')[tabIdx].classList.add('active');
+  const needsSecret = mode === 'full';
+  document.getElementById('cronSection').style.display = needsSecret ? 'block' : 'none';
+  document.getElementById('groupSelector').style.display = (mode !== 'audit') ? '' : 'none';
 
   // Toggle between test view and audit view
   const isAudit = mode === 'audit';
@@ -1406,11 +1478,16 @@ async function runAllTests() {
 
   const cronSecret = document.getElementById('cronSecret')?.value || '';
 
+  // Fetch homepage once — reused by ga4 + meta sections
+  let homeResp = null;
+  if (shouldRunSection('ga4') || shouldRunSection('meta')) {
+    homeResp = await testFetch('/');
+  }
+
+  if (shouldRunSection('ga4')) {
   // ── 1. GA4 Client-Side ──
   log('Testing GA4 client-side tracking...');
   addSection('ga4', '1. GA4 Client-Side Tracking');
-
-  const homeResp = await testFetch('/');
   if (homeResp.ok) {
     const gaMatch = homeResp.text.match(/G-[A-Z0-9]{8,12}/);
     if (gaMatch) {
@@ -1431,7 +1508,9 @@ async function runAllTests() {
       homeResp.status === 503 ? 'Service unavailable — Vercel may be redeploying or the function timed out.' :
       'Unexpected HTTP ' + homeResp.status + ' — check Vercel logs.');
   }
+  } // end ga4
 
+  if (shouldRunSection('assets')) {
   // ── 2. Static Assets (cache-bust to bypass stale CDN 404s) ──
   log('Testing static assets (with cache-bust)...');
   addSection('assets', '2. Static Assets');
@@ -1457,7 +1536,9 @@ async function runAllTests() {
         'HTTP ' + resp.status + ' — may need Cloudflare cache purge. Try: Cloudflare Dashboard → Caching → Purge Everything.');
     }
   }
+  } // end assets
 
+  if (shouldRunSection('pages')) {
   // ── 3. Core Pages ──
   log('Testing core pages...');
   addSection('pages', '3. Core Pages');
@@ -1485,12 +1566,14 @@ async function runAllTests() {
         'HTTP ' + resp.status + ' — check Vercel logs for this route.');
     }
   }
+  } // end pages
 
+  if (shouldRunSection('meta')) {
   // ── 4. SEO Meta Tags ──
   log('Testing SEO meta tags...');
   addSection('meta', '4. SEO Meta Tags');
 
-  if (homeResp.ok) {
+  if (homeResp && homeResp.ok) {
     const checks = [
       [/property="og:image"[^>]*content="([^"]+)"/, 'og:image'],
       [/property="og:title"[^>]*content="([^"]+)"/, 'og:title'],
@@ -1508,7 +1591,9 @@ async function runAllTests() {
     else addResult('meta', 'JSON-LD Schema', 'warn', 'Not found',
       'No JSON-LD structured data on homepage. Add a <code>&lt;script type="application/ld+json"&gt;</code> block in the layout or use the schema generator at <code>lib/seo/schema-generator.ts</code>.');
   }
+  } // end meta
 
+  if (shouldRunSection('db')) {
   // ── 5. Database ──
   log('Testing database connection...');
   addSection('db', '5. Database Connection');
@@ -1527,7 +1612,9 @@ async function runAllTests() {
       blogApiResp.status === 503 ? 'Database temporarily unavailable — Supabase may be paused or connection pool exhausted.' :
       'HTTP ' + blogApiResp.status + ' — check <code>/api/blog/route.ts</code> for issues.');
   }
+  } // end db
 
+  if (shouldRunSection('ai')) {
   // ── 6. AI Provider ──
   log('Testing AI provider...');
   addSection('ai', '6. AI Provider');
@@ -1547,7 +1634,9 @@ async function runAllTests() {
       aiResp.status === 500 ? 'AI provider error. Check that <code>ANTHROPIC_API_KEY</code> (or <code>OPENAI_API_KEY</code> / <code>ABACUSAI_API_KEY</code>) is set in Vercel env vars. Also check <code>ModelProvider</code> table in the DB.' :
       'Unexpected response — check Vercel function logs for <code>/api/ai/generate</code>.');
   }
+  } // end ai
 
+  if (shouldRunSection('yachts-public')) {
   // ── 6b. Yacht Platform — Public APIs ──
   log('Testing Yacht Platform public APIs...');
   addSection('yachts-public', '6b. Yacht Platform — Public APIs');
@@ -1692,11 +1781,16 @@ async function runAllTests() {
         'Unexpected response from recommend endpoint.');
     }
   } catch (e) { log('  ERROR: ' + e.message); addResult('yachts-public', 'AI Yacht Recommend API (POST)', 'fail', 'JS Error: ' + e.message); }
+  } // end yachts-public
 
-  // ── Full pipeline tests (need CRON_SECRET) ──
-  if (testMode === 'full' && cronSecret) {
+  // ── Extended tests (need CRON_SECRET) — Full mode runs all, Group mode runs selected ──
+  const hasAuth = !!cronSecret;
+  const runExtended = (testMode === 'full' && hasAuth) || (testMode === 'groups' && hasAuth);
+
+  if (runExtended) {
     const cronHeaders = { 'Authorization': 'Bearer ' + cronSecret };
 
+    if (shouldRunSection("pipeline")) {
     // ── 7. Content Generation Pipeline ──
     log('Testing content generation pipeline...');
     addSection('pipeline', '7. Content Generation Pipeline');
@@ -1725,7 +1819,9 @@ async function runAllTests() {
         if (contentResp.json) addJsonBlock('pipeline', contentResp.json);
       }
     } catch (e) { log('  ERROR in section 7: ' + e.message); addResult('pipeline', 'Daily Content Generate', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("publish")) {
     // ── 8. Scheduled Publish ──
     log('  Testing scheduled-publish...');
     addSection('publish', '8. Scheduled Publish');
@@ -1749,7 +1845,9 @@ async function runAllTests() {
         if (publishResp.json) addJsonBlock('publish', publishResp.json);
       }
     } catch (e) { log('  ERROR in section 8: ' + e.message); addResult('publish', 'Scheduled Publish', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("topics")) {
     // ── 9. Weekly Topics ──
     log('  Testing weekly-topics...');
     addSection('topics', '9. Weekly Topics Research');
@@ -1772,7 +1870,9 @@ async function runAllTests() {
         if (topicsResp.json) addJsonBlock('topics', topicsResp.json);
       }
     } catch (e) { log('  ERROR in section 9: ' + e.message); addResult('topics', 'Weekly Topics', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("trends")) {
     // ── 10. Trends Monitor ──
     log('  Testing trends-monitor...');
     addSection('trends', '10. Trends Monitor');
@@ -1794,7 +1894,9 @@ async function runAllTests() {
         if (trendsResp.json) addJsonBlock('trends', trendsResp.json);
       }
     } catch (e) { log('  ERROR in section 10: ' + e.message); addResult('trends', 'Trends Monitor', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("analytics")) {
     // ── 11. Analytics Sync (Extensive) ──
     log('  Testing analytics sync (full run)...');
     addSection('analytics', '11. Analytics & Website Status — GA4 + GSC');
@@ -1888,7 +1990,9 @@ async function runAllTests() {
         if (analyticsResp.json) addJsonBlock('analytics', analyticsResp.json);
       }
     } catch (e) { log('  ERROR in section 11: ' + e.message); addResult('analytics', 'Analytics Cron', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("seoagent")) {
     // ── 12. SEO Agent ──
     log('  Testing SEO agent...');
     addSection('seoagent', '12. SEO Agent');
@@ -1909,6 +2013,7 @@ async function runAllTests() {
         if (seoResp.json) addJsonBlock('seoagent', seoResp.json);
       }
     } catch (e) { log('  ERROR in section 12: ' + e.message); addResult('seoagent', 'SEO Agent', 'fail', 'JS Error: ' + e.message); }
+    }
 
     // ── 13. SEO Daily Cron ──
     log('  Testing SEO daily cron...');
@@ -1923,6 +2028,7 @@ async function runAllTests() {
       }
     } catch (e) { log('  ERROR in section 13: ' + e.message); addResult('seoagent', 'SEO Daily Cron', 'fail', 'JS Error: ' + e.message); }
 
+    if (shouldRunSection("orchestrator")) {
     // ── 14. SEO Orchestrator ──
     log('  Testing SEO orchestrator...');
     addSection('orchestrator', '14. SEO Orchestrator');
@@ -1951,7 +2057,9 @@ async function runAllTests() {
         if (orchResp.json) addJsonBlock('orchestrator', orchResp.json);
       }
     } catch (e) { log('  ERROR in section 14: ' + e.message); addResult('orchestrator', 'Orchestrator', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("healthmon")) {
     // ── 15. Health Monitor (Cron Execution Proof) ──
     log('  Testing health monitor (cron log proof)...');
     addSection('healthmon', '15. Health Monitor — Cron Execution Proof');
@@ -2020,7 +2128,9 @@ async function runAllTests() {
         if (hmResp.json) addJsonBlock('healthmon', hmResp.json);
       }
     } catch (e) { log('  ERROR in section 15: ' + e.message); addResult('healthmon', 'Health Monitor', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("indexing")) {
     // ── 16. SEO Indexing Status ──
     log('  Testing SEO indexing status...');
     addSection('indexing', '16. SEO Indexing & Search Console');
@@ -2067,7 +2177,9 @@ async function runAllTests() {
       } catch (e2) { log('  (google-indexing healthcheck skipped: ' + e2.message + ')'); }
 
     } catch (e) { log('  ERROR in section 16: ' + e.message); addResult('indexing', 'Indexing', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("ga4server")) {
     // ── 17. GA4 Server-Side Data (real proof of analytics) ──
     log('  Testing GA4 server-side data...');
     addSection('ga4server', '17. GA4 Server-Side Data API');
@@ -2105,7 +2217,9 @@ async function runAllTests() {
         if (gaResp.json) addJsonBlock('ga4server', gaResp.json);
       }
     } catch (e) { log('  ERROR in section 17: ' + e.message); addResult('ga4server', 'GA4 Data API', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("blogaudit")) {
     // ── 18. Blog Content Audit (proof content generator works) ──
     log('  Testing blog content audit...');
     addSection('blogaudit', '18. Blog Content Audit — Auto-Generated Proof');
@@ -2156,7 +2270,9 @@ async function runAllTests() {
         addResult('blogaudit', 'Blog API', 'warn', 'HTTP ' + blogResp.status);
       }
     } catch (e) { log('  ERROR in section 18: ' + e.message); addResult('blogaudit', 'Blog Audit', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("seoreports")) {
     // ── 19. SEO Reports (proof orchestrator writes to DB) ──
     log('  Testing SEO reports...');
     addSection('seoreports', '19. SEO Reports — Orchestrator Output Proof');
@@ -2181,7 +2297,9 @@ async function runAllTests() {
         if (reportResp.json) addJsonBlock('seoreports', reportResp.json);
       }
     } catch (e) { log('  ERROR in section 19: ' + e.message); addResult('seoreports', 'SEO Reports', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("multisite")) {
     // ── 20. Yalla London Site Health Check ──
     log('  Testing Yalla London site health...');
     addSection('multisite', '20. Yalla London Site Health');
@@ -2218,7 +2336,9 @@ async function runAllTests() {
         addResult('multisite', 'Yalla London', 'warn', 'HTTP ' + siteResp.status + ' — ' + (siteResp.json?.error || siteResp.errorDetail || ''));
       }
     } catch (e) { log('  ERROR in section 20: ' + e.message); addResult('multisite', 'Site Health', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("contentaudit")) {
     // ── 21. Content & Indexing Deep Audit ──
     log('  Running content & indexing deep audit...');
     addSection('contentaudit', '21. Content & Indexing Deep Audit');
@@ -2318,7 +2438,9 @@ async function runAllTests() {
         if (auditResp.json) addJsonBlock('contentaudit', auditResp.json);
       }
     } catch (e) { log('  ERROR in section 21: ' + e.message); addResult('contentaudit', 'Content Audit', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("xapi")) {
     // ── 21b. X/Twitter API & Social Integration ──
     log('  Testing X/Twitter API & social integration...');
     addSection('xapi', '21b. X/Twitter API & Social Integration');
@@ -2382,7 +2504,9 @@ async function runAllTests() {
         '3. Implement the Twitter API v2 call in <code>app/api/cron/social/route.ts</code> (replace the MOCK section)<br>' +
         '4. Similarly for Instagram (Meta Graph API), LinkedIn (LinkedIn API), etc.');
     } catch (e) { log('  ERROR in section 21b: ' + e.message); addResult('xapi', 'X/Twitter API', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("yachts-admin")) {
     // ── 23. Yacht Platform — Admin APIs ──
     log('Testing Yacht Platform admin APIs...');
     addSection('yachts-admin', '23. Yacht Platform — Admin APIs (Auth Required)');
@@ -2506,7 +2630,9 @@ async function runAllTests() {
       }
 
     } catch (e) { log('  ERROR in section 23: ' + e.message); addResult('yachts-admin', 'Yacht Admin APIs', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("settings-ai")) {
     // ── 24. Settings Hub & AI Models ──
     log('Testing Settings Hub & AI Models APIs...');
     addSection('settings-ai', '24. Settings Hub & AI Models');
@@ -2563,7 +2689,9 @@ async function runAllTests() {
       } else { addResult('settings-ai', 'Rich Articles API', 'fail', 'HTTP ' + (articlesResp.status || '?')); }
 
     } catch (e) { log('  ERROR in section 24: ' + e.message); addResult('settings-ai', 'Settings Hub', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("pipeline-deep")) {
     // ── 25. Content Pipeline Deep Dive ──
     log('  Testing content pipeline deep dive...');
     addSection('pipeline-deep', '25. Content Pipeline Deep Dive');
@@ -2663,7 +2791,9 @@ async function runAllTests() {
         addResult('pipeline-deep', 'Content Monitor', 'warn', 'HTTP ' + (pipeResp.status || '?'));
       }
     } catch (e) { log('  ERROR in section 25: ' + e.message); addResult('pipeline-deep', 'Pipeline Deep Dive', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("topic-pipeline")) {
     // ── 26. Topic Pipeline ──
     log('  Testing topic pipeline...');
     addSection('topic-pipeline', '26. Topic Pipeline — Upcoming Content');
@@ -2708,7 +2838,9 @@ async function runAllTests() {
         addResult('topic-pipeline', 'Topics API', 'warn', 'HTTP ' + (topicResp.status || '?'));
       }
     } catch (e) { log('  ERROR in section 26: ' + e.message); addResult('topic-pipeline', 'Topic Pipeline', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("reservoir")) {
     // ── 27. Reservoir Examination ──
     log('  Testing reservoir articles...');
     addSection('reservoir', '27. Reservoir Examination — Ready-to-Publish Articles');
@@ -2759,7 +2891,9 @@ async function runAllTests() {
         addResult('reservoir', 'Reservoir', 'warn', 'HTTP ' + (resResp.status || '?'));
       }
     } catch (e) { log('  ERROR in section 27: ' + e.message); addResult('reservoir', 'Reservoir', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("indexing-ext")) {
     // ── 28. Extended Indexing Status ──
     log('  Testing extended indexing status...');
     addSection('indexing-ext', '28. Extended Indexing — Limits, Gate & Actions');
@@ -2852,7 +2986,9 @@ async function runAllTests() {
         }
       }
     } catch (e) { log('  ERROR in section 28: ' + e.message); addResult('indexing-ext', 'Extended Indexing', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("upcoming-crons")) {
     // ── 29. Upcoming Cron Tasks (Next 20) ──
     log('  Testing upcoming cron tasks...');
     addSection('upcoming-crons', '29. Upcoming 20 Cron Tasks');
@@ -2943,7 +3079,9 @@ async function runAllTests() {
         addResult('upcoming-crons', 'Cron Schedule', 'warn', 'HTTP ' + (cronResp.status || '?'));
       }
     } catch (e) { log('  ERROR in section 29: ' + e.message); addResult('upcoming-crons', 'Cron Schedule', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("ai-tokens")) {
     // ── 30. AI Token Monitoring ──
     log('  Testing AI token monitoring...');
     addSection('ai-tokens', '30. AI Token Monitoring & Cost Tracking');
@@ -3029,7 +3167,9 @@ async function runAllTests() {
         addResult('ai-tokens', 'AI Costs API', 'warn', 'HTTP ' + (costResp.status || '?'));
       }
     } catch (e) { log('  ERROR in section 30: ' + e.message); addResult('ai-tokens', 'AI Tokens', 'fail', 'JS Error: ' + e.message); }
+    }
 
+    if (shouldRunSection("etsy")) {
     // ── 31. Etsy Multi-Website Configuration ──
     log('  Testing Etsy multi-website configuration...');
     addSection('etsy', '31. Etsy Multi-Website Configuration & Commerce');
@@ -3096,14 +3236,15 @@ async function runAllTests() {
         '4. <strong>Test sync</strong>: trigger /api/cron/etsy-sync manually from cockpit to verify connection<br>' +
         '5. <strong>Commerce trends</strong>: runs weekly to discover trending products — verify Grok/AI provider is configured');
     } catch (e) { log('  ERROR in section 31: ' + e.message); addResult('etsy', 'Etsy Config', 'fail', 'JS Error: ' + e.message); }
+    }
 
-  } else if (testMode === 'full' && !cronSecret) {
-    addSection('pipeline', '7. Content Generation Pipeline');
-    addResult('pipeline', 'Pipeline Tests', 'fail', 'Enter CRON_SECRET above and re-run');
+  } else if ((testMode === 'full' || testMode === 'groups') && !cronSecret) {
+    addSection('pipeline', 'Extended Tests');
+    addResult('pipeline', 'Extended Tests', 'fail', 'Enter CRON_SECRET above and re-run');
   }
 
   // ── Auto-scan for missing tables (after all tests) ──
-  if (testMode === 'full' && cronSecret) {
+  if (shouldRunSection('dbcheck') && cronSecret) {
     // Wait 3s to let DB connection pool drain from previous tests
     log('  Waiting 3s for connection pool to drain...');
     await new Promise(r => setTimeout(r, 3000));

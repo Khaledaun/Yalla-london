@@ -29,6 +29,7 @@ async function handleContentSelector(request: NextRequest) {
       const { getActiveSiteIds } = await import("@/config/sites");
       const activeSites = getActiveSiteIds();
       const siteFilter = activeSites.length > 0 ? { site_id: { in: activeSites } } : {};
+      const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
       const reservoirCount = await prisma.articleDraft.count({
         where: { current_phase: "reservoir", ...siteFilter },
       }).catch(() => 0);
@@ -40,7 +41,8 @@ async function handleContentSelector(request: NextRequest) {
         endpoint: "content-selector",
         reservoirCount,
         publishedCount,
-        minQualityScore: 70,
+        minQualityScore: CONTENT_QUALITY.reservoirMinScore,
+        qualityGateScore: CONTENT_QUALITY.qualityGateScore,
         maxPerRun: 2,
         timestamp: new Date().toISOString(),
       });
@@ -58,26 +60,14 @@ async function handleContentSelector(request: NextRequest) {
     const { runContentSelector } = await import("@/lib/content-pipeline/select-runner");
     const result = await runContentSelector({ timeoutMs: 53_000 });
 
-    const durationMs = Date.now() - cronStart;
-    const resultAny = result as unknown as Record<string, unknown>;
-
-    // Fire failure hook if the selector returned a failure
+    // Fire failure hook if the selector returned a failure.
+    // Note: runContentSelector already logs to CronJobLog internally with accurate
+    // per-article counts. We only log here on failure (for the failure hook) to avoid
+    // double-logging the success path.
     if (!result.success && result.message) {
       const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-      onCronFailure({ jobName: "content-selector", error: result.message }).catch(() => {});
-
-      await logCronExecution("content-selector", "failed", {
-        durationMs,
-        errorMessage: result.message,
-        resultSummary: { promoted: resultAny.promoted, skipped: resultAny.skipped },
-      }).catch((e) => console.warn("[content-selector] Log failed:", e instanceof Error ? e.message : e));
-    } else {
-      await logCronExecution("content-selector", "completed", {
-        durationMs,
-        itemsProcessed: (resultAny.promoted as number) || 0,
-        itemsSucceeded: (resultAny.promoted as number) || 0,
-        resultSummary: { message: result.message, promoted: resultAny.promoted },
-      }).catch((e) => console.warn("[content-selector] Log failed:", e instanceof Error ? e.message : e));
+      onCronFailure({ jobName: "content-selector", error: result.message }).catch((e) =>
+        console.warn("[content-selector] Failure hook error:", e instanceof Error ? e.message : e));
     }
 
     return NextResponse.json(
@@ -94,7 +84,8 @@ async function handleContentSelector(request: NextRequest) {
     }).catch((e) => console.warn("[content-selector] Log failed:", e instanceof Error ? e.message : e));
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "content-selector", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "content-selector", error: errMsg }).catch((e) =>
+      console.warn("[content-selector] Failure hook error:", e instanceof Error ? e.message : e));
 
     return NextResponse.json(
       { success: false, error: errMsg, timestamp: new Date().toISOString() },

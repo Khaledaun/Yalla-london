@@ -159,11 +159,12 @@ export async function runContentSelector(
           }
         } else {
           console.log(`[content-selector] Enhanced draft ${candidate.id}: score ${enhResult.previousScore}→${enhResult.newScore || "?"} — needs another pass, saved to DB`);
-          // Count this as an attempt so we don't retry forever
+          // Count this as an attempt so we don't retry forever.
+          // Use atomic { increment: 1 } to prevent race conditions.
           await prisma.articleDraft.update({
             where: { id: candidate.id as string },
             data: {
-              phase_attempts: ((candidate.phase_attempts as number) || 0) + 1,
+              phase_attempts: { increment: 1 },
               updated_at: new Date(),
             },
           }).catch(dbErr => console.warn("[content-selector] Failed to update attempt count:", dbErr instanceof Error ? dbErr.message : dbErr));
@@ -171,12 +172,14 @@ export async function runContentSelector(
       } catch (enhErr) {
         const enhErrMsg = enhErr instanceof Error ? enhErr.message : String(enhErr);
         console.warn(`[content-selector] Enhancement failed for draft ${candidate.id}: ${enhErrMsg}`);
-        // Track failed attempt so articles don't get stuck in an infinite retry loop
+        // Track failed attempt so articles don't get stuck in an infinite retry loop.
+        // Use atomic { increment: 1 } to prevent race conditions.
+        const attemptNum = ((candidate.phase_attempts as number) || 0) + 1;
         await prisma.articleDraft.update({
           where: { id: candidate.id as string },
           data: {
-            phase_attempts: ((candidate.phase_attempts as number) || 0) + 1,
-            last_error: `Enhancement attempt ${((candidate.phase_attempts as number) || 0) + 1}/${MAX_ENHANCEMENT_ATTEMPTS} failed: ${enhErrMsg}`,
+            phase_attempts: { increment: 1 },
+            last_error: `Enhancement attempt ${attemptNum}/${MAX_ENHANCEMENT_ATTEMPTS} failed: ${enhErrMsg}`,
             updated_at: new Date(),
           },
         }).catch(dbErr => console.warn("[content-selector] Failed to update enhancement attempt:", dbErr instanceof Error ? dbErr.message : dbErr));
@@ -251,7 +254,7 @@ export async function runContentSelector(
           where: { id: draft.id as string },
           data: {
             last_error: `Promotion failed: ${errMsg}`,
-            phase_attempts: ((draft.phase_attempts as number) || 0) + 1,
+            phase_attempts: { increment: 1 },
           },
         }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
 
@@ -454,19 +457,22 @@ export async function promoteToBlogPost(
     }
   }
 
-  // Check for slug collision or near-duplicate within this site.
-  // Uses startsWith to catch both exact matches and variants like "my-slug-a1b2".
-  // If any match found, SKIP — never create another variant (that's how duplicates pile up).
+  // Check for slug collision GLOBALLY — BlogPost.slug is @unique across all sites.
+  // Previously checked per-site only, which missed cross-site collisions and crashed
+  // at create() with a Prisma unique constraint violation.
+  // Uses startsWith to also catch near-duplicates like "my-slug-a1b2".
   const existingSlug = await prisma.blogPost.findFirst({
     where: {
-      siteId,
       slug: { startsWith: slug },
       deletedAt: null,
     },
-    select: { id: true, slug: true },
+    select: { id: true, slug: true, siteId: true },
   });
   if (existingSlug) {
-    console.warn(`[content-selector] Slug collision/near-duplicate: "${existingSlug.slug}" already exists for "${slug}" — skipping to prevent duplicate content`);
+    const sameSite = existingSlug.siteId === siteId;
+    console.warn(
+      `[content-selector] Slug collision: "${existingSlug.slug}" already exists${sameSite ? "" : ` on site "${existingSlug.siteId}"`} — skipping "${slug}" to prevent duplicate content`,
+    );
     return null;
   }
 

@@ -2337,6 +2337,8 @@ model DigitalProduct {
   featured        Boolean  @default(false)
 
   // Commerce Engine extensions
+  sku               String?    @unique // Product inventory identifier (e.g., "YL-ITN-001")
+  version           Int        @default(1) // Version number for product revisions
   tier              Int?       // 1=high priority, 2=medium, 3=low (from product ontology)
   ontologyCategory  String?    // "itinerary_template", "wall_art", "travel_guide", etc.
   etsyListingId     String?    @unique // Cross-reference to Etsy listing
@@ -2378,10 +2380,19 @@ model Purchase {
 
   // Attribution
   utm_source      String?
+  utm_medium      String?
   utm_campaign    String?
+  coupon_code     String?
+  attribution_tags Json?   // { referrer, custom_tags, landing_page }
 
   // Commerce Engine: sales channel tracking
   channel         String   @default("website") // "website" | "etsy"
+
+  // Fee breakdown (cents)
+  gross_amount    Int?     // Total before fees (defaults to amount if null)
+  platform_fees   Int?     // Etsy/Stripe platform fees
+  processing_fees Int?     // Payment processing fees
+  net_amount      Int?     // Amount after all fees
 
   created_at      DateTime @default(now())
   completed_at    DateTime?
@@ -3460,9 +3471,12 @@ model EtsyListingDraft {
   briefId           String   @unique
 
   // Etsy listing fields
-  title             String   // max 140 chars
+  title             String   // max 140 chars (primary variant)
+  titleVariants     Json?    // Array of alternative titles for A/B testing
   description       String   @db.Text
+  descriptionBlocks Json?    // Structured description: [{ heading, body, type }]
   tags              String[] // max 13 tags, each max 20 chars
+  categoryPath      String?  // Etsy taxonomy path (e.g., "Paper & Party Supplies > Planners")
   price             Int      // cents
   currency          String   @default("USD")
   quantity          Int      @default(999)
@@ -3690,4 +3704,344 @@ model SystemDiagnostic {
   @@index([siteId, created_at])
   @@index([verdict])
   @@map("system_diagnostics")
+}
+
+// =============================================================================
+// COMMERCE ENGINE — Extended Models (Phase 0–1 Scaffold)
+// =============================================================================
+
+/// Tenant — Each website is a tenant with its own config, shop, and integrations
+model Tenant {
+  id                String   @id @default(cuid())
+  domain            String   @unique
+  siteId            String   @unique // matches config/sites.ts slug
+  name              String
+  locale            String   @default("en")
+  currency          String   @default("USD")
+  timezone          String   @default("UTC")
+  primaryLanguages  String[] @default(["en"])
+  destination       String?  // "London", "Maldives", "French Riviera", etc.
+  status            String   @default("active") // active, paused, archived
+  logoUrl           String?
+  faviconUrl        String?
+  brandColorsJson   Json?    // { primary, secondary, accent }
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  integrations      TenantIntegration[]
+  distributionAssets DistributionAsset[]
+  commerceSettings  CommerceSettings?
+
+  @@index([status])
+  @@map("tenants")
+}
+
+/// TenantIntegration — Per-tenant API integrations (Etsy, GA4, Pinterest, etc.)
+model TenantIntegration {
+  id                String   @id @default(cuid())
+  tenantId          String
+  integrationType   String   // "etsy", "ga4", "gsc", "pinterest", "email_provider", "stripe", "website_shop"
+  isEnabled         Boolean  @default(false)
+  configJson        Json?    // Integration-specific config (non-secret)
+  credentialIds     String[] // References to Credential model IDs
+  lastSyncAt        DateTime?
+  syncStatus        String   @default("not_configured") // not_configured, healthy, error, rate_limited
+  errorMessage      String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, integrationType])
+  @@index([integrationType])
+  @@map("tenant_integrations")
+}
+
+/// DistributionAsset — Owned media channels per tenant (FB groups, email lists, agent networks)
+model DistributionAsset {
+  id              String   @id @default(cuid())
+  tenantId        String
+  siteId          String
+
+  assetType       String   // "facebook_group", "email_list", "agent_network", "instagram", "pinterest", "tiktok", "youtube", "seo_traffic", "website"
+  name            String
+  url             String?
+  size            Int?     // members, subscribers, followers, monthly visitors
+  growthRate      Float?   // % per month
+  engagementRate  Float?   // %
+  notes           String?  @db.Text
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([siteId, assetType])
+  @@map("distribution_assets")
+}
+
+/// CommerceSettings — Global commerce configuration per tenant
+model CommerceSettings {
+  id                  String   @id @default(cuid())
+  tenantId            String   @unique
+
+  // Feature flags
+  etsyEnabled         Boolean  @default(false)
+  websiteShopEnabled  Boolean  @default(true)
+  pinterestEnabled    Boolean  @default(false)
+  autoPublishToEtsy   Boolean  @default(false) // Always false by default — operator approval gate
+  growthBlueprintUnlocked Boolean @default(false) // Unlocked by KPI thresholds
+
+  // Etsy shop identity
+  etsyShopName        String?
+  etsyShopUrl         String?
+  shopAboutCopy       String?  @db.Text
+  shopPoliciesJson    Json?    // { returns, shipping, customization, privacy }
+  brandVoice          String?  // "professional", "friendly", "luxury", "casual"
+
+  // Pricing defaults
+  defaultCurrency     String   @default("USD")
+  pricingBandsJson    Json?    // { tier1: { min, max }, tier2: { min, max }, tier3: { min, max } }
+
+  // Thresholds for Growth Blueprint unlock
+  minMonthlySales     Int      @default(50)   // orders
+  minMonthlyRevenue   Int      @default(100000) // cents ($1000)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  tenant              Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@map("commerce_settings")
+}
+
+/// Order — Unified order record across all channels (Etsy, website, affiliate)
+model CommerceOrder {
+  id                String   @id @default(cuid())
+  siteId            String
+
+  // Channel
+  channel           String   // "etsy", "website", "affiliate"
+  externalOrderId   String?  // Etsy order ID, Stripe payment ID, etc.
+
+  // Customer
+  customerEmail     String?
+  customerName      String?
+
+  // Financials (all in cents)
+  grossAmount       Int      // Total before fees
+  platformFees      Int      @default(0) // Etsy fees, Stripe fees
+  processingFees    Int      @default(0) // Payment processing fees
+  netAmount         Int      // grossAmount - platformFees - processingFees
+  currency          String   @default("USD")
+
+  // Product reference
+  productId         String?  // DigitalProduct ID
+  productName       String?
+  quantity          Int      @default(1)
+
+  // Attribution
+  utmSource         String?
+  utmMedium         String?
+  utmCampaign       String?
+  couponCode        String?
+  attributionTags   Json?    // { source, campaign, medium, referrer, custom tags }
+
+  // Status
+  status            String   @default("pending") // pending, completed, refunded, disputed, cancelled
+
+  orderedAt         DateTime @default(now())
+  completedAt       DateTime?
+
+  @@index([siteId, orderedAt])
+  @@index([channel, orderedAt])
+  @@index([status])
+  @@index([externalOrderId])
+  @@map("commerce_orders")
+}
+
+/// Payout — Tracks payouts from channels to bank account
+model Payout {
+  id                String   @id @default(cuid())
+  siteId            String
+
+  source            String   // "etsy", "stripe", "affiliate"
+  externalPayoutId  String?  // Etsy deposit ID, Stripe payout ID
+
+  // Amount
+  grossAmount       Int      // cents
+  fees              Int      @default(0) // any deducted fees
+  netAmount         Int      // actual received
+  currency          String   @default("USD")
+
+  // Status
+  status            String   @default("pending") // pending, in_transit, paid, failed, cancelled
+
+  // Bank info
+  payoutProfileId   String?  // Reference to PayoutProfileTemplate
+  bankLast4         String?  // Last 4 of account number
+
+  // Period
+  periodStart       DateTime?
+  periodEnd         DateTime?
+
+  scheduledAt       DateTime?
+  paidAt            DateTime?
+
+  createdAt         DateTime @default(now())
+
+  @@index([siteId, createdAt])
+  @@index([source, status])
+  @@map("payouts")
+}
+
+/// PayoutProfileTemplate — Banking/payout configuration (Mercury / Zenitha.Luxury LLC)
+model PayoutProfileTemplate {
+  id                  String   @id @default(cuid())
+  name                String   // "Mercury — Zenitha.Luxury LLC"
+  isDefault           Boolean  @default(false)
+
+  // Legal entity
+  legalEntityName     String   // "Zenitha.Luxury LLC"
+  entityType          String   @default("LLC") // LLC, Corp, Sole Proprietor
+  taxId               String?  // EIN
+  beneficiaryAddress  String   @db.Text
+
+  // Domestic ACH
+  domesticBankName    String
+  domesticRoutingAba  String
+  domesticAccountType String   @default("Checking") // Checking, Savings
+  domesticAccountNumber String
+
+  // International Wire (USD)
+  intlSwiftBic        String?
+  intlAba             String?
+  intlAccountNumber   String?
+
+  // International Wire (Non-USD via intermediary)
+  intermediaryBank    String?
+  intermediarySwift   String?
+  intermediaryAba     String?
+  beneficiaryBankAccount String?
+  wireReference       String?  @db.Text // Section 70 memo
+
+  // Bank address
+  bankAddress         String?  @db.Text
+
+  // Validation
+  isVerified          Boolean  @default(false)
+  verifiedAt          DateTime?
+  lastValidatedAt     DateTime?
+  validationIssues    Json?    // Array of { field, issue, severity }
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("payout_profile_templates")
+}
+
+/// TrendSignal — Individual trend data points from various sources
+model TrendSignal {
+  id              String   @id @default(cuid())
+  siteId          String
+  trendRunId      String?  // Optionally linked to a TrendRun
+
+  // Signal data
+  keyword         String
+  source          String   // "google_trends", "etsy_search", "pinterest", "social", "manual", "ai_discovery"
+  metric          String   // "search_volume", "trend_velocity", "competition", "ctr"
+  value           Float
+  previousValue   Float?   // For WoW comparison
+  changePercent   Float?   // Week-over-week change
+
+  // Context
+  category        String?  // Product category this signal relates to
+  seasonality     String?  // "year_round", "seasonal_peak", "seasonal_low"
+  confidence      Float    @default(0.5) // 0-1 confidence in the signal
+
+  capturedAt      DateTime @default(now())
+
+  @@index([siteId, capturedAt])
+  @@index([keyword])
+  @@index([source])
+  @@index([trendRunId])
+  @@map("trend_signals")
+}
+
+/// KeywordCluster — Grouped keywords with search intent and volume data
+model KeywordCluster {
+  id              String   @id @default(cuid())
+  siteId          String
+
+  // Cluster identity
+  name            String   // "London itinerary template" cluster name
+  primaryKeyword  String
+  secondaryKeywords String[] // Related terms
+  longTailKeywords  String[] // Long-tail variations
+
+  // Metrics
+  totalSearchVolume Int?
+  avgCompetition    Float?   // 0-1 scale
+  intent            String?  // "commercial", "informational", "transactional", "navigational"
+  buyerIntentScore  Float?   // 0-100
+
+  // Seasonality
+  seasonality       String?  // "evergreen", "winter_peak", "summer_peak", "holiday"
+  peakMonths        Int[]    // [11, 12] for Nov-Dec
+
+  // Usage
+  briefId           String?  // ProductBrief that uses this cluster
+  productType       String?  // Mapped product type
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([siteId])
+  @@index([primaryKeyword])
+  @@index([intent])
+  @@map("keyword_clusters")
+}
+
+/// CommerceTask — Ops checklist items for the commerce pipeline
+model CommerceTask {
+  id              String   @id @default(cuid())
+  siteId          String
+
+  // Task details
+  title           String
+  description     String?  @db.Text
+  category        String   // "design", "listing", "marketing", "production", "review", "publish", "research"
+  priority        String   @default("medium") // low, medium, high, urgent
+
+  // Ownership
+  assignedTo      String?  // User email or "system"
+  dueDate         DateTime?
+
+  // Context
+  briefId         String?
+  campaignId      String?
+  productId       String?
+  listingDraftId  String?
+
+  // Status
+  status          String   @default("pending") // pending, in_progress, completed, blocked, cancelled
+  completedAt     DateTime?
+  blockedReason   String?
+
+  // Dependencies
+  dependsOn       String[] // Array of CommerceTask IDs
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([siteId, status])
+  @@index([category])
+  @@index([priority, status])
+  @@index([briefId])
+  @@index([campaignId])
+  @@map("commerce_tasks")
 }

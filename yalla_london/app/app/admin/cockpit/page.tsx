@@ -955,6 +955,14 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
       <Card>
         <SectionTitle>Quick Actions</SectionTitle>
         <div className="grid grid-cols-2 gap-2">
+          <ActionButton
+            onClick={() => triggerAction("/api/admin/launch-sequence", {}, "Launch")}
+            loading={actionLoading === "Launch"}
+            variant="success"
+            className="col-span-2 py-3 text-sm font-bold"
+          >
+            {actionLoading === "Launch" ? "Publishing all ready articles..." : "🚀 LAUNCH — Publish Everything Ready"}
+          </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/cron/weekly-topics", {}, "Topics")} loading={actionLoading === "Topics"}>
             🔬 Generate Topics
           </ActionButton>
@@ -962,7 +970,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
             ✍️ Build Content
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/admin/force-publish", { locale: "both", count: 2 }, "Publish")} loading={actionLoading === "Publish"} variant="success">
-            📤 Force Publish
+            📤 Force Publish (2)
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/cron/seo-agent", {}, "SEO")} loading={actionLoading === "SEO"}>
             🔍 Submit to Google

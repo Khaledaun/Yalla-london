@@ -52,7 +52,11 @@ export async function runContentSelector(
       return { success: true, message: "No active sites", durationMs: Date.now() - cronStart };
     }
 
-    // Find reservoir articles with sufficient quality
+    // Find reservoir articles with sufficient quality.
+    // Exclude articles that have failed enhancement 3+ times — they need manual review,
+    // not another timeout loop. This prevents the same broken articles from eating the
+    // budget every single cron run.
+    const MAX_ENHANCEMENT_ATTEMPTS = 3;
     let candidates: Array<Record<string, unknown>> = [];
     try {
       candidates = await prisma.articleDraft.findMany({
@@ -60,6 +64,7 @@ export async function runContentSelector(
           site_id: { in: activeSites },
           current_phase: "reservoir",
           quality_score: { gte: MIN_QUALITY_SCORE },
+          phase_attempts: { lt: MAX_ENHANCEMENT_ATTEMPTS },
         },
         orderBy: [
           { quality_score: "desc" },
@@ -154,9 +159,27 @@ export async function runContentSelector(
           }
         } else {
           console.log(`[content-selector] Enhanced draft ${candidate.id}: score ${enhResult.previousScore}→${enhResult.newScore || "?"} — needs another pass, saved to DB`);
+          // Count this as an attempt so we don't retry forever
+          await prisma.articleDraft.update({
+            where: { id: candidate.id as string },
+            data: {
+              phase_attempts: ((candidate.phase_attempts as number) || 0) + 1,
+              updated_at: new Date(),
+            },
+          }).catch(dbErr => console.warn("[content-selector] Failed to update attempt count:", dbErr instanceof Error ? dbErr.message : dbErr));
         }
       } catch (enhErr) {
-        console.warn(`[content-selector] Enhancement failed for draft ${candidate.id}:`, enhErr instanceof Error ? enhErr.message : enhErr);
+        const enhErrMsg = enhErr instanceof Error ? enhErr.message : String(enhErr);
+        console.warn(`[content-selector] Enhancement failed for draft ${candidate.id}: ${enhErrMsg}`);
+        // Track failed attempt so articles don't get stuck in an infinite retry loop
+        await prisma.articleDraft.update({
+          where: { id: candidate.id as string },
+          data: {
+            phase_attempts: ((candidate.phase_attempts as number) || 0) + 1,
+            last_error: `Enhancement attempt ${((candidate.phase_attempts as number) || 0) + 1}/${MAX_ENHANCEMENT_ATTEMPTS} failed: ${enhErrMsg}`,
+            updated_at: new Date(),
+          },
+        }).catch(dbErr => console.warn("[content-selector] Failed to update enhancement attempt:", dbErr instanceof Error ? dbErr.message : dbErr));
       }
     }
 

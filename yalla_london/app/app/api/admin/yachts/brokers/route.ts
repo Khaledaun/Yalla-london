@@ -7,14 +7,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/admin-middleware'
+import { withAdminOrCronAuth } from '@/lib/admin-middleware'
 import { getDefaultSiteId } from '@/config/sites'
 
 export const dynamic = 'force-dynamic'
 
 // ─── GET: List broker partners ───────────────────────────
 
-export const GET = withAdminAuth(async (request: NextRequest) => {
+export const GET = withAdminOrCronAuth(async (request: NextRequest) => {
   try {
     const { prisma } = await import('@/lib/db')
     const url = request.nextUrl
@@ -80,7 +80,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
 // ─── POST: Add broker partner ────────────────────────────
 
-export const POST = withAdminAuth(async (request: NextRequest) => {
+export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
   try {
     const { prisma } = await import('@/lib/db')
     const body = await request.json()
@@ -140,7 +140,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
 // ─── PUT: Update broker partner ──────────────────────────
 
-export const PUT = withAdminAuth(async (request: NextRequest) => {
+export const PUT = withAdminOrCronAuth(async (request: NextRequest) => {
   try {
     const { prisma } = await import('@/lib/db')
     const body = await request.json()
@@ -223,7 +223,7 @@ export const PUT = withAdminAuth(async (request: NextRequest) => {
 
 // ─── DELETE: Soft-delete broker ──────────────────────────
 
-export const DELETE = withAdminAuth(async (request: NextRequest) => {
+export const DELETE = withAdminOrCronAuth(async (request: NextRequest) => {
   try {
     const { prisma } = await import('@/lib/db')
     const url = request.nextUrl

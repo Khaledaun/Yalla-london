@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { requireAdmin } from '@/lib/admin-middleware';
+import { requireAdminOrCron } from '@/lib/admin-middleware';
 import { getDefaultSiteId } from '@/config/sites';
 
 // H-007 fix: count words from DB-side text length estimate instead of fetching full content
@@ -63,7 +63,7 @@ async function getAffiliateAssignments(postIds: string[], siteId: string): Promi
 }
 
 export async function GET(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   try {
@@ -287,7 +287,7 @@ export async function GET(request: NextRequest) {
 
 // DELETE: Delete a blog post or article draft (admin only)
 export async function DELETE(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   try {

@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { requireAdmin } from '@/lib/admin-middleware';
+import { requireAdminOrCron } from '@/lib/admin-middleware';
 
 // Vercel cron schedule → human-readable + UTC next-run calculation
 //
@@ -223,7 +223,7 @@ function getHealthFromLogs(logs: Array<{ status: string; timedOut: boolean }>): 
 }
 
 export async function GET(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   const { searchParams } = new URL(request.url);
@@ -313,7 +313,7 @@ export async function GET(request: NextRequest) {
 
 // POST: Trigger a cron job manually
 export async function POST(request: NextRequest) {
-  const authError = await requireAdmin(request);
+  const authError = await requireAdminOrCron(request);
   if (authError) return authError;
 
   try {

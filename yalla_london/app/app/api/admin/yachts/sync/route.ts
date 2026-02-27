@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/admin-middleware'
+import { withAdminOrCronAuth } from '@/lib/admin-middleware'
 import { getDefaultSiteId } from '@/config/sites'
 
 export const dynamic = 'force-dynamic'
@@ -12,7 +12,7 @@ export const maxDuration = 60
 
 // ─── POST: Trigger sync ─────────────────────────────────
 
-export const POST = withAdminAuth(async (request: NextRequest) => {
+export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
   try {
     const { prisma } = await import('@/lib/db')
     const body = await request.json()

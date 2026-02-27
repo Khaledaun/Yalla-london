@@ -13,7 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/admin-middleware'
+import { withAdminOrCronAuth } from '@/lib/admin-middleware'
 import { getDefaultSiteId } from '@/config/sites'
 
 export const dynamic = 'force-dynamic'
@@ -25,7 +25,7 @@ function settled<T>(result: PromiseSettledResult<T>, fallback: T): T {
   return fallback
 }
 
-export const GET = withAdminAuth(async (request: NextRequest) => {
+export const GET = withAdminOrCronAuth(async (request: NextRequest) => {
   try {
     const { prisma } = await import('@/lib/db')
     const url = request.nextUrl

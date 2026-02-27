@@ -478,4 +478,220 @@ Run `npx prisma migrate deploy` — the commerce models (`EtsyShopConfig`, `Etsy
 
 ---
 
+## 10. What Still Needs Configuration and Development — Who Does What
+
+This section lists **every remaining task** to get from where we are now to a fully functioning revenue-generating platform. Each item is assigned to either:
+
+- **Khaled** = You do it (from your phone/browser, no code)
+- **Claude** = I build it (code changes, pushed to repo)
+- **Both** = Khaled provides info/credentials, Claude wires it up
+
+---
+
+### PHASE 1: Etsy Launch (Revenue-Blocking)
+
+These must be done before you can sell a single product on Etsy.
+
+| # | Task | Who | What Exactly | Time | Status |
+|---|------|-----|-------------|------|--------|
+| 1.1 | **Create Etsy Developer App** | **Khaled** | Go to etsy.com/developers → Create new app → Get API Key (keystring) and Shared Secret. Write them down. | 10 min | NOT DONE |
+| 1.2 | **Set Etsy env vars in Vercel** | **Khaled** | Vercel dashboard → Settings → Environment Variables → Add: `ETSY_API_KEY`, `ETSY_SHARED_SECRET`, `ETSY_SHOP_ID` (your shop name or numeric ID), `ETSY_REDIRECT_URI` (your domain + `/api/auth/etsy/callback`) | 5 min | NOT DONE |
+| 1.3 | **Build Etsy OAuth callback route** | **Claude** | Create `/api/auth/etsy/callback` route that exchanges the OAuth code for tokens and stores them encrypted in DB. The `etsy-api.ts` functions exist but the actual Next.js callback route may be missing. | 30 min | NOT VERIFIED |
+| 1.4 | **Connect Etsy shop from dashboard** | **Khaled** | After 1.1-1.3 are done: Dashboard → Settings or Cockpit → Etsy → "Connect Shop" button → Authorize on Etsy → Redirects back. One-time. | 2 min | BLOCKED by 1.1-1.3 |
+| 1.5 | **Run Prisma migration on production** | **Khaled** | In Vercel, trigger a deploy. Or if migrations aren't auto-applied: Vercel → Functions → run `npx prisma migrate deploy`. Alternatively, Claude can add a DB migration API route you can trigger from dashboard. | 5 min | NOT DONE |
+| 1.6 | **Wire purchase confirmation email** | **Claude** | In `etsy-sync/route.ts`, after a new Purchase is created, call `sendEmail()` with a branded "Thank you for your purchase" template including product name, download link, and cross-sell suggestions. | 1 session | NOT DONE |
+| 1.7 | **Wire inquiry confirmation email** | **Claude** | In `/api/inquiry/route.ts`, after CharterInquiry is saved, call `sendEmail()` with branded confirmation including reference number, expected response time, and WhatsApp link. | 1 session | NOT DONE |
+| 1.8 | **Set up email provider** | **Khaled** | Pick one: (a) Resend.com — sign up, get API key, add to Vercel as `RESEND_API_KEY`. (b) SendGrid — sign up, get API key, add as `SENDGRID_API_KEY`. Resend is easier. | 10 min | NOT DONE |
+| 1.9 | **Test PDF generation on Vercel** | **Claude** | Deploy, trigger a test PDF generation via dashboard, verify Chromium binary loads on Vercel serverless. If it fails, switch to a lighter PDF library (jsPDF or react-pdf). | 1 session | NOT DONE |
+| 1.10 | **Create product mockup images** | **Both** | Option A (fast): Khaled creates 5-10 mockup images in Canva or ChatGPT/DALL-E using the prompts the system generates, uploads to Media Library. Option B (automated): Claude wires DALL-E API (`OPENAI_API_KEY` needed from Khaled) to auto-generate from existing prompts. | 30 min – 1 session | NOT DONE |
+
+---
+
+### PHASE 2: Email Automation (Conversion-Critical)
+
+Currently 0 automated emails fire. These wire up the existing email infrastructure.
+
+| # | Task | Who | What Exactly | Time | Status |
+|---|------|-----|-------------|------|--------|
+| 2.1 | **Welcome email for new subscribers** | **Claude** | In `/api/crm/subscribe` (or contact form newsletter opt-in), after saving Subscriber, call `sendEmail()` with welcome template. | 30 min | NOT DONE |
+| 2.2 | **Article published → subscriber digest** | **Claude** | Create a new cron (weekly, Monday 8am) that queries published BlogPosts from last 7 days, queries active Subscribers, sends digest email with article links. | 1 session | NOT DONE |
+| 2.3 | **Double opt-in confirmation** | **Claude** | After subscriber signup, send confirmation email with unique token link. On click, mark subscriber as CONFIRMED. Required for GDPR compliance. | 1 session | NOT DONE |
+| 2.4 | **Unsubscribe link in all emails** | **Claude** | Add unsubscribe footer to email renderer with unique unsubscribe URL per subscriber. Create `/api/unsubscribe/[token]` route. | 30 min | NOT DONE |
+| 2.5 | **Verify email provider sends correctly** | **Khaled** | After 1.8, go to Dashboard → Cockpit → Email Center → "Send Test Email" → Verify you receive it in your inbox. | 2 min | BLOCKED by 1.8 |
+
+---
+
+### PHASE 3: New Website Activation (For Each New Site)
+
+Repeat this checklist for every new site (Arabaldives, Yalla Riviera, etc.).
+
+| # | Task | Who | What Exactly | Time | Status |
+|---|------|-----|-------------|------|--------|
+| 3.1 | **Buy/point domain** | **Khaled** | Buy domain (e.g., arabaldives.com) if not owned. Point DNS to Vercel (CNAME or A record). | 15 min | Per site |
+| 3.2 | **Add domain in Vercel** | **Khaled** | Vercel dashboard → Project → Domains → Add `arabaldives.com` + `www.arabaldives.com`. | 5 min | Per site |
+| 3.3 | **Activate site in config** | **Claude** | Change `status: "planned"` to `status: "active"` in `config/sites.ts`. Deploy. All crons will auto-start for that site. | 5 min | Per site |
+| 3.4 | **Set per-site env vars** | **Khaled** | In Vercel, add: `GA4_MEASUREMENT_ID_{SITE_SLUG}`, `GA4_PROPERTY_ID_{SITE_SLUG}`, `GSC_SITE_URL_{SITE_SLUG}`, `GOOGLE_SITE_VERIFICATION_{SITE_SLUG}` (if using Google Analytics/Search Console). | 10 min | Per site |
+| 3.5 | **Upload site logo and OG image** | **Khaled** | Create logo (or ask Claude to generate SVG). Upload to `public/branding/{site-slug}/`. Upload OG image as `public/images/{site-slug}-og.jpg` (1200x630px). | 15 min | Per site |
+| 3.6 | **Verify content generation** | **Khaled** | After 3.3 deploys, wait 24h. Check Dashboard → Cockpit → Sites tab → new site should show topic count and draft count. | Next day | Per site |
+| 3.7 | **Set up Google Search Console** | **Khaled** | Go to search.google.com/search-console → Add property → Verify domain ownership → Submit sitemap (`{domain}/sitemap.xml`). | 15 min | Per site |
+| 3.8 | **Create branding assets for new site** | **Both** | Khaled provides brand direction/preferences. Claude generates SVG logos, CSS tokens are already in `destination-themes.ts` for all 5 sites. | 1 session | Per site |
+
+---
+
+### PHASE 4: Customer Support Setup
+
+| # | Task | Who | What Exactly | Time | Status |
+|---|------|-----|-------------|------|--------|
+| 4.1 | **Install live chat widget** | **Khaled** | Sign up at crisp.chat (free plan) or tawk.to (free). Copy the script tag. | 5 min | NOT DONE |
+| 4.2 | **Add chat widget to site** | **Claude** | Add the chat script to `app/layout.tsx` (conditional per-site if needed). | 10 min | BLOCKED by 4.1 |
+| 4.3 | **Save contact form submissions to DB** | **Claude** | Currently contact form only emails/webhooks. Add `prisma.supportTicket.create()` so submissions are trackable in admin dashboard. Requires adding `SupportTicket` Prisma model. | 1 session | NOT DONE |
+| 4.4 | **Build support ticket admin view** | **Claude** | Admin page to view/reply/close support tickets. Similar to the yacht inquiry CRM but for general support. | 1 session | NOT DONE |
+
+---
+
+### PHASE 5: Image Generation (Unlocks Visual Products)
+
+| # | Task | Who | What Exactly | Time | Status |
+|---|------|-----|-------------|------|--------|
+| 5.1 | **Get OpenAI API key** | **Khaled** | Sign up at platform.openai.com → API Keys → Create key. Add to Vercel as `OPENAI_API_KEY`. DALL-E 3 costs ~$0.04-0.08 per image. | 10 min | NOT DONE |
+| 5.2 | **Wire DALL-E image generation** | **Claude** | Connect the existing mockup prompt system (`image-generator.ts`) to OpenAI's DALL-E 3 API. The prompts are already generated — just need to send them and save the result. | 1 session | NOT DONE |
+| 5.3 | **Create stock fallback images** | **Both** | For the 9 product types × 3 tiers = 27 placeholder images. Khaled can generate in ChatGPT/DALL-E, or Claude wires auto-generation after 5.2. | 1-2 hours | NOT DONE |
+| 5.4 | **Wire design studio AI generation** | **Claude** | The Design Studio page has an "AI Generate" button that currently returns 501. Wire it to DALL-E after 5.2 is done. | 30 min | BLOCKED by 5.2 |
+
+---
+
+### PHASE 6: Analytics & Tracking (Visibility)
+
+| # | Task | Who | What Exactly | Time | Status |
+|---|------|-----|-------------|------|--------|
+| 6.1 | **Set up Google Analytics 4** | **Khaled** | Create GA4 property at analytics.google.com. Get Measurement ID (G-XXXXXXXXXX). Add to Vercel as `GA4_MEASUREMENT_ID`. | 15 min | NOT DONE |
+| 6.2 | **Wire GA4 Data API to dashboard** | **Claude** | Dashboard currently shows 0 for traffic metrics. Need to connect Google Analytics Data API to pull real sessions, pageviews, bounce rate into the dashboard. | 1 session | NOT DONE |
+| 6.3 | **Set up Google Search Console** | **Khaled** | Already covered in 3.7 for new sites. For Yalla London: search.google.com/search-console → verify ownership → submit sitemap. | 15 min | NOT DONE (for production) |
+| 6.4 | **Wire GSC data to dashboard** | **Claude** | Dashboard indexing tab reads from GSC. Need `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` env vars. Claude already built the API routes — just needs credentials. | 30 min | BLOCKED by 6.3 |
+| 6.5 | **Set up affiliate tracking** | **Khaled** | Sign up for affiliate programs: HalalBooking, Booking.com Partner Centre, GetYourGuide Affiliate, Viator Partner. Get tracking IDs. Share with Claude. | 1-2 hours | NOT DONE |
+| 6.6 | **Add affiliate tracking IDs to config** | **Claude** | Replace placeholder affiliate URLs in `config/sites.ts` and `affiliate-injection` cron with real tracking IDs from Khaled. | 30 min | BLOCKED by 6.5 |
+
+---
+
+### PHASE 7: Production Hardening
+
+| # | Task | Who | What Exactly | Time | Status |
+|---|------|-----|-------------|------|--------|
+| 7.1 | **Set `CRON_SECRET` in Vercel** | **Khaled** | Generate a random string (e.g., use a password generator, 32+ chars). Add to Vercel as `CRON_SECRET`. This prevents outsiders from triggering your cron jobs. | 5 min | NOT DONE |
+| 7.2 | **Set `ENCRYPTION_KEY` in Vercel** | **Khaled** | Generate a 32-byte hex string. Add as `ENCRYPTION_KEY`. Used to encrypt Etsy OAuth tokens in DB. | 5 min | NOT DONE |
+| 7.3 | **Set `NEXTAUTH_SECRET` in Vercel** | **Khaled** | Generate a random string (32+ chars). Add as `NEXTAUTH_SECRET`. Used for session security. | 5 min | NOT DONE |
+| 7.4 | **Admin login rate limiting** | **Claude** | Add rate limiting to `/api/auth/login` — currently no protection against brute force. | 30 min | NOT DONE |
+| 7.5 | **Error alerting** | **Claude** | When a cron job fails, send a push notification or email to Khaled instead of just logging to CronJobLog. Wire to email or Slack webhook. | 1 session | NOT DONE |
+| 7.6 | **Set up Slack/Discord webhook** | **Khaled** | Create a Slack workspace or Discord server. Create an incoming webhook URL. Add to Vercel as `SLACK_WEBHOOK_URL` or `DISCORD_WEBHOOK_URL`. Used for: contact form alerts, cron failure alerts, new order alerts. | 15 min | NOT DONE |
+
+---
+
+### PHASE 8: Growth & Optimization (Post-Launch)
+
+| # | Task | Who | What Exactly | Time | Status |
+|---|------|-----|-------------|------|--------|
+| 8.1 | **Etsy listing renewal alerts** | **Claude** | Etsy listings expire after 4 months ($0.20/renewal). Build alert when listings approach expiry (from `etsy-sync` cron data). | 30 min | NOT DONE |
+| 8.2 | **Bulk listing upload** | **Claude** | Batch create + publish multiple products at once instead of one-by-one. | 1 session | NOT DONE |
+| 8.3 | **Revenue dashboard** | **Claude** | Unified view: Etsy sales (from Purchase table) + affiliate earnings (needs affiliate API integration) + traffic metrics (from GA4). | 1-2 sessions | NOT DONE |
+| 8.4 | **Pinterest auto-posting** | **Claude** | `lib/commerce/pinterest-client.ts` exists but not wired. Needs Pinterest API key from Khaled. Auto-pin product images to drive Etsy traffic. | 1 session | NOT DONE |
+| 8.5 | **Social media auto-posting** | **Claude** | `social` cron exists but is scaffolded. Build: article published → auto-create social post for Twitter/Instagram/LinkedIn. | 1-2 sessions | NOT DONE |
+| 8.6 | **A/B test listing titles** | **Claude** | Use Etsy API to rotate titles and track which gets more views/favorites. | 1 session | NOT DONE |
+| 8.7 | **Arabic content for Arabaldives** | **Claude** | Content pipeline supports Arabic but Arabaldives needs RTL-first templates, Arabic system prompts (already in config), and Arabic affiliate links. | 1-2 sessions | BLOCKED by 3.1-3.3 |
+| 8.8 | **Move site activation to dashboard** | **Claude** | Currently requires code change. Move site status from `config/sites.ts` to DB `Site` table so Khaled can activate/deactivate from Cockpit. | 1 session | NOT DONE |
+
+---
+
+### Master Checklist — At a Glance
+
+**Total items: 42**
+
+| Phase | Items | Khaled | Claude | Both | Status |
+|-------|-------|--------|--------|------|--------|
+| 1. Etsy Launch | 10 | 5 | 4 | 1 | 0/10 done |
+| 2. Email Automation | 5 | 1 | 4 | 0 | 0/5 done |
+| 3. New Website (per site) | 8 | 5 | 2 | 1 | 0/8 done |
+| 4. Customer Support | 4 | 1 | 3 | 0 | 0/4 done |
+| 5. Image Generation | 4 | 1 | 3 | 0 | 0/4 done |
+| 6. Analytics & Tracking | 6 | 3 | 2 | 1 | 0/6 done |
+| 7. Production Hardening | 6 | 4 | 2 | 0 | 0/6 done |
+| 8. Growth (post-launch) | 8 | 0 | 8 | 0 | 0/8 done |
+| **TOTAL** | **51** | **20** | **28** | **3** | **0/51** |
+
+### What Khaled Needs to Do (20 items — all from phone/browser)
+
+Most of these are "sign up for service → copy API key → paste in Vercel." No terminal, no code.
+
+1. Create Etsy Developer App → get API key + secret
+2. Set Etsy env vars in Vercel (4 values)
+3. Set email provider env var (1 value — Resend recommended)
+4. Connect Etsy shop from dashboard (1-tap after setup)
+5. Trigger Vercel deploy for DB migration
+6. Verify test email sends
+7. Buy/point domains for new sites
+8. Add domains in Vercel
+9. Set per-site GA4/GSC env vars
+10. Upload site logos and OG images
+11. Verify content generation for new sites
+12. Set up Google Search Console per site
+13. Install live chat widget (Crisp/Tawk.to)
+14. Get OpenAI API key for image generation
+15. Set up Google Analytics 4
+16. Sign up for affiliate programs + get tracking IDs
+17. Set `CRON_SECRET` in Vercel
+18. Set `ENCRYPTION_KEY` in Vercel
+19. Set `NEXTAUTH_SECRET` in Vercel
+20. Set up Slack/Discord webhook for alerts
+
+### What Claude Builds (28 items — code changes)
+
+1. Verify/build Etsy OAuth callback route
+2. Wire purchase confirmation email
+3. Wire inquiry confirmation email
+4. Test PDF generation on Vercel
+5. Wire welcome email for subscribers
+6. Build weekly subscriber digest cron
+7. Build double opt-in email flow
+8. Add unsubscribe link to all emails
+9. Activate new sites in config (per site)
+10. Create branding assets for new sites (per site)
+11. Add chat widget script to layout
+12. Save contact form submissions to DB
+13. Build support ticket admin view
+14. Wire DALL-E image generation
+15. Create stock fallback images
+16. Wire design studio AI generation
+17. Wire GA4 Data API to dashboard
+18. Wire GSC data to dashboard
+19. Add real affiliate tracking IDs to config
+20. Add admin login rate limiting
+21. Build error alerting (cron failures → email/Slack)
+22. Build Etsy listing renewal alerts
+23. Build bulk listing upload
+24. Build revenue dashboard
+25. Wire Pinterest auto-posting
+26. Build social media auto-posting
+27. Build A/B listing title testing
+28. Move site activation to dashboard (from code to DB)
+
+### Recommended Launch Order
+
+**Week 1 — Get to first Etsy sale:**
+- Khaled: Items 1, 2, 3, 8 (Etsy app + email provider + env vars)
+- Claude: Items 1.3, 1.6, 1.7, 1.9 (OAuth route + emails + PDF test)
+- Test: Create first product via Quick Create → Review → Publish to Etsy
+
+**Week 2 — Email + support:**
+- Khaled: Items 5, 13, 16 (deploy + chat widget + Slack)
+- Claude: Items 2.1-2.4, 4.2-4.4 (all email automation + support tickets)
+
+**Week 3 — Analytics + images:**
+- Khaled: Items 14, 15 (OpenAI key + GA4)
+- Claude: Items 5.2, 5.4, 6.2, 6.4 (DALL-E + analytics dashboard)
+
+**Week 4+ — New sites + growth:**
+- Khaled: Domain + Vercel setup per site
+- Claude: Activate sites + branding + growth features
+
+---
+
 *This audit was conducted by reading every relevant source file, tracing data flows end-to-end, and verifying function signatures against Prisma schema. No code was changed during this audit.*

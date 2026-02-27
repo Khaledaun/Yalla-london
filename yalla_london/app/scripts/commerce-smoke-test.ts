@@ -1448,6 +1448,226 @@ test(STRUCTURAL_CATEGORY, "UTM engine coupon code uses crypto.getRandomValues (n
 });
 
 // =============================================================================
+// 11. Extended Models (V2 schema additions)
+// =============================================================================
+
+test("Extended Models", "Prisma schema has Tenant model", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const has = schema.includes("model Tenant {");
+  return { pass: has, detail: has ? "Found" : "Missing model Tenant" };
+});
+
+test("Extended Models", "Prisma schema has TenantIntegration model", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const has = schema.includes("model TenantIntegration {");
+  return { pass: has, detail: has ? "Found" : "Missing model TenantIntegration" };
+});
+
+test("Extended Models", "Prisma schema has DistributionAsset model", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const has = schema.includes("model DistributionAsset {");
+  return { pass: has, detail: has ? "Found" : "Missing model DistributionAsset" };
+});
+
+test("Extended Models", "Prisma schema has CommerceSettings model", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const has = schema.includes("model CommerceSettings {");
+  return { pass: has, detail: has ? "Found" : "Missing model CommerceSettings" };
+});
+
+test("Extended Models", "Prisma schema has CommerceOrder model", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const has = schema.includes("model CommerceOrder {");
+  return { pass: has, detail: has ? "Found" : "Missing model CommerceOrder" };
+});
+
+test("Extended Models", "Prisma schema has Payout model", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const has = schema.includes("model Payout {");
+  return { pass: has, detail: has ? "Found" : "Missing model Payout" };
+});
+
+test("Extended Models", "Prisma schema has PayoutProfileTemplate model", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const has = schema.includes("model PayoutProfileTemplate {");
+  return { pass: has, detail: has ? "Found" : "Missing model PayoutProfileTemplate" };
+});
+
+test("Extended Models", "Prisma schema has TrendSignal model", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const has = schema.includes("model TrendSignal {");
+  return { pass: has, detail: has ? "Found" : "Missing model TrendSignal" };
+});
+
+test("Extended Models", "Prisma schema has KeywordCluster model", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const has = schema.includes("model KeywordCluster {");
+  return { pass: has, detail: has ? "Found" : "Missing model KeywordCluster" };
+});
+
+test("Extended Models", "Prisma schema has CommerceTask model", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const has = schema.includes("model CommerceTask {");
+  return { pass: has, detail: has ? "Found" : "Missing model CommerceTask" };
+});
+
+test("Extended Models", "Purchase model has gross/net fee breakdown", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const hasGross = schema.includes("gross_amount");
+  const hasNet = schema.includes("net_amount");
+  const hasFees = schema.includes("platform_fees");
+  return { pass: hasGross && hasNet && hasFees, detail: `gross:${hasGross} net:${hasNet} fees:${hasFees}` };
+});
+
+test("Extended Models", "DigitalProduct has sku and version", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const hasSku = schema.includes("sku") && schema.includes("@unique");
+  const hasVersion = schema.includes("version") && schema.includes("@default(1)");
+  return { pass: hasSku && hasVersion, detail: `sku:${hasSku} version:${hasVersion}` };
+});
+
+test("Extended Models", "EtsyListingDraft has titleVariants and descriptionBlocks", () => {
+  const schema = readFile("prisma/schema.prisma");
+  const hasTitleVar = schema.includes("titleVariants");
+  const hasDescBlocks = schema.includes("descriptionBlocks");
+  return { pass: hasTitleVar && hasDescBlocks, detail: `titleVariants:${hasTitleVar} descBlocks:${hasDescBlocks}` };
+});
+
+// =============================================================================
+// 12. New API Routes
+// =============================================================================
+
+test("New API Routes", "global-rollup route exists", () => {
+  const exists = fileExists("app/api/admin/commerce/global-rollup/route.ts");
+  return { pass: exists, detail: exists ? "Found" : "Missing" };
+});
+
+test("New API Routes", "global-rollup uses requireAdmin", () => {
+  const src = readFile("app/api/admin/commerce/global-rollup/route.ts");
+  const hasAuth = src.includes("requireAdmin");
+  return { pass: hasAuth, detail: hasAuth ? "Protected" : "UNPROTECTED" };
+});
+
+test("New API Routes", "tasks route exists", () => {
+  const exists = fileExists("app/api/admin/commerce/tasks/route.ts");
+  return { pass: exists, detail: exists ? "Found" : "Missing" };
+});
+
+test("New API Routes", "tasks route uses requireAdmin", () => {
+  const src = readFile("app/api/admin/commerce/tasks/route.ts");
+  const hasAuth = src.includes("requireAdmin");
+  return { pass: hasAuth, detail: hasAuth ? "Protected" : "UNPROTECTED" };
+});
+
+test("New API Routes", "orders route exists", () => {
+  const exists = fileExists("app/api/admin/commerce/orders/route.ts");
+  return { pass: exists, detail: exists ? "Found" : "Missing" };
+});
+
+test("New API Routes", "orders route uses requireAdmin", () => {
+  const src = readFile("app/api/admin/commerce/orders/route.ts");
+  const hasAuth = src.includes("requireAdmin");
+  return { pass: hasAuth, detail: hasAuth ? "Protected" : "UNPROTECTED" };
+});
+
+test("New API Routes", "payouts route exists", () => {
+  const exists = fileExists("app/api/admin/commerce/payouts/route.ts");
+  return { pass: exists, detail: exists ? "Found" : "Missing" };
+});
+
+test("New API Routes", "payouts route uses requireAdmin", () => {
+  const src = readFile("app/api/admin/commerce/payouts/route.ts");
+  const hasAuth = src.includes("requireAdmin");
+  return { pass: hasAuth, detail: hasAuth ? "Protected" : "UNPROTECTED" };
+});
+
+// =============================================================================
+// 13. Sidebar Navigation
+// =============================================================================
+
+test("Sidebar Navigation", "Sidebar has all 7 Etsy Hybrid Engine modules", () => {
+  const src = readFile("components/admin/mophy/mophy-admin-layout.tsx");
+  const hasNiche = src.includes("Niche Goldmine");
+  const hasIdeation = src.includes("Ideation & Validation");
+  const hasBranding = src.includes("Branding & Identity");
+  const hasDesign = src.includes("Design Assistant");
+  const hasEtsy = src.includes("Etsy SEO");
+  const hasMarketing = src.includes("Marketing Machine");
+  const hasGrowth = src.includes("Growth Blueprint");
+  const allPresent = hasNiche && hasIdeation && hasBranding && hasDesign && hasEtsy && hasMarketing && hasGrowth;
+  return { pass: allPresent, detail: `niche:${hasNiche} ideation:${hasIdeation} branding:${hasBranding} design:${hasDesign} etsy:${hasEtsy} marketing:${hasMarketing} growth:${hasGrowth}` };
+});
+
+test("Sidebar Navigation", "Sidebar has TrendRun Engine link", () => {
+  const src = readFile("components/admin/mophy/mophy-admin-layout.tsx");
+  const has = src.includes("TrendRun Engine");
+  return { pass: has, detail: has ? "Found" : "Missing" };
+});
+
+test("Sidebar Navigation", "Sidebar has Sales & Payouts link", () => {
+  const src = readFile("components/admin/mophy/mophy-admin-layout.tsx");
+  const has = src.includes("Sales & Payouts");
+  return { pass: has, detail: has ? "Found" : "Missing" };
+});
+
+test("Sidebar Navigation", "Sidebar has Assets & Links link", () => {
+  const src = readFile("components/admin/mophy/mophy-admin-layout.tsx");
+  const has = src.includes("Assets & Links");
+  return { pass: has, detail: has ? "Found" : "Missing" };
+});
+
+test("Sidebar Navigation", "Sidebar has Settings link under commerce", () => {
+  const src = readFile("components/admin/mophy/mophy-admin-layout.tsx");
+  const has = src.includes("tab=settings");
+  return { pass: has, detail: has ? "Found" : "Missing" };
+});
+
+// =============================================================================
+// 14. Cockpit Tabs
+// =============================================================================
+
+test("Cockpit Tabs", "Commerce page has all 12 tabs", () => {
+  const src = readFile("app/admin/cockpit/commerce/page.tsx");
+  const tabs = ["overview", "trends", "briefs", "products", "etsy", "campaigns", "branding", "design", "growth", "trendrun", "assets", "settings"];
+  const missing = tabs.filter((t) => !src.includes(`"${t}"`));
+  return { pass: missing.length === 0, detail: missing.length === 0 ? "All 12 tabs present" : `Missing: ${missing.join(", ")}` };
+});
+
+test("Cockpit Tabs", "Commerce page reads tab from URL query params", () => {
+  const src = readFile("app/admin/cockpit/commerce/page.tsx");
+  const hasSearchParams = src.includes("useSearchParams");
+  return { pass: hasSearchParams, detail: hasSearchParams ? "URL tab sync works" : "Missing useSearchParams" };
+});
+
+test("Cockpit Tabs", "Payout onboarding checklist exists in Settings tab", () => {
+  const src = readFile("app/admin/cockpit/commerce/page.tsx");
+  const has = src.includes("Onboarding Checklist") && src.includes("091311229") && src.includes("Zenitha.Luxury");
+  return { pass: has, detail: has ? "Mercury payout validation present" : "Missing payout checklist" };
+});
+
+test("Cockpit Tabs", "Growth Blueprint has lock/unlock logic", () => {
+  const src = readFile("app/admin/cockpit/commerce/page.tsx");
+  const hasLock = src.includes("Growth Blueprint Locked") && src.includes("Growth Blueprint Unlocked");
+  return { pass: hasLock, detail: hasLock ? "Lock/unlock states present" : "Missing lock logic" };
+});
+
+// =============================================================================
+// 15. Documentation
+// =============================================================================
+
+test("Documentation", "docs/hybrid-engine.md exists", () => {
+  const exists = fileExists("docs/hybrid-engine.md");
+  return { pass: exists, detail: exists ? "Found" : "Missing — required by spec" };
+});
+
+test("Documentation", "Test suite has unit tests", () => {
+  const exists = fileExists("test/commerce/scoring.spec.ts") &&
+    fileExists("test/commerce/utm-builder.spec.ts") &&
+    fileExists("test/commerce/etsy-adapter.spec.ts");
+  return { pass: exists, detail: exists ? "All test files found" : "Missing test files" };
+});
+
+// =============================================================================
 // Report
 // =============================================================================
 

@@ -12,6 +12,36 @@ type FixHandler = (payload: Record<string, unknown>) => Promise<{
   details?: Record<string, unknown>;
 }>;
 
+// Helper: build base URL and auth headers for internal cron calls
+function getCronFetchConfig(): { baseUrl: string; headers: Record<string, string> } {
+  const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  // Cron endpoints check Authorization: Bearer header, NOT x-cron-secret
+  if (process.env.CRON_SECRET) headers["Authorization"] = `Bearer ${process.env.CRON_SECRET}`;
+  return { baseUrl, headers };
+}
+
+// Helper: trigger a cron endpoint server-side with proper auth
+async function triggerCron(cronPath: string, label: string): Promise<{ success: boolean; message: string; details?: Record<string, unknown> }> {
+  try {
+    const { baseUrl, headers } = getCronFetchConfig();
+    const res = await fetch(`${baseUrl}${cronPath}`, {
+      method: "POST",
+      headers,
+      signal: AbortSignal.timeout(55_000),
+    });
+    const data = await res.json().catch(() => ({}));
+    return {
+      success: res.ok,
+      message: res.ok ? `${label} triggered successfully` : `${label} failed: HTTP ${res.status}`,
+      details: data,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, message: `Failed to trigger ${label}: ${msg}` };
+  }
+}
+
 const FIX_HANDLERS: Record<string, FixHandler> = {
   // Fix: Push Prisma schema to database (creates missing tables/columns)
   db_push: async () => {
@@ -49,49 +79,18 @@ const FIX_HANDLERS: Record<string, FixHandler> = {
   },
 
   // Fix: Generate topics
-  generate_topics: async () => {
-    try {
-      const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (process.env.CRON_SECRET) headers["x-cron-secret"] = process.env.CRON_SECRET;
-
-      const res = await fetch(`${baseUrl}/api/cron/weekly-topics`, { method: "GET", headers });
-      const data = await res.json().catch(() => ({}));
-      return {
-        success: res.ok,
-        message: res.ok ? "Weekly topics cron triggered successfully" : `Topics cron failed: HTTP ${res.status}`,
-        details: data,
-      };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, message: `Failed to trigger topics: ${msg}` };
-    }
-  },
+  generate_topics: async () => triggerCron("/api/cron/weekly-topics", "Weekly topics"),
 
   // Fix: Run content builder
-  run_content_builder: async () => {
-    try {
-      const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (process.env.CRON_SECRET) headers["x-cron-secret"] = process.env.CRON_SECRET;
+  run_content_builder: async () => triggerCron("/api/cron/content-builder", "Content builder"),
 
-      const res = await fetch(`${baseUrl}/api/cron/content-builder`, { method: "GET", headers });
-      const data = await res.json().catch(() => ({}));
-      return {
-        success: res.ok,
-        message: res.ok ? "Content builder triggered" : `Content builder failed: HTTP ${res.status}`,
-        details: data,
-      };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, message: `Failed to trigger builder: ${msg}` };
-    }
-  },
+  // Fix: Run content selector
+  run_content_selector: async () => triggerCron("/api/cron/content-selector", "Content selector"),
 
   // Fix: Submit all to IndexNow
   submit_indexnow: async (payload) => {
     try {
-      const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+      const { baseUrl } = getCronFetchConfig();
       const res = await fetch(`${baseUrl}/api/admin/content-indexing`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,43 +109,22 @@ const FIX_HANDLERS: Record<string, FixHandler> = {
   },
 
   // Fix: Run SEO agent
-  run_seo_agent: async () => {
-    try {
-      const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (process.env.CRON_SECRET) headers["x-cron-secret"] = process.env.CRON_SECRET;
+  run_seo_agent: async () => triggerCron("/api/cron/seo-agent", "SEO agent"),
 
-      const res = await fetch(`${baseUrl}/api/cron/seo-agent`, { method: "GET", headers });
-      const data = await res.json().catch(() => ({}));
-      return {
-        success: res.ok,
-        message: res.ok ? "SEO agent triggered" : `SEO agent failed: HTTP ${res.status}`,
-        details: data,
-      };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, message: `Failed: ${msg}` };
-    }
-  },
+  // Fix: Run SEO orchestrator
+  run_seo_orchestrator: async () => triggerCron("/api/cron/seo-orchestrator", "SEO orchestrator"),
 
   // Fix: Run content auto-fix
-  run_content_autofix: async () => {
-    try {
-      const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (process.env.CRON_SECRET) headers["x-cron-secret"] = process.env.CRON_SECRET;
+  run_content_autofix: async () => triggerCron("/api/cron/content-auto-fix", "Content auto-fix"),
 
-      const res = await fetch(`${baseUrl}/api/cron/content-auto-fix`, { method: "GET", headers });
-      const data = await res.json().catch(() => ({}));
-      return {
-        success: res.ok,
-        message: res.ok ? "Content auto-fix triggered" : `Auto-fix failed: HTTP ${res.status}`,
-        details: data,
-      };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, message: `Failed: ${msg}` };
+  // Generic: Run any cron by path (used by crons diagnostics section)
+  run_cron: async (payload) => {
+    const cronPath = payload.cronPath as string | undefined;
+    if (!cronPath || !cronPath.startsWith("/api/")) {
+      return { success: false, message: "Invalid cron path" };
     }
+    const label = cronPath.split("/").pop()?.split("?")[0] ?? "cron";
+    return triggerCron(cronPath, label);
   },
 };
 

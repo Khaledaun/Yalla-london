@@ -51,7 +51,8 @@ const pipelineSection = async (
         results.push(warn("topics-pending", "Pending Topics", "0 pending topics — pipeline will stall", "Pending topics are queued for the content builder. When this hits zero, no new articles can be generated.", "The topic queue is empty. Run weekly topics to generate new ones.", {
           id: "fix-no-topics",
           label: "Generate Topics Now",
-          api: "/api/cron/weekly-topics",
+          api: "/api/admin/diagnostics/fix",
+          payload: { fixType: "generate_topics" },
           rerunGroup: "pipeline",
         }));
       }
@@ -62,7 +63,8 @@ const pipelineSection = async (
         results.push(warn("topics-recent", "Recent Topic Generation", "No topics generated this week", "Checks that the weekly topic generator is producing new topics.", "The weekly topic cron may not be running. Check the departures board.", {
           id: "fix-weekly-topics",
           label: "Run Weekly Topics",
-          api: "/api/cron/weekly-topics",
+          api: "/api/admin/diagnostics/fix",
+          payload: { fixType: "generate_topics" },
           rerunGroup: "pipeline",
         }));
       }
@@ -109,7 +111,8 @@ const pipelineSection = async (
         results.push(warn("reservoir", "Reservoir", "Empty — no articles ready to publish", "The reservoir holds fully-built articles waiting to be published.", "Run the content builder to move drafts through the pipeline.", {
           id: "fix-empty-reservoir",
           label: "Run Content Builder",
-          api: "/api/cron/content-builder",
+          api: "/api/admin/diagnostics/fix",
+          payload: { fixType: "run_content_builder" },
           rerunGroup: "pipeline",
         }));
       }
@@ -130,7 +133,8 @@ const pipelineSection = async (
         results.push(warn("stuck-drafts", "Stuck Drafts", `${stuckDrafts} draft(s) stuck for 6+ hours`, "Checks for drafts that haven't progressed in 6+ hours.", `${stuckDrafts} draft(s) haven't moved phases in over 6 hours. The content builder may need a restart.`, {
           id: "fix-stuck-drafts",
           label: "Restart Content Builder",
-          api: "/api/cron/content-builder",
+          api: "/api/admin/diagnostics/fix",
+          payload: { fixType: "run_content_builder" },
           rerunGroup: "pipeline",
         }));
       }
@@ -186,7 +190,8 @@ const pipelineSection = async (
         results.push(fail("published-week", "Published This Week", "0 articles published this week", "Weekly publishing velocity.", "No articles published this week. The content pipeline may be stalled.", {
           id: "fix-no-publishing",
           label: "Run Content Selector",
-          api: "/api/cron/content-selector",
+          api: "/api/admin/diagnostics/fix",
+          payload: { fixType: "run_content_selector" },
           rerunGroup: "pipeline",
         }));
       }
@@ -214,7 +219,8 @@ const pipelineSection = async (
         results.push(warn("scheduled", "Scheduled Publications", "No upcoming scheduled publications", "Scheduled publishing ensures consistent daily output.", "The content selector should be scheduling articles for publication. Check the cron schedule.", {
           id: "fix-no-scheduled",
           label: "Run Content Selector",
-          api: "/api/cron/content-selector",
+          api: "/api/admin/diagnostics/fix",
+          payload: { fixType: "run_content_selector" },
           rerunGroup: "pipeline",
         }));
       }
@@ -241,7 +247,8 @@ const pipelineSection = async (
           results.push(warn("quality-seo", "Average SEO Score", `${avgSeoScore}/100 — below 70 target`, "Average SEO score of recent articles.", "Recent articles are scoring below the 70-point quality gate. Check meta tags, word count, and internal links.", {
             id: "fix-low-seo",
             label: "Run SEO Agent",
-            api: "/api/cron/seo-agent",
+            api: "/api/admin/diagnostics/fix",
+            payload: { fixType: "run_seo_agent" },
             rerunGroup: "pipeline",
           }));
         }
@@ -252,7 +259,8 @@ const pipelineSection = async (
           results.push(warn("quality-words", "Average Word Count", `${avgWordCount} words — below 1,000 target`, "Average word count of recent articles.", "Recent articles are too thin. The content builder should produce 1,500-2,000 word articles.", {
             id: "fix-thin-content",
             label: "Run Content Auto-Fix",
-            api: "/api/cron/content-auto-fix",
+            api: "/api/admin/diagnostics/fix",
+            payload: { fixType: "run_content_autofix" },
             rerunGroup: "pipeline",
           }));
         }

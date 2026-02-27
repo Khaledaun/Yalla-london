@@ -46,11 +46,11 @@ export async function autoGenerateTasks(siteId: string): Promise<{
 
   // ── 1. Pipeline Stalls ─────────────────────────────────────────────
   try {
-    // No pending topics
-    const pendingTopics = await prisma.topicProposal.count({
-      where: { site_id: siteId, status: "pending" },
+    // No available topics (ready or planned — "pending" is not a valid TopicProposal status)
+    const availableTopics = await prisma.topicProposal.count({
+      where: { site_id: siteId, status: { in: ["ready", "planned", "proposed"] } },
     });
-    if (pendingTopics === 0) {
+    if (availableTopics === 0) {
       tasks.push({
         title: "Topic queue empty — pipeline will stall",
         description: "No pending topics for content generation. The content builder needs topics to create articles. Generate new topics now.",
@@ -87,7 +87,7 @@ export async function autoGenerateTasks(siteId: string): Promise<{
     const stuckDrafts = await prisma.articleDraft.count({
       where: {
         site_id: siteId,
-        current_phase: { notIn: ["reservoir", "completed", "failed"] },
+        current_phase: { notIn: ["reservoir", "published", "rejected"] },
         updated_at: { lt: twelveHoursAgo },
       },
     });
@@ -132,7 +132,7 @@ export async function autoGenerateTasks(siteId: string): Promise<{
     const failedCrons = await prisma.cronJobLog.findMany({
       where: {
         started_at: { gte: oneDayAgo },
-        status: { in: ["failed", "timed_out"] },
+        status: { in: ["failed", "timeout"] },
       },
       select: { job_name: true, error_message: true, started_at: true },
       orderBy: { started_at: "desc" },

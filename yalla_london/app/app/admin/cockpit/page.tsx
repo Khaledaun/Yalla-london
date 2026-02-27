@@ -15,7 +15,8 @@
  *  7. Settings    — env vars, testing tools, feature flags
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 // ─── Types from API responses ────────────────────────────────────────────────
@@ -103,14 +104,18 @@ interface ContentItem {
   internalLinksCount: number;
   indexingStatus: string | null;
   lastSubmittedAt: string | null;
+  lastCrawledAt: string | null;
   rejectionReason: string | null;
   lastError: string | null;
   plainError: string | null;
   phase: string | null;
   phaseProgress: number;
   hoursInPhase: number;
-  tags: string[];
+  pairedDraftId: string | null;
+  metaTitleEn: string | null;
   metaDescriptionEn: string | null;
+  tags: string[];
+  topicTitle: string | null;
 }
 
 interface ContentMatrixData {
@@ -134,6 +139,7 @@ interface ProviderInfo {
   isActive: boolean;
   hasKey: boolean;
   testStatus: string | null;
+  lastTestedAt: string | null;
 }
 
 interface RouteInfo {
@@ -999,7 +1005,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     setActionLoading(`${action}-${id}`);
     try {
       const body: Record<string, string> = { action };
-      if (action === "re_queue" || action === "delete_draft") body.draftId = id;
+      if (action === "re_queue" || action === "delete_draft" || action === "enhance" || action === "rewrite") body.draftId = id;
       if (action === "delete_post" || action === "unpublish") body.blogPostId = id;
       const res = await fetch("/api/admin/content-matrix", {
         method: "POST",
@@ -1123,6 +1129,9 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                     <span className={item.wordCount < 1000 ? "text-red-400 font-medium" : item.wordCount < 1200 ? "text-amber-400" : "text-zinc-500"}>
                       {item.wordCount.toLocaleString()} words{item.wordCount < 1000 ? " ✗" : item.wordCount < 1200 ? " ⚠" : ""}
                     </span>
+                  )}
+                  {item.metaTitleEn && item.metaTitleEn.length > 60 && (
+                    <span className="text-amber-400">Title {item.metaTitleEn.length}ch ⚠</span>
                   )}
                   {item.metaDescriptionEn && item.metaDescriptionEn.length > 160 && (
                     <span className="text-amber-400">Meta {item.metaDescriptionEn.length}ch ⚠</span>
@@ -1415,20 +1424,27 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
         <Card>
           <SectionTitle>Active Drafts ({drafts.length})</SectionTitle>
           <div className="space-y-2">
-            {(drafts as ContentItem[]).slice(0, 10).map((d) => (
-              <div key={d.id} className="flex items-center justify-between text-xs">
-                <div className="min-w-0">
-                  <span className="text-zinc-300 truncate block">{d.title || d.slug || d.id}</span>
-                  <span className="text-zinc-500 capitalize">{d.phase ?? "unknown"}</span>
+            {(drafts as Array<Record<string, unknown>>).slice(0, 10).map((d) => {
+              const id = (d.id as string) ?? "";
+              const title = (d.keyword as string) || (d.topic_title as string) || id;
+              const phase = (d.current_phase as string) ?? "unknown";
+              const seoScore = d.seo_score != null ? Number(d.seo_score) : null;
+              const wordCount = d.word_count != null ? Number(d.word_count) : 0;
+              return (
+                <div key={id} className="flex items-center justify-between text-xs">
+                  <div className="min-w-0">
+                    <span className="text-zinc-300 truncate block">{title}</span>
+                    <span className="text-zinc-500 capitalize">{phase}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 text-zinc-500">
+                    {seoScore !== null && (
+                      <span className={scoreColor(seoScore)}>SEO{seoScore}</span>
+                    )}
+                    <span>{wordCount > 0 ? `${wordCount}w` : ""}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0 text-zinc-500">
-                  {d.seoScore !== null && d.seoScore !== undefined && (
-                    <span className={scoreColor(d.seoScore)}>SEO{d.seoScore}</span>
-                  )}
-                  <span>{d.wordCount > 0 ? `${d.wordCount}w` : ""}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       )}
@@ -1509,7 +1525,7 @@ function CronsTab() {
     "seo-health-report": "/api/cron/seo-health-report",
     "site-health-check": "/api/cron/site-health-check",
     "scheduled-publish": "/api/cron/scheduled-publish",
-    "indexing-cron": "/api/cron/indexing-cron",
+    "indexing-cron": "/api/seo/cron",
   };
 
   const entries = Object.entries(byName).filter(([name]) => {
@@ -1557,13 +1573,22 @@ function CronsTab() {
                 { path: "/api/cron/content-selector", name: "Selector" },
                 { path: "/api/cron/seo-agent", name: "SEO" },
               ];
+              const errors: string[] = [];
               for (const step of sequence) {
                 try {
                   await fetch(step.path, { method: "POST" });
-                } catch { /* continue sequence */ }
+                } catch (e) {
+                  console.warn(`[cockpit] Critical sequence step ${step.name} failed:`, e);
+                  errors.push(step.name);
+                }
               }
               setActionLoading(null);
-              setActionResult((prev) => ({ ...prev, "critical-seq": "✅ All 4 steps triggered" }));
+              setActionResult((prev) => ({
+                ...prev,
+                "critical-seq": errors.length === 0
+                  ? "✅ All 4 steps triggered"
+                  : `⚠️ ${4 - errors.length}/4 triggered (failed: ${errors.join(", ")})`
+              }));
               fetchData();
             }}
             loading={actionLoading === "critical-seq"}
@@ -1598,7 +1623,7 @@ function CronsTab() {
         {entries.map(([name, jobLogs]) => {
           const last = jobLogs[0] as {
             status?: string; durationMs?: number; startedAt?: string;
-            error?: string; plainError?: string; itemsProcessed?: number
+            errorMessage?: string; itemsProcessed?: number
           };
           const isOk = last.status === "success" || last.status === "completed";
           const isFailed = last.status === "failed" || last.status === "error";
@@ -1621,11 +1646,8 @@ function CronsTab() {
                     )}
                     <span className="text-zinc-600">{jobLogs.length} runs in 24h</span>
                   </div>
-                  {isFailed && last.plainError && (
-                    <p className="mt-1.5 text-xs text-red-400 bg-red-950/20 rounded px-2 py-1">{last.plainError}</p>
-                  )}
-                  {isFailed && last.error && !last.plainError && (
-                    <p className="mt-1.5 text-xs text-red-400">{String(last.error).slice(0, 120)}</p>
+                  {isFailed && last.errorMessage && (
+                    <p className="mt-1.5 text-xs text-red-400 bg-red-950/20 rounded px-2 py-1">{String(last.errorMessage).slice(0, 200)}</p>
                   )}
                   {actionResult[name] && (
                     <p className={`mt-1 text-xs rounded px-2 py-1 ${actionResult[name].startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
@@ -2742,8 +2764,19 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-export default function CockpitPage() {
-  const [activeTab, setActiveTab] = useState<TabId>("mission");
+export default function CockpitPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen bg-zinc-950"><p className="text-zinc-500 text-sm">Loading cockpit…</p></div>}>
+      <CockpitPage />
+    </Suspense>
+  );
+}
+
+function CockpitPage() {
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get("tab") as TabId) || "mission";
+  const validTab = TABS.some(t => t.id === initialTab) ? initialTab : "mission";
+  const [activeTab, setActiveTab] = useState<TabId>(validTab);
   const [cockpitData, setCockpitData] = useState<CockpitData | null>(null);
   const [cockpitLoading, setCockpitLoading] = useState(true);
   const [cockpitError, setCockpitError] = useState<string | null>(null);

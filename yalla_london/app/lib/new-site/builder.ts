@@ -21,7 +21,7 @@ export interface SiteConfig {
   siteId: string;
   name: string;
   domain: string;
-  siteType: 'travel_blog' | 'yacht_charter' | 'custom';
+  siteType: 'travel_blog' | 'yacht_charter' | 'custom' | 'other';
   primaryLanguage: 'en' | 'ar';
   primaryColor: string;
   secondaryColor: string;
@@ -65,7 +65,7 @@ export interface BuildResult {
  * These give the content pipeline something to work with immediately after
  * the site is created, even before Khaled runs the weekly-topics cron.
  */
-const SEED_TOPICS: Record<SiteConfig['siteType'], string[]> = {
+const SEED_TOPICS: Record<string, string[]> = {
   travel_blog: [
     'luxury hotels',
     'halal restaurants',
@@ -163,6 +163,9 @@ const SEED_TOPICS: Record<SiteConfig['siteType'], string[]> = {
     'top highlights overview',
   ],
 };
+
+// "other" is an alias for "custom" — the wizard page sends "other"
+SEED_TOPICS.other = SEED_TOPICS.custom;
 
 // ---------------------------------------------------------------------------
 // Validation

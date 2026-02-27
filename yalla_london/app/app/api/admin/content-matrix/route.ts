@@ -273,7 +273,7 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
         draftWhere.current_phase = {
           notIn: ["published", "rejected", "reservoir"],
         };
-        draftWhere.updated_at = { lt: threeHoursAgo };
+        draftWhere.updatedAt = { lt: threeHoursAgo };
       } else if (statusFilter && draftOnlyStatuses.includes(statusFilter)) {
         draftWhere.current_phase = statusFilter;
       }
@@ -403,6 +403,7 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
     return NextResponse.json({
       articles: paginatedItems,
       summary,
+      siteId: targetSiteId,
       pagination: {
         page,
         limit,
@@ -533,7 +534,6 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
             phase_attempts: 0,
             last_error: null,
             rejection_reason: null,
-            updated_at: new Date(),
           },
         });
         return NextResponse.json({ success: true, message: "Draft re-queued for processing" });
@@ -606,7 +606,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       try {
         await prisma.articleDraft.update({
           where: { id: draftId },
-          data: { current_phase: "research", last_error: null, updated_at: new Date() },
+          data: { current_phase: "research", last_error: null },
         });
         return NextResponse.json({ success: true, message: "Draft reset to research phase — will be rewritten on next content builder run" });
       } catch (err) {

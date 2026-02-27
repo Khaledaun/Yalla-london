@@ -26,6 +26,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
 
   let locale: "en" | "ar" | "both" = "both";
   let count = 2; // per language
+  let specificDraftId: string | null = null;
 
   let siteId = getDefaultSiteId();
 
@@ -36,6 +37,10 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     // Accept siteId override — validate it's a known active site
     if (body.siteId && typeof body.siteId === "string" && getActiveSiteIds().includes(body.siteId)) {
       siteId = body.siteId;
+    }
+    // Accept specific draftId — publish that exact draft instead of picking by score
+    if (body.draftId && typeof body.draftId === "string") {
+      specificDraftId = body.draftId;
     }
   } catch {
     // Use defaults
@@ -56,6 +61,47 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     const published: Array<{ draftId: string; blogPostId: string; keyword: string; score: number; locale: string }> = [];
     const skipped: Array<{ draftId: string; keyword: string; reason: string; locale: string }> = [];
 
+    // ── Specific draft mode: publish one exact draft by ID ───────────────────
+    if (specificDraftId) {
+      log(`[force-publish] Publishing specific draft ${specificDraftId}...`);
+      const draft = await prisma.articleDraft.findUnique({ where: { id: specificDraftId } });
+      if (!draft) {
+        return NextResponse.json({ success: false, error: "Draft not found" }, { status: 404 });
+      }
+      if (draft.current_phase !== "reservoir") {
+        return NextResponse.json({ success: false, error: `Draft is in '${draft.current_phase}' phase, not reservoir` }, { status: 400 });
+      }
+      const keyword = (draft.keyword as string) || "unknown";
+      const score = (draft.quality_score as number) || 0;
+      const html = ((draft.assembled_html as string) || "");
+      const wordCount = html.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+      let draftToPublish = draft as Record<string, unknown>;
+
+      if (wordCount < 1000) {
+        log(`[force-publish] Word count ${wordCount} < 1000 — enhancing...`);
+        const enhResult = await enhanceReservoirDraft(draft as Record<string, unknown>);
+        if (!enhResult.success) {
+          return NextResponse.json({ success: false, error: `Enhancement failed: ${enhResult.error}` }, { status: 500 });
+        }
+        const refreshed = await prisma.articleDraft.findUnique({ where: { id: specificDraftId } });
+        if (refreshed) draftToPublish = refreshed as Record<string, unknown>;
+      }
+
+      try {
+        const result = await promoteToBlogPost(draftToPublish, prisma, SITES, getSiteDomain);
+        if (result) {
+          log(`[force-publish] Published "${keyword}" → BlogPost ${result.blogPostId}`);
+          return NextResponse.json({ success: true, published: [{ ...result, locale: draft.locale }], skipped: [], durationMs: Date.now() - start, logs });
+        } else {
+          return NextResponse.json({ success: false, error: "Pre-publication gate blocked this article" }, { status: 400 });
+        }
+      } catch (promoteErr) {
+        const msg = promoteErr instanceof Error ? promoteErr.message : String(promoteErr);
+        return NextResponse.json({ success: false, error: `Promotion error: ${msg}` }, { status: 500 });
+      }
+    }
+
+    // ── Batch mode: pick best reservoir articles by score ────────────────────
     for (const lang of localesToProcess) {
       log(`[force-publish] Looking for top ${count} ${lang.toUpperCase()} reservoir articles...`);
 

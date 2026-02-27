@@ -34,7 +34,7 @@ const KNOWN_CRONS: { name: string; path: string; description: string }[] = [
   { name: "affiliate-injection", path: "/api/cron/affiliate-injection", description: "Injects affiliate/booking links into published articles" },
   { name: "content-auto-fix", path: "/api/cron/content-auto-fix", description: "Expands thin articles (<1000 words) and trims long meta descriptions" },
   { name: "london-news", path: "/api/cron/london-news", description: "Fetches and generates London-specific news articles" },
-  { name: "site-health", path: "/api/cron/site-health", description: "Nightly health check across all sites" },
+  { name: "site-health-check", path: "/api/cron/site-health-check", description: "Nightly health check across all sites" },
   { name: "fact-verification", path: "/api/cron/fact-verification", description: "Verifies factual claims in generated content" },
 ];
 

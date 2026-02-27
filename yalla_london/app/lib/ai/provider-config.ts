@@ -146,8 +146,8 @@ export async function getProviderForTask(
           select: { name: true },
         });
         fallbackName = fallbackProvider?.name ?? undefined;
-      } catch {
-        // Non-fatal — fallback name is optional
+      } catch (fbErr) {
+        console.warn('[ai/provider-config] Failed to resolve fallback provider name (non-fatal):', fbErr instanceof Error ? fbErr.message : fbErr);
       }
     }
 
@@ -304,8 +304,8 @@ export async function getAllRoutes(): Promise<
               select: { name: true },
             });
             fallbackName = fp?.name ?? null;
-          } catch {
-            // Non-fatal
+          } catch (fbErr) {
+            console.warn('[ai/provider-config] Failed to resolve fallback provider name in getAllRoutes (non-fatal):', fbErr instanceof Error ? fbErr.message : fbErr);
           }
         }
 

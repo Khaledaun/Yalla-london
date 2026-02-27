@@ -140,7 +140,8 @@ const indexingSection = async (
         results.push(warn("seo-scores", "SEO Score Average", `${avg}/100 — ${below50} articles below 50`, "Average SEO score across all published articles.", "Multiple articles have low SEO scores. Run the SEO agent to auto-fix meta tags and other issues.", {
           id: "fix-seo-scores",
           label: "Run SEO Agent",
-          api: "/api/cron/seo-agent",
+          api: "/api/admin/diagnostics/fix",
+          payload: { fixType: "run_seo_agent" },
           rerunGroup: "indexing",
         }));
       }
@@ -169,7 +170,8 @@ const indexingSection = async (
       results.push(warn("meta-coverage", "Meta Description Coverage", `${missingMeta} articles missing meta descriptions`, "Meta descriptions appear in Google search results.", "Articles without meta descriptions get auto-generated snippets from Google, which are often not compelling.", {
         id: "fix-meta-descriptions",
         label: "Auto-Fix Meta Descriptions",
-        api: "/api/cron/seo-agent",
+        api: "/api/admin/diagnostics/fix",
+        payload: { fixType: "run_seo_agent" },
         rerunGroup: "indexing",
       }));
     }

@@ -136,7 +136,7 @@ export async function runDiagnosticGroups(
       ? "ALL_SYSTEMS_GO" as const
       : failCount === 0
         ? "OPERATIONAL" as const
-        : failCount <= 2
+        : failCount <= 3
           ? "NEEDS_ATTENTION" as const
           : "CRITICAL" as const;
 

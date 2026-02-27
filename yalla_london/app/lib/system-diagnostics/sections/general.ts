@@ -15,8 +15,8 @@ function pass(id: string, name: string, detail: string, explanation: string): Di
   return { id: `${SECTION}-${id}`, section: SECTION, name, status: "pass", detail, explanation };
 }
 
-function warn(id: string, name: string, detail: string, explanation: string, diagnosis?: string): DiagnosticResult {
-  return { id: `${SECTION}-${id}`, section: SECTION, name, status: "warn", detail, explanation, diagnosis };
+function warn(id: string, name: string, detail: string, explanation: string, diagnosis?: string, fixAction?: DiagnosticResult["fixAction"]): DiagnosticResult {
+  return { id: `${SECTION}-${id}`, section: SECTION, name, status: "warn", detail, explanation, diagnosis, fixAction };
 }
 
 function fail(id: string, name: string, detail: string, explanation: string, diagnosis?: string, fixAction?: DiagnosticResult["fixAction"]): DiagnosticResult {
@@ -208,7 +208,8 @@ const generalSection = async (
       results.push(fail("content-count", "Published Content", "0 published articles", "Counts published articles for this site. Without published content, there's nothing for Google to index and no pages to earn revenue.", "No content published yet. Run the content pipeline to generate and publish articles.", {
         id: "fix-no-content",
         label: "Generate Content Now",
-        api: "/api/cron/content-builder",
+        api: "/api/admin/diagnostics/fix",
+        payload: { fixType: "run_content_builder" },
         rerunGroup: "general",
       }));
     }

@@ -142,6 +142,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         subject: true,
         type: true,
         createdAt: true,
+        updatedAt: true,
       },
     });
     templates = rows.map((r) => ({
@@ -149,7 +150,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       name: r.name,
       subject: r.subject ?? "",
       type: r.type ?? "campaign",
-      updatedAt: r.createdAt.toISOString(),
+      updatedAt: (r.updatedAt ?? r.createdAt).toISOString(),
     }));
   } catch (err: unknown) {
     const code =

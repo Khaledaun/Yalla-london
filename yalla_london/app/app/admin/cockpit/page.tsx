@@ -15,7 +15,8 @@
  *  7. Settings    — env vars, testing tools, feature flags
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 // ─── Types from API responses ────────────────────────────────────────────────
@@ -66,11 +67,21 @@ interface SiteSummary {
   lastCronAt: string | null;
 }
 
+interface RevenueSnapshot {
+  affiliateClicksToday: number;
+  affiliateClicksWeek: number;
+  conversionsWeek: number;
+  revenueWeekUsd: number;
+  topPartner: string | null;
+  aiCostWeekUsd: number;
+}
+
 interface CockpitData {
   system: SystemStatus;
   pipeline: PipelineStatus;
   indexing: { total: number; indexed: number; submitted: number; neverSubmitted: number; errors: number; rate: number };
   cronHealth: { failedLast24h: number; timedOutLast24h: number; lastRunAt: string | null; recentJobs: Array<{ name: string; status: string; durationMs: number | null; startedAt: string; error: string | null; plainError: string | null; itemsProcessed: number }> };
+  revenue: RevenueSnapshot;
   alerts: Alert[];
   sites: SiteSummary[];
   timestamp: string;
@@ -93,14 +104,18 @@ interface ContentItem {
   internalLinksCount: number;
   indexingStatus: string | null;
   lastSubmittedAt: string | null;
+  lastCrawledAt: string | null;
   rejectionReason: string | null;
   lastError: string | null;
   plainError: string | null;
   phase: string | null;
   phaseProgress: number;
   hoursInPhase: number;
-  tags: string[];
+  pairedDraftId: string | null;
+  metaTitleEn: string | null;
   metaDescriptionEn: string | null;
+  tags: string[];
+  topicTitle: string | null;
 }
 
 interface ContentMatrixData {
@@ -124,6 +139,7 @@ interface ProviderInfo {
   isActive: boolean;
   hasKey: boolean;
   testStatus: string | null;
+  lastTestedAt: string | null;
 }
 
 interface RouteInfo {
@@ -621,6 +637,15 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
   const [showIndexPanel, setShowIndexPanel] = useState(false);
 
   const triggerAction = useCallback(async (endpoint: string, body: object, label: string) => {
+    // External URLs and admin page URLs → navigate instead of POST
+    if (endpoint.startsWith("http")) {
+      window.open(endpoint, "_blank");
+      return;
+    }
+    if (endpoint.startsWith("/admin/")) {
+      window.location.href = endpoint;
+      return;
+    }
     setActionLoading(label);
     setActionResult(null);
     try {
@@ -785,6 +810,31 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
         </Card>
       </div>
 
+      {/* Revenue & Costs */}
+      {data?.revenue && (
+        <Card>
+          <SectionTitle>Revenue & Costs (7d)</SectionTitle>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-zinc-800/50 rounded-lg p-2">
+              <div className="text-lg font-bold text-amber-400">{data.revenue.affiliateClicksToday}</div>
+              <div className="text-[10px] text-zinc-500">Clicks Today</div>
+            </div>
+            <div className="bg-zinc-800/50 rounded-lg p-2">
+              <div className="text-lg font-bold text-emerald-400">{data.revenue.conversionsWeek}</div>
+              <div className="text-[10px] text-zinc-500">Conversions</div>
+            </div>
+            <div className="bg-zinc-800/50 rounded-lg p-2">
+              <div className="text-lg font-bold text-emerald-300">${data.revenue.revenueWeekUsd.toFixed(2)}</div>
+              <div className="text-[10px] text-zinc-500">Commission</div>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs text-zinc-500">
+            <span>{data.revenue.affiliateClicksWeek} clicks this week{data.revenue.topPartner ? ` · Top: ${data.revenue.topPartner}` : ""}</span>
+            <span className="text-red-400">AI: ${data.revenue.aiCostWeekUsd.toFixed(2)}</span>
+          </div>
+        </Card>
+      )}
+
       {/* Quick Actions */}
       <Card>
         <SectionTitle>Quick Actions</SectionTitle>
@@ -801,6 +851,9 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
           <ActionButton onClick={() => triggerAction("/api/cron/seo-agent", {}, "SEO")} loading={actionLoading === "SEO"}>
             🔍 Submit to Google
           </ActionButton>
+          <Link href="/admin/cockpit/validator" className="col-span-2 px-3 py-2 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-center block">
+            🩺 System Validator
+          </Link>
         </div>
         {actionResult && (
           <p className={`mt-3 text-xs p-2 rounded-lg ${actionResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
@@ -952,8 +1005,8 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     setActionLoading(`${action}-${id}`);
     try {
       const body: Record<string, string> = { action };
-      if (action === "re_queue" || action === "delete_draft") body.draftId = id;
-      if (action === "delete_post" || action === "unpublish") body.postId = id;
+      if (action === "re_queue" || action === "delete_draft" || action === "enhance" || action === "rewrite") body.draftId = id;
+      if (action === "delete_post" || action === "unpublish") body.blogPostId = id;
       const res = await fetch("/api/admin/content-matrix", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1076,6 +1129,9 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                     <span className={item.wordCount < 1000 ? "text-red-400 font-medium" : item.wordCount < 1200 ? "text-amber-400" : "text-zinc-500"}>
                       {item.wordCount.toLocaleString()} words{item.wordCount < 1000 ? " ✗" : item.wordCount < 1200 ? " ⚠" : ""}
                     </span>
+                  )}
+                  {item.metaTitleEn && item.metaTitleEn.length > 60 && (
+                    <span className="text-amber-400">Title {item.metaTitleEn.length}ch ⚠</span>
                   )}
                   {item.metaDescriptionEn && item.metaDescriptionEn.length > 160 && (
                     <span className="text-amber-400">Meta {item.metaDescriptionEn.length}ch ⚠</span>
@@ -1257,7 +1313,7 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
   const fetchData = useCallback(() => {
     setLoading(true);
     setFetchError(null);
-    fetch(`/api/admin/content-generation-monitor?siteId=${activeSiteId}`)
+    fetch(`/api/admin/content-generation-monitor?site_id=${activeSiteId}`)
       .then((r) => r.json())
       .then(setData)
       .catch((e) => { setFetchError(e instanceof Error ? e.message : "Failed to load pipeline data"); setData(null); })
@@ -1290,9 +1346,10 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
     </Card>
   );
 
-  const summary = (data as { summary?: Record<string, number> })?.summary ?? {};
-  const byPhase = (data as { byPhase?: Record<string, number> })?.byPhase ?? {};
-  const drafts = (data as { drafts?: unknown[] })?.drafts ?? [];
+  const inner = (data as { data?: Record<string, unknown> })?.data ?? data ?? {};
+  const summary = (inner as { summary?: Record<string, number> })?.summary ?? {};
+  const byPhase = (inner as { phase_counts?: Record<string, number> })?.phase_counts ?? {};
+  const drafts = (inner as { active_drafts?: unknown[] })?.active_drafts ?? [];
 
   return (
     <div className="space-y-4">
@@ -1300,10 +1357,9 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
         <SectionTitle>Content Pipeline — {activeSiteId}</SectionTitle>
         <div className="flex flex-wrap gap-3 text-sm mb-3">
           {[
-            ["Topics", summary.topics ?? 0, "text-blue-400"],
-            ["Building", summary.active ?? 0, "text-amber-400"],
-            ["Reservoir", summary.reservoir ?? 0, "text-blue-300"],
-            ["Published", summary.published ?? 0, "text-emerald-400"],
+            ["Building", summary.total_active ?? 0, "text-amber-400"],
+            ["Reservoir", summary.reservoir_count ?? 0, "text-blue-300"],
+            ["Published Today", summary.published_today ?? 0, "text-emerald-400"],
           ].map(([label, val, color]) => (
             <div key={label as string} className="bg-zinc-800 rounded-lg px-3 py-2 text-center min-w-[70px]">
               <div className={`text-xl font-bold ${color}`}>{val}</div>
@@ -1368,20 +1424,27 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
         <Card>
           <SectionTitle>Active Drafts ({drafts.length})</SectionTitle>
           <div className="space-y-2">
-            {(drafts as ContentItem[]).slice(0, 10).map((d) => (
-              <div key={d.id} className="flex items-center justify-between text-xs">
-                <div className="min-w-0">
-                  <span className="text-zinc-300 truncate block">{d.title || d.slug || d.id}</span>
-                  <span className="text-zinc-500 capitalize">{d.phase ?? "unknown"}</span>
+            {(drafts as Array<Record<string, unknown>>).slice(0, 10).map((d) => {
+              const id = (d.id as string) ?? "";
+              const title = (d.keyword as string) || (d.topic_title as string) || id;
+              const phase = (d.current_phase as string) ?? "unknown";
+              const seoScore = d.seo_score != null ? Number(d.seo_score) : null;
+              const wordCount = d.word_count != null ? Number(d.word_count) : 0;
+              return (
+                <div key={id} className="flex items-center justify-between text-xs">
+                  <div className="min-w-0">
+                    <span className="text-zinc-300 truncate block">{title}</span>
+                    <span className="text-zinc-500 capitalize">{phase}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 text-zinc-500">
+                    {seoScore !== null && (
+                      <span className={scoreColor(seoScore)}>SEO{seoScore}</span>
+                    )}
+                    <span>{wordCount > 0 ? `${wordCount}w` : ""}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0 text-zinc-500">
-                  {d.seoScore !== null && d.seoScore !== undefined && (
-                    <span className={scoreColor(d.seoScore)}>SEO{d.seoScore}</span>
-                  )}
-                  <span>{d.wordCount > 0 ? `${d.wordCount}w` : ""}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       )}
@@ -1411,10 +1474,15 @@ function CronsTab() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const runCron = async (endpoint: string, name: string) => {
+  const runCron = async (endpoint: string, name: string, body?: object) => {
     setActionLoading(name);
     try {
-      const res = await fetch(endpoint, { method: "POST" });
+      const opts: RequestInit = { method: "POST" };
+      if (body && Object.keys(body).length > 0) {
+        opts.headers = { "Content-Type": "application/json" };
+        opts.body = JSON.stringify(body);
+      }
+      const res = await fetch(endpoint, opts);
       const json = await res.json();
       setActionResult((prev) => ({ ...prev, [name]: json.success !== false ? "✅ Triggered" : `❌ ${json.error ?? "Failed"}` }));
       fetchData();
@@ -1457,7 +1525,7 @@ function CronsTab() {
     "seo-health-report": "/api/cron/seo-health-report",
     "site-health-check": "/api/cron/site-health-check",
     "scheduled-publish": "/api/cron/scheduled-publish",
-    "indexing-cron": "/api/cron/indexing-cron",
+    "indexing-cron": "/api/seo/cron",
   };
 
   const entries = Object.entries(byName).filter(([name]) => {
@@ -1489,6 +1557,51 @@ function CronsTab() {
         </Card>
       </div>
 
+      {/* Run All Critical */}
+      <Card>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-zinc-300">Run Critical Sequence</p>
+            <p className="text-[10px] text-zinc-500 mt-0.5">Topics → Builder → Selector → SEO</p>
+          </div>
+          <ActionButton
+            onClick={async () => {
+              setActionLoading("critical-seq");
+              const sequence = [
+                { path: "/api/cron/weekly-topics", name: "Topics" },
+                { path: "/api/cron/content-builder", name: "Builder" },
+                { path: "/api/cron/content-selector", name: "Selector" },
+                { path: "/api/cron/seo-agent", name: "SEO" },
+              ];
+              const errors: string[] = [];
+              for (const step of sequence) {
+                try {
+                  await fetch(step.path, { method: "POST" });
+                } catch (e) {
+                  console.warn(`[cockpit] Critical sequence step ${step.name} failed:`, e);
+                  errors.push(step.name);
+                }
+              }
+              setActionLoading(null);
+              setActionResult((prev) => ({
+                ...prev,
+                "critical-seq": errors.length === 0
+                  ? "✅ All 4 steps triggered"
+                  : `⚠️ ${4 - errors.length}/4 triggered (failed: ${errors.join(", ")})`
+              }));
+              fetchData();
+            }}
+            loading={actionLoading === "critical-seq"}
+            variant="success"
+          >
+            ▶ Run All
+          </ActionButton>
+        </div>
+        {actionResult["critical-seq"] && (
+          <p className="mt-2 text-xs bg-emerald-950/30 text-emerald-300 rounded px-2 py-1">{actionResult["critical-seq"]}</p>
+        )}
+      </Card>
+
       {/* Filters */}
       <div className="flex gap-2">
         {["all", "failed", "ok"].map((f) => (
@@ -1510,7 +1623,7 @@ function CronsTab() {
         {entries.map(([name, jobLogs]) => {
           const last = jobLogs[0] as {
             status?: string; durationMs?: number; startedAt?: string;
-            error_message?: string; plainError?: string; itemsProcessed?: number
+            errorMessage?: string; itemsProcessed?: number
           };
           const isOk = last.status === "success" || last.status === "completed";
           const isFailed = last.status === "failed" || last.status === "error";
@@ -1533,11 +1646,8 @@ function CronsTab() {
                     )}
                     <span className="text-zinc-600">{jobLogs.length} runs in 24h</span>
                   </div>
-                  {isFailed && last.plainError && (
-                    <p className="mt-1.5 text-xs text-red-400 bg-red-950/20 rounded px-2 py-1">{last.plainError}</p>
-                  )}
-                  {isFailed && last.error_message && !last.plainError && (
-                    <p className="mt-1.5 text-xs text-red-400">{String(last.error_message).slice(0, 120)}</p>
+                  {isFailed && last.errorMessage && (
+                    <p className="mt-1.5 text-xs text-red-400 bg-red-950/20 rounded px-2 py-1">{String(last.errorMessage).slice(0, 200)}</p>
                   )}
                   {actionResult[name] && (
                     <p className={`mt-1 text-xs rounded px-2 py-1 ${actionResult[name].startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
@@ -1603,7 +1713,7 @@ function CronsTab() {
           ].map(([label, endpoint, body, key]) => (
             <ActionButton
               key={key as string}
-              onClick={() => runCron(endpoint as string, key as string)}
+              onClick={() => runCron(endpoint as string, key as string, body as object)}
               loading={actionLoading === (key as string)}
             >
               {label as string}
@@ -1620,6 +1730,8 @@ function CronsTab() {
 function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite: (id: string) => void }) {
   const [publishLoading, setPublishLoading] = useState<string | null>(null);
   const [publishResult, setPublishResult] = useState<Record<string, string>>({});
+  const [expandedSite, setExpandedSite] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const publishSite = async (siteId: string) => {
     setPublishLoading(siteId);
@@ -1638,6 +1750,35 @@ function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite:
     }
   };
 
+  const quickAction = async (endpoint: string, body: object, label: string) => {
+    setActionLoading(label);
+    try {
+      await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      console.warn(`[sites] ${label} failed`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Automation readiness checklist per site
+  const getReadiness = (site: SiteSummary) => {
+    const checks = [
+      { label: "Site config in sites.ts", ok: site.isActive },
+      { label: "Topic templates", ok: site.topicsQueued > 0 },
+      { label: "Published content", ok: site.articlesPublished > 0 },
+      { label: "Content in pipeline", ok: site.inPipeline > 0 || site.reservoir > 0 },
+      { label: "SEO scoring active", ok: site.avgSeoScore > 0 },
+      { label: "Indexing active", ok: site.indexRate > 0 },
+    ];
+    const passCount = checks.filter((c) => c.ok).length;
+    return { checks, passCount, total: checks.length, percentage: Math.round((passCount / checks.length) * 100) };
+  };
+
   if (sites.length === 0) {
     return (
       <Card className="text-center py-8">
@@ -1648,77 +1789,152 @@ function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite:
 
   return (
     <div className="space-y-3">
-      {sites.map((site) => (
-        <Card key={site.id}>
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
-                  site.isActive
-                    ? "bg-emerald-900/50 text-emerald-300 border-emerald-700"
-                    : "bg-zinc-800 text-zinc-500 border-zinc-700"
-                }`}>
-                  {site.isActive ? "Active ●" : "Inactive"}
-                </span>
-                <h3 className="text-sm font-semibold text-zinc-100">{site.name}</h3>
+      {sites.map((site) => {
+        const readiness = getReadiness(site);
+        const isExpanded = expandedSite === site.id;
+        const daysSincePublish = site.lastPublishedAt
+          ? Math.floor((Date.now() - new Date(site.lastPublishedAt).getTime()) / (1000 * 60 * 60 * 24))
+          : null;
+
+        return (
+          <Card key={site.id}>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                    site.isActive
+                      ? "bg-emerald-900/50 text-emerald-300 border-emerald-700"
+                      : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                  }`}>
+                    {site.isActive ? "Active" : "Inactive"}
+                  </span>
+                  <h3 className="text-sm font-semibold text-zinc-100">{site.name}</h3>
+                </div>
+                <p className="text-xs text-zinc-500 mt-0.5">{site.domain}</p>
               </div>
-              <p className="text-xs text-zinc-500 mt-0.5">{site.domain}</p>
+              {/* Readiness badge */}
+              <div className={`text-xs px-2 py-1 rounded-lg border font-medium ${
+                readiness.percentage >= 80 ? "bg-emerald-900/30 text-emerald-300 border-emerald-700" :
+                readiness.percentage >= 50 ? "bg-amber-900/30 text-amber-300 border-amber-700" :
+                "bg-red-900/30 text-red-300 border-red-700"
+              }`}>
+                {readiness.percentage}% ready
+              </div>
             </div>
-          </div>
 
-          <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-center">
-            <div className="bg-zinc-800/50 rounded p-2">
-              <div className="font-bold text-emerald-400">{site.articlesPublished}</div>
-              <div className="text-zinc-500">Published</div>
-            </div>
-            <div className="bg-zinc-800/50 rounded p-2">
-              <div className="font-bold text-blue-400">{site.reservoir}</div>
-              <div className="text-zinc-500">Reservoir</div>
-            </div>
-            <div className="bg-zinc-800/50 rounded p-2">
-              <div className="font-bold text-amber-400">{site.inPipeline}</div>
-              <div className="text-zinc-500">Pipeline</div>
-            </div>
-            <div className="bg-zinc-800/50 rounded p-2">
-              <div className="font-bold text-zinc-400">{site.topicsQueued}</div>
-              <div className="text-zinc-500">Topics</div>
-            </div>
-          </div>
+            {/* Content gap warning */}
+            {daysSincePublish !== null && daysSincePublish > 3 && (
+              <div className="mt-2 bg-amber-950/20 border border-amber-800/50 rounded-lg px-3 py-1.5 text-xs text-amber-300">
+                {daysSincePublish}d since last publish — content gap detected
+              </div>
+            )}
 
-          <div className="mt-2 flex flex-wrap gap-1 text-xs text-zinc-500">
-            <span>Avg SEO: <span className={site.avgSeoScore >= 70 ? "text-emerald-400" : site.avgSeoScore > 0 ? "text-amber-400" : "text-red-400"}>{site.avgSeoScore > 0 ? site.avgSeoScore : "n/a"}</span></span>
-            <span className="ml-2">Indexed: <span className={site.indexRate >= 80 ? "text-emerald-400" : site.indexRate > 0 ? "text-amber-400" : "text-red-400"}>{site.indexRate}%</span></span>
-            {site.lastPublishedAt && <span className="ml-2">Last article: {timeAgo(site.lastPublishedAt)}</span>}
-          </div>
+            <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-center">
+              <div className="bg-zinc-800/50 rounded p-2">
+                <div className="font-bold text-emerald-400">{site.articlesPublished}</div>
+                <div className="text-zinc-500">Published</div>
+              </div>
+              <div className="bg-zinc-800/50 rounded p-2">
+                <div className="font-bold text-blue-400">{site.reservoir}</div>
+                <div className="text-zinc-500">Reservoir</div>
+              </div>
+              <div className="bg-zinc-800/50 rounded p-2">
+                <div className="font-bold text-amber-400">{site.inPipeline}</div>
+                <div className="text-zinc-500">Pipeline</div>
+              </div>
+              <div className="bg-zinc-800/50 rounded p-2">
+                <div className="font-bold text-zinc-400">{site.topicsQueued}</div>
+                <div className="text-zinc-500">Topics</div>
+              </div>
+            </div>
 
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <button
-              onClick={() => onSelectSite(site.id)}
-              className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
-            >
-              📋 Content
-            </button>
-            <button
-              onClick={() => window.open(`https://${site.domain}`, "_blank")}
-              className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
-            >
-              🌐 View Site
-            </button>
-            <ActionButton
-              onClick={() => publishSite(site.id)}
-              loading={publishLoading === site.id}
-              variant="success"
-            >
-              📤 Publish
-            </ActionButton>
-          </div>
-          {publishResult[site.id] && (
-            <p className={`mt-2 text-xs rounded px-2 py-1 ${publishResult[site.id].startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
-              {publishResult[site.id]}
-            </p>
-          )}
-        </Card>
-      ))}
+            <div className="mt-2 flex flex-wrap gap-1 text-xs text-zinc-500">
+              <span>Avg SEO: <span className={site.avgSeoScore >= 70 ? "text-emerald-400" : site.avgSeoScore > 0 ? "text-amber-400" : "text-red-400"}>{site.avgSeoScore > 0 ? site.avgSeoScore : "n/a"}</span></span>
+              <span className="ml-2">Indexed: <span className={site.indexRate >= 80 ? "text-emerald-400" : site.indexRate > 0 ? "text-amber-400" : "text-red-400"}>{site.indexRate}%</span></span>
+              {site.lastPublishedAt && <span className="ml-2">Last article: {timeAgo(site.lastPublishedAt)}</span>}
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <button
+                onClick={() => onSelectSite(site.id)}
+                className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
+              >
+                Content
+              </button>
+              <button
+                onClick={() => window.open(`https://${site.domain}`, "_blank")}
+                className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
+              >
+                View Site
+              </button>
+              <ActionButton
+                onClick={() => publishSite(site.id)}
+                loading={publishLoading === site.id}
+                variant="success"
+              >
+                Publish
+              </ActionButton>
+              <ActionButton
+                onClick={() => quickAction("/api/cron/weekly-topics", { siteId: site.id }, `topics-${site.id}`)}
+                loading={actionLoading === `topics-${site.id}`}
+              >
+                Gen Topics
+              </ActionButton>
+              <ActionButton
+                onClick={() => quickAction("/api/cron/content-builder", { siteId: site.id }, `build-${site.id}`)}
+                loading={actionLoading === `build-${site.id}`}
+              >
+                Build
+              </ActionButton>
+              <ActionButton
+                onClick={() => quickAction("/api/cron/seo-agent", { siteId: site.id }, `seo-${site.id}`)}
+                loading={actionLoading === `seo-${site.id}`}
+              >
+                SEO
+              </ActionButton>
+              <button
+                onClick={() => setExpandedSite(isExpanded ? null : site.id)}
+                className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-zinc-700"
+              >
+                {isExpanded ? "▲ Less" : "▼ Readiness"}
+              </button>
+            </div>
+
+            {publishResult[site.id] && (
+              <p className={`mt-2 text-xs rounded px-2 py-1 ${publishResult[site.id].startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+                {publishResult[site.id]}
+              </p>
+            )}
+
+            {/* Automation readiness checklist */}
+            {isExpanded && (
+              <div className="mt-3 border-t border-zinc-800 pt-3">
+                <p className="text-xs font-semibold text-zinc-400 mb-2">Automation Readiness</p>
+                <div className="space-y-1">
+                  {readiness.checks.map((check) => (
+                    <div key={check.label} className="flex items-center gap-2 text-xs">
+                      <span className={check.ok ? "text-emerald-400" : "text-zinc-600"}>
+                        {check.ok ? "✓" : "○"}
+                      </span>
+                      <span className={check.ok ? "text-zinc-300" : "text-zinc-500"}>{check.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      readiness.percentage >= 80 ? "bg-emerald-500" :
+                      readiness.percentage >= 50 ? "bg-amber-500" : "bg-red-500"
+                    }`}
+                    style={{ width: `${readiness.percentage}%` }}
+                  />
+                </div>
+                <p className="text-xs text-zinc-500 mt-1">{readiness.passCount}/{readiness.total} checks passed</p>
+              </div>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -1774,7 +1990,13 @@ function AIConfigTab() {
         body: JSON.stringify({ action: "test_all" }),
       });
       const json = await res.json();
-      setTestResults(json.results ?? json);
+      // API returns array of {provider, success, latencyMs, error} — convert to object keyed by provider
+      const results = json.results ?? json;
+      if (Array.isArray(results)) {
+        setTestResults(Object.fromEntries(results.map((r: { provider: string }) => [r.provider, r])));
+      } else {
+        setTestResults(results);
+      }
     } catch (e) {
       setTestResults({ error: e instanceof Error ? e.message : "Error" });
     } finally {
@@ -1899,7 +2121,7 @@ function AIConfigTab() {
 // ─── Tab 7: Settings & Testing ────────────────────────────────────────────────
 
 function SettingsTab({ system }: { system: SystemStatus | null }) {
-  const [flags, setFlags] = useState<Array<{ key: string; enabled: boolean; description: string }>>([]);
+  const [flags, setFlags] = useState<Array<{ id: string; key: string; enabled: boolean; description: string }>>([]);
   const [flagsLoading, setFlagsLoading] = useState(true);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState<string | null>(null);
@@ -1922,7 +2144,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
   useEffect(() => {
     fetch("/api/admin/feature-flags")
       .then((r) => r.json())
-      .then((j) => setFlags(j.flags ?? []))
+      .then((j) => setFlags((j.flags ?? []).map((f: { id: string; name: string; enabled: boolean; description: string }) => ({ id: f.id, key: f.name, enabled: f.enabled, description: f.description || "" }))))
       .catch(() => setFlags([]))
       .finally(() => setFlagsLoading(false));
   }, []);
@@ -1942,11 +2164,13 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
   };
 
   const toggleFlag = async (key: string, enabled: boolean) => {
+    const flag = flags.find((f) => f.key === key);
+    if (!flag) return;
     try {
       await fetch("/api/admin/feature-flags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "toggle", key, enabled: !enabled }),
+        body: JSON.stringify({ action: "toggle-flag", data: { flagId: flag.id, enabled: !enabled } }),
       });
       setFlags((prev) => prev.map((f) => f.key === key ? { ...f, enabled: !f.enabled } : f));
     } catch (e) {
@@ -2228,6 +2452,303 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
   );
 }
 
+// ─── Tasks Tab ───────────────────────────────────────────────────────────────
+
+interface DevTask {
+  id: string;
+  siteId: string;
+  title: string;
+  description?: string;
+  category: string;
+  priority: string;
+  status: string;
+  dueDate?: string;
+  source: string;
+  sourceRef?: string;
+  actionLabel?: string;
+  actionApi?: string;
+  actionPayload?: Record<string, unknown>;
+  created_at: string;
+}
+
+interface TaskSummary {
+  total: number;
+  pending: number;
+  in_progress: number;
+  completed: number;
+  dismissed: number;
+  overdue: number;
+  dueToday: number;
+  dueThisWeek: number;
+}
+
+function TasksTab({ siteId }: { siteId: string }) {
+  const [tasks, setTasks] = useState<DevTask[]>([]);
+  const [summary, setSummary] = useState<TaskSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [executingId, setExecutingId] = useState<string | null>(null);
+  const [actionResults, setActionResults] = useState<Record<string, { success: boolean; message: string }>>({});
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const fetchTasks = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ siteId: siteId || "all" });
+      if (statusFilter) params.set("status", statusFilter);
+      const res = await fetch(`/api/admin/dev-tasks?${params}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setTasks(data.tasks || []);
+      setSummary(data.summary || null);
+    } catch (err) {
+      console.warn("[tasks] Failed to load:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [siteId, statusFilter]);
+
+  useEffect(() => { fetchTasks(); }, [fetchTasks]);
+
+  const scanForTasks = async () => {
+    setScanning(true);
+    try {
+      const res = await fetch("/api/admin/dev-tasks/auto-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId }),
+      });
+      const data = await res.json();
+      if (data.created > 0) {
+        fetchTasks(); // Refresh
+      }
+      setActionResults(prev => ({
+        ...prev,
+        "scan": { success: true, message: data.message || `${data.created} created` },
+      }));
+    } catch {
+      setActionResults(prev => ({
+        ...prev,
+        "scan": { success: false, message: "Scan failed" },
+      }));
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const executeAction = async (task: DevTask) => {
+    if (!task.actionApi) return;
+    setExecutingId(task.id);
+    try {
+      const res = await fetch(task.actionApi, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(task.actionPayload || {}),
+      });
+      const data = await res.json().catch(() => ({}));
+      setActionResults(prev => ({
+        ...prev,
+        [task.id]: { success: res.ok, message: data.message || (res.ok ? "Done" : `HTTP ${res.status}`) },
+      }));
+      // Auto-complete the task on success
+      if (res.ok) {
+        await fetch("/api/admin/dev-tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "complete", taskId: task.id }),
+        });
+        fetchTasks();
+      }
+    } catch (err) {
+      setActionResults(prev => ({
+        ...prev,
+        [task.id]: { success: false, message: err instanceof Error ? err.message : "Failed" },
+      }));
+    } finally {
+      setExecutingId(null);
+    }
+  };
+
+  const dismissTask = async (taskId: string) => {
+    await fetch("/api/admin/dev-tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "dismiss", taskId }),
+    });
+    fetchTasks();
+  };
+
+  const completeTask = async (taskId: string) => {
+    await fetch("/api/admin/dev-tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "complete", taskId }),
+    });
+    fetchTasks();
+  };
+
+  const priorityColor = (p: string) => {
+    switch (p) {
+      case "critical": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+      case "high": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
+      case "medium": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+      default: return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+    }
+  };
+
+  const categoryIcon = (c: string) => {
+    switch (c) {
+      case "pipeline": return "⚙️";
+      case "seo": return "🔍";
+      case "automation": return "🤖";
+      case "config": return "🔧";
+      case "content": return "📝";
+      case "security": return "🛡️";
+      case "database": return "🗄️";
+      default: return "📌";
+    }
+  };
+
+  if (loading) return <div className="p-6 text-center text-gray-500">Loading tasks...</div>;
+
+  return (
+    <div className="space-y-4 p-1">
+      {/* Summary Cards */}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {summary.overdue > 0 && (
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-3 text-center border border-red-200 dark:border-red-800">
+              <div className="text-2xl font-bold text-red-600">{summary.overdue}</div>
+              <div className="text-xs text-red-500">Overdue</div>
+            </div>
+          )}
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 text-center border border-amber-200 dark:border-amber-800">
+            <div className="text-2xl font-bold text-amber-600">{summary.dueToday}</div>
+            <div className="text-xs text-amber-500">Due Today</div>
+          </div>
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 text-center border border-blue-200 dark:border-blue-800">
+            <div className="text-2xl font-bold text-blue-600">{summary.pending}</div>
+            <div className="text-xs text-blue-500">Pending</div>
+          </div>
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3 text-center border border-green-200 dark:border-green-800">
+            <div className="text-2xl font-bold text-green-600">{summary.completed}</div>
+            <div className="text-xs text-green-500">Completed</div>
+          </div>
+        </div>
+      )}
+
+      {/* Actions Bar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <button
+          onClick={scanForTasks}
+          disabled={scanning}
+          className="px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-400 text-white font-medium rounded-lg text-sm transition-colors inline-flex items-center gap-2"
+        >
+          {scanning ? (
+            <><span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" /> Scanning...</>
+          ) : (
+            <>🔍 Scan for Tasks</>
+          )}
+        </button>
+
+        {actionResults["scan"] && (
+          <span className={`text-xs ${actionResults["scan"].success ? "text-green-600" : "text-red-600"}`}>
+            {actionResults["scan"].message}
+          </span>
+        )}
+
+        <div className="flex-1" />
+
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
+        >
+          <option value="">Open Tasks</option>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="dismissed">Dismissed</option>
+        </select>
+      </div>
+
+      {/* Task List */}
+      {tasks.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <p className="text-lg mb-2">No tasks found</p>
+          <p className="text-sm">Click &quot;Scan for Tasks&quot; to detect issues that need attention</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {tasks.map(task => (
+            <div key={task.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex items-start gap-3">
+                <span className="text-lg flex-shrink-0 mt-0.5">{categoryIcon(task.category)}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityColor(task.priority)}`}>
+                      {task.priority}
+                    </span>
+                    <span className="font-medium text-sm text-gray-900 dark:text-white">{task.title}</span>
+                  </div>
+                  {task.description && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{task.description}</p>
+                  )}
+                  {task.dueDate && (
+                    <span className="text-xs text-gray-400">
+                      Due: {new Date(task.dueDate).toLocaleDateString()}
+                    </span>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {task.actionLabel && task.actionApi && (
+                      <>
+                        {actionResults[task.id] ? (
+                          <span className={`text-xs px-3 py-1 rounded-lg ${
+                            actionResults[task.id].success
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                              : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                          }`}>
+                            {actionResults[task.id].success ? "✅" : "❌"} {actionResults[task.id].message}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => executeAction(task)}
+                            disabled={executingId === task.id}
+                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-xs font-medium rounded-lg transition-colors inline-flex items-center gap-1"
+                          >
+                            {executingId === task.id ? (
+                              <><span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" /> Running...</>
+                            ) : (
+                              <>🚀 {task.actionLabel}</>
+                            )}
+                          </button>
+                        )}
+                      </>
+                    )}
+                    <button
+                      onClick={() => completeTask(task.id)}
+                      className="px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                    >
+                      ✓ Done
+                    </button>
+                    <button
+                      onClick={() => dismissTask(task.id)}
+                      className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Root Cockpit Page ────────────────────────────────────────────────────────
 
 const TABS = [
@@ -2238,12 +2759,24 @@ const TABS = [
   { id: "sites", label: "🌍 Sites" },
   { id: "ai", label: "🤖 AI Config" },
   { id: "settings", label: "🔧 Settings" },
+  { id: "tasks", label: "📌 Tasks" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
-export default function CockpitPage() {
-  const [activeTab, setActiveTab] = useState<TabId>("mission");
+export default function CockpitPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen bg-zinc-950"><p className="text-zinc-500 text-sm">Loading cockpit…</p></div>}>
+      <CockpitPage />
+    </Suspense>
+  );
+}
+
+function CockpitPage() {
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get("tab") as TabId) || "mission";
+  const validTab = TABS.some(t => t.id === initialTab) ? initialTab : "mission";
+  const [activeTab, setActiveTab] = useState<TabId>(validTab);
   const [cockpitData, setCockpitData] = useState<CockpitData | null>(null);
   const [cockpitLoading, setCockpitLoading] = useState(true);
   const [cockpitError, setCockpitError] = useState<string | null>(null);
@@ -2254,7 +2787,10 @@ export default function CockpitPage() {
   const fetchCockpit = useCallback(async () => {
     setCockpitError(null);
     try {
-      const res = await fetch("/api/admin/cockpit");
+      const url = activeSiteId
+        ? `/api/admin/cockpit?siteId=${encodeURIComponent(activeSiteId)}`
+        : "/api/admin/cockpit";
+      const res = await fetch(url);
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
         throw new Error(err.error ?? `HTTP ${res.status}`);
@@ -2300,6 +2836,7 @@ export default function CockpitPage() {
                 onChange={(e) => setActiveSiteId(e.target.value)}
                 className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-300 focus:outline-none"
               >
+                <option value="all">All Sites</option>
                 {cockpitData.sites.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -2371,6 +2908,9 @@ export default function CockpitPage() {
         )}
         {activeTab === "settings" && (
           <SettingsTab system={cockpitData?.system ?? null} />
+        )}
+        {activeTab === "tasks" && (
+          <TasksTab siteId={activeSiteId} />
         )}
       </main>
     </div>

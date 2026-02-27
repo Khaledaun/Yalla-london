@@ -21,14 +21,23 @@ export interface SiteConfig {
   siteId: string;
   name: string;
   domain: string;
-  siteType: 'travel_blog' | 'yacht_charter' | 'custom';
+  siteType: 'travel_blog' | 'yacht_charter' | 'custom' | 'other';
   primaryLanguage: 'en' | 'ar';
-  targetAudience: string;
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
   topics: string[];
-  affiliatePartners: string[];
+  // Accept both field names for compatibility with wizard page
+  affiliates?: string[];
+  affiliatePartners?: string[];
+  // Optional fields from wizard
+  tagline?: string;
+  secondaryLanguage?: string;
+  targetAudience?: string;
+  targetKeywords?: string[];
+  contentVelocity?: number;
+  automations?: string[];
+  researchNotes?: string;
 }
 
 export interface BuildProgress {
@@ -56,7 +65,7 @@ export interface BuildResult {
  * These give the content pipeline something to work with immediately after
  * the site is created, even before Khaled runs the weekly-topics cron.
  */
-const SEED_TOPICS: Record<SiteConfig['siteType'], string[]> = {
+const SEED_TOPICS: Record<string, string[]> = {
   travel_blog: [
     'luxury hotels',
     'halal restaurants',
@@ -154,6 +163,9 @@ const SEED_TOPICS: Record<SiteConfig['siteType'], string[]> = {
     'top highlights overview',
   ],
 };
+
+// "other" is an alias for "custom" — the wizard page sends "other"
+SEED_TOPICS.other = SEED_TOPICS.custom;
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -316,9 +328,14 @@ export async function buildNewSite(config: SiteConfig): Promise<BuildResult> {
           secondaryColor: config.secondaryColor,
           accentColor: config.accentColor,
           topics: config.topics,
-          affiliatePartners: config.affiliatePartners,
+          affiliatePartners: config.affiliatePartners ?? config.affiliates ?? [],
           siteType: config.siteType,
-          targetAudience: config.targetAudience,
+          targetAudience: config.targetAudience ?? '',
+          tagline: config.tagline ?? '',
+          secondaryLanguage: config.secondaryLanguage ?? 'none',
+          targetKeywords: config.targetKeywords ?? [],
+          contentVelocity: config.contentVelocity ?? 1,
+          automations: config.automations ?? [],
         },
       },
     });

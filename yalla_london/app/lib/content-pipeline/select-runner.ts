@@ -462,11 +462,10 @@ export async function promoteToBlogPost(
   const enMetaDesc = (enSeoMeta.metaDescription as string) || "";
   const arMetaDesc = (arSeoMeta.metaDescription as string) || "";
   const keywords = (enSeoMeta.keywords as string[]) || (arSeoMeta.keywords as string[]) || [keyword];
-  const pageType = (outline.schemaType as string) === "HowTo"
-    ? "guide"
-    : (outline.schemaType as string) === "FAQPage"
-      ? "faq"
-      : "guide";
+  const schemaType = (outline.schemaType as string) || "";
+  const pageType = schemaType === "FAQPage" ? "faq"
+    : schemaType === "HowTo" || schemaType === "Guide" ? "guide"
+    : "blog"; // default to blog for standard articles
 
   const enImages = (enDraft?.images_data || {}) as Record<string, unknown>;
   const arImages = (arDraft?.images_data || {}) as Record<string, unknown>;

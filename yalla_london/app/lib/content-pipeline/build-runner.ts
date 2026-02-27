@@ -163,8 +163,8 @@ export async function runContentBuilder(
               strategy = "topic_db";
             }
           }
-        } catch {
-          // TopicProposal query failed — fall through to template
+        } catch (topicErr) {
+          console.warn(`[build-runner] TopicProposal query failed for ${siteId} — falling through to template:`, topicErr instanceof Error ? topicErr.message : topicErr);
         }
 
         if (!keyword) {

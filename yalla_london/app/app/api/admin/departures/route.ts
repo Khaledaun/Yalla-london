@@ -30,6 +30,13 @@ export interface Departure {
   lastRunStatus: 'success' | 'failed' | 'unknown' | null;
   siteId: string | null;
   meta?: Record<string, string | number>;
+  // Phase 6 enhancements
+  description: string | null;      // plain-English "what will happen"
+  category: string | null;         // content | seo | analytics | maintenance | publishing
+  feedsInto: string | null;        // what this cron feeds into
+  successRate7d: number | null;    // 7-day success rate (0-100)
+  avgDurationMs: number | null;    // average execution duration
+  lastError: string | null;        // plain-English last error message
 }
 
 // ---------------------------------------------------------------------------
@@ -42,32 +49,35 @@ interface CronDef {
   label: string;
   icon: string;
   type: 'cron';
+  description: string;
+  category: 'content' | 'seo' | 'analytics' | 'maintenance' | 'publishing';
+  feedsInto?: string;
 }
 
 const CRON_DEFS: CronDef[] = [
-  { path: '/api/cron/analytics',              schedule: '0 3 * * *',          label: 'Analytics Sync',            icon: '📊', type: 'cron' },
-  { path: '/api/cron/weekly-topics',          schedule: '0 4 * * 1',          label: 'Weekly Topic Research',     icon: '🔍', type: 'cron' },
-  { path: '/api/cron/daily-content-generate', schedule: '0 5 * * *',          label: 'Daily Content Generation',  icon: '✍️', type: 'cron' },
-  { path: '/api/cron/seo-orchestrator?mode=weekly', schedule: '0 5 * * 0',   label: 'SEO Orchestrator (weekly)', icon: '🎯', type: 'cron' },
-  { path: '/api/cron/trends-monitor',         schedule: '0 6 * * *',          label: 'Trends Monitor',            icon: '📈', type: 'cron' },
-  { path: '/api/cron/seo-orchestrator?mode=daily', schedule: '0 6 * * *',    label: 'SEO Orchestrator (daily)',  icon: '🎯', type: 'cron' },
-  { path: '/api/cron/london-news',            schedule: '0 6 * * *',          label: 'London News Fetch',         icon: '📰', type: 'cron' },
-  { path: '/api/cron/seo-agent',              schedule: '0 7 * * *',          label: 'SEO Agent (morning)',       icon: '🤖', type: 'cron' },
-  { path: '/api/seo/cron?task=daily',         schedule: '30 7 * * *',         label: 'IndexNow Submission',       icon: '🔗', type: 'cron' },
-  { path: '/api/cron/sweeper',               schedule: '45 8 * * *',          label: 'DB Sweeper / Cleanup',      icon: '🧹', type: 'cron' },
-  { path: '/api/seo/cron?task=weekly',        schedule: '0 8 * * 0',          label: 'SEO Cron (weekly)',         icon: '🔗', type: 'cron' },
-  { path: '/api/cron/content-builder',        schedule: '*/15 * * * *',       label: 'Content Builder (15min)',   icon: '🏗️', type: 'cron' },
-  { path: '/api/cron/content-selector',       schedule: '0 9,13,17,21 * * *', label: 'Content Selector',          icon: '✅', type: 'cron' },
-  { path: '/api/cron/affiliate-injection',    schedule: '0 9 * * *',          label: 'Affiliate Injection',       icon: '💰', type: 'cron' },
-  { path: '/api/cron/scheduled-publish',      schedule: '0 9 * * *',          label: 'Scheduled Publish (9am)',   icon: '🚀', type: 'cron' },
-  { path: '/api/cron/google-indexing',        schedule: '15 9 * * *',         label: 'Google Indexing Submit',    icon: '🔎', type: 'cron' },
-  { path: '/api/cron/seo-agent',              schedule: '0 13 * * *',         label: 'SEO Agent (afternoon)',     icon: '🤖', type: 'cron' },
-  { path: '/api/cron/scheduled-publish',      schedule: '0 16 * * *',         label: 'Scheduled Publish (4pm)',   icon: '🚀', type: 'cron' },
-  { path: '/api/cron/verify-indexing',        schedule: '0 11 * * *',         label: 'Verify Indexing',           icon: '✔️', type: 'cron' },
-  { path: '/api/cron/content-auto-fix',       schedule: '0 11,18 * * *',      label: 'Content Auto-Fix',          icon: '🔧', type: 'cron' },
-  { path: '/api/cron/seo-agent',              schedule: '0 20 * * *',         label: 'SEO Agent (evening)',       icon: '🤖', type: 'cron' },
-  { path: '/api/cron/site-health-check',      schedule: '0 22 * * *',         label: 'Site Health Check',         icon: '❤️', type: 'cron' },
-  { path: '/api/cron/fact-verification',      schedule: '0 3 * * 0',          label: 'Fact Verification',         icon: '🔬', type: 'cron' },
+  { path: '/api/cron/analytics',              schedule: '0 3 * * *',          label: 'Analytics Sync',            icon: '📊', type: 'cron', category: 'analytics',    description: 'Syncs GA4 + Search Console data into the dashboard. Updates traffic, clicks, and keyword rankings.',           feedsInto: 'Dashboard metrics' },
+  { path: '/api/cron/weekly-topics',          schedule: '0 4 * * 1',          label: 'Weekly Topic Research',     icon: '🔍', type: 'cron', category: 'content',      description: 'Generates new content topic ideas for all active sites. Creates TopicProposal records that feed the content builder.', feedsInto: 'Content Builder' },
+  { path: '/api/cron/daily-content-generate', schedule: '0 5 * * *',          label: 'Daily Content Generation',  icon: '✍️', type: 'cron', category: 'content',      description: 'Creates new article drafts from approved topics. Each draft enters the 8-phase pipeline.',                     feedsInto: 'Content Builder' },
+  { path: '/api/cron/seo-orchestrator?mode=weekly', schedule: '0 5 * * 0',   label: 'SEO Orchestrator (weekly)', icon: '🎯', type: 'cron', category: 'seo',          description: 'Deep weekly SEO audit. Checks indexing gaps, content quality, schema markup, and generates health reports.',    feedsInto: 'SEO Reports' },
+  { path: '/api/cron/trends-monitor',         schedule: '0 6 * * *',          label: 'Trends Monitor',            icon: '📈', type: 'cron', category: 'content',      description: 'Scans trending topics for timely content opportunities. Creates urgent topic proposals for viral moments.',     feedsInto: 'Weekly Topics' },
+  { path: '/api/cron/seo-orchestrator?mode=daily', schedule: '0 6 * * *',    label: 'SEO Orchestrator (daily)',  icon: '🎯', type: 'cron', category: 'seo',          description: 'Daily SEO maintenance. Checks for new indexing issues and updates SEO health scores.',                        feedsInto: 'SEO Agent' },
+  { path: '/api/cron/london-news',            schedule: '0 6 * * *',          label: 'London News Fetch',         icon: '📰', type: 'cron', category: 'content',      description: 'Fetches London-specific news and generates timely news articles for the site.',                                feedsInto: 'Published content' },
+  { path: '/api/cron/seo-agent',              schedule: '0 7 * * *',          label: 'SEO Agent (morning)',       icon: '🤖', type: 'cron', category: 'seo',          description: 'Auto-fixes meta titles/descriptions, injects internal links, discovers new pages for IndexNow submission.',   feedsInto: 'IndexNow' },
+  { path: '/api/seo/cron?task=daily',         schedule: '30 7 * * *',         label: 'IndexNow Submission',       icon: '🔗', type: 'cron', category: 'seo',          description: 'Submits new/updated URLs to IndexNow for instant search engine discovery. Faster than waiting for crawlers.',  feedsInto: 'Google indexing' },
+  { path: '/api/cron/sweeper',               schedule: '45 8 * * *',          label: 'DB Sweeper / Cleanup',      icon: '🧹', type: 'cron', category: 'maintenance',  description: 'Cleans up old logs, expired sessions, and stale data. Keeps the database lean and performant.' },
+  { path: '/api/seo/cron?task=weekly',        schedule: '0 8 * * 0',          label: 'SEO Cron (weekly)',         icon: '🔗', type: 'cron', category: 'seo',          description: 'Weekly deep sitemap and indexing analysis. Checks for broken links, duplicate content, and orphan pages.',     feedsInto: 'SEO Reports' },
+  { path: '/api/cron/content-builder',        schedule: '*/15 * * * *',       label: 'Content Builder (15min)',   icon: '🏗️', type: 'cron', category: 'content',      description: 'Moves article drafts through the 8-phase pipeline: research → outline → drafting → assembly → images → SEO → scoring → reservoir.', feedsInto: 'Content Selector' },
+  { path: '/api/cron/content-selector',       schedule: '0 9,13,17,21 * * *', label: 'Content Selector',          icon: '✅', type: 'cron', category: 'publishing',   description: 'Selects highest-quality articles from the reservoir and schedules them for publication.',                      feedsInto: 'Scheduled Publish' },
+  { path: '/api/cron/affiliate-injection',    schedule: '0 9 * * *',          label: 'Affiliate Injection',       icon: '💰', type: 'cron', category: 'content',      description: 'Injects affiliate and booking links (HalalBooking, Booking.com, Viator) into published articles for revenue.' },
+  { path: '/api/cron/scheduled-publish',      schedule: '0 9 * * *',          label: 'Scheduled Publish (9am)',   icon: '🚀', type: 'cron', category: 'publishing',   description: 'Publishes scheduled articles at 9am UTC. Each article passes the 14-check pre-publication gate.',              feedsInto: 'SEO Agent' },
+  { path: '/api/cron/google-indexing',        schedule: '15 9 * * *',         label: 'Google Indexing Submit',    icon: '🔎', type: 'cron', category: 'seo',          description: 'Submits newly published pages to Google via the Indexing API for faster crawling and indexing.' },
+  { path: '/api/cron/seo-agent',              schedule: '0 13 * * *',         label: 'SEO Agent (afternoon)',     icon: '🤖', type: 'cron', category: 'seo',          description: 'Afternoon SEO pass. Catches newly published articles and fixes any meta tag or link issues.',                 feedsInto: 'IndexNow' },
+  { path: '/api/cron/scheduled-publish',      schedule: '0 16 * * *',         label: 'Scheduled Publish (4pm)',   icon: '🚀', type: 'cron', category: 'publishing',   description: 'Afternoon publish window. Publishes remaining scheduled content for the day.',                                feedsInto: 'SEO Agent' },
+  { path: '/api/cron/verify-indexing',        schedule: '0 11 * * *',         label: 'Verify Indexing',           icon: '✔️', type: 'cron', category: 'seo',          description: 'Checks previously submitted URLs to confirm Google has indexed them. Updates indexing status in the database.' },
+  { path: '/api/cron/content-auto-fix',       schedule: '0 11,18 * * *',      label: 'Content Auto-Fix',          icon: '🔧', type: 'cron', category: 'content',      description: 'Expands thin articles (<1000 words) and trims overlong meta descriptions. Runs twice daily.',                  feedsInto: 'Quality gate' },
+  { path: '/api/cron/seo-agent',              schedule: '0 20 * * *',         label: 'SEO Agent (evening)',       icon: '🤖', type: 'cron', category: 'seo',          description: 'Evening SEO sweep. Final daily check for missing meta tags, internal links, and schema markup.',               feedsInto: 'IndexNow' },
+  { path: '/api/cron/site-health-check',      schedule: '0 22 * * *',         label: 'Site Health Check',         icon: '❤️', type: 'cron', category: 'maintenance',  description: 'Nightly health check across all configured sites. Detects downtime, slow responses, and configuration issues.' },
+  { path: '/api/cron/fact-verification',      schedule: '0 3 * * 0',          label: 'Fact Verification',         icon: '🔬', type: 'cron', category: 'content',      description: 'Weekly fact-check pass on generated content. Flags suspicious claims and verifies key data points.' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -191,21 +201,28 @@ export async function GET(req: NextRequest) {
 
   const { prisma } = await import('@/lib/db');
   const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  // Fetch last run times from CronJobLog in one query
+  // Fetch 7 days of logs for success rate + last run info
   const recentLogs = await prisma.cronJobLog.findMany({
-    where: { started_at: { gte: new Date(now.getTime() - 48 * 60 * 60 * 1000) } },
+    where: { started_at: { gte: sevenDaysAgo } },
     orderBy: { started_at: 'desc' },
-    select: { job_name: true, status: true, started_at: true },
-    take: 200,
+    select: { job_name: true, status: true, started_at: true, duration_ms: true, error_message: true },
+    take: 1000,
   });
 
-  // Build a map: jobName → last log entry
-  const lastRunMap = new Map<string, { at: Date; status: string }>();
+  // Build maps: lastRun + 7-day stats
+  const lastRunMap = new Map<string, { at: Date; status: string; error: string | null }>();
+  const statsMap = new Map<string, { total: number; success: number; durations: number[] }>();
   for (const log of recentLogs) {
     if (!lastRunMap.has(log.job_name)) {
-      lastRunMap.set(log.job_name, { at: log.started_at, status: log.status });
+      lastRunMap.set(log.job_name, { at: log.started_at, status: log.status, error: log.error_message });
     }
+    const prev = statsMap.get(log.job_name) ?? { total: 0, success: 0, durations: [] };
+    prev.total++;
+    if (log.status === 'success' || log.status === 'completed') prev.success++;
+    if (log.duration_ms) prev.durations.push(log.duration_ms);
+    statsMap.set(log.job_name, prev);
   }
 
   // Derive job name from cron path
@@ -228,6 +245,28 @@ export async function GET(req: NextRequest) {
     if (seen.has(dedupeKey)) continue;
     seen.add(dedupeKey);
 
+    // 7-day stats
+    const stats = statsMap.get(name) ?? statsMap.get(def.path);
+    const successRate = stats && stats.total > 0
+      ? Math.round((stats.success / stats.total) * 100)
+      : null;
+    const avgDuration = stats && stats.durations.length > 0
+      ? Math.round(stats.durations.reduce((a, b) => a + b, 0) / stats.durations.length)
+      : null;
+
+    // Plain-English error from last failure
+    let lastError: string | null = null;
+    if (lastRun?.status !== 'success' && lastRun?.status !== 'completed' && lastRun?.error) {
+      try {
+        const { interpretError } = await import('@/lib/error-interpreter');
+        const interpreted = interpretError(lastRun.error);
+        lastError = interpreted.plain;
+      } catch (interpErr) {
+        console.warn('[departures] interpretError import failed:', interpErr instanceof Error ? interpErr.message : String(interpErr));
+        lastError = lastRun.error.slice(0, 120);
+      }
+    }
+
     departures.push({
       id: `cron::${dedupeKey}`,
       label: def.label,
@@ -239,8 +278,14 @@ export async function GET(req: NextRequest) {
       cronPath: def.path,
       cronSchedule: scheduleLabel(def.schedule),
       lastRunAt: lastRun?.at.toISOString() ?? null,
-      lastRunStatus: lastRun ? (lastRun.status === 'success' ? 'success' : 'failed') : 'unknown',
+      lastRunStatus: lastRun ? (lastRun.status === 'success' || lastRun.status === 'completed' ? 'success' : 'failed') : 'unknown',
       siteId: null,
+      description: def.description,
+      category: def.category,
+      feedsInto: def.feedsInto ?? null,
+      successRate7d: successRate,
+      avgDurationMs: avgDuration,
+      lastError,
     });
   }
 
@@ -278,26 +323,32 @@ export async function GET(req: NextRequest) {
         lastRunStatus: null,
         siteId: sc.site_id ?? null,
         meta: { contentType: sc.content_type ?? 'article' },
+        description: 'Scheduled article awaiting its publish time. Will pass the 14-check pre-publication gate before going live.',
+        category: 'publishing',
+        feedsInto: 'SEO Agent',
+        successRate7d: null,
+        avgDurationMs: null,
+        lastError: null,
       });
     }
-  } catch {
-    // ScheduledContent query is non-critical
+  } catch (err) {
+    console.warn("[departures] ScheduledContent query failed:", err instanceof Error ? err.message : String(err));
   }
 
   // Articles ready in reservoir (awaiting content-selector)
   try {
     const reservoir = await prisma.articleDraft.findMany({
-      where: { status: 'reservoir' },
+      where: { current_phase: 'reservoir' },
       orderBy: { updated_at: 'desc' },
       take: 5,
-      select: { id: true, title_en: true, quality_score: true, site_id: true },
+      select: { id: true, keyword: true, quality_score: true, site_id: true },
     });
     for (const d of reservoir) {
       // Next content-selector run = closest of 9,13,17,21 UTC today
       const selectorNext = nextFireTime('0 9,13,17,21 * * *', now);
       departures.push({
         id: `reservoir::${d.id}`,
-        label: `Publish: ${d.title_en?.slice(0, 50) ?? 'Article'}`,
+        label: `Publish: ${d.keyword?.slice(0, 50) ?? 'Article'}`,
         type: 'content',
         icon: '✅',
         scheduledAt: selectorNext.toISOString(),
@@ -309,10 +360,16 @@ export async function GET(req: NextRequest) {
         lastRunStatus: null,
         siteId: d.site_id,
         meta: { qualityScore: d.quality_score ?? 0 },
+        description: 'Article ready in the reservoir — highest quality score articles are published first by the content selector.',
+        category: 'publishing',
+        feedsInto: 'Published content → SEO Agent',
+        successRate7d: null,
+        avgDurationMs: null,
+        lastError: null,
       });
     }
-  } catch {
-    // Non-critical
+  } catch (err) {
+    console.warn("[departures] ArticleDraft reservoir query failed:", err instanceof Error ? err.message : String(err));
   }
 
   // Sort all departures: overdue first, then by countdown ascending
@@ -324,12 +381,19 @@ export async function GET(req: NextRequest) {
     return a.countdownMs - b.countdownMs;
   });
 
+  // Category breakdown for grouped view
+  const categories: Record<string, number> = {};
+  for (const d of departures) {
+    if (d.category) categories[d.category] = (categories[d.category] ?? 0) + 1;
+  }
+
   return NextResponse.json({
     departures,
     generatedAt: now.toISOString(),
     totalCrons: CRON_DEFS.length,
     totalPublications: departures.filter((d) => d.type === 'publication').length,
     totalReady: departures.filter((d) => d.status === 'ready').length,
+    categories,
   });
 }
 

@@ -114,6 +114,15 @@ interface SiteSummary {
   isActive: boolean;
 }
 
+interface RevenueSnapshot {
+  affiliateClicksToday: number;
+  affiliateClicksWeek: number;
+  conversionsWeek: number;
+  revenueWeekUsd: number;
+  topPartner: string | null;
+  aiCostWeekUsd: number;
+}
+
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
@@ -127,7 +136,7 @@ function hoursAgo(date: Date): number {
 // GET handler
 // ─────────────────────────────────────────────
 
-export const GET = withAdminAuth(async (_req: NextRequest) => {
+export const GET = withAdminAuth(async (request: NextRequest) => {
   const { prisma } = await import("@/lib/db");
 
   // ── 1. DB latency check ───────────────────────────────
@@ -204,26 +213,36 @@ export const GET = withAdminAuth(async (_req: NextRequest) => {
       pipeline: emptyPipeline(),
       indexing: emptyIndexing(),
       cronHealth: emptyCronHealth(),
+      revenue: emptyRevenue(),
       alerts,
       sites: [],
       timestamp: new Date().toISOString(),
     });
   }
 
-  // ── 4. Pipeline ───────────────────────────────────────
-  const activeSiteIds = getActiveSiteIds();
+  // ── 4. Site scoping ──────────────────────────────────
+  const allSiteIds = getActiveSiteIds();
+  const requestedSiteId = new URL(request.url).searchParams.get("siteId");
+  const activeSiteIds = requestedSiteId && requestedSiteId !== "all"
+    ? allSiteIds.filter((id) => id === requestedSiteId)
+    : allSiteIds;
+
+  // ── 5. Pipeline ───────────────────────────────────────
   const pipeline = await buildPipeline(prisma, activeSiteIds);
 
-  // ── 5. Indexing ───────────────────────────────────────
+  // ── 6. Indexing ───────────────────────────────────────
   const indexing = await buildIndexing(prisma, activeSiteIds);
 
-  // ── 6. Cron health ────────────────────────────────────
+  // ── 7. Cron health ────────────────────────────────────
   const cronHealth = await buildCronHealth(prisma);
 
-  // ── 7. Per-site summaries ─────────────────────────────
-  const sites = await buildSites(prisma, activeSiteIds);
+  // ── 8. Per-site summaries ─────────────────────────────
+  const sites = await buildSites(prisma, allSiteIds);
 
-  // ── 8. Alerts ─────────────────────────────────────────
+  // ── 9. Revenue snapshot ─────────────────────────────
+  const revenue = await buildRevenue(prisma, activeSiteIds);
+
+  // ── 10. Alerts ────────────────────────────────────────
   const alerts = computeAlerts({
     system,
     pipeline,
@@ -237,6 +256,7 @@ export const GET = withAdminAuth(async (_req: NextRequest) => {
     pipeline,
     indexing,
     cronHealth,
+    revenue,
     alerts,
     sites,
     timestamp: new Date().toISOString(),
@@ -689,5 +709,69 @@ function emptyIndexing(): IndexingStatus {
 
 function emptyCronHealth(): CronHealth {
   return { failedLast24h: 0, timedOutLast24h: 0, lastRunAt: null, recentJobs: [] };
+}
+
+function emptyRevenue(): RevenueSnapshot {
+  return { affiliateClicksToday: 0, affiliateClicksWeek: 0, conversionsWeek: 0, revenueWeekUsd: 0, topPartner: null, aiCostWeekUsd: 0 };
+}
+
+// ─────────────────────────────────────────────
+// Revenue snapshot
+// ─────────────────────────────────────────────
+
+async function buildRevenue(prisma: any, activeSiteIds: string[]): Promise<RevenueSnapshot> {
+  const snapshot = emptyRevenue();
+
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const siteFilter = { site_id: { in: activeSiteIds } };
+
+    const [clicksToday, clicksWeek, conversions, topPartnerGroup, aiCosts] = await Promise.all([
+      // Affiliate clicks today
+      prisma.affiliateClick.count({
+        where: { ...siteFilter, clicked_at: { gte: todayStart } },
+      }).catch(() => 0),
+
+      // Affiliate clicks this week
+      prisma.affiliateClick.count({
+        where: { ...siteFilter, clicked_at: { gte: weekAgo } },
+      }).catch(() => 0),
+
+      // Conversions this week (value in cents)
+      prisma.conversion.aggregate({
+        _count: { id: true },
+        _sum: { commission: true },
+        where: { ...siteFilter, converted_at: { gte: weekAgo } },
+      }).catch(() => ({ _count: { id: 0 }, _sum: { commission: null } })),
+
+      // Top partner by clicks this week
+      prisma.affiliateClick.groupBy({
+        by: ["partner_id"],
+        _count: { id: true },
+        where: { ...siteFilter, clicked_at: { gte: weekAgo } },
+        orderBy: { _count: { id: "desc" } },
+        take: 1,
+      }).catch(() => []),
+
+      // AI cost this week (from ApiUsageLog)
+      prisma.apiUsageLog.aggregate({
+        _sum: { estimatedCostUsd: true },
+        where: { createdAt: { gte: weekAgo } },
+      }).catch(() => ({ _sum: { estimatedCostUsd: null } })),
+    ]);
+
+    snapshot.affiliateClicksToday = clicksToday;
+    snapshot.affiliateClicksWeek = clicksWeek;
+    snapshot.conversionsWeek = conversions._count?.id ?? 0;
+    snapshot.revenueWeekUsd = Math.round((conversions._sum?.commission ?? 0)) / 100; // cents → dollars
+    snapshot.topPartner = topPartnerGroup[0]?.partner_id ?? null;
+    snapshot.aiCostWeekUsd = Math.round((aiCosts._sum?.estimatedCostUsd ?? 0) * 100) / 100;
+  } catch (err) {
+    console.warn("[cockpit] revenue snapshot failed:", err instanceof Error ? err.message : err);
+  }
+
+  return snapshot;
 }
 

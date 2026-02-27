@@ -52,9 +52,22 @@ async function handleSync(request: NextRequest) {
       }
 
       // Check if site has Etsy connection
-      const config = await prisma.etsyShopConfig.findUnique({
-        where: { siteId },
-      });
+      let config;
+      try {
+        config = await prisma.etsyShopConfig.findUnique({
+          where: { siteId },
+        });
+      } catch (tableErr: unknown) {
+        const msg = tableErr instanceof Error ? tableErr.message : String(tableErr);
+        if (msg.includes('P2021') || msg.includes('does not exist') || msg.includes('etsy_shop_configs')) {
+          return NextResponse.json({
+            status: "skipped",
+            message: "EtsyShopConfig table not found — run npx prisma db push to create it",
+            results: [],
+          });
+        }
+        throw tableErr;
+      }
 
       if (!config || config.connectionStatus !== "connected") continue;
 
@@ -74,36 +87,26 @@ async function handleSync(request: NextRequest) {
       }
     }
 
-    // Log to CronJobLog
-    try {
-      const totalSynced = results.reduce((sum, r) => sum + r.synced, 0);
-      const totalOrders = results.reduce((sum, r) => sum + r.ordersImported, 0);
-      const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
+    // Log to CronJobLog via standard logger (uses correct snake_case fields)
+    const totalSynced = results.reduce((sum, r) => sum + r.synced, 0);
+    const totalOrders = results.reduce((sum, r) => sum + r.ordersImported, 0);
+    const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
 
-      await prisma.cronJobLog.create({
-        data: {
-          jobName: "etsy-sync",
-          status: totalErrors > 0 ? "partial" : "success",
-          startedAt: new Date(startTime),
-          completedAt: new Date(),
-          itemsProcessed: totalSynced,
-          errorMessage:
-            totalErrors > 0
-              ? results
-                  .flatMap((r) => r.errors)
-                  .join("; ")
-                  .slice(0, 500)
-              : null,
-          metadata: {
-            results,
-            ordersImported: totalOrders,
-            durationMs: Date.now() - startTime,
-          },
-        },
-      });
-    } catch (logErr) {
-      console.warn("[etsy-sync] Failed to log cron result:", logErr);
-    }
+    const { logCronExecution } = await import("@/lib/cron-logger");
+    await logCronExecution(
+      "etsy-sync",
+      totalErrors > 0 && totalSynced === 0 ? "failed" : "completed",
+      {
+        durationMs: Date.now() - startTime,
+        itemsProcessed: totalSynced,
+        itemsSucceeded: totalSynced,
+        itemsFailed: totalErrors,
+        errorMessage: totalErrors > 0
+          ? results.flatMap((r) => r.errors).join("; ").slice(0, 500)
+          : undefined,
+        resultSummary: { results, ordersImported: totalOrders },
+      },
+    ).catch((logErr) => console.warn("[etsy-sync] Failed to log cron result:", logErr instanceof Error ? logErr.message : logErr));
 
     return NextResponse.json({
       success: true,
@@ -181,10 +184,12 @@ async function syncSiteListings(
     }
 
     try {
-      const listing = await getListing(
-        siteId,
-        parseInt(draft.etsyListingId!, 10),
-      );
+      const listingId = parseInt(draft.etsyListingId!, 10);
+      if (isNaN(listingId)) {
+        result.errors.push(`Draft ${draft.id}: invalid etsyListingId "${draft.etsyListingId}"`);
+        continue;
+      }
+      const listing = await getListing(siteId, listingId);
 
       // Track state changes
       const oldState = draft.etsyState;
@@ -221,8 +226,8 @@ async function syncSiteListings(
               actionUrl: draft.etsyUrl ?? undefined,
             },
           });
-        } catch {
-          // Non-fatal
+        } catch (alertErr) {
+          console.warn(`[etsy-sync] Failed to create commerce alert for draft ${draft.id}:`, alertErr instanceof Error ? alertErr.message : alertErr);
         }
       }
     } catch (err) {
@@ -369,8 +374,9 @@ async function syncOrders(
     }
 
     return imported;
-  } catch {
+  } catch (outerErr) {
     // Order sync is optional — many Etsy apps don't have transactions_r scope
+    console.warn(`[etsy-sync] Order sync failed for site ${siteId}:`, outerErr instanceof Error ? outerErr.message : outerErr);
     return 0;
   }
 }

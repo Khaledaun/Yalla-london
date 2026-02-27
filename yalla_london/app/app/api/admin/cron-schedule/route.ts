@@ -91,7 +91,7 @@ const CRON_SCHEDULE: Record<string, {
     apiPath: '/api/seo/cron',
     category: 'seo',
     critical: false,
-    logName: 'seo-cron',
+    logName: 'seo-cron-daily',
   },
   'content-builder': {
     label: 'Content Builder',
@@ -177,7 +177,7 @@ const CRON_SCHEDULE: Record<string, {
     apiPath: '/api/seo/cron?task=weekly',
     category: 'seo',
     critical: false,
-    logName: 'seo-cron',
+    logName: 'seo-cron-weekly',
   },
   'fact-verification': {
     label: 'Fact Verification',

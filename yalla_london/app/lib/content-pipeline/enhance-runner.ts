@@ -84,7 +84,7 @@ function buildEnhancementPrompt(
   const plainText = currentHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   const wordCount = plainText.split(/\s+/).filter(Boolean).length;
 
-  return `You are a senior luxury travel editor at Yalla London, enhancing an article for better search rankings.
+  return `You are a senior luxury travel editor enhancing an article for better search rankings.
 
 KEYWORD: "${keyword}"
 DESTINATION: ${destination}
@@ -156,12 +156,17 @@ export async function enhanceReservoirDraft(
     const weakness = weaknesses.length > 0 ? weaknesses.join(", ") : "general quality improvement needed";
 
     // ── Step 3: Get site destination for context ───────────────────
-    let destination = "London";
+    let destination = "luxury travel";
+    let siteName = "travel editorial";
     try {
-      const { SITES } = await import("@/config/sites");
-      destination = (SITES as Record<string, { destination?: string }>)[siteId]?.destination || "London";
-    } catch {
-      // Keep default
+      const { getSiteConfig } = await import("@/config/sites");
+      const siteConfig = getSiteConfig(siteId);
+      if (siteConfig) {
+        destination = siteConfig.destination || destination;
+        siteName = siteConfig.name || siteName;
+      }
+    } catch (cfgErr) {
+      console.warn(`[enhance-runner] Failed to load site config for ${siteId}:`, cfgErr instanceof Error ? cfgErr.message : cfgErr);
     }
 
     // ── Step 4: Research fresh trending angles (Grok web search) ──
@@ -200,8 +205,8 @@ export async function enhanceReservoirDraft(
         const { decrypt } = await import("@/lib/encryption");
         const modelProvider = await db.modelProvider.findFirst({ where: { name: "grok", is_active: true } });
         if (modelProvider?.api_key_encrypted) apiKey = decrypt(modelProvider.api_key_encrypted);
-      } catch {
-        // No API key available
+      } catch (dbErr) {
+        console.warn(`[enhance-runner] Failed to load API key from DB:`, dbErr instanceof Error ? dbErr.message : dbErr);
       }
     }
 
@@ -221,7 +226,7 @@ export async function enhanceReservoirDraft(
         messages: [
           {
             role: "system",
-            content: `You are a senior luxury travel content editor specializing in ${destination} travel for Arab and international travelers. You write with authority, first-hand experience, and specific local knowledge. Your enhancements significantly improve SEO and reader value.`,
+            content: `You are a senior luxury travel content editor at ${siteName}, specializing in ${destination} travel for Arab and international travelers. You write with authority, first-hand experience, and specific local knowledge. Your enhancements significantly improve SEO and reader value.`,
           },
           { role: "user", content: prompt },
         ],

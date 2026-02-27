@@ -55,8 +55,13 @@ export async function GET(req: NextRequest) {
     ...(filterSiteId ? { siteId: filterSiteId } : {}),
   };
 
+  // Guard: check if table exists (migration may not have been deployed)
+  let allLogs: Awaited<ReturnType<typeof prisma.apiUsageLog.findMany>> = [];
+  let recentLogs: typeof allLogs = [];
+  let dailyRows: typeof allLogs = [];
+  try {
   // Run all aggregation queries in parallel
-  const [allLogs, recentLogs, dailyRows] = await Promise.all([
+  [allLogs, recentLogs, dailyRows] = await Promise.all([
     // Full set for aggregation (no select * — only numeric fields needed)
     prisma.apiUsageLog.findMany({
       where: whereBase,
@@ -115,6 +120,19 @@ export async function GET(req: NextRequest) {
       take: 10000,
     }),
   ]);
+  } catch (tableErr: unknown) {
+    const msg = tableErr instanceof Error ? tableErr.message : String(tableErr);
+    // Prisma P2021 = table does not exist — migration not deployed yet
+    if (msg.includes('P2021') || msg.includes('does not exist') || msg.includes('api_usage_logs')) {
+      return NextResponse.json({
+        _migrationNeeded: true,
+        message: 'ApiUsageLog table not found — run npx prisma db push to create it',
+        totals: { calls: 0, promptTokens: 0, completionTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
+        bySite: [], byProvider: [], byTask: [], dailySparkline: [], recentCalls: [],
+      });
+    }
+    throw tableErr;
+  }
 
   // ---------------------------------------------------------------------------
   // Aggregate: totals

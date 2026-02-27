@@ -29,7 +29,8 @@ import { logCronExecution } from "@/lib/cron-logger";
 const BUDGET_MS = 53_000;
 const META_MAX_CHARS = 155;
 const MIN_WORD_COUNT = 1000;
-const MAX_ENHANCES_PER_RUN = 2; // safe within 53s budget (~20s per enhance)
+const MAX_WORD_COUNT_ENHANCES = 1; // 1 word-count fix (~20s), leaves room for 1 low-score fix
+const MAX_LOW_SCORE_ENHANCES = 1;  // 1 low-score fix (~20s), independent of word-count results
 
 async function handleAutoFix(request: NextRequest) {
   const cronStart = Date.now();
@@ -67,7 +68,7 @@ async function handleAutoFix(request: NextRequest) {
         assembled_html: { not: null },
       },
       orderBy: { updated_at: "asc" }, // oldest first → longest-waiting first
-      take: MAX_ENHANCES_PER_RUN,
+      take: MAX_WORD_COUNT_ENHANCES,
     });
 
     const { enhanceReservoirDraft } = await import("@/lib/content-pipeline/enhance-runner");
@@ -116,9 +117,8 @@ async function handleAutoFix(request: NextRequest) {
   // These articles are stuck: content-selector won't promote them and the
   // word count query above won't find them. Without this, they sit forever.
   const QUALITY_THRESHOLD = 70;
-  if (Date.now() - cronStart < BUDGET_MS - 25_000 && results.enhanced < MAX_ENHANCES_PER_RUN) {
+  if (Date.now() - cronStart < BUDGET_MS - 25_000) {
     try {
-      const slotsLeft = MAX_ENHANCES_PER_RUN - results.enhanced;
       const lowScoreDrafts = await prisma.articleDraft.findMany({
         where: {
           site_id: { in: activeSiteIds },
@@ -128,7 +128,7 @@ async function handleAutoFix(request: NextRequest) {
           assembled_html: { not: null },
         },
         orderBy: { updated_at: "asc" },
-        take: slotsLeft,
+        take: MAX_LOW_SCORE_ENHANCES,
       });
 
       if (lowScoreDrafts.length > 0) {
@@ -198,6 +198,41 @@ async function handleAutoFix(request: NextRequest) {
       const msg = err instanceof Error ? err.message : String(err);
       results.errors.push(`meta-trim-posts: ${msg}`);
       console.warn("[content-auto-fix] Meta trim (BlogPost) failed:", msg);
+    }
+  }
+
+  // ── 3b. META DESCRIPTION TRIM — BlogPosts (Arabic) ──────────────────────
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const longMetaPostsAr = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          deletedAt: null,
+          meta_description_ar: { not: null },
+        },
+        select: { id: true, meta_description_ar: true },
+        take: 100,
+      });
+
+      for (const post of longMetaPostsAr) {
+        const desc = post.meta_description_ar || "";
+        if (desc.length > 160) {
+          let trimmed = desc.substring(0, META_MAX_CHARS);
+          const lastSpace = trimmed.lastIndexOf(" ");
+          if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
+          trimmed = trimmed.replace(/[.,;:!?،؛]$/, "") + "…";
+
+          await prisma.blogPost.update({
+            where: { id: post.id },
+            data: { meta_description_ar: trimmed },
+          });
+          results.metaTrimmedPosts++;
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`meta-trim-posts-ar: ${msg}`);
+      console.warn("[content-auto-fix] Meta trim AR (BlogPost) failed:", msg);
     }
   }
 

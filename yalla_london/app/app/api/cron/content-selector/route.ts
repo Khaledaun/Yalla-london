@@ -69,14 +69,14 @@ async function handleContentSelector(request: NextRequest) {
         durationMs,
         errorMessage: result.message,
         resultSummary: { promoted: resultAny.promoted, skipped: resultAny.skipped },
-      });
+      }).catch((e) => console.warn("[content-selector] Log failed:", e instanceof Error ? e.message : e));
     } else {
       await logCronExecution("content-selector", "completed", {
         durationMs,
         itemsProcessed: (resultAny.promoted as number) || 0,
         itemsSucceeded: (resultAny.promoted as number) || 0,
         resultSummary: { message: result.message, promoted: resultAny.promoted },
-      });
+      }).catch((e) => console.warn("[content-selector] Log failed:", e instanceof Error ? e.message : e));
     }
 
     return NextResponse.json(
@@ -90,7 +90,7 @@ async function handleContentSelector(request: NextRequest) {
     await logCronExecution("content-selector", "failed", {
       durationMs,
       errorMessage: errMsg,
-    });
+    }).catch((e) => console.warn("[content-selector] Log failed:", e instanceof Error ? e.message : e));
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
     onCronFailure({ jobName: "content-selector", error: errMsg }).catch(() => {});

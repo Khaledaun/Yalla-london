@@ -372,6 +372,19 @@ async function recoverDraft(
   try {
     const { prisma } = await import("@/lib/db");
 
+    // Fetch current attempts to carry forward — prevents infinite retry loops
+    const current = await prisma.articleDraft.findUnique({
+      where: { id: draftId },
+      select: { phase_attempts: true },
+    });
+    const currentAttempts = current?.phase_attempts ?? 0;
+
+    // If already at 8+ total attempts across recoveries, stop trying
+    if (currentAttempts >= 8) {
+      console.warn(`[failure-hook] Draft ${draftId} has ${currentAttempts} total attempts — abandoning recovery`);
+      return false;
+    }
+
     let resetPhase = failedPhase;
     if (strategy === "reprocess") {
       const phaseOrder = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring", "reservoir"];
@@ -383,7 +396,7 @@ async function recoverDraft(
       where: { id: draftId },
       data: {
         current_phase: resetPhase,
-        phase_attempts: 0,
+        phase_attempts: currentAttempts + 1,
         last_error: null,
         rejection_reason: null,
         completed_at: null,
@@ -392,7 +405,7 @@ async function recoverDraft(
       },
     });
 
-    console.log(`[failure-hook] Recovered draft ${draftId}: reset to "${resetPhase}" (strategy: ${strategy})`);
+    console.log(`[failure-hook] Recovered draft ${draftId}: reset to "${resetPhase}" (strategy: ${strategy}, attempts: ${currentAttempts + 1}/8)`);
     return true;
   } catch (err) {
     console.error(`[failure-hook] Failed to recover draft ${draftId}:`, err);
@@ -459,14 +472,22 @@ async function runTargetedSweep(siteId?: string): Promise<number> {
         reason.includes("unexpected");
 
       if (isRetryable) {
-        const phaseMatch = reason.match(/phase "(\w+)"/);
-        const failedPhase = phaseMatch ? phaseMatch[1] : "outline";
+        // Try multiple patterns to extract the failed phase from the rejection reason
+        const phaseMatch = reason.match(/phase "(\w+)"/) || reason.match(/\b(research|outline|drafting|assembly|images|seo|scoring)\b/);
+        const failedPhase = phaseMatch ? phaseMatch[1] : "research"; // default to "research" — first phase, minimizes wasted work
+        const currentAttempts = draft.phase_attempts ?? 0;
+
+        // Stop recovering drafts that have already been retried too many times
+        if (currentAttempts >= 8) {
+          console.warn(`[failure-hook] Sweep skipping draft ${draft.id} — ${currentAttempts} total attempts`);
+          continue;
+        }
 
         await prisma.articleDraft.update({
           where: { id: draft.id },
           data: {
             current_phase: failedPhase,
-            phase_attempts: 0,
+            phase_attempts: currentAttempts + 1,
             last_error: null,
             rejection_reason: null,
             completed_at: null,
@@ -530,7 +551,7 @@ async function logSweeperEvent(entry: SweeperLogEntry): Promise<void> {
         status: entry.outcome === "recovered" ? "completed" : "failed",
         started_at: new Date(entry.detectedAt),
         completed_at: new Date(),
-        duration_ms: 0,
+        duration_ms: Math.max(0, Date.now() - new Date(entry.detectedAt).getTime()),
         items_processed: 1,
         items_succeeded: entry.outcome === "recovered" ? 1 : 0,
         items_failed: entry.outcome === "recovered" ? 0 : 1,

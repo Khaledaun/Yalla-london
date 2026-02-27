@@ -417,8 +417,8 @@ export default function DeparturesPage() {
     try {
       const res = await fetch('/api/admin/departures')
       if (res.ok) setData(await res.json())
-    } catch {
-      console.warn('[departures] fetch failed')
+    } catch (err) {
+      console.warn('[departures] fetch failed:', err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }

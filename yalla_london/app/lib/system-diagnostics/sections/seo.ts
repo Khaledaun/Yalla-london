@@ -79,14 +79,13 @@ const seoSection = async (
     const { prisma } = await import("@/lib/db");
 
     const recentPosts = await prisma.blogPost.findMany({
-      where: { siteId, status: "published" },
-      orderBy: { published_at: "desc" },
+      where: { siteId, published: true },
+      orderBy: { created_at: "desc" },
       take: 10,
       select: {
         id: true,
         slug: true,
         seo_score: true,
-        word_count_en: true,
         meta_title_en: true,
         meta_description_en: true,
         content_en: true,

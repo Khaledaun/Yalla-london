@@ -631,6 +631,15 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
   const [showIndexPanel, setShowIndexPanel] = useState(false);
 
   const triggerAction = useCallback(async (endpoint: string, body: object, label: string) => {
+    // External URLs and admin page URLs → navigate instead of POST
+    if (endpoint.startsWith("http")) {
+      window.open(endpoint, "_blank");
+      return;
+    }
+    if (endpoint.startsWith("/admin/")) {
+      window.location.href = endpoint;
+      return;
+    }
     setActionLoading(label);
     setActionResult(null);
     try {
@@ -991,7 +1000,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     try {
       const body: Record<string, string> = { action };
       if (action === "re_queue" || action === "delete_draft") body.draftId = id;
-      if (action === "delete_post" || action === "unpublish") body.postId = id;
+      if (action === "delete_post" || action === "unpublish") body.blogPostId = id;
       const res = await fetch("/api/admin/content-matrix", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1295,7 +1304,7 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
   const fetchData = useCallback(() => {
     setLoading(true);
     setFetchError(null);
-    fetch(`/api/admin/content-generation-monitor?siteId=${activeSiteId}`)
+    fetch(`/api/admin/content-generation-monitor?site_id=${activeSiteId}`)
       .then((r) => r.json())
       .then(setData)
       .catch((e) => { setFetchError(e instanceof Error ? e.message : "Failed to load pipeline data"); setData(null); })
@@ -1328,9 +1337,10 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
     </Card>
   );
 
-  const summary = (data as { summary?: Record<string, number> })?.summary ?? {};
-  const byPhase = (data as { byPhase?: Record<string, number> })?.byPhase ?? {};
-  const drafts = (data as { drafts?: unknown[] })?.drafts ?? [];
+  const inner = (data as { data?: Record<string, unknown> })?.data ?? data ?? {};
+  const summary = (inner as { summary?: Record<string, number> })?.summary ?? {};
+  const byPhase = (inner as { phase_counts?: Record<string, number> })?.phase_counts ?? {};
+  const drafts = (inner as { active_drafts?: unknown[] })?.active_drafts ?? [];
 
   return (
     <div className="space-y-4">
@@ -1338,10 +1348,9 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
         <SectionTitle>Content Pipeline — {activeSiteId}</SectionTitle>
         <div className="flex flex-wrap gap-3 text-sm mb-3">
           {[
-            ["Topics", summary.topics ?? 0, "text-blue-400"],
-            ["Building", summary.active ?? 0, "text-amber-400"],
-            ["Reservoir", summary.reservoir ?? 0, "text-blue-300"],
-            ["Published", summary.published ?? 0, "text-emerald-400"],
+            ["Building", summary.total_active ?? 0, "text-amber-400"],
+            ["Reservoir", summary.reservoir_count ?? 0, "text-blue-300"],
+            ["Published Today", summary.published_today ?? 0, "text-emerald-400"],
           ].map(([label, val, color]) => (
             <div key={label as string} className="bg-zinc-800 rounded-lg px-3 py-2 text-center min-w-[70px]">
               <div className={`text-xl font-bold ${color}`}>{val}</div>
@@ -1449,10 +1458,15 @@ function CronsTab() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const runCron = async (endpoint: string, name: string) => {
+  const runCron = async (endpoint: string, name: string, body?: object) => {
     setActionLoading(name);
     try {
-      const res = await fetch(endpoint, { method: "POST" });
+      const opts: RequestInit = { method: "POST" };
+      if (body && Object.keys(body).length > 0) {
+        opts.headers = { "Content-Type": "application/json" };
+        opts.body = JSON.stringify(body);
+      }
+      const res = await fetch(endpoint, opts);
       const json = await res.json();
       setActionResult((prev) => ({ ...prev, [name]: json.success !== false ? "✅ Triggered" : `❌ ${json.error ?? "Failed"}` }));
       fetchData();
@@ -1584,7 +1598,7 @@ function CronsTab() {
         {entries.map(([name, jobLogs]) => {
           const last = jobLogs[0] as {
             status?: string; durationMs?: number; startedAt?: string;
-            error_message?: string; plainError?: string; itemsProcessed?: number
+            error?: string; plainError?: string; itemsProcessed?: number
           };
           const isOk = last.status === "success" || last.status === "completed";
           const isFailed = last.status === "failed" || last.status === "error";
@@ -1610,8 +1624,8 @@ function CronsTab() {
                   {isFailed && last.plainError && (
                     <p className="mt-1.5 text-xs text-red-400 bg-red-950/20 rounded px-2 py-1">{last.plainError}</p>
                   )}
-                  {isFailed && last.error_message && !last.plainError && (
-                    <p className="mt-1.5 text-xs text-red-400">{String(last.error_message).slice(0, 120)}</p>
+                  {isFailed && last.error && !last.plainError && (
+                    <p className="mt-1.5 text-xs text-red-400">{String(last.error).slice(0, 120)}</p>
                   )}
                   {actionResult[name] && (
                     <p className={`mt-1 text-xs rounded px-2 py-1 ${actionResult[name].startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
@@ -1677,7 +1691,7 @@ function CronsTab() {
           ].map(([label, endpoint, body, key]) => (
             <ActionButton
               key={key as string}
-              onClick={() => runCron(endpoint as string, key as string)}
+              onClick={() => runCron(endpoint as string, key as string, body as object)}
               loading={actionLoading === (key as string)}
             >
               {label as string}
@@ -1954,7 +1968,13 @@ function AIConfigTab() {
         body: JSON.stringify({ action: "test_all" }),
       });
       const json = await res.json();
-      setTestResults(json.results ?? json);
+      // API returns array of {provider, success, latencyMs, error} — convert to object keyed by provider
+      const results = json.results ?? json;
+      if (Array.isArray(results)) {
+        setTestResults(Object.fromEntries(results.map((r: { provider: string }) => [r.provider, r])));
+      } else {
+        setTestResults(results);
+      }
     } catch (e) {
       setTestResults({ error: e instanceof Error ? e.message : "Error" });
     } finally {
@@ -2079,7 +2099,7 @@ function AIConfigTab() {
 // ─── Tab 7: Settings & Testing ────────────────────────────────────────────────
 
 function SettingsTab({ system }: { system: SystemStatus | null }) {
-  const [flags, setFlags] = useState<Array<{ key: string; enabled: boolean; description: string }>>([]);
+  const [flags, setFlags] = useState<Array<{ id: string; key: string; enabled: boolean; description: string }>>([]);
   const [flagsLoading, setFlagsLoading] = useState(true);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState<string | null>(null);
@@ -2102,7 +2122,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
   useEffect(() => {
     fetch("/api/admin/feature-flags")
       .then((r) => r.json())
-      .then((j) => setFlags(j.flags ?? []))
+      .then((j) => setFlags((j.flags ?? []).map((f: { id: string; name: string; enabled: boolean; description: string }) => ({ id: f.id, key: f.name, enabled: f.enabled, description: f.description || "" }))))
       .catch(() => setFlags([]))
       .finally(() => setFlagsLoading(false));
   }, []);
@@ -2122,11 +2142,13 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
   };
 
   const toggleFlag = async (key: string, enabled: boolean) => {
+    const flag = flags.find((f) => f.key === key);
+    if (!flag) return;
     try {
       await fetch("/api/admin/feature-flags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "toggle", key, enabled: !enabled }),
+        body: JSON.stringify({ action: "toggle-flag", data: { flagId: flag.id, enabled: !enabled } }),
       });
       setFlags((prev) => prev.map((f) => f.key === key ? { ...f, enabled: !f.enabled } : f));
     } catch (e) {

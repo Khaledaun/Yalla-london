@@ -51,7 +51,7 @@ const FIX_HANDLERS: Record<string, FixHandler> = {
   // Fix: Generate topics
   generate_topics: async () => {
     try {
-      const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000";
+      const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (process.env.CRON_SECRET) headers["x-cron-secret"] = process.env.CRON_SECRET;
 
@@ -71,7 +71,7 @@ const FIX_HANDLERS: Record<string, FixHandler> = {
   // Fix: Run content builder
   run_content_builder: async () => {
     try {
-      const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000";
+      const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (process.env.CRON_SECRET) headers["x-cron-secret"] = process.env.CRON_SECRET;
 
@@ -91,7 +91,7 @@ const FIX_HANDLERS: Record<string, FixHandler> = {
   // Fix: Submit all to IndexNow
   submit_indexnow: async (payload) => {
     try {
-      const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000";
+      const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
       const res = await fetch(`${baseUrl}/api/admin/content-indexing`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,7 +112,7 @@ const FIX_HANDLERS: Record<string, FixHandler> = {
   // Fix: Run SEO agent
   run_seo_agent: async () => {
     try {
-      const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000";
+      const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (process.env.CRON_SECRET) headers["x-cron-secret"] = process.env.CRON_SECRET;
 
@@ -132,7 +132,7 @@ const FIX_HANDLERS: Record<string, FixHandler> = {
   // Fix: Run content auto-fix
   run_content_autofix: async () => {
     try {
-      const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000";
+      const baseUrl = process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (process.env.CRON_SECRET) headers["x-cron-secret"] = process.env.CRON_SECRET;
 

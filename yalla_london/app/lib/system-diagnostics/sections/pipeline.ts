@@ -93,7 +93,7 @@ const pipelineSection = async (
 
       for (const phase of phases) {
         const count = await prisma.articleDraft.count({
-          where: { site_id: siteId, phase },
+          where: { site_id: siteId, current_phase: phase },
         });
         phaseCounts[phase] = count;
         totalDrafts += count;
@@ -119,7 +119,7 @@ const pipelineSection = async (
       const stuckDrafts = await prisma.articleDraft.count({
         where: {
           site_id: siteId,
-          phase: { notIn: ["reservoir", "completed", "failed"] },
+          current_phase: { notIn: ["reservoir", "completed", "failed"] },
           updated_at: { lt: sixHoursAgo },
         },
       });
@@ -160,19 +160,19 @@ const pipelineSection = async (
         prisma.blogPost.count({
           where: {
             siteId,
-            status: "published",
-            published_at: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+            published: true,
+            created_at: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
           },
         }),
         prisma.blogPost.count({
           where: {
             siteId,
-            status: "published",
-            published_at: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+            published: true,
+            created_at: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
           },
         }),
         prisma.blogPost.count({
-          where: { siteId, status: "published" },
+          where: { siteId, published: true },
         }),
       ]);
 
@@ -225,15 +225,15 @@ const pipelineSection = async (
     // ── 5. Content Quality (sample check) ──────────────────────────────
     try {
       const recentPosts = await prisma.blogPost.findMany({
-        where: { siteId, status: "published" },
-        orderBy: { published_at: "desc" },
+        where: { siteId, published: true },
+        orderBy: { created_at: "desc" },
         take: 5,
-        select: { id: true, slug: true, seo_score: true, word_count_en: true, meta_description_en: true },
+        select: { id: true, slug: true, seo_score: true, content_en: true, meta_description_en: true },
       });
 
       if (recentPosts.length > 0) {
-        const avgSeoScore = Math.round(recentPosts.reduce((sum, p) => sum + (p.seo_score || 0), 0) / recentPosts.length);
-        const avgWordCount = Math.round(recentPosts.reduce((sum, p) => sum + (p.word_count_en || 0), 0) / recentPosts.length);
+        const avgSeoScore = Math.round(recentPosts.reduce((sum: number, p: { seo_score: number | null }) => sum + (p.seo_score || 0), 0) / recentPosts.length);
+        const avgWordCount = Math.round(recentPosts.reduce((sum: number, p: { content_en: string }) => sum + (p.content_en || "").split(/\s+/).filter(Boolean).length, 0) / recentPosts.length);
 
         if (avgSeoScore >= 70) {
           results.push(pass("quality-seo", "Average SEO Score", `${avgSeoScore}/100 (last 5 articles)`, "Average SEO score of recent articles. Target: 70+. Higher scores mean better search ranking potential."));

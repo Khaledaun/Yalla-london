@@ -261,7 +261,8 @@ export async function GET(req: NextRequest) {
         const { interpretError } = await import('@/lib/error-interpreter');
         const interpreted = interpretError(lastRun.error);
         lastError = interpreted.plain;
-      } catch {
+      } catch (interpErr) {
+        console.warn('[departures] interpretError import failed:', interpErr instanceof Error ? interpErr.message : String(interpErr));
         lastError = lastRun.error.slice(0, 120);
       }
     }
@@ -330,24 +331,24 @@ export async function GET(req: NextRequest) {
         lastError: null,
       });
     }
-  } catch {
-    // ScheduledContent query is non-critical
+  } catch (err) {
+    console.warn("[departures] ScheduledContent query failed:", err instanceof Error ? err.message : String(err));
   }
 
   // Articles ready in reservoir (awaiting content-selector)
   try {
     const reservoir = await prisma.articleDraft.findMany({
-      where: { status: 'reservoir' },
+      where: { current_phase: 'reservoir' },
       orderBy: { updated_at: 'desc' },
       take: 5,
-      select: { id: true, title_en: true, quality_score: true, site_id: true },
+      select: { id: true, keyword: true, quality_score: true, site_id: true },
     });
     for (const d of reservoir) {
       // Next content-selector run = closest of 9,13,17,21 UTC today
       const selectorNext = nextFireTime('0 9,13,17,21 * * *', now);
       departures.push({
         id: `reservoir::${d.id}`,
-        label: `Publish: ${d.title_en?.slice(0, 50) ?? 'Article'}`,
+        label: `Publish: ${d.keyword?.slice(0, 50) ?? 'Article'}`,
         type: 'content',
         icon: '✅',
         scheduledAt: selectorNext.toISOString(),
@@ -367,8 +368,8 @@ export async function GET(req: NextRequest) {
         lastError: null,
       });
     }
-  } catch {
-    // Non-critical
+  } catch (err) {
+    console.warn("[departures] ArticleDraft reservoir query failed:", err instanceof Error ? err.message : String(err));
   }
 
   // Sort all departures: overdue first, then by countdown ascending

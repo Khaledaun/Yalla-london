@@ -38,7 +38,8 @@ export async function autoGenerateTasks(siteId: string): Promise<{
         },
       });
       return existing > 0;
-    } catch {
+    } catch (err) {
+      console.warn("[auto-generator] taskExists check failed:", err instanceof Error ? err.message : String(err));
       return false; // If table doesn't exist, no duplicates
     }
   }

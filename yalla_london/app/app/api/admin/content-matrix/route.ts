@@ -316,7 +316,9 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
           try {
             const meta = draft.seo_meta as Record<string, unknown> | null;
             if (meta && typeof meta.slug === "string") slug = meta.slug;
-          } catch { /* no-op */ }
+          } catch (slugErr) {
+            console.warn("[content-matrix] slug extraction from seo_meta failed:", slugErr instanceof Error ? slugErr.message : String(slugErr));
+          }
 
           const wc = draft.word_count ?? wordCount(draft.assembled_html);
           const ilCount = countInternalLinks(draft.assembled_html);

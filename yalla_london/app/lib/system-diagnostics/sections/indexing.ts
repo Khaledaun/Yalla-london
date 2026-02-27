@@ -61,12 +61,14 @@ const indexingSection = async (
   try {
     const { prisma } = await import("@/lib/db");
 
-    const [totalPosts, indexedCount, submittedCount, neverSubmitted] = await Promise.all([
-      prisma.blogPost.count({ where: { siteId, status: "published" } }),
-      prisma.blogPost.count({ where: { siteId, status: "published", indexing_status: "indexed" } }),
-      prisma.blogPost.count({ where: { siteId, status: "published", indexing_status: "submitted" } }),
-      prisma.blogPost.count({ where: { siteId, status: "published", indexing_status: { in: [null as unknown as string, "not_indexed", ""] } } }),
+    // BlogPost has no indexing_status field — use URLIndexingStatus table
+    const totalPosts = await prisma.blogPost.count({ where: { siteId, published: true } });
+    const [indexedCount, submittedCount, neverSubmittedCount] = await Promise.all([
+      prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "indexed" } }),
+      prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "submitted" } }),
+      prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "discovered" } }),
     ]);
+    const neverSubmitted = Math.max(0, totalPosts - indexedCount - submittedCount - neverSubmittedCount) + neverSubmittedCount;
 
     const indexRate = totalPosts > 0 ? Math.round((indexedCount / totalPosts) * 100) : 0;
 
@@ -122,7 +124,7 @@ const indexingSection = async (
     const { prisma } = await import("@/lib/db");
 
     const posts = await prisma.blogPost.findMany({
-      where: { siteId, status: "published" },
+      where: { siteId, published: true },
       select: { seo_score: true },
     });
 
@@ -153,7 +155,7 @@ const indexingSection = async (
     const missingMeta = await prisma.blogPost.count({
       where: {
         siteId,
-        status: "published",
+        published: true,
         OR: [
           { meta_description_en: null },
           { meta_description_en: "" },

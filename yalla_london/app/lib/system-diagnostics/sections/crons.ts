@@ -54,7 +54,7 @@ const cronSection = async (
     const [totalRuns, failedRuns, timedOutRuns] = await Promise.all([
       prisma.cronJobLog.count({ where: { started_at: { gte: oneDayAgo } } }),
       prisma.cronJobLog.count({ where: { started_at: { gte: oneDayAgo }, status: "failed" } }),
-      prisma.cronJobLog.count({ where: { started_at: { gte: oneDayAgo }, status: "timed_out" } }),
+      prisma.cronJobLog.count({ where: { started_at: { gte: oneDayAgo }, status: "timeout" } }),
     ]);
 
     if (totalRuns === 0) {
@@ -103,13 +103,13 @@ const cronSection = async (
         }
 
         const latest = recentLogs[0];
-        const failCount = recentLogs.filter(l => l.status === "failed" || l.status === "timed_out").length;
+        const failCount = recentLogs.filter(l => l.status === "failed" || l.status === "timeout").length;
         const successRate = Math.round(((recentLogs.length - failCount) / recentLogs.length) * 100);
         const ageHours = Math.round((Date.now() - new Date(latest.started_at).getTime()) / (1000 * 60 * 60));
 
         if (latest.status === "completed" && successRate >= 80) {
           results.push(pass(`cron-${cron.name}`, `Cron: ${cron.name}`, `Last: ${ageHours}h ago — ${successRate}% success (7d)`, `${cron.description}`));
-        } else if (latest.status === "failed" || latest.status === "timed_out") {
+        } else if (latest.status === "failed" || latest.status === "timeout") {
           let errorSummary = latest.error_message || "Unknown error";
           if (errorSummary.length > 100) errorSummary = errorSummary.substring(0, 100) + "...";
 

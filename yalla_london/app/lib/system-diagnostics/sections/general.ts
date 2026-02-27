@@ -197,7 +197,7 @@ const generalSection = async (
   try {
     const { prisma } = await import("@/lib/db");
     const publishedCount = await prisma.blogPost.count({
-      where: { siteId, status: "published" },
+      where: { siteId, published: true },
     });
 
     if (publishedCount >= 20) {

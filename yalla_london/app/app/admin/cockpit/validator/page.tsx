@@ -68,7 +68,7 @@ export default function ValidatorPage() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [fixingId, setFixingId] = useState<string | null>(null);
   const [fixResults, setFixResults] = useState<Record<string, { success: boolean; message: string }>>({});
-  const [siteId, setSiteId] = useState("yalla-london");
+  const [siteId, setSiteId] = useState(""); // Set dynamically from API response
   const [error, setError] = useState<string | null>(null);
 
   // ── Load available groups + history on mount ─────────────────────────

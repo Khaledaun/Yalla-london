@@ -171,7 +171,8 @@ export default function NewSitePage() {
       const res = await fetch(`/api/admin/new-site?siteId=${config.siteId}&domain=${config.domain}`);
       const json = await res.json();
       setValidation(json);
-    } catch {
+    } catch (err) {
+      console.warn("[new-site] Domain validation failed:", err instanceof Error ? err.message : String(err));
       setValidation({ available: false, errors: ["Network error"], suggestions: [] });
     } finally {
       setValidating(false);
@@ -189,8 +190,8 @@ export default function NewSitePage() {
       });
       const json = await res.json();
       setPlan(json.plan);
-    } catch {
-      // Non-fatal
+    } catch (err) {
+      console.warn("[new-site] Plan generation failed:", err instanceof Error ? err.message : String(err));
     } finally {
       setPlanLoading(false);
     }
@@ -206,8 +207,8 @@ export default function NewSitePage() {
       });
       const json = await res.json();
       if (json.tasksCreated > 0) setPlanSaved(true);
-    } catch {
-      // Non-fatal
+    } catch (err) {
+      console.warn("[new-site] Save plan tasks failed:", err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -249,7 +250,8 @@ export default function NewSitePage() {
       });
       const json = await res.json();
       setDiagnostics(json.results ?? []);
-    } catch {
+    } catch (err) {
+      console.warn("[new-site] Diagnostics failed:", err instanceof Error ? err.message : String(err));
       setDiagnostics([]);
     } finally {
       setDiagLoading(false);

@@ -61,12 +61,15 @@ const generalSection = async (
   }
 
   // ── 2. Critical Tables Exist ───────────────────────────────────────────
+  // NOTE: Table names must match the actual database table name.
+  // Prisma models WITH @@map("xxx") use the mapped name.
+  // Prisma models WITHOUT @@map use the model name as-is (PascalCase).
   const criticalTables = [
-    { table: "blog_posts", label: "BlogPost" },
+    { table: "BlogPost", label: "BlogPost" },
     { table: "article_drafts", label: "ArticleDraft" },
-    { table: "topic_proposals", label: "TopicProposal" },
+    { table: "TopicProposal", label: "TopicProposal" },
     { table: "cron_job_logs", label: "CronJobLog" },
-    { table: "scheduled_content", label: "ScheduledContent" },
+    { table: "ScheduledContent", label: "ScheduledContent" },
     { table: "users", label: "User" },
   ];
 

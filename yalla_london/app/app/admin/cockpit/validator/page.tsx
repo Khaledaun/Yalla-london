@@ -316,13 +316,32 @@ export default function ValidatorPage() {
 
       {/* Summary Bar */}
       {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <SummaryCard label="Total Tests" value={summary.total} color="text-gray-700 dark:text-gray-300" />
-          <SummaryCard label="Passed" value={summary.passed} color="text-green-600" />
-          <SummaryCard label="Warnings" value={summary.warnings} color="text-amber-600" />
-          <SummaryCard label="Failed" value={summary.failed} color="text-red-600" />
-          <SummaryCard label="Duration" value={`${(summary.durationMs / 1000).toFixed(1)}s`} color="text-blue-600" />
-        </div>
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <SummaryCard label="Total Tests" value={summary.total} color="text-gray-700 dark:text-gray-300" />
+            <SummaryCard label="Passed" value={summary.passed} color="text-green-600" />
+            <SummaryCard label="Warnings" value={summary.warnings} color="text-amber-600" />
+            <SummaryCard label="Failed" value={summary.failed} color="text-red-600" />
+            <SummaryCard label="Duration" value={`${(summary.durationMs / 1000).toFixed(1)}s`} color="text-blue-600" />
+          </div>
+
+          {/* Copy Full Report — gives Khaled a full JSON to share for debugging */}
+          <div className="flex gap-2 flex-wrap">
+            <CopyReportButton results={results} summary={summary} envStatus={envStatus} siteId={siteId} />
+            {summary.failed > 0 && (
+              <button
+                onClick={() => {
+                  // Auto-expand all failed sections
+                  const failSections = new Set<string>(results.filter(r => r.status === "fail").map(r => r.section));
+                  setExpandedSections(failSections);
+                }}
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors"
+              >
+                Show All Failures ({summary.failed})
+              </button>
+            )}
+          </div>
+        </>
       )}
 
       {/* Environment Status */}
@@ -430,6 +449,92 @@ function SummaryCard({ label, value, color }: { label: string; value: string | n
   );
 }
 
+function CopyReportButton({
+  results,
+  summary,
+  envStatus,
+  siteId,
+}: {
+  results: DiagnosticResult[];
+  summary: { total: number; passed: number; warnings: number; failed: number; healthScore: number; verdict: string; durationMs: number };
+  envStatus: { confirmed: string[]; missing: string[] } | null;
+  siteId: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const copyReport = () => {
+    // Build a comprehensive plain-text + JSON report for sharing
+    const failedTests = results.filter(r => r.status === "fail");
+    const warnTests = results.filter(r => r.status === "warn");
+
+    const report = {
+      generatedAt: new Date().toISOString(),
+      siteId,
+      summary: {
+        verdict: summary.verdict,
+        healthScore: summary.healthScore,
+        total: summary.total,
+        passed: summary.passed,
+        warnings: summary.warnings,
+        failed: summary.failed,
+        durationMs: summary.durationMs,
+      },
+      failures: failedTests.map(r => ({
+        test: r.name,
+        section: r.section,
+        detail: r.detail,
+        diagnosis: r.diagnosis || null,
+        hasFix: !!r.fixAction,
+        fixLabel: r.fixAction?.label || null,
+      })),
+      warnings: warnTests.map(r => ({
+        test: r.name,
+        section: r.section,
+        detail: r.detail,
+        diagnosis: r.diagnosis || null,
+      })),
+      missingEnvVars: envStatus?.missing || [],
+      allResults: results.map(r => ({
+        id: r.id,
+        test: r.name,
+        section: r.section,
+        status: r.status,
+        detail: r.detail,
+        diagnosis: r.diagnosis || null,
+      })),
+    };
+
+    const text = JSON.stringify(report, null, 2);
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      }).catch(() => {
+        // Fallback: open in new window
+        const w = window.open("", "_blank");
+        if (w) { w.document.write(`<pre>${text.replace(/</g, "&lt;")}</pre>`); }
+      });
+    } else {
+      const w = window.open("", "_blank");
+      if (w) { w.document.write(`<pre>${text.replace(/</g, "&lt;")}</pre>`); }
+    }
+  };
+
+  return (
+    <button
+      onClick={copyReport}
+      className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors ${
+        copied
+          ? "bg-green-600 text-white"
+          : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+      }`}
+    >
+      {copied ? "Copied! Paste to Claude" : "📋 Copy Full Report (JSON)"}
+    </button>
+  );
+}
+
 function TestResultRow({
   result,
   fixing,
@@ -464,9 +569,9 @@ function TestResultRow({
           </div>
           <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{result.detail}</p>
 
-          {/* Diagnosis (for warn/fail) */}
+          {/* Diagnosis (for warn/fail) — supports newlines for multi-line breakdowns */}
           {result.diagnosis && (
-            <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 italic">{result.diagnosis}</p>
+            <pre className="text-xs text-amber-700 dark:text-amber-400 mt-1 italic whitespace-pre-wrap font-sans">{result.diagnosis}</pre>
           )}
 
           {/* Explanation toggle */}

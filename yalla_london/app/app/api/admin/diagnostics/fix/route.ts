@@ -43,20 +43,36 @@ async function triggerCron(cronPath: string, label: string): Promise<{ success: 
 }
 
 const FIX_HANDLERS: Record<string, FixHandler> = {
-  // Fix: Push Prisma schema to database (creates missing tables/columns)
+  // Fix: Create missing tables/columns via db-migrate (the REAL fix, not a terminal suggestion)
   db_push: async () => {
     try {
-      const { prisma } = await import("@/lib/db");
-      // Verify connection first
-      await prisma.$queryRaw`SELECT 1`;
+      const { baseUrl, headers } = getCronFetchConfig();
+      // First scan for what's missing
+      const scanRes = await fetch(`${baseUrl}/api/admin/db-migrate`, { headers });
+      const scanData = await scanRes.json();
+      if (!scanRes.ok || !scanData.success) {
+        return { success: false, message: `Schema scan failed: ${scanData.error || "Unknown error"}` };
+      }
+      if (!scanData.summary?.needsMigration) {
+        return { success: true, message: "Schema is already up to date — no missing tables or columns", details: scanData.summary };
+      }
+      // Apply the migration
+      const fixRes = await fetch(`${baseUrl}/api/admin/db-migrate`, { method: "POST", headers });
+      const fixData = await fixRes.json();
+      if (!fixRes.ok || !fixData.success) {
+        return { success: false, message: `Migration failed: ${fixData.error || "Unknown error"}`, details: fixData };
+      }
+      const created = fixData.result?.tablesCreated?.length ?? 0;
+      const columns = fixData.result?.columnsAdded?.length ?? 0;
+      const indexes = fixData.result?.indexesCreated?.length ?? 0;
       return {
         success: true,
-        message: "Database connection verified. To create missing tables, run `npx prisma db push` from your deployment pipeline or terminal.",
-        details: { note: "Prisma db push cannot be run from within a serverless function. Use your CI/CD pipeline or Vercel CLI." },
+        message: `Schema fixed! Created ${created} table(s), added ${columns} column(s), ${indexes} index(es). Run diagnostics again to verify.`,
+        details: fixData.result,
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, message: `Database connection failed: ${msg}` };
+      return { success: false, message: `Schema fix failed: ${msg}` };
     }
   },
 

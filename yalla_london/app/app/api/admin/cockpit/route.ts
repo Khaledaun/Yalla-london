@@ -210,18 +210,24 @@ export const GET = withAdminAuth(async (_req: NextRequest) => {
     });
   }
 
-  // ── 4. Pipeline ───────────────────────────────────────
-  const activeSiteIds = getActiveSiteIds();
+  // ── 4. Site scoping ──────────────────────────────────
+  const allSiteIds = getActiveSiteIds();
+  const requestedSiteId = new URL(request.url).searchParams.get("siteId");
+  const activeSiteIds = requestedSiteId && requestedSiteId !== "all"
+    ? allSiteIds.filter((id) => id === requestedSiteId)
+    : allSiteIds;
+
+  // ── 5. Pipeline ───────────────────────────────────────
   const pipeline = await buildPipeline(prisma, activeSiteIds);
 
-  // ── 5. Indexing ───────────────────────────────────────
+  // ── 6. Indexing ───────────────────────────────────────
   const indexing = await buildIndexing(prisma, activeSiteIds);
 
-  // ── 6. Cron health ────────────────────────────────────
+  // ── 7. Cron health ────────────────────────────────────
   const cronHealth = await buildCronHealth(prisma);
 
-  // ── 7. Per-site summaries ─────────────────────────────
-  const sites = await buildSites(prisma, activeSiteIds);
+  // ── 8. Per-site summaries ─────────────────────────────
+  const sites = await buildSites(prisma, allSiteIds);
 
   // ── 8. Alerts ─────────────────────────────────────────
   const alerts = computeAlerts({

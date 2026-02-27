@@ -1620,6 +1620,8 @@ function CronsTab() {
 function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite: (id: string) => void }) {
   const [publishLoading, setPublishLoading] = useState<string | null>(null);
   const [publishResult, setPublishResult] = useState<Record<string, string>>({});
+  const [expandedSite, setExpandedSite] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const publishSite = async (siteId: string) => {
     setPublishLoading(siteId);
@@ -1638,6 +1640,35 @@ function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite:
     }
   };
 
+  const quickAction = async (endpoint: string, body: object, label: string) => {
+    setActionLoading(label);
+    try {
+      await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      console.warn(`[sites] ${label} failed`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Automation readiness checklist per site
+  const getReadiness = (site: SiteSummary) => {
+    const checks = [
+      { label: "Site config in sites.ts", ok: site.isActive },
+      { label: "Topic templates", ok: site.topicsQueued > 0 },
+      { label: "Published content", ok: site.articlesPublished > 0 },
+      { label: "Content in pipeline", ok: site.inPipeline > 0 || site.reservoir > 0 },
+      { label: "SEO scoring active", ok: site.avgSeoScore > 0 },
+      { label: "Indexing active", ok: site.indexRate > 0 },
+    ];
+    const passCount = checks.filter((c) => c.ok).length;
+    return { checks, passCount, total: checks.length, percentage: Math.round((passCount / checks.length) * 100) };
+  };
+
   if (sites.length === 0) {
     return (
       <Card className="text-center py-8">
@@ -1648,77 +1679,152 @@ function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite:
 
   return (
     <div className="space-y-3">
-      {sites.map((site) => (
-        <Card key={site.id}>
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
-                  site.isActive
-                    ? "bg-emerald-900/50 text-emerald-300 border-emerald-700"
-                    : "bg-zinc-800 text-zinc-500 border-zinc-700"
-                }`}>
-                  {site.isActive ? "Active ●" : "Inactive"}
-                </span>
-                <h3 className="text-sm font-semibold text-zinc-100">{site.name}</h3>
+      {sites.map((site) => {
+        const readiness = getReadiness(site);
+        const isExpanded = expandedSite === site.id;
+        const daysSincePublish = site.lastPublishedAt
+          ? Math.floor((Date.now() - new Date(site.lastPublishedAt).getTime()) / (1000 * 60 * 60 * 24))
+          : null;
+
+        return (
+          <Card key={site.id}>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                    site.isActive
+                      ? "bg-emerald-900/50 text-emerald-300 border-emerald-700"
+                      : "bg-zinc-800 text-zinc-500 border-zinc-700"
+                  }`}>
+                    {site.isActive ? "Active" : "Inactive"}
+                  </span>
+                  <h3 className="text-sm font-semibold text-zinc-100">{site.name}</h3>
+                </div>
+                <p className="text-xs text-zinc-500 mt-0.5">{site.domain}</p>
               </div>
-              <p className="text-xs text-zinc-500 mt-0.5">{site.domain}</p>
+              {/* Readiness badge */}
+              <div className={`text-xs px-2 py-1 rounded-lg border font-medium ${
+                readiness.percentage >= 80 ? "bg-emerald-900/30 text-emerald-300 border-emerald-700" :
+                readiness.percentage >= 50 ? "bg-amber-900/30 text-amber-300 border-amber-700" :
+                "bg-red-900/30 text-red-300 border-red-700"
+              }`}>
+                {readiness.percentage}% ready
+              </div>
             </div>
-          </div>
 
-          <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-center">
-            <div className="bg-zinc-800/50 rounded p-2">
-              <div className="font-bold text-emerald-400">{site.articlesPublished}</div>
-              <div className="text-zinc-500">Published</div>
-            </div>
-            <div className="bg-zinc-800/50 rounded p-2">
-              <div className="font-bold text-blue-400">{site.reservoir}</div>
-              <div className="text-zinc-500">Reservoir</div>
-            </div>
-            <div className="bg-zinc-800/50 rounded p-2">
-              <div className="font-bold text-amber-400">{site.inPipeline}</div>
-              <div className="text-zinc-500">Pipeline</div>
-            </div>
-            <div className="bg-zinc-800/50 rounded p-2">
-              <div className="font-bold text-zinc-400">{site.topicsQueued}</div>
-              <div className="text-zinc-500">Topics</div>
-            </div>
-          </div>
+            {/* Content gap warning */}
+            {daysSincePublish !== null && daysSincePublish > 3 && (
+              <div className="mt-2 bg-amber-950/20 border border-amber-800/50 rounded-lg px-3 py-1.5 text-xs text-amber-300">
+                {daysSincePublish}d since last publish — content gap detected
+              </div>
+            )}
 
-          <div className="mt-2 flex flex-wrap gap-1 text-xs text-zinc-500">
-            <span>Avg SEO: <span className={site.avgSeoScore >= 70 ? "text-emerald-400" : site.avgSeoScore > 0 ? "text-amber-400" : "text-red-400"}>{site.avgSeoScore > 0 ? site.avgSeoScore : "n/a"}</span></span>
-            <span className="ml-2">Indexed: <span className={site.indexRate >= 80 ? "text-emerald-400" : site.indexRate > 0 ? "text-amber-400" : "text-red-400"}>{site.indexRate}%</span></span>
-            {site.lastPublishedAt && <span className="ml-2">Last article: {timeAgo(site.lastPublishedAt)}</span>}
-          </div>
+            <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-center">
+              <div className="bg-zinc-800/50 rounded p-2">
+                <div className="font-bold text-emerald-400">{site.articlesPublished}</div>
+                <div className="text-zinc-500">Published</div>
+              </div>
+              <div className="bg-zinc-800/50 rounded p-2">
+                <div className="font-bold text-blue-400">{site.reservoir}</div>
+                <div className="text-zinc-500">Reservoir</div>
+              </div>
+              <div className="bg-zinc-800/50 rounded p-2">
+                <div className="font-bold text-amber-400">{site.inPipeline}</div>
+                <div className="text-zinc-500">Pipeline</div>
+              </div>
+              <div className="bg-zinc-800/50 rounded p-2">
+                <div className="font-bold text-zinc-400">{site.topicsQueued}</div>
+                <div className="text-zinc-500">Topics</div>
+              </div>
+            </div>
 
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <button
-              onClick={() => onSelectSite(site.id)}
-              className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
-            >
-              📋 Content
-            </button>
-            <button
-              onClick={() => window.open(`https://${site.domain}`, "_blank")}
-              className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
-            >
-              🌐 View Site
-            </button>
-            <ActionButton
-              onClick={() => publishSite(site.id)}
-              loading={publishLoading === site.id}
-              variant="success"
-            >
-              📤 Publish
-            </ActionButton>
-          </div>
-          {publishResult[site.id] && (
-            <p className={`mt-2 text-xs rounded px-2 py-1 ${publishResult[site.id].startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
-              {publishResult[site.id]}
-            </p>
-          )}
-        </Card>
-      ))}
+            <div className="mt-2 flex flex-wrap gap-1 text-xs text-zinc-500">
+              <span>Avg SEO: <span className={site.avgSeoScore >= 70 ? "text-emerald-400" : site.avgSeoScore > 0 ? "text-amber-400" : "text-red-400"}>{site.avgSeoScore > 0 ? site.avgSeoScore : "n/a"}</span></span>
+              <span className="ml-2">Indexed: <span className={site.indexRate >= 80 ? "text-emerald-400" : site.indexRate > 0 ? "text-amber-400" : "text-red-400"}>{site.indexRate}%</span></span>
+              {site.lastPublishedAt && <span className="ml-2">Last article: {timeAgo(site.lastPublishedAt)}</span>}
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <button
+                onClick={() => onSelectSite(site.id)}
+                className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
+              >
+                Content
+              </button>
+              <button
+                onClick={() => window.open(`https://${site.domain}`, "_blank")}
+                className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
+              >
+                View Site
+              </button>
+              <ActionButton
+                onClick={() => publishSite(site.id)}
+                loading={publishLoading === site.id}
+                variant="success"
+              >
+                Publish
+              </ActionButton>
+              <ActionButton
+                onClick={() => quickAction("/api/cron/weekly-topics", { siteId: site.id }, `topics-${site.id}`)}
+                loading={actionLoading === `topics-${site.id}`}
+              >
+                Gen Topics
+              </ActionButton>
+              <ActionButton
+                onClick={() => quickAction("/api/cron/content-builder", { siteId: site.id }, `build-${site.id}`)}
+                loading={actionLoading === `build-${site.id}`}
+              >
+                Build
+              </ActionButton>
+              <ActionButton
+                onClick={() => quickAction("/api/cron/seo-agent", { siteId: site.id }, `seo-${site.id}`)}
+                loading={actionLoading === `seo-${site.id}`}
+              >
+                SEO
+              </ActionButton>
+              <button
+                onClick={() => setExpandedSite(isExpanded ? null : site.id)}
+                className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-zinc-700"
+              >
+                {isExpanded ? "▲ Less" : "▼ Readiness"}
+              </button>
+            </div>
+
+            {publishResult[site.id] && (
+              <p className={`mt-2 text-xs rounded px-2 py-1 ${publishResult[site.id].startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+                {publishResult[site.id]}
+              </p>
+            )}
+
+            {/* Automation readiness checklist */}
+            {isExpanded && (
+              <div className="mt-3 border-t border-zinc-800 pt-3">
+                <p className="text-xs font-semibold text-zinc-400 mb-2">Automation Readiness</p>
+                <div className="space-y-1">
+                  {readiness.checks.map((check) => (
+                    <div key={check.label} className="flex items-center gap-2 text-xs">
+                      <span className={check.ok ? "text-emerald-400" : "text-zinc-600"}>
+                        {check.ok ? "✓" : "○"}
+                      </span>
+                      <span className={check.ok ? "text-zinc-300" : "text-zinc-500"}>{check.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      readiness.percentage >= 80 ? "bg-emerald-500" :
+                      readiness.percentage >= 50 ? "bg-amber-500" : "bg-red-500"
+                    }`}
+                    style={{ width: `${readiness.percentage}%` }}
+                  />
+                </div>
+                <p className="text-xs text-zinc-500 mt-1">{readiness.passCount}/{readiness.total} checks passed</p>
+              </div>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -2228,6 +2334,303 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
   );
 }
 
+// ─── Tasks Tab ───────────────────────────────────────────────────────────────
+
+interface DevTask {
+  id: string;
+  siteId: string;
+  title: string;
+  description?: string;
+  category: string;
+  priority: string;
+  status: string;
+  dueDate?: string;
+  source: string;
+  sourceRef?: string;
+  actionLabel?: string;
+  actionApi?: string;
+  actionPayload?: Record<string, unknown>;
+  created_at: string;
+}
+
+interface TaskSummary {
+  total: number;
+  pending: number;
+  in_progress: number;
+  completed: number;
+  dismissed: number;
+  overdue: number;
+  dueToday: number;
+  dueThisWeek: number;
+}
+
+function TasksTab({ siteId }: { siteId: string }) {
+  const [tasks, setTasks] = useState<DevTask[]>([]);
+  const [summary, setSummary] = useState<TaskSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [executingId, setExecutingId] = useState<string | null>(null);
+  const [actionResults, setActionResults] = useState<Record<string, { success: boolean; message: string }>>({});
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const fetchTasks = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ siteId: siteId || "all" });
+      if (statusFilter) params.set("status", statusFilter);
+      const res = await fetch(`/api/admin/dev-tasks?${params}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setTasks(data.tasks || []);
+      setSummary(data.summary || null);
+    } catch (err) {
+      console.warn("[tasks] Failed to load:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [siteId, statusFilter]);
+
+  useEffect(() => { fetchTasks(); }, [fetchTasks]);
+
+  const scanForTasks = async () => {
+    setScanning(true);
+    try {
+      const res = await fetch("/api/admin/dev-tasks/auto-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId }),
+      });
+      const data = await res.json();
+      if (data.created > 0) {
+        fetchTasks(); // Refresh
+      }
+      setActionResults(prev => ({
+        ...prev,
+        "scan": { success: true, message: data.message || `${data.created} created` },
+      }));
+    } catch {
+      setActionResults(prev => ({
+        ...prev,
+        "scan": { success: false, message: "Scan failed" },
+      }));
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const executeAction = async (task: DevTask) => {
+    if (!task.actionApi) return;
+    setExecutingId(task.id);
+    try {
+      const res = await fetch(task.actionApi, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(task.actionPayload || {}),
+      });
+      const data = await res.json().catch(() => ({}));
+      setActionResults(prev => ({
+        ...prev,
+        [task.id]: { success: res.ok, message: data.message || (res.ok ? "Done" : `HTTP ${res.status}`) },
+      }));
+      // Auto-complete the task on success
+      if (res.ok) {
+        await fetch("/api/admin/dev-tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "complete", taskId: task.id }),
+        });
+        fetchTasks();
+      }
+    } catch (err) {
+      setActionResults(prev => ({
+        ...prev,
+        [task.id]: { success: false, message: err instanceof Error ? err.message : "Failed" },
+      }));
+    } finally {
+      setExecutingId(null);
+    }
+  };
+
+  const dismissTask = async (taskId: string) => {
+    await fetch("/api/admin/dev-tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "dismiss", taskId }),
+    });
+    fetchTasks();
+  };
+
+  const completeTask = async (taskId: string) => {
+    await fetch("/api/admin/dev-tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "complete", taskId }),
+    });
+    fetchTasks();
+  };
+
+  const priorityColor = (p: string) => {
+    switch (p) {
+      case "critical": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+      case "high": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
+      case "medium": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+      default: return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+    }
+  };
+
+  const categoryIcon = (c: string) => {
+    switch (c) {
+      case "pipeline": return "⚙️";
+      case "seo": return "🔍";
+      case "automation": return "🤖";
+      case "config": return "🔧";
+      case "content": return "📝";
+      case "security": return "🛡️";
+      case "database": return "🗄️";
+      default: return "📌";
+    }
+  };
+
+  if (loading) return <div className="p-6 text-center text-gray-500">Loading tasks...</div>;
+
+  return (
+    <div className="space-y-4 p-1">
+      {/* Summary Cards */}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {summary.overdue > 0 && (
+            <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-3 text-center border border-red-200 dark:border-red-800">
+              <div className="text-2xl font-bold text-red-600">{summary.overdue}</div>
+              <div className="text-xs text-red-500">Overdue</div>
+            </div>
+          )}
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 text-center border border-amber-200 dark:border-amber-800">
+            <div className="text-2xl font-bold text-amber-600">{summary.dueToday}</div>
+            <div className="text-xs text-amber-500">Due Today</div>
+          </div>
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 text-center border border-blue-200 dark:border-blue-800">
+            <div className="text-2xl font-bold text-blue-600">{summary.pending}</div>
+            <div className="text-xs text-blue-500">Pending</div>
+          </div>
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3 text-center border border-green-200 dark:border-green-800">
+            <div className="text-2xl font-bold text-green-600">{summary.completed}</div>
+            <div className="text-xs text-green-500">Completed</div>
+          </div>
+        </div>
+      )}
+
+      {/* Actions Bar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <button
+          onClick={scanForTasks}
+          disabled={scanning}
+          className="px-4 py-2 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-400 text-white font-medium rounded-lg text-sm transition-colors inline-flex items-center gap-2"
+        >
+          {scanning ? (
+            <><span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" /> Scanning...</>
+          ) : (
+            <>🔍 Scan for Tasks</>
+          )}
+        </button>
+
+        {actionResults["scan"] && (
+          <span className={`text-xs ${actionResults["scan"].success ? "text-green-600" : "text-red-600"}`}>
+            {actionResults["scan"].message}
+          </span>
+        )}
+
+        <div className="flex-1" />
+
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
+        >
+          <option value="">Open Tasks</option>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="dismissed">Dismissed</option>
+        </select>
+      </div>
+
+      {/* Task List */}
+      {tasks.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <p className="text-lg mb-2">No tasks found</p>
+          <p className="text-sm">Click &quot;Scan for Tasks&quot; to detect issues that need attention</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {tasks.map(task => (
+            <div key={task.id} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex items-start gap-3">
+                <span className="text-lg flex-shrink-0 mt-0.5">{categoryIcon(task.category)}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityColor(task.priority)}`}>
+                      {task.priority}
+                    </span>
+                    <span className="font-medium text-sm text-gray-900 dark:text-white">{task.title}</span>
+                  </div>
+                  {task.description && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{task.description}</p>
+                  )}
+                  {task.dueDate && (
+                    <span className="text-xs text-gray-400">
+                      Due: {new Date(task.dueDate).toLocaleDateString()}
+                    </span>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {task.actionLabel && task.actionApi && (
+                      <>
+                        {actionResults[task.id] ? (
+                          <span className={`text-xs px-3 py-1 rounded-lg ${
+                            actionResults[task.id].success
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                              : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                          }`}>
+                            {actionResults[task.id].success ? "✅" : "❌"} {actionResults[task.id].message}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => executeAction(task)}
+                            disabled={executingId === task.id}
+                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-xs font-medium rounded-lg transition-colors inline-flex items-center gap-1"
+                          >
+                            {executingId === task.id ? (
+                              <><span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" /> Running...</>
+                            ) : (
+                              <>🚀 {task.actionLabel}</>
+                            )}
+                          </button>
+                        )}
+                      </>
+                    )}
+                    <button
+                      onClick={() => completeTask(task.id)}
+                      className="px-2 py-1 text-xs text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                    >
+                      ✓ Done
+                    </button>
+                    <button
+                      onClick={() => dismissTask(task.id)}
+                      className="px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Root Cockpit Page ────────────────────────────────────────────────────────
 
 const TABS = [
@@ -2238,6 +2641,7 @@ const TABS = [
   { id: "sites", label: "🌍 Sites" },
   { id: "ai", label: "🤖 AI Config" },
   { id: "settings", label: "🔧 Settings" },
+  { id: "tasks", label: "📌 Tasks" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -2254,7 +2658,10 @@ export default function CockpitPage() {
   const fetchCockpit = useCallback(async () => {
     setCockpitError(null);
     try {
-      const res = await fetch("/api/admin/cockpit");
+      const url = activeSiteId
+        ? `/api/admin/cockpit?siteId=${encodeURIComponent(activeSiteId)}`
+        : "/api/admin/cockpit";
+      const res = await fetch(url);
       if (!res.ok) {
         const err = await res.json().catch(() => ({})) as { error?: string };
         throw new Error(err.error ?? `HTTP ${res.status}`);
@@ -2300,6 +2707,7 @@ export default function CockpitPage() {
                 onChange={(e) => setActiveSiteId(e.target.value)}
                 className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-xs text-zinc-300 focus:outline-none"
               >
+                <option value="all">All Sites</option>
                 {cockpitData.sites.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -2371,6 +2779,9 @@ export default function CockpitPage() {
         )}
         {activeTab === "settings" && (
           <SettingsTab system={cockpitData?.system ?? null} />
+        )}
+        {activeTab === "tasks" && (
+          <TasksTab siteId={activeSiteId} />
         )}
       </main>
     </div>

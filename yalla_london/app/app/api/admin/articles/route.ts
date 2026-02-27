@@ -248,17 +248,35 @@ export async function GET(request: NextRequest) {
     ]);
 
     // M-001 fix: indexing summary from real URLIndexingStatus table
-    const [indexedCount, submittedCount, indexErrorCount] = await Promise.all([
-      prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: 'indexed' } }),
-      prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: 'submitted' } }),
-      prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: 'error' } }),
-    ]);
+    // Count ONLY blog-post URLs by matching published BlogPost slugs against URLIndexingStatus
+    const publishedSlugs = await prisma.blogPost.findMany({
+      where: { siteId, published: true },
+      select: { slug: true },
+    });
+    const slugList = publishedSlugs.map(p => p.slug).filter(Boolean) as string[];
+
+    const blogIndexRecords = slugList.length > 0
+      ? await prisma.uRLIndexingStatus.findMany({
+          where: { site_id: siteId, slug: { in: slugList } },
+          select: { slug: true, status: true },
+        })
+      : [];
+
+    const blogStatusMap = new Map(blogIndexRecords.map(r => [r.slug, r.status]));
+    let blogIndexed = 0, blogSubmitted = 0, blogErrors = 0, blogNotSubmitted = 0;
+    for (const slug of slugList) {
+      const st = blogStatusMap.get(slug);
+      if (st === 'indexed') blogIndexed++;
+      else if (st === 'submitted') blogSubmitted++;
+      else if (st === 'error') blogErrors++;
+      else blogNotSubmitted++; // no record or 'discovered'
+    }
 
     const indexingStats = {
-      indexed: indexedCount,
-      submitted: submittedCount,
-      notSubmitted: Math.max(0, publishedCount - indexedCount - submittedCount - indexErrorCount),
-      error: indexErrorCount,
+      indexed: blogIndexed,
+      submitted: blogSubmitted,
+      notSubmitted: blogNotSubmitted,
+      error: blogErrors,
     };
 
     return NextResponse.json({

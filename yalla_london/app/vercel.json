@@ -176,6 +176,14 @@
     {
       "path": "/api/cron/social",
       "schedule": "0 10,15,20 * * *"
+    },
+    {
+      "path": "/api/cron/reserve-publisher",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron/seo-deep-review",
+      "schedule": "0 0 * * *"
     }
   ]
 }

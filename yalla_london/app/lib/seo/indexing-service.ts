@@ -1123,6 +1123,160 @@ export async function runAutomatedIndexing(
 // EXPORT SINGLETON INSTANCE
 // ============================================
 
+// ============================================
+// AGGRESSIVE INDEXING: RETRY FAILED + STALE URLs
+// ============================================
+
+/**
+ * Retry failed and stale URL submissions.
+ *
+ * Finds URLs that are:
+ *   1. Still "discovered" after 6+ hours (never submitted)
+ *   2. Status "error" (failed previous submission)
+ *   3. Status "submitted" but > 7 days old with no indexing confirmation
+ *
+ * Resubmits them to IndexNow + pings sitemap.
+ * Called by the seo-deep-review cron and can be triggered manually.
+ */
+export async function retryFailedIndexing(
+  siteId: string,
+  siteUrl: string,
+  options?: { maxUrls?: number; budgetMs?: number },
+): Promise<{ retried: number; succeeded: number; errors: string[] }> {
+  const maxUrls = options?.maxUrls || 50;
+  const startTime = Date.now();
+  const budgetMs = options?.budgetMs || 30_000;
+  const errors: string[] = [];
+  let retried = 0;
+  let succeeded = 0;
+
+  try {
+    const { prisma } = await import("@/lib/db");
+
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // Find URLs needing retry
+    const staleUrls = await prisma.uRLIndexingStatus.findMany({
+      where: {
+        site_id: siteId,
+        OR: [
+          // Never submitted (discovered > 6h ago)
+          { status: "discovered", created_at: { lt: sixHoursAgo } },
+          // Failed submission
+          { status: "error" },
+          // Submitted but not indexed after 7 days — resubmit
+          {
+            status: "submitted",
+            last_submitted_at: { lt: sevenDaysAgo },
+            submission_attempts: { lt: 5 }, // Don't retry endlessly
+          },
+        ],
+      },
+      select: { id: true, url: true, status: true, submission_attempts: true },
+      take: maxUrls,
+      orderBy: { created_at: "asc" }, // Oldest first
+    });
+
+    if (staleUrls.length === 0) {
+      return { retried: 0, succeeded: 0, errors: [] };
+    }
+
+    const urls = staleUrls.map((u) => u.url);
+    retried = urls.length;
+
+    console.log(`[indexing-retry] Retrying ${urls.length} stale/failed URL(s) for ${siteId}`);
+
+    // Batch submit to IndexNow
+    const indexNowResults = await submitToIndexNow(urls, siteUrl);
+    const indexNowOk = indexNowResults.some((r) => r.success);
+
+    if (indexNowOk) {
+      succeeded = urls.length;
+    }
+
+    // Update status
+    const newStatus = indexNowOk ? "submitted" : "error";
+    for (const record of staleUrls) {
+      if (Date.now() - startTime > budgetMs) break;
+
+      await prisma.uRLIndexingStatus.update({
+        where: { id: record.id },
+        data: {
+          status: newStatus,
+          submitted_indexnow: indexNowOk,
+          last_submitted_at: new Date(),
+          submission_attempts: (record.submission_attempts || 0) + 1,
+          last_error: indexNowOk ? null : "IndexNow batch submission failed",
+        },
+      }).catch((e: unknown) => errors.push(`DB update ${record.url}: ${e instanceof Error ? e.message : e}`));
+    }
+
+    // Also ping sitemap to signal Google
+    if (indexNowOk) {
+      await pingSitemaps(siteUrl, siteId).catch(() => {});
+    }
+
+    console.log(`[indexing-retry] ${siteId}: retried ${retried}, succeeded ${succeeded}`);
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : String(err));
+  }
+
+  return { retried, succeeded, errors };
+}
+
+/**
+ * Immediate post-publish indexing — submit a single URL to all available channels.
+ * Called right after a BlogPost is created. Faster than waiting for the next seo-cron.
+ */
+export async function submitUrlImmediately(
+  url: string,
+  siteId: string,
+  siteUrl: string,
+): Promise<{ indexNow: boolean; sitemap: boolean }> {
+  let indexNow = false;
+  let sitemap = false;
+
+  // 1. IndexNow batch (accepts single URL)
+  try {
+    const results = await submitToIndexNow([url], siteUrl);
+    indexNow = results.some((r) => r.success);
+  } catch (e) {
+    console.warn(`[immediate-index] IndexNow failed for ${url}:`, e instanceof Error ? e.message : e);
+  }
+
+  // 2. Track in URLIndexingStatus
+  try {
+    const { prisma } = await import("@/lib/db");
+    await prisma.uRLIndexingStatus.upsert({
+      where: { site_id_url: { site_id: siteId, url } },
+      create: {
+        site_id: siteId,
+        url,
+        slug: url.split("/blog/").pop() || null,
+        status: indexNow ? "submitted" : "discovered",
+        submitted_indexnow: indexNow,
+        last_submitted_at: indexNow ? new Date() : null,
+      },
+      update: {
+        status: indexNow ? "submitted" : undefined,
+        submitted_indexnow: indexNow || undefined,
+        last_submitted_at: indexNow ? new Date() : undefined,
+        submission_attempts: { increment: 1 },
+      },
+    });
+  } catch {
+    // Non-fatal — seo-agent will pick it up later
+  }
+
+  // 3. Ping sitemap (don't await — fire and forget)
+  pingSitemaps(siteUrl, siteId).then((r) => {
+    sitemap = r.google_gsc === true;
+  }).catch(() => {});
+
+  return { indexNow, sitemap };
+}
+
 export const gscApi = new GoogleSearchConsoleAPI();
 export default {
   submitToIndexNow,
@@ -1131,5 +1285,7 @@ export default {
   getNewUrls,
   getUpdatedUrls,
   runAutomatedIndexing,
+  retryFailedIndexing,
+  submitUrlImmediately,
   gscApi,
 };

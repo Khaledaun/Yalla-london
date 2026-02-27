@@ -700,19 +700,15 @@ export async function promoteToBlogPost(
     console.warn("[content-selector] SeoMeta creation failed (non-fatal):", seoErr instanceof Error ? seoErr.message : seoErr);
   }
 
-  // Create URLIndexingStatus entry
+  // Immediately submit to IndexNow + track in URLIndexingStatus
+  // Don't wait for the next seo-cron — every minute counts for indexing speed
   try {
     const fullUrl = `${getSiteDomain(siteId)}/blog/${slug}`;
-    await prisma.uRLIndexingStatus.create({
-      data: {
-        url: fullUrl,
-        site_id: siteId,
-        slug,
-        status: "discovered",
-      },
-    });
+    const { submitUrlImmediately } = await import("@/lib/seo/indexing-service");
+    const indexResult = await submitUrlImmediately(fullUrl, siteId, getSiteDomain(siteId));
+    console.log(`[content-selector] Immediate indexing for ${slug}: IndexNow=${indexResult.indexNow}`);
   } catch (indexErr) {
-    console.warn("[content-selector] URLIndexingStatus creation failed (non-fatal):", indexErr instanceof Error ? indexErr.message : indexErr);
+    console.warn("[content-selector] Immediate indexing failed (non-fatal, seo-cron will catch it):", indexErr instanceof Error ? indexErr.message : indexErr);
   }
 
   // Auto-inject affiliate links

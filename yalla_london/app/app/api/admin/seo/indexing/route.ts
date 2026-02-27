@@ -77,12 +77,6 @@ export async function GET(request: NextRequest) {
         (r) => r.reportType === "indexing_audit",
       );
 
-      // Get the latest inspection data for current indexed count
-      const latestWithInspection = reports.find((r) => {
-        const data = r.data as any;
-        return data?.inspected > 0;
-      });
-
       const latestSubmission = submissions[0];
       const latestSubmissionData = latestSubmission?.data as any;
 
@@ -107,7 +101,25 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      const latestInspectionData = latestWithInspection?.data as any;
+      // ── LIVE indexing counts from URLIndexingStatus table ─────────────
+      // This is the single source of truth — never stale.
+      const { getDefaultSiteId } = await import("@/config/sites");
+      const siteId = request.nextUrl.searchParams.get("siteId") ||
+        request.headers.get("x-site-id") ||
+        getDefaultSiteId();
+      const liveGroups = await prisma.uRLIndexingStatus.groupBy({
+        by: ["status"],
+        _count: { id: true },
+        where: { site_id: siteId },
+      });
+      let liveTotal = 0, liveIndexed = 0, liveSubmitted = 0, liveErrors = 0, liveNotIndexed = 0;
+      for (const g of liveGroups) {
+        liveTotal += g._count.id;
+        if (g.status === "indexed") liveIndexed = g._count.id;
+        else if (g.status === "submitted") liveSubmitted = g._count.id;
+        else if (g.status === "error") liveErrors = g._count.id;
+        else liveNotIndexed += g._count.id; // discovered, pending, etc.
+      }
 
       return NextResponse.json({
         success: true,
@@ -119,15 +131,16 @@ export async function GET(request: NextRequest) {
           totalIndexNowSubmitted,
           lastSubmission: latestSubmission?.generatedAt || null,
           lastSuccessfulSubmission,
-          latestSnapshot: latestInspectionData
-            ? {
-                totalPages: latestInspectionData.totalPages,
-                inspected: latestInspectionData.inspected,
-                indexed: latestInspectionData.indexed,
-                notIndexed: latestInspectionData.notIndexed,
-                date: latestWithInspection?.generatedAt,
-              }
-            : null,
+          // Live counts from URLIndexingStatus — always current
+          latestSnapshot: {
+            totalPages: liveTotal,
+            indexed: liveIndexed,
+            submitted: liveSubmitted,
+            notIndexed: liveNotIndexed,
+            errors: liveErrors,
+            date: new Date().toISOString(),
+            source: "live",
+          },
           latestSubmissionResult: latestSubmissionData?.submission || null,
           // Timeline: last 10 submissions with key metrics
           timeline: submissions.slice(0, 10).map((s) => {

@@ -2035,8 +2035,10 @@ async function runAllTests() {
         if (s.totalIndexNowSubmitted !== undefined) addResult('indexing', 'IndexNow Submissions', s.totalIndexNowSubmitted > 0 ? 'pass' : 'warn', s.totalIndexNowSubmitted + ' URLs submitted');
         if (s.lastSubmission) addResult('indexing', 'Last Submission', 'pass', new Date(s.lastSubmission).toLocaleString());
         if (s.latestSnapshot) {
-          addResult('indexing', 'Indexed Pages', s.latestSnapshot.indexed > 0 ? 'pass' : 'warn',
-            s.latestSnapshot.indexed + '/' + s.latestSnapshot.totalPages + ' indexed (' + s.latestSnapshot.notIndexed + ' not indexed)');
+          const snap = s.latestSnapshot;
+          const rate = snap.totalPages > 0 ? Math.round((snap.indexed / snap.totalPages) * 100) : 0;
+          addResult('indexing', 'Indexed Pages', snap.indexed > 0 ? 'pass' : 'warn',
+            snap.indexed + '/' + snap.totalPages + ' indexed (' + rate + '%) — ' + (snap.submitted || 0) + ' submitted, ' + (snap.errors || 0) + ' errors');
         }
         if (s.timeline && s.timeline.length > 0) {
           addResult('indexing', 'Recent Activity', 'pass', s.timeline.length + ' submissions in timeline');
@@ -2555,8 +2557,9 @@ async function runAllTests() {
       const articlesResp = await testFetch('/api/admin/articles?limit=5', { headers: settingsHeader });
       if (articlesResp.ok && articlesResp.json) {
         const j = articlesResp.json;
+        const ix = j.indexing || {};
         addResult('settings-ai', 'Rich Articles API', 'pass',
-          `${j.summary?.published ?? 0} published | ${j.summary?.inProgress ?? 0} in pipeline | ${j.indexing?.notSubmitted ?? 0} unindexed`);
+          `${j.summary?.published ?? 0} published | ${j.summary?.inProgress ?? 0} in pipeline | ${ix.notSubmitted ?? 0} unindexed`);
       } else { addResult('settings-ai', 'Rich Articles API', 'fail', 'HTTP ' + (articlesResp.status || '?')); }
 
     } catch (e) { log('  ERROR in section 24: ' + e.message); addResult('settings-ai', 'Settings Hub', 'fail', 'JS Error: ' + e.message); }

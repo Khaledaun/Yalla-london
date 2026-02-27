@@ -222,15 +222,16 @@ function DepartureRow({
           </div>
         </div>
 
-        {/* Scheduled time */}
+        {/* Scheduled time — full on desktop, compact on mobile */}
         <div className="text-right shrink-0 hidden sm:block">
           <div className="text-xs text-zinc-400">{dep.scheduledAt ? formatDate(dep.scheduledAt) : '—'}</div>
           <div className="text-xs text-zinc-500">{formatTime(dep.scheduledAt)}</div>
         </div>
 
-        {/* Countdown */}
-        <div className="text-right shrink-0 w-20">
+        {/* Countdown + compact time on mobile */}
+        <div className="text-right shrink-0 w-24">
           <CountdownCell scheduledAt={dep.scheduledAt} status={dep.status} />
+          <div className="text-[10px] text-zinc-500 sm:hidden mt-0.5">{dep.scheduledAt ? formatTime(dep.scheduledAt) : ''}</div>
         </div>
 
         {/* Do Now button */}

@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
   } catch (tableErr: unknown) {
     const msg = tableErr instanceof Error ? tableErr.message : String(tableErr);
     // Prisma P2021 = table does not exist — migration not deployed yet
-    if (msg.includes('P2021') || msg.includes('does not exist') || msg.includes('api_usage_logs')) {
+    if (msg.includes('P2021') || msg.includes('does not exist') || msg.includes('api_usage_log') || msg.includes('ApiUsageLog')) {
       return NextResponse.json({
         _migrationNeeded: true,
         message: 'ApiUsageLog table not found — run npx prisma db push to create it',

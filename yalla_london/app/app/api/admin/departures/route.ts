@@ -260,7 +260,7 @@ export async function GET(req: NextRequest) {
       try {
         const { interpretError } = await import('@/lib/error-interpreter');
         const interpreted = interpretError(lastRun.error);
-        lastError = interpreted.message;
+        lastError = interpreted.plain;
       } catch {
         lastError = lastRun.error.slice(0, 120);
       }

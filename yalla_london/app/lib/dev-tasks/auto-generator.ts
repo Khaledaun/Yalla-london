@@ -63,9 +63,9 @@ export async function autoGenerateTasks(siteId: string): Promise<{
       });
     }
 
-    // Empty reservoir
+    // Empty reservoir (correct field: current_phase, not phase)
     const reservoirCount = await prisma.articleDraft.count({
-      where: { site_id: siteId, phase: "reservoir" },
+      where: { site_id: siteId, current_phase: "reservoir" },
     });
     if (reservoirCount === 0) {
       tasks.push({
@@ -81,12 +81,12 @@ export async function autoGenerateTasks(siteId: string): Promise<{
       });
     }
 
-    // Stuck drafts (>12h in same phase)
+    // Stuck drafts (>12h in same phase — correct field: current_phase)
     const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
     const stuckDrafts = await prisma.articleDraft.count({
       where: {
         site_id: siteId,
-        phase: { notIn: ["reservoir", "completed", "failed"] },
+        current_phase: { notIn: ["reservoir", "completed", "failed"] },
         updated_at: { lt: twelveHoursAgo },
       },
     });
@@ -103,11 +103,11 @@ export async function autoGenerateTasks(siteId: string): Promise<{
       });
     }
 
-    // No publishing today
+    // No publishing today (correct field: published Boolean, use updated_at for date)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const publishedToday = await prisma.blogPost.count({
-      where: { siteId, status: "published", published_at: { gte: today } },
+      where: { siteId, published: true, updated_at: { gte: today } },
     });
     if (publishedToday === 0) {
       tasks.push({
@@ -121,8 +121,8 @@ export async function autoGenerateTasks(siteId: string): Promise<{
         actionApi: "/api/cron/content-selector",
       });
     }
-  } catch {
-    // Pipeline tables may not exist yet
+  } catch (err) {
+    console.warn("[auto-generator] Pipeline scan error:", err instanceof Error ? err.message : String(err));
   }
 
   // ── 2. Cron Failures (last 24h) ───────────────────────────────────
@@ -154,27 +154,27 @@ export async function autoGenerateTasks(siteId: string): Promise<{
         sourceRef: `cron-fail-${cron.job_name}-${new Date().toISOString().slice(0, 10)}`,
         actionLabel: `Re-run ${cron.job_name}`,
         actionApi: "/api/admin/departures",
-        actionPayload: { path: `/api/cron/${cron.job_name}` },
+        actionPayload: { cronPath: `/api/cron/${cron.job_name}` },
       });
     }
-  } catch {
-    // CronJobLog may not exist
+  } catch (err) {
+    console.warn("[auto-generator] Cron scan error:", err instanceof Error ? err.message : String(err));
   }
 
   // ── 3. Indexing Gaps ───────────────────────────────────────────────
   try {
-    const neverSubmitted = await prisma.blogPost.count({
+    // Use URLIndexingStatus table which actually tracks indexing state
+    const neverSubmitted = await prisma.uRLIndexingStatus.count({
       where: {
-        siteId,
-        status: "published",
-        indexing_status: { in: [null as unknown as string, "not_indexed", ""] },
+        site_id: siteId,
+        status: { in: ["discovered", "error"] },
       },
     });
 
     if (neverSubmitted > 5) {
       tasks.push({
-        title: `${neverSubmitted} articles never submitted to Google`,
-        description: "These articles haven't been submitted via IndexNow or GSC. They rely on natural crawl discovery, which is slow.",
+        title: `${neverSubmitted} URLs not yet indexed`,
+        description: "These URLs haven't been submitted or indexed. Run the SEO agent to submit them via IndexNow.",
         category: "seo",
         priority: "medium",
         source: "auto-scan",
@@ -184,14 +184,14 @@ export async function autoGenerateTasks(siteId: string): Promise<{
         actionPayload: { action: "submit_all" },
       });
     }
-  } catch {
-    // BlogPost table may not have indexing fields
+  } catch (err) {
+    console.warn("[auto-generator] Indexing scan error:", err instanceof Error ? err.message : String(err));
   }
 
   // ── 4. Low Content Count ───────────────────────────────────────────
   try {
     const totalPublished = await prisma.blogPost.count({
-      where: { siteId, status: "published" },
+      where: { siteId, published: true },
     });
 
     if (totalPublished < 20) {
@@ -206,8 +206,8 @@ export async function autoGenerateTasks(siteId: string): Promise<{
         actionApi: "/api/cron/content-builder",
       });
     }
-  } catch {
-    // BlogPost may not exist
+  } catch (err) {
+    console.warn("[auto-generator] Content count scan error:", err instanceof Error ? err.message : String(err));
   }
 
   // ── 5. Missing Env Vars ────────────────────────────────────────────

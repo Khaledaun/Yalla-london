@@ -31,13 +31,13 @@ const AUDIT_LEVELS: Record<AuditLevel, AuditLevelConfig> = {
   },
   2: {
     name: "Full",
-    groups: ["general", "pipeline", "indexing", "seo", "crons", "yachts", "commerce", "security", "ai-models"],
+    groups: ["general", "pipeline", "indexing", "seo", "crons", "yachts", "commerce", "security", "ai-costs"],
     budgetMs: 40_000,
     cadence: "Weekly",
   },
   3: {
     name: "Deep",
-    groups: ["general", "pipeline", "indexing", "seo", "crons", "yachts", "commerce", "security", "ai-models"],
+    groups: ["general", "pipeline", "indexing", "seo", "crons", "yachts", "commerce", "security", "ai-costs"],
     budgetMs: 50_000,
     cadence: "Monthly",
   },
@@ -76,8 +76,10 @@ export async function runProgressiveAudit(
   // Determine escalation
   const escalation = computeEscalation(level, result.results);
 
+  const durationMs = Date.now() - startTime;
+
   // Build summary
-  const summary = buildSummary(level, config, result);
+  const summary = buildSummary(level, config, result, durationMs);
 
   return {
     level,
@@ -131,21 +133,36 @@ function buildSummary(
   level: AuditLevel,
   config: AuditLevelConfig,
   result: DiagnosticRunResult,
+  durationMs: number,
 ): string {
+  const total = result.results.length;
+  const passCount = result.results.filter((r) => r.status === "pass").length;
+  const warnCount = result.results.filter((r) => r.status === "warn").length;
+  const failCount = result.results.filter((r) => r.status === "fail").length;
+  const healthScore = total > 0 ? Math.round(((passCount + warnCount * 0.5) / total) * 100) : 0;
+  const verdict =
+    failCount === 0 && warnCount === 0
+      ? "ALL_SYSTEMS_GO"
+      : failCount === 0
+        ? "OPERATIONAL"
+        : failCount <= 2
+          ? "NEEDS_ATTENTION"
+          : "CRITICAL";
+
   const lines: string[] = [];
   lines.push(`## ${config.name} Audit (Level ${level})`);
   lines.push(`**Date:** ${new Date().toISOString().slice(0, 19).replace("T", " ")} UTC`);
   lines.push(`**Groups:** ${config.groups.join(", ")}`);
-  lines.push(`**Duration:** ${result.durationMs}ms`);
+  lines.push(`**Duration:** ${durationMs}ms`);
   lines.push("");
   lines.push(`| Metric | Count |`);
   lines.push(`|--------|-------|`);
-  lines.push(`| Total tests | ${result.results.length} |`);
-  lines.push(`| Passed | ${result.results.filter((r) => r.status === "pass").length} |`);
-  lines.push(`| Warnings | ${result.results.filter((r) => r.status === "warn").length} |`);
-  lines.push(`| Failed | ${result.results.filter((r) => r.status === "fail").length} |`);
-  lines.push(`| Health Score | ${result.healthScore}/100 |`);
-  lines.push(`| Verdict | ${result.verdict} |`);
+  lines.push(`| Total tests | ${total} |`);
+  lines.push(`| Passed | ${passCount} |`);
+  lines.push(`| Warnings | ${warnCount} |`);
+  lines.push(`| Failed | ${failCount} |`);
+  lines.push(`| Health Score | ${healthScore}/100 |`);
+  lines.push(`| Verdict | ${verdict} |`);
   lines.push("");
 
   // List failures
@@ -160,10 +177,10 @@ function buildSummary(
   }
 
   // List warnings
-  const warnings = result.results.filter((r) => r.status === "warn");
-  if (warnings.length > 0) {
+  const warnItems = result.results.filter((r) => r.status === "warn");
+  if (warnItems.length > 0) {
     lines.push("### Warnings");
-    for (const w of warnings) {
+    for (const w of warnItems) {
       lines.push(`- **${w.name}** (${w.section}): ${w.detail}`);
     }
   }

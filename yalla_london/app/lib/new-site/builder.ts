@@ -23,12 +23,21 @@ export interface SiteConfig {
   domain: string;
   siteType: 'travel_blog' | 'yacht_charter' | 'custom';
   primaryLanguage: 'en' | 'ar';
-  targetAudience: string;
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
   topics: string[];
-  affiliatePartners: string[];
+  // Accept both field names for compatibility with wizard page
+  affiliates?: string[];
+  affiliatePartners?: string[];
+  // Optional fields from wizard
+  tagline?: string;
+  secondaryLanguage?: string;
+  targetAudience?: string;
+  targetKeywords?: string[];
+  contentVelocity?: number;
+  automations?: string[];
+  researchNotes?: string;
 }
 
 export interface BuildProgress {
@@ -316,9 +325,14 @@ export async function buildNewSite(config: SiteConfig): Promise<BuildResult> {
           secondaryColor: config.secondaryColor,
           accentColor: config.accentColor,
           topics: config.topics,
-          affiliatePartners: config.affiliatePartners,
+          affiliatePartners: config.affiliatePartners ?? config.affiliates ?? [],
           siteType: config.siteType,
-          targetAudience: config.targetAudience,
+          targetAudience: config.targetAudience ?? '',
+          tagline: config.tagline ?? '',
+          secondaryLanguage: config.secondaryLanguage ?? 'none',
+          targetKeywords: config.targetKeywords ?? [],
+          contentVelocity: config.contentVelocity ?? 1,
+          automations: config.automations ?? [],
         },
       },
     });

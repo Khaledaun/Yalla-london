@@ -66,11 +66,21 @@ interface SiteSummary {
   lastCronAt: string | null;
 }
 
+interface RevenueSnapshot {
+  affiliateClicksToday: number;
+  affiliateClicksWeek: number;
+  conversionsWeek: number;
+  revenueWeekUsd: number;
+  topPartner: string | null;
+  aiCostWeekUsd: number;
+}
+
 interface CockpitData {
   system: SystemStatus;
   pipeline: PipelineStatus;
   indexing: { total: number; indexed: number; submitted: number; neverSubmitted: number; errors: number; rate: number };
   cronHealth: { failedLast24h: number; timedOutLast24h: number; lastRunAt: string | null; recentJobs: Array<{ name: string; status: string; durationMs: number | null; startedAt: string; error: string | null; plainError: string | null; itemsProcessed: number }> };
+  revenue: RevenueSnapshot;
   alerts: Alert[];
   sites: SiteSummary[];
   timestamp: string;
@@ -784,6 +794,31 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
           <div className="text-xs text-zinc-500 mt-1">Cron Status</div>
         </Card>
       </div>
+
+      {/* Revenue & Costs */}
+      {data?.revenue && (
+        <Card>
+          <SectionTitle>Revenue & Costs (7d)</SectionTitle>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-zinc-800/50 rounded-lg p-2">
+              <div className="text-lg font-bold text-amber-400">{data.revenue.affiliateClicksToday}</div>
+              <div className="text-[10px] text-zinc-500">Clicks Today</div>
+            </div>
+            <div className="bg-zinc-800/50 rounded-lg p-2">
+              <div className="text-lg font-bold text-emerald-400">{data.revenue.conversionsWeek}</div>
+              <div className="text-[10px] text-zinc-500">Conversions</div>
+            </div>
+            <div className="bg-zinc-800/50 rounded-lg p-2">
+              <div className="text-lg font-bold text-emerald-300">${data.revenue.revenueWeekUsd.toFixed(2)}</div>
+              <div className="text-[10px] text-zinc-500">Commission</div>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs text-zinc-500">
+            <span>{data.revenue.affiliateClicksWeek} clicks this week{data.revenue.topPartner ? ` · Top: ${data.revenue.topPartner}` : ""}</span>
+            <span className="text-red-400">AI: ${data.revenue.aiCostWeekUsd.toFixed(2)}</span>
+          </div>
+        </Card>
+      )}
 
       {/* Quick Actions */}
       <Card>

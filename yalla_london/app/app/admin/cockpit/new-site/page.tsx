@@ -688,9 +688,10 @@ export default function NewSitePage() {
                   ))}
                   <button
                     onClick={buildSite}
-                    className="w-full mt-4 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium"
+                    disabled={building}
+                    className={`w-full mt-4 py-3 rounded-lg text-white text-sm font-medium ${building ? 'bg-zinc-600 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                   >
-                    Start Initial Content Generation
+                    {building ? 'Building…' : 'Start Initial Content Generation'}
                   </button>
                 </>
               )}

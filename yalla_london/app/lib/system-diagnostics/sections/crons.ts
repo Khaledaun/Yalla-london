@@ -96,7 +96,7 @@ const cronSection = async (
             label: `Run ${cron.name} Now`,
             api: "/api/admin/departures",
             method: "POST",
-            payload: { path: cron.path },
+            payload: { cronPath: cron.path },
             rerunGroup: "crons",
           }));
           continue;
@@ -118,7 +118,7 @@ const cronSection = async (
             label: `Re-run ${cron.name}`,
             api: "/api/admin/departures",
             method: "POST",
-            payload: { path: cron.path },
+            payload: { cronPath: cron.path },
             rerunGroup: "crons",
           }));
         } else {

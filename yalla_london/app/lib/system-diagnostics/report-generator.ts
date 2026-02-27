@@ -52,13 +52,16 @@ export function generateLastDiagnosticReport(
   lines.push("");
 
   // Environment
-  if (result.envStatus && Object.keys(result.envStatus).length > 0) {
+  if (result.envConfirmed.length > 0 || result.envMissing.length > 0) {
     lines.push("## Environment Variables");
     lines.push("");
     lines.push("| Variable | Status |");
     lines.push("|----------|--------|");
-    for (const [key, value] of Object.entries(result.envStatus as Record<string, boolean>)) {
-      lines.push(`| ${key} | ${value ? "Set" : "**MISSING**"} |`);
+    for (const key of result.envConfirmed) {
+      lines.push(`| ${key} | Set |`);
+    }
+    for (const key of result.envMissing) {
+      lines.push(`| ${key} | **MISSING** |`);
     }
     lines.push("");
   }
@@ -110,11 +113,18 @@ export function generateLastDiagnosticReport(
     }
   }
 
-  // Recommendations
-  if (result.recommendations && (result.recommendations as string[]).length > 0) {
+  // Recommendations (derived from failures and warnings)
+  const recommendations: string[] = [];
+  for (const f of result.results.filter((r) => r.status === "fail")) {
+    if (f.diagnosis) recommendations.push(f.diagnosis);
+  }
+  if (result.envMissing.length > 0) {
+    recommendations.push(`Set missing env vars: ${result.envMissing.join(", ")}`);
+  }
+  if (recommendations.length > 0) {
     lines.push("## Recommendations");
     lines.push("");
-    for (const rec of result.recommendations as string[]) {
+    for (const rec of recommendations) {
       lines.push(`- ${rec}`);
     }
     lines.push("");

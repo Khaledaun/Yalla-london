@@ -124,5 +124,21 @@ export async function runDiagnosticGroups(
     }
   }
 
-  return { results: allResults, envConfirmed, envMissing };
+  // Compute aggregate metrics
+  const durationMs = Date.now() - startTime;
+  const total = allResults.length;
+  const passCount = allResults.filter((r) => r.status === "pass").length;
+  const warnCount = allResults.filter((r) => r.status === "warn").length;
+  const failCount = allResults.filter((r) => r.status === "fail").length;
+  const healthScore = total > 0 ? Math.round(((passCount + warnCount * 0.5) / total) * 100) : 0;
+  const verdict =
+    failCount === 0 && warnCount === 0
+      ? "ALL_SYSTEMS_GO" as const
+      : failCount === 0
+        ? "OPERATIONAL" as const
+        : failCount <= 2
+          ? "NEEDS_ATTENTION" as const
+          : "CRITICAL" as const;
+
+  return { results: allResults, envConfirmed, envMissing, durationMs, healthScore, verdict };
 }

@@ -46,6 +46,12 @@ export interface DiagnosticRunResult {
   results: DiagnosticResult[];
   envConfirmed: string[];
   envMissing: string[];
+  /** Total wall-clock duration of the run in ms */
+  durationMs: number;
+  /** Computed health score 0-100 */
+  healthScore: number;
+  /** Overall system verdict */
+  verdict: DiagnosticVerdict;
 }
 
 /** A diagnostic section function */

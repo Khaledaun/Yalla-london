@@ -70,7 +70,8 @@ export async function GET(request: NextRequest) {
 
     for (const siteId of activeSites) {
       if (Date.now() - cronStart > TOTAL_BUDGET_MS) {
-        console.log("[reserve-publisher] Total budget exhausted, stopping site loop");
+        const skippedSites = activeSites.filter((s) => !results.some((r) => r.siteId === s));
+        console.log(`[reserve-publisher] Total budget exhausted, skipping ${skippedSites.length} remaining site(s): ${skippedSites.join(", ")}`);
         break;
       }
 
@@ -265,11 +266,11 @@ export async function GET(request: NextRequest) {
 
     await logCronExecution("reserve-publisher", totalErrors > 0 && totalPublished === 0 ? "failed" : "completed", {
       durationMs: Date.now() - cronStart,
-      itemsProcessed: activeSites.length,
+      itemsProcessed: results.length, // Only count sites we actually processed (not skipped by budget)
       itemsSucceeded: totalPublished,
       itemsFailed: totalErrors,
-      sitesProcessed: activeSites,
-      resultSummary: { results, sitesNeeded, totalPublished },
+      sitesProcessed: results.map((r) => r.siteId),
+      resultSummary: { results, sitesNeeded, totalPublished, totalSites: activeSites.length },
     });
 
     const message = sitesNeeded === 0

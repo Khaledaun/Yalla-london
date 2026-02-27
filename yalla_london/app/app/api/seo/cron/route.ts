@@ -146,13 +146,19 @@ export async function GET(request: NextRequest) {
             console.log(`[SEO-CRON] Budget exhausted (${Date.now() - startTime}ms), skipping remaining sites`);
             break;
           }
-          const siteUrl = getSiteDomain(sid);
-          const dailyReport = await runAutomatedIndexing("updated", sid, siteUrl);
-          await trackSubmittedUrls(dailyReport, sid);
-          results.actions.push({ name: "submit_updated", site: sid, report: dailyReport });
-          console.log(
-            `[SEO-CRON] Daily [${sid}]: processed ${dailyReport.urlsProcessed} URLs, errors: ${dailyReport.errors.length}`,
-          );
+          try {
+            const siteUrl = getSiteDomain(sid);
+            const dailyReport = await runAutomatedIndexing("updated", sid, siteUrl);
+            await trackSubmittedUrls(dailyReport, sid);
+            results.actions.push({ name: "submit_updated", site: sid, report: dailyReport });
+            console.log(
+              `[SEO-CRON] Daily [${sid}]: processed ${dailyReport.urlsProcessed} URLs, errors: ${dailyReport.errors.length}`,
+            );
+          } catch (siteErr) {
+            const msg = siteErr instanceof Error ? siteErr.message : String(siteErr);
+            results.actions.push({ name: "submit_updated", site: sid, error: msg });
+            console.error(`[SEO-CRON] Daily [${sid}] FAILED: ${msg}`);
+          }
         }
         break;
 
@@ -162,13 +168,19 @@ export async function GET(request: NextRequest) {
             console.log(`[SEO-CRON] Budget exhausted (${Date.now() - startTime}ms), skipping remaining sites`);
             break;
           }
-          const siteUrl = getSiteDomain(sid);
-          const weeklyReport = await runAutomatedIndexing("all", sid, siteUrl);
-          await trackSubmittedUrls(weeklyReport, sid);
-          results.actions.push({ name: "submit_all", site: sid, report: weeklyReport });
-          console.log(
-            `[SEO-CRON] Weekly [${sid}]: processed ${weeklyReport.urlsProcessed} URLs, errors: ${weeklyReport.errors.length}`,
-          );
+          try {
+            const siteUrl = getSiteDomain(sid);
+            const weeklyReport = await runAutomatedIndexing("all", sid, siteUrl);
+            await trackSubmittedUrls(weeklyReport, sid);
+            results.actions.push({ name: "submit_all", site: sid, report: weeklyReport });
+            console.log(
+              `[SEO-CRON] Weekly [${sid}]: processed ${weeklyReport.urlsProcessed} URLs, errors: ${weeklyReport.errors.length}`,
+            );
+          } catch (siteErr) {
+            const msg = siteErr instanceof Error ? siteErr.message : String(siteErr);
+            results.actions.push({ name: "submit_all", site: sid, error: msg });
+            console.error(`[SEO-CRON] Weekly [${sid}] FAILED: ${msg}`);
+          }
         }
         break;
 
@@ -185,13 +197,19 @@ export async function GET(request: NextRequest) {
             console.log(`[SEO-CRON] Budget exhausted (${Date.now() - startTime}ms), skipping remaining sites`);
             break;
           }
-          const siteUrl = getSiteDomain(sid);
-          const newReport = await runAutomatedIndexing("new", sid, siteUrl);
-          await trackSubmittedUrls(newReport, sid);
-          results.actions.push({ name: "submit_new", site: sid, report: newReport });
-          console.log(
-            `[SEO-CRON] New [${sid}]: processed ${newReport.urlsProcessed} URLs, errors: ${newReport.errors.length}`,
-          );
+          try {
+            const siteUrl = getSiteDomain(sid);
+            const newReport = await runAutomatedIndexing("new", sid, siteUrl);
+            await trackSubmittedUrls(newReport, sid);
+            results.actions.push({ name: "submit_new", site: sid, report: newReport });
+            console.log(
+              `[SEO-CRON] New [${sid}]: processed ${newReport.urlsProcessed} URLs, errors: ${newReport.errors.length}`,
+            );
+          } catch (siteErr) {
+            const msg = siteErr instanceof Error ? siteErr.message : String(siteErr);
+            results.actions.push({ name: "submit_new", site: sid, error: msg });
+            console.error(`[SEO-CRON] New [${sid}] FAILED: ${msg}`);
+          }
         }
         break;
 
@@ -204,10 +222,16 @@ export async function GET(request: NextRequest) {
     results.durationMs = durationMs;
     console.log(`[SEO-CRON] Completed task="${task}" in ${durationMs}ms`);
 
-    await logCronExecution(`seo-cron-${task}`, "completed", {
+    const totalUrlsProcessed = results.actions.reduce((sum: number, a: any) => sum + (a.report?.urlsProcessed || 0), 0);
+    const siteErrors = results.actions.filter((a: any) => a.error).length;
+
+    await logCronExecution(`seo-cron-${task}`, siteErrors > 0 && totalUrlsProcessed === 0 ? "failed" : "completed", {
       durationMs,
-      itemsProcessed: results.actions.length,
-      resultSummary: { task, actionsCount: results.actions.length },
+      itemsProcessed: totalUrlsProcessed,
+      itemsSucceeded: totalUrlsProcessed,
+      itemsFailed: siteErrors,
+      sitesProcessed: activeSites,
+      resultSummary: { task, actionsCount: results.actions.length, totalUrlsProcessed, siteErrors },
     }).catch((e: unknown) => console.warn("[SEO-CRON] Failed to log execution:", e));
 
     return NextResponse.json(results);

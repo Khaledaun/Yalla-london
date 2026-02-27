@@ -821,3 +821,80 @@ verify-indexing (11am UTC)
 content-indexing admin API
   └── Shows news articles with indexing status ← FIXED
 ```
+
+---
+
+## Round 3 Continued: Deep Validation (10 Categories × All Crons)
+
+**Date:** 2026-02-27 (continuation)
+**Scope:** 10 new validation categories applied to all 27 cron jobs via 3 parallel audit agents (content pipeline, SEO/indexing, utility/monitoring)
+
+### Round 3 Validation Categories
+
+| # | Category | What it checks |
+|---|----------|---------------|
+| 1 | **CronLog Accuracy** | `itemsProcessed`/`itemsSucceeded` reflect actual work done (articles, URLs), not proxy counts (sites) |
+| 2 | **Budget Expiry Mid-Batch** | Budget checks BEFORE initializing per-item state, not after. Skipped items logged. |
+| 3 | **Multi-Site Failure Isolation** | One site's failure doesn't crash the entire cron — per-site try/catch |
+| 4 | **Response Shape vs Dashboard** | API response matches what cockpit/departures board expects |
+| 5 | **Idempotency** | Re-runs don't needlessly bump `updated_at` or inflate fix counts |
+| 6 | **Data Freshness** | Status transitions use time windows (not blanket updates) |
+| 7 | **Cascading Failure Isolation** | Downstream failures (IndexNow, sitemap ping) don't crash the main cron |
+| 8 | **Query Efficiency** | Unbounded queries have `take` limits, counters use atomic operations |
+| 9 | **Env Var Resilience** | Cron runs gracefully when optional env vars (INDEXNOW_KEY, GSC credentials) are unset |
+| 10 | **Return Value Completeness** | Success and error paths both return structured data for CronJobLog |
+
+### Fixes Applied (Round 3 Continued)
+
+#### Fix R3-C1: daily-content-generate — CronLog logs site count, not article count
+**File:** `app/api/cron/daily-content-generate/route.ts`
+**Category:** CronLog Accuracy (#1)
+**Problem:** `logCronExecution` reported `sitesProcessed` count and `resultSummary.sites` (number of sites). Dashboard sees this as "processed 4 items" when the cron actually generated 6 articles across 4 sites.
+**Fix:** Extract per-article counts from `result.sites[siteId].results[]` and pass as `itemsProcessed` (total articles attempted), `itemsSucceeded` (articles with `status === "success"`), `itemsFailed` (the difference). `resultSummary` now includes `totalArticles`, `successArticles`, `sitesCount`.
+
+#### Fix R3-C2: reserve-publisher — Budget exhaustion misreports processed site count
+**File:** `app/api/cron/reserve-publisher/route.ts`
+**Category:** CronLog Accuracy (#1) + Budget Expiry Mid-Batch (#2)
+**Problem:** `itemsProcessed: activeSites.length` always reports total active sites, even when budget exhaustion skipped some. Dashboard shows "processed 4 sites" when only 2 were processed.
+**Fix:** Changed `itemsProcessed: results.length` to count only sites that actually had their siteResult created and pushed. `sitesProcessed` now uses `results.map(r => r.siteId)` instead of the full `activeSites` array. Added explicit log when budget skips sites: lists skipped site IDs.
+
+#### Fix R3-C3: seo-deep-review — Informational entries inflate fix counts
+**File:** `app/api/cron/seo-deep-review/route.ts`
+**Category:** Idempotency (#5) + CronLog Accuracy (#1)
+**Problem:** `ArticleFix.fixes[]` mixed actual data changes ("Meta title generated", "Injected 3 internal links") with informational observations ("Canonical verified", "Bilingual content present", "All checks passed"). `totalFixes` counted all entries, making CronLog report "12 fixes applied" when only 5 were real changes.
+**Fix:** Added `notes: string[]` field to `ArticleFix` interface. Moved 4 informational entries from `fixes` to `notes`: canonical verification, hreflang check, H2 count warning, "all checks passed". `totalFixes` now counts only actual data changes. CronLog `itemsSucceeded` changed from "articles with no errors" to "articles that received actual fixes". Response includes both `totalFixes` and `totalNotes` for dashboard clarity.
+
+#### Fix R3-C4: seo/cron — Per-site failure isolation missing
+**File:** `app/api/seo/cron/route.ts`
+**Category:** Multi-Site Failure Isolation (#3) + CronLog Accuracy (#1)
+**Problem:** In all 3 site-loop switch cases (daily, weekly, new), `runAutomatedIndexing()` was called without try/catch. If site A threw, the outer catch triggered, returning 500 and skipping sites B/C/D entirely. One broken site brought down the entire SEO indexing cron.
+**Fix:** Wrapped every per-site `runAutomatedIndexing` + `trackSubmittedUrls` call in individual try/catch blocks across all 3 cases (daily, weekly, new). Failed sites get `{ error: msg }` in actions array instead of crashing the loop. CronLog now reports `totalUrlsProcessed` (sum of all `report.urlsProcessed`) and `siteErrors` (count of failed sites) instead of just `actionsCount`. Status degrades to "failed" only when ALL sites fail and zero URLs were processed.
+
+### Round 3 Summary
+
+| Fix | File | Category | Severity |
+|-----|------|----------|----------|
+| R3-C1 | daily-content-generate | CronLog Accuracy | HIGH |
+| R3-C2 | reserve-publisher | CronLog Accuracy + Budget | HIGH |
+| R3-C3 | seo-deep-review | Idempotency + CronLog | MEDIUM |
+| R3-C4 | seo/cron | Failure Isolation + CronLog | HIGH |
+
+### Files Modified (Round 3 Continued)
+
+| File | Changes |
+|------|---------|
+| `app/api/cron/daily-content-generate/route.ts` | CronLog now reports per-article counts instead of site counts |
+| `app/api/cron/reserve-publisher/route.ts` | itemsProcessed tracks actual processed sites; budget skip logged |
+| `app/api/cron/seo-deep-review/route.ts` | Added `notes[]` field; separated informational from real fixes |
+| `app/api/seo/cron/route.ts` | Per-site try/catch in all 3 switch cases; CronLog reports URL counts |
+
+### Cumulative Stats (Rounds 1-3)
+
+| Round | Checks | Fixes | Files Modified |
+|-------|--------|-------|---------------|
+| Round 1 | 270 (27 crons × 10 categories) | 26 | 14 |
+| Round 2 | 10 categories (indexing focus) | 16 | 8 |
+| Round 3 | 10 categories (deep accuracy) | 12 | 9 |
+| **Total** | **30 categories, 27 crons** | **54** | **~20 unique files** |
+
+**TypeScript:** 0 errors after all rounds.

@@ -38,7 +38,8 @@ interface ArticleFix {
   blogPostId: string;
   slug: string;
   siteId: string;
-  fixes: string[];
+  fixes: string[];   // Actual data changes applied
+  notes: string[];   // Informational observations (no DB write)
   errors: string[];
 }
 
@@ -106,6 +107,7 @@ export async function GET(request: NextRequest) {
         slug: article.slug as string,
         siteId: article.siteId as string,
         fixes: [],
+        notes: [],
         errors: [],
       };
 
@@ -273,7 +275,7 @@ export async function GET(request: NextRequest) {
 
         if (h2Count < 2 && wordCount > 300) {
           // Content is long but lacks structure — note it but don't restructure blindly
-          fix.fixes.push(`Warning: only ${h2Count} H2 heading(s) — consider adding section headings`);
+          fix.notes.push(`Only ${h2Count} H2 heading(s) — consider adding section headings`);
         }
 
         // ── Fix 7: Content Expansion (AI) ─────────────────────────────
@@ -318,13 +320,13 @@ Current word count: ${wordCount}`;
         // ── Fix 8: Canonical URL verification ─────────────────────────
         // Canonical is handled at render time by Next.js generateMetadata — verify it exists
         const expectedCanonical = `${domain}/blog/${slug}`;
-        fix.fixes.push(`Canonical verified: ${expectedCanonical}`);
+        fix.notes.push(`Canonical verified: ${expectedCanonical}`);
 
         // ── Fix 9: hreflang verification ──────────────────────────────
         if (contentEN && contentAR) {
-          fix.fixes.push("Bilingual content present — hreflang EN↔AR will render correctly");
+          fix.notes.push("Bilingual content present — hreflang EN↔AR will render correctly");
         } else if (!contentAR) {
-          fix.fixes.push("Warning: No Arabic content — hreflang ar-SA will point to EN fallback");
+          fix.notes.push("No Arabic content — hreflang ar-SA will point to EN fallback");
         }
 
         // ── Save all fixes ────────────────────────────────────────────
@@ -344,7 +346,7 @@ Current word count: ${wordCount}`;
           console.log(`[seo-deep-review] Fixed "${slug}": ${fix.fixes.join(", ")}`);
         } else {
           console.log(`[seo-deep-review] "${slug}" is clean — no fixes needed`);
-          fix.fixes.push("All checks passed — no fixes needed");
+          fix.notes.push("All checks passed — no fixes needed");
         }
       } catch (articleErr) {
         fix.errors.push(articleErr instanceof Error ? articleErr.message : String(articleErr));
@@ -400,24 +402,28 @@ Current word count: ${wordCount}`;
     }
 
     // ── Summary ───────────────────────────────────────────────────────
-    const totalFixes = allFixes.reduce((sum, f) => sum + f.fixes.length, 0);
+    const totalFixes = allFixes.reduce((sum, f) => sum + f.fixes.length, 0); // Only actual data changes
+    const totalNotes = allFixes.reduce((sum, f) => sum + f.notes.length, 0); // Informational only
     const totalErrors = allFixes.reduce((sum, f) => sum + f.errors.length, 0);
+    const articlesWithFixes = allFixes.filter((f) => f.fixes.length > 0).length;
 
     await logCronExecution("seo-deep-review", totalErrors > 0 && totalFixes === 0 ? "failed" : "completed", {
       durationMs: Date.now() - cronStart,
       itemsProcessed: todayArticles.length,
-      itemsSucceeded: allFixes.filter((f) => f.errors.length === 0).length,
+      itemsSucceeded: articlesWithFixes, // Articles that received actual data fixes
       itemsFailed: allFixes.filter((f) => f.errors.length > 0).length,
       sitesProcessed: activeSites,
       resultSummary: {
         articlesReviewed: todayArticles.length,
+        articlesFixed: articlesWithFixes,
         totalFixes,
+        totalNotes,
         resubmitted: resubmittedCount,
         fixes: allFixes,
       },
     });
 
-    const message = `Reviewed ${todayArticles.length} article(s): ${totalFixes} fix(es) applied, ${resubmittedCount} resubmitted to IndexNow.`;
+    const message = `Reviewed ${todayArticles.length} article(s): ${totalFixes} fix(es) applied to ${articlesWithFixes} article(s), ${resubmittedCount} resubmitted to IndexNow.`;
     console.log(`[seo-deep-review] ${message}`);
 
     return NextResponse.json({

@@ -62,6 +62,33 @@ const cronSection = async (
     } else if (failedRuns === 0 && timedOutRuns === 0) {
       results.push(pass("overall-24h", "Cron Activity (24h)", `${totalRuns} runs — all successful`, "Checks the overall health of cron job execution over the last 24 hours. Green means all jobs completed without errors."));
     } else {
+      // Get the SPECIFIC failed jobs so Khaled sees exactly what's broken
+      const failedDetails = await prisma.cronJobLog.findMany({
+        where: { started_at: { gte: oneDayAgo }, status: { in: ["failed", "timeout"] } },
+        orderBy: { started_at: "desc" },
+        take: 20,
+        select: { job_name: true, error_message: true, started_at: true, status: true },
+      });
+
+      // Group failures by job name with most recent error
+      const failedByJob: Record<string, { count: number; lastError: string; lastAt: string; status: string }> = {};
+      for (const log of failedDetails) {
+        if (!failedByJob[log.job_name]) {
+          failedByJob[log.job_name] = {
+            count: 0,
+            lastError: (log.error_message || "Unknown error").substring(0, 150),
+            lastAt: log.started_at.toISOString(),
+            status: log.status,
+          };
+        }
+        failedByJob[log.job_name].count++;
+      }
+
+      // Build human-readable breakdown
+      const breakdown = Object.entries(failedByJob)
+        .map(([name, info]) => `${name}: ${info.count}x — "${info.lastError}"`)
+        .join("\n");
+
       const status = failedRuns > 3 ? "fail" : "warn";
       const result: DiagnosticResult = {
         id: `${SECTION}-overall-24h`,
@@ -70,7 +97,7 @@ const cronSection = async (
         status: status as "fail" | "warn",
         detail: `${totalRuns} runs — ${failedRuns} failed, ${timedOutRuns} timed out`,
         explanation: "Checks overall cron job health over the last 24 hours.",
-        diagnosis: `${failedRuns} job(s) failed and ${timedOutRuns} timed out. Check the departures board for details on which jobs need attention.`,
+        diagnosis: `FAILED JOBS BREAKDOWN:\n${breakdown}`,
       };
       results.push(result);
     }

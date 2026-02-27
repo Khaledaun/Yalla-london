@@ -88,12 +88,13 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       }
 
       try {
-        const result = await promoteToBlogPost(draftToPublish, prisma, SITES, getSiteDomain);
+        // Admin explicitly chose this draft — skip the pre-pub gate
+        const result = await promoteToBlogPost(draftToPublish, prisma, SITES, getSiteDomain, { skipGate: true });
         if (result) {
           log(`[force-publish] Published "${keyword}" → BlogPost ${result.blogPostId}`);
           return NextResponse.json({ success: true, published: [{ ...result, locale: draft.locale }], skipped: [], durationMs: Date.now() - start, logs });
         } else {
-          return NextResponse.json({ success: false, error: "Pre-publication gate blocked this article" }, { status: 400 });
+          return NextResponse.json({ success: false, error: "Slug collision or missing content — check logs" }, { status: 400 });
         }
       } catch (promoteErr) {
         const msg = promoteErr instanceof Error ? promoteErr.message : String(promoteErr);
@@ -152,16 +153,16 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
           draftToPublish = refreshed as Record<string, unknown>;
         }
 
-        // ── Step 2: Promote to BlogPost via standard pipeline ─────────────────
+        // ── Step 2: Promote to BlogPost — admin override skips pre-pub gate ────
         try {
-          const result = await promoteToBlogPost(draftToPublish, prisma, SITES, getSiteDomain);
+          const result = await promoteToBlogPost(draftToPublish, prisma, SITES, getSiteDomain, { skipGate: true });
           if (result) {
             published.push({ ...result, locale: lang });
             published_this_locale++;
             log(`[force-publish] Published "${keyword}" → BlogPost ${result.blogPostId}`);
           } else {
-            log(`[force-publish] promoteToBlogPost returned null for "${keyword}" — likely blocked by pre-pub gate`);
-            skipped.push({ draftId, keyword, reason: "Pre-publication gate blocked (check logs for details)", locale: lang });
+            log(`[force-publish] promoteToBlogPost returned null for "${keyword}" — slug collision or missing content`);
+            skipped.push({ draftId, keyword, reason: "Slug collision or missing content (check logs)", locale: lang });
           }
         } catch (promoteErr) {
           const msg = promoteErr instanceof Error ? promoteErr.message : String(promoteErr);

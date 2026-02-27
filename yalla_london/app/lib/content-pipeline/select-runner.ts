@@ -109,19 +109,24 @@ export async function runContentSelector(
     const needsEnhancement: Array<Record<string, unknown>> = [];
 
     for (const candidate of candidates) {
-      const score = (candidate.quality_score as number) || 0;
-      const html = (candidate.assembled_html as string) || "";
-      const wordCount = html.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
-      const wouldFailWordCount = wordCount < MIN_WORD_COUNT;
+      try {
+        const score = (candidate.quality_score as number) || 0;
+        const html = (candidate.assembled_html as string) || "";
+        const wordCount = html.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
+        const wouldFailWordCount = wordCount < MIN_WORD_COUNT;
 
-      if (score >= PUBLISH_THRESHOLD && !wouldFailWordCount) {
-        publishReady.push(candidate);
-      } else {
-        const reason = wouldFailWordCount
-          ? `word count too low (${wordCount}/${MIN_WORD_COUNT})`
-          : `score too low (${score}/${PUBLISH_THRESHOLD})`;
-        console.log(`[content-selector] Draft ${candidate.id} ("${candidate.keyword}"): needs enhancement — ${reason}`);
-        needsEnhancement.push(candidate);
+        if (score >= PUBLISH_THRESHOLD && !wouldFailWordCount) {
+          publishReady.push(candidate);
+        } else {
+          const reason = wouldFailWordCount
+            ? `word count too low (${wordCount}/${MIN_WORD_COUNT})`
+            : `score too low (${score}/${PUBLISH_THRESHOLD})`;
+          console.log(`[content-selector] Draft ${candidate.id} ("${candidate.keyword}"): needs enhancement — ${reason}`);
+          needsEnhancement.push(candidate);
+        }
+      } catch (sortErr) {
+        console.warn(`[content-selector] Error sorting draft ${candidate.id}: ${sortErr instanceof Error ? sortErr.message : sortErr}`);
+        // Skip this draft, don't crash the entire run
       }
     }
 
@@ -206,16 +211,19 @@ export async function runContentSelector(
       }
 
       try {
+        console.log(`[content-selector] Promoting draft ${draft.id} (keyword: "${draft.keyword}", score: ${draft.quality_score}, locale: ${draft.locale})`);
         const result = await promoteToBlogPost(draft, prisma, SITES, getSiteDomain);
         if (result) {
           published.push(result);
         }
       } catch (promoteErr) {
+        const errType = promoteErr instanceof Error ? promoteErr.constructor.name : "Unknown";
         const errMsg = promoteErr instanceof Error ? promoteErr.message : String(promoteErr);
+        const errStack = promoteErr instanceof Error ? promoteErr.stack : "";
         console.error(
-          `[content-selector] Failed to promote draft ${draft.id}:`,
-          errMsg,
+          `[content-selector] Failed to promote draft ${draft.id} (keyword: "${draft.keyword}") — ${errType}: ${errMsg}`,
         );
+        if (errStack) console.error(`[content-selector] Promote stack:\n${errStack}`);
         await prisma.articleDraft.update({
           where: { id: draft.id as string },
           data: {
@@ -260,21 +268,34 @@ export async function runContentSelector(
     };
   } catch (error) {
     const durationMs = Date.now() - cronStart;
-    const errMsg = error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : JSON.stringify(error) || "Content selector crashed with no error details";
-    console.error("[content-selector] Failed:", errMsg);
+    // Capture detailed error info to help diagnose SyntaxError and similar runtime crashes
+    let errMsg: string;
+    let errType = "Unknown";
+    let errStack = "";
+    if (error instanceof Error) {
+      errMsg = error.message;
+      errType = error.constructor.name; // e.g. "SyntaxError", "TypeError", "DOMException"
+      errStack = error.stack || "";
+    } else if (typeof error === "string") {
+      errMsg = error;
+    } else {
+      try { errMsg = JSON.stringify(error); } catch { errMsg = String(error); }
+    }
+    // Log full error details including type and stack trace — essential for diagnosing
+    // the "SyntaxError: The string did not match the expected pattern" crash
+    console.error(`[content-selector] CRASH — Type: ${errType}, Message: ${errMsg}`);
+    if (errStack) {
+      console.error(`[content-selector] Stack trace:\n${errStack}`);
+    }
 
     await logCronExecution("content-selector", "failed", {
       durationMs,
-      errorMessage: errMsg,
+      errorMessage: `[${errType}] ${errMsg}`,
     }).catch(err => console.warn("[select-runner] Failed to log cron execution:", err instanceof Error ? err.message : err));
 
     return {
       success: false,
-      message: errMsg,
+      message: `[${errType}] ${errMsg}`,
       durationMs,
     };
   }
@@ -334,6 +355,7 @@ export async function promoteToBlogPost(
   prisma: any,
   SITES: Record<string, any>,
   getSiteDomain: (siteId: string) => string,
+  options?: { skipGate?: boolean },
 ): Promise<{ draftId: string; blogPostId: string; keyword: string; score: number } | null> {
   const siteId = draft.site_id as string;
   const site = SITES[siteId];
@@ -479,68 +501,74 @@ export async function promoteToBlogPost(
   if (!hasAr) missingLanguageTags.push("missing-arabic");
 
   // ── Pre-Publication SEO Gate (fail CLOSED — don't publish without verification) ──
+  // When skipGate is true (admin force-publish), bypass the gate entirely —
+  // the admin has explicitly chosen to publish this article regardless of gate checks.
   const targetUrl = `/blog/${slug}`;
   const siteUrl = getSiteDomain(siteId);
-  try {
-    const gateResult = await runPrePublicationGate(
-      targetUrl,
-      {
-        title_en: enTitle,
-        title_ar: arTitle,
-        meta_title_en: enMetaTitle,
-        meta_description_en: enMetaDesc,
-        content_en: enHtml,
-        content_ar: arHtml,
-        locale,
-        tags: keywords.slice(0, 5),
-        seo_score: Math.round((draft.seo_score as number) || (draft.quality_score as number) || 0),
-        author_id: "system", // System-generated content always has author
-        keywords_json: keywords,
-      },
-      siteUrl,
-      { skipRouteCheck: true }, // Route will exist once BlogPost is created; HTTP check wastes 5s of budget
-    );
-
-    if (!gateResult.allowed) {
-      console.warn(
-        `[content-selector] Pre-pub gate BLOCKED draft ${draft.id} (keyword: "${keyword}"): ${gateResult.blockers.join("; ")}`,
+  if (options?.skipGate) {
+    console.log(`[content-selector] Pre-pub gate SKIPPED for draft ${draft.id} (admin override)`);
+  } else {
+    try {
+      const gateResult = await runPrePublicationGate(
+        targetUrl,
+        {
+          title_en: enTitle,
+          title_ar: arTitle,
+          meta_title_en: enMetaTitle,
+          meta_description_en: enMetaDesc,
+          content_en: enHtml,
+          content_ar: arHtml,
+          locale,
+          tags: keywords.slice(0, 5),
+          seo_score: Math.round((draft.seo_score as number) || (draft.quality_score as number) || 0),
+          author_id: "system", // System-generated content always has author
+          keywords_json: keywords,
+        },
+        siteUrl,
+        { skipRouteCheck: true }, // Route will exist once BlogPost is created; HTTP check wastes 5s of budget
       );
-      if (gateResult.warnings.length > 0) {
+
+      if (!gateResult.allowed) {
         console.warn(
-          `[content-selector] Pre-pub gate warnings for draft ${draft.id}: ${gateResult.warnings.join("; ")}`,
+          `[content-selector] Pre-pub gate BLOCKED draft ${draft.id} (keyword: "${keyword}"): ${gateResult.blockers.join("; ")}`,
+        );
+        if (gateResult.warnings.length > 0) {
+          console.warn(
+            `[content-selector] Pre-pub gate warnings for draft ${draft.id}: ${gateResult.warnings.join("; ")}`,
+          );
+        }
+        // Mark the draft with the gate failure so it's visible in dashboard
+        await prisma.articleDraft.update({
+          where: { id: draft.id as string },
+          data: {
+            last_error: `Pre-pub gate blocked: ${gateResult.blockers.join("; ")}`,
+            updated_at: new Date(),
+          },
+        }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
+        return null; // Skip this draft — do not publish
+      }
+
+      // Log warnings even when allowed (visible in cron logs for quality monitoring)
+      if (gateResult.warnings.length > 0) {
+        console.log(
+          `[content-selector] Pre-pub gate PASSED draft ${draft.id} with warnings: ${gateResult.warnings.join("; ")}`,
         );
       }
-      // Mark the draft with the gate failure so it's visible in dashboard
+    } catch (gateErr) {
+      // Fail CLOSED — if the gate itself errors, do NOT publish
+      const gateErrMsg = gateErr instanceof Error ? gateErr.message : String(gateErr);
+      console.warn(
+        `[content-selector] Pre-pub gate ERROR for draft ${draft.id} — blocking publication: ${gateErrMsg}`,
+      );
       await prisma.articleDraft.update({
         where: { id: draft.id as string },
         data: {
-          last_error: `Pre-pub gate blocked: ${gateResult.blockers.join("; ")}`,
+          last_error: `Pre-pub gate error (blocked): ${gateErrMsg}`,
           updated_at: new Date(),
         },
       }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
-      return null; // Skip this draft — do not publish
+      return null; // Fail closed — don't publish without gate verification
     }
-
-    // Log warnings even when allowed (visible in cron logs for quality monitoring)
-    if (gateResult.warnings.length > 0) {
-      console.log(
-        `[content-selector] Pre-pub gate PASSED draft ${draft.id} with warnings: ${gateResult.warnings.join("; ")}`,
-      );
-    }
-  } catch (gateErr) {
-    // Fail CLOSED — if the gate itself errors, do NOT publish
-    const gateErrMsg = gateErr instanceof Error ? gateErr.message : String(gateErr);
-    console.warn(
-      `[content-selector] Pre-pub gate ERROR for draft ${draft.id} — blocking publication: ${gateErrMsg}`,
-    );
-    await prisma.articleDraft.update({
-      where: { id: draft.id as string },
-      data: {
-        last_error: `Pre-pub gate error (blocked): ${gateErrMsg}`,
-        updated_at: new Date(),
-      },
-    }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
-    return null; // Fail closed — don't publish without gate verification
   }
 
   const blogPost = await prisma.blogPost.create({

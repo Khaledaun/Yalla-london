@@ -828,6 +828,31 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
     console.warn("[indexing-service] DB query for all indexable URLs failed:", err instanceof Error ? err.message : String(err));
   }
 
+  // ── News pages ──
+  if (!isYachtSite) {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const siteFilter = siteId ? { siteId } : {};
+      const newsItems = await prisma.newsItem.findMany({
+        where: {
+          status: "published",
+          ...siteFilter,
+          OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
+        },
+        select: { slug: true },
+        take: 500,
+      });
+      for (const item of newsItems) {
+        urls.push(`${baseUrl}/news/${item.slug}`);
+      }
+      if (newsItems.length > 0) {
+        urls.push(`${baseUrl}/news`); // News landing page
+      }
+    } catch (err) {
+      console.warn("[indexing-service] News URL discovery failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   // ── Yacht-specific dynamic pages ──
   if (isYachtSite && siteId) {
     try {
@@ -907,6 +932,29 @@ export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUr
     console.warn("[indexing-service] DB query for new URLs failed:", err instanceof Error ? err.message : String(err));
   }
 
+  // ── New news items ──
+  if (!isYachtSite) {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const siteFilter = siteId ? { siteId } : {};
+      const newNews = await prisma.newsItem.findMany({
+        where: {
+          status: "published",
+          ...siteFilter,
+          created_at: { gte: cutoffDate },
+          OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
+        },
+        select: { slug: true },
+        take: 200,
+      });
+      for (const item of newNews) {
+        urls.push(`${baseUrl}/news/${item.slug}`);
+      }
+    } catch (err) {
+      console.warn("[indexing-service] News new-URL discovery failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
   // ── New yacht content ──
   if (isYachtSite && siteId) {
     try {
@@ -983,6 +1031,29 @@ export async function getUpdatedUrls(
     }
   } catch (err) {
     console.warn("[indexing-service] DB query for updated URLs failed:", err instanceof Error ? err.message : String(err));
+  }
+
+  // ── Updated news items ──
+  if (!isYachtSite) {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const siteFilter = siteId ? { siteId } : {};
+      const updatedNews = await prisma.newsItem.findMany({
+        where: {
+          status: "published",
+          ...siteFilter,
+          updated_at: { gte: cutoffDate },
+          OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
+        },
+        select: { slug: true },
+        take: 200,
+      });
+      for (const item of updatedNews) {
+        urls.push(`${baseUrl}/news/${item.slug}`);
+      }
+    } catch (err) {
+      console.warn("[indexing-service] News updated-URL discovery failed:", err instanceof Error ? err.message : String(err));
+    }
   }
 
   // ── Updated yacht content ──

@@ -131,9 +131,12 @@ type NewsItem = (typeof SEED_NEWS)[number];
 // ---------------------------------------------------------------------------
 
 async function getAllNews(): Promise<NewsItem[]> {
+  const headersList = await headers();
+  const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   try {
     const dbItems = await prisma.newsItem.findMany({
       where: {
+        siteId,
         status: "published",
         OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
       },
@@ -174,8 +177,8 @@ async function getAllNews(): Promise<NewsItem[]> {
           item.published_at?.toISOString() ?? new Date().toISOString(),
       }));
     }
-  } catch {
-    // Database unavailable — fall through to seed data
+  } catch (err) {
+    console.warn("[news-page] DB query failed, falling back to seed data:", err instanceof Error ? err.message : err);
   }
 
   return SEED_NEWS;

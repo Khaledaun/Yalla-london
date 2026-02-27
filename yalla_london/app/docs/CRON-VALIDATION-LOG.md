@@ -689,3 +689,135 @@ Same route as 9:00 UTC — see above.
 | seo-agent | detectContentGaps reports categories with 0 posts as gaps even for new sites | LOW | Acceptable — informational only |
 | content-selector | Concurrent bilingual pair promotion risk | LOW | MAX_ARTICLES_PER_RUN=2, collision extremely unlikely |
 | weekly-topics | No atomic dedup guard on topic creation loop | LOW | Runs once weekly on Monday only |
+
+---
+
+# Round 3 — News Pipeline & Indexing Flow Audit
+
+**Date:** 2026-02-27
+**Focus:** News content lifecycle, news → indexing flow, cross-site scoping
+**Result:** 8 issues found, 8 fixed. TypeScript: 0 errors.
+
+---
+
+## News Pipeline Trace
+
+```
+london-news cron (6am UTC)
+  ├── Templates (seasonal) → NewsItem (DB, status=published)
+  ├── Grok live search → NewsItem (DB, status=published)
+  └── FactEntry (cross-reference with info articles)
+
+NewsItem (DB)
+  ├── /news (listing page) → getAllNews() query
+  ├── /news/[slug] (detail page) → getNewsItem() query
+  ├── sitemap.ts → includes /news/* URLs
+  └── ❌ indexing-service.ts → DID NOT discover news URLs (FIXED)
+
+indexing-service.ts
+  ├── getAllIndexableUrls() → blog + yacht + ❌ news (FIXED: now includes news)
+  ├── getNewUrls() → blog + yacht + ❌ news (FIXED: now includes news)
+  └── getUpdatedUrls() → blog + yacht + ❌ news (FIXED: now includes news)
+```
+
+---
+
+## Issues Found & Fixed (Round 3)
+
+### Fix R3-01: indexing-service — news URLs not discovered
+**Severity:** CRITICAL
+**Files:** `lib/seo/indexing-service.ts`
+**Problem:** `getAllIndexableUrls()`, `getNewUrls()`, and `getUpdatedUrls()` all queried blog posts and yacht pages but completely ignored news URLs. News pages were in the sitemap but never submitted to IndexNow.
+**Fix:** Added NewsItem queries to all 3 functions with proper siteId filter, expiry check, and `take` limits (500/200/200).
+
+### Fix R3-02: london-news cron — no IndexNow on publish
+**Severity:** CRITICAL
+**File:** `app/api/cron/london-news/route.ts`
+**Problem:** News items were created and saved to DB but never submitted to IndexNow. The cron had no integration with the indexing service.
+**Fix:** Added step 7c: after creating news items, calls `submitUrlImmediately()` for each new URL with budget guard.
+
+### Fix R3-03: News listing — missing siteId filter
+**Severity:** HIGH
+**File:** `app/news/page.tsx`
+**Problem:** `getAllNews()` queried `prisma.newsItem.findMany()` without siteId filter — returned news from all sites.
+**Fix:** Added `siteId` from request headers to the where clause.
+
+### Fix R3-04: News detail — missing siteId filter
+**Severity:** HIGH
+**File:** `app/news/[slug]/page.tsx`
+**Problem:** `getNewsItem()` used `findUnique({ where: { slug } })` — no siteId filter. Could return news from wrong site on slug collision.
+**Fix:** Changed to `findFirst({ where: { slug, siteId } })` with siteId from request headers.
+
+### Fix R3-05: News listing — silent empty catch
+**Severity:** MEDIUM
+**File:** `app/news/page.tsx`
+**Problem:** DB query failure silently caught with `catch {}` — no logging.
+**Fix:** Added `console.warn` with error details.
+
+### Fix R3-06: News detail — silent empty catch
+**Severity:** MEDIUM
+**File:** `app/news/[slug]/page.tsx`
+**Problem:** DB query failure silently caught with `catch {}` — no logging.
+**Fix:** Added `console.warn` with error details.
+
+### Fix R3-07: Content indexing API — news not shown
+**Severity:** HIGH
+**File:** `app/api/admin/content-indexing/route.ts`
+**Problem:** Admin content indexing dashboard only showed blog posts and yacht pages — news articles were invisible. Khaled couldn't see news indexing status.
+**Fix:** Added section 4c: queries published NewsItem records and appends to articles array with indexing status from URLIndexingStatus. Also included news URLs in the indexing records lookup query.
+
+### Fix R3-08: Content indexing API — news URLs in lookup query
+**Severity:** MEDIUM
+**File:** `app/api/admin/content-indexing/route.ts`
+**Problem:** URLIndexingStatus lookup query only included blog and yacht URLs — any indexing records for news URLs would be missed.
+**Fix:** Added news page slugs and URLs to the lookup arrays.
+
+---
+
+## Round 3 Summary
+
+| Category | Issues Found | Fixed |
+|----------|-------------|-------|
+| News URL discovery (indexing-service) | 1 CRITICAL | ✅ |
+| News IndexNow on publish (london-news) | 1 CRITICAL | ✅ |
+| News cross-site scoping (listing + detail) | 2 HIGH | ✅ |
+| News dashboard visibility (content-indexing) | 2 HIGH+MEDIUM | ✅ |
+| Silent empty catches | 2 MEDIUM | ✅ |
+| **TOTAL** | **8** | **8 ✅** |
+
+---
+
+## Files Modified in Round 3
+
+| File | Changes |
+|------|---------|
+| `lib/seo/indexing-service.ts` | Added news URL discovery to all 3 URL functions |
+| `app/api/cron/london-news/route.ts` | Added IndexNow submission via submitUrlImmediately |
+| `app/news/page.tsx` | Added siteId filter + empty catch logging |
+| `app/news/[slug]/page.tsx` | Changed findUnique→findFirst with siteId + empty catch logging |
+| `app/api/admin/content-indexing/route.ts` | Added news items to dashboard + URL lookup query |
+
+---
+
+## News Indexing Flow (After Fixes)
+
+```
+london-news cron (6am UTC)
+  ├── Creates NewsItem (DB, status=published)
+  └── submitUrlImmediately() → IndexNow + URLIndexingStatus ← NEW
+
+seo/cron (7:30am UTC)
+  ├── runAutomatedIndexing()
+  │   ├── getNewUrls() → includes /news/* URLs ← FIXED
+  │   └── submitToIndexNow() → batch submit
+  └── trackSubmittedUrls() → update URLIndexingStatus
+
+google-indexing (9:15am UTC)
+  └── URLIndexingStatus discovery → includes news URLs ← FIXED
+
+verify-indexing (11am UTC)
+  └── GSC URL Inspection API → checks news URLs ← FIXED (via URLIndexingStatus)
+
+content-indexing admin API
+  └── Shows news articles with indexing status ← FIXED
+```

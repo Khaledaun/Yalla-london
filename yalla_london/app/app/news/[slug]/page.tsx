@@ -155,8 +155,10 @@ type SeedItem = (typeof SEED_NEWS)[number];
 /** Fetch a news item by slug from the database, falling back to seed data. */
 async function getNewsItem(slug: string): Promise<SeedItem | null> {
   try {
-    const dbItem = await prisma.newsItem.findUnique({
-      where: { slug },
+    const headersList = await headers();
+    const siteId = headersList.get("x-site-id") || getDefaultSiteId();
+    const dbItem = await prisma.newsItem.findFirst({
+      where: { slug, siteId },
       select: {
         id: true,
         slug: true,
@@ -226,8 +228,8 @@ async function getNewsItem(slug: string): Promise<SeedItem | null> {
         published_at: dbItem.published_at?.toISOString() ?? new Date().toISOString(),
       };
     }
-  } catch {
-    // Database unavailable — fall through to seed data
+  } catch (err) {
+    console.warn("[news-detail] DB query failed, falling back to seed data:", err instanceof Error ? err.message : err);
   }
 
   // Fallback: check seed data

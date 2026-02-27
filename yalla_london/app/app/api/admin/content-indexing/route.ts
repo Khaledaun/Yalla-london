@@ -173,14 +173,28 @@ export async function GET(request: NextRequest) {
     // Also include yacht page URLs in lookup
     const yachtPageSlugs = yachtPages.map((y) => `${y.urlPrefix}/${y.slug}`);
     const yachtPageUrls = yachtPages.map((y) => `${baseUrl}/${y.urlPrefix}/${y.slug}`);
+    // Also include news page URLs in lookup (pre-fetch slugs for the query)
+    let newsPageSlugs: string[] = [];
+    let newsPageUrls: string[] = [];
+    if (!isYacht) {
+      try {
+        const newsForLookup = await prisma.newsItem.findMany({
+          where: { siteId, status: "published", OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }] },
+          select: { slug: true },
+          take: 100,
+        });
+        newsPageSlugs = newsForLookup.map((n) => `news/${n.slug}`);
+        newsPageUrls = newsForLookup.map((n) => `${baseUrl}/news/${n.slug}`);
+      } catch { /* will be handled later */ }
+    }
     let indexingRecords: Record<string, any> = {};
     try {
       const records = await prisma.uRLIndexingStatus.findMany({
         where: {
           site_id: siteId,
           OR: [
-            { url: { in: [...articleUrls, ...yachtPageUrls] } },
-            { slug: { in: [...articleSlugs, ...yachtPageSlugs] } },
+            { url: { in: [...articleUrls, ...yachtPageUrls, ...newsPageUrls] } },
+            { slug: { in: [...articleSlugs, ...yachtPageSlugs, ...newsPageSlugs] } },
           ],
         },
       });
@@ -450,6 +464,69 @@ export async function GET(request: NextRequest) {
           gscCtr: typeof perfMetrics?.ctr === "number" ? perfMetrics.ctr : null,
           gscPosition: typeof perfMetrics?.position === "number" ? perfMetrics.position : null,
         });
+      }
+    }
+
+    // 4c. Append published news items for non-yacht sites
+    if (!isYacht) {
+      try {
+        const newsItems = await prisma.newsItem.findMany({
+          where: {
+            siteId,
+            status: "published",
+            OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
+          },
+          select: {
+            id: true,
+            headline_en: true,
+            slug: true,
+            summary_en: true,
+            meta_title_en: true,
+            meta_description_en: true,
+            published_at: true,
+          },
+          orderBy: { published_at: "desc" },
+          take: 100,
+        });
+        for (const newsItem of newsItems) {
+          const newsSlug = `news/${newsItem.slug}`;
+          const record = indexingRecords[newsSlug] || indexingRecords[newsItem.slug];
+          let indexingStatus: ArticleIndexingInfo["indexingStatus"] = "never_submitted";
+          if (record) {
+            if (record.status === "indexed" || record.indexing_state === "INDEXED") indexingStatus = "indexed";
+            else if (record.status === "error") indexingStatus = "error";
+            else if (record.status === "submitted") indexingStatus = "submitted";
+            else indexingStatus = "not_indexed";
+          }
+          const wordCount = newsItem.summary_en ? newsItem.summary_en.split(/\s+/).filter(Boolean).length : 0;
+          const inspection = record?.inspection_result as Record<string, any> | null;
+          const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
+          articles.push({
+            id: newsItem.id,
+            title: newsItem.headline_en || "(Untitled News)",
+            slug: newsSlug,
+            url: `/news/${newsItem.slug}`,
+            publishedAt: newsItem.published_at?.toISOString() || null,
+            seoScore: 0,
+            wordCount,
+            indexingStatus,
+            submittedAt: record?.last_submitted_at?.toISOString() || null,
+            lastCrawledAt: record?.last_crawled_at?.toISOString() || null,
+            lastInspectedAt: record?.last_inspected_at?.toISOString() || null,
+            coverageState: record?.coverage_state || null,
+            submittedIndexnow: record?.submitted_indexnow || false,
+            submittedSitemap: record?.submitted_sitemap || false,
+            submissionAttempts: record?.submission_attempts || 0,
+            notIndexedReasons: indexingStatus === "never_submitted" ? ["News article has never been submitted to search engines"] : [],
+            fixAction: null,
+            gscClicks: typeof perfMetrics?.clicks === "number" ? perfMetrics.clicks : null,
+            gscImpressions: typeof perfMetrics?.impressions === "number" ? perfMetrics.impressions : null,
+            gscCtr: typeof perfMetrics?.ctr === "number" ? perfMetrics.ctr : null,
+            gscPosition: typeof perfMetrics?.position === "number" ? perfMetrics.position : null,
+          });
+        }
+      } catch (err) {
+        console.warn("[content-indexing] Failed to load news items:", err instanceof Error ? err.message : err);
       }
     }
 

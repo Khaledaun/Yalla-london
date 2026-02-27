@@ -211,6 +211,38 @@ const CRON_SCHEDULE: Record<string, {
     category: 'indexing',
     critical: false,
   },
+  'content-auto-fix': {
+    label: 'Content Auto-Fix',
+    schedule: '0 11,18 * * *',
+    humanSchedule: '2× daily (11am, 6pm UTC)',
+    apiPath: '/api/cron/content-auto-fix',
+    category: 'content',
+    critical: false,
+  },
+  'commerce-trends': {
+    label: 'Commerce Trends',
+    schedule: '30 4 * * 1',
+    humanSchedule: 'Every Monday at 4:30 UTC',
+    apiPath: '/api/cron/commerce-trends',
+    category: 'content',
+    critical: false,
+  },
+  'etsy-sync': {
+    label: 'Etsy Sync',
+    schedule: '0 10 * * *',
+    humanSchedule: 'Daily at 10:00 UTC',
+    apiPath: '/api/cron/etsy-sync',
+    category: 'content',
+    critical: false,
+  },
+  'social': {
+    label: 'Social Media Publisher',
+    schedule: '0 10,15,20 * * *',
+    humanSchedule: '3× daily (10am, 3pm, 8pm UTC)',
+    apiPath: '/api/cron/social',
+    category: 'content',
+    critical: false,
+  },
 };
 
 function getHealthFromLogs(logs: Array<{ status: string; timedOut: boolean }>): 'green' | 'yellow' | 'red' | 'gray' {

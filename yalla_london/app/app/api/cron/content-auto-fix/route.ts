@@ -4,13 +4,18 @@ export const maxDuration = 60;
 /**
  * Content Auto-Fix Cron
  *
- * Runs twice daily (11am + 6pm UTC) and fixes two categories of issues:
+ * Runs twice daily (11am + 6pm UTC) and fixes three categories of issues:
  *
  * 1. WORD COUNT — Finds reservoir drafts with < 1,000 words and calls
  *    enhanceReservoirDraft() to expand them. Each expansion takes ~20s
  *    so we process up to 2 drafts per run within the 53s budget.
  *
- * 2. META DESCRIPTION — Finds BlogPosts where meta_description_en is
+ * 2. LOW QUALITY SCORE — Finds reservoir drafts with adequate word count
+ *    (>= 1,000) but quality_score < 70. These articles were previously stuck
+ *    forever: content-selector wouldn't promote them and word-count fix
+ *    wouldn't find them. Now they get enhanced to boost their score.
+ *
+ * 3. META DESCRIPTION — Finds BlogPosts where meta_description_en is
  *    > 160 chars and auto-trims to 155 chars (safe max). Also trims
  *    ArticleDraft seo_meta.metaDescription if over-length.
  *
@@ -41,6 +46,7 @@ async function handleAutoFix(request: NextRequest) {
 
   const results = {
     enhanced: 0,
+    enhancedLowScore: 0,
     enhanceFailed: 0,
     metaTrimmedPosts: 0,
     metaTrimmedDrafts: 0,
@@ -105,7 +111,61 @@ async function handleAutoFix(request: NextRequest) {
     console.warn("[content-auto-fix] Word count query failed:", msg);
   }
 
-  // ── 2. META DESCRIPTION TRIM — BlogPosts ──────────────────────────────────
+  // ── 2. LOW QUALITY SCORE FIX ──────────────────────────────────────────────
+  // Find reservoir drafts with quality_score < 70 but adequate word count.
+  // These articles are stuck: content-selector won't promote them and the
+  // word count query above won't find them. Without this, they sit forever.
+  const QUALITY_THRESHOLD = 70;
+  if (Date.now() - cronStart < BUDGET_MS - 25_000 && results.enhanced < MAX_ENHANCES_PER_RUN) {
+    try {
+      const slotsLeft = MAX_ENHANCES_PER_RUN - results.enhanced;
+      const lowScoreDrafts = await prisma.articleDraft.findMany({
+        where: {
+          site_id: { in: activeSiteIds },
+          current_phase: "reservoir",
+          quality_score: { lt: QUALITY_THRESHOLD },
+          word_count: { gte: MIN_WORD_COUNT }, // adequate words — only score is low
+          assembled_html: { not: null },
+        },
+        orderBy: { updated_at: "asc" },
+        take: slotsLeft,
+      });
+
+      if (lowScoreDrafts.length > 0) {
+        const { enhanceReservoirDraft: enhanceLowScore } = await import("@/lib/content-pipeline/enhance-runner");
+
+        for (const draft of lowScoreDrafts) {
+          const budgetUsed = Date.now() - cronStart;
+          if (budgetUsed > BUDGET_MS - 25_000) break;
+
+          console.log(`[content-auto-fix] Enhancing low-score draft ${draft.id} (keyword: "${draft.keyword}", score: ${draft.quality_score})`);
+
+          try {
+            const result = await enhanceLowScore(draft as Record<string, unknown>);
+            if (result.success) {
+              results.enhancedLowScore++;
+              console.log(`[content-auto-fix] Low-score enhanced ${draft.id}: score ${result.previousScore} → ${result.newScore}`);
+            } else {
+              results.enhanceFailed++;
+              results.errors.push(`low-score:${draft.id}: ${result.error}`);
+              console.warn(`[content-auto-fix] Low-score enhance failed for ${draft.id}: ${result.error}`);
+            }
+          } catch (err) {
+            results.enhanceFailed++;
+            const msg = err instanceof Error ? err.message : String(err);
+            results.errors.push(`low-score:${draft.id}: ${msg}`);
+            console.warn(`[content-auto-fix] Low-score enhance threw for ${draft.id}:`, msg);
+          }
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`low-score-query: ${msg}`);
+      console.warn("[content-auto-fix] Low-score query failed:", msg);
+    }
+  }
+
+  // ── 3. META DESCRIPTION TRIM — BlogPosts ──────────────────────────────────
   if (Date.now() - cronStart < BUDGET_MS - 5_000) {
     try {
       const longMetaPosts = await prisma.blogPost.findMany({
@@ -141,7 +201,7 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
-  // ── 3. META DESCRIPTION TRIM — ArticleDrafts ──────────────────────────────
+  // ── 4. META DESCRIPTION TRIM — ArticleDrafts ──────────────────────────────
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
       const draftsWithMeta = await prisma.articleDraft.findMany({
@@ -184,7 +244,7 @@ async function handleAutoFix(request: NextRequest) {
 
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.metaTrimmedPosts + results.metaTrimmedDrafts;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.metaTrimmedPosts + results.metaTrimmedDrafts;
   const hasErrors = results.errors.length > 0;
 
   await logCronExecution("content-auto-fix", hasErrors && totalFixed === 0 ? "failed" : "completed", {
@@ -200,7 +260,7 @@ async function handleAutoFix(request: NextRequest) {
     success: true,
     durationMs,
     results,
-    summary: `Enhanced ${results.enhanced} drafts, trimmed ${results.metaTrimmedPosts + results.metaTrimmedDrafts} meta descriptions`,
+    summary: `Enhanced ${results.enhanced} word-count drafts, ${results.enhancedLowScore} low-score drafts, trimmed ${results.metaTrimmedPosts + results.metaTrimmedDrafts} meta descriptions`,
   });
 }
 

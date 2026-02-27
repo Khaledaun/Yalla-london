@@ -52,7 +52,8 @@ export async function GET(request: NextRequest) {
           : null,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (hcErr) {
+      console.warn("[seo-orchestrator] Healthcheck failed:", hcErr instanceof Error ? hcErr.message : hcErr);
       return NextResponse.json(
         { status: "unhealthy", endpoint: "seo-orchestrator" },
         { status: 503 }
@@ -99,9 +100,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const hasErrors = Object.keys(errors).length > 0;
     await logCronExecution(
       "seo-orchestrator",
-      Object.keys(errors).length > 0 ? "completed" : "completed",
+      hasErrors ? "failed" : "completed",
       {
         durationMs: Date.now() - cronStart,
         sitesProcessed: Object.keys(results),
@@ -109,6 +111,7 @@ export async function GET(request: NextRequest) {
           mode,
           sites: Object.keys(results).length,
           errors: Object.keys(errors).length,
+          errorDetails: hasErrors ? errors : undefined,
         },
       }
     );

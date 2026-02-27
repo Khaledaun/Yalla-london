@@ -354,8 +354,8 @@ async function tryReservoirPublish(
         if (bp?.slug) {
           return { success: true, url: `${getSiteDomain(siteId)}/blog/${bp.slug}` };
         }
-      } catch {
-        // Non-fatal
+      } catch (slugErr) {
+        console.warn(`[reserve-publisher] Slug lookup failed for ${result.blogPostId}:`, slugErr instanceof Error ? slugErr.message : slugErr);
       }
       return { success: true, url };
     }

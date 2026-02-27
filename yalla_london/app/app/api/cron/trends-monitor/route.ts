@@ -120,17 +120,24 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Auth check — same standard as GET
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   // Manual trigger endpoint
   try {
-    const body = await request.json();
-    const { keywords, geo } = body;
+    const body = await request.json().catch(() => ({}));
+    const { keywords, geo } = body as { keywords?: string[]; geo?: string };
 
     const results = await runTrendsMonitoring(keywords, geo);
     return NextResponse.json(results);
   } catch (error) {
     console.error("Manual trends monitoring failed:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Monitoring failed" },
+      { error: "Monitoring failed" },
       { status: 500 },
     );
   }
@@ -462,8 +469,8 @@ async function saveTrendsData(data: any): Promise<void> {
           keywordTrends: data.keywordTrends,
           contentOpportunities: data.contentOpportunities?.slice(0, 15),
           collectedAt: data.timestamp.toISOString(),
+          status: "completed",
         },
-        status: "completed",
       },
     });
     console.log("[Trends Monitor] Data persisted to SeoReport table");
@@ -515,8 +522,8 @@ async function saveTrendsData(data: any): Promise<void> {
             },
           });
           trendsQueued++;
-        } catch {
-          // Duplicate or schema issue — skip
+        } catch (topicErr) {
+          console.warn(`[trends-monitor] Failed to create TopicProposal for "${keyword}" on ${siteId}:`, topicErr instanceof Error ? topicErr.message : topicErr);
         }
       }
     }

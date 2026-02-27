@@ -44,7 +44,8 @@ async function handleContentSelector(request: NextRequest) {
         maxPerRun: 2,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (hcErr) {
+      console.warn("[content-selector] Healthcheck failed:", hcErr instanceof Error ? hcErr.message : hcErr);
       return NextResponse.json(
         { status: "unhealthy", endpoint: "content-selector", note: "ArticleDraft table may not exist yet." },
         { status: 503 },

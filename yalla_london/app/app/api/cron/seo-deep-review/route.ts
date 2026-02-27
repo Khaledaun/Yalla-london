@@ -330,9 +330,6 @@ Current word count: ${wordCount}`;
         // ── Save all fixes ────────────────────────────────────────────
         if (contentChanged) {
           updateData.content_en = updatedContentEN;
-          // Recalculate word count
-          const newWC = updatedContentEN.replace(/<[^>]+>/g, " ").split(/\s+/).filter(Boolean).length;
-          updateData.word_count = newWC;
         }
 
         if (Object.keys(updateData).length > 0) {
@@ -385,7 +382,7 @@ Current word count: ${wordCount}`;
                 last_submitted_at: new Date(),
                 submission_attempts: { increment: 1 },
               },
-            }).catch(() => {});
+            }).catch((e: unknown) => console.warn(`[seo-deep-review] URLIndexingStatus update failed for ${url}:`, e instanceof Error ? e.message : e));
           }
         } catch (indexErr) {
           console.warn(`[seo-deep-review] IndexNow resubmit failed for ${siteId}:`, indexErr instanceof Error ? indexErr.message : indexErr);
@@ -397,8 +394,8 @@ Current word count: ${wordCount}`;
         try {
           await pingSitemaps(getSiteDomain(siteId), siteId);
           console.log(`[seo-deep-review] Sitemap pinged for ${siteId}`);
-        } catch {
-          // Non-fatal
+        } catch (pingErr) {
+          console.warn(`[seo-deep-review] Sitemap ping failed for ${siteId}:`, pingErr instanceof Error ? pingErr.message : pingErr);
         }
       }
     }

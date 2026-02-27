@@ -99,8 +99,8 @@ async function handleIndexing(request: NextRequest) {
           dbUrls = updatedPosts
             .filter((p) => !existingSlugs.has(p.slug))
             .map((p) => `${siteUrl}/blog/${p.slug}`);
-        } catch {
-          // DB query may fail — proceed with static URLs
+        } catch (dbErr) {
+          console.warn(`[google-indexing] DB query for updated posts failed for ${siteId}:`, dbErr instanceof Error ? dbErr.message : dbErr);
         }
 
         // Also include static articles that have never been tracked in URLIndexingStatus
@@ -127,7 +127,9 @@ async function handleIndexing(request: NextRequest) {
             untrackedStaticUrls = allStaticSlugs
               .filter((slug) => !trackedSlugs.has(slug) && !existingUrlSlugs.has(slug))
               .map((slug) => `${siteUrl}/blog/${slug}`);
-          } catch { /* static content unavailable */ }
+          } catch (staticErr) {
+            console.warn(`[google-indexing] Static content import failed for ${siteId}:`, staticErr instanceof Error ? staticErr.message : staticErr);
+          }
         }
 
         const allUrls = [...new Set([...newUrls, ...dbUrls, ...untrackedStaticUrls])];
@@ -201,8 +203,8 @@ async function handleIndexing(request: NextRequest) {
               }),
             ),
           );
-        } catch {
-          // Best-effort tracking
+        } catch (trackErr) {
+          console.warn(`[google-indexing] URLIndexingStatus tracking failed for ${siteId}:`, trackErr instanceof Error ? trackErr.message : trackErr);
         }
 
         totalUrlsSubmitted += indexNowResult.submitted;
@@ -246,7 +248,8 @@ async function handleIndexing(request: NextRequest) {
           // Group by site for batch IndexNow submission
           const bySite = new Map<string, string[]>();
           for (const page of stuckPages) {
-            const sid = page.site_id || "yalla-london";
+            const { getDefaultSiteId } = await import("@/config/sites");
+            const sid = page.site_id || getDefaultSiteId();
             if (!bySite.has(sid)) bySite.set(sid, []);
             bySite.get(sid)!.push(page.url);
           }
@@ -338,8 +341,8 @@ async function handleIndexing(request: NextRequest) {
           error: s.last_error,
         })),
       };
-    } catch {
-      // Table may not exist yet
+    } catch (summaryErr) {
+      console.warn("[google-indexing] Indexing status summary query failed:", summaryErr instanceof Error ? summaryErr.message : summaryErr);
     }
 
     return NextResponse.json({

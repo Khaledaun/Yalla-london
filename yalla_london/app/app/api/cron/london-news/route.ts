@@ -585,7 +585,8 @@ export async function GET(request: NextRequest) {
         trustedSources: TRUSTED_SOURCES.length,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (hcErr) {
+      console.warn("[london-news] Healthcheck failed:", hcErr instanceof Error ? hcErr.message : hcErr);
       return NextResponse.json(
         { status: "unhealthy", endpoint: "london-news" },
         { status: 503 },

@@ -315,10 +315,14 @@ export async function runContentBuilder(
       const phaseError = result.error || `Phase "${currentPhase}" returned failure with no error details`;
       updateData.last_error = phaseError;
 
-      const wasRejected = (updateData.phase_attempts as number) >= 3;
+      // Drafting phase gets 5 attempts (complex, transient JSON parse errors common
+      // especially for Arabic content with dir="rtl" HTML attributes).
+      // All other phases get 3 attempts.
+      const maxAttempts = currentPhase === "drafting" ? 5 : 3;
+      const wasRejected = (updateData.phase_attempts as number) >= maxAttempts;
       if (wasRejected) {
         updateData.current_phase = "rejected";
-        updateData.rejection_reason = `Phase "${currentPhase}" failed after 3 attempts: ${phaseError}`;
+        updateData.rejection_reason = `Phase "${currentPhase}" failed after ${maxAttempts} attempts: ${phaseError}`;
         updateData.completed_at = new Date();
       }
 

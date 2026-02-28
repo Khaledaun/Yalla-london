@@ -29,7 +29,10 @@ interface ArticleIndexingInfo {
   coverageState: string | null;
   submittedIndexnow: boolean;
   submittedSitemap: boolean;
+  submittedGoogleApi: boolean;
   submissionAttempts: number;
+  // Content type (for dashboard badge)
+  contentType: "blog" | "news" | "event" | "yacht" | "destination" | "itinerary" | "static" | "info";
   // Why not indexed
   notIndexedReasons: string[];
   // Suggested fix
@@ -417,7 +420,9 @@ export async function GET(request: NextRequest) {
         coverageState: record?.coverage_state || null,
         submittedIndexnow: record?.submitted_indexnow || false,
         submittedSitemap: record?.submitted_sitemap || false,
+        submittedGoogleApi: record?.submitted_google_api || false,
         submissionAttempts: record?.submission_attempts || 0,
+        contentType: "blog" as const,
         notIndexedReasons: reasons,
         fixAction,
         gscClicks,
@@ -441,6 +446,9 @@ export async function GET(request: NextRequest) {
         }
         const inspection = record?.inspection_result as Record<string, any> | null;
         const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
+        const yachtContentType = yp.urlPrefix === "yachts" ? "yacht" as const
+          : yp.urlPrefix === "destinations" ? "destination" as const
+          : "itinerary" as const;
         articles.push({
           id: yp.id,
           title: yp.title,
@@ -456,7 +464,9 @@ export async function GET(request: NextRequest) {
           coverageState: record?.coverage_state || null,
           submittedIndexnow: record?.submitted_indexnow || false,
           submittedSitemap: record?.submitted_sitemap || false,
+          submittedGoogleApi: record?.submitted_google_api || false,
           submissionAttempts: record?.submission_attempts || 0,
+          contentType: yachtContentType,
           notIndexedReasons: indexingStatus === "never_submitted" ? ["Page has never been submitted to search engines"] : [],
           fixAction: null,
           gscClicks: typeof perfMetrics?.clicks === "number" ? perfMetrics.clicks : null,
@@ -516,7 +526,9 @@ export async function GET(request: NextRequest) {
             coverageState: record?.coverage_state || null,
             submittedIndexnow: record?.submitted_indexnow || false,
             submittedSitemap: record?.submitted_sitemap || false,
+            submittedGoogleApi: record?.submitted_google_api || false,
             submissionAttempts: record?.submission_attempts || 0,
+            contentType: "news" as const,
             notIndexedReasons: indexingStatus === "never_submitted" ? ["News article has never been submitted to search engines"] : [],
             fixAction: null,
             gscClicks: typeof perfMetrics?.clicks === "number" ? perfMetrics.clicks : null,
@@ -530,12 +542,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 5. Summary counts
-    const indexed = articles.filter((a) => a.indexingStatus === "indexed").length;
-    const submitted = articles.filter((a) => a.indexingStatus === "submitted").length;
+    // 5. Summary counts — use shared utility for aggregate numbers
+    //    This ensures cockpit and this endpoint show IDENTICAL summary counts.
+    const { getIndexingSummary } = await import("@/lib/seo/indexing-summary");
+    const sharedSummary = await getIndexingSummary(siteId);
+
+    // Per-article counts from our local list (should match shared summary)
+    const indexed = sharedSummary.indexed;
+    const submitted = sharedSummary.submitted;
     const notIndexed = articles.filter((a) => a.indexingStatus === "not_indexed").length;
-    const neverSubmitted = articles.filter((a) => a.indexingStatus === "never_submitted").length;
-    const errors = articles.filter((a) => a.indexingStatus === "error").length;
+    const neverSubmitted = sharedSummary.neverSubmitted;
+    const errors = sharedSummary.errors;
 
     // 6. System-level indexing issues (from cron logs, config, GA4)
     const systemIssues: Array<{
@@ -767,12 +784,12 @@ export async function GET(request: NextRequest) {
     }
 
     // 8. Build health diagnosis — plain language summary for non-technical owner
-    const indexingRate = articles.length > 0 ? Math.round((indexed / articles.length) * 100) : 0;
+    const indexingRate = sharedSummary.rate;
     let healthStatus: "healthy" | "warning" | "critical" | "not_started" = "not_started";
     let healthMessage = "";
     let healthDetail = "";
 
-    if (articles.length === 0) {
+    if (sharedSummary.total === 0) {
       healthStatus = "not_started";
       healthMessage = "No published articles yet";
       healthDetail = "The content pipeline needs to produce and publish articles before they can be indexed by search engines.";
@@ -780,7 +797,7 @@ export async function GET(request: NextRequest) {
       healthStatus = "critical";
       healthMessage = "Indexing is not configured";
       healthDetail = "Neither IndexNow nor Google Search Console credentials are set up. Articles cannot be submitted to search engines. Set INDEXNOW_KEY and GSC credentials in Vercel.";
-    } else if (indexed === 0 && neverSubmitted === articles.length) {
+    } else if (indexed === 0 && neverSubmitted === sharedSummary.total) {
       healthStatus = "critical";
       healthMessage = "No articles have been submitted to search engines";
       healthDetail = "All published articles are sitting unsubmitted. The SEO agent cron job may not be running. Check cron logs or use the Submit All button.";
@@ -791,18 +808,18 @@ export async function GET(request: NextRequest) {
     } else if (errors > 0) {
       healthStatus = "warning";
       healthMessage = `${errors} indexing error(s) detected`;
-      healthDetail = `${indexed} of ${articles.length} articles are indexed (${indexingRate}%), but ${errors} have errors that need attention. Expand the error articles below to see details.`;
+      healthDetail = `${indexed} of ${sharedSummary.total} articles are indexed (${indexingRate}%), but ${errors} have errors that need attention. Expand the error articles below to see details.`;
     } else if (indexingRate >= 80) {
       healthStatus = "healthy";
-      healthMessage = `${indexed} of ${articles.length} articles indexed (${indexingRate}%)`;
+      healthMessage = `${indexed} of ${sharedSummary.total} articles indexed (${indexingRate}%)`;
       healthDetail = "Indexing is working well. Most articles are being picked up by Google.";
     } else if (indexingRate >= 40) {
       healthStatus = "warning";
-      healthMessage = `${indexed} of ${articles.length} articles indexed (${indexingRate}%)`;
+      healthMessage = `${indexed} of ${sharedSummary.total} articles indexed (${indexingRate}%)`;
       healthDetail = `Indexing is partially working. ${notIndexed + neverSubmitted} articles need attention — check the reasons below each article.`;
     } else {
       healthStatus = "warning";
-      healthMessage = `Only ${indexed} of ${articles.length} articles indexed (${indexingRate}%)`;
+      healthMessage = `Only ${indexed} of ${sharedSummary.total} articles indexed (${indexingRate}%)`;
       healthDetail = "Most articles are not indexed. This could be a configuration issue, content quality problem, or the site is too new for Google to trust.";
     }
 
@@ -816,12 +833,17 @@ export async function GET(request: NextRequest) {
         gscSiteUrl: gscSiteUrl || "(fallback)",
       },
       summary: {
-        total: articles.length,
+        total: sharedSummary.total,
         indexed,
         submitted,
         notIndexed,
         neverSubmitted,
         errors,
+        // Extra fields from shared utility for cockpit parity
+        discovered: sharedSummary.discovered,
+        deindexed: sharedSummary.deindexed,
+        rate: sharedSummary.rate,
+        dailyQuotaRemaining: sharedSummary.dailyQuotaRemaining,
       },
       healthDiagnosis: {
         status: healthStatus,
@@ -848,10 +870,11 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, slugs, siteId: reqSiteId } = body as {
-      action: "submit" | "submit_all" | "resubmit" | "compliance_audit";
+    const { action, slugs, siteId: reqSiteId, url: actionUrl } = body as {
+      action: "submit" | "submit_all" | "resubmit" | "compliance_audit" | "verify_url" | "resubmit_stuck";
       slugs?: string[];
       siteId?: string;
+      url?: string;
     };
 
     const { getDefaultSiteId: getDefaultSite, getSiteConfig, getSiteDomain } = await import("@/config/sites");
@@ -862,6 +885,135 @@ export async function POST(request: NextRequest) {
     const siteConfig = getSiteConfig(siteId);
     // CRITICAL: Always use getSiteDomain() — returns "https://www.{domain}"
     const baseUrl = getSiteDomain(siteId);
+
+    // ── Verify URL: Immediately check a single URL's indexing status via GSC ──
+    if (action === "verify_url") {
+      if (!actionUrl) {
+        return NextResponse.json({ error: "URL required for verify_url action" }, { status: 400 });
+      }
+      try {
+        const { GoogleSearchConsole } = await import("@/lib/integrations/google-search-console");
+        const { getSiteSeoConfig } = await import("@/config/sites");
+        const gsc = new GoogleSearchConsole();
+        if (!gsc.isConfigured()) {
+          return NextResponse.json({ success: false, error: "GSC not configured" }, { status: 400 });
+        }
+        const seoConfig = getSiteSeoConfig(siteId);
+        gsc.setSiteUrl(seoConfig.gscSiteUrl);
+        const inspection = await gsc.getIndexingStatus(actionUrl);
+
+        if (inspection) {
+          const indexingStateMatch = inspection.indexingState === "INDEXED" || inspection.indexingState === "PARTIALLY_INDEXED";
+          const coverageStateMatch = typeof inspection.coverageState === "string" &&
+            inspection.coverageState.toLowerCase().includes("indexed");
+          const isIndexed = indexingStateMatch || coverageStateMatch;
+
+          let status = "submitted";
+          if (isIndexed) status = "indexed";
+          else if (inspection.coverageState?.toLowerCase().includes("crawled") || inspection.coverageState?.toLowerCase().includes("discovered")) {
+            status = "discovered";
+          }
+
+          // Update tracking record
+          await prisma.uRLIndexingStatus.updateMany({
+            where: { site_id: siteId, url: actionUrl },
+            data: {
+              status,
+              indexing_state: inspection.indexingState,
+              coverage_state: inspection.coverageState,
+              last_inspected_at: new Date(),
+              last_error: null,
+            },
+          });
+
+          return NextResponse.json({
+            success: true,
+            action: "verify_url",
+            url: actionUrl,
+            isIndexed,
+            indexingState: inspection.indexingState,
+            coverageState: inspection.coverageState,
+            lastCrawlTime: inspection.lastCrawlTime,
+            status,
+          });
+        } else {
+          return NextResponse.json({
+            success: true,
+            action: "verify_url",
+            url: actionUrl,
+            isIndexed: false,
+            message: "GSC returned no data — URL may not be in Google's index yet",
+          });
+        }
+      } catch (verifyErr) {
+        return NextResponse.json({
+          success: false,
+          error: `Verification failed: ${verifyErr instanceof Error ? verifyErr.message : String(verifyErr)}`,
+        }, { status: 500 });
+      }
+    }
+
+    // ── Resubmit Stuck: Reset all stuck/error URLs for resubmission ──
+    if (action === "resubmit_stuck") {
+      try {
+        const { submitToIndexNow: resubmitToIndexNow } = await import("@/lib/seo/indexing-service");
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+        // Find all stuck URLs for this site
+        const stuckUrls = await prisma.uRLIndexingStatus.findMany({
+          where: {
+            site_id: siteId,
+            status: { in: ["submitted", "discovered", "pending", "error", "chronic_failure"] },
+            last_submitted_at: { lt: sevenDaysAgo },
+          },
+          select: { url: true, id: true },
+          take: 50,
+        });
+
+        if (stuckUrls.length === 0) {
+          return NextResponse.json({ success: true, action: "resubmit_stuck", resubmitted: 0, message: "No stuck URLs found" });
+        }
+
+        const urls = stuckUrls.map((u: { url: string }) => u.url);
+        let resubmitted = 0;
+
+        // Submit via IndexNow
+        const indexNowKey = process.env.INDEXNOW_KEY;
+        if (indexNowKey) {
+          const results = await resubmitToIndexNow(urls, baseUrl, indexNowKey);
+          const success = results.some((r) => r.success);
+          if (success) {
+            await Promise.allSettled(
+              stuckUrls.map((u: { id: string }) =>
+                prisma.uRLIndexingStatus.update({
+                  where: { id: u.id },
+                  data: {
+                    status: "submitted",
+                    submitted_indexnow: true,
+                    last_submitted_at: new Date(),
+                    submission_attempts: { increment: 1 },
+                    last_error: null,
+                  },
+                })
+              )
+            );
+            resubmitted = urls.length;
+          }
+        }
+
+        return NextResponse.json({
+          success: true,
+          action: "resubmit_stuck",
+          resubmitted,
+          totalStuck: stuckUrls.length,
+        });
+      } catch (resubErr) {
+        return NextResponse.json({
+          success: false,
+          error: `Resubmit failed: ${resubErr instanceof Error ? resubErr.message : String(resubErr)}`,
+        }, { status: 500 });
+      }
+    }
 
     // ── Compliance Audit: check all published pages against SEO standards ──
     if (action === "compliance_audit") {

@@ -753,9 +753,9 @@ export class GoogleSearchConsoleAPI {
 // URL DISCOVERY & GENERATION
 // ============================================
 
-export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Promise<string[]> {
+export async function getAllIndexableUrls(siteId?: string, siteUrl?: string, includeArabic: boolean = true): Promise<string[]> {
   const baseUrl = siteUrl || BASE_URL;
-  const urls: string[] = [];
+  const enUrls: string[] = [];
   const isYachtSite = (() => { try { return require("@/config/sites").isYachtSite(siteId); } catch { return false; } })();
 
   // Static pages — yacht site has a different page structure
@@ -772,18 +772,27 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
         "/faq",
         "/contact",
         "/blog",
+        "/privacy",
+        "/terms",
       ]
     : [
         "",
         "/blog",
         "/recommendations",
         "/events",
+        "/experiences",
+        "/hotels",
         "/about",
         "/contact",
         "/information",
         "/information/articles",
+        "/news",
+        "/shop",
+        "/privacy",
+        "/terms",
+        "/affiliate-disclosure",
       ];
-  staticPages.forEach((page) => urls.push(`${baseUrl}${page}`));
+  staticPages.forEach((page) => enUrls.push(`${baseUrl}${page}`));
 
   // Information hub: sections + articles (static data files — Yalla London only)
   const _defaultSite = (() => { try { return require("@/config/sites").getDefaultSiteId(); } catch { return "yalla-london"; } })();
@@ -791,11 +800,36 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
     const { informationSections, informationArticles, extendedInformationArticles } = await getInfoContent();
     informationSections
       .filter((s: any) => s.published)
-      .forEach((s: any) => urls.push(`${baseUrl}/information/${s.slug}`));
+      .forEach((s: any) => enUrls.push(`${baseUrl}/information/${s.slug}`));
     const allInfoArticles = [...informationArticles, ...extendedInformationArticles];
     allInfoArticles
       .filter((a: any) => a.published)
-      .forEach((a: any) => urls.push(`${baseUrl}/information/articles/${a.slug}`));
+      .forEach((a: any) => enUrls.push(`${baseUrl}/information/articles/${a.slug}`));
+  }
+
+  // Blog categories (static data — Yalla London only)
+  if (!isYachtSite && (!siteId || siteId === _defaultSite)) {
+    try {
+      const { categories } = await import("@/data/blog-content");
+      for (const cat of categories) {
+        enUrls.push(`${baseUrl}/blog/category/${cat.slug}`);
+      }
+    } catch {
+      console.warn("[indexing-service] Category import failed");
+    }
+  }
+
+  // London by Foot walks (Yalla London only)
+  if (!isYachtSite && (!siteId || siteId === _defaultSite)) {
+    try {
+      const { walks } = await import("@/app/london-by-foot/walks-data");
+      enUrls.push(`${baseUrl}/london-by-foot`);
+      for (const walk of walks) {
+        enUrls.push(`${baseUrl}/london-by-foot/${walk.slug}`);
+      }
+    } catch {
+      console.warn("[indexing-service] Walks data import failed");
+    }
   }
 
   // Blog posts from static files (only for default site or when no siteId specified)
@@ -805,23 +839,24 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
     allPosts
       .filter((post: any) => post.published)
       .forEach((post: any) => {
-        urls.push(`${baseUrl}/blog/${post.slug}`);
+        enUrls.push(`${baseUrl}/blog/${post.slug}`);
         staticSlugs.add(post.slug);
       });
   }
 
   // Blog posts from database (catch new content created by daily-content-generate)
+  // NO date filter — we track ALL published posts, not just recent ones
   try {
     const { prisma } = await import("@/lib/db");
     const siteFilter = siteId ? { siteId } : {};
     const dbPosts = await prisma.blogPost.findMany({
-      where: { published: true, ...siteFilter },
+      where: { published: true, deletedAt: null, ...siteFilter },
       select: { slug: true },
       take: 2000, // Cap to prevent OOM on large sites
     });
     for (const post of dbPosts) {
       if (!staticSlugs.has(post.slug)) {
-        urls.push(`${baseUrl}/blog/${post.slug}`);
+        enUrls.push(`${baseUrl}/blog/${post.slug}`);
       }
     }
   } catch (err) {
@@ -843,13 +878,47 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
         take: 500,
       });
       for (const item of newsItems) {
-        urls.push(`${baseUrl}/news/${item.slug}`);
-      }
-      if (newsItems.length > 0) {
-        urls.push(`${baseUrl}/news`); // News landing page
+        enUrls.push(`${baseUrl}/news/${item.slug}`);
       }
     } catch (err) {
       console.warn("[indexing-service] News URL discovery failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  // ── Events ──
+  if (!isYachtSite) {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const events = await prisma.event.findMany({
+        where: { published: true, siteId },
+        select: { id: true },
+        take: 500,
+      });
+      for (const event of events) {
+        enUrls.push(`${baseUrl}/events/${event.id}`);
+      }
+    } catch (err) {
+      console.warn("[indexing-service] Event URL discovery failed:", err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  // ── Shop products ──
+  if (!isYachtSite) {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const products = await prisma.digitalProduct.findMany({
+        where: {
+          is_active: true,
+          OR: [{ site_id: siteId || null }, { site_id: null }],
+        },
+        select: { slug: true },
+        take: 200,
+      });
+      for (const product of products) {
+        enUrls.push(`${baseUrl}/shop/${product.slug}`);
+      }
+    } catch (err) {
+      console.warn("[indexing-service] Shop URL discovery failed:", err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -864,7 +933,7 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
         select: { slug: true },
       });
       for (const yacht of yachts) {
-        urls.push(`${baseUrl}/yachts/${yacht.slug}`);
+        enUrls.push(`${baseUrl}/yachts/${yacht.slug}`);
       }
 
       // Destination pages
@@ -873,7 +942,7 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
         select: { slug: true },
       });
       for (const dest of destinations) {
-        urls.push(`${baseUrl}/destinations/${dest.slug}`);
+        enUrls.push(`${baseUrl}/destinations/${dest.slug}`);
       }
 
       // Itinerary pages
@@ -882,14 +951,87 @@ export async function getAllIndexableUrls(siteId?: string, siteUrl?: string): Pr
         select: { slug: true },
       });
       for (const itin of itineraries) {
-        urls.push(`${baseUrl}/itineraries/${itin.slug}`);
+        enUrls.push(`${baseUrl}/itineraries/${itin.slug}`);
       }
     } catch (error) {
       console.warn("[SEO] Yacht URL discovery failed:", error instanceof Error ? error.message : String(error));
     }
   }
 
-  return urls;
+  // ── Generate Arabic variants (/ar/...) for every English URL ──
+  if (includeArabic) {
+    const arUrls: string[] = [];
+    for (const url of enUrls) {
+      // Extract path from full URL: "https://www.yalla-london.com/blog/slug" → "/blog/slug"
+      const path = url.startsWith(baseUrl) ? url.slice(baseUrl.length) : url;
+      // Homepage: /ar (not /ar/)
+      const arPath = path === "" ? "/ar" : `/ar${path}`;
+      arUrls.push(`${baseUrl}${arPath}`);
+    }
+    return [...enUrls, ...arUrls];
+  }
+
+  return enUrls;
+}
+
+/**
+ * Sync ALL indexable URLs into URLIndexingStatus table.
+ * Creates records for URLs not yet tracked. Does NOT submit to search engines.
+ * This ensures the cockpit shows the correct total and verify-indexing can check all pages.
+ *
+ * Returns count of newly created tracking records.
+ */
+export async function syncAllUrlsToTracking(siteId: string, siteUrl: string): Promise<{ synced: number; total: number; alreadyTracked: number }> {
+  const { prisma } = await import("@/lib/db");
+
+  // Get ALL indexable URLs (including Arabic variants)
+  const allUrls = await getAllIndexableUrls(siteId, siteUrl, true);
+
+  // Get all already-tracked URLs for this site
+  const existing = await prisma.uRLIndexingStatus.findMany({
+    where: { site_id: siteId },
+    select: { url: true },
+  });
+  const existingSet = new Set(existing.map((r: { url: string }) => r.url));
+
+  // Find URLs not yet tracked
+  const untracked = allUrls.filter((url) => !existingSet.has(url));
+
+  if (untracked.length === 0) {
+    return { synced: 0, total: allUrls.length, alreadyTracked: existing.length };
+  }
+
+  // Batch insert untracked URLs as "discovered" (not yet submitted to any search engine)
+  let synced = 0;
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < untracked.length; i += BATCH_SIZE) {
+    const batch = untracked.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map((url) => {
+        // Extract slug from URL for easier dashboard display
+        const path = url.startsWith(siteUrl) ? url.slice(siteUrl.length) : url;
+        const slug = path.replace(/^\/ar/, "").replace(/^\//, "") || "/";
+
+        return prisma.uRLIndexingStatus.upsert({
+          where: { site_id_url: { site_id: siteId, url } },
+          create: {
+            site_id: siteId,
+            url,
+            slug,
+            status: "discovered",
+            submitted_indexnow: false,
+            submitted_sitemap: false,
+            submitted_google_api: false,
+          },
+          update: {}, // Don't overwrite existing records
+        });
+      })
+    );
+    synced += results.filter((r) => r.status === "fulfilled").length;
+  }
+
+  console.log(`[indexing-service] Synced ${synced} new URLs to tracking for ${siteId}. Total: ${allUrls.length}, Already tracked: ${existing.length}`);
+  return { synced, total: allUrls.length, alreadyTracked: existing.length };
 }
 
 export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUrl?: string): Promise<string[]> {

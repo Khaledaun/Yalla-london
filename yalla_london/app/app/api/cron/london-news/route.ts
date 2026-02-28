@@ -697,8 +697,56 @@ export async function GET(request: NextRequest) {
       }
       try {
         const baseSlug = slugify(template.headline_en);
-        const datePrefix = today.toISOString().slice(0, 10);
-        const slug = `${baseSlug}-${datePrefix}`;
+
+        // CHECK FOR EXISTING NEWS WITH SAME BASE TOPIC
+        // Instead of appending a date and creating a new URL every time,
+        // look for an existing news item with a matching slug prefix.
+        // If found, UPDATE it (new content, new timestamp) instead of creating a duplicate.
+        const existingByBase = await prisma.newsItem.findFirst({
+          where: {
+            siteId,
+            slug: { startsWith: baseSlug },
+            status: "published",
+          },
+          select: { id: true, slug: true },
+          orderBy: { created_at: "desc" },
+        });
+
+        if (existingByBase) {
+          // Update existing news item instead of creating a duplicate URL
+          await prisma.newsItem.update({
+            where: { id: existingByBase.id },
+            data: {
+              headline_en: template.headline_en,
+              headline_ar: template.headline_ar,
+              summary_en: template.summary_en,
+              summary_ar: template.summary_ar,
+              announcement_en: template.announcement_en,
+              announcement_ar: template.announcement_ar,
+              source_url: template.source_url,
+              relevance_score: template.relevance_score,
+              is_major: template.is_major,
+              urgency: template.urgency,
+              expires_at: new Date(today.getTime() + template.ttl_days * 24 * 60 * 60 * 1000),
+              meta_title_en: template.headline_en.slice(0, 60),
+              meta_title_ar: template.headline_ar.slice(0, 60),
+              meta_description_en: template.summary_en.slice(0, 155),
+              meta_description_ar: template.summary_ar.slice(0, 155),
+              updated_at: new Date(),
+            },
+          });
+          console.log(`[london-news] Updated existing news: ${existingByBase.slug}`);
+          createdItems.push({
+            id: existingByBase.id,
+            slug: existingByBase.slug,
+            headline: template.headline_en,
+            category: template.news_category,
+          });
+          continue;
+        }
+
+        // No existing match — create with clean slug (NO date suffix)
+        const slug = baseSlug;
 
         // Check for duplicate slugs
         const existingSlug = await prisma.newsItem.findUnique({
@@ -857,10 +905,48 @@ export async function GET(request: NextRequest) {
       }
       try {
         const baseSlug = slugify(liveItem.headline_en || "london-news");
-        const datePrefix = today.toISOString().slice(0, 10);
-        const slug = `${baseSlug}-${datePrefix}`;
 
-        // Deduplicate
+        // CHECK FOR EXISTING NEWS WITH SAME BASE TOPIC
+        // Same logic as templates above — update existing instead of creating duplicates.
+        const existingByBase = await prisma.newsItem.findFirst({
+          where: {
+            siteId,
+            slug: { startsWith: baseSlug },
+            status: "published",
+          },
+          select: { id: true, slug: true },
+          orderBy: { created_at: "desc" },
+        });
+
+        if (existingByBase) {
+          // Update existing instead of creating duplicate
+          await prisma.newsItem.update({
+            where: { id: existingByBase.id },
+            data: {
+              headline_en: (liveItem.headline_en || "").slice(0, 200),
+              headline_ar: (liveItem.headline_ar || "").slice(0, 200),
+              summary_en: (liveItem.summary_en || "").slice(0, 1000),
+              summary_ar: (liveItem.summary_ar || "").slice(0, 1000),
+              expires_at: new Date(today.getTime() + (liveItem.ttl_days || 3) * 24 * 60 * 60 * 1000),
+              meta_title_en: (liveItem.headline_en || "").slice(0, 60),
+              meta_description_en: (liveItem.summary_en || "").slice(0, 155),
+              updated_at: new Date(),
+            },
+          });
+          console.log(`[london-news] Updated existing live news: ${existingByBase.slug}`);
+          createdItems.push({
+            id: existingByBase.id,
+            slug: existingByBase.slug,
+            headline: liveItem.headline_en || "",
+            category: (liveItem.category || "general") as string,
+          });
+          continue;
+        }
+
+        // No existing match — create with clean slug (NO date suffix)
+        const slug = baseSlug;
+
+        // Deduplicate by exact slug (catch edge cases)
         const existingSlug = await prisma.newsItem.findUnique({
           where: { slug },
           select: { id: true },

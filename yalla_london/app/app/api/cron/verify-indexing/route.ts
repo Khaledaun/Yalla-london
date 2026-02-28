@@ -7,13 +7,15 @@ import { logCronExecution } from "@/lib/cron-logger";
 /**
  * Verify Indexing Cron — Checks if submitted URLs are actually indexed by Google
  *
- * Runs daily at 11:00 UTC.
+ * Runs twice daily at 11:00 and 17:00 UTC.
+ * GSC API quota: 2,000 inspections/day per property.
+ * Target throughput: ~150 URLs per run × 2 runs = ~300 URLs/day.
  *
  * Pipeline position:
- *   Content Selector (8:30) → Google Indexing (9:15) → Verify Indexing (11:00)
+ *   Content Selector (8:30) → Google Indexing (9:15) → Verify Indexing (11:00, 17:00)
  *
  * What it does:
- * 1. Finds URLs with status "submitted" or "discovered" that haven't been checked recently
+ * 1. Priority-based queue: never-inspected → submitted >7d → errors → discovered → indexed re-check
  * 2. Uses Google Search Console URL Inspection API to verify indexing state
  * 3. Updates URLIndexingStatus with real coverage/indexing data from Google
  * 4. Logs results for dashboard visibility
@@ -61,15 +63,25 @@ async function handleVerifyIndexing(request: NextRequest) {
     }
 
     const activeSites = getActiveSiteIds();
-    // Check interval: 6h for unverified URLs, ensures we don't hammer GSC API
-    // GSC API quota: 2000 inspections/day per property
-    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    // Timing thresholds for priority queue
+    const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+    // Per-site budget: 100 URLs per site per run (well within GSC 2,000/day quota)
+    const MAX_PER_SITE = 100;
 
     let totalChecked = 0;
     let totalIndexed = 0;
     let totalNotIndexed = 0;
     let totalErrors = 0;
-    const siteResults: Array<{ siteId: string; checked: number; indexed: number; notIndexed: number; errors: number }> = [];
+    let totalAutoResubmitted = 0;
+    let totalChronicFailures = 0;
+    let totalHreflangMismatches = 0;
+    const siteResults: Array<{
+      siteId: string; checked: number; indexed: number; notIndexed: number;
+      errors: number; autoResubmitted: number; chronicFailures: number; hreflangMismatches: number;
+    }> = [];
 
     for (const siteId of activeSites) {
       if (Date.now() - cronStart > BUDGET_MS) break;
@@ -80,23 +92,100 @@ async function handleVerifyIndexing(request: NextRequest) {
       const seoConfig = getSiteSeoConfig(siteId);
       gsc.setSiteUrl(seoConfig.gscSiteUrl);
 
-      // Find URLs that need verification:
-      // - status is "submitted" or "discovered" (not yet confirmed indexed)
-      // - haven't been checked in the last 6 hours
+      // Priority-based verification queue:
+      // P1: Never inspected (brand new tracking records)
+      // P2: Submitted >7d ago still not indexed (stuck)
+      // P3: Error status (inspect again to see if resolved)
+      // P4: Discovered/submitted not checked in 4h
+      // P5: Indexed URLs not re-checked in 14d (catch deindexing)
+      // Slots filled top-down from P1→P5 until MAX_PER_SITE reached
       let urlsToCheck: Array<Record<string, unknown>> = [];
+      let remaining = MAX_PER_SITE;
       try {
-        urlsToCheck = await prisma.uRLIndexingStatus.findMany({
-          where: {
-            site_id: siteId,
-            status: { in: ["submitted", "discovered", "pending"] },
-            OR: [
-              { last_inspected_at: null },
-              { last_inspected_at: { lt: sixHoursAgo } },
-            ],
-          },
-          orderBy: { last_submitted_at: "desc" },
-          take: 20, // Increased from 10 — GSC API quota is 2000/day, 20 per run × 4 runs/day = 80/site/day
-        });
+        // P1: Never inspected — highest priority
+        if (remaining > 0) {
+          const neverInspected = await prisma.uRLIndexingStatus.findMany({
+            where: {
+              site_id: siteId,
+              last_inspected_at: null,
+              status: { in: ["submitted", "discovered", "pending"] },
+            },
+            orderBy: { last_submitted_at: "desc" },
+            take: remaining,
+          });
+          urlsToCheck.push(...neverInspected);
+          remaining -= neverInspected.length;
+        }
+
+        // P2: Submitted >7d ago, still not indexed — stuck pages
+        if (remaining > 0) {
+          const existingIds = urlsToCheck.map(u => u.id as string);
+          const stuck = await prisma.uRLIndexingStatus.findMany({
+            where: {
+              site_id: siteId,
+              status: { in: ["submitted", "discovered", "pending"] },
+              last_submitted_at: { lt: sevenDaysAgo },
+              last_inspected_at: { lt: fourHoursAgo },
+              ...(existingIds.length > 0 ? { id: { notIn: existingIds } } : {}),
+            },
+            orderBy: { last_submitted_at: "asc" },
+            take: remaining,
+          });
+          urlsToCheck.push(...stuck);
+          remaining -= stuck.length;
+        }
+
+        // P3: Error status — re-check if resolved
+        if (remaining > 0) {
+          const existingIds = urlsToCheck.map(u => u.id as string);
+          const errors = await prisma.uRLIndexingStatus.findMany({
+            where: {
+              site_id: siteId,
+              status: "error",
+              last_inspected_at: { lt: fourHoursAgo },
+              ...(existingIds.length > 0 ? { id: { notIn: existingIds } } : {}),
+            },
+            orderBy: { last_inspected_at: "asc" },
+            take: remaining,
+          });
+          urlsToCheck.push(...errors);
+          remaining -= errors.length;
+        }
+
+        // P4: Discovered/submitted not checked in 4h (routine checks)
+        if (remaining > 0) {
+          const existingIds = urlsToCheck.map(u => u.id as string);
+          const routine = await prisma.uRLIndexingStatus.findMany({
+            where: {
+              site_id: siteId,
+              status: { in: ["submitted", "discovered", "pending"] },
+              last_inspected_at: { not: null, lt: fourHoursAgo },
+              ...(existingIds.length > 0 ? { id: { notIn: existingIds } } : {}),
+            },
+            orderBy: { last_inspected_at: "asc" },
+            take: remaining,
+          });
+          urlsToCheck.push(...routine);
+          remaining -= routine.length;
+        }
+
+        // P5: Indexed re-check every 14 days (catch deindexing)
+        if (remaining > 0) {
+          const recheck = await prisma.uRLIndexingStatus.findMany({
+            where: {
+              site_id: siteId,
+              status: "indexed",
+              OR: [
+                { last_inspected_at: null },
+                { last_inspected_at: { lt: fourteenDaysAgo } },
+              ],
+            },
+            orderBy: { last_inspected_at: "asc" },
+            take: remaining,
+          });
+          urlsToCheck.push(...recheck);
+          remaining -= recheck.length;
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         if (msg.includes("does not exist") || msg.includes("P2021")) {
@@ -113,6 +202,9 @@ async function handleVerifyIndexing(request: NextRequest) {
       let siteIndexed = 0;
       let siteNotIndexed = 0;
       let siteErrors = 0;
+      let siteAutoResubmitted = 0;
+      let siteChronicFailures = 0;
+      let siteHreflangMismatches = 0;
 
       for (const urlRecord of urlsToCheck) {
         if (Date.now() - cronStart > BUDGET_MS) break;
@@ -129,6 +221,9 @@ async function handleVerifyIndexing(request: NextRequest) {
               inspection.coverageState.toLowerCase().includes("indexed");
             const isIndexed = indexingStateMatch || coverageStateMatch;
 
+            const previousStatus = urlRecord.status as string;
+            const attempts = (urlRecord.submission_attempts as number) || 0;
+
             // Determine detailed status for URLs not yet indexed
             let status = "submitted";
             if (isIndexed) {
@@ -142,22 +237,82 @@ async function handleVerifyIndexing(request: NextRequest) {
               // "submitted" stays as default for everything else
             }
 
+            // ── Deindexing detection & auto-resubmit ──
+            // If a URL was previously indexed but GSC now says it's not,
+            // reset to "discovered" so the next google-indexing run resubmits it.
+            const wasIndexed = previousStatus === "indexed";
+            const nowDeindexed = wasIndexed && !isIndexed;
+            if (nowDeindexed) {
+              status = "discovered"; // triggers resubmission
+              console.warn(`[verify-indexing] DEINDEXED: ${url} — was indexed, now ${inspection.coverageState || inspection.indexingState}. Queued for auto-resubmit.`);
+              siteAutoResubmitted++;
+            }
+
+            // ── Chronic failure detection ──
+            // URLs submitted 5+ times that still aren't indexed need investigation.
+            const isChronicFailure = !isIndexed && attempts >= 5;
+            if (isChronicFailure) {
+              status = "chronic_failure";
+              siteChronicFailures++;
+              console.warn(`[verify-indexing] CHRONIC FAILURE: ${url} — ${attempts} submission attempts, still not indexed`);
+            }
+
+            const updateData: Record<string, unknown> = {
+              status,
+              indexing_state: inspection.indexingState,
+              coverage_state: inspection.coverageState,
+              last_inspected_at: new Date(),
+              last_crawled_at: inspection.lastCrawlTime ? new Date(inspection.lastCrawlTime) : undefined,
+              inspection_result: inspection as unknown as Record<string, unknown>,
+              last_error: isChronicFailure
+                ? `Chronic failure: ${attempts} attempts, not indexed (${inspection.coverageState || "unknown"})`
+                : null,
+            };
+
+            // If deindexed, reset submission flags so google-indexing resubmits
+            if (nowDeindexed) {
+              updateData.submitted_indexnow = false;
+              updateData.submitted_sitemap = false;
+              updateData.submitted_google_api = false;
+              updateData.submission_attempts = attempts + 1;
+            }
+
             await prisma.uRLIndexingStatus.update({
               where: { id: urlRecord.id as string },
-              data: {
-                status,
-                indexing_state: inspection.indexingState,
-                coverage_state: inspection.coverageState,
-                last_inspected_at: new Date(),
-                last_crawled_at: inspection.lastCrawlTime ? new Date(inspection.lastCrawlTime) : undefined,
-                inspection_result: inspection as unknown as Record<string, unknown>,
-                last_error: null,
-              },
+              data: updateData,
             });
 
             if (isIndexed) {
               siteIndexed++;
               console.log(`[verify-indexing] ${url} → INDEXED (${inspection.coverageState})`);
+
+              // ── Hreflang reciprocity check ──
+              // When a URL is indexed, check if its counterpart (/ar/... or without /ar/) is also indexed.
+              // Mismatches hurt SEO — Google expects hreflang pairs to both be indexable.
+              try {
+                const urlObj = new URL(url);
+                const path = urlObj.pathname;
+                let counterpartPath: string | null = null;
+                if (path.startsWith("/ar/") || path === "/ar") {
+                  // AR URL → find EN counterpart
+                  counterpartPath = path === "/ar" ? "/" : path.replace(/^\/ar/, "");
+                } else {
+                  // EN URL → find AR counterpart
+                  counterpartPath = path === "/" ? "/ar" : `/ar${path}`;
+                }
+                if (counterpartPath) {
+                  const counterpartUrl = `${urlObj.origin}${counterpartPath}`;
+                  const counterpart = await prisma.uRLIndexingStatus.findFirst({
+                    where: { site_id: siteId, url: counterpartUrl },
+                    select: { status: true, indexing_state: true },
+                  });
+                  if (counterpart && counterpart.status !== "indexed" &&
+                      counterpart.indexing_state !== "INDEXED" && counterpart.indexing_state !== "PARTIALLY_INDEXED") {
+                    siteHreflangMismatches++;
+                    console.warn(`[verify-indexing] HREFLANG MISMATCH: ${url} is indexed but counterpart ${counterpartUrl} is ${counterpart.status}`);
+                  }
+                }
+              } catch { /* hreflang check is non-critical */ }
             } else {
               siteNotIndexed++;
               console.log(`[verify-indexing] ${url} → NOT INDEXED (${inspection.coverageState || inspection.indexingState})`);
@@ -183,8 +338,8 @@ async function handleVerifyIndexing(request: NextRequest) {
 
           siteChecked++;
 
-          // Rate limit: 1 request per second to avoid GSC quota issues
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+          // Rate limit: 600ms between requests (GSC handles ~2 req/s)
+          await new Promise((resolve) => setTimeout(resolve, 600));
         } catch (inspectErr) {
           const errMsg = inspectErr instanceof Error ? inspectErr.message : String(inspectErr);
           console.error(`[verify-indexing] Failed to inspect ${url}:`, errMsg);
@@ -212,6 +367,9 @@ async function handleVerifyIndexing(request: NextRequest) {
       totalIndexed += siteIndexed;
       totalNotIndexed += siteNotIndexed;
       totalErrors += siteErrors;
+      totalAutoResubmitted += siteAutoResubmitted;
+      totalChronicFailures += siteChronicFailures;
+      totalHreflangMismatches += siteHreflangMismatches;
 
       siteResults.push({
         siteId,
@@ -219,7 +377,55 @@ async function handleVerifyIndexing(request: NextRequest) {
         indexed: siteIndexed,
         notIndexed: siteNotIndexed,
         errors: siteErrors,
+        autoResubmitted: siteAutoResubmitted,
+        chronicFailures: siteChronicFailures,
+        hreflangMismatches: siteHreflangMismatches,
       });
+    }
+
+    // ── Rate drop alerting ──────────────────────────────────────────────
+    // Compare current vs previous 7d indexing rate. If rate dropped >15pp, log critical.
+    try {
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const fourteenDaysAgoAlert = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+      for (const siteId of activeSites) {
+        const [currentIndexed, totalTracked] = await Promise.all([
+          prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "indexed" } }),
+          prisma.uRLIndexingStatus.count({ where: { site_id: siteId } }),
+        ]);
+        const currentRate = totalTracked > 0 ? (currentIndexed / totalTracked) * 100 : 0;
+
+        // Count how many were indexed 7d ago (those indexed before that window)
+        const indexedThisWeek = await prisma.uRLIndexingStatus.count({
+          where: { site_id: siteId, status: "indexed", updated_at: { gte: sevenDaysAgo } },
+        });
+        const indexedLastWeek = await prisma.uRLIndexingStatus.count({
+          where: {
+            site_id: siteId, status: "indexed",
+            updated_at: { gte: fourteenDaysAgoAlert, lt: sevenDaysAgo },
+          },
+        });
+
+        // Alert if velocity dropped significantly (not just rate)
+        if (indexedLastWeek >= 3 && indexedThisWeek < indexedLastWeek * 0.5) {
+          console.error(`[verify-indexing] RATE DROP ALERT: ${siteId} — ${indexedThisWeek} indexed this week vs ${indexedLastWeek} last week (${currentRate.toFixed(0)}% overall rate)`);
+          await logCronExecution("verify-indexing-rate-alert", "completed", {
+            durationMs: 0,
+            resultSummary: {
+              alert: "INDEXING_RATE_DROP",
+              siteId,
+              currentRate: Math.round(currentRate),
+              indexedThisWeek,
+              indexedLastWeek,
+              message: `Indexing velocity dropped: ${indexedThisWeek} new this week vs ${indexedLastWeek} last week`,
+            },
+          });
+        }
+      }
+    } catch (rateErr) {
+      console.warn("[verify-indexing] Rate drop check failed:", rateErr instanceof Error ? rateErr.message : String(rateErr));
     }
 
     const durationMs = Date.now() - cronStart;
@@ -234,6 +440,9 @@ async function handleVerifyIndexing(request: NextRequest) {
         totalIndexed,
         totalNotIndexed,
         totalErrors,
+        totalAutoResubmitted,
+        totalChronicFailures,
+        totalHreflangMismatches,
         sites: siteResults,
       },
     });
@@ -245,6 +454,9 @@ async function handleVerifyIndexing(request: NextRequest) {
       totalIndexed,
       totalNotIndexed,
       totalErrors,
+      totalAutoResubmitted,
+      totalChronicFailures,
+      totalHreflangMismatches,
       sites: siteResults,
       timestamp: new Date().toISOString(),
     });

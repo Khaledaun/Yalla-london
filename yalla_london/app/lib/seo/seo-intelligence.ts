@@ -626,24 +626,17 @@ export async function submitUnindexedPages(
     ];
 
     // 1. IndexNow (Bing, Yandex — idempotent, submit all)
+    // Uses shared submitToIndexNow() for consistent tracking and error handling
     if (indexNowKey && allSubmitUrls.length > 0) {
       try {
-        const response = await fetch("https://api.indexnow.org/indexnow", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            host: new URL(siteUrl).hostname,
-            key: indexNowKey,
-            keyLocation: `${siteUrl}/${indexNowKey}.txt`,
-            urlList: allSubmitUrls.slice(0, 100),
-          }),
-        });
-
-        if (response.ok || response.status === 202) {
+        const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+        const results = await submitToIndexNow(allSubmitUrls.slice(0, 100), siteUrl, indexNowKey);
+        const success = results.some((r) => r.success);
+        if (success) {
           indexNowCount = Math.min(allSubmitUrls.length, 100);
         }
       } catch (e) {
-        console.warn("IndexNow submission failed:", e);
+        console.warn("[SEO Intelligence] IndexNow submission failed:", e);
       }
     }
 

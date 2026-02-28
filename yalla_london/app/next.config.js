@@ -85,8 +85,24 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
   },
+  // No trailing slashes — prevents /ar/ vs /ar duplicate indexing
+  trailingSlash: false,
   env: {
     CUSTOM_KEY: process.env.CUSTOM_KEY,
+  },
+  async redirects() {
+    return [
+      // ── Duplicate content cleanup (GSC audit Feb 2026) ──
+      // Blog duplicates with date+hash suffixes
+      { source: '/blog/london-transport-guide-tourists-2026-tube-bus-taxi-2026-02-17-c592', destination: '/blog/london-transport-guide-tourists-2026-tube-bus-taxi', permanent: true },
+      // News duplicates — weather warning
+      { source: '/news/london-weather-warning-what-visitors-need-to-know-2026-02-22', destination: '/news/london-weather-warning-what-visitors-need-to-know-2026-02-19', permanent: true },
+      // News duplicates — tube strike (3 URLs → 1 canonical)
+      { source: '/news/tube-strike-announced-dates-and-what-you-need-to-know-2026-02-22', destination: '/news/tube-strike-announced-dates-and-what-you-need-to-know-2026-02-21', permanent: true },
+      { source: '/news/tube-strike-announced-dates-and-what-you-need-to-know-2026-02-23', destination: '/news/tube-strike-announced-dates-and-what-you-need-to-know-2026-02-21', permanent: true },
+      // Trailing slash normalization for Arabic root
+      { source: '/ar/', destination: '/ar', permanent: true },
+    ];
   },
   async headers() {
     // SECURITY: Only allow specific origins, not wildcard

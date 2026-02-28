@@ -102,10 +102,6 @@
       "schedule": "0 7 * * *"
     },
     {
-      "path": "/api/seo/cron?task=daily",
-      "schedule": "30 7 * * *"
-    },
-    {
       "path": "/api/seo/cron?task=weekly",
       "schedule": "0 8 * * 0"
     },
@@ -151,7 +147,7 @@
     },
     {
       "path": "/api/cron/verify-indexing",
-      "schedule": "0 11 * * *"
+      "schedule": "0 11,17 * * *"
     },
     {
       "path": "/api/cron/london-news",
@@ -184,6 +180,10 @@
     {
       "path": "/api/cron/seo-deep-review",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/process-indexing-queue",
+      "schedule": "15 7,13,20 * * *"
     }
   ]
 }

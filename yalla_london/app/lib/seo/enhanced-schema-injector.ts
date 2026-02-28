@@ -222,7 +222,7 @@ export class EnhancedSchemaInjector {
         content,
         slug: this.extractSlugFromUrl(url),
         publishedAt: new Date().toISOString(),
-        author: additionalData?.author || 'Yalla London Team',
+        author: additionalData?.author || `${this.schemaGenerator.getOrganizationName()} Team`,
         category: additionalData?.category,
         tags: additionalData?.tags,
         featuredImage: additionalData?.featuredImage
@@ -239,7 +239,7 @@ export class EnhancedSchemaInjector {
         const reviewSchema = this.schemaGenerator.generateReviewFromContent({
           title,
           content,
-          author: additionalData?.author || 'Yalla London Team',
+          author: additionalData?.author || `${this.schemaGenerator.getOrganizationName()} Team`,
           publishedAt: new Date().toISOString(),
           slug: this.extractSlugFromUrl(url),
           rating: analysis.extractedData.rating,

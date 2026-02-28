@@ -279,10 +279,15 @@ export class SchemaGenerator {
       '@context': 'https://schema.org',
       '@type': 'Person',
       '@id': `${baseUrl}#founder`,
-      name: `${brandConfig.siteName || 'Yalla London'} Team`,
+      name: `${brandConfig.siteName || 'Editorial'} Team`,
       jobTitle: 'Content Creator',
       worksFor: this.defaultOrganization
     };
+  }
+
+  /** Returns the organization name for this site (used by schema injector for author fallbacks) */
+  getOrganizationName(): string {
+    return this.defaultOrganization.name;
   }
 
   generateWebsite(searchEnabled: boolean = true): WebsiteSchema {

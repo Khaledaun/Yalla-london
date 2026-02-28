@@ -517,6 +517,31 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     console.warn("Failed to store SEO agent report:", dbError);
   }
 
+  // ── Mark modified posts for IndexNow resubmission ────────────────────────
+  // When the seo-agent fixes content (internal links, meta, schema), the updated
+  // version should be re-crawled by Google. Reset submission flags so the next
+  // google-indexing cron picks them up.
+  if (fixes.length > 0 && siteId) {
+    try {
+      const { getSiteDomain } = await import("@/config/sites");
+      const recentlyModified = await prisma.blogPost.findMany({
+        where: { siteId, published: true, updated_at: { gte: new Date(agentStart) } },
+        select: { slug: true },
+      });
+      if (recentlyModified.length > 0) {
+        const siteUrl = getSiteDomain(siteId);
+        const urls = recentlyModified.map((p: { slug: string }) => `${siteUrl}/blog/${p.slug}`);
+        await prisma.uRLIndexingStatus.updateMany({
+          where: { site_id: siteId, url: { in: urls } },
+          data: { submitted_indexnow: false, last_submitted_at: null },
+        });
+        console.log(`[seo-agent:${siteId}] Marked ${urls.length} modified posts for IndexNow resubmission`);
+      }
+    } catch (resubErr) {
+      console.warn("[seo-agent] Resubmission marking failed (non-fatal):", resubErr instanceof Error ? resubErr.message : resubErr);
+    }
+  }
+
   console.log(
     `SEO Agent completed: ${issues.length} issues found, ${fixes.length} fixes applied, health: ${report.summary.healthScore}%`,
   );

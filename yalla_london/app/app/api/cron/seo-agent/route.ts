@@ -341,16 +341,18 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
             published: true,
             ...siteFilter,
           },
-          select: { id: true, slug: true, title_en: true, content_en: true, category_id: true },
+          select: { id: true, slug: true, title_en: true, content_en: true, content_ar: true, category_id: true },
           take: 50,
           orderBy: { created_at: "desc" },
         });
 
-        // Count internal links in each post
-        const needsLinks = postsWithFewLinks.filter((post: { id: string; slug: string | null; content_en: string | null }) => {
-          const html = post.content_en || "";
-          const internalLinks = (html.match(/href=["']\//g) || []).length;
-          return internalLinks < 3;
+        // Count internal links in each post (check both EN and AR)
+        const needsLinks = postsWithFewLinks.filter((post: { id: string; slug: string | null; content_en: string | null; content_ar: string | null }) => {
+          const enHtml = post.content_en || "";
+          const arHtml = post.content_ar || "";
+          const enInternalLinks = (enHtml.match(/href=["']\//g) || []).length;
+          const arInternalLinks = (arHtml.match(/href=["']\//g) || []).length;
+          return enInternalLinks < 3 || arInternalLinks < 3;
         });
 
         let linksInjected = 0;
@@ -358,7 +360,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           .filter((p: { slug: string | null }) => p.slug)
           .map((p: { slug: string; title_en: string }) => ({ slug: p.slug, title: p.title_en }));
 
-        for (const post of needsLinks.slice(0, 5)) {
+        for (const post of needsLinks.slice(0, 10)) {
           if (!post.content_en || post.content_en.length < 200) continue;
 
           // Find 3 related posts (different slug, has title)
@@ -390,10 +392,43 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           }
         }
 
-        if (linksInjected > 0) {
-          fixes.push(`Injected internal link sections into ${linksInjected} posts with < 3 links`);
+        // Also inject Arabic related-articles for posts with content_ar and few Arabic internal links
+        let arLinksInjected = 0;
+        for (const post of needsLinks.slice(0, 10)) {
+          const arHtml = (post as Record<string, unknown>).content_ar as string | null;
+          if (!arHtml || arHtml.length < 200) continue;
+          if (arHtml.includes("related-articles")) continue;
+
+          const arInternalLinks = (arHtml.match(/href=["']\//g) || []).length;
+          if (arInternalLinks >= 3) continue;
+
+          const arRelatedCandidates = publishedSlugs
+            .filter((p: { slug: string }) => p.slug !== post.slug)
+            .slice(0, 3);
+          if (arRelatedCandidates.length < 2) continue;
+
+          const arRelatedLinks = arRelatedCandidates
+            .map((r: { slug: string; title: string }) =>
+              `<li><a href="/ar/blog/${r.slug}" class="internal-link">${r.title || r.slug}</a></li>`
+            ).join("\n");
+
+          const arRelatedSection = `\n<section class="related-articles" dir="rtl"><h2>مقالات ذات صلة</h2><ul>\n${arRelatedLinks}\n</ul></section>`;
+
+          try {
+            await prisma.blogPost.update({
+              where: { id: post.id },
+              data: { content_ar: arHtml + arRelatedSection },
+            });
+            arLinksInjected++;
+          } catch (e) {
+            console.warn(`[seo-agent] Arabic internal link injection failed for ${post.slug}:`, e instanceof Error ? e.message : e);
+          }
         }
-        report.internalLinkInjection = { postsChecked: needsLinks.length, linksInjected };
+
+        if (linksInjected > 0 || arLinksInjected > 0) {
+          fixes.push(`Injected internal link sections into ${linksInjected} EN + ${arLinksInjected} AR posts with < 3 links`);
+        }
+        report.internalLinkInjection = { postsChecked: needsLinks.length, linksInjected, arLinksInjected };
       } catch (linkErr) {
         console.warn("[seo-agent] Internal link injection failed (non-fatal):", linkErr instanceof Error ? linkErr.message : linkErr);
       }

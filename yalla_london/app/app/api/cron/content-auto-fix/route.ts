@@ -51,6 +51,9 @@ async function handleAutoFix(request: NextRequest) {
     enhanceFailed: 0,
     metaTrimmedPosts: 0,
     metaTrimmedDrafts: 0,
+    stuckUnstuck: 0,
+    stuckRejected: 0,
+    headingsFixed: 0,
     errors: [] as string[],
   };
 
@@ -277,9 +280,149 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── 5. STUCK DRAFT RECOVERY ────────────────────────────────────────────────
+  // Drafts stuck in phases (not reservoir/published/rejected) for 6+ hours
+  // indicate the content-builder cron crashed mid-phase or an AI call hung.
+  // Reset phase_started_at so the builder picks them up again.
+  // If they've already failed 3+ times, reject them — they won't succeed.
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
+      const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+      const stuckDrafts = await prisma.articleDraft.findMany({
+        where: {
+          site_id: { in: activeSiteIds },
+          current_phase: {
+            in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
+          },
+          updated_at: { lt: sixHoursAgo },
+        },
+        select: { id: true, current_phase: true, keyword: true, phase_attempts: true },
+        take: 50,
+      });
+
+      let unstuck = 0;
+      let rejected = 0;
+      for (const draft of stuckDrafts) {
+        const attempts = draft.phase_attempts || 0;
+        const maxAttempts = draft.current_phase === "drafting" ? 5 : 3;
+
+        if (attempts >= maxAttempts) {
+          // Too many failed attempts — reject it so it doesn't block the pipeline forever
+          await prisma.articleDraft.update({
+            where: { id: draft.id },
+            data: {
+              current_phase: "rejected",
+              rejection_reason: `Stuck in "${draft.current_phase}" for 6+ hours after ${attempts} attempts — auto-rejected by sweeper`,
+              completed_at: new Date(),
+              updated_at: new Date(),
+            },
+          });
+          rejected++;
+          console.log(`[content-auto-fix] Rejected stuck draft ${draft.id} ("${draft.keyword}") — ${attempts} attempts in "${draft.current_phase}"`);
+        } else {
+          // Reset the soft-lock so the builder can re-pick it
+          await prisma.articleDraft.update({
+            where: { id: draft.id },
+            data: {
+              phase_started_at: null, // clears the 180s soft-lock
+              updated_at: new Date(),
+            },
+          });
+          unstuck++;
+          console.log(`[content-auto-fix] Unstuck draft ${draft.id} ("${draft.keyword}") in "${draft.current_phase}" — ${attempts} prior attempts`);
+        }
+      }
+
+      results.stuckUnstuck = unstuck;
+      results.stuckRejected = rejected;
+
+      if (unstuck > 0 || rejected > 0) {
+        console.log(`[content-auto-fix] Stuck draft recovery: ${unstuck} unstuck, ${rejected} rejected`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`stuck-recovery: ${msg}`);
+      console.warn("[content-auto-fix] Stuck draft recovery failed:", msg);
+    }
+  }
+
+  // ── 6. HEADING HIERARCHY FIX ─────────────────────────────────────────────
+  // Published articles with multiple H1 tags or no H2 tags hurt SEO.
+  // Fix: Demote extra H1s to H2, ensure at least one H2 exists.
+  if (Date.now() - cronStart < BUDGET_MS - 3_000) {
+    try {
+      const recentPosts = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_en: { not: null },
+        },
+        select: { id: true, slug: true, content_en: true },
+        take: 20,
+        orderBy: { created_at: "desc" },
+      });
+
+      let headingsFixed = 0;
+      for (const post of recentPosts) {
+        if (!post.content_en) continue;
+        let html = post.content_en;
+        let modified = false;
+
+        // Count H1 tags
+        const h1Matches = html.match(/<h1[\s>]/gi) || [];
+        if (h1Matches.length > 1) {
+          // Keep the first H1, demote the rest to H2
+          let h1Count = 0;
+          html = html.replace(/<h1([\s>])/gi, (match, after) => {
+            h1Count++;
+            if (h1Count > 1) return `<h2${after}`;
+            return match;
+          });
+          html = html.replace(/<\/h1>/gi, (match) => {
+            // We need to track which closing tags correspond to demoted H1s
+            // Simple approach: replace from the end
+            return match;
+          });
+          // Fix closing tags: count from start, demote matching closes
+          let closeCount = 0;
+          html = html.replace(/<\/h1>/gi, () => {
+            closeCount++;
+            if (closeCount > 1) return "</h2>";
+            return "</h1>";
+          });
+          modified = true;
+        }
+
+        // Check H2 count — if 0, the article has no subsections (bad for SEO)
+        const h2Count = (html.match(/<h2[\s>]/gi) || []).length;
+        if (h2Count === 0 && html.length > 2000) {
+          // Don't auto-inject H2s — that requires content understanding.
+          // Just log it for the dashboard to surface.
+          console.warn(`[content-auto-fix] Article ${post.slug} has 0 H2 headings — needs manual review`);
+        }
+
+        if (modified) {
+          await prisma.blogPost.update({
+            where: { id: post.id },
+            data: { content_en: html },
+          });
+          headingsFixed++;
+          console.log(`[content-auto-fix] Fixed heading hierarchy for "${post.slug}" (${h1Matches.length} H1s → 1 H1)`);
+        }
+      }
+
+      results.headingsFixed = headingsFixed;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`heading-fix: ${msg}`);
+      console.warn("[content-auto-fix] Heading hierarchy fix failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.metaTrimmedPosts + results.metaTrimmedDrafts;
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.metaTrimmedPosts + results.metaTrimmedDrafts + (results.stuckUnstuck || 0) + (results.stuckRejected || 0) + (results.headingsFixed || 0);
   const hasErrors = results.errors.length > 0;
 
   await logCronExecution("content-auto-fix", hasErrors && totalFixed === 0 ? "failed" : "completed", {
@@ -295,7 +438,7 @@ async function handleAutoFix(request: NextRequest) {
     success: true,
     durationMs,
     results,
-    summary: `Enhanced ${results.enhanced} word-count drafts, ${results.enhancedLowScore} low-score drafts, trimmed ${results.metaTrimmedPosts + results.metaTrimmedDrafts} meta descriptions`,
+    summary: `Enhanced ${results.enhanced} word-count + ${results.enhancedLowScore} low-score drafts, trimmed ${results.metaTrimmedPosts + results.metaTrimmedDrafts} metas, unstuck ${results.stuckUnstuck} drafts, rejected ${results.stuckRejected} permanently stuck, fixed ${results.headingsFixed} heading hierarchies`,
   });
 }
 

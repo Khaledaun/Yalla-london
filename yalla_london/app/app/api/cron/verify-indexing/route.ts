@@ -68,8 +68,10 @@ async function handleVerifyIndexing(request: NextRequest) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
-    // Per-site budget: 100 URLs per site per run (well within GSC 2,000/day quota)
-    const MAX_PER_SITE = 100;
+    // Per-site budget: 70 URLs per site per run
+    // Math: 70 URLs × 600ms rate-limit = 42s, leaving 11s for queue building + rate-drop checks
+    // Previous value of 100 URLs × 600ms = 60s exactly at timeout boundary — any slow GSC response caused timeout
+    const MAX_PER_SITE = 70;
 
     let totalChecked = 0;
     let totalIndexed = 0;
@@ -385,15 +387,16 @@ async function handleVerifyIndexing(request: NextRequest) {
 
     // ── Rate drop alerting ──────────────────────────────────────────────
     // Compare current vs previous 7d indexing rate. If rate dropped >15pp, log critical.
-    // Budget guard: skip if less than 7s remaining — this is a nice-to-have, not critical path.
-    if (Date.now() - cronStart < BUDGET_MS - 7_000) {
+    // Budget guard: skip if less than 15s remaining — this runs 4 count queries per site
+    // which can take 5-10s on large tables. Better to skip than timeout.
+    if (Date.now() - cronStart < BUDGET_MS - 15_000) {
       try {
         const now = new Date();
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const fourteenDaysAgoAlert = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
         for (const siteId of activeSites) {
-          if (Date.now() - cronStart > BUDGET_MS - 3_000) break; // inner budget check
+          if (Date.now() - cronStart > BUDGET_MS - 8_000) break; // inner budget check — 8s per site for 4 count queries
 
           const [currentIndexed, totalTracked] = await Promise.all([
             prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "indexed" } }),

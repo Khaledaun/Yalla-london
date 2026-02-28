@@ -166,11 +166,12 @@ export async function GET(request: NextRequest) {
                 const stuckUrls = await prisma.uRLIndexingStatus.findMany({
                   where: {
                     site_id: sid,
-                    status: "discovered",
+                    status: { in: ["discovered", "pending"] },
                     last_submitted_at: { lt: oneDayAgo },
                   },
                   select: { url: true, id: true },
-                  take: 30, // Conservative batch to stay within budget
+                  take: 50, // Batch covers all 46 discovered pages in one run
+                  orderBy: { last_submitted_at: "asc" }, // Oldest submissions first
                 });
                 if (stuckUrls.length > 0) {
                   const indexNowKey = process.env.INDEXNOW_KEY;

@@ -81,11 +81,12 @@ async function handleVerifyIndexing(request: NextRequest) {
       gsc.setSiteUrl(seoConfig.gscSiteUrl);
 
       // Find URLs that need verification:
-      // - status is "submitted" or "discovered" (not yet confirmed indexed)
-      // - haven't been checked in the last 6 hours
+      // Priority 1: "submitted"/"discovered"/"pending" URLs not checked in 6h (most urgent)
+      // Priority 2: "indexed" URLs not re-checked in 7 days (catch deindexing)
       let urlsToCheck: Array<Record<string, unknown>> = [];
       try {
-        urlsToCheck = await prisma.uRLIndexingStatus.findMany({
+        // First: unverified URLs (highest priority)
+        const unverified = await prisma.uRLIndexingStatus.findMany({
           where: {
             site_id: siteId,
             status: { in: ["submitted", "discovered", "pending"] },
@@ -95,8 +96,25 @@ async function handleVerifyIndexing(request: NextRequest) {
             ],
           },
           orderBy: { last_submitted_at: "desc" },
-          take: 20, // Increased from 10 — GSC API quota is 2000/day, 20 per run × 4 runs/day = 80/site/day
+          take: 30, // Check up to 30 unverified URLs per site per run
         });
+
+        // Second: re-verify indexed URLs every 7 days (catch deindexing)
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const recheck = unverified.length < 30 ? await prisma.uRLIndexingStatus.findMany({
+          where: {
+            site_id: siteId,
+            status: "indexed",
+            OR: [
+              { last_inspected_at: null },
+              { last_inspected_at: { lt: sevenDaysAgo } },
+            ],
+          },
+          orderBy: { last_inspected_at: "asc" },
+          take: Math.min(10, 30 - unverified.length), // Fill remaining slots
+        }) : [];
+
+        urlsToCheck = [...unverified, ...recheck];
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         if (msg.includes("does not exist") || msg.includes("P2021")) {

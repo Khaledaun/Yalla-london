@@ -854,27 +854,30 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
           </div>
         </div>
 
-        {/* Progress bar */}
+        {/* Progress bar — all segments sum to indexing.total (single source of truth) */}
         {indexing.total > 0 && (
           <div className="mt-2">
             <div className="h-2 rounded-full bg-zinc-800 overflow-hidden flex">
               {indexing.indexed > 0 && (
-                <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(indexing.indexed / Math.max(indexing.total, indexing.indexed + indexing.submitted + (indexing.discovered ?? 0) + indexing.errors)) * 100}%` }} title={`${indexing.indexed} indexed`} />
+                <div className="h-full bg-emerald-500 transition-all" style={{ width: `${(indexing.indexed / indexing.total) * 100}%` }} title={`${indexing.indexed} indexed`} />
               )}
               {indexing.submitted > 0 && (
-                <div className="h-full bg-blue-500 transition-all" style={{ width: `${(indexing.submitted / Math.max(indexing.total, indexing.indexed + indexing.submitted + (indexing.discovered ?? 0) + indexing.errors)) * 100}%` }} title={`${indexing.submitted} submitted`} />
+                <div className="h-full bg-blue-500 transition-all" style={{ width: `${(indexing.submitted / indexing.total) * 100}%` }} title={`${indexing.submitted} submitted`} />
               )}
               {(indexing.discovered ?? 0) > 0 && (
-                <div className="h-full bg-zinc-600 transition-all" style={{ width: `${((indexing.discovered ?? 0) / Math.max(indexing.total, indexing.indexed + indexing.submitted + (indexing.discovered ?? 0) + indexing.errors)) * 100}%` }} title={`${indexing.discovered} discovered`} />
+                <div className="h-full bg-amber-600 transition-all" style={{ width: `${((indexing.discovered ?? 0) / indexing.total) * 100}%` }} title={`${indexing.discovered} discovered`} />
               )}
               {indexing.errors > 0 && (
-                <div className="h-full bg-red-500 transition-all" style={{ width: `${(indexing.errors / Math.max(indexing.total, indexing.indexed + indexing.submitted + (indexing.discovered ?? 0) + indexing.errors)) * 100}%` }} title={`${indexing.errors} errors`} />
+                <div className="h-full bg-red-500 transition-all" style={{ width: `${(indexing.errors / indexing.total) * 100}%` }} title={`${indexing.errors} errors`} />
+              )}
+              {(indexing.neverSubmitted ?? 0) > 0 && (
+                <div className="h-full bg-zinc-600 transition-all" style={{ width: `${((indexing.neverSubmitted ?? 0) / indexing.total) * 100}%` }} title={`${indexing.neverSubmitted} never submitted`} />
               )}
             </div>
             <div className="flex justify-between mt-1 text-[9px] text-zinc-600">
               <span>{indexing.indexed} indexed</span>
               <span>{indexing.submitted} pending</span>
-              <span>{(indexing.orphanedCount ?? 0) + (indexing.discovered ?? 0)} unsubmitted</span>
+              <span>{indexing.neverSubmitted ?? 0} unsubmitted</span>
             </div>
           </div>
         )}

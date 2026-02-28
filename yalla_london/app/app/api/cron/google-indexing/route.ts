@@ -47,6 +47,7 @@ async function handleIndexing(request: NextRequest) {
       submitToIndexNow,
       GoogleSearchConsoleAPI,
       getNewUrls,
+      syncAllUrlsToTracking,
     } = await import("@/lib/seo/indexing-service");
     const { getActiveSiteIds, getSiteConfig } = await import("@/config/sites");
 
@@ -74,6 +75,20 @@ async function handleIndexing(request: NextRequest) {
         // getSiteSeoConfig().gscSiteUrl returns the GSC property: "sc-domain:yalla-london.com"
         const siteUrl = getDomain(siteId);
         const gscPropertyUrl = getSiteSeoConfig(siteId).gscSiteUrl;
+
+        // ── STEP 0: Sync ALL indexable URLs to tracking table ──
+        // This ensures every page (including Arabic variants, static pages,
+        // information hub, walks, etc.) has a URLIndexingStatus record.
+        // Without this, the cockpit can't show accurate totals and verify-indexing
+        // can't check pages Google found on its own.
+        try {
+          const syncResult = await syncAllUrlsToTracking(siteId, siteUrl);
+          if (syncResult.synced > 0) {
+            console.log(`[google-indexing] Synced ${syncResult.synced} new URLs to tracking for ${siteId} (total: ${syncResult.total})`);
+          }
+        } catch (syncErr) {
+          console.warn(`[google-indexing] URL sync failed for ${siteId}:`, syncErr instanceof Error ? syncErr.message : syncErr);
+        }
 
         // Discover new URLs from the last 3 days
         const newUrls = await getNewUrls(3, siteId, siteUrl);

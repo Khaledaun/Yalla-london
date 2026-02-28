@@ -142,17 +142,26 @@ const pipelineSection = async (
         }));
       }
 
-      // Check for frozen reservoir articles (stuck at max enhancement attempts)
-      // These are in "reservoir" but have phase_attempts >= 3, so the content-selector
-      // skips them permanently. The sweeper now resets them, but this diagnostic surfaces the issue.
+      // Check for reservoir articles with errors (gate-blocked, enhancement failures, etc.)
       try {
-        const frozenReservoir = await prisma.articleDraft.count({
-          where: {
-            site_id: siteId,
-            current_phase: "reservoir",
-            phase_attempts: { gte: 3 },
-          },
-        });
+        const [frozenReservoir, errorReservoir] = await Promise.all([
+          // Frozen: 3+ failed enhancement attempts — content-selector permanently skips these
+          prisma.articleDraft.count({
+            where: {
+              site_id: siteId,
+              current_phase: "reservoir",
+              phase_attempts: { gte: 3 },
+            },
+          }),
+          // Error: has last_error set (pre-pub gate blocked, promotion failed, etc.)
+          prisma.articleDraft.count({
+            where: {
+              site_id: siteId,
+              current_phase: "reservoir",
+              last_error: { not: null },
+            },
+          }),
+        ]);
 
         if (frozenReservoir > 0) {
           results.push(warn("frozen-reservoir", "Frozen Reservoir Articles", `${frozenReservoir} article(s) stuck — failed enhancement 3+ times`, "Articles in the reservoir that exhausted their enhancement attempts. The content-selector skips them permanently. The sweeper will reset their attempt counter after 12 hours.", `${frozenReservoir} article(s) failed enhancement too many times and were permanently frozen. The sweeper will auto-recover them.`, {
@@ -160,6 +169,29 @@ const pipelineSection = async (
             label: "Run Sweeper Now",
             api: "/api/admin/diagnostics/fix",
             payload: { fixType: "run_sweeper" },
+            rerunGroup: "pipeline",
+          }));
+        }
+
+        if (errorReservoir > 0) {
+          // Fetch a sample error for the diagnosis text
+          let sampleError = "";
+          try {
+            const sample = await prisma.articleDraft.findFirst({
+              where: { site_id: siteId, current_phase: "reservoir", last_error: { not: null } },
+              select: { keyword: true, last_error: true },
+              orderBy: { updated_at: "desc" },
+            });
+            if (sample) {
+              sampleError = ` Example: "${sample.keyword}" — ${(sample.last_error as string).substring(0, 120)}`;
+            }
+          } catch { /* non-fatal */ }
+
+          results.push(warn("reservoir-errors", "Reservoir Publish Blockers", `${errorReservoir} reservoir article(s) have errors preventing publication`, "Articles in the reservoir with last_error set were blocked by the pre-publication gate, slug collision, or promotion failure. The content-selector won't publish them until the error is resolved.", `${errorReservoir} article(s) in the reservoir were rejected during the last publish attempt.${sampleError}`, {
+            id: "fix-reservoir-errors",
+            label: "Run Content Selector",
+            api: "/api/admin/diagnostics/fix",
+            payload: { fixType: "run_content_selector" },
             rerunGroup: "pipeline",
           }));
         }

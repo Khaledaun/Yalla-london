@@ -85,14 +85,35 @@ export async function runContentSelector(
     }
 
     if (candidates.length === 0) {
+      // Log WHY no candidates were found — this helps diagnose reservoir stalls
+      let totalReservoir = 0;
+      let frozenCount = 0;
+      let lowScoreCount = 0;
+      try {
+        [totalReservoir, frozenCount, lowScoreCount] = await Promise.all([
+          prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: activeSites } } }),
+          prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: activeSites }, phase_attempts: { gte: MAX_ENHANCEMENT_ATTEMPTS } } }),
+          prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: activeSites }, quality_score: { lt: MIN_QUALITY_SCORE } } }),
+        ]);
+      } catch { /* non-fatal */ }
+
+      const reason = totalReservoir === 0
+        ? "Reservoir is empty — no articles have reached the reservoir phase"
+        : frozenCount > 0
+        ? `${totalReservoir} reservoir articles, but ${frozenCount} frozen (3+ failed enhancements) and ${lowScoreCount} below quality threshold (${MIN_QUALITY_SCORE}). Run sweeper to unfreeze.`
+        : `${totalReservoir} reservoir articles, but all are below quality threshold (${MIN_QUALITY_SCORE}) or have other issues`;
+
+      console.log(`[content-selector] No publishable candidates: ${reason}`);
+
       await logCronExecution("content-selector", "completed", {
         durationMs: Date.now() - cronStart,
-        resultSummary: { message: "No reservoir articles ready", candidateCount: 0 },
+        resultSummary: { message: reason, candidateCount: 0, totalReservoir, frozenCount, lowScoreCount },
       });
       return {
         success: true,
-        message: "No reservoir articles with sufficient quality score",
+        message: reason,
         minQualityScore: MIN_QUALITY_SCORE,
+        candidateCount: 0,
         durationMs: Date.now() - cronStart,
       };
     }
@@ -506,22 +527,27 @@ export async function promoteToBlogPost(
   }
 
   // Check for slug collision GLOBALLY — BlogPost.slug is @unique across all sites.
-  // Previously checked per-site only, which missed cross-site collisions and crashed
-  // at create() with a Prisma unique constraint violation.
-  // Uses startsWith to also catch near-duplicates like "my-slug-a1b2".
+  // If an exact slug collision is found, append a short suffix instead of giving up.
+  // The old startsWith approach was too aggressive: "london" blocked "london-hotels".
   const existingSlug = await prisma.blogPost.findFirst({
-    where: {
-      slug: { startsWith: slug },
-      deletedAt: null,
-    },
+    where: { slug, deletedAt: null },
     select: { id: true, slug: true, siteId: true },
   });
   if (existingSlug) {
-    const sameSite = existingSlug.siteId === siteId;
-    console.warn(
-      `[content-selector] Slug collision: "${existingSlug.slug}" already exists${sameSite ? "" : ` on site "${existingSlug.siteId}"`} — skipping "${slug}" to prevent duplicate content`,
-    );
-    return null;
+    // Append a short random suffix to make the slug unique
+    const suffix = Date.now().toString(36).slice(-4);
+    const newSlug = `${slug}-${suffix}`;
+    // Double-check the suffixed slug is unique too
+    const suffixCollision = await prisma.blogPost.findFirst({
+      where: { slug: newSlug, deletedAt: null },
+      select: { id: true },
+    });
+    if (suffixCollision) {
+      console.warn(`[content-selector] Slug collision: both "${slug}" and "${newSlug}" exist — skipping`);
+      return null;
+    }
+    console.log(`[content-selector] Slug collision: "${slug}" exists — using "${newSlug}" instead`);
+    slug = newSlug;
   }
 
   // Get or create category and system user

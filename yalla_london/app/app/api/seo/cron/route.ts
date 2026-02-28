@@ -154,6 +154,41 @@ export async function GET(request: NextRequest) {
             console.log(
               `[SEO-CRON] Daily [${sid}]: processed ${dailyReport.urlsProcessed} URLs, errors: ${dailyReport.errors.length}`,
             );
+
+            // ── Resubmit "discovered" URLs stuck for >24h ─────────────────
+            // These are pages Google found but hasn't crawled yet. Aggressive
+            // IndexNow resubmission accelerates crawl for these stuck URLs.
+            if (Date.now() - startTime < BUDGET_MS - 5_000) {
+              try {
+                const { prisma } = await import("@/lib/db");
+                const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+                const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                const stuckUrls = await prisma.uRLIndexingStatus.findMany({
+                  where: {
+                    site_id: sid,
+                    status: "discovered",
+                    last_submitted_at: { lt: oneDayAgo },
+                  },
+                  select: { url: true, id: true },
+                  take: 30, // Conservative batch to stay within budget
+                });
+                if (stuckUrls.length > 0) {
+                  const indexNowKey = process.env.INDEXNOW_KEY;
+                  if (indexNowKey) {
+                    await submitToIndexNow(stuckUrls.map(u => u.url), siteUrl);
+                    // Update last_submitted_at so we don't resubmit the same URLs every run
+                    await prisma.uRLIndexingStatus.updateMany({
+                      where: { id: { in: stuckUrls.map(u => u.id) } },
+                      data: { last_submitted_at: new Date(), submitted_indexnow: true },
+                    });
+                    console.log(`[SEO-CRON] Resubmitted ${stuckUrls.length} stuck "discovered" URLs for ${sid}`);
+                    results.actions.push({ name: "resubmit_stuck", site: sid, count: stuckUrls.length });
+                  }
+                }
+              } catch (stuckErr) {
+                console.warn(`[SEO-CRON] Stuck URL resubmission failed for ${sid}:`, stuckErr instanceof Error ? stuckErr.message : stuckErr);
+              }
+            }
           } catch (siteErr) {
             const msg = siteErr instanceof Error ? siteErr.message : String(siteErr);
             results.actions.push({ name: "submit_updated", site: sid, error: msg });

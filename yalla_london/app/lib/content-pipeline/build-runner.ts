@@ -62,11 +62,12 @@ export async function runContentBuilder(
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
           phase_attempts: { lt: 3 },
-          // Soft-lock: skip drafts actively being processed by another runner (within last 60s)
-          // This prevents build-runner and full-pipeline-runner from processing the same draft
+          // Soft-lock: skip drafts actively being processed by another runner (within last 3 min)
+          // 180s allows a full phase cycle to complete before another runner picks it up.
+          // Previous 60s was too short — drafts would get re-picked mid-processing.
           OR: [
             { phase_started_at: null },
-            { phase_started_at: { lt: new Date(Date.now() - 60 * 1000) } },
+            { phase_started_at: { lt: new Date(Date.now() - 180 * 1000) } },
           ],
         },
         orderBy: { updated_at: "asc" },
@@ -311,6 +312,10 @@ export async function runContentBuilder(
         }
       }
     } else {
+      // Reset phase_started_at on failure too — prevents the draft from being
+      // immediately re-picked by another runner. The 180s soft-lock starts fresh.
+      updateData.phase_started_at = new Date();
+
       // Use Prisma's atomic { increment: 1 } to prevent race conditions where
       // two runners read the same stale phase_attempts and both write the same value.
       updateData.phase_attempts = { increment: 1 };

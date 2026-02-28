@@ -158,6 +158,26 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
         const success = indexResults.some((r) => r.success);
         if (success) {
           console.log(`[scheduled-publish] Batch IndexNow submitted ${urls.length} URL(s) for ${sid}`);
+          // Track in URLIndexingStatus immediately — moves URLs from "never submitted" to "submitted"
+          for (const url of urls) {
+            await prisma.uRLIndexingStatus.upsert({
+              where: { site_id_url: { site_id: sid, url } },
+              create: {
+                site_id: sid,
+                url,
+                slug: url.split("/blog/").pop() || null,
+                status: "submitted",
+                submitted_indexnow: true,
+                last_submitted_at: new Date(),
+              },
+              update: {
+                status: "submitted",
+                submitted_indexnow: true,
+                last_submitted_at: new Date(),
+                submission_attempts: { increment: 1 },
+              },
+            }).catch((e: unknown) => console.warn("[scheduled-publish] URLIndexingStatus upsert failed:", e instanceof Error ? e.message : e));
+          }
         }
       }
     } catch (indexErr) {

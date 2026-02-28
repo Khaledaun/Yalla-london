@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-middleware';
+import { getActiveSiteIds } from '@/config/sites';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -339,8 +340,9 @@ export async function GET(req: NextRequest) {
 
   // Articles ready in reservoir (awaiting content-selector)
   try {
+    const activeSiteIds = getActiveSiteIds();
     const reservoir = await prisma.articleDraft.findMany({
-      where: { current_phase: 'reservoir' },
+      where: { current_phase: 'reservoir', site_id: { in: activeSiteIds } },
       orderBy: { updated_at: 'desc' },
       take: 5,
       select: { id: true, keyword: true, quality_score: true, site_id: true },

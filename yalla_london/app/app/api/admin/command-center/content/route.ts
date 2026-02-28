@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from '@/config/sites';
 
 // Force dynamic rendering to avoid build-time database access
 export const dynamic = 'force-dynamic';
@@ -37,6 +38,10 @@ export async function GET(request: NextRequest) {
       where.page_type = type;
     }
 
+    // Scope by siteId — never return cross-site data
+    const siteId = site || request.headers.get('x-site-id') || getDefaultSiteId();
+    where.siteId = siteId;
+
     // Get blog posts
     const posts = await prisma.blogPost.findMany({
       where,
@@ -66,7 +71,7 @@ export async function GET(request: NextRequest) {
         title: post.title_en || post.title_ar,
         type: post.page_type || 'article',
         status: post.published ? 'published' : 'draft',
-        site: 'Arabaldives', // Would need site relation
+        site: post.siteId || siteId,
         locale: post.title_ar ? 'ar' : 'en',
         createdAt: post.created_at.toISOString(),
         updatedAt: formatRelativeTime(post.updated_at),

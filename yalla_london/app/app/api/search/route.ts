@@ -14,6 +14,7 @@ import {
 } from '@/data/information-hub-content';
 import { extendedInformationArticles } from '@/data/information-hub-articles-extended';
 import { prisma } from '@/lib/db';
+import { getDefaultSiteId } from '@/config/sites';
 
 // Combine static content
 const allBlogPosts = [...blogPosts, ...extendedBlogPosts];
@@ -94,6 +95,7 @@ export async function GET(request: NextRequest) {
     const { q, type, limit, page } = validation.data;
     const offset = (page - 1) * limit;
     const results: SearchResult[] = [];
+    const siteId = request.headers.get('x-site-id') || getDefaultSiteId();
 
     // Search blog posts (static)
     if (type === 'all' || type === 'blog') {
@@ -138,6 +140,7 @@ export async function GET(request: NextRequest) {
           where: {
             published: true,
             deletedAt: null,
+            siteId,
             OR: [
               { title_en: { contains: q, mode: 'insensitive' } },
               { title_ar: { contains: q } },

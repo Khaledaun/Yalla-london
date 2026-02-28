@@ -57,13 +57,13 @@ export const GET = withAdminAuth(async (_request: NextRequest) => {
     }), []),
     safeQuery(() => prisma.articleDraft.groupBy({
       by: ["current_phase"],
-      where: { current_phase: { notIn: ["published", "rejected", "failed"] } },
+      where: { current_phase: { notIn: ["published", "rejected", "failed"] }, site_id: { in: siteIds } },
       _count: { id: true },
     }), []),
-    safeQuery(() => prisma.articleDraft.count({ where: { current_phase: "reservoir" } }), 0),
-    safeQuery(() => prisma.blogPost.count({ where: { published: true } }), 0),
+    safeQuery(() => prisma.articleDraft.count({ where: { current_phase: "reservoir", site_id: { in: siteIds } } }), 0),
+    safeQuery(() => prisma.blogPost.count({ where: { published: true, siteId: { in: siteIds } } }), 0),
     safeQuery(() => prisma.blogPost.count({
-      where: { published: true, updated_at: { gte: yesterday } },
+      where: { published: true, siteId: { in: siteIds }, updated_at: { gte: yesterday } },
     }), 0),
     safeQuery(() => prisma.uRLIndexingStatus.groupBy({
       by: ["status"],

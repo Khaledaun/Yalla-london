@@ -44,7 +44,7 @@ export function getEtsyConfig() {
     shopId: process.env.ETSY_SHOP_ID ?? "",
     redirectUri:
       process.env.ETSY_REDIRECT_URI ??
-      `${process.env.NEXTAUTH_URL ?? "https://yalla-london.com"}/api/auth/etsy/callback`,
+      `${process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.yalla-london.com"}/api/auth/etsy/callback`,
   };
 }
 

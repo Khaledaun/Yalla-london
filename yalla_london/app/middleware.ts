@@ -122,7 +122,9 @@ const DOMAIN_TO_SITE: Record<
   },
 };
 
-const DEFAULT_SITE = {
+// Default site when hostname is not in DOMAIN_TO_SITE (e.g. Vercel preview URLs).
+// Falls back to localhost mapping, which points to yalla-london as primary active site.
+const DEFAULT_SITE = DOMAIN_TO_SITE["localhost:3000"] || {
   siteId: "yalla-london",
   siteName: "Yalla London",
   locale: "en",

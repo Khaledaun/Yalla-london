@@ -85,9 +85,10 @@ export async function GET(request: NextRequest) {
   }
 
   const cronStart = Date.now();
+  const BUDGET_MS = 53_000; // 53s budget within 60s maxDuration
 
   try {
-    const results = await runTrendsMonitoring();
+    const results = await runTrendsMonitoring(undefined, "GB", cronStart, BUDGET_MS);
 
     await logCronExecution("trends-monitor", "completed", {
       durationMs: Date.now() - cronStart,
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { keywords, geo } = body as { keywords?: string[]; geo?: string };
 
-    const results = await runTrendsMonitoring(keywords, geo);
+    const results = await runTrendsMonitoring(keywords, geo, Date.now(), 53_000);
     return NextResponse.json(results);
   } catch (error) {
     console.error("Manual trends monitoring failed:", error);
@@ -146,6 +147,8 @@ export async function POST(request: NextRequest) {
 async function runTrendsMonitoring(
   customKeywords?: string[],
   geo: string = "GB",
+  cronStart?: number,
+  budgetMs?: number,
 ): Promise<{
   success: boolean;
   timestamp: string;
@@ -154,25 +157,43 @@ async function runTrendsMonitoring(
   contentOpportunities: ContentOpportunity[];
   summary: TrendsSummary;
 }> {
+  const start = cronStart || Date.now();
+  const budget = budgetMs || 53_000;
+  const hasBudget = (minMs = 5_000) => (Date.now() - start) < (budget - minMs);
+
   const timestamp = new Date().toISOString();
   const keywords = customKeywords || MONITORED_KEYWORDS;
 
-  // 1. Get daily trending searches
-  const trendingSearches = await googleTrends.getTrendingSearches(geo);
+  // 1. Get daily trending searches (external API — cap at 10s)
+  let trendingSearches: any[] = [];
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    trendingSearches = await googleTrends.getTrendingSearches(geo);
+    clearTimeout(timeout);
+  } catch (err) {
+    console.warn("[trends-monitor] getTrendingSearches timed out or failed:", err instanceof Error ? err.message : err);
+  }
 
   // 2. Analyze trending topics for relevance
   const trendingTopics = analyzeTrendingTopics(trendingSearches);
 
-  // 3. Get interest over time for monitored keywords
-  const keywordTrends = await getKeywordTrends(keywords, geo);
+  // 3. Get interest over time for monitored keywords (budget-gated)
+  let keywordTrends: TrendData[] = [];
+  if (hasBudget(15_000)) {
+    keywordTrends = await getKeywordTrends(keywords, geo);
+  } else {
+    console.warn("[trends-monitor] Budget low — skipping keyword interest lookups");
+  }
 
-  // 3b. Supplement with Grok X/Twitter social buzz (if XAI_API_KEY is configured)
-  const socialTrends = await getGrokSocialTrends();
-  if (socialTrends.length > 0) {
-    // Merge Grok social trends into trending topics
-    trendingTopics.push(...socialTrends);
-    trendingTopics.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    console.log(`[trends-monitor] Added ${socialTrends.length} social trends from Grok X search`);
+  // 3b. Supplement with Grok X/Twitter social buzz (budget-gated)
+  if (hasBudget(10_000)) {
+    const socialTrends = await getGrokSocialTrends();
+    if (socialTrends.length > 0) {
+      trendingTopics.push(...socialTrends);
+      trendingTopics.sort((a, b) => b.relevanceScore - a.relevanceScore);
+      console.log(`[trends-monitor] Added ${socialTrends.length} social trends from Grok X search`);
+    }
   }
 
   // 4. Identify content opportunities
@@ -188,14 +209,18 @@ async function runTrendsMonitoring(
     contentOpportunities,
   );
 
-  // 6. Save to database for historical tracking (deadline = 55s from outer cron start)
-  await saveTrendsData({
-    timestamp: new Date(),
-    trendingTopics,
-    keywordTrends,
-    contentOpportunities,
-    summary,
-  }, Date.now() + 8_000); // 8s budget for DB saves
+  // 6. Save to database for historical tracking (budget-gated)
+  if (hasBudget(5_000)) {
+    await saveTrendsData({
+      timestamp: new Date(),
+      trendingTopics,
+      keywordTrends,
+      contentOpportunities,
+      summary,
+    }, start + budget - 3_000); // 3s safety margin
+  } else {
+    console.warn("[trends-monitor] Budget exhausted — skipping DB save");
+  }
 
   return {
     success: true,
@@ -254,8 +279,9 @@ async function getKeywordTrends(
   geo: string,
 ): Promise<TrendData[]> {
   const trends: TrendData[] = [];
-  // Budget: leave 10s for trending-search + opportunities + DB save + response
-  const deadlineMs = Date.now() + 45_000; // 45s keyword budget within 60s maxDuration
+  // Budget: leave 18s for trending-search + Grok social + opportunities + DB save + response
+  // Previous 45s was too tight — trending search + Grok + DB save easily consumed 15s+
+  const deadlineMs = Date.now() + 35_000; // 35s keyword budget within 53s total budget
 
   for (const keyword of keywords) {
     // Stop processing if we're running out of time

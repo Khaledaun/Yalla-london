@@ -84,13 +84,13 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const _cronStart = Date.now();
+  const cronStart = Date.now();
 
   try {
     const results = await runTrendsMonitoring();
 
     await logCronExecution("trends-monitor", "completed", {
-      durationMs: Date.now() - _cronStart,
+      durationMs: Date.now() - cronStart,
       resultSummary: {
         trendingTopics: results.trendingTopics.length,
         keywordTrends: results.keywordTrends.length,
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
     const errMsg = error instanceof Error ? error.message : String(error);
     console.error("Trends monitoring failed:", error);
     await logCronExecution("trends-monitor", "failed", {
-      durationMs: Date.now() - _cronStart,
+      durationMs: Date.now() - cronStart,
       errorMessage: errMsg,
     });
 
@@ -188,14 +188,14 @@ async function runTrendsMonitoring(
     contentOpportunities,
   );
 
-  // 6. Save to database for historical tracking
+  // 6. Save to database for historical tracking (deadline = 55s from outer cron start)
   await saveTrendsData({
     timestamp: new Date(),
     trendingTopics,
     keywordTrends,
     contentOpportunities,
     summary,
-  });
+  }, Date.now() + 8_000); // 8s budget for DB saves
 
   return {
     success: true,
@@ -457,7 +457,7 @@ async function getGrokSocialTrends(): Promise<TrendingTopic[]> {
   }
 }
 
-async function saveTrendsData(data: any): Promise<void> {
+async function saveTrendsData(data: any, deadlineMs?: number): Promise<void> {
   try {
     // Persist trends data as an SeoReport record for historical tracking
     await prisma.seoReport.create({
@@ -488,6 +488,11 @@ async function saveTrendsData(data: any): Promise<void> {
 
     let trendsQueued = 0;
     for (const siteId of targetSites) {
+      // Budget guard: stop if time is running out
+      if (deadlineMs && Date.now() > deadlineMs - 3_000) {
+        console.log(`[trends-monitor] Budget exhausted during topic creation — saved ${trendsQueued} topics`);
+        break;
+      }
       // Yacht sites use a different content model (fleet inventory) — skip blog topic generation
       if (isYachtSite(siteId)) {
         console.log(`[Trends Monitor] Skipping ${siteId} — yacht site does not use TopicProposals`);

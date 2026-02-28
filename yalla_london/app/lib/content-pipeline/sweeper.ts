@@ -38,7 +38,7 @@ export interface SweeperAction {
 }
 
 const STUCK_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
-const MAX_RECOVERIES_PER_RUN = 10;
+const MAX_RECOVERIES_PER_RUN = 50; // Raised from 10 — need to handle 28+ stuck drafts in one sweep
 
 export async function runSweeper(): Promise<SweeperResult> {
   const start = Date.now();

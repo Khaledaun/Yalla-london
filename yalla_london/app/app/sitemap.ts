@@ -297,15 +297,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Blog posts from static content files (only for yalla-london)
   let staticBlogPages: MetadataRoute.Sitemap = [];
   if (siteId === "yalla-london") {
+    const sevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
     staticBlogPages = allStaticPosts
       .filter((post) => post.published)
-      .map((post) => ({
-        url: `${baseUrl}/blog/${post.slug}`,
-        lastModified: post.updated_at.toISOString(),
-        changeFrequency: "weekly" as const,
-        priority: 0.8,
-        alternates: hreflang(`/blog/${post.slug}`),
-      }));
+      .map((post) => {
+        const isRecent = post.updated_at.getTime() > sevenDaysAgoMs;
+        const freq: "daily" | "weekly" = isRecent ? "daily" : "weekly";
+        return {
+          url: `${baseUrl}/blog/${post.slug}`,
+          lastModified: post.updated_at.toISOString(),
+          // Recent posts get daily crawl frequency + higher priority to accelerate indexing
+          changeFrequency: freq,
+          priority: isRecent ? 0.9 : 0.8,
+          alternates: hreflang(`/blog/${post.slug}`),
+        };
+      });
   }
 
   // Blog posts from database (scoped by siteId)
@@ -320,15 +326,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
       select: { slug: true, updated_at: true },
     });
+    const dbSevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
     dbBlogPages = dbPosts
       .filter((post) => !staticSlugs.has(post.slug))
-      .map((post) => ({
-        url: `${baseUrl}/blog/${post.slug}`,
-        lastModified: post.updated_at?.toISOString() || staticDate,
-        changeFrequency: "weekly" as const,
-        priority: 0.8,
-        alternates: hreflang(`/blog/${post.slug}`),
-      }));
+      .map((post) => {
+        const isRecent = post.updated_at && post.updated_at.getTime() > dbSevenDaysAgoMs;
+        const freq: "daily" | "weekly" = isRecent ? "daily" : "weekly";
+        return {
+          url: `${baseUrl}/blog/${post.slug}`,
+          lastModified: post.updated_at?.toISOString() || staticDate,
+          // Recent posts signal "daily" to Google — accelerates initial crawl and indexing
+          changeFrequency: freq,
+          priority: isRecent ? 0.9 : 0.8,
+          alternates: hreflang(`/blog/${post.slug}`),
+        };
+      });
   } catch (error) {
     console.warn(`[sitemap] Blog post DB query failed for ${siteId}:`, error instanceof Error ? error.message : String(error));
   }

@@ -385,47 +385,56 @@ async function handleVerifyIndexing(request: NextRequest) {
 
     // ── Rate drop alerting ──────────────────────────────────────────────
     // Compare current vs previous 7d indexing rate. If rate dropped >15pp, log critical.
-    try {
-      const now = new Date();
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const fourteenDaysAgoAlert = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    // Budget guard: skip if less than 7s remaining — this is a nice-to-have, not critical path.
+    if (Date.now() - cronStart < BUDGET_MS - 7_000) {
+      try {
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const fourteenDaysAgoAlert = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-      for (const siteId of activeSites) {
-        const [currentIndexed, totalTracked] = await Promise.all([
-          prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "indexed" } }),
-          prisma.uRLIndexingStatus.count({ where: { site_id: siteId } }),
-        ]);
-        const currentRate = totalTracked > 0 ? (currentIndexed / totalTracked) * 100 : 0;
+        for (const siteId of activeSites) {
+          if (Date.now() - cronStart > BUDGET_MS - 3_000) break; // inner budget check
 
-        // Count how many were indexed 7d ago (those indexed before that window)
-        const indexedThisWeek = await prisma.uRLIndexingStatus.count({
-          where: { site_id: siteId, status: "indexed", updated_at: { gte: sevenDaysAgo } },
-        });
-        const indexedLastWeek = await prisma.uRLIndexingStatus.count({
-          where: {
-            site_id: siteId, status: "indexed",
-            updated_at: { gte: fourteenDaysAgoAlert, lt: sevenDaysAgo },
-          },
-        });
+          const [currentIndexed, totalTracked] = await Promise.all([
+            prisma.uRLIndexingStatus.count({ where: { site_id: siteId, status: "indexed" } }),
+            prisma.uRLIndexingStatus.count({ where: { site_id: siteId } }),
+          ]);
+          const currentRate = totalTracked > 0 ? (currentIndexed / totalTracked) * 100 : 0;
 
-        // Alert if velocity dropped significantly (not just rate)
-        if (indexedLastWeek >= 15 && indexedThisWeek < indexedLastWeek * 0.5) {
-          console.error(`[verify-indexing] RATE DROP ALERT: ${siteId} — ${indexedThisWeek} indexed this week vs ${indexedLastWeek} last week (${currentRate.toFixed(0)}% overall rate)`);
-          await logCronExecution("verify-indexing-rate-alert", "completed", {
-            durationMs: 0,
-            resultSummary: {
-              alert: "INDEXING_RATE_DROP",
-              siteId,
-              currentRate: Math.round(currentRate),
-              indexedThisWeek,
-              indexedLastWeek,
-              message: `Indexing velocity dropped: ${indexedThisWeek} new this week vs ${indexedLastWeek} last week`,
-            },
-          });
+          // Count how many were indexed 7d ago (those indexed before that window)
+          const [indexedThisWeek, indexedLastWeek] = await Promise.all([
+            prisma.uRLIndexingStatus.count({
+              where: { site_id: siteId, status: "indexed", updated_at: { gte: sevenDaysAgo } },
+            }),
+            prisma.uRLIndexingStatus.count({
+              where: {
+                site_id: siteId, status: "indexed",
+                updated_at: { gte: fourteenDaysAgoAlert, lt: sevenDaysAgo },
+              },
+            }),
+          ]);
+
+          // Alert if velocity dropped significantly (not just rate)
+          if (indexedLastWeek >= 15 && indexedThisWeek < indexedLastWeek * 0.5) {
+            console.error(`[verify-indexing] RATE DROP ALERT: ${siteId} — ${indexedThisWeek} indexed this week vs ${indexedLastWeek} last week (${currentRate.toFixed(0)}% overall rate)`);
+            await logCronExecution("verify-indexing-rate-alert", "completed", {
+              durationMs: 0,
+              resultSummary: {
+                alert: "INDEXING_RATE_DROP",
+                siteId,
+                currentRate: Math.round(currentRate),
+                indexedThisWeek,
+                indexedLastWeek,
+                message: `Indexing velocity dropped: ${indexedThisWeek} new this week vs ${indexedLastWeek} last week`,
+              },
+            });
+          }
         }
+      } catch (rateErr) {
+        console.warn("[verify-indexing] Rate drop check failed:", rateErr instanceof Error ? rateErr.message : String(rateErr));
       }
-    } catch (rateErr) {
-      console.warn("[verify-indexing] Rate drop check failed:", rateErr instanceof Error ? rateErr.message : String(rateErr));
+    } else {
+      console.log("[verify-indexing] Budget exhausted — skipping rate drop check");
     }
 
     const durationMs = Date.now() - cronStart;

@@ -271,13 +271,24 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
 
   // ── 10. Hreflang reciprocity check ────────────────────────────────────
   // Count pairs where one language version is indexed but its counterpart is not.
+  // Uses a SINGLE batch query instead of N+1 per-URL queries (was causing 504 timeouts).
   let hreflangMismatchCount = 0;
   try {
-    const indexedUrls = await prisma.uRLIndexingStatus.findMany({
-      where: { site_id: siteId, status: "indexed" },
-      select: { url: true },
+    // Fetch ALL tracking records at once — build a URL→status lookup in memory
+    const allTracked = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId },
+      select: { url: true, status: true },
+      take: 1000, // Safety bound
     });
-    for (const { url } of indexedUrls) {
+    const urlStatusMap = new Map<string, string>();
+    for (const r of allTracked) {
+      urlStatusMap.set(r.url, r.status);
+    }
+
+    // Check indexed URLs against their counterparts using the in-memory map
+    const checkedPairs = new Set<string>();
+    for (const [url, status] of urlStatusMap) {
+      if (status !== "indexed") continue;
       try {
         const urlObj = new URL(url);
         const path = urlObj.pathname;
@@ -289,19 +300,19 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
         }
         if (counterpartPath) {
           const counterpartUrl = `${urlObj.origin}${counterpartPath}`;
-          const counterpart = await prisma.uRLIndexingStatus.findFirst({
-            where: { site_id: siteId, url: counterpartUrl },
-            select: { status: true },
-          });
+          // Deduplicate: create a stable key for the pair
+          const pairKey = [url, counterpartUrl].sort().join("|");
+          if (checkedPairs.has(pairKey)) continue;
+          checkedPairs.add(pairKey);
+
+          const counterpartStatus = urlStatusMap.get(counterpartUrl);
           // Only count if counterpart exists in tracking but is NOT indexed
-          if (counterpart && counterpart.status !== "indexed") {
+          if (counterpartStatus && counterpartStatus !== "indexed") {
             hreflangMismatchCount++;
           }
         }
       } catch { /* URL parse error — skip */ }
     }
-    // Each pair would be counted from both sides; deduplicate by halving
-    hreflangMismatchCount = Math.ceil(hreflangMismatchCount / 2);
   } catch { /* non-critical */ }
 
   // ── 11. Build blockers list ───────────────────────────────────────────

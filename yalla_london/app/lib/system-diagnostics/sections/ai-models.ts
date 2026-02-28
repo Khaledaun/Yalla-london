@@ -116,7 +116,7 @@ const aiModelsSection = async (
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("P2021") || msg.includes("does not exist")) {
-      results.push(warn("usage-logging", "Usage Logging", "ApiUsageLog table missing", "AI usage logging requires the ApiUsageLog table. Run prisma db push to create it."));
+      results.push(warn("usage-logging", "Usage Logging", "ApiUsageLog table missing — run 'npx prisma migrate deploy' on Vercel", "Migration file exists (20260226_add_api_usage_log) but hasn't been applied to the database yet. This enables AI cost tracking on the dashboard."));
     } else {
       results.push(warn("usage-logging", "Usage Logging", `Error: ${msg}`, "Checks AI usage logging status."));
     }

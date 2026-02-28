@@ -28,7 +28,6 @@ async function getLatestDbTimestamp(
   fallback: string,
 ): Promise<string> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const record = await (prisma as any)[model].findFirst({
       where: model === "blogPost"
         ? { published: true, deletedAt: null, siteId }

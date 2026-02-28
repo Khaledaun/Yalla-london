@@ -498,11 +498,9 @@ export class SchemaGenerator {
     // TouristDestination-specific properties (connects to Google Maps entities)
     if (place.type === 'TouristDestination') {
       if (place.touristType) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (schema as any).touristType = place.touristType;
       }
       if (place.containsPlace && place.containsPlace.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (schema as any).containsPlace = place.containsPlace.map(p => ({
           '@type': p.type || 'Place',
           name: p.name,

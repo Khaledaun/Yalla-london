@@ -108,12 +108,16 @@ export async function GET(
             name_ar: category.name_ar,
             slug: category.slug
           } : null,
-          author: {
-            id: 'author-yalla',
-            name: 'Yalla London Editorial',
-            email: `editorial@${getSiteConfig(siteId)?.domain || 'example.com'}`,
-            image: null
-          },
+          author: await (async () => {
+            try {
+              const { getAuthorForPost } = await import("@/lib/content-pipeline/author-rotation");
+              const author = await getAuthorForPost(staticPost.id);
+              if (author) {
+                return { id: author.id, name: author.name, email: null, image: author.avatarUrl };
+              }
+            } catch { /* fallback */ }
+            return { id: 'editorial', name: `${getSiteConfig(siteId)?.name || 'Editorial'} Team`, email: null, image: null };
+          })(),
           place: null
         };
       }

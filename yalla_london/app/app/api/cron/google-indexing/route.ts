@@ -76,6 +76,11 @@ async function handleIndexing(request: NextRequest) {
         const siteUrl = getDomain(siteId);
         const gscPropertyUrl = getSiteSeoConfig(siteId).gscSiteUrl;
 
+        // Validate GSC property URL format (Gemini audit Q6)
+        if (gscPropertyUrl && !gscPropertyUrl.startsWith("sc-domain:") && !gscPropertyUrl.startsWith("https://")) {
+          console.warn(`[google-indexing] WARNING: GSC_SITE_URL for ${siteId} has unexpected format: "${gscPropertyUrl}". Expected "sc-domain:example.com" (DNS-verified) or "https://www.example.com/" (URL prefix). Sitemap submissions may silently fail.`);
+        }
+
         // ── STEP 0: Sync ALL indexable URLs to tracking table ──
         // This ensures every page (including Arabic variants, static pages,
         // information hub, walks, etc.) has a URLIndexingStatus record.

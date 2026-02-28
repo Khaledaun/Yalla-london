@@ -520,7 +520,14 @@ async function generateArticle(
       postUrl,
       blogPost.id,
       {
-        author: `${site.name} Editorial Team`,
+        author: await (async () => {
+          try {
+            const { getNextAuthor, assignAuthor } = await import("@/lib/content-pipeline/author-rotation");
+            const author = await getNextAuthor(site.id);
+            if (author.id) await assignAuthor(author.id, "blog_post", blogPost.id);
+            return author.name;
+          } catch { return `${site.name} Editorial Team`; }
+        })(),
         category: category.name_en,
         tags: content.tags,
       },
@@ -987,7 +994,7 @@ Structure:
  */
 function getAIOOptimizationDirectives(contentType: string): string {
   const base = `AIO & Citation Optimization (CRITICAL — 60%+ of searches now show AI Overviews):
-- Start EVERY section with a direct, concise answer in the first 1-2 sentences before elaborating
+- ATOMIC ANSWER FORMAT: Under every H2 heading, write a 40–50 word direct answer FIRST — one self-contained paragraph that fully answers the heading's question. Then expand with supporting details. Google AI Overviews extract these atomic answers for citation.
 - Use clear, factual statements that AI can extract as snippets (e.g., "The best halal restaurant in Mayfair is X, located at Y")
 - Include specific data points: prices (£), ratings, distances, opening hours, dates
 - Structure FAQ answers as complete standalone paragraphs (AI extracts these for People Also Ask)
@@ -1111,6 +1118,7 @@ Authoritativeness:
 - Reference official ratings, awards, or certifications (e.g., "Michelin-starred", "5-star", "halal-certified by HMC")
 - Link concepts to broader context (e.g., "Part of the growing halal luxury dining scene in London")
 - Include specific data points: distances, dates, capacities, ratings out of 5
+- UNIQUE DATA REQUIREMENT: Include at least 2 specific data points NOT commonly found on Wikipedia or TripAdvisor (e.g., current 2026 menu prices, verified seasonal opening hours, a direct quote from staff or locals)
 
 Trustworthiness:
 - Be transparent about limitations: "Prices as of 2026 — check directly for current rates"

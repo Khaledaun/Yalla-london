@@ -409,7 +409,7 @@ async function handleVerifyIndexing(request: NextRequest) {
         });
 
         // Alert if velocity dropped significantly (not just rate)
-        if (indexedLastWeek >= 3 && indexedThisWeek < indexedLastWeek * 0.5) {
+        if (indexedLastWeek >= 15 && indexedThisWeek < indexedLastWeek * 0.5) {
           console.error(`[verify-indexing] RATE DROP ALERT: ${siteId} — ${indexedThisWeek} indexed this week vs ${indexedLastWeek} last week (${currentRate.toFixed(0)}% overall rate)`);
           await logCronExecution("verify-indexing-rate-alert", "completed", {
             durationMs: 0,

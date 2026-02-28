@@ -575,6 +575,43 @@ Then provide a prioritized top-10 action list ranked by impact on indexing speed
 
 ---
 
-*Report generated: February 28, 2026*
+---
+
+## Appendix B: External Audit Results (February 28, 2026)
+
+The 40-question validation report was sent to an external SEO expert for review. All 40 questions were answered with High/Medium confidence levels.
+
+### Top-10 Implementation Actions (Completed)
+
+| # | Action | Status | Phase |
+|---|--------|--------|-------|
+| 1 | Verify GSC Property Format & Sitemap Ping | Done — format validation warning added to `google-indexing` cron | A |
+| 2 | Eliminate Generic Bylines | Done — TeamMember rotation + ContentCredit + public `/team/{slug}` pages | C |
+| 3 | Transition to Topical Clustering | Done — cluster-aware candidate ordering + cluster internal link injection | D |
+| 4 | Implement TouristDestination Schema | Done — auto-detect destination articles + ItemList for listicles | E |
+| 5 | Optimize Atomic Answers for AIO | Done — 40-50 word direct answer directive in all 12 system prompts | F |
+| 6 | Ensure LastMod Accuracy | Done — replaced `new Date()` with DB-derived timestamps for all listing pages | B |
+| 7 | Source Original Imagery | Done — sensory detail directives in system prompts (strategy, not automation) | F |
+| 8 | Add Volume Floor to Rate Drop Alerts | Done — raised from 3 to 15 URLs/week minimum | A |
+| 9 | Reduce Readability Threshold | Done — Grade 12 → Grade 10 | A |
+| 10 | Plan Background Job Migration | Documented in FUNCTIONING-ROADMAP.md | G |
+
+### Key Expert Findings
+
+- **GSC URL Inspection API at 600ms delay:** Safe. Quota allows 2,000/day; we use ~300/day. Can reduce to 500ms.
+- **7-day stuck resubmission:** Optimal balance between too-early and too-late.
+- **IndexNow does NOT reach Google:** Confirmed. GSC Sitemap ping is sole Google notification.
+- **Google Indexing API restriction:** Correct. Using it for non-qualifying pages risks API revocation.
+- **Content clusters > total count:** Confirmed. 5+ interlinked articles on one micro-topic > 50 scattered articles.
+- **Author E-E-A-T is #1 priority:** Anonymous bylines actively demoted in Jan 2026 update.
+- **Atomic answers (40-50 words):** Confirmed effective for AI Overview citation.
+
+### Immediate Actions for Khaled
+
+1. **Verify in Vercel env**: `GSC_SITE_URL` must match exactly `sc-domain:yalla-london.com` for DNS-verified properties
+2. **Run `npx tsx scripts/seed-authors.ts`** to create author personas in the database
+3. **Check GSC Console**: Sitemaps section should show "Success" status
+
+*Report updated: February 28, 2026*
 *Branch: `claude/fix-warnings-indexing-t8qSv`*
-*System version: Standards v2026-02-19, 17-check pre-publication gate, 5-cron indexing pipeline*
+*System version: Standards v2026-02-28, 17-check pre-publication gate, 5-cron indexing pipeline, E-E-A-T author rotation*

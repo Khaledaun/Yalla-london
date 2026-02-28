@@ -265,6 +265,58 @@ export class EnhancedSchemaInjector {
         types.push('Place');
       }
 
+      // TouristDestination Schema — auto-detect destination/guide articles
+      // Connects content to Google Maps entities (Gemini audit action #4)
+      if (!analysis.detectedElements.hasPlace) {
+        const isDestinationArticle = additionalData?.pageType === 'guide' ||
+          additionalData?.pageType === 'place' ||
+          /\b(neighborhood|district|area|quarter|guide to|exploring)\b/i.test(title);
+        if (isDestinationArticle) {
+          const cityName = additionalData?.category || title.replace(/guide|best|top|\d+/gi, '').trim();
+          const destSchema = this.schemaGenerator.generatePlace({
+            name: cityName,
+            description: title,
+            type: 'TouristDestination',
+            address: '',
+            city: cityName,
+            country: additionalData?.country || 'United Kingdom',
+            slug: this.extractSlugFromUrl(url),
+            touristType: 'luxury',
+          });
+          schemas.push(destSchema);
+          types.push('TouristDestination');
+        }
+      }
+
+      // ItemList Schema — auto-detect listicle articles
+      // Google extracts structured lists for rich results and AI Overviews
+      const isListicle = additionalData?.pageType === 'list' ||
+        /\b(top\s+\d+|best\s+\d+|\d+\s+best|\d+\s+top)\b/i.test(title);
+      if (isListicle) {
+        // Extract H2 headings from content as list items
+        const h2Pattern = /<h2[^>]*>(.*?)<\/h2>/gi;
+        const h2Items: Array<{ name: string; position: number }> = [];
+        let h2Match;
+        let pos = 1;
+        while ((h2Match = h2Pattern.exec(content)) !== null) {
+          const itemName = h2Match[1].replace(/<[^>]*>/g, '').trim();
+          if (itemName && itemName.length > 3) {
+            h2Items.push({ name: itemName, position: pos++ });
+          }
+        }
+        if (h2Items.length >= 3) {
+          const itemListSchema = this.schemaGenerator.generateItemList(
+            h2Items.map(item => ({
+              name: item.name,
+              position: item.position,
+              url: `${url}#${item.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
+            }))
+          );
+          schemas.push(itemListSchema as unknown as SchemaBaseProps);
+          types.push('ItemList');
+        }
+      }
+
       // Breadcrumb Schema
       const breadcrumbSchema = this.generateBreadcrumbSchema(url, title);
       if (breadcrumbSchema) {

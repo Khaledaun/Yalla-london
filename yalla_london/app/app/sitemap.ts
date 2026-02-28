@@ -18,6 +18,42 @@ const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 // Combine all information hub articles
 const allInfoArticles = [...baseInfoArticles, ...extendedInformationArticles];
 
+// Helper: fetch the most recent updated_at timestamp from a DB table for a listing page.
+// Returns the ISO string of the newest record, or the fallback date if no records exist.
+// This ensures listing page lastmod reflects ACTUAL content changes, not request time.
+// Google uses accurate lastmod to allocate crawl budget (see: Gemini audit Q9).
+async function getLatestDbTimestamp(
+  model: "blogPost" | "event" | "newsItem" | "yacht" | "yachtDestination" | "charterItinerary" | "digitalProduct",
+  siteId: string,
+  fallback: string,
+): Promise<string> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const record = await (prisma as any)[model].findFirst({
+      where: model === "blogPost"
+        ? { published: true, deletedAt: null, siteId }
+        : model === "newsItem"
+        ? { status: "published", siteId }
+        : model === "digitalProduct"
+        ? { is_active: true, OR: [{ site_id: siteId }, { site_id: null }] }
+        : model === "yacht" || model === "yachtDestination" || model === "charterItinerary"
+        ? { siteId, status: "active" }
+        : { published: true, siteId },
+      orderBy: model === "blogPost" || model === "newsItem" || model === "digitalProduct"
+        ? { updated_at: "desc" as const }
+        : { updatedAt: "desc" as const },
+      select: model === "blogPost" || model === "newsItem" || model === "digitalProduct"
+        ? { updated_at: true }
+        : { updatedAt: true },
+    });
+    if (!record) return fallback;
+    const ts = record.updated_at || record.updatedAt;
+    return ts ? new Date(ts).toISOString() : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Resolve base URL from tenant context (set by middleware)
   const headersList = await headers();
@@ -30,7 +66,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Use a stable date for static pages (last known content update) instead of
   // new Date() which misleads crawlers into thinking pages change on every request.
   const staticDate = "2026-02-19T00:00:00.000Z";
-  const currentDate = new Date().toISOString();
+
+  // Fetch REAL lastmod timestamps for listing pages from the database.
+  // Using new Date() would mislead Google into thinking listings change on every
+  // request, causing them to eventually ignore lastmod entirely (Gemini audit Q9).
+  const [latestBlog, latestEvent, latestNews, latestYacht, latestDest, latestItin, latestProduct] = await Promise.all([
+    getLatestDbTimestamp("blogPost", siteId, staticDate),
+    getLatestDbTimestamp("event", siteId, staticDate),
+    getLatestDbTimestamp("newsItem", siteId, staticDate),
+    getLatestDbTimestamp("yacht", siteId, staticDate),
+    getLatestDbTimestamp("yachtDestination", siteId, staticDate),
+    getLatestDbTimestamp("charterItinerary", siteId, staticDate),
+    getLatestDbTimestamp("digitalProduct", siteId, staticDate),
+  ]);
 
   // Helper: generate hreflang alternates with correct language-region codes
   function hreflang(path: string) {
@@ -69,28 +117,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
         {
           url: `${baseUrl}/yachts`,
-          lastModified: currentDate,
+          lastModified: latestYacht,
           changeFrequency: "daily",
           priority: 0.9,
           alternates: hreflang("/yachts"),
         },
         {
           url: `${baseUrl}/destinations`,
-          lastModified: currentDate,
+          lastModified: latestDest,
           changeFrequency: "weekly",
           priority: 0.9,
           alternates: hreflang("/destinations"),
         },
         {
           url: `${baseUrl}/journal`,
-          lastModified: currentDate,
+          lastModified: latestBlog,
           changeFrequency: "weekly",
           priority: 0.8,
           alternates: hreflang("/journal"),
         },
         {
           url: `${baseUrl}/itineraries`,
-          lastModified: currentDate,
+          lastModified: latestItin,
           changeFrequency: "weekly",
           priority: 0.8,
           alternates: hreflang("/itineraries"),
@@ -139,7 +187,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
         {
           url: `${baseUrl}/blog`,
-          lastModified: currentDate,
+          lastModified: latestBlog,
           changeFrequency: "weekly",
           priority: 0.7,
           alternates: hreflang("/blog"),
@@ -170,7 +218,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
         {
           url: `${baseUrl}/blog`,
-          lastModified: currentDate,
+          lastModified: latestBlog,
           changeFrequency: "daily",
           priority: 0.9,
           alternates: hreflang("/blog"),
@@ -184,7 +232,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
         {
           url: `${baseUrl}/events`,
-          lastModified: currentDate,
+          lastModified: latestEvent,
           changeFrequency: "daily",
           priority: 0.8,
           alternates: hreflang("/events"),
@@ -240,7 +288,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
         {
           url: `${baseUrl}/shop`,
-          lastModified: currentDate,
+          lastModified: latestProduct,
           changeFrequency: "weekly",
           priority: 0.7,
           alternates: hreflang("/shop"),
@@ -277,7 +325,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .filter((post) => !staticSlugs.has(post.slug))
       .map((post) => ({
         url: `${baseUrl}/blog/${post.slug}`,
-        lastModified: post.updated_at?.toISOString() || currentDate,
+        lastModified: post.updated_at?.toISOString() || staticDate,
         changeFrequency: "weekly" as const,
         priority: 0.8,
         alternates: hreflang(`/blog/${post.slug}`),
@@ -299,7 +347,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
     eventPages = events.map((event) => ({
       url: `${baseUrl}/events/${event.id}`,
-      lastModified: event.updated_at?.toISOString() || currentDate,
+      lastModified: event.updated_at?.toISOString() || staticDate,
       changeFrequency: "weekly" as const,
       priority: 0.7,
       alternates: hreflang(`/events/${event.id}`),
@@ -370,7 +418,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
     newsPages = publishedNews.map((item) => ({
       url: `${baseUrl}/news/${item.slug}`,
-      lastModified: item.updated_at?.toISOString() || currentDate,
+      lastModified: item.updated_at?.toISOString() || staticDate,
       changeFrequency: "daily" as const,
       priority: 0.7,
       alternates: hreflang(`/news/${item.slug}`),
@@ -383,7 +431,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const newsLandingPages: MetadataRoute.Sitemap = [
     {
       url: `${baseUrl}/news`,
-      lastModified: currentDate,
+      lastModified: latestNews,
       changeFrequency: "daily" as const,
       priority: 0.8,
       alternates: hreflang("/news"),
@@ -447,7 +495,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
       yachtPages = yachts.map((yacht) => ({
         url: `${baseUrl}/yachts/${yacht.slug}`,
-        lastModified: yacht.updatedAt?.toISOString() || currentDate,
+        lastModified: yacht.updatedAt?.toISOString() || staticDate,
         changeFrequency: "weekly" as const,
         priority: 0.8,
         alternates: hreflang(`/yachts/${yacht.slug}`),
@@ -465,7 +513,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
       destinationPages = destinations.map((dest) => ({
         url: `${baseUrl}/destinations/${dest.slug}`,
-        lastModified: dest.updatedAt?.toISOString() || currentDate,
+        lastModified: dest.updatedAt?.toISOString() || staticDate,
         changeFrequency: "weekly" as const,
         priority: 0.8,
         alternates: hreflang(`/destinations/${dest.slug}`),
@@ -483,7 +531,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
       itineraryPages = itineraries.map((itin) => ({
         url: `${baseUrl}/itineraries/${itin.slug}`,
-        lastModified: itin.updatedAt?.toISOString() || currentDate,
+        lastModified: itin.updatedAt?.toISOString() || staticDate,
         changeFrequency: "weekly" as const,
         priority: 0.7,
         alternates: hreflang(`/itineraries/${itin.slug}`),

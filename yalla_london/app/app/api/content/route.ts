@@ -48,7 +48,7 @@ const ContentQuerySchema = z.object({
 });
 
 // Transform static post to API format
-function transformStaticPost(
+async function transformStaticPost(
   post: (typeof allStaticPosts)[0],
   locale: "en" | "ar",
 ) {
@@ -72,11 +72,18 @@ function transformStaticPost(
         }
       : null,
     place: null,
-    author: {
-      id: "author-yalla",
-      name: locale === "en" ? "Yalla London Editorial" : "فريق يلا لندن",
-      image: null,
-    },
+    author: await (async () => {
+      try {
+        const { getAuthorForPost } = await import("@/lib/content-pipeline/author-rotation");
+        const author = await getAuthorForPost(post.id);
+        if (author) {
+          return { id: author.id, name: locale === "en" ? author.name : (author.nameAr || author.name), image: author.avatarUrl };
+        }
+      } catch { /* fallback */ }
+      const { getSiteConfig } = await import("@/config/sites");
+      const site = getSiteConfig(getDefaultSiteId());
+      return { id: "editorial", name: locale === "en" ? `${site?.name || "Editorial"} Team` : "فريق التحرير", image: null };
+    })(),
     url: `${getSiteDomain(getDefaultSiteId())}/blog/${post.slug}`,
   };
 }
@@ -262,7 +269,7 @@ export async function GET(request: NextRequest) {
 
       totalCount = filteredPosts.length;
       const paginatedPosts = filteredPosts.slice(offset, offset + limit);
-      content = paginatedPosts.map((p) => transformStaticPost(p, locale));
+      content = await Promise.all(paginatedPosts.map((p) => transformStaticPost(p, locale)));
     }
 
     // Calculate pagination metadata

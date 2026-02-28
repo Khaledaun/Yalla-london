@@ -13,7 +13,10 @@ const allStaticPosts = [...blogPosts, ...extendedBlogPosts];
 export const revalidate = 3600;
 
 // Dynamic metadata for SEO — resolves site identity + base URL from request context
-export async function generateMetadata(): Promise<Metadata> {
+// When ?tag= query params are present, set noindex to prevent thin filter pages from being indexed
+export async function generateMetadata(
+  { searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> },
+): Promise<Metadata> {
   const baseUrl = await getBaseUrl();
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
@@ -21,6 +24,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const siteName = siteConfig?.name || "Yalla London";
   const destination = siteConfig?.destination || "London";
   const siteSlug = siteConfig?.slug || "yallalondon";
+
+  // Tag filter pages should NOT be indexed — they're thin content duplicates
+  const params = await searchParams;
+  const hasTagFilter = !!params?.tag;
 
   return {
     title: `Blog | ${siteName} — Travel Guides & Tips`,
@@ -61,10 +68,10 @@ export async function generateMetadata(): Promise<Metadata> {
       description: `Travel guides and stories for Arab visitors to ${destination}`,
     },
     robots: {
-      index: true,
+      index: !hasTagFilter,
       follow: true,
       googleBot: {
-        index: true,
+        index: !hasTagFilter,
         follow: true,
         "max-video-preview": -1,
         "max-image-preview": "large",

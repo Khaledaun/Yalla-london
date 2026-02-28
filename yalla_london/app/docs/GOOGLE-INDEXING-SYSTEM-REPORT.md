@@ -75,12 +75,14 @@ Content Published (content-selector cron, 4× daily)
 
 ### Systems involved
 
-| System | Protocol | Purpose | Quota |
-|--------|----------|---------|-------|
-| Google Search Console (GSC) | REST API v1/v3 | URL Inspection, Search Analytics, Sitemap Management | 2,000 inspections/day |
-| Google Indexing API | REST API v3 | Fast-track submission for events/news | 200 URLs/day |
-| IndexNow | HTTP POST | Instant notification to Bing, Yandex, Seznam, Naver | No hard limit |
-| Google Analytics 4 (GA4) | Data API v1beta | Traffic metrics, organic search tracking | Standard quota |
+| System | Protocol | Purpose | Quota | Reaches Google? |
+|--------|----------|---------|-------|-----------------|
+| Google Search Console (GSC) | REST API v1/v3 | URL Inspection, Search Analytics, Sitemap Management | 2,000 inspections/day | Yes |
+| Google Indexing API | REST API v3 | Fast-track for JobPosting/BroadcastEvent ONLY | 200 URLs/day | Yes (restricted) |
+| IndexNow | HTTP POST | Instant notification to Bing, Yandex, Seznam, Naver, Yep | No hard limit | **NO** — Google does not support IndexNow |
+| Google Analytics 4 (GA4) | Data API v1beta | Traffic metrics, organic search tracking | Standard quota | N/A |
+
+> **IMPORTANT:** Google does NOT participate in the IndexNow protocol. IndexNow submissions reach Bing, Yandex, Seznam, Naver, and Yep only. For Google, our submission channels are: (1) GSC Sitemap ping, (2) Google Indexing API (JobPosting/BroadcastEvent pages only), and (3) natural Googlebot crawling via internal links and sitemap discovery.
 
 ---
 
@@ -207,6 +209,18 @@ INDEXNOW_KEY_ZENITHA_YACHTS_MED=key-for-zenitha
 
 Resolution chain: per-site env var → global env var → config fallback.
 
+### Permission Requirements
+
+| API | Minimum Permission | Notes |
+|-----|-------------------|-------|
+| GSC URL Inspection API | **Full** user | Standard read/write access |
+| GSC Search Analytics API | **Full** user | Standard read/write access |
+| GSC Sitemap Management API | **Full** user | Standard read/write access |
+| Google Indexing API | **Owner** (delegated) | "Full" is NOT sufficient — must be Owner |
+| GA4 Data API | **Viewer** | Read-only access on GA4 property |
+
+> **CRITICAL:** The Google Indexing API requires the service account to be added as a **delegated Owner** on the GSC property. If the service account only has "Full" permission, Indexing API calls will return `403 Permission denied`. See: https://developers.google.com/search/apis/indexing-api/v3/prereqs
+
 ### Authentication Flow (GSC)
 
 ```
@@ -307,7 +321,9 @@ When we call `getIndexingStatus(url)`, Google returns:
 
 ### What is IndexNow?
 
-IndexNow is an open protocol that notifies search engines (Bing, Yandex, Seznam, Naver) about URL changes in real-time. Unlike Google's sitemap-based discovery (which can take days), IndexNow submissions are typically processed within minutes.
+IndexNow is an open protocol that notifies participating search engines (Bing, Yandex, Seznam, Naver, Yep) about URL changes in real-time. Submissions are typically processed within minutes by these engines.
+
+> **CRITICAL: Google does NOT support IndexNow.** Despite testing the protocol since October 2021, Google has never adopted it. IndexNow has zero effect on Google indexing. For Google, we rely on GSC Sitemap submission + natural Googlebot crawling.
 
 ### How We Use It
 
@@ -356,13 +372,14 @@ Our system serves this file via:
 | `content-indexing` API (`resubmit_stuck` action) | Manual | Stuck/error/chronic URLs |
 | `google-indexing` cron (stuck resubmit) | Daily | URLs submitted 7+ days ago, still not indexed |
 
-### Why IndexNow + GSC (Not Just One)
+### Why We Use Multiple Channels
 
-- **IndexNow** → Bing/Yandex/Seznam/Naver (instant, no quota limit)
-- **GSC Sitemap** → Google (official signal, 1-7 day indexing)
-- **Google Indexing API** → Google (instant, BUT restricted to JobPosting/BroadcastEvent only)
+- **IndexNow** → Bing, Yandex, Seznam, Naver, Yep (instant, no hard quota). Does NOT reach Google.
+- **GSC Sitemap Ping** → Google (official signal, triggers Googlebot to re-crawl sitemap, 1-7 day indexing)
+- **Google Indexing API** → Google (near-instant, BUT restricted to pages with `JobPosting` or `BroadcastEvent` in `VideoObject` schema only — we currently have NO qualifying pages)
+- **Natural crawling** → Google discovers content via internal links, sitemaps, and its own crawl schedule
 
-For regular blog content, Google does NOT support the Indexing API. We must use sitemap submission + natural crawling.
+For regular blog content (which is 99% of our output), the path to Google indexing is: publish → sitemap updated → Googlebot discovers via sitemap or internal links → indexed within 1-7 days.
 
 ---
 
@@ -372,12 +389,23 @@ For regular blog content, Google does NOT support the Indexing API. We must use 
 
 ### Important Limitation
 
-> The Google Indexing API (`urlNotifications:publish`) is restricted to pages with `JobPosting` or `BroadcastEvent` structured data. It does NOT work for blog posts, articles, or general web content.
+> The Google Indexing API (`urlNotifications:publish`) is **strictly restricted** to pages with `JobPosting` structured data or `BroadcastEvent` embedded in a `VideoObject`. It does NOT work for blog posts, articles, regular events, news, or any other content type.
+>
+> **Submitting non-qualifying URLs violates Google's terms and risks quota revocation.**
+>
+> See: https://developers.google.com/search/apis/indexing-api/v3/using-api
 
 ### What We Use It For
 
-- **Events pages** (`/events/{id}`) — These have event structured data
-- **News items** (`/news/{slug}`) — Time-sensitive content that benefits from fast indexing
+**Currently: NOTHING.** We have no pages with `JobPosting` or `BroadcastEvent` schema.
+
+The `process-indexing-queue` cron and `classifyUrl()` function are ready to route qualifying URLs if we ever create:
+- Job listing pages with `JobPosting` structured data
+- Livestream pages with `BroadcastEvent` in `VideoObject` structured data
+
+Until then, all content (including `/events/` and `/news/` pages) is submitted via IndexNow (Bing/Yandex) + GSC Sitemap ping (Google).
+
+> **Previous bug (now fixed):** Before this audit, `/events/` and `/news/` URLs were incorrectly classified as Google Indexing API-eligible. This has been corrected — `INDEXING_API_PREFIXES` is now empty.
 
 ### How It Works
 
@@ -485,14 +513,13 @@ Time (UTC)    Job                          Purpose
 
 #### 2. Process Indexing Queue (`/api/cron/process-indexing-queue`) — 3× daily at 7:15, 13:15, 20:15 UTC
 
-**Purpose:** Fast-track events/news via Google Indexing API. Standard content deferred to google-indexing cron.
+**Purpose:** Submit qualifying pages via Google Indexing API. Currently a no-op (no qualifying content exists).
 
 **What it does:**
 - Finds URLs with status `in ["discovered", "pending"]` and no prior submission (100/site/run)
-- Classifies URLs: events/news → Google Indexing API; blog/standard → skip (deferred)
-- Bundles EN+AR bilingual pairs together
-- Respects 200/day Google API quota
-- Updates `submitted_google_api=true` on success
+- Classifies URLs via `classifyUrl()` — only pages with `JobPosting` or `BroadcastEvent` schema qualify
+- Currently `INDEXING_API_PREFIXES` is empty → all URLs classified as "standard" → deferred to google-indexing cron
+- When qualifying pages exist: bundles EN+AR bilingual pairs, respects 200/day quota, updates `submitted_google_api=true`
 
 #### 3. SEO/Cron Weekly (`/api/seo/cron?task=weekly`) — Sunday 8:00 UTC
 
@@ -796,12 +823,12 @@ Before any article is published, it must pass 14 checks. Failed critical checks 
 | Signal | Status | Impact |
 |--------|--------|--------|
 | Helpful Content System | Absorbed into core ranking (March 2024) | No standalone HCU updates |
-| AI Overviews | Live for 1.5B+ users, 200+ countries | 60%+ of searches show AI Overviews |
+| AI Overviews | Live for 2B+ monthly users, 200+ countries | 25-60% of searches show AI Overviews (varies by study) |
 | INP (Interaction to Next Paint) | Replaced FID (March 2024) | Core Web Vital: ≤200ms |
 | E-E-A-T | Strengthened — first-hand experience dominant | Author bylines, original insights required |
 | Topical Authority | Elevated over generalist coverage | Deep content clusters favored |
 | January 2026 Authenticity Update | Active since Jan 4 | First-hand experience is #1 signal |
-| Scaled Content Abuse | Manual actions since June 2025 | Mass AI content penalized |
+| Scaled Content Abuse | Manual actions since March 2024 spam update | Mass AI content penalized |
 | Mobile-First Indexing | 100% complete since July 2024 | Desktop-only sites not indexed |
 
 ### Quality Thresholds (Single Source of Truth)
@@ -854,7 +881,9 @@ Before any article is published, it must pass 14 checks. Failed critical checks 
 |------|-------|----------|-------|
 | GA4 multi-site | Single global property for all sites | HIGH | Need per-site GA4 properties |
 | GA4 dashboard data | May show 0s if not configured | HIGH | Need to verify GA4 setup end-to-end |
-| Google Indexing API scope | Only works for events/news (JobPosting/BroadcastEvent) | Known | By design — blog content uses IndexNow + sitemap |
+| Google Indexing API scope | Only works for JobPosting/BroadcastEvent pages | Known | We have NO qualifying pages — cron is a no-op |
+| GSC permissions | Service account needs Owner (not Full) for Indexing API | HIGH | Verify delegated Owner on each GSC property |
+| IndexNow ≠ Google | IndexNow does NOT reach Google — never has | Known | All Google indexing via sitemap + natural crawling |
 | Per-site env vars | Pattern defined but not all sites have separate credentials | MEDIUM | Okay while only 1-2 sites active |
 | IndexNow verification | Key file must be accessible at domain root | MEDIUM | Verify Vercel rewrite works |
 | Canonical mismatches | GSC may select different canonical than declared | MEDIUM | Not yet auto-detected in verify-indexing |
@@ -924,7 +953,7 @@ Questions:
 - Quota: 200 URLs/day per property
 
 Questions:
-10. We submit news article URLs via the Indexing API even though they don't have JobPosting/BroadcastEvent schema. Will Google silently ignore these, or will it cause quota penalties or account issues?
+10. We previously submitted events and news URLs via the Indexing API but have now stopped (since they don't have JobPosting/BroadcastEvent schema). Could those past submissions have caused any lasting damage to our API access or site reputation?
 11. Is 200/day still the correct quota for 2026? Has it changed?
 12. If we exceed the quota, does Google queue the excess requests or reject them with a 429?
 

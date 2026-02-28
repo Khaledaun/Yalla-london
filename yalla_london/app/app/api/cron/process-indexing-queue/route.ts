@@ -6,13 +6,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 
 /**
- * Process Indexing Queue — Google Indexing API for Events & News ONLY
+ * Process Indexing Queue — Google Indexing API for Qualifying Pages ONLY
  *
  * Runs 3× daily (7:15, 13:15, 20:15 UTC) — 15 min after seo-agent.
  *
- * SOLE RESPONSIBILITY: Submit events/news URLs via Google Indexing API.
- * Standard blog content is handled by google-indexing cron (9:15 daily) via IndexNow + Sitemap.
- * This separation eliminates duplicate IndexNow submissions.
+ * SOLE RESPONSIBILITY: Submit URLs via Google Indexing API.
+ *
+ * IMPORTANT: The Google Indexing API only accepts pages with:
+ *   - JobPosting structured data
+ *   - BroadcastEvent embedded in a VideoObject
+ * Regular events, news, and blog content do NOT qualify.
+ * See: https://developers.google.com/search/apis/indexing-api/v3/using-api
+ *
+ * Currently we have NO qualifying pages, so this cron is effectively a no-op.
+ * Standard content is submitted via IndexNow + GSC Sitemap by the google-indexing
+ * cron (9:15 daily). Add qualifying prefixes to INDEXING_API_PREFIXES in
+ * lib/seo/google-indexing-api.ts when BroadcastEvent/JobPosting pages are created.
  *
  * Google Indexing API quota: 200 URLs/day.
  * Budget: 53s with 7s buffer (Vercel Pro).

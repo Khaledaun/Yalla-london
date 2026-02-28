@@ -270,6 +270,68 @@ export async function runSweeper(): Promise<SweeperResult> {
       }
     }
 
+    // ── 4. Recover reservoir articles stuck at max enhancement attempts ─
+    // The content-selector skips articles with phase_attempts >= 3 to prevent
+    // infinite retry loops. But these articles are permanently frozen in the
+    // reservoir — no other system picks them up. Reset their attempt counter
+    // so they get another chance (enhancement may succeed with different AI output).
+    // Only reset articles that have been stuck for >12 hours to avoid thrashing.
+    let frozenReservoir: Array<Record<string, unknown>> = [];
+    try {
+      frozenReservoir = await prisma.articleDraft.findMany({
+        where: {
+          current_phase: "reservoir",
+          phase_attempts: { gte: 3 },
+          updated_at: { lt: new Date(Date.now() - 12 * 60 * 60 * 1000) }, // >12h since last attempt
+        },
+        take: MAX_RECOVERIES_PER_RUN,
+      });
+    } catch {
+      console.warn("[sweeper] Non-fatal: failed to query frozen reservoir articles");
+    }
+
+    for (const draft of frozenReservoir) {
+      if (recovered.length >= MAX_RECOVERIES_PER_RUN) break;
+
+      const draftId = draft.id as string;
+      const keyword = (draft.keyword as string) || "unknown";
+      const locale = (draft.locale as string) || "en";
+      const attempts = (draft.phase_attempts as number) || 0;
+      const lastError = (draft.last_error as string) || "Enhancement failed 3x";
+
+      // Skip if already recovered recently
+      if (recentlyRecoveredIds.has(draftId)) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        await prisma.articleDraft.update({
+          where: { id: draftId },
+          data: {
+            phase_attempts: 0,
+            last_error: null,
+            updated_at: new Date(),
+          },
+        });
+
+        recovered.push({
+          draftId,
+          keyword,
+          locale,
+          problem: `Frozen in reservoir after ${attempts} failed enhancement attempts: ${lastError.substring(0, 100)}`,
+          diagnosis: "Article was permanently stuck — content-selector skips articles with 3+ failed attempts. Reset attempt counter for another try.",
+          fix: "Reset phase_attempts to 0 — content-selector will try enhancement again on next run",
+          previousPhase: "reservoir",
+          newPhase: "reservoir",
+        });
+
+        console.log(`[sweeper] Unfroze reservoir draft ${draftId} (${keyword} ${locale}): was at ${attempts} failed enhancement attempts`);
+      } catch {
+        skipped++;
+      }
+    }
+
     const durationMs = Date.now() - start;
 
     // Log each recovery action as a structured sweeper event
@@ -316,7 +378,7 @@ export async function runSweeper(): Promise<SweeperResult> {
         target: "all",
         failureDescription: `Scheduled sweep: recovered ${recovered.length}, skipped ${skipped}`,
         detectedAt: new Date(Date.now() - durationMs).toISOString(),
-        diagnosis: `Scanned ${rejectedDrafts.length} rejected, ${stuckDrafts.length} stuck, ${failingDrafts.length} failing drafts`,
+        diagnosis: `Scanned ${rejectedDrafts.length} rejected, ${stuckDrafts.length} stuck, ${failingDrafts.length} failing, ${frozenReservoir.length} frozen reservoir drafts`,
         errorCategory: "unknown",
         fixApplied: recovered.length > 0 ? recovered.map((r) => `${r.keyword} (${r.locale}): ${r.fix}`).join("; ") : null,
         reactivatedAt: recovered.length > 0 ? new Date().toISOString() : null,
@@ -329,7 +391,7 @@ export async function runSweeper(): Promise<SweeperResult> {
       success: true,
       message: recovered.length > 0
         ? `Recovered ${recovered.length} draft(s), skipped ${skipped}`
-        : `No recoverable failures found (checked ${rejectedDrafts.length} rejected, ${stuckDrafts.length} stuck, ${failingDrafts.length} failing)`,
+        : `No recoverable failures found (checked ${rejectedDrafts.length} rejected, ${stuckDrafts.length} stuck, ${failingDrafts.length} failing, ${frozenReservoir.length} frozen reservoir)`,
       recovered,
       skipped,
       durationMs,

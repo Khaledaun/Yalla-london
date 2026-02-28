@@ -118,11 +118,14 @@ const pipelineSection = async (
       }
 
       // Check for stuck drafts (>6 hours in same phase)
+      // Exclude terminal states: reservoir (waiting to publish), completed, failed, AND rejected.
+      // "rejected" drafts are terminal — they were intentionally rejected for quality reasons
+      // and should be handled by the sweeper, not counted as "stuck".
       const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
       const stuckDrafts = await prisma.articleDraft.count({
         where: {
           site_id: siteId,
-          current_phase: { notIn: ["reservoir", "completed", "failed"] },
+          current_phase: { notIn: ["reservoir", "completed", "failed", "rejected"] },
           updated_at: { lt: sixHoursAgo },
         },
       });
@@ -137,6 +140,31 @@ const pipelineSection = async (
           payload: { fixType: "run_content_builder" },
           rerunGroup: "pipeline",
         }));
+      }
+
+      // Check for frozen reservoir articles (stuck at max enhancement attempts)
+      // These are in "reservoir" but have phase_attempts >= 3, so the content-selector
+      // skips them permanently. The sweeper now resets them, but this diagnostic surfaces the issue.
+      try {
+        const frozenReservoir = await prisma.articleDraft.count({
+          where: {
+            site_id: siteId,
+            current_phase: "reservoir",
+            phase_attempts: { gte: 3 },
+          },
+        });
+
+        if (frozenReservoir > 0) {
+          results.push(warn("frozen-reservoir", "Frozen Reservoir Articles", `${frozenReservoir} article(s) stuck — failed enhancement 3+ times`, "Articles in the reservoir that exhausted their enhancement attempts. The content-selector skips them permanently. The sweeper will reset their attempt counter after 12 hours.", `${frozenReservoir} article(s) failed enhancement too many times and were permanently frozen. The sweeper will auto-recover them.`, {
+            id: "fix-frozen-reservoir",
+            label: "Run Sweeper Now",
+            api: "/api/admin/diagnostics/fix",
+            payload: { fixType: "run_sweeper" },
+            rerunGroup: "pipeline",
+          }));
+        }
+      } catch {
+        // Non-fatal — skip if ArticleDraft table doesn't exist
       }
 
       // Phase distribution summary
@@ -204,6 +232,9 @@ const pipelineSection = async (
     }
 
     // ── 4. Scheduled Content ───────────────────────────────────────────
+    // Note: The content-selector publishes DIRECTLY to BlogPost (not via ScheduledContent).
+    // ScheduledContent is used for social media posts and email campaigns, not articles.
+    // So "0 scheduled" is normal when articles are being published directly.
     try {
       const scheduledCount = await prisma.scheduledContent.count({
         where: {
@@ -214,18 +245,14 @@ const pipelineSection = async (
       });
 
       if (scheduledCount > 0) {
-        results.push(pass("scheduled", "Scheduled Publications", `${scheduledCount} article(s) scheduled`, "Counts articles queued for future publication. Scheduled publishing ensures consistent daily output without manual intervention."));
+        results.push(pass("scheduled", "Scheduled Content", `${scheduledCount} item(s) scheduled (social/email)`, "Counts scheduled social media posts and email campaigns. Note: article publishing goes directly through the content-selector, not this queue."));
       } else {
-        results.push(warn("scheduled", "Scheduled Publications", "No upcoming scheduled publications", "Scheduled publishing ensures consistent daily output.", "The content selector should be scheduling articles for publication. Check the cron schedule.", {
-          id: "fix-no-scheduled",
-          label: "Run Content Selector",
-          api: "/api/admin/diagnostics/fix",
-          payload: { fixType: "run_content_selector" },
-          rerunGroup: "pipeline",
-        }));
+        // This is NOT a warning — articles publish directly via content-selector.
+        // Only warn if someone has specifically set up scheduled content campaigns.
+        results.push(pass("scheduled", "Scheduled Content", "No scheduled social/email content", "Scheduled content queue for social media and email campaigns. Article publishing is handled directly by the content-selector cron, not this queue."));
       }
     } catch {
-      results.push(warn("scheduled", "Scheduled Publications", "Could not check scheduled content", "Checks scheduled publication queue."));
+      results.push(warn("scheduled", "Scheduled Content", "Could not check scheduled content", "Checks scheduled content queue."));
     }
 
     // ── 5. Content Quality (sample check) ──────────────────────────────

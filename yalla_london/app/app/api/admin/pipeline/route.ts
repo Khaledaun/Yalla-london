@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
 import { prisma } from '@/lib/db';
+import { getDefaultSiteId } from '@/config/sites';
 
 // GET - Pipeline status and automation information
 export const GET = withAdminAuth(async (request: NextRequest) => {
@@ -168,14 +169,15 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       }
     };
 
-    // Get pipeline statistics
+    // Get pipeline statistics — scoped by siteId for multi-site isolation
+    const pipeSiteId = request.headers.get("x-site-id") || searchParams.get("siteId") || getDefaultSiteId();
     const pipelineStats = {
-      total_content: await prisma.blogPost.count(),
-      published_content: await prisma.blogPost.count({ where: { published: true } }),
+      total_content: await prisma.blogPost.count({ where: { siteId: pipeSiteId } }),
+      published_content: await prisma.blogPost.count({ where: { published: true, siteId: pipeSiteId } }),
       scheduled_content: await prisma.scheduledContent.count(),
-      pending_topics: await prisma.topicProposal.count({ where: { status: 'pending' } }),
-      approved_topics: await prisma.topicProposal.count({ where: { status: 'approved' } }),
-      in_progress_topics: await prisma.topicProposal.count({ where: { status: 'in_progress' } }),
+      pending_topics: await prisma.topicProposal.count({ where: { status: 'pending', site_id: pipeSiteId } }),
+      approved_topics: await prisma.topicProposal.count({ where: { status: 'approved', site_id: pipeSiteId } }),
+      in_progress_topics: await prisma.topicProposal.count({ where: { status: 'in_progress', site_id: pipeSiteId } }),
       seo_audits_completed: await prisma.seoAuditResult.count(),
       automation_runs_today: recentLogs.filter(log => {
         const logDate = new Date(log.timestamp);

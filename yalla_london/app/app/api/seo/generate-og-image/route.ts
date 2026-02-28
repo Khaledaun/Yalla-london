@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       title: title.substring(0, 70), // Limit title length
       description: description ? description.substring(0, 120) : '',
       type: type,
-      template: 'yalla-london', // Custom template
+      template: siteId, // Per-site template
       width: '1200',
       height: '630'
     });

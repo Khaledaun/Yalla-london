@@ -43,7 +43,7 @@ export function getPinterestConfig() {
     accessToken: process.env.PINTEREST_ACCESS_TOKEN ?? "",
     redirectUri:
       process.env.PINTEREST_REDIRECT_URI ??
-      `${process.env.NEXTAUTH_URL ?? "https://yalla-london.com"}/api/auth/pinterest/callback`,
+      `${process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.yalla-london.com"}/api/auth/pinterest/callback`,
   };
 }
 

@@ -125,7 +125,8 @@ export async function enhanceReservoirDraft(
 ): Promise<EnhanceResult> {
   const draftId = draft.id as string;
   const keyword = (draft.keyword as string) || "travel";
-  const siteId = (draft.site_id as string) || "yalla-london";
+  const { getDefaultSiteId } = await import("@/config/sites");
+  const siteId = (draft.site_id as string) || getDefaultSiteId();
   const previousScore = (draft.quality_score as number) || 0;
 
   try {

@@ -113,10 +113,13 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   try {
     const { prisma } = await import("@/lib/db");
     const staticSlugs = new Set(allStaticPosts.map((p) => p.slug));
+    const catHeaders = await headers();
+    const catSiteId = catHeaders.get("x-site-id") || getDefaultSiteId();
     const dbResults = await prisma.blogPost.findMany({
       where: {
         published: true,
         deletedAt: null,
+        siteId: catSiteId,
         tags: { has: category.slug },
       },
       select: {

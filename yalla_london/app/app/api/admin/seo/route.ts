@@ -16,13 +16,13 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       case "overview":
         return await getSEOOverview(siteId);
       case "trends":
-        return await getSEOTrends();
+        return await getSEOTrends(siteId);
       case "audits":
         return await getSEOAudits();
       case "articles":
         return await getArticlesWithSEOData(siteId);
       case "quick-fixes":
-        return await getQuickFixes();
+        return await getQuickFixes(siteId);
       default:
         return await getSEOOverview(siteId);
     }
@@ -372,10 +372,10 @@ async function handleRunFullAudit(siteId: string) {
   });
 }
 
-async function getSEOTrends() {
+async function getSEOTrends(siteId: string) {
   const trends = await prisma.blogPost.findMany({
     select: { seo_score: true, created_at: true, page_type: true },
-    where: { seo_score: { not: null } },
+    where: { seo_score: { not: null }, siteId, deletedAt: null },
     orderBy: { created_at: "desc" },
     take: 100,
   });
@@ -422,7 +422,7 @@ async function getSEOAudits() {
   return NextResponse.json({ audits });
 }
 
-async function getQuickFixes() {
+async function getQuickFixes(siteId: string) {
   const articlesNeedingFixes = await prisma.blogPost.findMany({
     where: {
       OR: [
@@ -431,6 +431,8 @@ async function getQuickFixes() {
         { featured_image: null },
       ],
       published: true,
+      siteId,
+      deletedAt: null,
     },
     select: {
       id: true,

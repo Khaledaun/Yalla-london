@@ -66,9 +66,14 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     // 3. Phase distribution counts
     const phaseCounts: Record<string, number> = {};
     try {
-      const counts = (await prisma.$queryRawUnsafe(
-        `SELECT current_phase, COUNT(*) as count FROM article_drafts GROUP BY current_phase`,
-      )) as Array<{ current_phase: string; count: bigint }>;
+      const counts = siteFilter
+        ? ((await prisma.$queryRawUnsafe(
+            `SELECT current_phase, COUNT(*) as count FROM article_drafts WHERE site_id = $1 GROUP BY current_phase`,
+            siteFilter,
+          )) as Array<{ current_phase: string; count: bigint }>)
+        : ((await prisma.$queryRawUnsafe(
+            `SELECT current_phase, COUNT(*) as count FROM article_drafts GROUP BY current_phase`,
+          )) as Array<{ current_phase: string; count: bigint }>);
       for (const row of counts) {
         phaseCounts[row.current_phase] = Number(row.count);
       }
@@ -98,12 +103,13 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     let publishedTodayCount = 0;
     try {
       reservoirCount = await prisma.articleDraft.count({
-        where: { current_phase: "reservoir" },
+        where: { current_phase: "reservoir", ...(siteFilter ? { site_id: siteFilter } : {}) },
       });
       publishedTodayCount = await prisma.articleDraft.count({
         where: {
           current_phase: "published",
           published_at: { gte: todayStart },
+          ...(siteFilter ? { site_id: siteFilter } : {}),
         },
       });
     } catch {

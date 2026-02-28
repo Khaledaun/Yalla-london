@@ -21,11 +21,13 @@ export interface IndexingSummary {
   neverSubmitted: number;
   errors: number;
   deindexed: number;
+  chronicFailures: number; // URLs with 5+ submission attempts still not indexed
 
   // Derived
   rate: number; // indexed / total × 100
   staleCount: number; // submitted >14d ago, still not indexed
   velocity7d: number; // newly indexed in last 7 days
+  velocity7dPrevious: number; // indexed in the 7 days before that (for trend comparison)
   orphanedCount: number; // alias for neverSubmitted (backwards compat)
 
   // Operational context
@@ -36,11 +38,14 @@ export interface IndexingSummary {
   blockers: Array<{ reason: string; count: number; severity: "critical" | "warning" | "info" }>;
   topBlocker: string | null;
 
+  // Hreflang reciprocity
+  hreflangMismatchCount: number; // pairs where EN is indexed but AR is not (or vice versa)
+
   // For the IndexingPanel to reuse
   dailyQuotaRemaining: number | null;
 }
 
-type StatusValue = "indexed" | "submitted" | "discovered" | "error" | "deindexed" | "never_submitted";
+type StatusValue = "indexed" | "submitted" | "discovered" | "error" | "deindexed" | "chronic_failure" | "never_submitted";
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
@@ -63,6 +68,7 @@ function resolveStatus(record: { status: string; indexing_state: string | null }
   if (record.status === "indexed" || record.indexing_state === "INDEXED" || record.indexing_state === "PARTIALLY_INDEXED") {
     return "indexed";
   }
+  if (record.status === "chronic_failure") return "chronic_failure";
   if (record.status === "error") return "error";
   if (record.status === "deindexed") return "deindexed";
   if (record.status === "submitted" || record.status === "pending") return "submitted";
@@ -79,68 +85,27 @@ function resolveStatus(record: { status: string; indexing_state: string | null }
  */
 export async function getIndexingSummary(siteId: string): Promise<IndexingSummary> {
   const { prisma } = await import("@/lib/db");
-  const { isYachtSite } = await import("@/config/sites");
-  const isYacht = isYachtSite(siteId);
+  const { getSiteDomain } = await import("@/config/sites");
 
-  // ── 1. Count all published content pages ──────────────────────────────
-
-  // Blog posts
-  let blogCount = 0;
+  // ── 1. Count all published/indexable pages ──────────────────────────────
+  // Uses getAllIndexableUrls (English-only) as single source of truth.
+  // This includes: static pages, blog posts (DB + static), news, events,
+  // information hub, categories, walks, shop products, yacht pages — everything.
+  let publishedCount = 0;
   try {
-    blogCount = await prisma.blogPost.count({
-      where: { published: true, siteId, deletedAt: null },
-    });
-  } catch { /* table may not exist */ }
-
-  // Static blog posts (Yalla London only — legacy)
-  let staticSlugs: string[] = [];
-  if (siteId === "yalla-london") {
+    const { getAllIndexableUrls } = await import("@/lib/seo/indexing-service");
+    const siteUrl = getSiteDomain(siteId);
+    const englishUrls = await getAllIndexableUrls(siteId, siteUrl, false);
+    publishedCount = englishUrls.length;
+  } catch (err) {
+    console.warn("[indexing-summary] getAllIndexableUrls failed, falling back to DB count:", err instanceof Error ? err.message : err);
+    // Fallback: just count DB blog posts if the comprehensive function fails
     try {
-      const { blogPosts: staticBlogPosts } = await import("@/data/blog-content");
-      const { extendedBlogPosts } = await import("@/data/blog-content-extended");
-      // Only count static slugs not already in DB
-      const dbSlugs = new Set(
-        (await prisma.blogPost.findMany({
-          where: { published: true, siteId, deletedAt: null },
-          select: { slug: true },
-        })).map((p: { slug: string }) => p.slug)
-      );
-      staticSlugs = [...staticBlogPosts, ...extendedBlogPosts]
-        .filter((p) => p.published && !dbSlugs.has(p.slug))
-        .map((p) => p.slug);
-    } catch { /* static data may not exist */ }
-  }
-
-  // News items (non-yacht sites only)
-  let newsCount = 0;
-  if (!isYacht) {
-    try {
-      newsCount = await prisma.newsItem.count({
-        where: {
-          siteId,
-          status: "published",
-          OR: [{ expires_at: null }, { expires_at: { gt: new Date() } }],
-        },
+      publishedCount = await prisma.blogPost.count({
+        where: { published: true, siteId, deletedAt: null },
       });
     } catch { /* table may not exist */ }
   }
-
-  // Yacht pages (yacht sites only)
-  let yachtPageCount = 0;
-  if (isYacht) {
-    try {
-      const [yachts, destinations, itineraries] = await Promise.allSettled([
-        prisma.yacht.count({ where: { siteId, status: "active" } }),
-        prisma.yachtDestination.count({ where: { siteId, status: "active" } }),
-        prisma.charterItinerary.count({ where: { siteId, status: "active" } }),
-      ]);
-      if (yachts.status === "fulfilled") yachtPageCount += yachts.value;
-      if (destinations.status === "fulfilled") yachtPageCount += destinations.value;
-      if (itineraries.status === "fulfilled") yachtPageCount += itineraries.value;
-    } catch { /* yacht tables may not exist */ }
-  }
-
-  const publishedCount = blogCount + staticSlugs.length + newsCount + yachtPageCount;
 
   // ── 2. Get all URLIndexingStatus records for this site ────────────────
 
@@ -178,6 +143,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
   let discovered = 0;
   let errors = 0;
   let deindexed = 0;
+  let chronicFailures = 0;
 
   for (const record of trackingRecords) {
     const status = resolveStatus(record);
@@ -186,6 +152,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     else if (status === "discovered") discovered++;
     else if (status === "error") errors++;
     else if (status === "deindexed") deindexed++;
+    else if (status === "chronic_failure") chronicFailures++;
   }
 
   // "neverSubmitted" = published pages that have NO tracking record at all.
@@ -195,7 +162,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
   const neverSubmitted = Math.max(0, publishedCount - tracked);
 
   // Total must equal the sum of all buckets — this is the invariant
-  const total = indexed + submitted + discovered + neverSubmitted + errors + deindexed;
+  const total = indexed + submitted + discovered + neverSubmitted + errors + deindexed + chronicFailures;
 
   // ── 4. Stale submissions (submitted >14d, still not indexed) ──────────
 
@@ -211,18 +178,24 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     });
   } catch { /* non-critical */ }
 
-  // ── 5. Velocity: indexed in last 7 days ───────────────────────────────
+  // ── 5. Velocity: indexed in last 7 days + previous 7 days (trend) ────
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const fourteenDaysAgoV = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   let velocity7d = 0;
+  let velocity7dPrevious = 0;
   try {
-    velocity7d = await prisma.uRLIndexingStatus.count({
-      where: {
-        site_id: siteId,
-        status: "indexed",
-        updated_at: { gte: sevenDaysAgo },
-      },
-    });
+    [velocity7d, velocity7dPrevious] = await Promise.all([
+      prisma.uRLIndexingStatus.count({
+        where: { site_id: siteId, status: "indexed", updated_at: { gte: sevenDaysAgo } },
+      }),
+      prisma.uRLIndexingStatus.count({
+        where: {
+          site_id: siteId, status: "indexed",
+          updated_at: { gte: fourteenDaysAgoV, lt: sevenDaysAgo },
+        },
+      }),
+    ]);
   } catch { /* non-critical */ }
 
   // ── 6. Channel breakdown ──────────────────────────────────────────────
@@ -296,7 +269,42 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     dailyQuotaRemaining = Math.max(0, 200 - usedToday);
   } catch { /* non-critical */ }
 
-  // ── 10. Build blockers list ───────────────────────────────────────────
+  // ── 10. Hreflang reciprocity check ────────────────────────────────────
+  // Count pairs where one language version is indexed but its counterpart is not.
+  let hreflangMismatchCount = 0;
+  try {
+    const indexedUrls = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId, status: "indexed" },
+      select: { url: true },
+    });
+    for (const { url } of indexedUrls) {
+      try {
+        const urlObj = new URL(url);
+        const path = urlObj.pathname;
+        let counterpartPath: string | null = null;
+        if (path.startsWith("/ar/") || path === "/ar") {
+          counterpartPath = path === "/ar" ? "/" : path.replace(/^\/ar/, "");
+        } else {
+          counterpartPath = path === "/" ? "/ar" : `/ar${path}`;
+        }
+        if (counterpartPath) {
+          const counterpartUrl = `${urlObj.origin}${counterpartPath}`;
+          const counterpart = await prisma.uRLIndexingStatus.findFirst({
+            where: { site_id: siteId, url: counterpartUrl },
+            select: { status: true },
+          });
+          // Only count if counterpart exists in tracking but is NOT indexed
+          if (counterpart && counterpart.status !== "indexed") {
+            hreflangMismatchCount++;
+          }
+        }
+      } catch { /* URL parse error — skip */ }
+    }
+    // Each pair would be counted from both sides; deduplicate by halving
+    hreflangMismatchCount = Math.ceil(hreflangMismatchCount / 2);
+  } catch { /* non-critical */ }
+
+  // ── 11. Build blockers list ───────────────────────────────────────────
 
   const blockers: IndexingSummary["blockers"] = [];
 
@@ -342,6 +350,13 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
       severity: "critical",
     });
   }
+  if (chronicFailures > 0) {
+    blockers.push({
+      reason: `${chronicFailures} article${chronicFailures === 1 ? "" : "s"} failed to index after 5+ attempts — investigate content quality or technical issues`,
+      count: chronicFailures,
+      severity: "critical",
+    });
+  }
 
   // Cron health checks
   try {
@@ -372,11 +387,19 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     }
   } catch { /* non-critical */ }
 
+  if (hreflangMismatchCount > 0) {
+    blockers.push({
+      reason: `${hreflangMismatchCount} hreflang pair${hreflangMismatchCount === 1 ? "" : "s"} mismatched — one language version is indexed but the other is not`,
+      count: hreflangMismatchCount,
+      severity: "warning",
+    });
+  }
+
   // Sort by severity
   const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2 };
   blockers.sort((a, b) => (severityOrder[a.severity] ?? 2) - (severityOrder[b.severity] ?? 2));
 
-  // ── 11. Assemble result ───────────────────────────────────────────────
+  // ── 12. Assemble result ───────────────────────────────────────────────
 
   return {
     total,
@@ -386,14 +409,17 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     neverSubmitted,
     errors,
     deindexed,
+    chronicFailures,
     rate: total > 0 ? Math.round((indexed / total) * 100) : 0,
     staleCount,
     velocity7d,
+    velocity7dPrevious,
     orphanedCount: neverSubmitted,
     avgTimeToIndexDays,
     lastSubmissionAge: ageStr(lastSubmissionDate),
     lastVerificationAge: ageStr(lastVerificationDate),
     channelBreakdown: { indexnow: viaIndexNow, sitemap: viaSitemap, googleApi: viaGoogleApi },
+    hreflangMismatchCount,
     blockers,
     topBlocker: blockers.length > 0 ? blockers[0].reason : null,
     dailyQuotaRemaining,

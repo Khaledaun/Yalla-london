@@ -159,25 +159,53 @@ async function handleIndexing(request: NextRequest) {
           continue;
         }
 
-        // 1. Submit via IndexNow (Bing/Yandex)
-        let indexNowResult = { submitted: 0, status: "skipped" };
+        // Dedup guard: skip URLs already submitted via IndexNow within last 6 hours
+        // Prevents redundant re-submissions when cron runs overlap or retry
+        const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+        let dedupedUrls = allUrls;
         try {
-          const indexNowKey = process.env.INDEXNOW_KEY;
-          if (indexNowKey) {
-            const inResults = await submitToIndexNow(allUrls, siteUrl, indexNowKey);
-            const success = inResults.some((r) => r.success);
-            indexNowResult = {
-              submitted: success ? allUrls.length : 0,
-              status: success ? "success" : inResults[0]?.message || "failed",
-            };
-          } else {
-            indexNowResult = { submitted: 0, status: "INDEXNOW_KEY_not_set" };
+          const recentlySubmitted = await prisma.uRLIndexingStatus.findMany({
+            where: {
+              site_id: siteId,
+              url: { in: allUrls },
+              submitted_indexnow: true,
+              last_submitted_at: { gte: sixHoursAgo },
+            },
+            select: { url: true },
+          });
+          const recentSet = new Set(recentlySubmitted.map((r: { url: string }) => r.url));
+          dedupedUrls = allUrls.filter((u) => !recentSet.has(u));
+          if (recentlySubmitted.length > 0) {
+            console.log(`[google-indexing] Dedup: skipped ${recentlySubmitted.length} URLs submitted within 6h for ${siteId}`);
           }
-        } catch (e) {
-          indexNowResult = {
-            submitted: 0,
-            status: `error: ${e instanceof Error ? e.message : String(e)}`,
-          };
+        } catch (dedupErr) {
+          console.warn(`[google-indexing] Dedup check failed for ${siteId}:`, dedupErr instanceof Error ? dedupErr.message : dedupErr);
+          // Continue with all URLs if dedup fails — better to double-submit than miss
+        }
+
+        // 1. Submit via IndexNow (Bing/Yandex) — uses deduped URLs to avoid redundant submissions
+        let indexNowResult = { submitted: 0, status: "skipped" };
+        if (dedupedUrls.length === 0) {
+          indexNowResult = { submitted: 0, status: "all_recently_submitted" };
+        } else {
+          try {
+            const indexNowKey = process.env.INDEXNOW_KEY;
+            if (indexNowKey) {
+              const inResults = await submitToIndexNow(dedupedUrls, siteUrl, indexNowKey);
+              const success = inResults.some((r) => r.success);
+              indexNowResult = {
+                submitted: success ? dedupedUrls.length : 0,
+                status: success ? "success" : inResults[0]?.message || "failed",
+              };
+            } else {
+              indexNowResult = { submitted: 0, status: "INDEXNOW_KEY_not_set" };
+            }
+          } catch (e) {
+            indexNowResult = {
+              submitted: 0,
+              status: `error: ${e instanceof Error ? e.message : String(e)}`,
+            };
+          }
         }
 
         // 2. Submit sitemap to Google via GSC API
@@ -246,49 +274,80 @@ async function handleIndexing(request: NextRequest) {
     }
 
     // ── Resubmit stuck pages (submitted >7d ago, not yet indexed) ────
+    // Adaptive channel: events/news resubmit via Google Indexing API if available,
+    // standard pages via IndexNow.
     let stuckResubmitted = 0;
     if (Date.now() - _cronStart < 50_000) {
       try {
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         const stuckPages = await prisma.uRLIndexingStatus.findMany({
           where: {
-            status: { in: ["submitted", "pending_review"] },
+            status: { in: ["submitted", "pending_review", "discovered"] },
             last_submitted_at: { lt: sevenDaysAgo },
           },
-          select: { url: true, site_id: true },
+          select: { url: true, site_id: true, submitted_google_api: true },
           take: 20, // cap per run to avoid timeout
         });
 
         if (stuckPages.length > 0) {
-          // Group by site for batch IndexNow submission
+          // Group by site for batch submission
           const { getDefaultSiteId: getDefSiteId } = await import("@/config/sites");
-          const bySite = new Map<string, string[]>();
+          const bySite = new Map<string, Array<{ url: string; useGoogleApi: boolean }>>();
           for (const page of stuckPages) {
             const sid = page.site_id || getDefSiteId();
             if (!bySite.has(sid)) bySite.set(sid, []);
-            bySite.get(sid)!.push(page.url);
+            // If previously submitted via Google Indexing API, resubmit the same way
+            bySite.get(sid)!.push({ url: page.url, useGoogleApi: page.submitted_google_api });
           }
 
-          for (const [sid, urls] of bySite) {
+          for (const [sid, pages] of bySite) {
             if (Date.now() - _cronStart > 53_000) break;
             try {
               const { getSiteDomain: getDomain } = await import("@/config/sites");
               const siteUrl = getDomain(sid);
+
+              // Split into Google API vs IndexNow paths
+              const apiUrls = pages.filter((p) => p.useGoogleApi).map((p) => p.url);
+              const indexNowUrls = pages.filter((p) => !p.useGoogleApi).map((p) => p.url);
+
+              // Resubmit via Google Indexing API for events/news
+              if (apiUrls.length > 0 && Date.now() - _cronStart < 53_000) {
+                try {
+                  const { GoogleIndexingAPI } = await import("@/lib/seo/google-indexing-api");
+                  const api = new GoogleIndexingAPI();
+                  if (api.isConfigured()) {
+                    const batchResult = await api.submitBatch(apiUrls, "URL_UPDATED", 53_000, _cronStart);
+                    stuckResubmitted += batchResult.submitted;
+                    for (const r of batchResult.results) {
+                      if (r.success) {
+                        await prisma.uRLIndexingStatus.update({
+                          where: { site_id_url: { site_id: sid, url: r.url } },
+                          data: { last_submitted_at: new Date(), submission_attempts: { increment: 1 } },
+                        }).catch(() => {});
+                      }
+                    }
+                  }
+                } catch (apiErr) {
+                  console.warn(`[google-indexing] Stuck API resubmit failed for ${sid}:`, apiErr instanceof Error ? apiErr.message : apiErr);
+                }
+              }
+
+              // Resubmit via IndexNow for standard pages
               const indexNowKey = process.env.INDEXNOW_KEY;
-              if (indexNowKey) {
-                const resubResults = await submitToIndexNow(urls, siteUrl, indexNowKey);
+              if (indexNowKey && indexNowUrls.length > 0 && Date.now() - _cronStart < 53_000) {
+                const resubResults = await submitToIndexNow(indexNowUrls, siteUrl, indexNowKey);
                 const resubSuccess = resubResults.some((r) => r.success);
                 if (resubSuccess) {
-                  // Update submission timestamp
+                  // Update submission timestamp + increment attempts
                   await Promise.allSettled(
-                    urls.map((url) =>
+                    indexNowUrls.map((url) =>
                       prisma.uRLIndexingStatus.update({
                         where: { site_id_url: { site_id: sid, url } },
-                        data: { last_submitted_at: new Date() },
+                        data: { last_submitted_at: new Date(), submission_attempts: { increment: 1 } },
                       })
                     )
                   );
-                  stuckResubmitted += urls.length;
+                  stuckResubmitted += indexNowUrls.length;
                 }
               }
             } catch (e) {

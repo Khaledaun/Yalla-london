@@ -6,19 +6,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
 
 /**
- * Process Indexing Queue — Google Indexing API for Events & News
+ * Process Indexing Queue — Google Indexing API for Events & News ONLY
  *
- * Runs 3× daily (7:00, 13:00, 20:00 UTC).
+ * Runs 3× daily (7:15, 13:15, 20:15 UTC) — 15 min after seo-agent.
  *
- * Submits qualifying URLs (events, news) via Google Indexing API for instant indexing.
- * Regular blog content continues to use IndexNow + Sitemap (standard path).
+ * SOLE RESPONSIBILITY: Submit events/news URLs via Google Indexing API.
+ * Standard blog content is handled by google-indexing cron (9:15 daily) via IndexNow + Sitemap.
+ * This separation eliminates duplicate IndexNow submissions.
  *
  * Google Indexing API quota: 200 URLs/day.
  * Budget: 53s with 7s buffer (Vercel Pro).
- *
- * Pipeline position:
- *   google-indexing (9:15) → process-indexing-queue (7:00, 13:00, 20:00)
- *   These don't overlap: google-indexing handles blogs, this handles events/news.
  */
 
 async function handleProcessQueue(request: NextRequest) {
@@ -50,8 +47,7 @@ async function handleProcessQueue(request: NextRequest) {
 
     const { prisma } = await import("@/lib/db");
     const { GoogleIndexingAPI, classifyUrl, getBilingualPair } = await import("@/lib/seo/google-indexing-api");
-    const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
-    const { getActiveSiteIds, getSiteDomain, getSiteSeoConfig } = await import("@/config/sites");
+    const { getActiveSiteIds, getSiteDomain } = await import("@/config/sites");
 
     const api = new GoogleIndexingAPI();
     const siteIds = getActiveSiteIds();
@@ -163,47 +159,11 @@ async function handleProcessQueue(request: NextRequest) {
           }
         }
 
-        // ── 5. Submit standard URLs via IndexNow (Bing/Yandex) ──
-        if (standardUrls.length > 0 && Date.now() - cronStart < BUDGET_MS) {
-          const indexNowKey = process.env.INDEXNOW_KEY;
-          if (indexNowKey) {
-            try {
-              const inResults = await submitToIndexNow(standardUrls, siteUrl, indexNowKey);
-              const success = inResults.some((r) => r.success);
-              if (success) {
-                siteIndexNowSubmitted = standardUrls.length;
-
-                // Track submissions
-                await Promise.allSettled(
-                  standardUrls.map((url) =>
-                    prisma.uRLIndexingStatus.update({
-                      where: { site_id_url: { site_id: siteId, url } },
-                      data: {
-                        status: "submitted",
-                        submitted_indexnow: true,
-                        last_submitted_at: new Date(),
-                      },
-                    })
-                  )
-                );
-              }
-            } catch (e) {
-              console.warn(`[process-indexing-queue] IndexNow failed for ${siteId}:`, e instanceof Error ? e.message : e);
-              totalIndexNowFailed += standardUrls.length;
-            }
-          }
-        }
-
-        // ── 6. Also submit sitemap to GSC for this site ──
-        if (Date.now() - cronStart < BUDGET_MS) {
-          try {
-            const { GoogleSearchConsoleAPI } = await import("@/lib/seo/indexing-service");
-            const gscPropertyUrl = getSiteSeoConfig(siteId).gscSiteUrl;
-            const gsc = new GoogleSearchConsoleAPI(gscPropertyUrl);
-            await gsc.submitSitemap(`${siteUrl}/sitemap.xml`);
-          } catch (e) {
-            console.warn(`[process-indexing-queue] Sitemap submission failed for ${siteId}:`, e instanceof Error ? e.message : e);
-          }
+        // NOTE: Standard URLs (non-events/news) are NOT submitted here.
+        // IndexNow + sitemap submission is handled by google-indexing cron (9:15 daily).
+        // This cron only handles Google Indexing API for events/news.
+        if (standardUrls.length > 0) {
+          console.log(`[process-indexing-queue] ${standardUrls.length} standard URLs for ${siteId} — deferred to google-indexing cron`);
         }
 
         totalApiSubmitted += siteApiSubmitted;

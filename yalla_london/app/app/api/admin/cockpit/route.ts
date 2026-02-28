@@ -86,6 +86,8 @@ interface IndexingStatus {
   lastVerificationAge: string | null;
   channelBreakdown: { indexnow: number; sitemap: number; googleApi: number };
   dailyQuotaRemaining: number | null;
+  chronicFailures: number;
+  velocity7dPrevious: number;
 }
 
 interface CronHealth {
@@ -425,6 +427,8 @@ async function buildIndexing(_prisma: any, activeSiteIds: string[]): Promise<Ind
     indexing.lastVerificationAge = summary.lastVerificationAge;
     indexing.channelBreakdown = summary.channelBreakdown;
     indexing.dailyQuotaRemaining = summary.dailyQuotaRemaining;
+    indexing.chronicFailures = summary.chronicFailures;
+    indexing.velocity7dPrevious = summary.velocity7dPrevious;
   } catch (err) {
     console.warn("[cockpit] indexing query failed:", err instanceof Error ? err.message : err);
   }
@@ -718,6 +722,8 @@ function emptyIndexing(): IndexingStatus {
     lastSubmissionAge: null, lastVerificationAge: null,
     channelBreakdown: { indexnow: 0, sitemap: 0, googleApi: 0 },
     dailyQuotaRemaining: null,
+    chronicFailures: 0,
+    velocity7dPrevious: 0,
   };
 }
 

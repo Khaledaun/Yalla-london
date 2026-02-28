@@ -870,10 +870,11 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, slugs, siteId: reqSiteId } = body as {
-      action: "submit" | "submit_all" | "resubmit" | "compliance_audit";
+    const { action, slugs, siteId: reqSiteId, url: actionUrl } = body as {
+      action: "submit" | "submit_all" | "resubmit" | "compliance_audit" | "verify_url" | "resubmit_stuck";
       slugs?: string[];
       siteId?: string;
+      url?: string;
     };
 
     const { getDefaultSiteId: getDefaultSite, getSiteConfig, getSiteDomain } = await import("@/config/sites");
@@ -884,6 +885,135 @@ export async function POST(request: NextRequest) {
     const siteConfig = getSiteConfig(siteId);
     // CRITICAL: Always use getSiteDomain() — returns "https://www.{domain}"
     const baseUrl = getSiteDomain(siteId);
+
+    // ── Verify URL: Immediately check a single URL's indexing status via GSC ──
+    if (action === "verify_url") {
+      if (!actionUrl) {
+        return NextResponse.json({ error: "URL required for verify_url action" }, { status: 400 });
+      }
+      try {
+        const { GoogleSearchConsole } = await import("@/lib/integrations/google-search-console");
+        const { getSiteSeoConfig } = await import("@/config/sites");
+        const gsc = new GoogleSearchConsole();
+        if (!gsc.isConfigured()) {
+          return NextResponse.json({ success: false, error: "GSC not configured" }, { status: 400 });
+        }
+        const seoConfig = getSiteSeoConfig(siteId);
+        gsc.setSiteUrl(seoConfig.gscSiteUrl);
+        const inspection = await gsc.getIndexingStatus(actionUrl);
+
+        if (inspection) {
+          const indexingStateMatch = inspection.indexingState === "INDEXED" || inspection.indexingState === "PARTIALLY_INDEXED";
+          const coverageStateMatch = typeof inspection.coverageState === "string" &&
+            inspection.coverageState.toLowerCase().includes("indexed");
+          const isIndexed = indexingStateMatch || coverageStateMatch;
+
+          let status = "submitted";
+          if (isIndexed) status = "indexed";
+          else if (inspection.coverageState?.toLowerCase().includes("crawled") || inspection.coverageState?.toLowerCase().includes("discovered")) {
+            status = "discovered";
+          }
+
+          // Update tracking record
+          await prisma.uRLIndexingStatus.updateMany({
+            where: { site_id: siteId, url: actionUrl },
+            data: {
+              status,
+              indexing_state: inspection.indexingState,
+              coverage_state: inspection.coverageState,
+              last_inspected_at: new Date(),
+              last_error: null,
+            },
+          });
+
+          return NextResponse.json({
+            success: true,
+            action: "verify_url",
+            url: actionUrl,
+            isIndexed,
+            indexingState: inspection.indexingState,
+            coverageState: inspection.coverageState,
+            lastCrawlTime: inspection.lastCrawlTime,
+            status,
+          });
+        } else {
+          return NextResponse.json({
+            success: true,
+            action: "verify_url",
+            url: actionUrl,
+            isIndexed: false,
+            message: "GSC returned no data — URL may not be in Google's index yet",
+          });
+        }
+      } catch (verifyErr) {
+        return NextResponse.json({
+          success: false,
+          error: `Verification failed: ${verifyErr instanceof Error ? verifyErr.message : String(verifyErr)}`,
+        }, { status: 500 });
+      }
+    }
+
+    // ── Resubmit Stuck: Reset all stuck/error URLs for resubmission ──
+    if (action === "resubmit_stuck") {
+      try {
+        const { submitToIndexNow: resubmitToIndexNow } = await import("@/lib/seo/indexing-service");
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+        // Find all stuck URLs for this site
+        const stuckUrls = await prisma.uRLIndexingStatus.findMany({
+          where: {
+            site_id: siteId,
+            status: { in: ["submitted", "discovered", "pending", "error", "chronic_failure"] },
+            last_submitted_at: { lt: sevenDaysAgo },
+          },
+          select: { url: true, id: true },
+          take: 50,
+        });
+
+        if (stuckUrls.length === 0) {
+          return NextResponse.json({ success: true, action: "resubmit_stuck", resubmitted: 0, message: "No stuck URLs found" });
+        }
+
+        const urls = stuckUrls.map((u: { url: string }) => u.url);
+        let resubmitted = 0;
+
+        // Submit via IndexNow
+        const indexNowKey = process.env.INDEXNOW_KEY;
+        if (indexNowKey) {
+          const results = await resubmitToIndexNow(urls, baseUrl, indexNowKey);
+          const success = results.some((r) => r.success);
+          if (success) {
+            await Promise.allSettled(
+              stuckUrls.map((u: { id: string }) =>
+                prisma.uRLIndexingStatus.update({
+                  where: { id: u.id },
+                  data: {
+                    status: "submitted",
+                    submitted_indexnow: true,
+                    last_submitted_at: new Date(),
+                    submission_attempts: { increment: 1 },
+                    last_error: null,
+                  },
+                })
+              )
+            );
+            resubmitted = urls.length;
+          }
+        }
+
+        return NextResponse.json({
+          success: true,
+          action: "resubmit_stuck",
+          resubmitted,
+          totalStuck: stuckUrls.length,
+        });
+      } catch (resubErr) {
+        return NextResponse.json({
+          success: false,
+          error: `Resubmit failed: ${resubErr instanceof Error ? resubErr.message : String(resubErr)}`,
+        }, { status: 500 });
+      }
+    }
 
     // ── Compliance Audit: check all published pages against SEO standards ──
     if (action === "compliance_audit") {

@@ -81,7 +81,7 @@ interface CockpitData {
   pipeline: PipelineStatus;
   indexing: {
     total: number; indexed: number; submitted: number; discovered: number; neverSubmitted: number; errors: number; rate: number;
-    staleCount: number; orphanedCount: number; deindexedCount: number; velocity7d: number;
+    staleCount: number; orphanedCount: number; deindexedCount: number; chronicFailures: number; velocity7d: number; velocity7dPrevious: number;
     avgTimeToIndexDays: number | null; topBlocker: string | null;
     blockers: Array<{ reason: string; count: number; severity: "critical" | "warning" | "info" }>;
     lastSubmissionAge: string | null; lastVerificationAge: string | null;
@@ -360,6 +360,54 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
     }
   };
 
+  const verifyUrl = async (url: string) => {
+    setSubmitLoading(`verify-${url}`);
+    setSubmitResult(null);
+    try {
+      const res = await fetch("/api/admin/content-indexing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify_url", url, siteId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSubmitResult(json.isIndexed
+          ? `✅ ${json.url} is INDEXED (${json.coverageState || json.indexingState})`
+          : `⚠️ ${json.url} — ${json.coverageState || json.message || "Not indexed yet"}`
+        );
+      } else {
+        setSubmitResult(`❌ ${json.error || "Verify failed"}`);
+      }
+      await fetchData();
+    } catch (e) {
+      setSubmitResult(`❌ ${e instanceof Error ? e.message : "Error"}`);
+    } finally {
+      setSubmitLoading(null);
+    }
+  };
+
+  const resubmitStuck = async () => {
+    setSubmitLoading("resubmit-stuck");
+    setSubmitResult(null);
+    try {
+      const res = await fetch("/api/admin/content-indexing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resubmit_stuck", siteId }),
+      });
+      const json = await res.json();
+      setSubmitResult(json.success
+        ? `✅ Resubmitted ${json.resubmitted} stuck articles`
+        : `❌ ${json.error || "Resubmit failed"}`
+      );
+      await fetchData();
+    } catch (e) {
+      setSubmitResult(`❌ ${e instanceof Error ? e.message : "Error"}`);
+    } finally {
+      setSubmitLoading(null);
+    }
+  };
+
   const statusColor = {
     indexed: "text-emerald-400 bg-emerald-950/40 border-emerald-800",
     submitted: "text-blue-400 bg-blue-950/40 border-blue-800",
@@ -488,8 +536,15 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
               >
                 {submitLoading === "all" ? "⏳ Submitting…" : "📤 Submit All Unsubmitted"}
               </button>
+              <button
+                onClick={resubmitStuck}
+                disabled={submitLoading === "resubmit-stuck"}
+                className="px-4 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-white text-xs font-semibold disabled:opacity-50"
+              >
+                {submitLoading === "resubmit-stuck" ? "⏳ Resubmitting…" : "🔄 Resubmit All Stuck"}
+              </button>
               {submitResult && (
-                <span className={`text-xs px-2 py-1 rounded-lg ${submitResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
+                <span className={`text-xs px-2 py-1 rounded-lg ${submitResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : submitResult.startsWith("⚠️") ? "bg-amber-950/30 text-amber-300" : "bg-red-950/30 text-red-300"}`}>
                   {submitResult}
                 </span>
               )}
@@ -574,6 +629,13 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
                                 {submitLoading === article.slug ? "⏳" : "Submit"}
                               </button>
                             )}
+                            <button
+                              onClick={() => verifyUrl(article.url)}
+                              disabled={submitLoading === `verify-${article.url}`}
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-purple-900/40 hover:bg-purple-900/70 text-purple-300 border border-purple-800 disabled:opacity-50"
+                            >
+                              {submitLoading === `verify-${article.url}` ? "⏳" : "Check"}
+                            </button>
                             {(article.notIndexedReasons.length > 0 || article.coverageState) && (
                               <button
                                 onClick={() => setExpanded(isExpanded ? null : article.id)}
@@ -837,6 +899,11 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
           <div className="bg-zinc-800/50 rounded-lg p-2">
             <div className={`text-lg font-bold ${(indexing.velocity7d ?? 0) > 0 ? "text-blue-400" : "text-zinc-500"}`}>
               {indexing.velocity7d ?? 0}
+              {typeof indexing.velocity7dPrevious === "number" && (indexing.velocity7d ?? 0) !== indexing.velocity7dPrevious && (
+                <span className={`text-[10px] ml-1 ${(indexing.velocity7d ?? 0) > indexing.velocity7dPrevious ? "text-emerald-400" : "text-red-400"}`}>
+                  {(indexing.velocity7d ?? 0) > indexing.velocity7dPrevious ? "▲" : "▼"} was {indexing.velocity7dPrevious}
+                </span>
+              )}
             </div>
             <div className="text-zinc-500 text-[10px]">This Week</div>
           </div>

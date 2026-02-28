@@ -191,7 +191,6 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       analyzeSearchPerformance,
       analyzeTrafficPatterns,
       autoOptimizeLowCTRMeta,
-      submitUnindexedPages,
       flagContentForStrengthening,
     } = await import("@/lib/seo/seo-intelligence");
 
@@ -256,10 +255,26 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       }
     }
 
-    // 12. SUBMIT ALL PAGES FOR INDEXING (idempotent)
-    report.indexingSubmission = hasBudget(5_000)
-      ? await submitUnindexedPages(prisma, fixes, siteId)
-      : { status: "budget_exhausted" };
+    // 12. INDEXING STATUS CHECK (discovery only — submission handled by google-indexing cron)
+    if (hasBudget(3_000)) {
+      try {
+        const unindexed = await prisma.uRLIndexingStatus.count({
+          where: { site_id: siteId, status: { notIn: ["indexed"] } },
+        });
+        const total = await prisma.uRLIndexingStatus.count({ where: { site_id: siteId } });
+        report.indexingSubmission = {
+          status: "discovery_only",
+          unindexedCount: unindexed,
+          totalTracked: total,
+          note: "Submission delegated to google-indexing cron (9:15 UTC)",
+        };
+      } catch (indexCheckErr) {
+        console.warn(`[seo-agent:${siteId}] Indexing status check failed:`, indexCheckErr instanceof Error ? indexCheckErr.message : indexCheckErr);
+        report.indexingSubmission = { status: "check_failed" };
+      }
+    } else {
+      report.indexingSubmission = { status: "budget_exhausted" };
+    }
 
     // 12b. AUTO-INJECT STRUCTURED DATA FOR POSTS MISSING SCHEMAS
     try {

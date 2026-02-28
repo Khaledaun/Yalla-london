@@ -49,6 +49,7 @@ const navigation = [
     items: [
       { label: 'HQ Dashboard',      href: '/admin' },
       { label: 'Health Monitor',    href: '/admin/health-monitoring' },
+      { label: 'Cron Success Monitor', href: '/admin/cron-monitor' },
       { label: 'Cron Logs',         href: '/admin/cron-logs' },
       { label: 'Analytics',         href: '/admin/command-center/analytics' },
       { label: 'Ops Center',        href: '/admin/ops' },

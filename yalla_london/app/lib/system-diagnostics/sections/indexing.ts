@@ -477,7 +477,7 @@ const indexingSection = async (
 
       // ── F2. SEO Cron (submits to IndexNow) ────────────────────────────
       const seoCronRuns = await prisma.cronJobLog.findMany({
-        where: { job_name: "seo-cron", started_at: { gte: threeDaysAgo } },
+        where: { job_name: { startsWith: "seo-cron" }, started_at: { gte: threeDaysAgo } },
         orderBy: { started_at: "desc" },
         take: 5,
         select: { status: true, started_at: true, error_message: true, items_processed: true },
@@ -551,9 +551,14 @@ const indexingSection = async (
       }
 
       // ── G2. Thin Content ──────────────────────────────────────────────
-      const thinPosts = await prisma.blogPost.count({
-        where: { siteId, published: true, word_count_en: { lt: 800 } },
+      // word_count_en doesn't exist on BlogPost schema — compute from content_en
+      const postsWithContent = await prisma.blogPost.findMany({
+        where: { siteId, published: true },
+        select: { content_en: true },
       });
+      const thinPosts = postsWithContent.filter(
+        (p) => (p.content_en || "").split(/\s+/).filter(Boolean).length < 800
+      ).length;
 
       if (thinPosts > 0) {
         results.push(warn("thin-content", "Thin Content", `${thinPosts} articles under 800 words`, "Google's Jan 2026 update actively demotes thin content. Articles under 800 words are unlikely to be indexed or ranked.", "Use the content auto-fix cron to expand thin articles, or manually improve them.", {
@@ -563,7 +568,7 @@ const indexingSection = async (
           payload: { fixType: "run_content_autofix" },
           rerunGroup: "indexing",
         }));
-      } else if (posts.length > 0) {
+      } else if (postsWithContent.length > 0) {
         results.push(pass("thin-content", "Content Length", "All articles are 800+ words", "Google prefers substantial, in-depth content. All your articles meet the minimum threshold."));
       }
 

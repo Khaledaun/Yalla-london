@@ -373,11 +373,15 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     }
   } catch { /* non-critical */ }
 
-  // Thin content check
+  // Thin content check (word_count_en doesn't exist on BlogPost — compute from content_en)
   try {
-    const thinCount = await prisma.blogPost.count({
-      where: { siteId, published: true, deletedAt: null, word_count_en: { lt: 800 } },
+    const allPosts = await prisma.blogPost.findMany({
+      where: { siteId, published: true, deletedAt: null },
+      select: { content_en: true },
     });
+    const thinCount = allPosts.filter(
+      (p) => (p.content_en || "").split(/\s+/).filter(Boolean).length < 800
+    ).length;
     if (thinCount > 0) {
       blockers.push({
         reason: `${thinCount} article${thinCount === 1 ? "" : "s"} under 800 words — Google may reject thin content`,

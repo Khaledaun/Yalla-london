@@ -109,7 +109,7 @@ const cronSection = async (
       try {
         const recentLogs = await prisma.cronJobLog.findMany({
           where: {
-            job_name: cron.name,
+            job_name: { startsWith: cron.name },
             started_at: { gte: sevenDaysAgo },
           },
           orderBy: { started_at: "desc" },

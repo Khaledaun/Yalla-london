@@ -699,6 +699,27 @@ const CREATE_TABLE_STATEMENTS: { table: string; model: string; sql: string }[] =
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`,
   },
+  // ── ApiUsageLog ─────────────────────────────────
+  {
+    table: "api_usage_logs",
+    model: "ApiUsageLog",
+    sql: `CREATE TABLE IF NOT EXISTS "api_usage_logs" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT NOT NULL DEFAULT 'unknown',
+  "provider" TEXT NOT NULL,
+  "model" TEXT NOT NULL,
+  "taskType" TEXT,
+  "calledFrom" TEXT,
+  "promptTokens" INTEGER NOT NULL DEFAULT 0,
+  "completionTokens" INTEGER NOT NULL DEFAULT 0,
+  "totalTokens" INTEGER NOT NULL DEFAULT 0,
+  "estimatedCostUsd" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "success" BOOLEAN NOT NULL DEFAULT true,
+  "errorMessage" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "api_usage_logs_pkey" PRIMARY KEY ("id")
+)`,
+  },
 ];
 
 // Indexes for newly created tables
@@ -822,6 +843,14 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "content_performance_pipelineId_idx" ON "content_performance"("pipelineId")',
     'CREATE INDEX IF NOT EXISTS "content_performance_platform_idx" ON "content_performance"("platform")',
     'CREATE INDEX IF NOT EXISTS "content_performance_grade_idx" ON "content_performance"("grade")',
+  ],
+
+  // ── API Usage Log Indexes ─────────────────────────────────
+  api_usage_logs: [
+    'CREATE INDEX IF NOT EXISTS "api_usage_logs_siteId_createdAt_idx" ON "api_usage_logs"("siteId", "createdAt")',
+    'CREATE INDEX IF NOT EXISTS "api_usage_logs_provider_createdAt_idx" ON "api_usage_logs"("provider", "createdAt")',
+    'CREATE INDEX IF NOT EXISTS "api_usage_logs_taskType_createdAt_idx" ON "api_usage_logs"("taskType", "createdAt")',
+    'CREATE INDEX IF NOT EXISTS "api_usage_logs_createdAt_idx" ON "api_usage_logs"("createdAt")',
   ],
 };
 

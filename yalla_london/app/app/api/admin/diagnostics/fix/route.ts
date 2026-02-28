@@ -133,6 +133,34 @@ const FIX_HANDLERS: Record<string, FixHandler> = {
   // Fix: Run content auto-fix
   run_content_autofix: async () => triggerCron("/api/cron/content-auto-fix", "Content auto-fix"),
 
+  // Fix: Run sweeper (recover stuck/frozen drafts)
+  run_sweeper: async () => triggerCron("/api/cron/sweeper", "Sweeper agent"),
+
+  // Fix: Run database migration (create missing tables/columns/indexes)
+  run_migrate: async () => {
+    try {
+      const { baseUrl, headers } = getCronFetchConfig();
+      const res = await fetch(`${baseUrl}/api/admin/db-migrate`, { method: "POST", headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        return { success: false, message: `Migration failed: ${data.error || `HTTP ${res.status}`}`, details: data };
+      }
+      const tables = data.result?.tablesCreated?.length ?? 0;
+      const columns = data.result?.columnsAdded?.length ?? 0;
+      const indexes = data.result?.indexesCreated?.length ?? 0;
+      return {
+        success: true,
+        message: tables + columns + indexes > 0
+          ? `Migration complete: ${tables} table(s), ${columns} column(s), ${indexes} index(es) created`
+          : "Database schema is already up to date",
+        details: data.result,
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { success: false, message: `Migration failed: ${msg}` };
+    }
+  },
+
   // Generic: Run any cron by path (used by crons diagnostics section)
   run_cron: async (payload) => {
     const cronPath = payload.cronPath as string | undefined;

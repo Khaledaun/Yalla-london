@@ -11,11 +11,11 @@ const SECTION = "ai-costs";
 function pass(id: string, name: string, detail: string, explanation: string): DiagnosticResult {
   return { id: `${SECTION}-${id}`, section: SECTION, name, status: "pass", detail, explanation };
 }
-function warn(id: string, name: string, detail: string, explanation: string, diagnosis?: string): DiagnosticResult {
-  return { id: `${SECTION}-${id}`, section: SECTION, name, status: "warn", detail, explanation, diagnosis };
+function warn(id: string, name: string, detail: string, explanation: string, diagnosis?: string, fixAction?: DiagnosticResult["fixAction"]): DiagnosticResult {
+  return { id: `${SECTION}-${id}`, section: SECTION, name, status: "warn", detail, explanation, diagnosis, fixAction };
 }
-function fail(id: string, name: string, detail: string, explanation: string, diagnosis?: string): DiagnosticResult {
-  return { id: `${SECTION}-${id}`, section: SECTION, name, status: "fail", detail, explanation, diagnosis };
+function fail(id: string, name: string, detail: string, explanation: string, diagnosis?: string, fixAction?: DiagnosticResult["fixAction"]): DiagnosticResult {
+  return { id: `${SECTION}-${id}`, section: SECTION, name, status: "fail", detail, explanation, diagnosis, fixAction };
 }
 
 const aiModelsSection = async (
@@ -116,7 +116,13 @@ const aiModelsSection = async (
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("P2021") || msg.includes("does not exist")) {
-      results.push(warn("usage-logging", "Usage Logging", "ApiUsageLog table missing — run 'npx prisma migrate deploy' on Vercel", "Migration file exists (20260226_add_api_usage_log) but hasn't been applied to the database yet. This enables AI cost tracking on the dashboard."));
+      results.push(warn("usage-logging", "Usage Logging", "ApiUsageLog table missing — tap Fix Database to create it", "The ApiUsageLog table doesn't exist in the database yet. Use the Fix Database button to create it. This enables AI cost tracking on the dashboard.", undefined, {
+        id: "fix-api-usage-log",
+        label: "Fix Database",
+        api: "/api/admin/diagnostics/fix",
+        payload: { fixType: "run_migrate" },
+        rerunGroup: "ai-costs",
+      }));
     } else {
       results.push(warn("usage-logging", "Usage Logging", `Error: ${msg}`, "Checks AI usage logging status."));
     }

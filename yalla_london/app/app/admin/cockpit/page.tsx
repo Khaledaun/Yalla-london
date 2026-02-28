@@ -2328,6 +2328,8 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
     missingColumns: number;
     missingIndexes: number;
     needsMigration: boolean;
+    tablesCreated?: string[];
+    columnsAdded?: string[];
     indexesCreated?: string[];
     foreignKeysCreated?: string[];
     errors?: string[];
@@ -2409,6 +2411,8 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
         missingColumns: json.after?.missingColumns ?? 0,
         missingIndexes: 0,
         needsMigration: false,
+        tablesCreated: json.result?.tablesCreated ?? [],
+        columnsAdded: json.result?.columnsAdded ?? [],
         indexesCreated: json.result?.indexesCreated ?? [],
         foreignKeysCreated: json.result?.foreignKeysCreated ?? [],
         errors: json.result?.errors ?? [],
@@ -2583,11 +2587,17 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
                     Migration complete{migrationResult.durationMs ? ` (${(migrationResult.durationMs / 1000).toFixed(1)}s)` : ""}
                   </span>
                 </div>
+                {(migrationResult.tablesCreated?.length ?? 0) > 0 && (
+                  <p className="text-emerald-400">+ {migrationResult.tablesCreated!.length} table(s) created: {migrationResult.tablesCreated!.join(", ")}</p>
+                )}
+                {(migrationResult.columnsAdded?.length ?? 0) > 0 && (
+                  <p className="text-emerald-400">+ {migrationResult.columnsAdded!.length} column(s) added</p>
+                )}
                 {(migrationResult.indexesCreated?.length ?? 0) > 0 && (
-                  <p className="text-emerald-400">+ {migrationResult.indexesCreated!.length} indexes created</p>
+                  <p className="text-emerald-400">+ {migrationResult.indexesCreated!.length} index(es) created</p>
                 )}
                 {(migrationResult.foreignKeysCreated?.length ?? 0) > 0 && (
-                  <p className="text-emerald-400">+ {migrationResult.foreignKeysCreated!.length} foreign keys created</p>
+                  <p className="text-emerald-400">+ {migrationResult.foreignKeysCreated!.length} foreign key(s) created</p>
                 )}
                 {(migrationResult.errors?.length ?? 0) > 0 && (
                   <p className="text-red-400">{migrationResult.errors!.length} errors — check logs</p>

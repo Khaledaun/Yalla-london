@@ -274,8 +274,10 @@ async function handleIndexing(request: NextRequest) {
     }
 
     // ── Resubmit stuck pages (submitted >7d ago, not yet indexed) ────
-    // Adaptive channel: events/news resubmit via Google Indexing API if available,
-    // standard pages via IndexNow.
+    // ALL stuck pages resubmit via IndexNow (Bing/Yandex) + natural Google re-crawl.
+    // The Google Indexing API is NOT used here — it only supports JobPosting and
+    // BroadcastEvent schema, which our content doesn't have.
+    // For Google: the sitemap ping + natural crawling handles reindexing.
     let stuckResubmitted = 0;
     if (Date.now() - _cronStart < 50_000) {
       try {
@@ -285,69 +287,42 @@ async function handleIndexing(request: NextRequest) {
             status: { in: ["submitted", "pending_review", "discovered"] },
             last_submitted_at: { lt: sevenDaysAgo },
           },
-          select: { url: true, site_id: true, submitted_google_api: true },
+          select: { url: true, site_id: true },
           take: 20, // cap per run to avoid timeout
         });
 
         if (stuckPages.length > 0) {
           // Group by site for batch submission
           const { getDefaultSiteId: getDefSiteId } = await import("@/config/sites");
-          const bySite = new Map<string, Array<{ url: string; useGoogleApi: boolean }>>();
+          const bySite = new Map<string, string[]>();
           for (const page of stuckPages) {
             const sid = page.site_id || getDefSiteId();
             if (!bySite.has(sid)) bySite.set(sid, []);
-            // If previously submitted via Google Indexing API, resubmit the same way
-            bySite.get(sid)!.push({ url: page.url, useGoogleApi: page.submitted_google_api });
+            bySite.get(sid)!.push(page.url);
           }
 
-          for (const [sid, pages] of bySite) {
+          for (const [sid, urls] of bySite) {
             if (Date.now() - _cronStart > 53_000) break;
             try {
               const { getSiteDomain: getDomain } = await import("@/config/sites");
               const siteUrl = getDomain(sid);
 
-              // Split into Google API vs IndexNow paths
-              const apiUrls = pages.filter((p) => p.useGoogleApi).map((p) => p.url);
-              const indexNowUrls = pages.filter((p) => !p.useGoogleApi).map((p) => p.url);
-
-              // Resubmit via Google Indexing API for events/news
-              if (apiUrls.length > 0 && Date.now() - _cronStart < 53_000) {
-                try {
-                  const { GoogleIndexingAPI } = await import("@/lib/seo/google-indexing-api");
-                  const api = new GoogleIndexingAPI();
-                  if (api.isConfigured()) {
-                    const batchResult = await api.submitBatch(apiUrls, "URL_UPDATED", 53_000, _cronStart);
-                    stuckResubmitted += batchResult.submitted;
-                    for (const r of batchResult.results) {
-                      if (r.success) {
-                        await prisma.uRLIndexingStatus.update({
-                          where: { site_id_url: { site_id: sid, url: r.url } },
-                          data: { last_submitted_at: new Date(), submission_attempts: { increment: 1 } },
-                        }).catch(() => {});
-                      }
-                    }
-                  }
-                } catch (apiErr) {
-                  console.warn(`[google-indexing] Stuck API resubmit failed for ${sid}:`, apiErr instanceof Error ? apiErr.message : apiErr);
-                }
-              }
-
-              // Resubmit via IndexNow for standard pages
+              // Resubmit all stuck pages via IndexNow (Bing/Yandex/Seznam/Naver)
               const indexNowKey = process.env.INDEXNOW_KEY;
-              if (indexNowKey && indexNowUrls.length > 0 && Date.now() - _cronStart < 53_000) {
-                const resubResults = await submitToIndexNow(indexNowUrls, siteUrl, indexNowKey);
+              if (indexNowKey && urls.length > 0 && Date.now() - _cronStart < 53_000) {
+                const resubResults = await submitToIndexNow(urls, siteUrl, indexNowKey);
                 const resubSuccess = resubResults.some((r) => r.success);
                 if (resubSuccess) {
                   // Update submission timestamp + increment attempts
                   await Promise.allSettled(
-                    indexNowUrls.map((url) =>
+                    urls.map((url) =>
                       prisma.uRLIndexingStatus.update({
                         where: { site_id_url: { site_id: sid, url } },
                         data: { last_submitted_at: new Date(), submission_attempts: { increment: 1 } },
                       })
                     )
                   );
-                  stuckResubmitted += indexNowUrls.length;
+                  stuckResubmitted += urls.length;
                 }
               }
             } catch (e) {

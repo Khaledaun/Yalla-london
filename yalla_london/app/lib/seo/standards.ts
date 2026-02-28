@@ -20,7 +20,7 @@ export const STANDARDS_SOURCE = "Google Search Central + Quality Rater Guideline
 export const ALGORITHM_CONTEXT = {
   /** Helpful Content System absorbed into core ranking (March 2024) — no standalone HCU */
   helpfulContentAbsorbed: true,
-  /** AI Overviews live for 1.5B+ monthly users across 200+ countries, 40+ languages */
+  /** AI Overviews live for 2B+ monthly users across 200+ countries, 25-60% of searches (varies by study) */
   aiOverviewsActive: true,
   /** INP replaced FID as Core Web Vital in March 2024 */
   inpReplacedFid: true,
@@ -50,9 +50,9 @@ export const ALGORITHM_CONTEXT = {
   topicalDepthOverFrequency: true,
   /** "Second-hand knowledge" demoted — summarized/repackaged content without original insights loses rank */
   secondHandKnowledgeDemoted: true,
-  /** Scaled content abuse manual actions active since June 2025 */
+  /** Scaled content abuse manual actions active since March 2024 spam update */
   scaledContentAbuseActions: true,
-  /** 60%+ of searches now feature AI Overviews — cited content must demonstrate genuine expertise */
+  /** 25-60% of searches feature AI Overviews (varies by study) — cited content must demonstrate genuine expertise */
   aiOverviewCitationExpertiseRequired: true,
 } as const;
 

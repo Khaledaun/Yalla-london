@@ -45,13 +45,27 @@ export interface QuotaInfo {
 
 // ─── URL Classification ─────────────────────────────────────────────────
 
-/** URL prefixes that qualify for the Google Indexing API */
-const INDEXING_API_PREFIXES = ["/events", "/news"];
+/**
+ * URL prefixes that qualify for the Google Indexing API.
+ *
+ * IMPORTANT: The Google Indexing API is RESTRICTED to pages with:
+ *   - JobPosting structured data
+ *   - BroadcastEvent embedded in a VideoObject
+ *
+ * Regular events (/events/), news (/news/), and blog content do NOT qualify.
+ * Submitting non-qualifying URLs risks quota revocation or penalties.
+ * See: https://developers.google.com/search/apis/indexing-api/v3/using-api
+ *
+ * This array is intentionally empty — we have no JobPosting or BroadcastEvent
+ * pages. All content uses IndexNow (Bing/Yandex) + GSC Sitemap (Google).
+ * Add prefixes here ONLY when pages with qualifying schema are created.
+ */
+const INDEXING_API_PREFIXES: string[] = [];
 
 /**
  * Classify a URL for routing to the correct submission channel.
- * Events and news have structured data (Event, NewsArticle) that qualifies
- * for the Google Indexing API. Everything else goes through IndexNow + Sitemap.
+ * Only pages with JobPosting or BroadcastEvent schema qualify for the
+ * Google Indexing API. Everything else goes through IndexNow + Sitemap.
  */
 export function classifyUrl(url: string): UrlClassification {
   try {

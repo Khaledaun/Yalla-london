@@ -97,6 +97,54 @@ export async function runContentSelector(
       };
     }
 
+    // ── Topical Clustering: prefer publishing articles in the same category ──
+    // Google rewards topical authority — 5-6 interlinked articles on the same topic
+    // rank better than scattered coverage. (Gemini audit action #3)
+    //
+    // Strategy: Find the "active cluster" (dominant category in last 5 published articles),
+    // then sort candidates so same-category articles are published first.
+    // After 6+ articles in one cluster, reset to allow a new topic.
+    const CLUSTER_SIZE = 6;
+    let activeClusterCategoryId: string | null = null;
+    try {
+      const recentPublished = await prisma.blogPost.findMany({
+        where: { published: true, deletedAt: null, siteId: { in: activeSites } },
+        orderBy: { created_at: "desc" },
+        select: { category_id: true },
+        take: CLUSTER_SIZE,
+      });
+
+      if (recentPublished.length > 0) {
+        // Find the most frequent category_id in last N published articles
+        const categoryFreq: Record<string, number> = {};
+        for (const post of recentPublished) {
+          categoryFreq[post.category_id] = (categoryFreq[post.category_id] || 0) + 1;
+        }
+        const sorted = Object.entries(categoryFreq).sort((a, b) => b[1] - a[1]);
+        const [topCat, topCount] = sorted[0];
+
+        // Only keep the cluster if fewer than CLUSTER_SIZE articles — otherwise reset
+        if (topCount < CLUSTER_SIZE) {
+          activeClusterCategoryId = topCat;
+          console.log(`[content-selector] Active cluster: category ${topCat} (${topCount}/${CLUSTER_SIZE} articles)`);
+        } else {
+          console.log(`[content-selector] Cluster complete (${topCount} articles in ${topCat}) — allowing any category`);
+        }
+      }
+    } catch (clusterErr) {
+      console.warn("[content-selector] Cluster detection failed (non-fatal):", clusterErr instanceof Error ? clusterErr.message : clusterErr);
+    }
+
+    // Sort candidates: same category as active cluster first, then by quality score
+    if (activeClusterCategoryId) {
+      candidates.sort((a, b) => {
+        const aCat = (a as Record<string, unknown>).category_id === activeClusterCategoryId ? 0 : 1;
+        const bCat = (b as Record<string, unknown>).category_id === activeClusterCategoryId ? 0 : 1;
+        if (aCat !== bCat) return aCat - bCat; // same-cluster first
+        return ((b as Record<string, unknown>).quality_score as number || 0) - ((a as Record<string, unknown>).quality_score as number || 0);
+      });
+    }
+
     // Separate candidates into publish-ready and needs-enhancement.
     //
     // An article needs enhancement if EITHER:
@@ -734,6 +782,60 @@ export async function promoteToBlogPost(
     console.warn("[content-selector] Affiliate injection failed (non-fatal):", affErr instanceof Error ? affErr.message : affErr);
   }
 
+  // ── Cluster Internal Link Injection ──
+  // When publishing an article in a topic cluster, auto-inject links to sibling
+  // articles in the same category (published in last 14 days). This strengthens
+  // topical authority through dense interlinking within the cluster.
+  try {
+    const clusterSiblings = await prisma.blogPost.findMany({
+      where: {
+        category_id: blogPost.category_id,
+        siteId,
+        published: true,
+        deletedAt: null,
+        id: { not: blogPost.id },
+        created_at: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) },
+      },
+      select: { slug: true, title_en: true },
+      take: 4,
+      orderBy: { created_at: "desc" },
+    });
+
+    if (clusterSiblings.length > 0) {
+      const domain = getSiteDomain(siteId);
+      const linksHtml = `\n<section class="cluster-related" style="margin-top:2rem;padding:1.5rem;background:linear-gradient(135deg,#f0f4ff,#fdf4ff);border-radius:12px;border:1px solid #e0e7ff;">
+<h3 style="margin:0 0 1rem;font-size:1.1rem;color:#1f2937;">More in this series</h3>
+<ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.5rem;">
+${clusterSiblings.map(s => `<li><a href="${domain}/blog/${s.slug}" style="color:#4f46e5;text-decoration:none;font-weight:500;">${s.title_en}</a></li>`).join("\n")}
+</ul></section>`;
+      const currentEn = (await prisma.blogPost.findUnique({ where: { id: blogPost.id }, select: { content_en: true } }))?.content_en || "";
+      if (!currentEn.includes('class="cluster-related"')) {
+        await prisma.blogPost.update({ where: { id: blogPost.id }, data: { content_en: currentEn + linksHtml } });
+        console.log(`[content-selector] Injected ${clusterSiblings.length} cluster links into BlogPost ${blogPost.id}`);
+      }
+    }
+  } catch (clErr) {
+    console.warn("[content-selector] Cluster link injection failed (non-fatal):", clErr instanceof Error ? clErr.message : clErr);
+  }
+
+  // ── Author Assignment ──
+  // Replace generic "Editorial" with real author from TeamMember rotation.
+  // Creates a ContentCredit record linking author → blog post.
+  let authorName = `${site.name} Editorial Team`;
+  let authorProfile: { id: string; name: string; slug: string; linkedinUrl: string | null; twitterUrl: string | null; instagramUrl: string | null; websiteUrl: string | null; title: string } | null = null;
+  try {
+    const { getNextAuthor, assignAuthor } = await import("@/lib/content-pipeline/author-rotation");
+    const author = await getNextAuthor(siteId);
+    authorName = author.name;
+    authorProfile = author;
+    if (author.id) {
+      await assignAuthor(author.id, "blog_post", blogPost.id, "AUTHOR");
+      console.log(`[content-selector] Assigned author "${author.name}" to BlogPost ${blogPost.id}`);
+    }
+  } catch (authErr) {
+    console.warn("[content-selector] Author assignment failed (non-fatal):", authErr instanceof Error ? authErr.message : authErr);
+  }
+
   // Auto-inject structured data
   try {
     const { enhancedSchemaInjector } = await import("@/lib/seo/enhanced-schema-injector");
@@ -744,9 +846,15 @@ export async function promoteToBlogPost(
       postUrl,
       blogPost.id,
       {
-        author: `${site.name} Editorial Team`,
+        author: authorName,
         category: category.name_en,
         tags: keywords.slice(0, 5),
+        // Pass author social links for Person schema with sameAs (E-E-A-T)
+        authorProfile: authorProfile ? {
+          slug: authorProfile.slug,
+          title: authorProfile.title,
+          sameAs: [authorProfile.linkedinUrl, authorProfile.twitterUrl, authorProfile.instagramUrl, authorProfile.websiteUrl].filter(Boolean),
+        } : undefined,
       },
     );
   } catch (schemaErr) {

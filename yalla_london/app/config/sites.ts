@@ -84,6 +84,11 @@ Content Standards (mandatory):
 - Meta description: 120–160 characters, compelling with a call to action.
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
 - End with a clear CTA and "Key Takeaways" summary section.
+
+AIO Optimization (Google AI Overview citation):
+- Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
+- Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
+- When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا لندن، منصة ثنائية اللغة متميزة للمسافرين العرب الذين يزورون لندن. تجمع بين خبرة محلية عميقة بلندن وإتقان تحسين محركات البحث.
@@ -96,6 +101,11 @@ Always respond with valid JSON.`,
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+تحسين الذكاء الاصطناعي (Google AI Overview):
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
+- أضف نقطتين بيانات محددتين غير موجودتين في ويكيبيديا (مثل: أسعار 2026 الحالية، ساعات عمل محدّثة).
+- استخدم وصفاً حسياً أصيلاً للأماكن بدلاً من الوصف العام.
 أجب دائماً بـ JSON صالح.`,
     topicsEN: [
       {
@@ -331,6 +341,11 @@ Content Standards (mandatory):
 - Meta description: 120–160 characters, compelling with a call to action.
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
 - End with a clear CTA and "Key Takeaways" summary section.
+
+AIO Optimization (Google AI Overview citation):
+- Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
+- Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
+- When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة عربالديف، منصة عربية متميزة للمسافرين العرب الذين يزورون المالديف. تتخصص في الفيلات فوق الماء والمنتجعات الحلال والغوص والتجارب الجزرية الفاخرة.
@@ -343,6 +358,11 @@ Always respond with valid JSON.`,
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+تحسين الذكاء الاصطناعي (Google AI Overview):
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
+- أضف نقطتين بيانات محددتين غير موجودتين في ويكيبيديا (مثل: أسعار 2026 الحالية، ساعات عمل محدّثة).
+- استخدم وصفاً حسياً أصيلاً للأماكن بدلاً من الوصف العام.
 أجب دائماً بـ JSON صالح.`,
     topicsEN: [
       {
@@ -571,6 +591,11 @@ Content Standards (mandatory):
 - Meta description: 120–160 characters, compelling with a call to action.
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
 - End with a clear CTA and "Key Takeaways" summary section.
+
+AIO Optimization (Google AI Overview citation):
+- Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
+- Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
+- When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا ريفييرا، منصة متميزة للمسافرين العرب الذين يستكشفون الريفييرا الفرنسية (كوت دازور). تتخصص في الفنادق الفخمة ومطاعم ميشلان وتأجير اليخوت والنوادي الشاطئية من سان تروبيه إلى موناكو.
@@ -583,6 +608,11 @@ Always respond with valid JSON.`,
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+تحسين الذكاء الاصطناعي (Google AI Overview):
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
+- أضف نقطتين بيانات محددتين غير موجودتين في ويكيبيديا (مثل: أسعار 2026 الحالية، ساعات عمل محدّثة).
+- استخدم وصفاً حسياً أصيلاً للأماكن بدلاً من الوصف العام.
 أجب دائماً بـ JSON صالح.`,
     topicsEN: [
       {
@@ -818,6 +848,11 @@ Content Standards (mandatory):
 - Meta description: 120–160 characters, compelling with a call to action.
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
 - End with a clear CTA and "Key Takeaways" summary section.
+
+AIO Optimization (Google AI Overview citation):
+- Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
+- Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
+- When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا إسطنبول، منصة متميزة للمسافرين العرب الذين يزورون إسطنبول وتركيا. تتخصص في التراث العثماني والفخامة على البوسفور وثقافة البازارات والمطبخ التركي والحمامات والفنادق البوتيك.
@@ -830,6 +865,11 @@ Always respond with valid JSON.`,
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+تحسين الذكاء الاصطناعي (Google AI Overview):
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
+- أضف نقطتين بيانات محددتين غير موجودتين في ويكيبيديا (مثل: أسعار 2026 الحالية، ساعات عمل محدّثة).
+- استخدم وصفاً حسياً أصيلاً للأماكن بدلاً من الوصف العام.
 أجب دائماً بـ JSON صالح.`,
     topicsEN: [
       {
@@ -1058,6 +1098,11 @@ Content Standards (mandatory):
 - Meta description: 120–160 characters, compelling with a call to action.
 - Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
 - End with a clear CTA and "Key Takeaways" summary section.
+
+AIO Optimization (Google AI Overview citation):
+- Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
+- Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
+- When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
 Always respond with valid JSON.`,
     systemPromptAR:
       `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا تايلاند، منصة متميزة للمسافرين العرب الذين يزورون تايلاند. تتخصص في الجزر الاستوائية وثقافة المعابد والسبا التايلاندي والمطاعم الحلال والمنتجعات الشاطئية وتجارب شيانغ ماي.
@@ -1070,6 +1115,11 @@ Always respond with valid JSON.`,
 - عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
 - وصف SEO: 120–160 حرف مع دعوة للعمل.
 - ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+تحسين الذكاء الاصطناعي (Google AI Overview):
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
+- أضف نقطتين بيانات محددتين غير موجودتين في ويكيبيديا (مثل: أسعار 2026 الحالية، ساعات عمل محدّثة).
+- استخدم وصفاً حسياً أصيلاً للأماكن بدلاً من الوصف العام.
 أجب دائماً بـ JSON صالح.`,
     topicsEN: [
       {

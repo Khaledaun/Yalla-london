@@ -406,6 +406,18 @@ async function handleAffiliateInjection(request: NextRequest) {
           },
         });
 
+        // Mark URL for resubmission so Google re-crawls the affiliate-enriched version
+        try {
+          const { getSiteDomain } = await import("@/config/sites");
+          const postUrl = `${getSiteDomain(postSiteId)}/blog/${post.slug}`;
+          await prisma.uRLIndexingStatus.updateMany({
+            where: { site_id: postSiteId, url: postUrl },
+            data: { submitted_indexnow: false, last_submitted_at: null },
+          });
+        } catch (resubErr) {
+          console.warn(`[affiliate-injection] Failed to mark ${post.slug} for resubmission:`, resubErr instanceof Error ? resubErr.message : resubErr);
+        }
+
         injected++;
         results.push({
           slug: post.slug,

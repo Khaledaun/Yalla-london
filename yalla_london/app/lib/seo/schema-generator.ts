@@ -89,7 +89,7 @@ export interface EventSchema extends SchemaBaseProps {
 }
 
 export interface PlaceSchema extends SchemaBaseProps {
-  '@type': 'Place' | 'Restaurant' | 'TouristAttraction' | 'Hotel';
+  '@type': 'Place' | 'Restaurant' | 'TouristAttraction' | 'Hotel' | 'TouristDestination';
   address: PostalAddress;
   geo?: GeoCoordinates;
   telephone?: string;
@@ -279,10 +279,15 @@ export class SchemaGenerator {
       '@context': 'https://schema.org',
       '@type': 'Person',
       '@id': `${baseUrl}#founder`,
-      name: `${brandConfig.siteName || 'Yalla London'} Team`,
+      name: `${brandConfig.siteName || 'Editorial'} Team`,
       jobTitle: 'Content Creator',
       worksFor: this.defaultOrganization
     };
+  }
+
+  /** Returns the organization name for this site (used by schema injector for author fallbacks) */
+  getOrganizationName(): string {
+    return this.defaultOrganization.name;
   }
 
   generateWebsite(searchEnabled: boolean = true): WebsiteSchema {
@@ -430,7 +435,7 @@ export class SchemaGenerator {
   generatePlace(place: {
     name: string;
     description: string;
-    type: 'Restaurant' | 'TouristAttraction' | 'Hotel';
+    type: 'Restaurant' | 'TouristAttraction' | 'Hotel' | 'TouristDestination';
     address: string;
     city: string;
     country: string;
@@ -445,6 +450,10 @@ export class SchemaGenerator {
     latitude?: number;
     longitude?: number;
     slug: string;
+    /** For TouristDestination: type of tourism (e.g., "luxury", "cultural", "beach") */
+    touristType?: string;
+    /** For TouristDestination: notable attractions contained within */
+    containsPlace?: Array<{ name: string; type: string; url?: string }>;
   }): PlaceSchema {
     const schema: PlaceSchema = {
       '@context': 'https://schema.org',
@@ -486,7 +495,48 @@ export class SchemaGenerator {
       }));
     }
 
+    // TouristDestination-specific properties (connects to Google Maps entities)
+    if (place.type === 'TouristDestination') {
+      if (place.touristType) {
+        (schema as any).touristType = place.touristType;
+      }
+      if (place.containsPlace && place.containsPlace.length > 0) {
+        (schema as any).containsPlace = place.containsPlace.map(p => ({
+          '@type': p.type || 'Place',
+          name: p.name,
+          ...(p.url ? { url: p.url } : {}),
+        }));
+      }
+    }
+
     return schema;
+  }
+
+  /**
+   * Generate ItemList schema for listicle-style articles.
+   * Wraps H2 sections as list items — helps Google extract structured lists
+   * for rich results and AI Overviews.
+   */
+  generateItemList(items: Array<{
+    name: string;
+    description?: string;
+    url?: string;
+    position: number;
+    image?: string;
+  }>): Record<string, unknown> {
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      numberOfItems: items.length,
+      itemListElement: items.map(item => ({
+        '@type': 'ListItem',
+        position: item.position,
+        name: item.name,
+        ...(item.description ? { description: item.description } : {}),
+        ...(item.url ? { url: item.url } : {}),
+        ...(item.image ? { image: item.image } : {}),
+      })),
+    };
   }
 
   generateFAQ(faqs: Array<{ question: string; answer: string }>): FAQPageSchema {

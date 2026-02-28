@@ -91,7 +91,7 @@ export const CONTENT_QUALITY = {
   /** Target readability: Flesch-Kincaid grade level */
   readabilityTarget: 10,
   /** Maximum readability before warning */
-  readabilityMax: 12,
+  readabilityMax: 10,
   /** Minimum internal links per article */
   minInternalLinks: 3,
   /** Target internal links for topical authority */

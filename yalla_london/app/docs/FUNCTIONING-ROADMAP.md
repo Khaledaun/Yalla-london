@@ -478,5 +478,19 @@ These patterns have been identified as recurring problems. Any future code MUST 
 
 ---
 
+---
+
+## Future: Background Job Migration (When Sites > 5)
+
+**Trigger:** When active site count exceeds 5 and cron budget timeouts become frequent.
+
+**Problem:** Vercel Pro has a hard 60s limit. As sites grow, per-site loops within single cron runs will exceed this ceiling.
+
+**Solution:** Migrate to queue-based architecture (Upstash QStash, Inngest, or BullMQ). One queue message per site per job, automatic retry, unlimited duration.
+
+*Added: Feb 28, 2026 — Gemini expert audit recommendation (Q25)*
+
+---
+
 *Roadmap maintained by Claude Code — Senior Technical Partner*
 *Platform: Zenitha.Luxury LLC — 5-Site Content-to-Revenue Engine*

@@ -734,7 +734,7 @@ Return JSON:
     "@type": "${(outline.schemaType as string) || "Article"}",
     "headline": "Article title",
     "description": "Brief description",
-    "author": {"@type": "Person", "name": "${site.name} Editorial"},
+    "author": {"@type": "Person", "name": "${(draft as unknown as Record<string, unknown>).author_name || site.name + " Editorial"}"},
     "publisher": {"@type": "Organization", "name": "${site.name}"}${featured ? ',\n    "image": "' + (featured.url || "") + '"' : ""}
   },
   "ogImage": {

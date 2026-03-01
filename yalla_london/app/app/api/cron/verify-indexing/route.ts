@@ -68,10 +68,11 @@ async function handleVerifyIndexing(request: NextRequest) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
-    // Per-site budget: 70 URLs per site per run
-    // Math: 70 URLs × 600ms rate-limit = 42s, leaving 11s for queue building + rate-drop checks
-    // Previous value of 100 URLs × 600ms = 60s exactly at timeout boundary — any slow GSC response caused timeout
-    const MAX_PER_SITE = 70;
+    // Per-site budget: 50 URLs per site per run
+    // Math: 50 URLs × 600ms rate-limit = 30s, leaving 23s for queue building + rate-drop checks
+    // Previous value of 70 URLs × 600ms = 42s was still hitting 50s+ due to slow GSC responses
+    // and rate-drop alerting queries consuming the remaining budget.
+    const MAX_PER_SITE = 50;
 
     let totalChecked = 0;
     let totalIndexed = 0;

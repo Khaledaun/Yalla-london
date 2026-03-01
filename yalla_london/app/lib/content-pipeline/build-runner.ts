@@ -62,12 +62,13 @@ export async function runContentBuilder(
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
           phase_attempts: { lt: 3 },
-          // Soft-lock: skip drafts actively being processed by another runner (within last 3 min)
-          // 180s allows a full phase cycle to complete before another runner picks it up.
-          // Previous 60s was too short — drafts would get re-picked mid-processing.
+          // Soft-lock: skip drafts actively being processed by another runner (within last 5 min)
+          // 300s allows a full phase cycle to complete before another runner picks it up.
+          // Previous 180s was too short — slow AI calls (30-50s) + overlapping crons
+          // could cause drafts to get re-picked mid-processing, leading to stuck drafts.
           OR: [
             { phase_started_at: null },
-            { phase_started_at: { lt: new Date(Date.now() - 180 * 1000) } },
+            { phase_started_at: { lt: new Date(Date.now() - 300 * 1000) } },
           ],
         },
         orderBy: { updated_at: "asc" },

@@ -149,6 +149,71 @@ export async function GET(request: NextRequest) {
 
     switch (task) {
       case "daily":
+        // ── PHASE 1: Lightweight fixes FIRST (fast, critical) ────────────
+        // Ghost fix and stuck URL resubmission MUST run before the main
+        // submission loop. Previously they ran AFTER the main loop and got
+        // skipped when budget was exhausted (55+ runs exceeded 50s).
+        for (const sid of activeSites) {
+          if (Date.now() - startTime > BUDGET_MS - 10_000) break; // Reserve 10s for fixes
+
+          // Fix ghost submissions: status="submitted" but no channel flag set
+          try {
+            const { prisma: pFix } = await import("@/lib/db");
+            const ghostFixed = await pFix.uRLIndexingStatus.updateMany({
+              where: {
+                site_id: sid,
+                status: "submitted",
+                submitted_indexnow: false,
+                submitted_sitemap: false,
+                submitted_google_api: false,
+              },
+              data: { status: "discovered" },
+            });
+            if (ghostFixed.count > 0) {
+              console.log(`[SEO-CRON] Fixed ${ghostFixed.count} ghost submission(s) for ${sid}`);
+              results.actions.push({ name: "fix_ghost_submissions", site: sid, count: ghostFixed.count });
+            }
+          } catch (ghostErr) {
+            console.warn(`[SEO-CRON] Ghost fix failed for ${sid}:`, ghostErr instanceof Error ? ghostErr.message : ghostErr);
+          }
+
+          // Resubmit "discovered" URLs stuck for >1h (was 6h — too long)
+          try {
+            const { prisma: pStuck } = await import("@/lib/db");
+            const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+            const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
+            const siteUrl = getSiteDomain(sid);
+            const stuckUrls = await pStuck.uRLIndexingStatus.findMany({
+              where: {
+                site_id: sid,
+                status: { in: ["discovered", "pending"] },
+                OR: [
+                  { last_submitted_at: null },
+                  { last_submitted_at: { lt: oneHourAgo } },
+                ],
+              },
+              select: { url: true, id: true },
+              take: 50,
+              orderBy: { created_at: "asc" },
+            });
+            if (stuckUrls.length > 0) {
+              const indexNowKey = process.env.INDEXNOW_KEY;
+              if (indexNowKey) {
+                await submitToIndexNow(stuckUrls.map(u => u.url), siteUrl);
+                await pStuck.uRLIndexingStatus.updateMany({
+                  where: { id: { in: stuckUrls.map(u => u.id) } },
+                  data: { status: "submitted", last_submitted_at: new Date(), submitted_indexnow: true },
+                });
+                console.log(`[SEO-CRON] Resubmitted ${stuckUrls.length} stuck "discovered" URLs for ${sid}`);
+                results.actions.push({ name: "resubmit_stuck", site: sid, count: stuckUrls.length });
+              }
+            }
+          } catch (stuckErr) {
+            console.warn(`[SEO-CRON] Stuck URL resubmission failed for ${sid}:`, stuckErr instanceof Error ? stuckErr.message : stuckErr);
+          }
+        }
+
+        // ── PHASE 2: Main submission loop (expensive) ────────────────────
         for (const sid of activeSites) {
           if (Date.now() - startTime > BUDGET_MS) {
             console.log(`[SEO-CRON] Budget exhausted (${Date.now() - startTime}ms), skipping remaining sites`);
@@ -162,74 +227,6 @@ export async function GET(request: NextRequest) {
             console.log(
               `[SEO-CRON] Daily [${sid}]: processed ${dailyReport.urlsProcessed} URLs, errors: ${dailyReport.errors.length}`,
             );
-
-            // ── Resubmit "discovered" URLs stuck for >6h ──────────────────
-            // These are pages Google found but hasn't crawled yet. Aggressive
-            // IndexNow resubmission accelerates crawl for these stuck URLs.
-            // Also catches URLs where last_submitted_at is NULL (never submitted,
-            // only discovered by the SEO agent).
-            if (Date.now() - startTime < BUDGET_MS - 5_000) {
-              try {
-                const { prisma } = await import("@/lib/db");
-                const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
-                const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
-                const stuckUrls = await prisma.uRLIndexingStatus.findMany({
-                  where: {
-                    site_id: sid,
-                    status: { in: ["discovered", "pending"] },
-                    OR: [
-                      { last_submitted_at: null },        // Never submitted (only discovered)
-                      { last_submitted_at: { lt: sixHoursAgo } }, // Submitted 6+ hours ago but still not indexed
-                    ],
-                  },
-                  select: { url: true, id: true },
-                  take: 50,
-                  orderBy: { created_at: "asc" }, // Oldest first
-                });
-                if (stuckUrls.length > 0) {
-                  const indexNowKey = process.env.INDEXNOW_KEY;
-                  if (indexNowKey) {
-                    await submitToIndexNow(stuckUrls.map(u => u.url), siteUrl);
-                    // Transition to "submitted" + update timestamp so they don't stay stuck
-                    await prisma.uRLIndexingStatus.updateMany({
-                      where: { id: { in: stuckUrls.map(u => u.id) } },
-                      data: { status: "submitted", last_submitted_at: new Date(), submitted_indexnow: true },
-                    });
-                    console.log(`[SEO-CRON] Resubmitted ${stuckUrls.length} stuck "discovered" URLs for ${sid}`);
-                    results.actions.push({ name: "resubmit_stuck", site: sid, count: stuckUrls.length });
-                  }
-                }
-              } catch (stuckErr) {
-                console.warn(`[SEO-CRON] Stuck URL resubmission failed for ${sid}:`, stuckErr instanceof Error ? stuckErr.message : stuckErr);
-              }
-            }
-
-            // ── Fix ghost submissions: status="submitted" but no channel set ──
-            // These occur when trackSubmittedUrls set status before channel flags.
-            // Reset them to "discovered" so they get resubmitted with proper tracking.
-            if (Date.now() - startTime < BUDGET_MS - 3_000) {
-              try {
-                const { prisma: pGhost } = await import("@/lib/db");
-                const ghostFixed = await pGhost.uRLIndexingStatus.updateMany({
-                  where: {
-                    site_id: sid,
-                    status: "submitted",
-                    submitted_indexnow: false,
-                    submitted_sitemap: false,
-                    submitted_google_api: false,
-                  },
-                  data: {
-                    status: "discovered", // Reset so next run resubmits with proper channel tracking
-                  },
-                });
-                if (ghostFixed.count > 0) {
-                  console.log(`[SEO-CRON] Fixed ${ghostFixed.count} ghost submission(s) for ${sid} — reset to "discovered"`);
-                  results.actions.push({ name: "fix_ghost_submissions", site: sid, count: ghostFixed.count });
-                }
-              } catch (ghostErr) {
-                console.warn(`[SEO-CRON] Ghost submission fix failed for ${sid}:`, ghostErr instanceof Error ? ghostErr.message : ghostErr);
-              }
-            }
           } catch (siteErr) {
             const msg = siteErr instanceof Error ? siteErr.message : String(siteErr);
             results.actions.push({ name: "submit_updated", site: sid, error: msg });

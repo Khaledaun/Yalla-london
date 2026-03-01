@@ -278,6 +278,16 @@ export async function runContentBuilder(
       `[content-builder] Running phase "${currentPhase}" for draft ${draftRecord.id} (keyword: "${draftRecord.keyword}")`,
     );
 
+    // ── Claim the draft BEFORE processing ─────────────────────────────────
+    // Previously phase_started_at was only set AFTER processing completed.
+    // If processing took >5 minutes (common for drafting/assembly phases),
+    // the 5-minute soft-lock expired and another runner would re-pick the
+    // same draft, causing duplicate work and stuck drafts.
+    await prisma.articleDraft.update({
+      where: { id: draftRecord.id as string },
+      data: { phase_started_at: new Date() },
+    });
+
     const result = await runPhase(draftRecord as any, site, deadline.remainingMs());
 
     // Step 4: Save phase result to DB
@@ -348,10 +358,34 @@ export async function runContentBuilder(
       }).catch((err) => console.warn("[build-runner] onPipelineFailure hook error:", err instanceof Error ? err.message : err));
     }
 
-    await prisma.articleDraft.update({
+    const updated = await prisma.articleDraft.update({
       where: { id: draftRecord.id as string },
       data: updateData,
+      select: { phase_attempts: true, current_phase: true },
     });
+
+    // ── Race-condition recovery ──────────────────────────────────────────
+    // If two runners process the same draft simultaneously (possible when
+    // processing exceeds the 5-minute soft-lock), both read the same stale
+    // phase_attempts and neither rejects the draft — even though the DB
+    // value (atomically incremented by both) exceeds maxAttempts.
+    // Re-check the ACTUAL DB value and reject if needed.
+    if (!result.success && updated.current_phase !== "rejected") {
+      const maxAttempts = currentPhase === "drafting" ? 5 : 3;
+      const actualAttempts = updated.phase_attempts || 0;
+      if (actualAttempts >= maxAttempts) {
+        await prisma.articleDraft.update({
+          where: { id: draftRecord.id as string },
+          data: {
+            current_phase: "rejected",
+            rejection_reason: `Phase "${currentPhase}" failed after ${actualAttempts} attempts (race-condition recovery)`,
+            completed_at: new Date(),
+            updated_at: new Date(),
+          },
+        });
+        console.log(`[content-builder] Race-condition recovery: rejected draft ${draftRecord.id} after ${actualAttempts} actual attempts`);
+      }
+    }
 
     const durationMs = Date.now() - cronStart;
 

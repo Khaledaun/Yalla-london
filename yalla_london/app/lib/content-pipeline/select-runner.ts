@@ -527,27 +527,18 @@ export async function promoteToBlogPost(
   }
 
   // Check for slug collision GLOBALLY — BlogPost.slug is @unique across all sites.
-  // If an exact slug collision is found, append a short suffix instead of giving up.
-  // The old startsWith approach was too aggressive: "london" blocked "london-hotels".
+  // If a collision is found, append a suffix with crypto randomness to avoid
+  // TOCTOU race conditions where two concurrent promotions pick the same suffix.
   const existingSlug = await prisma.blogPost.findFirst({
     where: { slug, deletedAt: null },
-    select: { id: true, slug: true, siteId: true },
+    select: { id: true },
   });
   if (existingSlug) {
-    // Append a short random suffix to make the slug unique
-    const suffix = Date.now().toString(36).slice(-4);
-    const newSlug = `${slug}-${suffix}`;
-    // Double-check the suffixed slug is unique too
-    const suffixCollision = await prisma.blogPost.findFirst({
-      where: { slug: newSlug, deletedAt: null },
-      select: { id: true },
-    });
-    if (suffixCollision) {
-      console.warn(`[content-selector] Slug collision: both "${slug}" and "${newSlug}" exist — skipping`);
-      return null;
-    }
-    console.log(`[content-selector] Slug collision: "${slug}" exists — using "${newSlug}" instead`);
-    slug = newSlug;
+    // Use crypto random bytes for suffix to avoid race condition where two
+    // concurrent promotions generate the same Date.now()-based suffix
+    const randomBytes = await import("crypto").then(c => c.randomBytes(4).toString("hex"));
+    slug = `${slug}-${randomBytes}`;
+    console.log(`[content-selector] Slug collision detected — using "${slug}" instead`);
   }
 
   // Get or create category and system user

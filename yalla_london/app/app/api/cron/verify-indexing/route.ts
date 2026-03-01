@@ -68,10 +68,10 @@ async function handleVerifyIndexing(request: NextRequest) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
-    // Per-site budget: 50 URLs per site per run
-    // Math: 35 URLs × 600ms rate-limit = 21s, leaving 32s for queue building + rate-drop checks.
-    // Reduced from 50 (30s API time) to prevent 53 runs exceeding 50s threshold.
-    const MAX_PER_SITE = 35;
+    // Per-site budget: 20 URLs per site per run
+    // Math: 20 URLs × 350ms rate-limit = 7s, leaving 46s for queue building + rate-drop checks.
+    // Reduced from 35 (21s rate-limit alone) — 55 runs were exceeding the 50s threshold.
+    const MAX_PER_SITE = 20;
 
     let totalChecked = 0;
     let totalIndexed = 0;
@@ -340,8 +340,9 @@ async function handleVerifyIndexing(request: NextRequest) {
 
           siteChecked++;
 
-          // Rate limit: 600ms between requests (GSC handles ~2 req/s)
-          await new Promise((resolve) => setTimeout(resolve, 600));
+          // Rate limit: 350ms between requests (GSC handles ~3 req/s safely)
+          // Reduced from 600ms — 20 URLs × 350ms = 7s vs 35 URLs × 600ms = 21s
+          await new Promise((resolve) => setTimeout(resolve, 350));
         } catch (inspectErr) {
           const errMsg = inspectErr instanceof Error ? inspectErr.message : String(inspectErr);
           console.error(`[verify-indexing] Failed to inspect ${url}:`, errMsg);

@@ -47,6 +47,8 @@ export async function runSweeper(): Promise<SweeperResult> {
 
   try {
     const { prisma } = await import("@/lib/db");
+    const { getActiveSiteIds } = await import("@/config/sites");
+    const activeSiteIds = getActiveSiteIds();
 
     // ── 0. Read recent recovery logs to avoid double-recovering ─────
     const recentlyRecoveredIds = new Set<string>();
@@ -70,8 +72,8 @@ export async function runSweeper(): Promise<SweeperResult> {
       if (recentlyRecoveredIds.size > 0) {
         console.log(`[sweeper] Found ${recentlyRecoveredIds.size} recently recovered draft(s) — will skip these`);
       }
-    } catch {
-      // Non-fatal — proceed without dedup
+    } catch (dedupErr) {
+      console.warn("[sweeper] Dedup check failed — proceeding without dedup:", dedupErr instanceof Error ? dedupErr.message : dedupErr);
     }
 
     // ── 1. Find rejected drafts with retryable errors ──────────────
@@ -79,6 +81,7 @@ export async function runSweeper(): Promise<SweeperResult> {
     try {
       rejectedDrafts = await prisma.articleDraft.findMany({
         where: {
+          site_id: { in: activeSiteIds },
           current_phase: "rejected",
           rejection_reason: { not: null },
           // Only sweep recent rejections (last 24h)
@@ -161,6 +164,7 @@ export async function runSweeper(): Promise<SweeperResult> {
     try {
       stuckDrafts = await prisma.articleDraft.findMany({
         where: {
+          site_id: { in: activeSiteIds },
           current_phase: {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
@@ -169,8 +173,8 @@ export async function runSweeper(): Promise<SweeperResult> {
         },
         take: MAX_RECOVERIES_PER_RUN,
       });
-    } catch {
-      // Non-fatal
+    } catch (stuckErr) {
+      console.warn("[sweeper] Stuck drafts query failed:", stuckErr instanceof Error ? stuckErr.message : stuckErr);
     }
 
     for (const draft of stuckDrafts) {
@@ -206,7 +210,8 @@ export async function runSweeper(): Promise<SweeperResult> {
         });
 
         console.log(`[sweeper] Unstuck draft ${draftId} (${keyword} ${locale}): was in "${phase}" for ${hoursStuck}h`);
-      } catch {
+      } catch (unstuckErr) {
+        console.warn(`[sweeper] Failed to unstick draft ${draftId}:`, unstuckErr instanceof Error ? unstuckErr.message : unstuckErr);
         skipped++;
       }
     }
@@ -216,6 +221,7 @@ export async function runSweeper(): Promise<SweeperResult> {
     try {
       failingDrafts = await prisma.articleDraft.findMany({
         where: {
+          site_id: { in: activeSiteIds },
           current_phase: {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
@@ -224,8 +230,8 @@ export async function runSweeper(): Promise<SweeperResult> {
         },
         take: MAX_RECOVERIES_PER_RUN,
       });
-    } catch {
-      // Non-fatal
+    } catch (failErr) {
+      console.warn("[sweeper] Failing drafts query failed:", failErr instanceof Error ? failErr.message : failErr);
     }
 
     for (const draft of failingDrafts) {
@@ -265,7 +271,8 @@ export async function runSweeper(): Promise<SweeperResult> {
           previousPhase: phase,
           newPhase: diagnosis.resetToPhase,
         });
-      } catch {
+      } catch (fixErr) {
+        console.warn(`[sweeper] Failed to recover failing draft ${draftId}:`, fixErr instanceof Error ? fixErr.message : fixErr);
         skipped++;
       }
     }
@@ -280,6 +287,7 @@ export async function runSweeper(): Promise<SweeperResult> {
     try {
       frozenReservoir = await prisma.articleDraft.findMany({
         where: {
+          site_id: { in: activeSiteIds },
           current_phase: "reservoir",
           phase_attempts: { gte: 3 },
           updated_at: { lt: new Date(Date.now() - 12 * 60 * 60 * 1000) }, // >12h since last attempt
@@ -327,7 +335,8 @@ export async function runSweeper(): Promise<SweeperResult> {
         });
 
         console.log(`[sweeper] Unfroze reservoir draft ${draftId} (${keyword} ${locale}): was at ${attempts} failed enhancement attempts`);
-      } catch {
+      } catch (unfreezeErr) {
+        console.warn(`[sweeper] Failed to unfreeze reservoir draft ${draftId}:`, unfreezeErr instanceof Error ? unfreezeErr.message : unfreezeErr);
         skipped++;
       }
     }
@@ -363,7 +372,7 @@ export async function runSweeper(): Promise<SweeperResult> {
           items_failed: 0,
           result_summary: entry as unknown as Record<string, unknown>,
         },
-      }).catch(() => {});
+      }).catch((logErr) => console.warn("[sweeper] Failed to log recovery action:", logErr instanceof Error ? logErr.message : logErr));
     }
 
     // Also log a summary
@@ -385,7 +394,7 @@ export async function runSweeper(): Promise<SweeperResult> {
         outcome: recovered.length > 0 ? "recovered" : "logged",
         context: { recovered: recovered.length, skipped, recentlySkipped: recentlyRecoveredIds.size },
       },
-    }).catch(() => {});
+    }).catch((logErr) => console.warn("[sweeper] Failed to log summary:", logErr instanceof Error ? logErr.message : logErr));
 
     return {
       success: true,
@@ -403,7 +412,7 @@ export async function runSweeper(): Promise<SweeperResult> {
     await logCronExecution("sweeper-agent", "failed", {
       durationMs,
       errorMessage: error instanceof Error ? error.message : String(error),
-    }).catch(() => {});
+    }).catch((logErr) => console.warn("[sweeper] Failed to log fatal error:", logErr instanceof Error ? logErr.message : logErr));
 
     return {
       success: false,

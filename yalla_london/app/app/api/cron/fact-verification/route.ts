@@ -371,13 +371,15 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    // Fetch all existing facts in one query for efficient dedup
+    // Fetch existing facts for dedup — capped at 2000 to prevent OOM on large sites
     const existingFacts = await prisma.factEntry.findMany({
       select: {
         id: true,
         article_slug: true,
         fact_text_en: true,
       },
+      take: 2000,
+      orderBy: { created_at: "desc" },
     });
 
     const existingFactKeys = new Set(

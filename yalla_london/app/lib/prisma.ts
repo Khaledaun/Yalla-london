@@ -1,8 +1,13 @@
 /**
- * Prisma Client Export
+ * Prisma Client Export — Singleton
  *
  * Uses lazy initialization to avoid errors during build when Prisma client
  * is not fully generated. The client is only instantiated when first accessed.
+ *
+ * CRITICAL: Never create `new PrismaClient()` anywhere else in the app/
+ * directory. Always import from `@/lib/db` or `@/lib/prisma`. Creating
+ * additional PrismaClient instances leaks connections and exhausts the
+ * Supabase PgBouncer pool (MaxClientsInSessionMode error).
  */
 
 import { PrismaClient } from "@prisma/client";
@@ -126,6 +131,11 @@ function getPrismaClient(): PrismaClient {
     if (dbUrl && !dbUrl.includes("pool_timeout=")) {
       dbUrl = `${dbUrl}&pool_timeout=5`;
     }
+    // Fail fast on connection establishment — prevents requests from hanging
+    // when PgBouncer pool is exhausted (MaxClientsInSessionMode).
+    if (dbUrl && !dbUrl.includes("connect_timeout=")) {
+      dbUrl = `${dbUrl}&connect_timeout=10`;
+    }
 
     const baseClient = new PrismaClient({
       log:
@@ -145,6 +155,14 @@ function getPrismaClient(): PrismaClient {
     // Always cache on globalThis — prevents connection pool exhaustion
     // on warm serverless instances (Vercel reuses the process)
     globalThis.__prisma = client;
+
+    // Release connections when the serverless process exits so the
+    // PgBouncer slot is freed for other instances.
+    if (typeof process !== "undefined") {
+      process.on("beforeExit", () => {
+        baseClient.$disconnect().catch(() => {});
+      });
+    }
 
     return client;
   } catch (error) {

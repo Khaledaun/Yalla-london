@@ -185,8 +185,10 @@ async function handleAutoFix(request: NextRequest) {
       results.headingsFixed = headingsFixed;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack : undefined;
       results.errors.push(`heading-fix: ${msg}`);
       console.warn("[content-auto-fix] Heading hierarchy fix failed:", msg);
+      if (stack) console.warn("[content-auto-fix] heading-fix stack:", stack);
     }
   }
 

@@ -378,6 +378,8 @@ async function handleAffiliateInjection(request: NextRequest) {
         title_en: true,
         siteId: true,
       },
+      take: 50, // Prevent OOM if content velocity increases
+      orderBy: { created_at: "desc" },
     });
 
     // Filter to posts that need injection
@@ -433,7 +435,7 @@ async function handleAffiliateInjection(request: NextRequest) {
       itemsProcessed: injected,
       itemsSucceeded: injected,
       resultSummary: { postsChecked: posts.length, postsNeedingInjection: needsInjection.length },
-    }).catch(() => {});
+    }).catch((logErr) => console.warn("[affiliate-injection] Failed to log execution:", logErr instanceof Error ? logErr.message : logErr));
 
     return NextResponse.json({
       success: true,

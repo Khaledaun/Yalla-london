@@ -1481,7 +1481,9 @@ export async function submitUrlImmediately(
         last_submitted_at: indexNow ? new Date() : null,
       },
       update: {
-        status: indexNow ? "submitted" : undefined,
+        // Always set status explicitly — using `undefined` leaves stale "submitted"
+        // status from a previous run, creating ghost submissions with no channel.
+        status: indexNow ? "submitted" : "discovered",
         submitted_indexnow: indexNow || undefined,
         last_submitted_at: indexNow ? new Date() : undefined,
         submission_attempts: { increment: 1 },

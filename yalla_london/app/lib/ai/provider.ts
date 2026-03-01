@@ -44,10 +44,8 @@ const MODEL_PRICING: Record<string, [number, number]> = {
   'grok-4-latest': [3.00, 15.00],
   'grok-beta': [5.00, 15.00],
   'grok-2-1212': [2.00, 10.00],
-  // Anthropic Claude
-  'claude-3-5-sonnet-20241022': [3.00, 15.00],
-  'claude-3-5-haiku-20241022': [0.80, 4.00],
-  'claude-3-opus-20240229': [15.00, 75.00],
+  // Anthropic Claude (current models as of March 2026)
+  'claude-opus-4-6': [15.00, 75.00],
   'claude-sonnet-4-6': [3.00, 15.00],
   'claude-haiku-4-5-20251001': [0.80, 4.00],
   // OpenAI
@@ -114,8 +112,8 @@ export interface AICompletionResult {
 // Default models per provider
 const DEFAULT_MODELS: Record<AIProvider, string> = {
   grok: 'grok-4-1-fast',
-  claude: 'claude-3-5-sonnet-20241022',
-  openai: 'gpt-4-turbo-preview',
+  claude: 'claude-sonnet-4-6',
+  openai: 'gpt-4o',
   gemini: 'gemini-pro',
 };
 

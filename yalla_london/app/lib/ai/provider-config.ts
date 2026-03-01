@@ -51,8 +51,8 @@ const ALL_TASK_TYPES: TaskType[] = Object.keys(TASK_LABELS) as TaskType[];
 // Default models per provider name — mirrors lib/ai/provider.ts DEFAULT_MODELS
 const DEFAULT_MODELS: Record<string, string> = {
   grok: 'grok-4-1-fast',
-  claude: 'claude-3-5-sonnet-20241022',
-  openai: 'gpt-4-turbo-preview',
+  claude: 'claude-sonnet-4-6',
+  openai: 'gpt-4o',
   gemini: 'gemini-pro',
 };
 

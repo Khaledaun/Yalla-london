@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, SlidersHorizontal, X, Star, Ship, ShieldCheck, Users, Waves, ChevronDown, ChevronLeft, ChevronRight, ArrowUpDown, Compass } from 'lucide-react';
@@ -248,11 +249,15 @@ function YachtCardComponent({ yacht, locale }: { yacht: YachtCard; locale: Local
         {/* Image */}
         <div className="relative aspect-[4/3] bg-gradient-to-br from-[var(--z-midnight)] to-[var(--z-aegean)] overflow-hidden">
           {yacht.images && yacht.images.length > 0 ? (
-            <img
+            <Image
               src={yacht.images[0]}
               alt={yacht.name}
+              width={0}
+              height={0}
+              sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw"
               className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              loading="lazy"
+              style={{ width: '100%', height: '100%' }}
+              unoptimized
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">

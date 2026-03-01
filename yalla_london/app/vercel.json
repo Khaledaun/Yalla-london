@@ -143,7 +143,7 @@
     },
     {
       "path": "/api/cron/sweeper",
-      "schedule": "45 8 * * *"
+      "schedule": "45 8,14,20 * * *"
     },
     {
       "path": "/api/cron/google-indexing",

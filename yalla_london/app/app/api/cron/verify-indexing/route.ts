@@ -69,10 +69,9 @@ async function handleVerifyIndexing(request: NextRequest) {
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
     // Per-site budget: 50 URLs per site per run
-    // Math: 50 URLs × 600ms rate-limit = 30s, leaving 23s for queue building + rate-drop checks
-    // Previous value of 70 URLs × 600ms = 42s was still hitting 50s+ due to slow GSC responses
-    // and rate-drop alerting queries consuming the remaining budget.
-    const MAX_PER_SITE = 50;
+    // Math: 35 URLs × 600ms rate-limit = 21s, leaving 32s for queue building + rate-drop checks.
+    // Reduced from 50 (30s API time) to prevent 53 runs exceeding 50s threshold.
+    const MAX_PER_SITE = 35;
 
     let totalChecked = 0;
     let totalIndexed = 0;

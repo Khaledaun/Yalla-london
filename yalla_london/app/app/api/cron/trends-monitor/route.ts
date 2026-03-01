@@ -24,11 +24,9 @@ import { logCronExecution } from "@/lib/cron-logger";
 const MONITORED_KEYWORDS = [
   "halal food london",
   "luxury london",
-  "london restaurants",
   "london hotels",
   "arab restaurants london",
-  "things to do london",
-];
+]; // Reduced from 6 to 4 — saves ~1-2s on API calls, prevents timeout risk
 
 // Arabic keywords for GCC audience
 const ARABIC_KEYWORDS = ["سياحة لندن", "فنادق لندن", "مطاعم لندن", "حلال لندن"];

@@ -129,16 +129,30 @@ async function handleAutoFix(request: NextRequest) {
   // Published articles with multiple H1 tags hurt SEO. Lightweight DB reads.
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
-      const recentPosts = await prisma.blogPost.findMany({
-        where: {
-          siteId: { in: activeSiteIds },
-          published: true,
-          deletedAt: null,
-        },
-        select: { id: true, slug: true, content_en: true },
-        take: 20,
-        orderBy: { created_at: "desc" },
-      });
+      // Retry once on transient Prisma errors (cold start / connection pool issues)
+      let recentPosts: Array<{ id: string; slug: string; content_en: string | null }> = [];
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          recentPosts = await prisma.blogPost.findMany({
+            where: {
+              siteId: { in: activeSiteIds },
+              published: true,
+              deletedAt: null,
+            },
+            select: { id: true, slug: true, content_en: true },
+            take: 20,
+            orderBy: { created_at: "desc" },
+          });
+          break; // success
+        } catch (retryErr) {
+          if (attempt === 0) {
+            console.warn("[content-auto-fix] heading-fix query failed, retrying:", retryErr instanceof Error ? retryErr.message.substring(0, 200) : String(retryErr));
+            await new Promise(r => setTimeout(r, 500));
+          } else {
+            throw retryErr; // second attempt failed — rethrow
+          }
+        }
+      }
 
       let headingsFixed = 0;
       for (const post of recentPosts) {
@@ -184,11 +198,12 @@ async function handleAutoFix(request: NextRequest) {
 
       results.headingsFixed = headingsFixed;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const stack = err instanceof Error ? err.stack : undefined;
+      // Prisma validation errors dump the full query before the actual error.
+      // Truncate to capture the actionable part, not the query dump.
+      const fullMsg = err instanceof Error ? err.message : String(err);
+      const msg = fullMsg.length > 300 ? fullMsg.substring(fullMsg.length - 200) : fullMsg;
       results.errors.push(`heading-fix: ${msg}`);
       console.warn("[content-auto-fix] Heading hierarchy fix failed:", msg);
-      if (stack) console.warn("[content-auto-fix] heading-fix stack:", stack);
     }
   }
 

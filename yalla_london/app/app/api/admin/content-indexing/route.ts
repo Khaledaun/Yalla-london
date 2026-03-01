@@ -1218,7 +1218,11 @@ export async function POST(request: NextRequest) {
       gscMessage = `Error: ${e instanceof Error ? e.message : String(e)}`;
     }
 
-    // Track submissions in DB
+    // Track submissions in DB — only mark as "submitted" if at least one
+    // channel succeeded. Otherwise mark as "pending" to avoid ghost submissions
+    // (status="submitted" with no channel flags set).
+    const anyChannelSucceeded = indexNowSuccess || gscSuccess;
+    const effectiveStatus = anyChannelSucceeded ? "submitted" : "pending";
     let dbUpdated = 0;
     for (const url of urls) {
       try {
@@ -1229,17 +1233,17 @@ export async function POST(request: NextRequest) {
             site_id: siteId,
             url,
             slug,
-            status: "submitted",
+            status: effectiveStatus,
             submitted_indexnow: indexNowSuccess,
             submitted_sitemap: gscSuccess,
-            last_submitted_at: new Date(),
+            last_submitted_at: anyChannelSucceeded ? new Date() : undefined,
             submission_attempts: 1,
           },
           update: {
-            status: "submitted",
-            submitted_indexnow: indexNowSuccess,
-            submitted_sitemap: gscSuccess || undefined,
-            last_submitted_at: new Date(),
+            status: effectiveStatus,
+            ...(indexNowSuccess && { submitted_indexnow: true }),
+            ...(gscSuccess && { submitted_sitemap: true }),
+            last_submitted_at: anyChannelSucceeded ? new Date() : undefined,
             submission_attempts: { increment: 1 },
           },
         });

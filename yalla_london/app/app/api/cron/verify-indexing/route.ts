@@ -226,8 +226,11 @@ async function handleVerifyIndexing(request: NextRequest) {
             const previousStatus = urlRecord.status as string;
             const attempts = (urlRecord.submission_attempts as number) || 0;
 
-            // Determine detailed status for URLs not yet indexed
-            let status = "submitted";
+            // Determine detailed status for URLs not yet indexed.
+            // IMPORTANT: Preserve existing status as default — do NOT override to
+            // "submitted" without channel flags (creates ghost submissions, KG-055).
+            // Only change status when GSC gives a clear signal.
+            let status = previousStatus;
             if (isIndexed) {
               status = "indexed";
             } else if (inspection.coverageState) {
@@ -236,7 +239,7 @@ async function handleVerifyIndexing(request: NextRequest) {
               if (cs.includes("crawled") || cs.includes("discovered")) {
                 status = "discovered";
               }
-              // "submitted" stays as default for everything else
+              // Keep existing status for unknown coverage states
             }
 
             // ── Deindexing detection & auto-resubmit ──

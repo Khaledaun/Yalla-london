@@ -198,10 +198,20 @@ async function handleAutoFix(request: NextRequest) {
 
       results.headingsFixed = headingsFixed;
     } catch (err) {
-      // Prisma validation errors dump the full query before the actual error.
-      // Truncate to capture the actionable part, not the query dump.
+      // Prisma validation errors dump the full query before the actual error reason.
+      // Extract the actionable part: everything after the last newline block (the reason),
+      // falling back to the last 200 chars if no clear separator is found.
       const fullMsg = err instanceof Error ? err.message : String(err);
-      const msg = fullMsg.length > 300 ? fullMsg.substring(fullMsg.length - 200) : fullMsg;
+      let msg: string;
+      // Prisma errors end with the actual reason after a blank line
+      const lastDoubleNewline = fullMsg.lastIndexOf("\n\n");
+      if (lastDoubleNewline > 0 && lastDoubleNewline < fullMsg.length - 5) {
+        msg = fullMsg.substring(lastDoubleNewline + 2).trim();
+      } else if (fullMsg.length > 300) {
+        msg = fullMsg.substring(fullMsg.length - 200);
+      } else {
+        msg = fullMsg;
+      }
       results.errors.push(`heading-fix: ${msg}`);
       console.warn("[content-auto-fix] Heading hierarchy fix failed:", msg);
     }

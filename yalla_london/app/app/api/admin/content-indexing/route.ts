@@ -908,10 +908,13 @@ export async function POST(request: NextRequest) {
             inspection.coverageState.toLowerCase().includes("indexed");
           const isIndexed = indexingStateMatch || coverageStateMatch;
 
-          let status = "submitted";
+          // Derive status from actual GSC inspection result — never default to
+          // "submitted" since verification is not a submission. Defaulting to
+          // "submitted" without channel flags creates ghost submissions.
+          let status = "discovered";
           if (isIndexed) status = "indexed";
-          else if (inspection.coverageState?.toLowerCase().includes("crawled") || inspection.coverageState?.toLowerCase().includes("discovered")) {
-            status = "discovered";
+          else if (inspection.coverageState?.toLowerCase().includes("submitted")) {
+            status = "submitted";
           }
 
           // Update tracking record

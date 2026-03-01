@@ -665,40 +665,60 @@ export async function promoteToBlogPost(
     }
   }
 
-  const blogPost = await prisma.blogPost.create({
-    data: {
-      title_en: enTitle || keyword,
-      title_ar: arTitle || "",
-      slug,
-      excerpt_en: enMetaDesc,
-      excerpt_ar: arMetaDesc,
-      content_en: enHtml,
-      content_ar: arHtml,
-      meta_title_en: enMetaTitle,
-      meta_title_ar: arMetaTitle,
-      meta_description_en: enMetaDesc,
-      meta_description_ar: arMetaDesc,
-      tags: [
-        ...keywords.slice(0, 5),
-        "auto-generated",
-        "reservoir-pipeline",
-        "needs-review",
-        isBilingual ? "bilingual" : `primary-${locale}`,
-        ...missingLanguageTags,
-        `site-${siteId}`,
-        site.destination.toLowerCase(),
-      ],
-      published: true,
-      featured_image: featuredImage,
-      siteId,
-      category_id: category.id,
-      author_id: systemUser.id,
-      page_type: pageType,
-      seo_score: Math.round(draft.seo_score as number || draft.quality_score as number || 70),
-      keywords_json: keywords,
-      questions_json: ((draft.research_data as Record<string, unknown>)?.keywordData as Record<string, unknown>)?.questions || [],
-    },
-  });
+  // Retry blogPost.create() up to 2 times on slug collision (P2002 unique constraint).
+  // The pre-check at line 532 handles most collisions, but a race condition can still
+  // occur if two concurrent promotions pass the check before either creates.
+  let blogPost;
+  for (let slugAttempt = 0; slugAttempt < 3; slugAttempt++) {
+    try {
+      blogPost = await prisma.blogPost.create({
+        data: {
+          title_en: enTitle || keyword,
+          title_ar: arTitle || "",
+          slug,
+          excerpt_en: enMetaDesc,
+          excerpt_ar: arMetaDesc,
+          content_en: enHtml,
+          content_ar: arHtml,
+          meta_title_en: enMetaTitle,
+          meta_title_ar: arMetaTitle,
+          meta_description_en: enMetaDesc,
+          meta_description_ar: arMetaDesc,
+          tags: [
+            ...keywords.slice(0, 5),
+            "auto-generated",
+            "reservoir-pipeline",
+            "needs-review",
+            isBilingual ? "bilingual" : `primary-${locale}`,
+            ...missingLanguageTags,
+            `site-${siteId}`,
+            site.destination.toLowerCase(),
+          ],
+          published: true,
+          featured_image: featuredImage,
+          siteId,
+          category_id: category.id,
+          author_id: systemUser.id,
+          page_type: pageType,
+          seo_score: Math.round(draft.seo_score as number || draft.quality_score as number || 70),
+          keywords_json: keywords,
+          questions_json: ((draft.research_data as Record<string, unknown>)?.keywordData as Record<string, unknown>)?.questions || [],
+        },
+      });
+      break; // success — exit retry loop
+    } catch (createErr) {
+      // P2002 = Prisma unique constraint violation (duplicate slug)
+      const isP2002 = createErr instanceof Error &&
+        (createErr.message.includes("Unique constraint") || (createErr as unknown as Record<string, unknown>).code === "P2002");
+      if (isP2002 && slugAttempt < 2) {
+        const randomBytes = await import("crypto").then(c => c.randomBytes(4).toString("hex"));
+        slug = `${slug.replace(/-[a-f0-9]{8}$/, "")}-${randomBytes}`;
+        console.warn(`[content-selector] Slug collision on create (attempt ${slugAttempt + 1}) — retrying with "${slug}"`);
+      } else {
+        throw createErr; // Non-slug error or exhausted retries — propagate
+      }
+    }
+  }
 
   // Auto-queue tweet for newly published article (fires when TWITTER_* env vars are set)
   try {

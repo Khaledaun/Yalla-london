@@ -240,7 +240,10 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
               indexing_state: null,
               inspection_result: null,
               last_error: null,
-              status: "submitted",
+              // Use "discovered" not "submitted" — URL conversion is not an actual
+              // submission to any search engine. Setting "submitted" without channel
+              // flags creates ghost submissions that never get verified.
+              status: "discovered",
             },
           }),
         ),

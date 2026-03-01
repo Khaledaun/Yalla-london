@@ -191,7 +191,10 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   // ── 3. IndexNow / GSC / CRON ─────────────────────────
   const indexNowStatus = { configured: !!process.env.INDEXNOW_KEY };
   const gscStatus = {
-    configured: !!(process.env.GOOGLE_SERVICE_ACCOUNT_KEY || process.env.GSC_CREDENTIALS),
+    configured: !!(
+      process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL ||
+      process.env.GSC_CLIENT_EMAIL
+    ),
   };
   const cronSecretStatus = { configured: !!process.env.CRON_SECRET };
   const nextAuthSecretStatus = { configured: !!process.env.NEXTAUTH_SECRET };

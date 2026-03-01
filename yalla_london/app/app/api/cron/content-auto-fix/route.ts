@@ -356,7 +356,7 @@ async function handleAutoFix(request: NextRequest) {
           siteId: { in: activeSiteIds },
           published: true,
           deletedAt: null,
-          content_en: { not: null },
+          content_en: { not: "" },
         },
         select: { id: true, slug: true, content_en: true },
         take: 20,

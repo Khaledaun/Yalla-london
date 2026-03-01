@@ -50,13 +50,17 @@ interface ContentItem {
   siteId: string;
   status: string;
   generatedAt: string;
+  publishedAt: string | null;
   qualityScore: number | null;
   seoScore: number | null;
   wordCount: number;
   internalLinksCount: number;
   indexingStatus: string | null;
+  coverageState: string | null;
   lastSubmittedAt: string | null;
   lastCrawledAt: string | null;
+  gscClicks: number | null;
+  gscImpressions: number | null;
   rejectionReason: string | null;
   lastError: string | null;
   plainError: string | null;
@@ -146,19 +150,38 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
     const targetSiteId = activeSiteIds.includes(siteId) ? siteId : defaultSiteId;
 
     // ── Pre-fetch all URLIndexingStatus for this site in one query ──
-    let indexingMap: Map<string, { status: string; lastSubmittedAt: Date | null; lastCrawledAt: Date | null }> =
-      new Map();
+    let indexingMap: Map<string, {
+      status: string;
+      coverageState: string | null;
+      lastSubmittedAt: Date | null;
+      lastCrawledAt: Date | null;
+      gscClicks: number | null;
+      gscImpressions: number | null;
+    }> = new Map();
     try {
       const indexingRows = await prisma.uRLIndexingStatus.findMany({
         where: { site_id: targetSiteId },
-        select: { slug: true, status: true, last_submitted_at: true, last_crawled_at: true },
+        select: {
+          slug: true,
+          status: true,
+          coverage_state: true,
+          last_submitted_at: true,
+          last_crawled_at: true,
+          inspection_result: true,
+        },
       });
       for (const row of indexingRows) {
         if (row.slug) {
+          // Extract GSC performance from inspection_result JSON
+          const inspection = row.inspection_result as Record<string, unknown> | null;
+          const perf = (inspection?.performanceMetrics || inspection?.performance) as Record<string, unknown> | null;
           indexingMap.set(row.slug, {
             status: row.status,
+            coverageState: row.coverage_state ?? null,
             lastSubmittedAt: row.last_submitted_at,
             lastCrawledAt: row.last_crawled_at,
+            gscClicks: typeof perf?.clicks === "number" ? perf.clicks : null,
+            gscImpressions: typeof perf?.impressions === "number" ? perf.impressions : null,
           });
         }
       }
@@ -228,13 +251,17 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             siteId: post.siteId ?? targetSiteId,
             status: resolveStatus("published", null, post.created_at, post.published),
             generatedAt: post.created_at.toISOString(),
+            publishedAt: post.published ? post.created_at.toISOString() : null,
             qualityScore: null,
             seoScore: post.seo_score ?? null,
             wordCount: wc,
             internalLinksCount: ilCount,
             indexingStatus: indexData?.status ?? null,
+            coverageState: indexData?.coverageState ?? null,
             lastSubmittedAt: indexData?.lastSubmittedAt?.toISOString() ?? null,
             lastCrawledAt: indexData?.lastCrawledAt?.toISOString() ?? null,
+            gscClicks: indexData?.gscClicks ?? null,
+            gscImpressions: indexData?.gscImpressions ?? null,
             rejectionReason: null,
             lastError: null,
             plainError: null,
@@ -345,13 +372,17 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
             siteId: draft.site_id,
             status: resolveStatus("draft", draft.current_phase, draft.updated_at),
             generatedAt: draft.created_at.toISOString(),
+            publishedAt: null,
             qualityScore: draft.quality_score ?? null,
             seoScore: draft.seo_score ?? null,
             wordCount: wc,
             internalLinksCount: ilCount,
             indexingStatus: indexData?.status ?? null,
+            coverageState: indexData?.coverageState ?? null,
             lastSubmittedAt: indexData?.lastSubmittedAt?.toISOString() ?? null,
             lastCrawledAt: indexData?.lastCrawledAt?.toISOString() ?? null,
+            gscClicks: indexData?.gscClicks ?? null,
+            gscImpressions: indexData?.gscImpressions ?? null,
             rejectionReason: draft.rejection_reason ?? null,
             lastError: draft.last_error ?? null,
             plainError: interpreted?.plain ?? null,

@@ -35,19 +35,26 @@ const IMPORTANT_ENV_VARS = [
   "GROK_API_KEY",
   "INDEXNOW_KEY",
   "CRON_SECRET",
-  "GOOGLE_CLIENT_EMAIL",
-  "GOOGLE_PRIVATE_KEY",
+  "GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL",
+  "GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY",
   "GA4_PROPERTY_ID",
   "GSC_SITE_URL",
   "ADMIN_EMAILS",
 ];
+
+// Alternate env var names (some vars have legacy aliases)
+const ENV_VAR_ALTS: Record<string, string> = {
+  GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL: "GSC_CLIENT_EMAIL",
+  GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY: "GSC_PRIVATE_KEY",
+};
 
 function scanEnvVars(): { confirmed: string[]; missing: string[] } {
   const confirmed: string[] = [];
   const missing: string[] = [];
 
   for (const v of [...CRITICAL_ENV_VARS, ...IMPORTANT_ENV_VARS]) {
-    if (process.env[v]) {
+    const alt = ENV_VAR_ALTS[v];
+    if (process.env[v] || (alt && process.env[alt])) {
       confirmed.push(v);
     } else {
       missing.push(v);

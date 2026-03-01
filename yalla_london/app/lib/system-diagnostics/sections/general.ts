@@ -146,14 +146,16 @@ const generalSection = async (
     { key: "NEXTAUTH_URL", desc: "Base URL for authentication callbacks. Must match your deployed domain." },
     { key: "INDEXNOW_KEY", desc: "IndexNow API key for instant search engine notification when new content is published." },
     { key: "CRON_SECRET", desc: "Shared secret to protect cron job endpoints from unauthorized access." },
-    { key: "GOOGLE_CLIENT_EMAIL", desc: "Google service account email for Search Console and Analytics API access." },
-    { key: "GOOGLE_PRIVATE_KEY", desc: "Google service account private key. Required alongside GOOGLE_CLIENT_EMAIL." },
+    { key: "GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL", alt: "GSC_CLIENT_EMAIL", desc: "Google service account email for Search Console and Analytics API access." },
+    { key: "GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY", alt: "GSC_PRIVATE_KEY", desc: "Google service account private key. Required alongside GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL." },
     { key: "GA4_PROPERTY_ID", desc: "Google Analytics 4 property ID for traffic and conversion tracking." },
     { key: "GSC_SITE_URL", desc: "Google Search Console site URL for indexing status and search analytics." },
   ];
 
-  for (const { key, desc } of coreEnvVars) {
-    const value = process.env[key];
+  for (const envVar of coreEnvVars) {
+    const { key, desc } = envVar;
+    const alt = (envVar as { alt?: string }).alt;
+    const value = process.env[key] || (alt ? process.env[alt] : undefined);
     const isCritical = ["DATABASE_URL", "NEXTAUTH_SECRET", "NEXTAUTH_URL"].includes(key);
     if (value && value.length > 0) {
       results.push(pass(`env-${key.toLowerCase()}`, `Env: ${key}`, "Configured", `${desc}`));

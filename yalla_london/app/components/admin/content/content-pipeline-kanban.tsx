@@ -5,7 +5,7 @@
  * Manages generated articles through pipeline states with drag-drop functionality
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -159,13 +159,7 @@ export default function ContentPipelineKanban() {
   // Check feature availability
   const isFeatureEnabled = isPremiumFeatureEnabled('FEATURE_CONTENT_PIPELINE')
 
-  useEffect(() => {
-    if (isFeatureEnabled) {
-      fetchContent()
-    }
-  }, [filters, isFeatureEnabled])
-
-  const fetchContent = async () => {
+  const fetchContent = useCallback(async () => {
     if (!isFeatureEnabled) return
 
     setLoading(true)
@@ -216,7 +210,13 @@ export default function ContentPipelineKanban() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [isFeatureEnabled])
+
+  useEffect(() => {
+    if (isFeatureEnabled) {
+      fetchContent()
+    }
+  }, [filters, isFeatureEnabled, fetchContent])
 
   const handleDragStart = (event: DragStartEvent) => {
     const item = content.find(c => c.id === event.active.id)

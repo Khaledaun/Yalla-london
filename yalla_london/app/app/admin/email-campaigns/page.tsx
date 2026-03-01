@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -286,10 +287,15 @@ export default function EmailCampaignsPage() {
                     {/* Thumbnail */}
                     <div className="aspect-[16/10] bg-gray-100 dark:bg-gray-800 relative overflow-hidden">
                       {template.thumbnail ? (
-                        <img
+                        <Image
                           src={template.thumbnail}
                           alt={template.name}
+                          width={0}
+                          height={0}
+                          sizes="100vw"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          style={{ width: '100%', height: '100%' }}
+                          unoptimized
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">

@@ -101,7 +101,7 @@ async function handleSocialCron(request: NextRequest) {
         } catch (dbErr) {
           const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
           if (attempt < maxRetries && (msg.includes('MaxClients') || msg.includes('FATAL') || msg.includes('connection'))) {
-            const delayMs = attempt * 2000;
+            const delayMs = attempt * 1000; // 1s, 2s, 3s — kept short to preserve 53s budget
             console.warn(`[social-cron] DB connection failed (attempt ${attempt}/${maxRetries}), retrying in ${delayMs}ms: ${msg}`);
             await new Promise(r => setTimeout(r, delayMs));
           } else {

@@ -189,7 +189,7 @@ export default function ThemeSettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Theme Settings</h1>
-              <p className="text-gray-600 mt-2">Customize your site's appearance and branding</p>
+              <p className="text-gray-600 mt-2">Customize your site&apos;s appearance and branding</p>
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={resetTheme}>

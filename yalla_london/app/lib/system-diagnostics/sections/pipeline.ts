@@ -118,14 +118,15 @@ const pipelineSection = async (
       }
 
       // Check for stuck drafts (>6 hours in same phase)
-      // Exclude terminal states: reservoir (waiting to publish), completed, failed, AND rejected.
+      // Exclude terminal states: reservoir, published, completed, failed, rejected.
+      // "published" drafts are terminal — they've been promoted to BlogPost.
       // "rejected" drafts are terminal — they were intentionally rejected for quality reasons
       // and should be handled by the sweeper, not counted as "stuck".
       const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
       const stuckDrafts = await prisma.articleDraft.count({
         where: {
           site_id: siteId,
-          current_phase: { notIn: ["reservoir", "completed", "failed", "rejected"] },
+          current_phase: { notIn: ["reservoir", "published", "completed", "failed", "rejected"] },
           updated_at: { lt: sixHoursAgo },
         },
       });

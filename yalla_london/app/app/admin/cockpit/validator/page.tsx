@@ -71,12 +71,6 @@ export default function ValidatorPage() {
   const [siteId, setSiteId] = useState(""); // Set dynamically from API response
   const [error, setError] = useState<string | null>(null);
 
-  // ── Load available groups + history on mount ─────────────────────────
-  useEffect(() => {
-    if (!isAdmin) return;
-    loadGroupsAndHistory();
-  }, [isAdmin]);
-
   const loadGroupsAndHistory = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/diagnostics");
@@ -91,6 +85,12 @@ export default function ValidatorPage() {
       console.warn("[validator] Failed to load groups:", err);
     }
   }, []);
+
+  // ── Load available groups + history on mount ─────────────────────────
+  useEffect(() => {
+    if (!isAdmin) return;
+    loadGroupsAndHistory();
+  }, [isAdmin, loadGroupsAndHistory]);
 
   // ── Run Diagnostics ──────────────────────────────────────────────────
   const runDiagnostics = useCallback(async () => {

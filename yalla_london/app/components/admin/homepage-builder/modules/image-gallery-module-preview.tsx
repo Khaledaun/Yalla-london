@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ImageIcon, ArrowRight } from 'lucide-react'
 
@@ -45,10 +46,15 @@ export function ImageGalleryModulePreview({ module }: ImageGalleryModulePreviewP
               className="group relative overflow-hidden rounded-xl aspect-[4/3] cursor-pointer"
             >
               {image.src ? (
-                <img
+                <Image
                   src={image.src}
                   alt={image.title}
+                  width={0}
+                  height={0}
+                  sizes="50vw"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  style={{ width: '100%', height: '100%' }}
+                  unoptimized
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">

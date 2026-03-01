@@ -5,7 +5,7 @@
  * Provides topic research management with inline editing, status management, and generation
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -97,13 +97,7 @@ export default function TopicsManagement() {
   // Check feature availability
   const isFeatureEnabled = isPremiumFeatureEnabled('FEATURE_TOPICS_RESEARCH')
 
-  useEffect(() => {
-    if (isFeatureEnabled) {
-      fetchTopics()
-    }
-  }, [filters, pagination.page, isFeatureEnabled])
-
-  const fetchTopics = async () => {
+  const fetchTopics = useCallback(async () => {
     if (!isFeatureEnabled) return
 
     setLoading(true)
@@ -129,7 +123,13 @@ export default function TopicsManagement() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [isFeatureEnabled, pagination.page, pagination.limit, filters])
+
+  useEffect(() => {
+    if (isFeatureEnabled) {
+      fetchTopics()
+    }
+  }, [fetchTopics, isFeatureEnabled])
 
   const generateTopics = async (formData: any) => {
     if (!isFeatureEnabled) return

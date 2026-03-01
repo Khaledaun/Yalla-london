@@ -35,6 +35,7 @@ import {
   Search
 } from 'lucide-react'
 import { toast } from 'sonner'
+import NextImage from 'next/image'
 import { getSiteDomain, getDefaultSiteId, getSiteConfig } from '@/config/sites'
 
 interface HomepageConfig {
@@ -431,10 +432,15 @@ export default function SiteControl() {
                 </CardHeader>
                 <CardContent>
                   <div className="relative h-64 rounded-lg overflow-hidden">
-                    <img
+                    <NextImage
                       src={homepageConfig.hero.backgroundImage}
                       alt="Hero preview"
+                      width={0}
+                      height={0}
+                      sizes="100vw"
                       className="w-full h-full object-cover"
+                      style={{ width: '100%', height: '100%' }}
+                      unoptimized
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
                       <div className="text-center text-white p-4">
@@ -676,10 +682,13 @@ export default function SiteControl() {
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-4">
-                        <img
+                        <NextImage
                           src={popup.image}
                           alt={popup.name}
+                          width={64}
+                          height={64}
                           className="w-16 h-16 object-cover rounded-lg"
+                          unoptimized
                         />
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
@@ -711,10 +720,13 @@ export default function SiteControl() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex items-center gap-4">
-                        <img
+                        <NextImage
                           src={selectedPopup.image}
                           alt={selectedPopup.name}
+                          width={96}
+                          height={96}
                           className="w-24 h-24 object-cover rounded-lg"
+                          unoptimized
                         />
                         <div>
                           <h3 className="text-xl font-bold">{selectedPopup.name}</h3>

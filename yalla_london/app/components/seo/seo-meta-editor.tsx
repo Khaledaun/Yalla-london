@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -66,11 +66,7 @@ export function SeoMetaEditor({
   const [seoScore, setSeoScore] = useState(0);
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  useEffect(() => {
-    calculateSeoScore();
-  }, [seoData]);
-
-  const calculateSeoScore = () => {
+  const calculateSeoScore = useCallback(() => {
     let score = 0;
     const newSuggestions: string[] = [];
 
@@ -115,7 +111,7 @@ export function SeoMetaEditor({
 
     // Canonical URL
     if (seoData.canonical) score += 5;
-    
+
     // Twitter cards
     if (seoData.twitterTitle && seoData.twitterDescription) score += 5;
 
@@ -132,7 +128,11 @@ export function SeoMetaEditor({
 
     setSeoScore(Math.min(score, 100));
     setSuggestions(newSuggestions);
-  };
+  }, [seoData]);
+
+  useEffect(() => {
+    calculateSeoScore();
+  }, [calculateSeoScore]);
 
   const handleSave = () => {
     onSave(seoData);

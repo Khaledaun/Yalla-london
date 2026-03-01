@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import NextImage from "next/image";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
@@ -676,10 +677,15 @@ export default function ContentHub() {
                 >
                   <div className="aspect-square bg-gray-200 relative">
                     {asset.fileType === "image" ? (
-                      <img
+                      <NextImage
                         src={asset.url}
                         alt={asset.altText || asset.originalName}
+                        width={0}
+                        height={0}
+                        sizes="100vw"
                         className="w-full h-full object-cover"
+                        style={{ width: '100%', height: '100%' }}
+                        unoptimized
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">

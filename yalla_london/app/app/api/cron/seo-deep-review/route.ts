@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5 minutes — comprehensive SEO fixes take time
+export const maxDuration = 300; // 5 minutes — Vercel Pro allows up to 300s. Route-level export overrides vercel.json's 60s default for cron/**.
 
 /**
  * SEO Deep Review — Active Fixer Cron (00:00 UTC daily)
@@ -189,7 +189,8 @@ export async function GET(request: NextRequest) {
             if (relatedPosts.length > 0) {
               const linksNeeded = Math.min(3 - currentInternalLinks, relatedPosts.length);
               const linksHtml = relatedPosts.slice(0, linksNeeded).map(
-                (p: any) => `<a href="${domain}/blog/${p.slug}" class="internal-link">${p.title_en || p.slug}</a>`
+                // Use relative URLs for internal links — works across all environments (dev, staging, prod)
+                (p: any) => `<a href="/blog/${p.slug}" class="internal-link">${p.title_en || p.slug}</a>`
               ).join(", ");
 
               // Insert before closing </article> or at end of content
@@ -213,9 +214,10 @@ export async function GET(request: NextRequest) {
         const hasAffiliates = affiliatePatterns.some((p) => p.test(updatedContentEN));
 
         if (!hasAffiliates && updatedContentEN.length > 500) {
+          // Use tracked affiliate URLs with UTM params for attribution
           const affiliateCTA = `\n<div class="affiliate-cta" style="background:#f8f9fa;padding:16px;border-radius:8px;margin:24px 0;">
 <p><strong>Book Your Experience</strong></p>
-<p><a href="https://www.booking.com" rel="sponsored noopener" target="_blank">Find the best hotels on Booking.com</a> | <a href="https://www.halalbooking.com" rel="sponsored noopener" target="_blank">Halal-friendly stays on HalalBooking</a></p>
+<p><a href="https://www.booking.com?aid=AFFILIATE_ID&utm_source=${siteId}&utm_medium=blog&utm_campaign=seo-deep-review" rel="sponsored noopener" target="_blank">Find the best hotels on Booking.com</a> | <a href="https://www.halalbooking.com?utm_source=${siteId}&utm_medium=blog&utm_campaign=seo-deep-review" rel="sponsored noopener" target="_blank">Halal-friendly stays on HalalBooking</a></p>
 </div>`;
 
           if (updatedContentEN.includes("</article>")) {

@@ -95,7 +95,7 @@
     },
     {
       "path": "/api/cron/seo-orchestrator?mode=daily",
-      "schedule": "0 6 * * *"
+      "schedule": "10 6 * * *"
     },
     {
       "path": "/api/cron/seo-agent",
@@ -119,7 +119,7 @@
     },
     {
       "path": "/api/cron/affiliate-injection",
-      "schedule": "0 9 * * *"
+      "schedule": "10 9 * * *"
     },
     {
       "path": "/api/cron/scheduled-publish",
@@ -155,7 +155,7 @@
     },
     {
       "path": "/api/cron/london-news",
-      "schedule": "0 6 * * *"
+      "schedule": "20 6 * * *"
     },
     {
       "path": "/api/cron/fact-verification",

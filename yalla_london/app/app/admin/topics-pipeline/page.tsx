@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -75,7 +75,7 @@ export default function TopicsPipelinePage() {
   })
 
   // Fetch topics from API
-  const fetchTopics = async () => {
+  const fetchTopics = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -97,11 +97,11 @@ export default function TopicsPipelinePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedStatus])
 
   useEffect(() => {
     fetchTopics()
-  }, [selectedStatus])
+  }, [fetchTopics])
 
   const statusColors: Record<string, string> = {
     'planned': 'bg-gray-100 text-gray-800',

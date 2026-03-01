@@ -2,6 +2,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { SchemaGenerator } from '@/lib/seo/schema-generator';
 import { useLanguage } from '@/components/language-provider';
 
@@ -190,11 +191,13 @@ export function StructuredHowTo({
             
             {step.image && (
               <div className="flex-shrink-0">
-                <img 
-                  src={step.image} 
+                <Image
+                  src={step.image}
                   alt={step.name}
+                  width={64}
+                  height={64}
                   className="w-16 h-16 rounded-lg object-cover"
-                  itemProp="image"
+                  unoptimized
                 />
               </div>
             )}

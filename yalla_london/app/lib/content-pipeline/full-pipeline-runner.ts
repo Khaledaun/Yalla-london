@@ -274,6 +274,20 @@ export async function runFullPipeline(
     // ─── Step 0: Resolve site ───────────────────────────────────────
     const activeSites = getActiveSiteIds();
     const siteId = options.siteId || activeSites[0];
+
+    // Yacht sites don't use the content pipeline — reject immediately
+    if (siteId && siteId.includes("yacht")) {
+      return {
+        success: false,
+        message: `Site "${siteId}" is a yacht charter site and does not use the content pipeline`,
+        steps,
+        stopReason: "error",
+        published: false,
+        indexed: false,
+        durationMs: elapsed(),
+      };
+    }
+
     if (!siteId) {
       return {
         success: false,

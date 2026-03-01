@@ -1130,7 +1130,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
             {pipeline.stuckDrafts.map((d) => (
               <div key={d.id} className="text-xs">
                 <div className="flex justify-between">
-                  <span className="text-zinc-300 font-medium">"{d.keyword}"</span>
+                  <span className="text-zinc-300 font-medium">&quot;{d.keyword}&quot;</span>
                   <span className="text-orange-400">{d.hoursStuck}h in {d.phase}</span>
                 </div>
                 {d.plainError && <p className="text-zinc-500 mt-0.5">{d.plainError}</p>}

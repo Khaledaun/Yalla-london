@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
+import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { getDefaultSiteId, getSiteDomain } from "@/config/sites";
 
@@ -110,10 +111,13 @@ export default async function AuthorPage({ params }: PageProps) {
         {/* Author Header */}
         <div className="flex items-start gap-6 mb-8">
           {member.avatar_url ? (
-            <img
+            <Image
               src={member.avatar_url}
               alt={member.name_en}
+              width={96}
+              height={96}
               className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
+              unoptimized
             />
           ) : (
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">

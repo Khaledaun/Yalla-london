@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -88,12 +88,7 @@ export function AffiliatePoolManager() {
     is_active: true
   })
 
-  // Refetch when site or type changes
-  useEffect(() => {
-    fetchAffiliates()
-  }, [selectedType, currentSite.id])
-
-  const fetchAffiliates = async () => {
+  const fetchAffiliates = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -112,7 +107,12 @@ export function AffiliatePoolManager() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedType, currentSite.id, searchQuery])
+
+  // Refetch when site or type changes
+  useEffect(() => {
+    fetchAffiliates()
+  }, [fetchAffiliates])
 
   const handleCopyUrl = (url: string, id: string) => {
     navigator.clipboard.writeText(url)

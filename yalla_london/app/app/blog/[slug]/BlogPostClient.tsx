@@ -85,6 +85,18 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
     )
   }
 
+  // Content sanitization — hooks must be before any conditional returns
+  const rawContent = post ? (language === 'en' ? post.content_en : post.content_ar) : ''
+  const [sanitizedContent, setSanitizedContent] = useState(() => fastStripScripts(rawContent))
+  useEffect(() => {
+    if (!rawContent) return undefined;
+    let cancelled = false;
+    import('@/lib/html-sanitizer').then(({ sanitizeHtml }) => {
+      if (!cancelled) setSanitizedContent(sanitizeHtml(rawContent));
+    });
+    return () => { cancelled = true; };
+  }, [rawContent]);
+
   // Not found state
   if (!post) {
     return (
@@ -114,18 +126,6 @@ export default function BlogPostClient({ post }: BlogPostClientProps) {
 
   const title = language === 'en' ? post.title_en : post.title_ar
   const excerpt = language === 'en' ? post.excerpt_en : post.excerpt_ar
-  const rawContent = language === 'en' ? post.content_en : post.content_ar
-
-  // SSR: use fast regex strip (no jsdom overhead).
-  // Client: full DOMPurify sanitization via lazy import (native DOM, fast).
-  const [sanitizedContent, setSanitizedContent] = useState(() => fastStripScripts(rawContent))
-  useEffect(() => {
-    let cancelled = false;
-    import('@/lib/html-sanitizer').then(({ sanitizeHtml }) => {
-      if (!cancelled) setSanitizedContent(sanitizeHtml(rawContent));
-    });
-    return () => { cancelled = true; };
-  }, [rawContent]);
   const categoryName = post.category
     ? (language === 'en' ? post.category.name_en : post.category.name_ar)
     : ''

@@ -355,8 +355,11 @@ async function handleIndexing(request: NextRequest) {
 
     // 4. Query current indexing status summary from URLIndexingStatus table
     // Scoped to active sites only — prevents cross-site data leakage in response
+    // Budget guard: skip if < 5s remaining — this query can be slow on large tables
     let indexingStatusSummary: Record<string, unknown> | null = null;
-    try {
+    if (Date.now() - _cronStart > 50_000) {
+      console.log("[google-indexing] Budget exhausted — skipping indexing status summary query");
+    } else try {
       const allStatuses = await prisma.uRLIndexingStatus.findMany({
         where: {
           site_id: { in: siteIds },

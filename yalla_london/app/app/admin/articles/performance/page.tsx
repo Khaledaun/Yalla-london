@@ -731,7 +731,7 @@ export default function ArticlePerformancePage() {
               SEO &lt;50 / CTR &lt;2% / Pos 20+
             </span>
             <span className="ml-auto">
-              "—" means no data from that source for this article
+              &quot;—&quot; means no data from that source for this article
             </span>
           </div>
         </>

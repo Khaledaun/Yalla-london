@@ -24,92 +24,110 @@ async function handleCommerceTrends(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { getActiveSiteIds } = await import("@/config/sites");
-  const { isFeatureFlagEnabled } = await import("@/lib/feature-flags");
-  const { executeTrendRun } = await import("@/lib/commerce/trend-engine");
+  try {
+    const { getActiveSiteIds } = await import("@/config/sites");
+    const { isFeatureFlagEnabled } = await import("@/lib/feature-flags");
+    const { executeTrendRun } = await import("@/lib/commerce/trend-engine");
 
-  const activeSiteIds = getActiveSiteIds();
-  const results: Record<string, unknown> = {};
-  let totalProcessed = 0;
-  let totalFailed = 0;
-  const errors: string[] = [];
-  const sitesProcessed: string[] = [];
+    const activeSiteIds = getActiveSiteIds();
+    const results: Record<string, unknown> = {};
+    let totalProcessed = 0;
+    let totalFailed = 0;
+    const errors: string[] = [];
+    const sitesProcessed: string[] = [];
 
-  for (const siteId of activeSiteIds) {
-    // Budget check
-    const budgetUsed = Date.now() - cronStart;
-    if (budgetUsed > BUDGET_MS - 20_000) {
+    for (const siteId of activeSiteIds) {
+      // Budget check
+      const budgetUsed = Date.now() - cronStart;
+      if (budgetUsed > BUDGET_MS - 20_000) {
+        console.warn(
+          `[commerce-trends] Budget low (${Math.round(budgetUsed / 1000)}s used) — stopping`,
+        );
+        break;
+      }
+
+      // Skip sites without commerce engine enabled
+      const commerceEnabled = await isFeatureFlagEnabled("COMMERCE_ENGINE");
+      if (!commerceEnabled) {
+        continue;
+      }
+
+      // Skip yacht sites (they don't use digital product pipeline)
+      if (siteId.includes("yacht")) {
+        continue;
+      }
+
+      try {
+        const runResult = await executeTrendRun(siteId, {
+          maxNiches: 10,
+          minScore: 50,
+          calledFrom: "/api/cron/commerce-trends",
+        });
+
+        results[siteId] = {
+          trendRunId: runResult.trendRunId,
+          nichesFound: runResult.niches.length,
+          briefsCreated: runResult.briefsCreated,
+          costUsd: runResult.estimatedCostUsd,
+          durationMs: runResult.durationMs,
+        };
+
+        totalProcessed++;
+        sitesProcessed.push(siteId);
+      } catch (err) {
+        totalFailed++;
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`${siteId}: ${msg}`);
+        console.warn(`[commerce-trends] Failed for site ${siteId}:`, msg);
+      }
+    }
+
+    // Log to CronJobLog
+    const durationMs = Date.now() - cronStart;
+    const hasErrors = errors.length > 0;
+    await logCronExecution(
+      "commerce-trends",
+      hasErrors && totalProcessed === 0 ? "failed" : "completed",
+      {
+        durationMs,
+        itemsProcessed: totalProcessed + totalFailed,
+        itemsSucceeded: totalProcessed,
+        itemsFailed: totalFailed,
+        sitesProcessed,
+        errorMessage: hasErrors ? errors.slice(0, 3).join(" | ") : undefined,
+        resultSummary: results,
+      },
+    ).catch((e) =>
       console.warn(
-        `[commerce-trends] Budget low (${Math.round(budgetUsed / 1000)}s used) — stopping`,
-      );
-      break;
-    }
+        "[commerce-trends] Log failed:",
+        e instanceof Error ? e.message : e,
+      ),
+    );
 
-    // Skip sites without commerce engine enabled
-    const commerceEnabled = await isFeatureFlagEnabled("COMMERCE_ENGINE");
-    if (!commerceEnabled) {
-      continue;
-    }
-
-    // Skip yacht sites (they don't use digital product pipeline)
-    if (siteId.includes("yacht")) {
-      continue;
-    }
-
-    try {
-      const runResult = await executeTrendRun(siteId, {
-        maxNiches: 10,
-        minScore: 50,
-        calledFrom: "/api/cron/commerce-trends",
-      });
-
-      results[siteId] = {
-        trendRunId: runResult.trendRunId,
-        nichesFound: runResult.niches.length,
-        briefsCreated: runResult.briefsCreated,
-        costUsd: runResult.estimatedCostUsd,
-        durationMs: runResult.durationMs,
-      };
-
-      totalProcessed++;
-      sitesProcessed.push(siteId);
-    } catch (err) {
-      totalFailed++;
-      const msg = err instanceof Error ? err.message : String(err);
-      errors.push(`${siteId}: ${msg}`);
-      console.warn(`[commerce-trends] Failed for site ${siteId}:`, msg);
-    }
-  }
-
-  // Log to CronJobLog
-  const durationMs = Date.now() - cronStart;
-  const hasErrors = errors.length > 0;
-  await logCronExecution(
-    "commerce-trends",
-    hasErrors && totalProcessed === 0 ? "failed" : "completed",
-    {
+    return NextResponse.json({
+      success: true,
       durationMs,
-      itemsProcessed: totalProcessed + totalFailed,
-      itemsSucceeded: totalProcessed,
-      itemsFailed: totalFailed,
       sitesProcessed,
-      errorMessage: hasErrors ? errors.slice(0, 3).join(" | ") : undefined,
-      resultSummary: results,
-    },
-  ).catch((e) =>
-    console.warn(
-      "[commerce-trends] Log failed:",
-      e instanceof Error ? e.message : e,
-    ),
-  );
+      results,
+      errors: hasErrors ? errors : undefined,
+    });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error("[commerce-trends] Fatal error:", errMsg);
 
-  return NextResponse.json({
-    success: true,
-    durationMs,
-    sitesProcessed,
-    results,
-    errors: hasErrors ? errors : undefined,
-  });
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    await onCronFailure({ jobName: "commerce-trends", error }).catch(() => {});
+
+    await logCronExecution("commerce-trends", "failed", {
+      durationMs: Date.now() - cronStart,
+      errorMessage: errMsg,
+    }).catch(() => {});
+
+    return NextResponse.json(
+      { success: false, error: errMsg },
+      { status: 500 },
+    );
+  }
 }
 
 export async function GET(request: NextRequest) {

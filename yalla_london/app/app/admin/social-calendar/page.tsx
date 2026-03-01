@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import NextImage from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -514,10 +515,15 @@ export default function SocialCalendarPage() {
                   <div className="grid grid-cols-2 gap-2">
                     {selectedPost.media.map((url, i) => (
                       <div key={i} className="aspect-video rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                        <img
+                        <NextImage
                           src={url}
                           alt={`Media ${i + 1}`}
+                          width={0}
+                          height={0}
+                          sizes="50vw"
                           className="w-full h-full object-cover"
+                          style={{ width: '100%', height: '100%' }}
+                          unoptimized
                         />
                       </div>
                     ))}

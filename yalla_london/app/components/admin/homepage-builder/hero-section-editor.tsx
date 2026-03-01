@@ -310,10 +310,15 @@ export function HeroSectionEditor({ content, onUpdate }: HeroSectionEditorProps)
                     <Label>Current Background</Label>
                     <div className="relative w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
                       {content.backgroundType === 'image' ? (
-                        <img
+                        <Image
                           src={content.backgroundUrl}
                           alt="Background preview"
+                          width={0}
+                          height={0}
+                          sizes="100vw"
                           className="w-full h-full object-cover"
+                          style={{ width: '100%', height: '100%' }}
+                          unoptimized
                         />
                       ) : (
                         <video
@@ -722,10 +727,15 @@ function UnsplashBrowser({ onSelect }: { onSelect: (url: string) => void }) {
           onClick={() => onSelect(url)}
           className="relative aspect-video rounded-lg overflow-hidden border-2 border-transparent hover:border-blue-500 transition-colors"
         >
-          <img
+          <Image
             src={url}
             alt={`Unsplash image ${index + 1}`}
+            width={0}
+            height={0}
+            sizes="50vw"
             className="w-full h-full object-cover"
+            style={{ width: '100%', height: '100%' }}
+            unoptimized
           />
           <div className="absolute inset-0 bg-black/20 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
             <Button size="sm" variant="secondary">

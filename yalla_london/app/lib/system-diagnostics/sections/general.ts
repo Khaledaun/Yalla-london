@@ -47,17 +47,26 @@ const generalSection = async (
         results.push(warn("db-migrations", "Migration Table", health.migrateStatus, "Checks that the database has been properly initialized with Prisma migrations. Without this, new model changes won't apply correctly.", "The migrations table is missing or invalid. Run `npx prisma migrate deploy` to set up."));
       }
     } else {
-      results.push(fail("db-connection", "Database Connection", `Connection failed: ${health.error}`, "Verifies the PostgreSQL database is reachable and responding. If this fails, nothing on the platform works — no content, no publishing, no dashboard data.", "Database is unreachable. Check your DATABASE_URL environment variable and ensure Supabase is running.", {
+      // Detect pool exhaustion specifically — it needs a different fix than general connectivity
+      const isPoolExhausted = health.error?.includes("MaxClientsInSessionMode") || health.error?.includes("max clients reached");
+      const diagnosis = isPoolExhausted
+        ? "Too many active database connections. This happens when many Vercel serverless instances are warm simultaneously. Go to Supabase Dashboard → Settings → Database → Connection Pooling and increase pool_size (recommended: 30+). If the problem persists, switch from Session mode to Transaction mode."
+        : "Database is unreachable. Check your DATABASE_URL environment variable and ensure Supabase is running.";
+      results.push(fail("db-connection", "Database Connection", `Connection failed: ${health.error}`, "Verifies the PostgreSQL database is reachable and responding. If this fails, nothing on the platform works — no content, no publishing, no dashboard data.", diagnosis, {
         id: "fix-db-connection",
-        label: "Check Database URL",
+        label: isPoolExhausted ? "Increase Pool Size" : "Check Database URL",
         api: "/api/admin/diagnostics/fix",
-        payload: { fixType: "check_db_url" },
+        payload: { fixType: isPoolExhausted ? "pool_exhaustion" : "check_db_url" },
         rerunGroup: "general",
       }));
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    results.push(fail("db-connection", "Database Connection", `Error: ${msg}`, "Verifies the PostgreSQL database is reachable and responding.", msg));
+    const isPoolExhausted = msg.includes("MaxClientsInSessionMode") || msg.includes("max clients reached");
+    const diagnosis = isPoolExhausted
+      ? "Too many active database connections. Go to Supabase Dashboard → Settings → Database → Connection Pooling and increase pool_size (recommended: 30+)."
+      : msg;
+    results.push(fail("db-connection", "Database Connection", `Error: ${msg}`, "Verifies the PostgreSQL database is reachable and responding.", diagnosis));
   }
 
   // ── 2. Critical Tables Exist ───────────────────────────────────────────

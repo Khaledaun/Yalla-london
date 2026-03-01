@@ -72,7 +72,7 @@ export async function runContentBuilder(
           ],
         },
         orderBy: { updated_at: "asc" },
-        take: 20,
+        take: 8, // Reduced from 20 — only need top few; saves ~1s on large tables
       });
 
       const phaseOrder: Record<string, number> = {

@@ -13,10 +13,15 @@ const BUDGET_MS = 53_000; // 53s usable out of 60s maxDuration
  * Without this, URLs stay in "discovered" forever (KG-052).
  */
 /**
- * After IndexNow/GSC submission, update URLIndexingStatus for URLs that
- * were ACTUALLY processed in this run. Only transitions URLs that were
- * submitted within the last 10 minutes (not all discovered/pending ever).
- * This prevents a successful sitemap ping from marking ancient URLs as "submitted".
+ * After IndexNow/GSC submission, update URLIndexingStatus for ALL
+ * discovered/pending URLs for this site. runAutomatedIndexing() already
+ * includes every discovered/pending URL in the submission batch (lines
+ * 1282-1289 of indexing-service.ts), so all of them should be marked
+ * as submitted when at least one channel succeeds.
+ *
+ * Previous bug (KG-055): A 10-minute time window meant URLs discovered
+ * hours before the cron ran were never transitioned from "discovered"
+ * to "submitted", causing 18+ articles to stay stuck forever.
  */
 async function trackSubmittedUrls(report: IndexingReport, siteId: string) {
   if (report.urlsProcessed === 0) return;
@@ -30,13 +35,8 @@ async function trackSubmittedUrls(report: IndexingReport, siteId: string) {
   try {
     const { prisma } = await import("@/lib/db");
 
-    // Only update URLs that are still pending AND were created/updated recently.
-    // This prevents blanket-updating ancient URLs that weren't part of this run.
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     // Build update data conditionally — only set channel flags when true
     // to avoid overwriting existing true values with undefined.
-    // Previously: `indexNowSuccess || undefined` → `false || undefined` = undefined (field not updated)
-    // This caused "ghost submissions" where status="submitted" but no channel was recorded.
     const updateData: Record<string, unknown> = {
       status: "submitted",
       last_submitted_at: new Date(),
@@ -44,17 +44,19 @@ async function trackSubmittedUrls(report: IndexingReport, siteId: string) {
     if (indexNowSuccess) updateData.submitted_indexnow = true;
     if (gscSuccess) updateData.submitted_sitemap = true;
 
-    await prisma.uRLIndexingStatus.updateMany({
+    // Update ALL discovered/pending URLs for this site — they were all
+    // included in the submission batch by runAutomatedIndexing().
+    const result = await prisma.uRLIndexingStatus.updateMany({
       where: {
         site_id: siteId,
         status: { in: ["discovered", "pending"] },
-        OR: [
-          { created_at: { gte: tenMinutesAgo } },
-          { updated_at: { gte: tenMinutesAgo } },
-        ],
       },
       data: updateData,
     });
+
+    if (result.count > 0) {
+      console.log(`[SEO-CRON] Marked ${result.count} URLs as "submitted" for ${siteId}`);
+    }
   } catch (e) {
     console.warn(`[SEO-CRON] Failed to track submitted URLs for ${siteId}:`, e instanceof Error ? e.message : e);
   }
@@ -161,32 +163,37 @@ export async function GET(request: NextRequest) {
               `[SEO-CRON] Daily [${sid}]: processed ${dailyReport.urlsProcessed} URLs, errors: ${dailyReport.errors.length}`,
             );
 
-            // ── Resubmit "discovered" URLs stuck for >24h ─────────────────
+            // ── Resubmit "discovered" URLs stuck for >6h ──────────────────
             // These are pages Google found but hasn't crawled yet. Aggressive
             // IndexNow resubmission accelerates crawl for these stuck URLs.
+            // Also catches URLs where last_submitted_at is NULL (never submitted,
+            // only discovered by the SEO agent).
             if (Date.now() - startTime < BUDGET_MS - 5_000) {
               try {
                 const { prisma } = await import("@/lib/db");
                 const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
-                const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
                 const stuckUrls = await prisma.uRLIndexingStatus.findMany({
                   where: {
                     site_id: sid,
                     status: { in: ["discovered", "pending"] },
-                    last_submitted_at: { lt: oneDayAgo },
+                    OR: [
+                      { last_submitted_at: null },        // Never submitted (only discovered)
+                      { last_submitted_at: { lt: sixHoursAgo } }, // Submitted 6+ hours ago but still not indexed
+                    ],
                   },
                   select: { url: true, id: true },
-                  take: 50, // Batch covers all 46 discovered pages in one run
-                  orderBy: { last_submitted_at: "asc" }, // Oldest submissions first
+                  take: 50,
+                  orderBy: { created_at: "asc" }, // Oldest first
                 });
                 if (stuckUrls.length > 0) {
                   const indexNowKey = process.env.INDEXNOW_KEY;
                   if (indexNowKey) {
                     await submitToIndexNow(stuckUrls.map(u => u.url), siteUrl);
-                    // Update last_submitted_at so we don't resubmit the same URLs every run
+                    // Transition to "submitted" + update timestamp so they don't stay stuck
                     await prisma.uRLIndexingStatus.updateMany({
                       where: { id: { in: stuckUrls.map(u => u.id) } },
-                      data: { last_submitted_at: new Date(), submitted_indexnow: true },
+                      data: { status: "submitted", last_submitted_at: new Date(), submitted_indexnow: true },
                     });
                     console.log(`[SEO-CRON] Resubmitted ${stuckUrls.length} stuck "discovered" URLs for ${sid}`);
                     results.actions.push({ name: "resubmit_stuck", site: sid, count: stuckUrls.length });

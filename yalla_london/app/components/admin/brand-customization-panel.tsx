@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import NextImage from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -451,7 +452,7 @@ export function BrandCustomizationPanel() {
                 </div>
                 {logoPreview && (
                   <div className="mt-4 p-4 border rounded-lg bg-gray-50">
-                    <img src={logoPreview} alt="Logo preview" className="max-h-24 mx-auto" />
+                    <NextImage src={logoPreview} alt="Logo preview" width={0} height={0} sizes="100vw" className="max-h-24 mx-auto" style={{ width: 'auto', height: 'auto', maxHeight: '6rem' }} unoptimized />
                   </div>
                 )}
               </div>

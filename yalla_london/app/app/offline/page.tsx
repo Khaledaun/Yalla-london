@@ -25,10 +25,10 @@ export default function OfflinePage() {
             <WifiOff className="h-8 w-8 text-stone" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-display font-bold text-charcoal mb-4">
-            You're offline
+            You&apos;re offline
           </h1>
           <p className="text-stone mb-8">
-            It looks like you've lost your internet connection. Don't worry, you can still browse some content that we've saved for you.
+            It looks like you&apos;ve lost your internet connection. Don&apos;t worry, you can still browse some content that we&apos;ve saved for you.
           </p>
         </div>
 
@@ -63,7 +63,7 @@ export default function OfflinePage() {
 
         <div className="mt-8">
           <p className="text-xs text-stone">
-            Your connection will be restored automatically when you're back online.
+            Your connection will be restored automatically when you&apos;re back online.
           </p>
         </div>
       </div>

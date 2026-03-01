@@ -273,7 +273,7 @@ export function BrandGuidelinesContent() {
           </div>
         </div>
         <p className="text-center text-sm text-gray-500 mt-4">
-          Minimum clear space equals the height of the "Y" on all sides
+          Minimum clear space equals the height of the &quot;Y&quot; on all sides
         </p>
       </Section>
 
@@ -388,7 +388,7 @@ export function BrandGuidelinesContent() {
             <div className="mb-10">
               <div className="text-xs font-semibold tracking-[0.1em] uppercase text-gray-400 mb-4">Body</div>
               <div className="text-base leading-relaxed text-gray-600">
-                From Michelin-starred dining to hidden local gems, we've curated the best halal restaurants across the city. Every listing is verified and reviewed by our community.
+                From Michelin-starred dining to hidden local gems, we&apos;ve curated the best halal restaurants across the city. Every listing is verified and reviewed by our community.
               </div>
             </div>
 
@@ -703,7 +703,7 @@ export function BrandGuidelinesContent() {
                 </div>
                 <div className="text-[10px] font-semibold tracking-[0.15em] uppercase text-[#1C1917]/60 mb-3">Weekend Plans</div>
                 <div className="text-2xl font-bold text-[#1C1917] leading-tight mb-2" style={{ fontFamily: "'Anybody', sans-serif" }}>
-                  Markets You Can't Miss
+                  Markets You Can&apos;t Miss
                 </div>
                 <div className="text-sm text-gray-500">Portobello, Borough & more</div>
               </div>
@@ -718,7 +718,7 @@ export function BrandGuidelinesContent() {
                   <span className="text-sm font-medium text-gray-400">London</span>
                   <span className="w-1 h-1 bg-[#C8322B] rounded-full ml-1"></span>
                 </div>
-                <div className="text-6xl text-[#C8322B] font-serif leading-none mb-0">"</div>
+                <div className="text-6xl text-[#C8322B] font-serif leading-none mb-0">&quot;</div>
                 <div className="text-xl font-semibold text-[#1C1917] leading-snug mb-5" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   London is the most cosmopolitan city in the world — and it welcomes everyone.
                 </div>
@@ -756,7 +756,7 @@ export function BrandGuidelinesContent() {
                     <span className="w-1 h-1 bg-[#C8322B] rounded-full ml-1"></span>
                   </div>
                   <div className="text-xl font-bold text-white leading-tight" style={{ fontFamily: "'Anybody', sans-serif" }}>
-                    Discover London's Hidden Gems
+                    Discover London&apos;s Hidden Gems
                   </div>
                 </div>
                 <div className="bg-[#C8322B] p-6 flex flex-col justify-end text-right" dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif" }}>
@@ -855,7 +855,7 @@ export function BrandGuidelinesContent() {
               <div className="p-5">
                 <div className="text-sm text-gray-400 mb-1">yallalondon.com</div>
                 <div className="font-semibold text-gray-900 mb-1">Mayfair Halal Dining Guide</div>
-                <div className="text-sm text-gray-400">Our curated guide to the best halal restaurants in one of London's most prestigious neighborhoods.</div>
+                <div className="text-sm text-gray-400">Our curated guide to the best halal restaurants in one of London&apos;s most prestigious neighborhoods.</div>
               </div>
             </div>
 
@@ -923,7 +923,7 @@ export function BrandGuidelinesContent() {
               <div className="w-8 h-8 bg-[#C8322B] rounded-full flex items-center justify-center">
                 <X className="w-5 h-5 text-white" />
               </div>
-              <span className="text-lg font-semibold">Don't</span>
+              <span className="text-lg font-semibold">Don&apos;t</span>
             </div>
             <ul className="space-y-3">
               {[

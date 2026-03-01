@@ -5,7 +5,7 @@
  * Provides prompt template management with versioning, locale support, and usage tracking
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -104,13 +104,7 @@ export default function PromptControlPanel() {
   // Check feature availability
   const isFeatureEnabled = isPremiumFeatureEnabled('FEATURE_PROMPT_CONTROL')
 
-  useEffect(() => {
-    if (isFeatureEnabled) {
-      fetchPrompts()
-    }
-  }, [filters, pagination.page, isFeatureEnabled])
-
-  const fetchPrompts = async () => {
+  const fetchPrompts = useCallback(async () => {
     if (!isFeatureEnabled) return
 
     setLoading(true)
@@ -136,7 +130,13 @@ export default function PromptControlPanel() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [isFeatureEnabled, pagination.page, pagination.limit, filters])
+
+  useEffect(() => {
+    if (isFeatureEnabled) {
+      fetchPrompts()
+    }
+  }, [fetchPrompts, isFeatureEnabled])
 
   const createPrompt = async (formData: Partial<PromptTemplate>) => {
     if (!isFeatureEnabled) return

@@ -304,7 +304,7 @@ export default function EmailCenterPage() {
                   <div className="text-3xl font-bold text-blue-400">{data?.subscriberCount ?? 0}</div>
                   <p className="text-zinc-500 text-sm mt-1">Total subscribers</p>
                   <p className="text-zinc-600 text-xs mt-3">
-                    Subscribers are captured from the newsletter opt-in form in each site's footer.
+                    Subscribers are captured from the newsletter opt-in form in each site&apos;s footer.
                     Manage them in the Email Campaigns admin page.
                   </p>
                   <button

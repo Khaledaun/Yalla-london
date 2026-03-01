@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import NextImage from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -525,10 +526,15 @@ export default function MediaLibraryPage() {
                       <div className="relative">
                         {file.type === "image" ? (
                           <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-3">
-                            <img
+                            <NextImage
                               src={file.thumbnail || file.url}
                               alt={file.alt || file.name}
+                              width={0}
+                              height={0}
+                              sizes="100vw"
                               className="w-full h-full object-cover"
+                              style={{ width: '100%', height: '100%' }}
+                              unoptimized
                             />
                           </div>
                         ) : file.type === "video" ? (
@@ -568,10 +574,13 @@ export default function MediaLibraryPage() {
                       <div className="flex-shrink-0">
                         {file.type === "image" ? (
                           <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden">
-                            <img
+                            <NextImage
                               src={file.thumbnail || file.url}
                               alt={file.alt || file.name}
+                              width={48}
+                              height={48}
                               className="w-full h-full object-cover"
+                              unoptimized
                             />
                           </div>
                         ) : file.type === "video" ? (

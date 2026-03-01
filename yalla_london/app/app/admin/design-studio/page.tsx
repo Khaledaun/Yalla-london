@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
+import NextImage from "next/image";
 import { sanitizeHtml } from "@/lib/html-sanitizer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -542,10 +543,15 @@ function SimilarDesignTab({
             />
             {preview ? (
               <div className="space-y-2">
-                <img
+                <NextImage
                   src={preview}
                   alt="Reference design"
+                  width={0}
+                  height={0}
+                  sizes="100vw"
                   className="max-h-64 mx-auto rounded-lg shadow"
+                  style={{ width: 'auto', height: 'auto', maxHeight: '16rem' }}
+                  unoptimized
                 />
                 <p className="text-sm text-muted-foreground">{file?.name}</p>
               </div>
@@ -935,10 +941,15 @@ function MediaPoolTab({ siteId }: { siteId: string }) {
             <Card key={asset.id} className="group overflow-hidden">
               <div className="aspect-square bg-muted relative">
                 {asset.file_type === "image" ? (
-                  <img
+                  <NextImage
                     src={asset.url}
                     alt={asset.alt_text || asset.original_name}
+                    width={0}
+                    height={0}
+                    sizes="100vw"
                     className="w-full h-full object-cover"
+                    style={{ width: '100%', height: '100%' }}
+                    unoptimized
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full">
@@ -992,10 +1003,13 @@ function MediaPoolTab({ siteId }: { siteId: string }) {
             >
               <div className="w-12 h-12 rounded bg-muted overflow-hidden flex-shrink-0">
                 {asset.file_type === "image" ? (
-                  <img
+                  <NextImage
                     src={asset.url}
                     alt={asset.alt_text || ""}
+                    width={48}
+                    height={48}
                     className="w-full h-full object-cover"
+                    unoptimized
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full">

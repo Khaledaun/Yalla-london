@@ -1,13 +1,14 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { 
-  Home, 
-  Video, 
-  Image, 
-  Settings, 
-  Eye, 
-  Save, 
+import NextImage from 'next/image'
+import {
+  Home,
+  Video,
+  Image,
+  Settings,
+  Eye,
+  Save,
   Upload,
   Play,
   Pause,
@@ -742,7 +743,7 @@ export default function SiteControl() {
                   <div className="flex items-center gap-3">
                     <div className="w-16 h-16 bg-gray-100 border border-gray-300 rounded-lg flex items-center justify-center overflow-hidden">
                       {logoPreview ? (
-                        <img src={logoPreview} alt="Logo preview" className="w-full h-full object-contain" />
+                        <NextImage src={logoPreview} alt="Logo preview" width={0} height={0} sizes="100vw" className="w-full h-full object-contain" style={{ width: '100%', height: '100%' }} unoptimized />
                       ) : (
                         <Image className="h-8 w-8 text-gray-400" />
                       )}
@@ -767,7 +768,7 @@ export default function SiteControl() {
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-gray-100 border border-gray-300 rounded-lg flex items-center justify-center overflow-hidden">
                       {faviconPreview ? (
-                        <img src={faviconPreview} alt="Favicon preview" className="w-full h-full object-contain" />
+                        <NextImage src={faviconPreview} alt="Favicon preview" width={0} height={0} sizes="100vw" className="w-full h-full object-contain" style={{ width: '100%', height: '100%' }} unoptimized />
                       ) : (
                         <Image className="h-4 w-4 text-gray-400" />
                       )}

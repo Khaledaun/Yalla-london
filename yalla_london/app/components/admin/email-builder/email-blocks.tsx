@@ -8,6 +8,7 @@
  */
 
 import React from 'react'
+import Image from 'next/image'
 import { sanitizeHtml } from '@/lib/html-sanitizer'
 import {
   Type,
@@ -134,7 +135,7 @@ function HeaderPreview({ block }: { block: EmailBlock }) {
   const s = block.styles ?? {}
   return (
     <div style={{ backgroundColor: s.backgroundColor ?? '#1C1917', color: s.color ?? '#fff', padding: s.padding ?? '32px 24px', textAlign: (s.textAlign as React.CSSProperties['textAlign']) ?? 'center' }}>
-      {logoUrl && <img src={logoUrl as string} alt="Logo" style={{ maxHeight: 40, marginBottom: 12, display: 'inline-block' }} />}
+      {logoUrl && <Image src={logoUrl as string} alt="Logo" width={0} height={0} sizes="100vw" style={{ maxHeight: 40, marginBottom: 12, display: 'inline-block', width: 'auto', height: 'auto' }} unoptimized />}
       <div style={{ fontSize: 22, fontWeight: 700 }}>{title || 'Email Title'}</div>
       {subtitle && <div style={{ fontSize: 14, opacity: 0.85, marginTop: 4 }}>{subtitle}</div>}
     </div>
@@ -158,7 +159,7 @@ function ImagePreview({ block }: { block: EmailBlock }) {
   return (
     <div style={{ padding: s.padding ?? '0 24px', backgroundColor: s.backgroundColor ?? '#fff' }}>
       {src ? (
-        <img src={src} alt={alt ?? ''} style={{ width: width ?? '100%', display: 'block', borderRadius: 4 }} />
+        <Image src={src} alt={alt ?? ''} width={0} height={0} sizes="100vw" style={{ width: width ?? '100%', display: 'block', borderRadius: 4, height: 'auto' }} unoptimized />
       ) : (
         <div style={{ width: '100%', height: 180, backgroundColor: '#E5E7EB', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', fontSize: 14 }}>
           <ImageIcon style={{ width: 24, height: 24, marginRight: 8 }} />
@@ -212,7 +213,7 @@ function ColumnsPreview({ block }: { block: EmailBlock }) {
         {cols.map((col, i) => (
           <div key={i} style={{ flex: 1 }}>
             {col.imageUrl && (
-              <img src={col.imageUrl} alt={col.heading ?? ''} style={{ width: '100%', borderRadius: 4, marginBottom: 8 }} />
+              <Image src={col.imageUrl} alt={col.heading ?? ''} width={0} height={0} sizes="100vw" style={{ width: '100%', borderRadius: 4, marginBottom: 8, height: 'auto' }} unoptimized />
             )}
             {!col.imageUrl && (
               <div style={{ width: '100%', height: 100, backgroundColor: '#E5E7EB', borderRadius: 4, marginBottom: 8 }} />

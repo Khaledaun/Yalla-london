@@ -320,7 +320,7 @@ export default function VideoStudioPage() {
                   ) : (
                     <div className="h-[400px] bg-muted rounded-lg flex flex-col items-center justify-center gap-4 text-muted-foreground">
                       <Video className="w-12 h-12" />
-                      <p>Click "Generate Video" to create a preview</p>
+                      <p>Click &quot;Generate Video&quot; to create a preview</p>
                     </div>
                   )}
                 </CardContent>

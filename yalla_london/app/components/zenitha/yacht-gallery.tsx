@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
 
 interface YachtGalleryProps {
@@ -107,11 +108,16 @@ export function YachtGallery({ images, yachtName }: YachtGalleryProps) {
           onClick={() => openLightbox(0)}
           aria-label={`View ${yachtName} photo 1 of ${images.length}`}
         >
-          <img
+          <Image
             src={images[0]}
             alt={`${yachtName} - Main photo`}
+            width={0}
+            height={0}
+            sizes="(min-width: 1024px) 60vw, 100vw"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="eager"
+            style={{ width: '100%', height: '100%' }}
+            priority
+            unoptimized
           />
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
           <div
@@ -139,11 +145,15 @@ export function YachtGallery({ images, yachtName }: YachtGalleryProps) {
               onClick={() => openLightbox(i + 1)}
               aria-label={`View ${yachtName} photo ${i + 2} of ${images.length}`}
             >
-              <img
+              <Image
                 src={img}
                 alt={`${yachtName} - Photo ${i + 2}`}
+                width={0}
+                height={0}
+                sizes="(min-width: 1024px) 20vw, 50vw"
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                loading="lazy"
+                style={{ width: '100%', height: '100%' }}
+                unoptimized
               />
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
               {/* Show "+N more" on last thumbnail */}
@@ -229,11 +239,16 @@ export function YachtGallery({ images, yachtName }: YachtGalleryProps) {
           )}
 
           {/* Image */}
-          <img
+          <Image
             src={images[lightboxIndex]}
             alt={`${yachtName} - Photo ${lightboxIndex + 1}`}
+            width={0}
+            height={0}
+            sizes="90vw"
             className="max-w-[90vw] max-h-[85vh] object-contain select-none"
+            style={{ width: 'auto', height: 'auto', maxWidth: '90vw', maxHeight: '85vh' }}
             draggable={false}
+            unoptimized
           />
 
           {/* Next button */}
@@ -266,11 +281,13 @@ export function YachtGallery({ images, yachtName }: YachtGalleryProps) {
                   }}
                   aria-label={`Go to photo ${i + 1}`}
                 >
-                  <img
+                  <Image
                     src={img}
                     alt=""
+                    width={64}
+                    height={48}
                     className="w-full h-full object-cover"
-                    loading="lazy"
+                    unoptimized
                   />
                 </button>
               ))}

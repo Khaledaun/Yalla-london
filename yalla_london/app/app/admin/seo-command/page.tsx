@@ -315,7 +315,7 @@ export default function SeoCommandCenter() {
           {audits.length === 0 ? (
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center">
               <Eye className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">No SEO audits yet. Click "Run Audit" to generate one.</p>
+              <p className="text-sm text-gray-600">No SEO audits yet. Click &quot;Run Audit&quot; to generate one.</p>
             </div>
           ) : (
             audits.map((audit) => (

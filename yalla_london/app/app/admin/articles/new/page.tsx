@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import NextImage from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -325,13 +326,15 @@ export default function NewArticlePage() {
                 </div>
                 {article.featuredImage && (
                   <div className="relative w-full h-48 bg-gray-200 rounded-lg overflow-hidden">
-                    <img
+                    <NextImage
                       src={article.featuredImage}
                       alt="Featured image preview"
+                      width={0}
+                      height={0}
+                      sizes="100vw"
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                      }}
+                      style={{ width: '100%', height: '100%' }}
+                      unoptimized
                     />
                   </div>
                 )}

@@ -35,7 +35,7 @@ export default function GlobalError({
                 Something went wrong
               </h1>
               <p className="text-stone mb-8">
-                We're sorry, but an unexpected error occurred. Our team has been notified and is working to fix this issue.
+                We&apos;re sorry, but an unexpected error occurred. Our team has been notified and is working to fix this issue.
               </p>
             </div>
 

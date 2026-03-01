@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -350,10 +351,13 @@ export default function AffiliateProgram() {
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-4">
-                        <img
+                        <Image
                           src={hotel.imageUrl}
                           alt={hotel.name}
+                          width={64}
+                          height={64}
                           className="w-16 h-16 object-cover rounded-lg"
+                          unoptimized
                         />
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
@@ -386,10 +390,13 @@ export default function AffiliateProgram() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex items-center gap-4">
-                        <img
+                        <Image
                           src={selectedHotel.imageUrl}
                           alt={selectedHotel.name}
+                          width={96}
+                          height={96}
                           className="w-24 h-24 object-cover rounded-lg"
+                          unoptimized
                         />
                         <div>
                           <h3 className="text-xl font-bold">{selectedHotel.name}</h3>

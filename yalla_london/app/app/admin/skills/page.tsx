@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -128,7 +128,7 @@ export default function SkillsManagementPage() {
     display_order: 0,
   })
 
-  const fetchSkills = async () => {
+  const fetchSkills = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -151,11 +151,11 @@ export default function SkillsManagementPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [categoryFilter])
 
   useEffect(() => {
     fetchSkills()
-  }, [categoryFilter])
+  }, [fetchSkills])
 
   const handleCreateSkill = async () => {
     try {
@@ -885,7 +885,7 @@ export default function SkillsManagementPage() {
           <DialogHeader>
             <DialogTitle>Delete Skill</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{selectedSkill?.name_en}"? This action cannot be undone.
+              Are you sure you want to delete &quot;{selectedSkill?.name_en}&quot;? This action cannot be undone.
               {selectedSkill?._count?.expertise && selectedSkill._count.expertise > 0 && (
                 <span className="block mt-2 text-red-500">
                   Warning: This skill is assigned to {selectedSkill._count.expertise} team member(s).

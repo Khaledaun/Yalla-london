@@ -7,7 +7,7 @@
  * Generate articles, edit with AI assistance, and manage content queue.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -131,11 +131,7 @@ export default function ContentHubPage() {
   const [selectedLocale, setSelectedLocale] = useState<"ar" | "en">("ar");
   const [isGenerating, setIsGenerating] = useState(false);
 
-  useEffect(() => {
-    loadContent();
-  }, [typeFilter, statusFilter]);
-
-  const loadContent = async () => {
+  const loadContent = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(
@@ -151,7 +147,11 @@ export default function ContentHubPage() {
       setContent([]);
     }
     setIsLoading(false);
-  };
+  }, [typeFilter, statusFilter]);
+
+  useEffect(() => {
+    loadContent();
+  }, [loadContent]);
 
   const generateContent = async () => {
     if (!generatorPrompt && !selectedTemplate) return;

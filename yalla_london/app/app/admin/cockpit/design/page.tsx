@@ -13,6 +13,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 interface BrandProfile {
   siteId: string;
@@ -230,7 +231,7 @@ export default function DesignStudioPage() {
                         <div key={design.id} className="bg-zinc-800 rounded-xl overflow-hidden border border-zinc-700">
                           <div className="aspect-video bg-zinc-700 flex items-center justify-center">
                             {design.thumbnailUrl ? (
-                              <img src={design.thumbnailUrl} alt={design.name} className="w-full h-full object-cover" />
+                              <Image src={design.thumbnailUrl} alt={design.name} width={0} height={0} sizes="100vw" className="w-full h-full object-cover" style={{ width: '100%', height: '100%' }} unoptimized />
                             ) : (
                               <span className="text-zinc-600 text-3xl">🖼</span>
                             )}
@@ -397,7 +398,7 @@ export default function DesignStudioPage() {
                 <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
                   <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Bulk Generation</h3>
                   <p className="text-xs text-zinc-500 mb-4">
-                    Generate images for all articles that don't have one yet.
+                    Generate images for all articles that don&apos;t have one yet.
                   </p>
                   <div className="space-y-2">
                     {[

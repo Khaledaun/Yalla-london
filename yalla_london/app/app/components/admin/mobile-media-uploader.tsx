@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import NextImage from 'next/image';
 import {
   Camera,
   Image as ImageIcon,
@@ -80,49 +81,10 @@ export function MobileMediaUploader({
       };
     }
     return undefined;
-  });
-
-  // Handle file selection
-  const handleFileSelect = useCallback(async (selectedFiles: FileList | null) => {
-    if (!selectedFiles) return;
-
-    const newFiles: UploadedFile[] = [];
-
-    for (let i = 0; i < Math.min(selectedFiles.length, maxFiles - files.length); i++) {
-      const file = selectedFiles[i];
-
-      // Check file size
-      if (file.size > maxSizeMB * 1024 * 1024) {
-        alert(`File "${file.name}" is too large. Maximum size is ${maxSizeMB}MB.`);
-        continue;
-      }
-
-      // Create preview for images
-      let preview: string | undefined;
-      if (file.type.startsWith('image/')) {
-        preview = URL.createObjectURL(file);
-      }
-
-      newFiles.push({
-        id: `${Date.now()}-${i}`,
-        file,
-        preview,
-        progress: 0,
-        status: 'pending',
-      });
-    }
-
-    setFiles(prev => [...prev, ...newFiles]);
-    setUploadMode(null);
-
-    // Start uploading
-    for (const uploadFile of newFiles) {
-      await uploadSingleFile(uploadFile);
-    }
-  }, [files.length, maxFiles, maxSizeMB]);
+  }, []);
 
   // Upload single file
-  const uploadSingleFile = async (uploadFile: UploadedFile) => {
+  const uploadSingleFile = useCallback(async (uploadFile: UploadedFile) => {
     setFiles(prev => prev.map(f =>
       f.id === uploadFile.id ? { ...f, status: 'uploading' } : f
     ));
@@ -180,7 +142,46 @@ export function MobileMediaUploader({
         } : f
       ));
     }
-  };
+  }, [siteId]);
+
+  // Handle file selection
+  const handleFileSelect = useCallback(async (selectedFiles: FileList | null) => {
+    if (!selectedFiles) return;
+
+    const newFiles: UploadedFile[] = [];
+
+    for (let i = 0; i < Math.min(selectedFiles.length, maxFiles - files.length); i++) {
+      const file = selectedFiles[i];
+
+      // Check file size
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        alert(`File "${file.name}" is too large. Maximum size is ${maxSizeMB}MB.`);
+        continue;
+      }
+
+      // Create preview for images
+      let preview: string | undefined;
+      if (file.type.startsWith('image/')) {
+        preview = URL.createObjectURL(file);
+      }
+
+      newFiles.push({
+        id: `${Date.now()}-${i}`,
+        file,
+        preview,
+        progress: 0,
+        status: 'pending',
+      });
+    }
+
+    setFiles(prev => [...prev, ...newFiles]);
+    setUploadMode(null);
+
+    // Start uploading
+    for (const uploadFile of newFiles) {
+      await uploadSingleFile(uploadFile);
+    }
+  }, [files.length, maxFiles, maxSizeMB, uploadSingleFile]);
 
   // Remove file
   const removeFile = (id: string) => {
@@ -380,10 +381,13 @@ export function MobileMediaUploader({
                     {/* Preview/Icon */}
                     <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-200 flex items-center justify-center flex-shrink-0">
                       {file.preview ? (
-                        <img
+                        <NextImage
                           src={file.preview}
                           alt=""
+                          width={48}
+                          height={48}
                           className="w-full h-full object-cover"
+                          unoptimized
                         />
                       ) : (
                         <FileIcon className="h-6 w-6 text-gray-400" />

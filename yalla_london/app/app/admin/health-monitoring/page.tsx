@@ -1160,7 +1160,7 @@ function ContentAuditPanel({
       {!data && !loading && (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center">
           <FileText className="h-8 w-8 text-gray-700 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">Click "Run Audit" to scan content & indexing status</p>
+          <p className="text-sm text-gray-500">Click &quot;Run Audit&quot; to scan content & indexing status</p>
           <p className="text-xs text-gray-600 mt-1">
             Checks published posts, indexing coverage, stuck pages, and untracked URLs
           </p>
@@ -1441,7 +1441,7 @@ function SchemaHealthPanel({
       {!data && !loading && (
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center">
           <HardDrive className="h-8 w-8 text-gray-700 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">Click "Scan Schema" to check for missing tables & columns</p>
+          <p className="text-sm text-gray-500">Click &quot;Scan Schema&quot; to check for missing tables & columns</p>
           <p className="text-xs text-gray-600 mt-1">
             Compares your database against the Prisma schema and reports gaps
           </p>
@@ -1679,7 +1679,7 @@ function IndexingPanel({ indexing }: { indexing: IndexingData | null }) {
                 <span className="text-xs font-medium text-amber-300">Low Index Rate — Action Items</span>
               </div>
               <ol className="text-xs text-gray-400 space-y-1 pl-5 list-decimal">
-                <li>Click "Submit All Pages" above to re-submit sitemap to Google + IndexNow</li>
+                <li>Click &quot;Submit All Pages&quot; above to re-submit sitemap to Google + IndexNow</li>
                 <li>Verify your sitemap is accessible at <code className="text-cyan-400">/sitemap.xml</code></li>
                 <li>Check GSC manually: service account must be <strong>owner</strong> on the property</li>
                 <li>Run <code className="text-cyan-400">/api/seo/check-and-index?submit=true</code> to inspect + submit unindexed pages</li>
@@ -1721,7 +1721,7 @@ function IndexingPanel({ indexing }: { indexing: IndexingData | null }) {
           <Globe className="h-8 w-8 text-gray-700 mx-auto mb-2" />
           <p className="text-sm text-gray-500 mb-2">No indexing data yet</p>
           <p className="text-xs text-gray-600">
-            Click "Submit All Pages" to start tracking, or run the SEO agent cron job.
+            Click &quot;Submit All Pages&quot; to start tracking, or run the SEO agent cron job.
           </p>
         </div>
       )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { MophyAdminLayout } from '@/components/admin/mophy/mophy-admin-layout'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -218,10 +219,13 @@ export default function AdminShopPage() {
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           {product.image ? (
-                            <img
+                            <Image
                               src={product.image}
                               alt={product.name}
+                              width={48}
+                              height={48}
                               className="w-12 h-12 rounded-lg object-cover"
+                              unoptimized
                             />
                           ) : (
                             <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">

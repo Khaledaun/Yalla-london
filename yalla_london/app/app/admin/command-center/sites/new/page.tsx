@@ -344,7 +344,7 @@ export default function SiteCreatorWizard() {
               </div>
               <h2 className="text-2xl font-bold mb-2">Review Your Site</h2>
               <p className="text-gray-600">
-                Here's what the AI generated based on your description. You can customize it in the next step.
+                Here&apos;s what the AI generated based on your description. You can customize it in the next step.
               </p>
             </div>
 

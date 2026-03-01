@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   DndContext,
   DragEndEvent,
@@ -232,11 +232,7 @@ export function HomepageBuilder() {
     })
   )
 
-  useEffect(() => {
-    loadBlocks()
-  }, [])
-
-  const loadBlocks = async () => {
+  const loadBlocks = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch(`/api/homepage-blocks?version=${currentVersion}`)
@@ -254,7 +250,11 @@ export function HomepageBuilder() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [currentVersion, toast])
+
+  useEffect(() => {
+    loadBlocks()
+  }, [loadBlocks])
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string)

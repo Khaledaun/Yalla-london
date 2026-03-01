@@ -120,7 +120,7 @@ export default function YallaContactPage() {
             </div>
             <CardTitle className="text-2xl text-forest">Message Sent!</CardTitle>
             <CardDescription>
-              Thank you for contacting us. We'll get back to you within 24 hours.
+              Thank you for contacting us. We&apos;ll get back to you within 24 hours.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
@@ -140,7 +140,7 @@ export default function YallaContactPage() {
           {t('contactUs') || 'Contact Us'}
         </h1>
         <p className="text-stone text-lg">
-          Get in touch with the Yalla London team. We'd love to hear from you!
+          Get in touch with the Yalla London team. We&apos;d love to hear from you!
         </p>
       </div>
 
@@ -217,7 +217,7 @@ export default function YallaContactPage() {
             <CardHeader>
               <CardTitle>Send us a Message</CardTitle>
               <CardDescription>
-                Fill out the form below and we'll get back to you as soon as possible
+                Fill out the form below and we&apos;ll get back to you as soon as possible
               </CardDescription>
             </CardHeader>
             <CardContent>

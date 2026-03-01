@@ -640,7 +640,7 @@ function BlockContentPreview({ block }: { block: ContentBlock }) {
         <div>
           <div className="text-xs text-slate-500 mb-1">Quote</div>
           <div className="text-sm italic">
-            "{block.content.text || 'Empty quote'}"
+            &quot;{block.content.text || 'Empty quote'}&quot;
             {block.content.author && (
               <div className="text-xs text-slate-500 mt-1">
                 — {block.content.author}

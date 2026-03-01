@@ -105,13 +105,17 @@ interface ContentItem {
   siteId: string;
   status: string;
   generatedAt: string;
+  publishedAt: string | null;
   qualityScore: number | null;
   seoScore: number | null;
   wordCount: number;
   internalLinksCount: number;
   indexingStatus: string | null;
+  coverageState: string | null;
   lastSubmittedAt: string | null;
   lastCrawledAt: string | null;
+  gscClicks: number | null;
+  gscImpressions: number | null;
   rejectionReason: string | null;
   lastError: string | null;
   plainError: string | null;
@@ -181,6 +185,12 @@ function formatDuration(ms: number | null): string {
   if (!ms) return "—";
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function shortDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }
 
 function scoreColor(score: number | null): string {
@@ -1235,6 +1245,24 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     </Card>
   );
 
+  const indexColor = (s: string | null) => {
+    if (!s) return "text-zinc-500";
+    if (s === "indexed") return "text-emerald-400";
+    if (s === "submitted") return "text-blue-400";
+    if (s === "error") return "text-red-400";
+    return "text-zinc-400";
+  };
+
+  const indexLabel = (item: ContentItem) => {
+    if (!item.indexingStatus) return "—";
+    if (item.indexingStatus === "indexed") return "Indexed";
+    if (item.indexingStatus === "submitted") return "Submitted";
+    if (item.indexingStatus === "error") return "Error";
+    if (item.indexingStatus === "discovered") return "Discovered";
+    if (item.indexingStatus === "never_submitted") return "Not submitted";
+    return item.indexingStatus;
+  };
+
   return (
     <div className="space-y-4">
       {/* Summary */}
@@ -1278,219 +1306,227 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
         ))}
       </div>
 
-      {/* Article table */}
-      <div className="space-y-2">
-        {filtered.length === 0 && (
-          <Card className="text-center py-8">
-            <p className="text-zinc-500 text-sm">No articles match the current filter.</p>
-          </Card>
-        )}
-        {filtered.map((item) => {
-          const badge = statusBadge(item.status);
-          const isExpanded = expandedId === item.id;
-          const checks = gateResults[item.id];
+      {/* Content table */}
+      {filtered.length === 0 ? (
+        <Card className="text-center py-8">
+          <p className="text-zinc-500 text-sm">No articles match the current filter.</p>
+        </Card>
+      ) : (
+        <Card className="p-0 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-zinc-800 text-zinc-500 text-left">
+                  <th className="px-3 py-2.5 font-medium min-w-[200px]">Page</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Created</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Published</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Crawled</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Google Status</th>
+                  <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Impr.</th>
+                  <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Clicks</th>
+                  <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">SEO</th>
+                  <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Words</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((item) => {
+                  const badge = statusBadge(item.status);
+                  const isExpanded = expandedId === item.id;
+                  const checks = gateResults[item.id];
 
-          return (
-            <Card key={item.id}>
-              {/* Article row */}
-              <div className="flex flex-wrap gap-2 items-start">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${badge.color}`}>
-                      {badge.label}
-                    </span>
-                    <span className="text-xs text-zinc-500 uppercase">{item.locale}</span>
-                    {item.type === "draft" && item.phase === "reservoir" && item.wordCount < 1000 && (
-                      <span className="text-xs text-amber-400">📝 Needs expansion ({item.wordCount} words)</span>
-                    )}
-                    {item.type === "draft" && item.phase === "reservoir" && item.wordCount >= 1000 && item.hoursInPhase > 6 && (
-                      <span className="text-xs text-blue-400">📦 Ready — {item.hoursInPhase}h in queue</span>
-                    )}
-                    {item.type === "draft" && item.status === "stuck" && (
-                      <span className="text-xs text-orange-400">⚠️ {item.hoursInPhase}h stuck in pipeline</span>
-                    )}
-                  </div>
-                  <p className="text-sm text-zinc-100 font-medium mt-1 truncate">{item.title || item.slug || item.id}</p>
-                  {item.url && (
-                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline truncate block">
-                      {item.url}
-                    </a>
-                  )}
-                </div>
-                <div className="flex flex-col items-end gap-1 shrink-0 text-xs text-zinc-500">
-                  <span>{timeAgo(item.generatedAt)}</span>
-                  {item.wordCount > 0 && (
-                    <span className={item.wordCount < 1000 ? "text-red-400 font-medium" : item.wordCount < 1200 ? "text-amber-400" : "text-zinc-500"}>
-                      {item.wordCount.toLocaleString()} words{item.wordCount < 1000 ? " ✗" : item.wordCount < 1200 ? " ⚠" : ""}
-                    </span>
-                  )}
-                  {item.metaTitleEn && item.metaTitleEn.length > 60 && (
-                    <span className="text-amber-400">Title {item.metaTitleEn.length}ch ⚠</span>
-                  )}
-                  {item.metaDescriptionEn && item.metaDescriptionEn.length > 160 && (
-                    <span className="text-amber-400">Meta {item.metaDescriptionEn.length}ch ⚠</span>
-                  )}
-                  {item.seoScore !== null && (
-                    <span className={scoreColor(item.seoScore)}>SEO {item.seoScore}</span>
-                  )}
-                  <span className={item.internalLinksCount < 3 ? "text-amber-400" : "text-zinc-500"}>{item.internalLinksCount} links{item.internalLinksCount < 3 ? " ⚠️" : ""}</span>
-                </div>
-              </div>
-
-              {/* Indexing status */}
-              {item.indexingStatus && (
-                <div className="mt-1 text-xs text-zinc-500">
-                  Indexing: <span className={
-                    item.indexingStatus === "indexed" ? "text-emerald-400" :
-                    item.indexingStatus === "submitted" ? "text-blue-400" :
-                    item.indexingStatus === "error" ? "text-red-400" : "text-zinc-400"
-                  }>{item.indexingStatus}</span>
-                  {item.lastSubmittedAt && <span className="ml-2">(submitted {timeAgo(item.lastSubmittedAt)})</span>}
-                </div>
-              )}
-
-              {/* Error message */}
-              {item.plainError && (
-                <p className="mt-1.5 text-xs text-red-400 bg-red-950/20 rounded px-2 py-1">{item.plainError}</p>
-              )}
-
-              {/* Action result */}
-              {actionResult[item.id] && (
-                <p className={`mt-1.5 text-xs rounded px-2 py-1 ${actionResult[item.id].startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
-                  {actionResult[item.id]}
-                </p>
-              )}
-
-              {/* Action buttons row */}
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {item.type === "draft" && item.status !== "published" && (
-                  <>
-                    <button
-                      onClick={() => {
-                        if (isExpanded && checks) {
-                          setExpandedId(null);
-                        } else {
-                          setExpandedId(item.id);
-                          if (!checks) runGateCheck(item);
-                        }
-                      }}
-                      className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700"
-                    >
-                      {isExpanded ? "Hide Diagnosis" : "Why Not Published?"}
-                    </button>
-                    <ActionButton
-                      onClick={async () => {
-                        setActionLoading(`publish-${item.id}`);
-                        try {
-                          const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: item.id, locale: item.locale, count: 1 }) });
-                          const j = await r.json();
-                          setActionResult((prev) => ({ ...prev, [item.id]: j.success ? "✅ Published!" : `❌ ${j.error ?? "Failed"}` }));
-                          fetchData();
-                        } catch (e) {
-                          setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
-                        } finally { setActionLoading(null); }
-                      }}
-                      loading={actionLoading === `publish-${item.id}`}
-                      variant="success"
-                    >
-                      Publish Now
-                    </ActionButton>
-                    <ActionButton
-                      onClick={async () => {
-                        setActionLoading(`enhance-${item.id}`);
-                        try {
-                          const r = await fetch("/api/admin/content-matrix", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "enhance", draftId: item.id }) });
-                          const j = await r.json();
-                          setActionResult((prev) => ({ ...prev, [item.id]: j.success !== false ? "✅ Enhancing content — reload in 30s" : `❌ ${j.error ?? "Failed"}` }));
-                          fetchData();
-                        } catch (e) {
-                          setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
-                        } finally { setActionLoading(null); }
-                      }}
-                      loading={actionLoading === `enhance-${item.id}`}
-                    >
-                      Expand
-                    </ActionButton>
-                    <ActionButton
-                      onClick={() => doAction("re_queue", item.id, "Re-queued")}
-                      loading={actionLoading === `re_queue-${item.id}`}
-                    >
-                      Re-queue
-                    </ActionButton>
-                    <ActionButton
-                      onClick={() => doAction("delete_draft", item.id, "Deleted")}
-                      loading={actionLoading === `delete_draft-${item.id}`}
-                      variant="danger"
-                    >
-                      Delete
-                    </ActionButton>
-                  </>
-                )}
-                {item.type === "published" && (
-                  <>
-                    {item.url && (
-                      <a href={item.url} target="_blank" rel="noopener noreferrer"
-                        className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700">
-                        View Live →
-                      </a>
-                    )}
-                    <ActionButton
-                      onClick={async () => {
-                        setActionLoading(`index-${item.id}`);
-                        try {
-                          const r = await fetch(`/api/admin/content-indexing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "submit", slugs: [item.slug] }) });
-                          const j = await r.json();
-                          setActionResult((prev) => ({ ...prev, [item.id]: j.success !== false ? "✅ Submitted to Google" : `❌ ${j.error ?? "Failed"}` }));
-                          fetchData();
-                        } catch (e) {
-                          setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
-                        } finally { setActionLoading(null); }
-                      }}
-                      loading={actionLoading === `index-${item.id}`}
-                    >
-                      Submit to Google
-                    </ActionButton>
-                    <ActionButton onClick={() => doAction("unpublish", item.id, "Unpublished")} loading={actionLoading === `unpublish-${item.id}`} variant="amber">
-                      Unpublish
-                    </ActionButton>
-                    <ActionButton onClick={() => doAction("delete_post", item.id, "Deleted")} loading={actionLoading === `delete_post-${item.id}`} variant="danger">
-                      Delete
-                    </ActionButton>
-                  </>
-                )}
-              </div>
-
-              {/* Gate check panel */}
-              {isExpanded && (
-                <div className="mt-3 border-t border-zinc-800 pt-3">
-                  <p className="text-xs font-semibold text-zinc-400 mb-2">Why Isn't This Published?</p>
-                  {gateLoading === item.id && <p className="text-xs text-zinc-500">Running gate checks…</p>}
-                  {checks && (
-                    <div className="space-y-1.5">
-                      {checks.map((c) => (
-                        <div key={c.check} className={`flex items-start gap-2 text-xs rounded p-1.5 ${c.pass ? "bg-zinc-800/30" : c.isBlocker ? "bg-red-950/20" : "bg-amber-950/20"}`}>
-                          <span className="shrink-0 mt-0.5">{c.pass ? "✅" : c.isBlocker ? "❌" : "⚠️"}</span>
-                          <div>
-                            <span className={c.pass ? "text-zinc-400" : c.isBlocker ? "text-red-300" : "text-amber-300"}>
-                              {c.label}
-                            </span>
-                            {!c.pass && c.detail && <p className="text-zinc-500 mt-0.5">{c.detail}</p>}
-                          </div>
+                  return (
+                    <tr key={item.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors group">
+                      {/* Page name */}
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className={`inline-block px-1.5 py-0.5 rounded-full border text-[10px] font-medium leading-none ${badge.color}`}>
+                            {badge.label}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                  {!checks && !gateLoading && (
-                    <button onClick={() => runGateCheck(item)} className="text-xs text-blue-400 hover:underline">
-                      Run gate check
-                    </button>
-                  )}
-                </div>
-              )}
-            </Card>
-          );
-        })}
-      </div>
+                        <p className="text-zinc-100 font-medium truncate max-w-[280px]" title={item.title}>
+                          {item.title || item.slug || item.id}
+                        </p>
+                        {item.url && (
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate block max-w-[280px] text-[10px]">
+                            {item.url}
+                          </a>
+                        )}
+                        {/* Inline error */}
+                        {item.plainError && (
+                          <p className="text-red-400 mt-0.5 truncate max-w-[280px]" title={item.plainError}>{item.plainError}</p>
+                        )}
+                        {/* Action result */}
+                        {actionResult[item.id] && (
+                          <p className={`mt-0.5 ${actionResult[item.id].startsWith("✅") ? "text-emerald-300" : "text-red-300"}`}>
+                            {actionResult[item.id]}
+                          </p>
+                        )}
+                        {/* Expanded gate check panel */}
+                        {isExpanded && (
+                          <div className="mt-2 border-t border-zinc-800 pt-2">
+                            <p className="font-semibold text-zinc-400 mb-1.5">Why Isn{"'"}t This Published?</p>
+                            {gateLoading === item.id && <p className="text-zinc-500">Running gate checks…</p>}
+                            {checks && (
+                              <div className="space-y-1">
+                                {checks.map((c) => (
+                                  <div key={c.check} className={`flex items-start gap-1.5 rounded p-1 ${c.pass ? "bg-zinc-800/30" : c.isBlocker ? "bg-red-950/20" : "bg-amber-950/20"}`}>
+                                    <span className="shrink-0">{c.pass ? "✅" : c.isBlocker ? "❌" : "⚠️"}</span>
+                                    <div>
+                                      <span className={c.pass ? "text-zinc-400" : c.isBlocker ? "text-red-300" : "text-amber-300"}>{c.label}</span>
+                                      {!c.pass && c.detail && <p className="text-zinc-500 mt-0.5">{c.detail}</p>}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {!checks && !gateLoading && (
+                              <button onClick={() => runGateCheck(item)} className="text-blue-400 hover:underline">Run gate check</button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Created */}
+                      <td className="px-3 py-2.5 text-zinc-400 whitespace-nowrap">{shortDate(item.generatedAt)}</td>
+
+                      {/* Published */}
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        {item.publishedAt ? (
+                          <span className="text-emerald-400">{shortDate(item.publishedAt)}</span>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
+                      </td>
+
+                      {/* Crawled */}
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        {item.lastCrawledAt ? (
+                          <span className="text-zinc-400">{shortDate(item.lastCrawledAt)}</span>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
+                      </td>
+
+                      {/* Google Status */}
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <span className={`font-medium ${indexColor(item.indexingStatus)}`}>
+                          {indexLabel(item)}
+                        </span>
+                        {item.coverageState && item.indexingStatus !== "indexed" && (
+                          <p className="text-zinc-500 text-[10px] mt-0.5 max-w-[120px] truncate" title={item.coverageState}>
+                            {item.coverageState}
+                          </p>
+                        )}
+                      </td>
+
+                      {/* Impressions */}
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                        {item.gscImpressions !== null ? (
+                          <span className="text-zinc-300">{item.gscImpressions.toLocaleString()}</span>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
+                      </td>
+
+                      {/* Clicks */}
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                        {item.gscClicks !== null ? (
+                          <span className={item.gscClicks > 0 ? "text-emerald-400 font-medium" : "text-zinc-300"}>{item.gscClicks.toLocaleString()}</span>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
+                      </td>
+
+                      {/* SEO Score */}
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                        {item.seoScore !== null ? (
+                          <span className={scoreColor(item.seoScore)}>{item.seoScore}</span>
+                        ) : (
+                          <span className="text-zinc-600">—</span>
+                        )}
+                      </td>
+
+                      {/* Word Count */}
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                        <span className={item.wordCount < 1000 ? "text-red-400" : item.wordCount < 1200 ? "text-amber-400" : "text-zinc-400"}>
+                          {item.wordCount > 0 ? item.wordCount.toLocaleString() : "—"}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-3 py-2.5">
+                        <div className="flex flex-wrap gap-1">
+                          {item.type === "draft" && item.status !== "published" && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  if (isExpanded && checks) {
+                                    setExpandedId(null);
+                                  } else {
+                                    setExpandedId(item.id);
+                                    if (!checks) runGateCheck(item);
+                                  }
+                                }}
+                                className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 whitespace-nowrap"
+                              >
+                                {isExpanded ? "Hide" : "Why?"}
+                              </button>
+                              <ActionButton
+                                onClick={async () => {
+                                  setActionLoading(`publish-${item.id}`);
+                                  try {
+                                    const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: item.id, locale: item.locale, count: 1 }) });
+                                    const j = await r.json();
+                                    setActionResult((prev) => ({ ...prev, [item.id]: j.success ? "✅ Published!" : `❌ ${j.error ?? "Failed"}` }));
+                                    fetchData();
+                                  } catch (e) {
+                                    setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
+                                  } finally { setActionLoading(null); }
+                                }}
+                                loading={actionLoading === `publish-${item.id}`}
+                                variant="success"
+                              >
+                                Publish
+                              </ActionButton>
+                            </>
+                          )}
+                          {item.type === "published" && (
+                            <>
+                              {item.url && (
+                                <a href={item.url} target="_blank" rel="noopener noreferrer"
+                                  className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 whitespace-nowrap">
+                                  View
+                                </a>
+                              )}
+                              <ActionButton
+                                onClick={async () => {
+                                  setActionLoading(`index-${item.id}`);
+                                  try {
+                                    const r = await fetch(`/api/admin/content-indexing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "submit", slugs: [item.slug] }) });
+                                    const j = await r.json();
+                                    setActionResult((prev) => ({ ...prev, [item.id]: j.success !== false ? "✅ Submitted" : `❌ ${j.error ?? "Failed"}` }));
+                                    fetchData();
+                                  } catch (e) {
+                                    setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
+                                  } finally { setActionLoading(null); }
+                                }}
+                                loading={actionLoading === `index-${item.id}`}
+                              >
+                                Index
+                              </ActionButton>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

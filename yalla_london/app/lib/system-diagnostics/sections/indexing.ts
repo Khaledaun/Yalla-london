@@ -80,16 +80,16 @@ const indexingSection = async (
   }
 
   // ── A3. Google Search Console Credentials ───────────────────────────────
-  const gscEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  const gscKey = process.env.GOOGLE_PRIVATE_KEY;
+  const gscEmail = process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL;
+  const gscKey = process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY;
   const gscUrl = process.env.GSC_SITE_URL;
 
   if (gscEmail && gscKey && gscUrl) {
     results.push(pass("gsc-config", "Google Search Console", "Fully configured", "Google Search Console lets us check which pages are indexed, what queries bring traffic, and submit sitemaps directly to Google. Essential for monitoring indexing progress."));
   } else {
     const missing: string[] = [];
-    if (!gscEmail) missing.push("GOOGLE_CLIENT_EMAIL");
-    if (!gscKey) missing.push("GOOGLE_PRIVATE_KEY");
+    if (!gscEmail) missing.push("GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL");
+    if (!gscKey) missing.push("GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY");
     if (!gscUrl) missing.push("GSC_SITE_URL");
     results.push(warn("gsc-config", "Google Search Console", `Missing: ${missing.join(", ")}`, "Without GSC credentials, we cannot verify if Google has actually indexed your pages. We're flying blind.", `Set the missing env var(s) in Vercel. You need a Google service account with Search Console API access.`));
   }

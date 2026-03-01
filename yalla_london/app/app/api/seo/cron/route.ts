@@ -33,6 +33,17 @@ async function trackSubmittedUrls(report: IndexingReport, siteId: string) {
     // Only update URLs that are still pending AND were created/updated recently.
     // This prevents blanket-updating ancient URLs that weren't part of this run.
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    // Build update data conditionally — only set channel flags when true
+    // to avoid overwriting existing true values with undefined.
+    // Previously: `indexNowSuccess || undefined` → `false || undefined` = undefined (field not updated)
+    // This caused "ghost submissions" where status="submitted" but no channel was recorded.
+    const updateData: Record<string, unknown> = {
+      status: "submitted",
+      last_submitted_at: new Date(),
+    };
+    if (indexNowSuccess) updateData.submitted_indexnow = true;
+    if (gscSuccess) updateData.submitted_sitemap = true;
+
     await prisma.uRLIndexingStatus.updateMany({
       where: {
         site_id: siteId,
@@ -42,12 +53,7 @@ async function trackSubmittedUrls(report: IndexingReport, siteId: string) {
           { updated_at: { gte: tenMinutesAgo } },
         ],
       },
-      data: {
-        status: "submitted",
-        submitted_indexnow: indexNowSuccess || undefined,
-        submitted_sitemap: gscSuccess || undefined,
-        last_submitted_at: new Date(),
-      },
+      data: updateData,
     });
   } catch (e) {
     console.warn(`[SEO-CRON] Failed to track submitted URLs for ${siteId}:`, e instanceof Error ? e.message : e);
@@ -188,6 +194,33 @@ export async function GET(request: NextRequest) {
                 }
               } catch (stuckErr) {
                 console.warn(`[SEO-CRON] Stuck URL resubmission failed for ${sid}:`, stuckErr instanceof Error ? stuckErr.message : stuckErr);
+              }
+            }
+
+            // ── Fix ghost submissions: status="submitted" but no channel set ──
+            // These occur when trackSubmittedUrls set status before channel flags.
+            // Reset them to "discovered" so they get resubmitted with proper tracking.
+            if (Date.now() - startTime < BUDGET_MS - 3_000) {
+              try {
+                const { prisma: pGhost } = await import("@/lib/db");
+                const ghostFixed = await pGhost.uRLIndexingStatus.updateMany({
+                  where: {
+                    site_id: sid,
+                    status: "submitted",
+                    submitted_indexnow: false,
+                    submitted_sitemap: false,
+                    submitted_google_api: false,
+                  },
+                  data: {
+                    status: "discovered", // Reset so next run resubmits with proper channel tracking
+                  },
+                });
+                if (ghostFixed.count > 0) {
+                  console.log(`[SEO-CRON] Fixed ${ghostFixed.count} ghost submission(s) for ${sid} — reset to "discovered"`);
+                  results.actions.push({ name: "fix_ghost_submissions", site: sid, count: ghostFixed.count });
+                }
+              } catch (ghostErr) {
+                console.warn(`[SEO-CRON] Ghost submission fix failed for ${sid}:`, ghostErr instanceof Error ? ghostErr.message : ghostErr);
               }
             }
           } catch (siteErr) {

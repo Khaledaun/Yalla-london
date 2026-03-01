@@ -281,20 +281,21 @@ async function handleAutoFix(request: NextRequest) {
   }
 
   // ── 5. STUCK DRAFT RECOVERY ────────────────────────────────────────────────
-  // Drafts stuck in phases (not reservoir/published/rejected) for 6+ hours
+  // Drafts stuck in phases (not reservoir/published/rejected) for 3+ hours
   // indicate the content-builder cron crashed mid-phase or an AI call hung.
   // Reset phase_started_at so the builder picks them up again.
   // If they've already failed 3+ times, reject them — they won't succeed.
+  // Reduced from 6h to 3h — 6h was too long, leaving 33+ drafts stuck.
   if (Date.now() - cronStart < BUDGET_MS - 3_000) {
     try {
-      const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+      const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
       const stuckDrafts = await prisma.articleDraft.findMany({
         where: {
           site_id: { in: activeSiteIds },
           current_phase: {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
-          updated_at: { lt: sixHoursAgo },
+          updated_at: { lt: threeHoursAgo },
         },
         select: { id: true, current_phase: true, keyword: true, phase_attempts: true },
         take: 50,
@@ -356,7 +357,6 @@ async function handleAutoFix(request: NextRequest) {
           siteId: { in: activeSiteIds },
           published: true,
           deletedAt: null,
-          content_en: { not: "" },
         },
         select: { id: true, slug: true, content_en: true },
         take: 20,
@@ -365,7 +365,7 @@ async function handleAutoFix(request: NextRequest) {
 
       let headingsFixed = 0;
       for (const post of recentPosts) {
-        if (!post.content_en) continue;
+        if (!post.content_en || post.content_en.trim().length === 0) continue;
         let html = post.content_en;
         let modified = false;
 

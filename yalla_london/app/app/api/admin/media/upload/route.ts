@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import { join, resolve } from 'path'
@@ -85,7 +87,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     // Convert file to buffer and save
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    await writeFile(filepath, buffer)
+    await writeFile(filepath, new Uint8Array(buffer))
 
     const publicUrl = `/uploads/${filename}`
 

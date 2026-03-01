@@ -1,7 +1,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
+import Image from 'next/image';
+import { sanitizeHtml } from '@/lib/html-sanitizer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -286,13 +288,18 @@ export function HowToBuilder({ initialData = {}, onSave }: HowToBuilderProps) {
                 <div className="flex-1">
                   <h4 className="font-semibold text-lg mb-2">{step.name}</h4>
                   <div className="prose prose-sm">
-                    <div dangerouslySetInnerHTML={{ __html: step.text.replace(/\n/g, '<br>') }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(step.text.replace(/\n/g, '<br>')) }} />
                   </div>
                   {step.image && (
-                    <img 
-                      src={step.image} 
+                    <Image
+                      src={step.image}
                       alt={step.name}
+                      width={0}
+                      height={0}
+                      sizes="100vw"
                       className="mt-3 rounded-lg max-w-full h-auto"
+                      style={{ width: '100%', height: 'auto' }}
+                      unoptimized
                     />
                   )}
                 </div>

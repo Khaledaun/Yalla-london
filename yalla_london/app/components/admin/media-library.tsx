@@ -125,15 +125,7 @@ export function MediaLibrary() {
     multiple: true
   })
 
-  useEffect(() => {
-    loadAssets()
-  }, [])
-
-  useEffect(() => {
-    filterAssets()
-  }, [assets, searchTerm, fileTypeFilter])
-
-  const loadAssets = async () => {
+  const loadAssets = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch('/api/media')
@@ -151,13 +143,13 @@ export function MediaLibrary() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [toast])
 
-  const filterAssets = () => {
+  const filterAssets = useCallback(() => {
     let filtered = assets
 
     if (searchTerm) {
-      filtered = filtered.filter(asset => 
+      filtered = filtered.filter(asset =>
         asset.originalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.altText?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -169,7 +161,15 @@ export function MediaLibrary() {
     }
 
     setFilteredAssets(filtered)
-  }
+  }, [assets, searchTerm, fileTypeFilter])
+
+  useEffect(() => {
+    loadAssets()
+  }, [loadAssets])
+
+  useEffect(() => {
+    filterAssets()
+  }, [filterAssets])
 
   const handleDeleteAsset = async (id: string) => {
     try {

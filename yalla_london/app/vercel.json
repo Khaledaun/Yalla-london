@@ -20,7 +20,7 @@
       "maxDuration": 15
     },
     "app/api/seo/**/*.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "app/api/health/**/*.ts": {
       "maxDuration": 10
@@ -68,50 +68,38 @@
   ],
   "rewrites": [
     {
-      "source": "/sitemap.xml",
-      "destination": "/api/sitemap/generate"
-    },
-    {
-      "source": "/robots.txt",
-      "destination": "/robots.txt"
+      "source": "/:key.txt",
+      "destination": "/api/indexnow-key"
     }
   ],
   "crons": [
     {
-      "path": "/api/cron/daily-content-generate",
-      "schedule": "0 5 * * *"
-    },
-    {
-      "path": "/api/cron/scheduled-publish",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/scheduled-publish",
-      "schedule": "0 16 * * *"
-    },
-    {
-      "path": "/api/cron/seo-agent",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/seo-agent",
-      "schedule": "0 13 * * *"
-    },
-    {
-      "path": "/api/cron/seo-agent",
-      "schedule": "0 20 * * *"
+      "path": "/api/cron/analytics",
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/weekly-topics",
       "schedule": "0 4 * * 1"
     },
     {
+      "path": "/api/cron/daily-content-generate",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/seo-orchestrator?mode=weekly",
+      "schedule": "0 5 * * 0"
+    },
+    {
       "path": "/api/cron/trends-monitor",
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/analytics",
-      "schedule": "0 3 * * *"
+      "path": "/api/cron/seo-orchestrator?mode=daily",
+      "schedule": "10 6 * * *"
+    },
+    {
+      "path": "/api/cron/seo-agent",
+      "schedule": "0 7 * * *"
     },
     {
       "path": "/api/seo/cron?task=daily",
@@ -120,6 +108,86 @@
     {
       "path": "/api/seo/cron?task=weekly",
       "schedule": "0 8 * * 0"
+    },
+    {
+      "path": "/api/cron/content-builder",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/content-selector",
+      "schedule": "0 9,13,17,21 * * *"
+    },
+    {
+      "path": "/api/cron/affiliate-injection",
+      "schedule": "10 9 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-publish",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/seo-agent",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/scheduled-publish",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/seo-agent",
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/site-health-check",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/sweeper",
+      "schedule": "45 8,14,20 * * *"
+    },
+    {
+      "path": "/api/cron/google-indexing",
+      "schedule": "15 9 * * *"
+    },
+    {
+      "path": "/api/cron/verify-indexing",
+      "schedule": "0 11,17 * * *"
+    },
+    {
+      "path": "/api/cron/london-news",
+      "schedule": "20 6 * * *"
+    },
+    {
+      "path": "/api/cron/fact-verification",
+      "schedule": "0 3 * * 0"
+    },
+    {
+      "path": "/api/cron/content-auto-fix",
+      "schedule": "0 11,18 * * *"
+    },
+    {
+      "path": "/api/cron/commerce-trends",
+      "schedule": "30 4 * * 1"
+    },
+    {
+      "path": "/api/cron/etsy-sync",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/social",
+      "schedule": "0 10,15,20 * * *"
+    },
+    {
+      "path": "/api/cron/reserve-publisher",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron/seo-deep-review",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/process-indexing-queue",
+      "schedule": "15 7,13,20 * * *"
     }
   ]
 }

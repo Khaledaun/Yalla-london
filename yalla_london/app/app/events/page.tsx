@@ -130,9 +130,10 @@ export default function EventsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [showVipOnly, setShowVipOnly] = useState(false);
-  const [events, setEvents] = useState<EventItem[]>([]);
+  // Initialize with fallback events so SSR HTML always has content for crawlers
+  const [events, setEvents] = useState<EventItem[]>(FALLBACK_EVENTS);
   const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     async function fetchEvents() {
@@ -145,17 +146,12 @@ export default function EventsPage() {
             if (data.categories?.length > 1) {
               setCategories(data.categories);
             }
-          } else {
-            // No events in DB yet - use fallback
-            setEvents(FALLBACK_EVENTS);
           }
-        } else {
-          setEvents(FALLBACK_EVENTS);
+          // If no DB events, keep the fallback events already initialized
         }
+        // On error, keep the fallback events already initialized
       } catch {
-        setEvents(FALLBACK_EVENTS);
-      } finally {
-        setLoading(false);
+        // Silently keep fallback events
       }
     }
     fetchEvents();
@@ -175,11 +171,11 @@ export default function EventsPage() {
   });
 
   const categoryColors: Record<string, string> = {
-    Football: "bg-green-100 text-green-800",
-    Theatre: "bg-purple-100 text-purple-800",
-    Festival: "bg-pink-100 text-pink-800",
-    Exhibition: "bg-blue-100 text-blue-800",
-    Experience: "bg-amber-100 text-amber-800",
+    Football: "bg-cream-100 text-forest",
+    Theatre: "bg-london-100 text-london-800",
+    Festival: "bg-yalla-gold-100 text-yalla-gold-800",
+    Exhibition: "bg-thames-100 text-thames-800",
+    Experience: "bg-cream-200 text-charcoal",
   };
 
   const formatDate = (dateStr: string) => {
@@ -213,7 +209,9 @@ export default function EventsPage() {
             affiliateTag: event.affiliateTag,
           }),
         }).catch(() => {});
-      } catch {}
+      } catch (error) {
+        console.warn('[Events] Failed to track affiliate click for event:', event.title.en, error);
+      }
       window.open(event.bookingUrl, "_blank", "noopener,noreferrer");
     }
   };
@@ -238,12 +236,12 @@ export default function EventsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1 }}
         >
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold mb-6">
             {language === "en"
               ? "London Events & Tickets"
               : "\u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0648\u062a\u0630\u0627\u0643\u0631 \u0644\u0646\u062f\u0646"}
           </h1>
-          <p className="text-xl md:text-2xl text-gray-200">
+          <p className="text-xl md:text-2xl text-cream-200">
             {language === "en"
               ? "Book premium tickets for the best London experiences"
               : "\u0627\u062d\u062c\u0632 \u062a\u0630\u0627\u0643\u0631 \u0645\u0645\u064a\u0632\u0629 \u0644\u0623\u0641\u0636\u0644 \u062a\u062c\u0627\u0631\u0628 \u0644\u0646\u062f\u0646"}
@@ -265,12 +263,23 @@ export default function EventsPage() {
         </motion.div>
       </section>
 
+      {/* Static explainer — always in SSR HTML for crawlers and slow connections */}
+      <section className="bg-cream-50 border-b border-sand py-6">
+        <div className="max-w-6xl mx-auto px-6">
+          <p className="text-stone text-sm leading-relaxed max-w-3xl">
+            {language === "en"
+              ? "Yalla London curates the best events for Arab visitors — from Premier League football at Emirates Stadium and Stamford Bridge, to award-winning West End musicals like Hamilton and The Lion King, luxury Thames dinner cruises with halal menus, seasonal festivals, world-class exhibitions at the V&A and British Museum, and exclusive VIP experiences across the city."
+              : "يلا لندن تنتقي أفضل الفعاليات للزوار العرب — من مباريات الدوري الإنجليزي الممتاز في ملعب الإمارات وستامفورد بريدج، إلى المسرحيات الموسيقية في ويست إند مثل هاميلتون والأسد الملك، ورحلات العشاء الفاخرة على نهر التايمز مع قوائم حلال، والمهرجانات الموسمية، والمعارض العالمية في متحف فيكتوريا وألبرت والمتحف البريطاني."}
+          </p>
+        </div>
+      </section>
+
       {/* Search & Filter Bar */}
       <section className="bg-white border-b sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6 py-4">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-4">
           <div className="flex flex-col md:flex-row gap-4 items-center">
             <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-stone`} />
               <Input
                 placeholder={
                   language === "en"
@@ -291,7 +300,7 @@ export default function EventsPage() {
                   onClick={() => setSelectedCategory(cat)}
                   className={
                     selectedCategory === cat
-                      ? "bg-purple-800 hover:bg-purple-900"
+                      ? "bg-brand-primary hover:bg-london-800"
                       : ""
                   }
                 >
@@ -307,7 +316,7 @@ export default function EventsPage() {
                 size="sm"
                 onClick={() => setShowVipOnly(!showVipOnly)}
                 className={
-                  showVipOnly ? "bg-yellow-600 hover:bg-yellow-700" : ""
+                  showVipOnly ? "bg-yalla-gold-500 hover:bg-yalla-gold-600 text-white" : ""
                 }
               >
                 <Star className="h-3 w-3 mr-1" /> VIP
@@ -318,10 +327,10 @@ export default function EventsPage() {
       </section>
 
       {/* Events Grid */}
-      <section className="py-12 bg-gray-50">
+      <section className="py-12 bg-cream">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl font-display font-bold text-charcoal">
               {loading
                 ? language === "en"
                   ? "Loading Events..."
@@ -330,7 +339,7 @@ export default function EventsPage() {
                   ? `${filteredEvents.length} Events Available`
                   : `${filteredEvents.length} \u0641\u0639\u0627\u0644\u064a\u0629 \u0645\u062a\u0627\u062d\u0629`}
             </h2>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-stone">
               <Tag className="h-4 w-4" />
               {language === "en"
                 ? "Powered by trusted ticket partners"
@@ -340,8 +349,8 @@ export default function EventsPage() {
 
           {loading ? (
             <div className="text-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto text-purple-600 mb-4" />
-              <p className="text-gray-500">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-brand-primary mb-4" />
+              <p className="text-stone">
                 {language === "en"
                   ? "Loading events..."
                   : "\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0641\u0639\u0627\u0644\u064a\u0627\u062a..."}
@@ -349,7 +358,7 @@ export default function EventsPage() {
             </div>
           ) : filteredEvents.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-gray-500 text-lg">
+              <p className="text-stone text-lg">
                 {language === "en"
                   ? "No events match your filters"
                   : "\u0644\u0627 \u062a\u0648\u062c\u062f \u0641\u0639\u0627\u0644\u064a\u0627\u062a \u062a\u0637\u0627\u0628\u0642 \u0627\u0644\u062a\u0635\u0641\u064a\u0629"}
@@ -388,27 +397,28 @@ export default function EventsPage() {
                         }
                         alt={event.title[language] || event.title.en}
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         className="object-cover"
                       />
-                      <div className="absolute top-4 left-4 flex gap-2">
+                      <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} flex gap-2`}>
                         <Badge
                           className={
                             categoryColors[event.category] ||
-                            "bg-gray-100 text-gray-800"
+                            "bg-cream-100 text-charcoal"
                           }
                         >
                           {event.category}
                         </Badge>
                         {event.vipAvailable && (
-                          <Badge className="bg-yellow-500 text-white">
+                          <Badge className="bg-yalla-gold-500 text-white">
                             VIP
                           </Badge>
                         )}
                       </div>
-                      <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full">
+                      <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full`}>
                         <div className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm font-medium text-gray-900">
+                          <Star className="h-3 w-3 fill-yalla-gold-400 text-yalla-gold-400" />
+                          <span className="text-sm font-medium text-charcoal">
                             {event.rating}
                           </span>
                         </div>
@@ -424,29 +434,29 @@ export default function EventsPage() {
                       )}
                     </div>
                     <CardContent className="p-6 flex-1 flex flex-col">
-                      <h3 className="text-xl font-bold mb-2 text-gray-900">
+                      <h3 className="text-xl font-semibold mb-2 text-charcoal">
                         {event.title[language] || event.title.en}
                       </h3>
-                      <p className="text-gray-600 leading-relaxed mb-4 flex-1">
+                      <p className="text-stone leading-relaxed mb-4 flex-1">
                         {event.description[language] || event.description.en}
                       </p>
                       <div className="space-y-2 mb-4">
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-stone">
                           <Calendar className="h-4 w-4 flex-shrink-0" />
                           <span>{formatDate(event.date)}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-stone">
                           <Clock className="h-4 w-4 flex-shrink-0" />
                           <span>{event.time}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 text-sm text-stone">
                           <MapPin className="h-4 w-4 flex-shrink-0" />
                           <span>{event.venue}</span>
                         </div>
                       </div>
                       {event.ticketProvider && (
                         <div className="mb-4">
-                          <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+                          <span className="inline-flex items-center gap-1 text-xs text-stone">
                             <Ticket className="h-3 w-3" />
                             {language === "en"
                               ? "via"
@@ -456,11 +466,11 @@ export default function EventsPage() {
                         </div>
                       )}
                       <div className="flex items-center justify-between mt-auto">
-                        <span className="text-lg font-bold text-purple-800">
+                        <span className="text-lg font-bold text-brand-primary">
                           {event.price}
                         </span>
                         <Button
-                          className="bg-purple-800 hover:bg-purple-900"
+                          className="bg-brand-primary hover:bg-london-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600"
                           disabled={event.soldOut}
                           onClick={() => handleBooking(event)}
                         >
@@ -491,12 +501,12 @@ export default function EventsPage() {
       <section className="py-12 bg-white">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-8">
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+            <h3 className="text-xl font-semibold text-charcoal mb-2">
               {language === "en"
                 ? "Our Trusted Ticket Partners"
                 : "\u0634\u0631\u0643\u0627\u0621 \u0627\u0644\u062a\u0630\u0627\u0643\u0631 \u0627\u0644\u0645\u0648\u062b\u0648\u0642\u064a\u0646"}
             </h3>
-            <p className="text-gray-500 text-sm">
+            <p className="text-stone text-sm">
               {language === "en"
                 ? "We partner with leading ticket providers to bring you the best deals"
                 : "\u0646\u062a\u0639\u0627\u0648\u0646 \u0645\u0639 \u0645\u0632\u0648\u062f\u064a \u0627\u0644\u062a\u0630\u0627\u0643\u0631 \u0627\u0644\u0631\u0627\u0626\u062f\u064a\u0646 \u0644\u0646\u0642\u062f\u0645 \u0644\u0643 \u0623\u0641\u0636\u0644 \u0627\u0644\u0639\u0631\u0648\u0636"}
@@ -507,10 +517,10 @@ export default function EventsPage() {
               (partner) => (
                 <div
                   key={partner}
-                  className="text-center px-6 py-4 rounded-lg border border-gray-100 hover:border-purple-200 hover:bg-purple-50/50 transition-all"
+                  className="text-center px-6 py-4 rounded-lg border border-sand hover:border-yalla-gold-400/40 hover:bg-cream transition-all"
                 >
-                  <span className="font-semibold text-gray-700">{partner}</span>
-                  <span className="block text-xs text-gray-400 mt-1">
+                  <span className="font-semibold text-stone">{partner}</span>
+                  <span className="block text-xs text-stone mt-1">
                     {language === "en"
                       ? "Verified Partner"
                       : "\u0634\u0631\u064a\u0643 \u0645\u0639\u062a\u0645\u062f"}
@@ -523,7 +533,7 @@ export default function EventsPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-gradient-to-br from-purple-900 via-purple-800 to-yellow-600 text-white">
+      <section className="py-20 bg-gradient-to-br from-london-900 via-london-600 to-yalla-gold-500 text-white">
         <div className="max-w-4xl mx-auto text-center px-6">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -531,12 +541,12 @@ export default function EventsPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
-            <h2 className="text-4xl font-bold mb-6">
+            <h2 className="text-4xl font-display font-bold mb-6">
               {language === "en"
                 ? "Can't Find What You're Looking For?"
                 : "\u0644\u0627 \u062a\u062c\u062f \u0645\u0627 \u062a\u0628\u062d\u062b \u0639\u0646\u0647\u061f"}
             </h2>
-            <p className="text-xl mb-8 text-purple-100">
+            <p className="text-xl mb-8 text-cream-100/90">
               {language === "en"
                 ? "Contact us for personalized event recommendations and exclusive VIP access"
                 : "\u0627\u062a\u0635\u0644 \u0628\u0646\u0627 \u0644\u0644\u062d\u0635\u0648\u0644 \u0639\u0644\u0649 \u062a\u0648\u0635\u064a\u0627\u062a \u0641\u0639\u0627\u0644\u064a\u0627\u062a \u0645\u062e\u0635\u0635\u0629 \u0648\u0648\u0635\u0648\u0644 VIP \u062d\u0635\u0631\u064a"}
@@ -545,7 +555,7 @@ export default function EventsPage() {
               <Button
                 asChild
                 size="lg"
-                className="bg-white text-purple-900 hover:bg-gray-100"
+                className="bg-white text-london-900 hover:bg-cream-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
                 <Link href="/contact">
                   {language === "en"

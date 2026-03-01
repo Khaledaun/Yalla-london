@@ -1,34 +1,24 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
+export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { autoContentScheduler } from '@/lib/content-automation/auto-scheduler';
 import { logCronExecution } from "@/lib/cron-logger";
 
-
 // Cron endpoint for automatic content generation
 export async function POST(request: NextRequest) {
-  // Verify cron secret for security
-  const authHeader = request.headers.get('authorization');
+  // Auth: allow if CRON_SECRET not set, reject if set and doesn't match
   const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error('CRON_SECRET not configured');
-    return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-  }
-
-  if (authHeader !== `Bearer ${cronSecret}`) {
-    console.error('❌ Unauthorized cron request');
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    );
+  const authHeader = request.headers.get('authorization');
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const _cronStart = Date.now();
 
   try {
-    console.log('🕐 Cron job triggered: auto-generate');
+    console.log('Cron job triggered: auto-generate');
 
     // Run the auto content scheduler
     await autoContentScheduler.processAutoGeneration();
@@ -45,26 +35,36 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ Cron job failed:', error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('Cron job failed:', error);
     await logCronExecution("auto-generate", "failed", {
       durationMs: Date.now() - _cronStart,
-      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      errorMessage: errMsg,
     });
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    onCronFailure({ jobName: "auto-generate", error: errMsg }).catch((e) =>
+      console.warn("[auto-generate] Failure hook error:", e instanceof Error ? e.message : e));
+
+    // SECURITY: Do not leak error details to client
     return NextResponse.json(
-      { 
-        error: 'Cron job failed',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Cron job failed' },
       { status: 500 }
     );
   }
 }
 
-// Health check endpoint
+// GET handler — supports both healthcheck and real execution for Vercel cron compatibility
 export async function GET(request: NextRequest) {
-  return NextResponse.json({
-    status: 'healthy',
-    endpoint: 'auto-generate cron',
-    timestamp: new Date().toISOString()
-  });
+  // Healthcheck mode — quick status without generating content
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    return NextResponse.json({
+      status: 'healthy',
+      endpoint: 'auto-generate cron',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Real execution — delegate to POST handler
+  return POST(request);
 }

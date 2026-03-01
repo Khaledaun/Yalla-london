@@ -10,7 +10,7 @@
  * - Arabic/English support
  */
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { FileText, Download, Mail, CheckCircle, Loader2, Gift, BookOpen } from 'lucide-react';
 
 interface EmailCaptureProps {
@@ -161,14 +161,14 @@ export function EmailCapture({
   if (status === 'success') {
     return (
       <div
-        className={`bg-green-50 border border-green-100 rounded-xl p-8 text-center ${className}`}
+        className={`bg-cream border border-sand rounded-xl p-8 text-center ${className}`}
         dir={isArabic ? 'rtl' : 'ltr'}
       >
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle className="h-8 w-8 text-green-600" />
+        <div className="w-16 h-16 bg-cream-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle className="h-8 w-8 text-forest" />
         </div>
-        <h3 className="text-xl font-bold text-green-900 mb-2">{t.success}</h3>
-        <p className="text-green-700">{t.successSubtitle}</p>
+        <h3 className="text-xl font-bold text-forest mb-2">{t.success}</h3>
+        <p className="text-forest">{t.successSubtitle}</p>
       </div>
     );
   }
@@ -186,13 +186,13 @@ export function EmailCapture({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder={t.emailPlaceholder}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="flex-1 px-4 py-2 border border-sand rounded-lg focus:ring-2 focus:ring-london-600 focus:border-transparent"
           disabled={status === 'loading'}
         />
         <button
           type="submit"
           disabled={status === 'loading'}
-          className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+          className="px-6 py-2 bg-london-600 text-white font-medium rounded-lg hover:bg-london-700 transition-colors disabled:opacity-50"
         >
           {status === 'loading' ? <Loader2 className="h-5 w-5 animate-spin" /> : t.cta}
         </button>
@@ -204,16 +204,16 @@ export function EmailCapture({
   if (variant === 'inline') {
     return (
       <div
-        className={`bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 ${className}`}
+        className={`bg-gradient-to-r from-cream to-cream-100 rounded-xl p-6 ${className}`}
         dir={isArabic ? 'rtl' : 'ltr'}
       >
         <div className="flex items-center gap-4 mb-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-            <FileText className="h-6 w-6 text-blue-600" />
+          <div className="w-12 h-12 bg-london-100 rounded-full flex items-center justify-center">
+            <FileText className="h-6 w-6 text-london-600" />
           </div>
           <div>
-            <h4 className="font-semibold text-gray-900">{displayName}</h4>
-            <p className="text-sm text-gray-500">{guide.pages} {t.pages} • {t.freeDownload}</p>
+            <h4 className="font-semibold text-charcoal">{displayName}</h4>
+            <p className="text-sm text-stone">{guide.pages} {t.pages} • {t.freeDownload}</p>
           </div>
         </div>
 
@@ -223,13 +223,13 @@ export function EmailCapture({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder={t.emailPlaceholder}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="flex-1 px-4 py-2 border border-sand rounded-lg focus:ring-2 focus:ring-london-600 focus:border-transparent"
             disabled={status === 'loading'}
           />
           <button
             type="submit"
             disabled={status === 'loading'}
-            className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-6 py-2 bg-london-600 text-white font-medium rounded-lg hover:bg-london-700 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {status === 'loading' ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -253,7 +253,7 @@ export function EmailCapture({
   if (variant === 'hero') {
     return (
       <div
-        className={`bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-8 md:p-12 text-white ${className}`}
+        className={`bg-gradient-to-br from-london-600 to-london-900 rounded-2xl p-8 md:p-12 text-white ${className}`}
         dir={isArabic ? 'rtl' : 'ltr'}
       >
         <div className="max-w-3xl mx-auto text-center">
@@ -263,7 +263,7 @@ export function EmailCapture({
           </div>
 
           <h2 className="text-3xl md:text-4xl font-bold mb-4">{displayName}</h2>
-          <p className="text-lg text-blue-100 mb-8">{displayDescription}</p>
+          <p className="text-lg text-london-100 mb-8">{displayDescription}</p>
 
           <div className="flex flex-wrap justify-center gap-6 mb-8">
             <div className="flex items-center gap-2">
@@ -287,13 +287,13 @@ export function EmailCapture({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t.emailPlaceholder}
-                className="flex-1 px-4 py-3 rounded-lg text-gray-900 focus:ring-2 focus:ring-yellow-400"
+                className="flex-1 px-4 py-3 rounded-lg text-charcoal focus:ring-2 focus:ring-yalla-gold-400"
                 disabled={status === 'loading'}
               />
               <button
                 type="submit"
                 disabled={status === 'loading'}
-                className="px-6 py-3 bg-yellow-400 text-gray-900 font-bold rounded-lg hover:bg-yellow-300 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-3 bg-yalla-gold-400 text-charcoal font-bold rounded-lg hover:bg-yalla-gold-300 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {status === 'loading' ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -310,7 +310,7 @@ export function EmailCapture({
               <p className="text-red-300 text-sm mt-2">{errorMessage}</p>
             )}
 
-            <p className="text-blue-200 text-sm mt-4">{t.privacy}</p>
+            <p className="text-london-200 text-sm mt-4">{t.privacy}</p>
           </form>
         </div>
       </div>
@@ -320,26 +320,26 @@ export function EmailCapture({
   // Card variant (default)
   return (
     <div
-      className={`bg-white border border-gray-200 rounded-xl overflow-hidden shadow-lg ${className}`}
+      className={`bg-white border border-sand rounded-xl overflow-hidden shadow-lg ${className}`}
       dir={isArabic ? 'rtl' : 'ltr'}
     >
       {/* Guide Preview Image */}
-      <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-6">
+      <div className="bg-gradient-to-br from-london-600 to-london-800 p-6">
         <div className="aspect-[4/3] bg-white/10 rounded-lg flex items-center justify-center">
           <FileText className="h-16 w-16 text-white/80" />
         </div>
       </div>
 
       <div className="p-6">
-        <div className="flex items-center gap-2 text-blue-600 text-sm font-medium mb-2">
+        <div className="flex items-center gap-2 text-london-600 text-sm font-medium mb-2">
           <Gift className="h-4 w-4" />
           <span>{t.freeDownload}</span>
         </div>
 
-        <h3 className="text-xl font-bold text-gray-900 mb-2">{displayName}</h3>
-        <p className="text-gray-600 text-sm mb-4">{displayDescription}</p>
+        <h3 className="text-xl font-bold text-charcoal mb-2">{displayName}</h3>
+        <p className="text-stone text-sm mb-4">{displayDescription}</p>
 
-        <div className="flex items-center gap-4 text-sm text-gray-500 mb-6">
+        <div className="flex items-center gap-4 text-sm text-stone mb-6">
           <span className="flex items-center gap-1">
             <BookOpen className="h-4 w-4" />
             {guide.pages} {t.pages}
@@ -356,13 +356,13 @@ export function EmailCapture({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder={t.emailPlaceholder}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-3 border border-sand rounded-lg focus:ring-2 focus:ring-london-600 focus:border-transparent"
             disabled={status === 'loading'}
           />
           <button
             type="submit"
             disabled={status === 'loading'}
-            className="w-full px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full px-6 py-3 bg-london-600 text-white font-bold rounded-lg hover:bg-london-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {status === 'loading' ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -378,7 +378,7 @@ export function EmailCapture({
             <p className="text-red-600 text-sm">{errorMessage}</p>
           )}
 
-          <p className="text-gray-400 text-xs text-center">{t.privacy}</p>
+          <p className="text-stone text-xs text-center">{t.privacy}</p>
         </form>
       </div>
     </div>
@@ -406,18 +406,18 @@ export function ContentUpgradeBanner({
 
   return (
     <div
-      className={`my-8 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-6 ${className}`}
+      className={`my-8 bg-gradient-to-r from-cream to-cream-100 border border-sand rounded-xl p-6 ${className}`}
       dir={isArabic ? 'rtl' : 'ltr'}
     >
       <div className="flex items-start gap-4">
-        <div className="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
-          <FileText className="h-6 w-6 text-amber-600" />
+        <div className="flex-shrink-0 w-12 h-12 bg-yalla-gold-100 rounded-lg flex items-center justify-center">
+          <FileText className="h-6 w-6 text-yalla-gold-600" />
         </div>
         <div className="flex-1">
-          <h4 className="font-bold text-gray-900 mb-1">
+          <h4 className="font-bold text-charcoal mb-1">
             {isArabic ? '📚 تريد المزيد؟' : '📚 Want more?'}
           </h4>
-          <p className="text-gray-600 text-sm mb-3">
+          <p className="text-stone text-sm mb-3">
             {isArabic ? guide.description_ar : guide.description_en}
           </p>
           <EmailCapture
@@ -479,7 +479,7 @@ export function StickyFooterCTA({
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 bg-blue-600 text-white py-3 px-4 z-50 shadow-lg"
+      className="fixed bottom-0 left-0 right-0 bg-london-600 text-white py-3 px-4 z-50 shadow-lg"
       dir={isArabic ? 'rtl' : 'ltr'}
     >
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -498,12 +498,12 @@ export function StickyFooterCTA({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder={isArabic ? 'بريدك الإلكتروني' : 'Your email'}
-            className="flex-1 sm:w-64 px-3 py-2 rounded text-gray-900 text-sm"
+            className="flex-1 sm:w-64 px-3 py-2 rounded text-charcoal text-sm"
           />
           <button
             type="submit"
             disabled={status === 'loading'}
-            className="px-4 py-2 bg-yellow-400 text-gray-900 font-bold rounded hover:bg-yellow-300 transition-colors text-sm"
+            className="px-4 py-2 bg-yalla-gold-400 text-charcoal font-bold rounded hover:bg-yalla-gold-300 transition-colors text-sm"
           >
             {status === 'loading' ? '...' : isArabic ? 'أرسل' : 'Send'}
           </button>
@@ -512,7 +512,7 @@ export function StickyFooterCTA({
         {onClose && (
           <button
             onClick={onClose}
-            className="absolute top-1 right-1 sm:relative sm:top-0 sm:right-0 p-1 hover:bg-blue-700 rounded"
+            className="absolute top-1 right-1 sm:relative sm:top-0 sm:right-0 p-1 hover:bg-london-700 rounded"
             aria-label="Close"
           >
             ×

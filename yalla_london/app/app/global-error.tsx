@@ -25,17 +25,17 @@ export default function GlobalError({
   return (
     <html>
       <body>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-red-100">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-cream to-cream-100">
           <div className="max-w-md w-full mx-auto px-6 text-center">
             <div className="mb-8">
               <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
                 <AlertTriangle className="h-8 w-8 text-red-600" />
               </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              <h1 className="text-2xl sm:text-3xl font-bold text-charcoal mb-4">
                 Something went wrong
               </h1>
-              <p className="text-gray-600 mb-8">
-                We're sorry, but an unexpected error occurred. Our team has been notified and is working to fix this issue.
+              <p className="text-stone mb-8">
+                We&apos;re sorry, but an unexpected error occurred. Our team has been notified and is working to fix this issue.
               </p>
             </div>
 
@@ -53,11 +53,11 @@ export default function GlobalError({
               </Button>
             </div>
 
-            <div className="mt-8 pt-8 border-t border-gray-200">
-              <p className="text-xs text-gray-500">
+            <div className="mt-8 pt-8 border-t border-sand">
+              <p className="text-xs text-stone">
                 Error ID: {error.digest || 'unknown'}
               </p>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-stone mt-1">
                 If this problem persists, please contact our support team.
               </p>
             </div>

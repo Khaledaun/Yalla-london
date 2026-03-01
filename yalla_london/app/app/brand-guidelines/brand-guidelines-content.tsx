@@ -1,30 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   MapPin, Search, Heart, Star, Clock, CheckCircle, Globe,
   Bookmark, Calendar, MessageCircle, Mail, Share, Image,
   Users, Bell, Settings, Check, X
 } from 'lucide-react';
 
-// Brand colors
+// Brand Kit v2 colors
 const colors = {
-  navy: '#1A1F36',
-  navyLight: '#2D3454',
-  coral: '#E8634B',
-  coralLight: '#FF7F6B',
-  black: '#0A0A0A',
-  white: '#FFFFFF',
+  primary: '#C8322B',     // London Red
+  secondary: '#C49A2A',   // Gold
+  accent: '#3B7EA1',      // Thames Blue
+  dark: '#1C1917',        // Charcoal
+  cream: '#FAF8F4',       // Background
+  sand: '#D6D0C4',        // Borders
   gray: {
-    50: '#FAFAFA',
-    100: '#F5F5F5',
-    200: '#E5E5E5',
-    300: '#D4D4D4',
-    400: '#A3A3A3',
-    500: '#737373',
+    50: '#FAF8F4',
+    100: '#F5F1E8',
+    200: '#EDE8DC',
+    300: '#DED8CC',
+    400: '#C4BEB2',
+    500: '#78716C',
     600: '#525252',
-    700: '#404040',
-    800: '#262626',
+    700: '#3D3835',
+    800: '#1C1917',
     900: '#171717',
   },
 };
@@ -46,10 +46,10 @@ const Logo = ({
   };
 
   const yallaColors = {
-    default: 'text-[#1A1F36]',
+    default: 'text-[#1C1917]',
     light: 'text-white',
     coral: 'text-white',
-    stacked: 'text-[#1A1F36]',
+    stacked: 'text-[#1C1917]',
   };
 
   const londonColors = {
@@ -60,16 +60,16 @@ const Logo = ({
   };
 
   const dotColors = {
-    default: 'bg-[#E8634B]',
-    light: 'bg-[#E8634B]',
+    default: 'bg-[#C8322B]',
+    light: 'bg-[#C8322B]',
     coral: 'bg-white',
-    stacked: 'bg-[#E8634B]',
+    stacked: 'bg-[#C8322B]',
   };
 
   if (variant === 'stacked') {
     return (
       <div className={`flex flex-col items-center gap-1 ${className}`}>
-        <span className={`font-extrabold tracking-tight ${sizeClasses[size]} ${yallaColors[variant]}`} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <span className={`font-extrabold tracking-tight ${sizeClasses[size]} ${yallaColors[variant]}`} style={{ fontFamily: "'Anybody', sans-serif" }}>
           Yalla
         </span>
         <span className="text-xs font-medium tracking-[0.3em] uppercase text-gray-400">
@@ -80,7 +80,7 @@ const Logo = ({
   }
 
   return (
-    <div className={`flex items-center gap-0.5 ${className}`} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <div className={`flex items-center gap-0.5 ${className}`} style={{ fontFamily: "'Anybody', sans-serif" }}>
       <span className={`font-extrabold tracking-tight ${sizeClasses[size]} ${yallaColors[variant]}`}>
         Yalla
       </span>
@@ -94,11 +94,11 @@ const Logo = ({
 
 // App Icon Component
 const AppIcon = ({ inverted = false }: { inverted?: boolean }) => (
-  <div className={`w-12 h-12 rounded-xl flex items-center justify-center relative ${inverted ? 'bg-white' : 'bg-[#1A1F36]'}`}>
-    <span className={`text-2xl font-extrabold ${inverted ? 'text-[#1A1F36]' : 'text-white'}`} style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+  <div className={`w-12 h-12 rounded-xl flex items-center justify-center relative ${inverted ? 'bg-white' : 'bg-[#1C1917]'}`}>
+    <span className={`text-2xl font-extrabold ${inverted ? 'text-[#1C1917]' : 'text-white'}`} style={{ fontFamily: "'Anybody', sans-serif" }}>
       Y
     </span>
-    <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-[#E8634B] rounded-full"></span>
+    <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-[#C8322B] rounded-full"></span>
   </div>
 );
 
@@ -115,7 +115,7 @@ const Section = ({
   className?: string;
 }) => {
   const bgClass = navy
-    ? 'bg-[#1A1F36] text-white'
+    ? 'bg-[#1C1917] text-white'
     : dark
       ? 'bg-gray-900 text-white'
       : 'bg-white text-gray-900';
@@ -140,10 +140,10 @@ const SectionHeader = ({
   dark?: boolean;
 }) => (
   <div className="mb-12 md:mb-16">
-    <div className="text-xs font-semibold tracking-[0.15em] uppercase text-[#E8634B] mb-3">
+    <div className="text-xs font-semibold tracking-[0.15em] uppercase text-[#C8322B] mb-3">
       {label}
     </div>
-    <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+    <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-5" style={{ fontFamily: "'Anybody', sans-serif" }}>
       {title}
     </h2>
     <p className={`text-lg max-w-xl ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -156,19 +156,19 @@ export function BrandGuidelinesContent() {
   const [language, setLanguage] = useState<'en' | 'ar'>('en');
 
   return (
-    <div className="min-h-screen" style={{ fontFamily: "'Inter', -apple-system, sans-serif" }}>
+    <div className="min-h-screen" style={{ fontFamily: "'Source Serif 4', Georgia, serif" }}>
       {/* Cover Section */}
-      <section className="min-h-screen flex flex-col items-center justify-center bg-[#1A1F36] text-white text-center px-6 py-16 relative">
-        <div className="flex items-center gap-1 mb-10" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <section className="min-h-screen flex flex-col items-center justify-center bg-[#1C1917] text-white text-center px-6 py-16 relative">
+        <div className="flex items-center gap-1 mb-10" style={{ fontFamily: "'Anybody', sans-serif" }}>
           <span className="text-5xl md:text-6xl font-extrabold tracking-tight">Yalla</span>
           <span className="text-5xl md:text-6xl font-medium text-gray-400 tracking-tight">London</span>
-          <span className="w-3 h-3 bg-[#E8634B] rounded-full ml-2 animate-pulse"></span>
+          <span className="w-3 h-3 bg-[#C8322B] rounded-full ml-2 animate-pulse"></span>
         </div>
         <div className="text-sm tracking-[0.2em] uppercase text-gray-400 mb-2">
           Brand Guidelines
         </div>
         <div className="text-xs text-gray-500">
-          Version 1.0 — January 2026
+          Version 2.0 — February 2026
         </div>
 
         {/* Language Toggle */}
@@ -176,7 +176,7 @@ export function BrandGuidelinesContent() {
           <button
             onClick={() => setLanguage('en')}
             className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-              language === 'en' ? 'bg-[#E8634B] text-white' : 'text-gray-400 hover:text-white'
+              language === 'en' ? 'bg-[#C8322B] text-white' : 'text-gray-400 hover:text-white'
             }`}
           >
             EN
@@ -184,9 +184,9 @@ export function BrandGuidelinesContent() {
           <button
             onClick={() => setLanguage('ar')}
             className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-              language === 'ar' ? 'bg-[#E8634B] text-white' : 'text-gray-400 hover:text-white'
+              language === 'ar' ? 'bg-[#C8322B] text-white' : 'text-gray-400 hover:text-white'
             }`}
-            style={{ fontFamily: "'Tajawal', sans-serif" }}
+            style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif" }}
           >
             عربي
           </button>
@@ -199,8 +199,8 @@ export function BrandGuidelinesContent() {
           label="01 — Logo"
           title={language === 'en' ? 'Primary Logo' : 'الشعار الرئيسي'}
           description={language === 'en'
-            ? 'The Yalla London wordmark combines confident typography with a subtle energy indicator — the coral dot that represents forward motion and the spirit of "let\'s go."'
-            : 'يجمع شعار يلا لندن بين الطباعة الواثقة ومؤشر الطاقة الخفي - النقطة المرجانية التي تمثل الحركة للأمام وروح "يلا".'
+            ? 'The Yalla London wordmark combines bold typography with a subtle energy indicator — the red dot that represents forward motion and the spirit of "let\'s go."'
+            : 'يجمع شعار يلا لندن بين الطباعة الجريئة ومؤشر الطاقة الخفي - النقطة الحمراء التي تمثل الحركة للأمام وروح "يلا".'
           }
         />
 
@@ -216,18 +216,18 @@ export function BrandGuidelinesContent() {
 
           {/* Dark Background */}
           <div>
-            <div className="bg-[#1A1F36] rounded-2xl p-12 md:p-16 flex items-center justify-center min-h-[200px]">
+            <div className="bg-[#1C1917] rounded-2xl p-12 md:p-16 flex items-center justify-center min-h-[200px]">
               <Logo variant="light" size="large" />
             </div>
             <p className="text-center text-sm text-gray-500 mt-4">Primary — Dark Background</p>
           </div>
 
-          {/* Coral Background */}
+          {/* Red Background */}
           <div>
-            <div className="bg-[#E8634B] rounded-2xl p-12 md:p-16 flex items-center justify-center min-h-[200px]">
+            <div className="bg-[#C8322B] rounded-2xl p-12 md:p-16 flex items-center justify-center min-h-[200px]">
               <Logo variant="coral" size="large" />
             </div>
-            <p className="text-center text-sm text-gray-500 mt-4">Primary — Coral Background</p>
+            <p className="text-center text-sm text-gray-500 mt-4">Primary — London Red Background</p>
           </div>
 
           {/* Black Background */}
@@ -247,7 +247,7 @@ export function BrandGuidelinesContent() {
           </div>
           <div className="bg-gray-800 rounded-xl p-8 md:p-10 flex flex-col items-center justify-center">
             <div className="flex flex-col items-center gap-1">
-              <span className="text-2xl font-extrabold text-white" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Yalla</span>
+              <span className="text-2xl font-extrabold text-white" style={{ fontFamily: "'Anybody', sans-serif" }}>Yalla</span>
               <span className="text-xs font-medium tracking-[0.3em] uppercase text-gray-500">London</span>
             </div>
             <p className="text-xs text-gray-500 mt-4">Stacked Dark</p>
@@ -264,16 +264,16 @@ export function BrandGuidelinesContent() {
 
         {/* Clear Space */}
         <div className="bg-gray-50 rounded-2xl p-12 md:p-20 flex items-center justify-center mt-16">
-          <div className="border-2 border-dashed border-[#E8634B] p-8 md:p-10 relative">
-            <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-semibold text-[#E8634B] bg-gray-50 px-2">Y height</span>
-            <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-xs font-semibold text-[#E8634B] bg-gray-50 px-2">Y height</span>
-            <span className="absolute top-1/2 -left-8 -translate-y-1/2 -rotate-90 text-xs font-semibold text-[#E8634B] bg-gray-50 px-2">Y height</span>
-            <span className="absolute top-1/2 -right-8 -translate-y-1/2 rotate-90 text-xs font-semibold text-[#E8634B] bg-gray-50 px-2">Y height</span>
+          <div className="border-2 border-dashed border-[#C8322B] p-8 md:p-10 relative">
+            <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-semibold text-[#C8322B] bg-gray-50 px-2">Y height</span>
+            <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-xs font-semibold text-[#C8322B] bg-gray-50 px-2">Y height</span>
+            <span className="absolute top-1/2 -left-8 -translate-y-1/2 -rotate-90 text-xs font-semibold text-[#C8322B] bg-gray-50 px-2">Y height</span>
+            <span className="absolute top-1/2 -right-8 -translate-y-1/2 rotate-90 text-xs font-semibold text-[#C8322B] bg-gray-50 px-2">Y height</span>
             <Logo variant="default" size="medium" />
           </div>
         </div>
         <p className="text-center text-sm text-gray-500 mt-4">
-          Minimum clear space equals the height of the "Y" on all sides
+          Minimum clear space equals the height of the &quot;Y&quot; on all sides
         </p>
       </Section>
 
@@ -283,8 +283,8 @@ export function BrandGuidelinesContent() {
           label="02 — Color"
           title={language === 'en' ? 'Color Palette' : 'لوحة الألوان'}
           description={language === 'en'
-            ? 'A restrained palette built around navy and coral. Navy conveys trust and sophistication, while coral provides energy and warmth.'
-            : 'لوحة ألوان مقيدة مبنية حول الكحلي والمرجاني. الكحلي ينقل الثقة والرقي، بينما المرجاني يوفر الطاقة والدفء.'
+            ? 'A bold palette built around London Red and warm neutrals. Red conveys energy and passion, while charcoal and cream provide sophistication.'
+            : 'لوحة ألوان جريئة مبنية حول الأحمر اللندني والألوان المحايدة الدافئة. الأحمر ينقل الطاقة والشغف، بينما الفحمي والكريمي يوفران الرقي.'
           }
           dark
         />
@@ -294,15 +294,15 @@ export function BrandGuidelinesContent() {
           <div>
             <div className="text-xs font-semibold tracking-[0.1em] uppercase text-gray-400 mb-4">Primary</div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-[#1A1F36] rounded-xl p-6 min-h-[180px] flex flex-col justify-end border border-white/10">
-                <div className="text-white font-semibold mb-1">Navy</div>
-                <div className="text-white/70 text-sm font-mono">#1A1F36</div>
-                <div className="text-white/50 text-xs mt-1">RGB 26, 31, 54</div>
+              <div className="bg-[#1C1917] rounded-xl p-6 min-h-[180px] flex flex-col justify-end border border-white/10">
+                <div className="text-white font-semibold mb-1">Charcoal</div>
+                <div className="text-white/70 text-sm font-mono">#1C1917</div>
+                <div className="text-white/50 text-xs mt-1">RGB 28, 25, 23</div>
               </div>
-              <div className="bg-[#E8634B] rounded-xl p-6 min-h-[180px] flex flex-col justify-end">
-                <div className="text-white font-semibold mb-1">Coral</div>
-                <div className="text-white/70 text-sm font-mono">#E8634B</div>
-                <div className="text-white/50 text-xs mt-1">RGB 232, 99, 75</div>
+              <div className="bg-[#C8322B] rounded-xl p-6 min-h-[180px] flex flex-col justify-end">
+                <div className="text-white font-semibold mb-1">London Red</div>
+                <div className="text-white/70 text-sm font-mono">#C8322B</div>
+                <div className="text-white/50 text-xs mt-1">RGB 200, 50, 43</div>
               </div>
             </div>
           </div>
@@ -356,8 +356,8 @@ export function BrandGuidelinesContent() {
           label="03 — Typography"
           title={language === 'en' ? 'Type System' : 'نظام الخطوط'}
           description={language === 'en'
-            ? 'Plus Jakarta Sans for headlines and branding. Inter for body copy. Tajawal for Arabic content — all clean, modern, and highly legible.'
-            : 'Plus Jakarta Sans للعناوين والعلامة التجارية. Inter للنص الأساسي. Tajawal للمحتوى العربي — كلها نظيفة وحديثة وسهلة القراءة.'
+            ? 'Anybody for headlines and branding. Source Serif 4 for body copy. IBM Plex Sans Arabic for Arabic content — bold, editorial, and highly legible.'
+            : 'Anybody للعناوين والعلامة التجارية. Source Serif 4 للنص الأساسي. IBM Plex Sans Arabic للمحتوى العربي — جريئة وتحريرية وسهلة القراءة.'
           }
         />
 
@@ -366,21 +366,21 @@ export function BrandGuidelinesContent() {
           <div>
             <div className="mb-10">
               <div className="text-xs font-semibold tracking-[0.1em] uppercase text-gray-400 mb-4">Display</div>
-              <div className="text-5xl md:text-6xl font-bold tracking-tight leading-tight text-gray-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <div className="text-5xl md:text-6xl font-bold tracking-tight leading-tight text-gray-900" style={{ fontFamily: "'Anybody', sans-serif" }}>
                 Discover London
               </div>
             </div>
 
             <div className="mb-10">
               <div className="text-xs font-semibold tracking-[0.1em] uppercase text-gray-400 mb-4">Heading 1</div>
-              <div className="text-3xl md:text-4xl font-bold tracking-tight leading-tight text-gray-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <div className="text-3xl md:text-4xl font-bold tracking-tight leading-tight text-gray-900" style={{ fontFamily: "'Anybody', sans-serif" }}>
                 Best Halal Restaurants
               </div>
             </div>
 
             <div className="mb-10">
               <div className="text-xs font-semibold tracking-[0.1em] uppercase text-gray-400 mb-4">Heading 2</div>
-              <div className="text-2xl font-semibold tracking-tight leading-snug text-gray-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <div className="text-2xl font-semibold tracking-tight leading-snug text-gray-900" style={{ fontFamily: "'Anybody', sans-serif" }}>
                 Your Guide to Mayfair
               </div>
             </div>
@@ -388,7 +388,7 @@ export function BrandGuidelinesContent() {
             <div className="mb-10">
               <div className="text-xs font-semibold tracking-[0.1em] uppercase text-gray-400 mb-4">Body</div>
               <div className="text-base leading-relaxed text-gray-600">
-                From Michelin-starred dining to hidden local gems, we've curated the best halal restaurants across the city. Every listing is verified and reviewed by our community.
+                From Michelin-starred dining to hidden local gems, we&apos;ve curated the best halal restaurants across the city. Every listing is verified and reviewed by our community.
               </div>
             </div>
 
@@ -401,7 +401,7 @@ export function BrandGuidelinesContent() {
           </div>
 
           {/* Arabic Typography */}
-          <div dir="rtl" className="text-right" style={{ fontFamily: "'Tajawal', sans-serif" }}>
+          <div dir="rtl" className="text-right" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif" }}>
             <div className="mb-10">
               <div className="text-xs font-semibold tracking-[0.1em] uppercase text-gray-400 mb-4">العنوان الرئيسي</div>
               <div className="text-5xl md:text-6xl font-bold leading-tight text-gray-900">
@@ -432,7 +432,7 @@ export function BrandGuidelinesContent() {
               <span className="text-xs text-gray-400 w-24">{name}</span>
               <span
                 className="text-xl text-gray-900"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontWeight: weight }}
+                style={{ fontFamily: "'Anybody', sans-serif", fontWeight: weight }}
               >
                 The quick brown fox
               </span>
@@ -514,27 +514,27 @@ export function BrandGuidelinesContent() {
         <div className="mb-16">
           <div className="text-xs font-semibold tracking-[0.1em] uppercase text-gray-400 mb-6">Buttons</div>
           <div className="flex flex-wrap gap-4 items-center mb-4">
-            <button className="px-7 py-3.5 bg-[#1A1F36] text-white text-sm font-semibold rounded-lg hover:bg-[#2D3454] transition-all hover:-translate-y-0.5 hover:shadow-lg">
+            <button className="px-7 py-3.5 bg-[#1C1917] text-white text-sm font-semibold rounded-lg hover:bg-[#3D3835] transition-all hover:-translate-y-0.5 hover:shadow-lg">
               Primary
             </button>
-            <button className="px-7 py-3.5 bg-[#E8634B] text-white text-sm font-semibold rounded-lg hover:bg-[#FF7F6B] transition-all hover:-translate-y-0.5 hover:shadow-lg">
+            <button className="px-7 py-3.5 bg-[#C8322B] text-white text-sm font-semibold rounded-lg hover:bg-[#e34040] transition-all hover:-translate-y-0.5 hover:shadow-lg">
               Coral
             </button>
-            <button className="px-7 py-3.5 bg-transparent text-[#1A1F36] text-sm font-semibold rounded-lg border-2 border-[#1A1F36] hover:bg-[#1A1F36] hover:text-white transition-all">
+            <button className="px-7 py-3.5 bg-transparent text-[#1C1917] text-sm font-semibold rounded-lg border-2 border-[#1C1917] hover:bg-[#1C1917] hover:text-white transition-all">
               Outline
             </button>
-            <button className="px-5 py-3.5 text-gray-600 text-sm font-semibold rounded-lg hover:text-[#1A1F36] hover:bg-gray-100 transition-all">
+            <button className="px-5 py-3.5 text-gray-600 text-sm font-semibold rounded-lg hover:text-[#1C1917] hover:bg-gray-100 transition-all">
               Ghost
             </button>
           </div>
           <div className="flex flex-wrap gap-4 items-center">
-            <button className="px-5 py-2.5 bg-[#1A1F36] text-white text-xs font-semibold rounded-lg">
+            <button className="px-5 py-2.5 bg-[#1C1917] text-white text-xs font-semibold rounded-lg">
               Small
             </button>
-            <button className="px-7 py-3.5 bg-[#1A1F36] text-white text-sm font-semibold rounded-lg">
+            <button className="px-7 py-3.5 bg-[#1C1917] text-white text-sm font-semibold rounded-lg">
               Default
             </button>
-            <button className="px-9 py-4.5 bg-[#1A1F36] text-white text-base font-semibold rounded-lg">
+            <button className="px-9 py-4.5 bg-[#1C1917] text-white text-base font-semibold rounded-lg">
               Large
             </button>
           </div>
@@ -544,12 +544,12 @@ export function BrandGuidelinesContent() {
         <div className="mb-16">
           <div className="text-xs font-semibold tracking-[0.1em] uppercase text-gray-400 mb-6">Tags & Filters</div>
           <div className="flex flex-wrap gap-3">
-            <span className="px-4 py-2 bg-[#1A1F36] text-white text-sm font-medium rounded-full">All</span>
+            <span className="px-4 py-2 bg-[#1C1917] text-white text-sm font-medium rounded-full">All</span>
             <span className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-full hover:bg-gray-200 transition-colors cursor-pointer">Food</span>
             <span className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-full hover:bg-gray-200 transition-colors cursor-pointer">Shopping</span>
             <span className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-full hover:bg-gray-200 transition-colors cursor-pointer">Experiences</span>
             <span className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-full hover:bg-gray-200 transition-colors cursor-pointer">Family</span>
-            <span className="px-4 py-2 bg-[#E8634B]/10 text-[#E8634B] text-sm font-medium rounded-full">Verified Halal</span>
+            <span className="px-4 py-2 bg-[#C8322B]/10 text-[#C8322B] text-sm font-medium rounded-full">Verified Halal</span>
           </div>
         </div>
 
@@ -560,7 +560,7 @@ export function BrandGuidelinesContent() {
             <input
               type="text"
               placeholder="Enter your email"
-              className="w-full px-4 py-3.5 text-base border border-gray-200 rounded-lg outline-none focus:border-[#1A1F36] focus:ring-2 focus:ring-[#1A1F36]/10 transition-all"
+              className="w-full px-4 py-3.5 text-base border border-gray-200 rounded-lg outline-none focus:border-[#1C1917] focus:ring-2 focus:ring-[#1C1917]/10 transition-all"
             />
             <div className="flex items-center gap-3 px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl">
               <Search className="w-5 h-5 text-gray-400" strokeWidth={2} />
@@ -579,38 +579,38 @@ export function BrandGuidelinesContent() {
 
           {/* Light Nav */}
           <div className="bg-white border border-gray-200 rounded-xl px-6 py-4 flex items-center justify-between mb-4">
-            <div className="flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              <span className="text-xl font-extrabold text-[#1A1F36]">Yalla</span>
+            <div className="flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
+              <span className="text-xl font-extrabold text-[#1C1917]">Yalla</span>
               <span className="text-xl font-medium text-gray-400">London</span>
-              <span className="w-1.5 h-1.5 bg-[#E8634B] rounded-full ml-1"></span>
+              <span className="w-1.5 h-1.5 bg-[#C8322B] rounded-full ml-1"></span>
             </div>
             <div className="hidden md:flex gap-8 text-sm font-medium text-gray-500">
               <span className="text-gray-900 cursor-pointer">Discover</span>
               <span className="cursor-pointer hover:text-gray-900 transition-colors">Food</span>
               <span className="cursor-pointer hover:text-gray-900 transition-colors">Experiences</span>
               <span className="cursor-pointer hover:text-gray-900 transition-colors">Map</span>
-              <span className="cursor-pointer hover:text-gray-900 transition-colors" style={{ fontFamily: "'Tajawal', sans-serif" }}>عربي</span>
+              <span className="cursor-pointer hover:text-gray-900 transition-colors" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif" }}>عربي</span>
             </div>
-            <button className="px-5 py-2.5 bg-[#1A1F36] text-white text-sm font-semibold rounded-lg">
+            <button className="px-5 py-2.5 bg-[#1C1917] text-white text-sm font-semibold rounded-lg">
               Sign up
             </button>
           </div>
 
           {/* Dark Nav */}
-          <div className="bg-[#1A1F36] rounded-xl px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          <div className="bg-[#1C1917] rounded-xl px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
               <span className="text-xl font-extrabold text-white">Yalla</span>
               <span className="text-xl font-medium text-white/50">London</span>
-              <span className="w-1.5 h-1.5 bg-[#E8634B] rounded-full ml-1"></span>
+              <span className="w-1.5 h-1.5 bg-[#C8322B] rounded-full ml-1"></span>
             </div>
             <div className="hidden md:flex gap-8 text-sm font-medium text-white/60">
               <span className="text-white cursor-pointer">Discover</span>
               <span className="cursor-pointer hover:text-white transition-colors">Food</span>
               <span className="cursor-pointer hover:text-white transition-colors">Experiences</span>
               <span className="cursor-pointer hover:text-white transition-colors">Map</span>
-              <span className="cursor-pointer hover:text-white transition-colors" style={{ fontFamily: "'Tajawal', sans-serif" }}>عربي</span>
+              <span className="cursor-pointer hover:text-white transition-colors" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif" }}>عربي</span>
             </div>
-            <button className="px-5 py-2.5 bg-[#E8634B] text-white text-sm font-semibold rounded-lg">
+            <button className="px-5 py-2.5 bg-[#C8322B] text-white text-sm font-semibold rounded-lg">
               Sign up
             </button>
           </div>
@@ -621,18 +621,18 @@ export function BrandGuidelinesContent() {
           <div className="text-xs font-semibold tracking-[0.1em] uppercase text-gray-400 mb-6">Cards</div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { gradient: 'from-[#2d3454] to-[#1A1F36]', category: 'Food', title: 'Best Halal Restaurants in Mayfair', date: '17 January 2026 · 8 min read' },
+              { gradient: 'from-[#3D3835] to-[#1C1917]', category: 'Food', title: 'Best Halal Restaurants in Mayfair', date: '17 January 2026 · 8 min read' },
               { gradient: 'from-gray-600 to-gray-800', category: 'Shopping', title: 'Luxury Guide: Harrods & Beyond', date: '15 January 2026 · 6 min read' },
-              { gradient: 'from-[#E8634B] to-[#c74d38]', category: 'Experiences', title: 'Hidden Gems at Borough Market', date: '12 January 2026 · 5 min read' },
+              { gradient: 'from-[#C8322B] to-[#a82520]', category: 'Experiences', title: 'Hidden Gems at Borough Market', date: '12 January 2026 · 5 min read' },
             ].map((card, index) => (
               <div key={index} className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:-translate-y-1 hover:shadow-xl transition-all cursor-pointer">
                 <div className={`h-44 bg-gradient-to-br ${card.gradient} relative`}>
-                  <span className="absolute top-4 left-4 px-3 py-1.5 bg-white text-[#1A1F36] text-[10px] font-semibold uppercase tracking-wide rounded-md">
+                  <span className="absolute top-4 left-4 px-3 py-1.5 bg-white text-[#1C1917] text-[10px] font-semibold uppercase tracking-wide rounded-md">
                     {card.category}
                   </span>
                 </div>
                 <div className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2" style={{ fontFamily: "'Anybody', sans-serif" }}>
                     {card.title}
                   </h3>
                   <p className="text-sm text-gray-500">{card.date}</p>
@@ -661,49 +661,49 @@ export function BrandGuidelinesContent() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Navy Post */}
             <div>
-              <div className="aspect-square bg-[#1A1F36] rounded-lg p-8 flex flex-col justify-end relative shadow-2xl">
-                <div className="absolute top-6 left-6 flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <div className="aspect-square bg-[#1C1917] rounded-lg p-8 flex flex-col justify-end relative shadow-2xl">
+                <div className="absolute top-6 left-6 flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   <span className="text-sm font-extrabold text-white">Yalla</span>
                   <span className="text-sm font-medium text-white/50">London</span>
-                  <span className="w-1 h-1 bg-[#E8634B] rounded-full ml-1"></span>
+                  <span className="w-1 h-1 bg-[#C8322B] rounded-full ml-1"></span>
                 </div>
                 <div className="text-[10px] font-semibold tracking-[0.15em] uppercase text-white/60 mb-3">Food Guide</div>
-                <div className="text-2xl font-bold text-white leading-tight mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                <div className="text-2xl font-bold text-white leading-tight mb-2" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   Best Halal Brunch Spots in London
                 </div>
                 <div className="text-sm text-white/70">Our top 10 picks for the weekend</div>
               </div>
-              <p className="text-center text-xs text-gray-500 mt-3">Navy Background</p>
+              <p className="text-center text-xs text-gray-500 mt-3">Dark Background</p>
             </div>
 
             {/* Coral Post */}
             <div>
-              <div className="aspect-square bg-[#E8634B] rounded-lg p-8 flex flex-col justify-end relative shadow-2xl">
-                <div className="absolute top-6 left-6 flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <div className="aspect-square bg-[#C8322B] rounded-lg p-8 flex flex-col justify-end relative shadow-2xl">
+                <div className="absolute top-6 left-6 flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   <span className="text-sm font-extrabold text-white">Yalla</span>
                   <span className="text-sm font-medium text-white/70">London</span>
                   <span className="w-1 h-1 bg-white rounded-full ml-1"></span>
                 </div>
                 <div className="text-[10px] font-semibold tracking-[0.15em] uppercase text-white/60 mb-3">New Guide</div>
-                <div className="text-2xl font-bold text-white leading-tight mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                <div className="text-2xl font-bold text-white leading-tight mb-2" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   Ramadan in London 2026
                 </div>
                 <div className="text-sm text-white/70">Iftars, events, and community gatherings</div>
               </div>
-              <p className="text-center text-xs text-gray-500 mt-3">Coral Background</p>
+              <p className="text-center text-xs text-gray-500 mt-3">Red Background</p>
             </div>
 
             {/* Light Post */}
             <div>
               <div className="aspect-square bg-gray-100 rounded-lg p-8 flex flex-col justify-end relative shadow-2xl">
-                <div className="absolute top-6 left-6 flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                  <span className="text-sm font-extrabold text-[#1A1F36]">Yalla</span>
+                <div className="absolute top-6 left-6 flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
+                  <span className="text-sm font-extrabold text-[#1C1917]">Yalla</span>
                   <span className="text-sm font-medium text-gray-400">London</span>
-                  <span className="w-1 h-1 bg-[#E8634B] rounded-full ml-1"></span>
+                  <span className="w-1 h-1 bg-[#C8322B] rounded-full ml-1"></span>
                 </div>
-                <div className="text-[10px] font-semibold tracking-[0.15em] uppercase text-[#1A1F36]/60 mb-3">Weekend Plans</div>
-                <div className="text-2xl font-bold text-[#1A1F36] leading-tight mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                  Markets You Can't Miss
+                <div className="text-[10px] font-semibold tracking-[0.15em] uppercase text-[#1C1917]/60 mb-3">Weekend Plans</div>
+                <div className="text-2xl font-bold text-[#1C1917] leading-tight mb-2" style={{ fontFamily: "'Anybody', sans-serif" }}>
+                  Markets You Can&apos;t Miss
                 </div>
                 <div className="text-sm text-gray-500">Portobello, Borough & more</div>
               </div>
@@ -713,13 +713,13 @@ export function BrandGuidelinesContent() {
             {/* Quote Post */}
             <div>
               <div className="aspect-square bg-white rounded-lg p-8 flex flex-col justify-center relative shadow-2xl border border-gray-200">
-                <div className="absolute top-6 left-6 flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                  <span className="text-sm font-extrabold text-[#1A1F36]">Yalla</span>
+                <div className="absolute top-6 left-6 flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
+                  <span className="text-sm font-extrabold text-[#1C1917]">Yalla</span>
                   <span className="text-sm font-medium text-gray-400">London</span>
-                  <span className="w-1 h-1 bg-[#E8634B] rounded-full ml-1"></span>
+                  <span className="w-1 h-1 bg-[#C8322B] rounded-full ml-1"></span>
                 </div>
-                <div className="text-6xl text-[#E8634B] font-serif leading-none mb-0">"</div>
-                <div className="text-xl font-semibold text-[#1A1F36] leading-snug mb-5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                <div className="text-6xl text-[#C8322B] font-serif leading-none mb-0">&quot;</div>
+                <div className="text-xl font-semibold text-[#1C1917] leading-snug mb-5" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   London is the most cosmopolitan city in the world — and it welcomes everyone.
                 </div>
                 <div className="text-sm text-gray-400">— Yalla London Community</div>
@@ -730,15 +730,15 @@ export function BrandGuidelinesContent() {
             {/* Announcement Post */}
             <div>
               <div className="aspect-square bg-gray-100 rounded-lg p-8 flex flex-col items-center justify-center relative shadow-2xl">
-                <div className="absolute top-6 left-6 flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                  <span className="text-sm font-extrabold text-[#1A1F36]">Yalla</span>
+                <div className="absolute top-6 left-6 flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
+                  <span className="text-sm font-extrabold text-[#1C1917]">Yalla</span>
                   <span className="text-sm font-medium text-gray-400">London</span>
-                  <span className="w-1 h-1 bg-[#E8634B] rounded-full ml-1"></span>
+                  <span className="w-1 h-1 bg-[#C8322B] rounded-full ml-1"></span>
                 </div>
-                <div className="w-16 h-16 bg-[#E8634B] rounded-2xl flex items-center justify-center mb-6">
+                <div className="w-16 h-16 bg-[#C8322B] rounded-2xl flex items-center justify-center mb-6">
                   <Bell className="w-7 h-7 text-white" strokeWidth={2} />
                 </div>
-                <div className="text-2xl font-bold text-[#1A1F36] text-center mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                <div className="text-2xl font-bold text-[#1C1917] text-center mb-2" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   New Feature
                 </div>
                 <div className="text-sm text-gray-400 text-center">Save your favorite spots to collections</div>
@@ -749,17 +749,17 @@ export function BrandGuidelinesContent() {
             {/* Bilingual Post */}
             <div>
               <div className="aspect-square rounded-lg overflow-hidden shadow-2xl grid grid-rows-2">
-                <div className="bg-[#1A1F36] p-6 flex flex-col justify-end relative">
-                  <div className="absolute top-4 left-4 flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                <div className="bg-[#1C1917] p-6 flex flex-col justify-end relative">
+                  <div className="absolute top-4 left-4 flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
                     <span className="text-xs font-extrabold text-white">Yalla</span>
                     <span className="text-xs font-medium text-white/50">London</span>
-                    <span className="w-1 h-1 bg-[#E8634B] rounded-full ml-1"></span>
+                    <span className="w-1 h-1 bg-[#C8322B] rounded-full ml-1"></span>
                   </div>
-                  <div className="text-xl font-bold text-white leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                    Discover London's Hidden Gems
+                  <div className="text-xl font-bold text-white leading-tight" style={{ fontFamily: "'Anybody', sans-serif" }}>
+                    Discover London&apos;s Hidden Gems
                   </div>
                 </div>
-                <div className="bg-[#E8634B] p-6 flex flex-col justify-end text-right" dir="rtl" style={{ fontFamily: "'Tajawal', sans-serif" }}>
+                <div className="bg-[#C8322B] p-6 flex flex-col justify-end text-right" dir="rtl" style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif" }}>
                   <div className="text-xl font-bold text-white leading-tight">
                     اكتشف جواهر لندن المخفية
                   </div>
@@ -776,58 +776,58 @@ export function BrandGuidelinesContent() {
           <div className="flex gap-6 overflow-x-auto pb-4">
             {/* Navy Story */}
             <div className="flex-shrink-0">
-              <div className="w-56 h-96 bg-[#1A1F36] rounded-2xl p-6 flex flex-col justify-end relative shadow-2xl">
-                <div className="absolute top-5 left-5 flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <div className="w-56 h-96 bg-[#1C1917] rounded-2xl p-6 flex flex-col justify-end relative shadow-2xl">
+                <div className="absolute top-5 left-5 flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   <span className="text-xs font-extrabold text-white">Yalla</span>
                   <span className="text-xs font-medium text-white/50">London</span>
-                  <span className="w-1 h-1 bg-[#E8634B] rounded-full ml-1"></span>
+                  <span className="w-1 h-1 bg-[#C8322B] rounded-full ml-1"></span>
                 </div>
                 <div className="text-[9px] font-semibold tracking-[0.15em] uppercase text-white/60 mb-2">New Guide</div>
-                <div className="text-xl font-bold text-white leading-tight mb-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                <div className="text-xl font-bold text-white leading-tight mb-1" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   Top 5 Halal Fine Dining
                 </div>
                 <div className="text-xs text-white/70 mb-5">Michelin-quality restaurants</div>
-                <span className="inline-block self-start px-5 py-2.5 bg-white text-[#1A1F36] text-xs font-semibold rounded-md">
+                <span className="inline-block self-start px-5 py-2.5 bg-white text-[#1C1917] text-xs font-semibold rounded-md">
                   Read More
                 </span>
               </div>
-              <p className="text-center text-xs text-gray-500 mt-3">Story — Navy</p>
+              <p className="text-center text-xs text-gray-500 mt-3">Story — Dark</p>
             </div>
 
             {/* Coral Story */}
             <div className="flex-shrink-0">
-              <div className="w-56 h-96 bg-[#E8634B] rounded-2xl p-6 flex flex-col justify-end relative shadow-2xl">
-                <div className="absolute top-5 left-5 flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <div className="w-56 h-96 bg-[#C8322B] rounded-2xl p-6 flex flex-col justify-end relative shadow-2xl">
+                <div className="absolute top-5 left-5 flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   <span className="text-xs font-extrabold text-white">Yalla</span>
                   <span className="text-xs font-medium text-white/70">London</span>
                   <span className="w-1 h-1 bg-white rounded-full ml-1"></span>
                 </div>
                 <div className="text-[9px] font-semibold tracking-[0.15em] uppercase text-white/60 mb-2">This Weekend</div>
-                <div className="text-xl font-bold text-white leading-tight mb-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                <div className="text-xl font-bold text-white leading-tight mb-1" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   Camden Market Guide
                 </div>
                 <div className="text-xs text-white/70 mb-5">Food, fashion & finds</div>
-                <span className="inline-block self-start px-5 py-2.5 bg-[#1A1F36] text-white text-xs font-semibold rounded-md">
+                <span className="inline-block self-start px-5 py-2.5 bg-[#1C1917] text-white text-xs font-semibold rounded-md">
                   Explore
                 </span>
               </div>
-              <p className="text-center text-xs text-gray-500 mt-3">Story — Coral</p>
+              <p className="text-center text-xs text-gray-500 mt-3">Story — Red</p>
             </div>
 
             {/* Gradient Story */}
             <div className="flex-shrink-0">
-              <div className="w-56 h-96 bg-gradient-to-b from-[#1A1F36] to-[#2d3454] rounded-2xl p-6 flex flex-col justify-end relative shadow-2xl">
-                <div className="absolute top-5 left-5 flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <div className="w-56 h-96 bg-gradient-to-b from-[#1C1917] to-[#3D3835] rounded-2xl p-6 flex flex-col justify-end relative shadow-2xl">
+                <div className="absolute top-5 left-5 flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   <span className="text-xs font-extrabold text-white">Yalla</span>
                   <span className="text-xs font-medium text-white/50">London</span>
-                  <span className="w-1 h-1 bg-[#E8634B] rounded-full ml-1"></span>
+                  <span className="w-1 h-1 bg-[#C8322B] rounded-full ml-1"></span>
                 </div>
                 <div className="text-[9px] font-semibold tracking-[0.15em] uppercase text-white/60 mb-2">Community Pick</div>
-                <div className="text-xl font-bold text-white leading-tight mb-1" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                <div className="text-xl font-bold text-white leading-tight mb-1" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   Best Coffee Near Oxford Street
                 </div>
                 <div className="text-xs text-white/70 mb-5">Your votes are in</div>
-                <span className="inline-block self-start px-5 py-2.5 bg-white text-[#1A1F36] text-xs font-semibold rounded-md">
+                <span className="inline-block self-start px-5 py-2.5 bg-white text-[#1C1917] text-xs font-semibold rounded-md">
                   See Results
                 </span>
               </div>
@@ -842,32 +842,32 @@ export function BrandGuidelinesContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Navy Card */}
             <div className="bg-white rounded-2xl overflow-hidden shadow-xl">
-              <div className="h-64 bg-[#1A1F36] p-6 flex flex-col justify-end relative">
-                <div className="absolute top-5 left-5 flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <div className="h-64 bg-[#1C1917] p-6 flex flex-col justify-end relative">
+                <div className="absolute top-5 left-5 flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   <span className="text-sm font-extrabold text-white">Yalla</span>
                   <span className="text-sm font-medium text-white/50">London</span>
-                  <span className="w-1 h-1 bg-[#E8634B] rounded-full ml-1"></span>
+                  <span className="w-1 h-1 bg-[#C8322B] rounded-full ml-1"></span>
                 </div>
-                <div className="text-2xl font-bold text-white leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                <div className="text-2xl font-bold text-white leading-tight" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   Best Halal Restaurants in Mayfair
                 </div>
               </div>
               <div className="p-5">
                 <div className="text-sm text-gray-400 mb-1">yallalondon.com</div>
                 <div className="font-semibold text-gray-900 mb-1">Mayfair Halal Dining Guide</div>
-                <div className="text-sm text-gray-400">Our curated guide to the best halal restaurants in one of London's most prestigious neighborhoods.</div>
+                <div className="text-sm text-gray-400">Our curated guide to the best halal restaurants in one of London&apos;s most prestigious neighborhoods.</div>
               </div>
             </div>
 
             {/* Coral Card */}
             <div className="bg-white rounded-2xl overflow-hidden shadow-xl">
-              <div className="h-64 bg-[#E8634B] p-6 flex flex-col justify-end relative">
-                <div className="absolute top-5 left-5 flex items-center gap-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              <div className="h-64 bg-[#C8322B] p-6 flex flex-col justify-end relative">
+                <div className="absolute top-5 left-5 flex items-center gap-0.5" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   <span className="text-sm font-extrabold text-white">Yalla</span>
                   <span className="text-sm font-medium text-white/70">London</span>
                   <span className="w-1 h-1 bg-white rounded-full ml-1"></span>
                 </div>
-                <div className="text-2xl font-bold text-white leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                <div className="text-2xl font-bold text-white leading-tight" style={{ fontFamily: "'Anybody', sans-serif" }}>
                   New: Save to Collections
                 </div>
               </div>
@@ -904,7 +904,7 @@ export function BrandGuidelinesContent() {
             <ul className="space-y-3">
               {[
                 'Use the logo with adequate clear space',
-                'Maintain the coral dot as part of the wordmark',
+                'Maintain the red dot as part of the wordmark',
                 'Use approved color combinations only',
                 'Scale the logo proportionally',
                 'Use the stacked version for small spaces',
@@ -918,12 +918,12 @@ export function BrandGuidelinesContent() {
           </div>
 
           {/* Don't */}
-          <div className="bg-[#E8634B]/5 rounded-2xl p-8">
+          <div className="bg-[#C8322B]/5 rounded-2xl p-8">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-8 h-8 bg-[#E8634B] rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-[#C8322B] rounded-full flex items-center justify-center">
                 <X className="w-5 h-5 text-white" />
               </div>
-              <span className="text-lg font-semibold">Don't</span>
+              <span className="text-lg font-semibold">Don&apos;t</span>
             </div>
             <ul className="space-y-3">
               {[
@@ -931,7 +931,7 @@ export function BrandGuidelinesContent() {
                 'Change the logo colors arbitrarily',
                 'Add effects like shadows or gradients',
                 'Place the logo on busy backgrounds',
-                'Remove or reposition the coral dot',
+                'Remove or reposition the red dot',
                 'Use ornamental or decorative typography',
               ].map((item, index) => (
                 <li key={index} className="text-sm text-gray-600 pl-5 relative before:content-['•'] before:absolute before:left-0 before:text-gray-400">
@@ -945,12 +945,12 @@ export function BrandGuidelinesContent() {
 
       {/* Footer */}
       <footer className="px-6 py-16 md:px-20 text-center border-t border-gray-200">
-        <div className="flex items-center justify-center gap-0.5 mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-          <span className="text-2xl font-extrabold text-[#1A1F36]">Yalla</span>
+        <div className="flex items-center justify-center gap-0.5 mb-4" style={{ fontFamily: "'Anybody', sans-serif" }}>
+          <span className="text-2xl font-extrabold text-[#1C1917]">Yalla</span>
           <span className="text-2xl font-medium text-gray-400">London</span>
-          <span className="w-2 h-2 bg-[#E8634B] rounded-full ml-1"></span>
+          <span className="w-2 h-2 bg-[#C8322B] rounded-full ml-1"></span>
         </div>
-        <p className="text-sm text-gray-500">Brand Guidelines v1.0 — January 2026</p>
+        <p className="text-sm text-gray-500">Brand Guidelines v2.0 — February 2026</p>
       </footer>
     </div>
   );

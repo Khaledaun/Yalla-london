@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -114,15 +114,7 @@ export function MediaSelector({
     multiple: true
   })
 
-  useEffect(() => {
-    loadAssets()
-  }, [])
-
-  useEffect(() => {
-    filterAssets()
-  }, [assets, searchTerm, fileTypeFilter])
-
-  const loadAssets = async () => {
+  const loadAssets = useCallback(async () => {
     setIsLoading(true)
     try {
       const response = await fetch('/api/admin/media')
@@ -140,9 +132,9 @@ export function MediaSelector({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [toast])
 
-  const filterAssets = () => {
+  const filterAssets = useCallback(() => {
     let filtered = assets
 
     // Filter by search term
@@ -160,7 +152,15 @@ export function MediaSelector({
     }
 
     setFilteredAssets(filtered)
-  }
+  }, [assets, searchTerm, fileTypeFilter])
+
+  useEffect(() => {
+    loadAssets()
+  }, [loadAssets])
+
+  useEffect(() => {
+    filterAssets()
+  }, [filterAssets])
 
   const handleSelect = (asset: MediaAsset) => {
     onSelect(asset)

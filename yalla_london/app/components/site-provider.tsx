@@ -1,6 +1,6 @@
 "use client";
 
-import {
+import React, {
   createContext,
   useContext,
   useState,
@@ -27,8 +27,8 @@ function makeSite(
 }
 
 const DEFAULT_SITE: Site = makeSite(
-  "yalla-london", "Yalla London", "yalla-london", "yalla-london.com",
-  "en", "ltr", "#1A1F36", "#E8634B",
+  "yalla-london", "Yalla London", "yalla-london", "zenitha.luxury",
+  "en", "ltr", "#1C1917", "#C8322B",
 );
 
 const FALLBACK_SITES: Site[] = [
@@ -71,7 +71,7 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const savedSiteId = localStorage.getItem("admin_current_site_id");
     if (savedSiteId) {
-      const savedSite = sites.find((s) => s.id === savedSiteId);
+      const savedSite = FALLBACK_SITES.find((s) => s.id === savedSiteId);
       if (savedSite) {
         setCurrentSiteState(savedSite);
       }
@@ -194,13 +194,20 @@ export function useSiteData<T>(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
+  // Use a ref to always have the latest fetcher without adding it to deps
+  const fetcherRef = React.useRef(fetcher);
+  fetcherRef.current = fetcher;
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableDeps = React.useMemo(() => dependencies, dependencies);
+
   useEffect(() => {
     if (siteLoading) return;
 
     setIsLoading(true);
     setError(null);
 
-    fetcher(currentSite.id)
+    fetcherRef.current(currentSite.id)
       .then((result) => {
         setData(result);
         setIsLoading(false);
@@ -209,7 +216,7 @@ export function useSiteData<T>(
         setError(err);
         setIsLoading(false);
       });
-  }, [currentSite.id, siteLoading, ...dependencies]);
+  }, [currentSite.id, siteLoading, stableDeps]);
 
   return {
     data,

@@ -3,6 +3,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { logCronExecution } from "@/lib/cron-logger";
+import { onCronFailure } from "@/lib/ops/failure-hooks";
 
 /**
  * Autonomous SEO Agent - Runs 3x daily (7am, 1pm, 8pm UTC)
@@ -17,28 +18,59 @@ import { logCronExecution } from "@/lib/cron-logger";
  * 7. Track progress and report status
  */
 export async function GET(request: NextRequest) {
-  // Verify cron secret for security
+  // If CRON_SECRET is configured and doesn't match, reject.
+  // If CRON_SECRET is NOT configured, allow — Vercel crons don't send secrets unless configured.
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!cronSecret && process.env.NODE_ENV === "production") {
-    console.error("CRON_SECRET not configured in production");
-    return NextResponse.json(
-      { error: "Server misconfiguration" },
-      { status: 503 },
-    );
+
+  // Healthcheck mode — quick DB ping + last run status
+  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
+    try {
+      const { prisma } = await import("@/lib/db");
+      const { getActiveSiteIds } = await import("@/config/sites");
+      let lastRun = null;
+      try {
+        lastRun = await prisma.cronJobLog.findFirst({
+          where: { job_name: "seo-agent" },
+          orderBy: { started_at: "desc" },
+          select: { status: true, started_at: true, duration_ms: true },
+        });
+      } catch (logErr) {
+        console.warn("[seo-agent] CronJobLog query failed (table may not exist yet):", logErr instanceof Error ? logErr.message : logErr);
+        // cron_job_logs table may not exist yet — still healthy
+        await prisma.$queryRaw`SELECT 1`;
+      }
+      return NextResponse.json({
+        status: "healthy",
+        endpoint: "seo-agent",
+        lastRun,
+        sites: getActiveSiteIds().length,
+        activeSites: getActiveSiteIds(),
+        timestamp: new Date().toISOString(),
+      });
+    } catch (healthErr) {
+      console.warn("[seo-agent] Healthcheck failed:", healthErr instanceof Error ? healthErr.message : healthErr);
+      // Return 200 degraded, not 503 — DB pool exhaustion during concurrent health checks
+      // should not appear as a hard failure. Cron runs on schedule regardless.
+      return NextResponse.json(
+        { status: "degraded", endpoint: "seo-agent", note: "DB temporarily unavailable for healthcheck." },
+        { status: 200 },
+      );
+    }
   }
 
   const _cronStart = Date.now();
 
   try {
     const { prisma } = await import("@/lib/db");
-    const { getAllSiteIds, getSiteDomain } = await import("@/config/sites");
+    const { getActiveSiteIds, getSiteDomain } = await import("@/config/sites");
     const { forEachSite } = await import("@/lib/resilience");
 
-    const siteIds = getAllSiteIds();
+    // Only process live sites
+    const siteIds = getActiveSiteIds();
 
     // Use forEachSite for timeout-aware per-site iteration
     const loopResult = await forEachSite(
@@ -47,7 +79,8 @@ export async function GET(request: NextRequest) {
         const siteUrl = getSiteDomain(siteId);
         return runSEOAgent(prisma, siteId, siteUrl);
       },
-      7_000 // 7s safety margin for response serialization
+      7_000, // 7s safety margin for response serialization
+      53_000 // 53s budget within maxDuration = 60s (7s buffer for response)
     );
 
     await logCronExecution("seo-agent", loopResult.timedOut ? "timed_out" : "completed", {
@@ -73,6 +106,10 @@ export async function GET(request: NextRequest) {
       durationMs: Date.now() - _cronStart,
       errorMessage: error instanceof Error ? error.message : "SEO agent failed",
     });
+
+    // Fire failure hook for dashboard visibility
+    onCronFailure({ jobName: "seo-agent", error }).catch(err => console.error("[seo-agent] onCronFailure hook failed:", err instanceof Error ? err.message : err));
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "SEO Agent failed" },
       { status: 500 },
@@ -92,40 +129,74 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
   // Site filter for all DB queries — ensures tenant isolation
   const siteFilter = siteId ? { siteId } : {};
 
+  // Budget guard — exit early if we're running out of time
+  const agentStart = Date.now();
+  const AGENT_BUDGET_MS = 40_000; // 40s budget per site (within forEachSite's 45s limit)
+  const budgetLeft = () => AGENT_BUDGET_MS - (Date.now() - agentStart);
+  const hasBudget = (minMs = 3_000) => budgetLeft() > minMs;
+
   // 1. CHECK CONTENT GENERATION STATUS
   report.contentStatus = await checkContentGeneration(prisma, issues, siteId);
 
+  // ── DB Circuit Breaker ────────────────────────────────────────────
+  // If the database is unreachable, skip all DB-dependent operations
+  // to prevent cascading errors from every subsequent query.
+  const dbAvailable = report.contentStatus?.status !== "db_unavailable";
+  if (!dbAvailable) {
+    issues.push("DATABASE UNAVAILABLE — skipping DB-dependent checks for this site");
+  }
+
   // 2. AUDIT ALL PUBLISHED BLOG POSTS
-  report.blogAudit = await auditBlogPosts(prisma, issues, fixes, siteId);
+  report.blogAudit = (dbAvailable && hasBudget())
+    ? await auditBlogPosts(prisma, issues, fixes, siteId)
+    : { totalPosts: 0, averageSEOScore: 0, postsWithIssues: 0, topIssues: [] };
 
   // 3. CHECK INDEXING STATUS
-  report.indexingStatus = await checkIndexingStatus(prisma, issues, siteUrl, siteId);
+  report.indexingStatus = (dbAvailable && hasBudget())
+    ? await checkIndexingStatus(prisma, issues, siteUrl, siteId)
+    : { status: dbAvailable ? "budget_exhausted" : "db_unavailable", checkedUrls: 0 };
 
-  // 4. SUBMIT NEW URLS TO SEARCH ENGINES
-  report.urlSubmissions = await submitNewUrls(prisma, fixes, siteUrl, siteId);
+  // 4. DISCOVER NEW URLS (IndexNow submission delegated to seo/cron — KG-019)
+  report.urlSubmissions = (dbAvailable && hasBudget())
+    ? await submitNewUrls(prisma, fixes, siteUrl, siteId)
+    : { submitted: 0, discovered: 0, delegatedTo: "seo/cron", error: dbAvailable ? "Budget exhausted" : "Database unavailable" };
 
-  // 5. VERIFY SITEMAP HEALTH
-  report.sitemapHealth = await verifySitemapHealth(issues, siteUrl);
+  // 5. VERIFY SITEMAP HEALTH (no DB needed)
+  report.sitemapHealth = hasBudget()
+    ? await verifySitemapHealth(issues, siteUrl)
+    : { status: "budget_exhausted" };
 
   // 6. CHECK FOR CONTENT GAPS
-  report.contentGaps = await detectContentGaps(prisma, issues, siteId);
+  report.contentGaps = (dbAvailable && hasBudget())
+    ? await detectContentGaps(prisma, issues, siteId)
+    : { categoryGaps: [], enPosts: 0, arPosts: 0 };
 
   // 7. AUTO-FIX SEO ISSUES WHERE POSSIBLE
-  report.autoFixes = await autoFixSEOIssues(prisma, issues, fixes, siteId);
+  report.autoFixes = (dbAvailable && hasBudget())
+    ? await autoFixSEOIssues(prisma, issues, fixes, siteId)
+    : { metaTitles: 0, metaDescriptions: 0, slugs: 0 };
 
   // ====================================================
-  // 8. ANALYZE REAL GSC SEARCH PERFORMANCE
+  // 8-13. ANALYTICS & INTELLIGENCE (budget-gated)
+  // These are the most expensive steps — skip if budget is low
   // ====================================================
-  try {
+  if (!hasBudget(10_000)) {
+    console.log(`[seo-agent:${siteId}] Budget low (${budgetLeft()}ms left), skipping steps 8-13 (analytics/intelligence)`);
+    report.searchPerformance = { status: "budget_exhausted" };
+    report.trafficAnalysis = { status: "budget_exhausted" };
+    report.contentStrategy = { status: "budget_exhausted" };
+  } else try {
+    const { withTimeout } = await import("@/lib/resilience");
     const {
       analyzeSearchPerformance,
       analyzeTrafficPatterns,
       autoOptimizeLowCTRMeta,
-      submitUnindexedPages,
       flagContentForStrengthening,
     } = await import("@/lib/seo/seo-intelligence");
 
-    const searchData = await analyzeSearchPerformance(28);
+    const searchData = await withTimeout(
+      analyzeSearchPerformance(28, siteId), 10_000, "GSC analyzeSearchPerformance"
+    ).catch((e) => { console.warn(`[${siteId}] GSC analysis timed out:`, e.message); return null; });
     if (searchData) {
       report.searchPerformance = {
         totals: searchData.totals,
@@ -155,8 +226,10 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       report.searchPerformance = { status: "no_data" };
     }
 
-    // 11. ANALYZE GA4 TRAFFIC PATTERNS
-    const trafficData = await analyzeTrafficPatterns(28);
+    // 11. ANALYZE GA4 TRAFFIC PATTERNS (budget-gated)
+    const trafficData = hasBudget(8_000) ? await withTimeout(
+      analyzeTrafficPatterns(28, siteId), 10_000, "GA4 analyzeTrafficPatterns"
+    ).catch((e) => { console.warn(`[${siteId}] GA4 analysis timed out:`, e.message); return null; }) : null;
     if (trafficData) {
       report.trafficAnalysis = {
         sessions: trafficData.sessions,
@@ -171,17 +244,37 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     }
 
     // 11b. FEEDBACK LOOP: Auto-queue rewrites for underperforming content
-    try {
-      report.contentRewrites = await queueContentRewrites(
-        prisma, searchData, trafficData, siteId, fixes
-      );
-    } catch (rewriteError) {
-      console.warn("Content rewrite queue error (non-fatal):", rewriteError);
-      report.contentRewrites = { status: "error" };
+    if (hasBudget(5_000)) {
+      try {
+        report.contentRewrites = await queueContentRewrites(
+          prisma, searchData, trafficData, siteId, fixes
+        );
+      } catch (rewriteError) {
+        console.warn("Content rewrite queue error (non-fatal):", rewriteError);
+        report.contentRewrites = { status: "error" };
+      }
     }
 
-    // 12. SUBMIT ALL PAGES FOR INDEXING (idempotent)
-    report.indexingSubmission = await submitUnindexedPages(prisma, fixes);
+    // 12. INDEXING STATUS CHECK (discovery only — submission handled by google-indexing cron)
+    if (hasBudget(3_000)) {
+      try {
+        const unindexed = await prisma.uRLIndexingStatus.count({
+          where: { site_id: siteId, status: { notIn: ["indexed"] } },
+        });
+        const total = await prisma.uRLIndexingStatus.count({ where: { site_id: siteId } });
+        report.indexingSubmission = {
+          status: "discovery_only",
+          unindexedCount: unindexed,
+          totalTracked: total,
+          note: "Submission delegated to google-indexing cron (9:15 UTC)",
+        };
+      } catch (indexCheckErr) {
+        console.warn(`[seo-agent:${siteId}] Indexing status check failed:`, indexCheckErr instanceof Error ? indexCheckErr.message : indexCheckErr);
+        report.indexingSubmission = { status: "check_failed" };
+      }
+    } else {
+      report.indexingSubmission = { status: "budget_exhausted" };
+    }
 
     // 12b. AUTO-INJECT STRUCTURED DATA FOR POSTS MISSING SCHEMAS
     try {
@@ -193,7 +286,6 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       const postsWithoutSchema = await prisma.blogPost.findMany({
         where: {
           published: true,
-          deletedAt: null,
           ...siteFilter,
           OR: [
             { authority_links_json: { equals: null } },
@@ -207,11 +299,12 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
           content_en: true,
           tags: true,
         },
-        take: 5, // Process 5 per run
+        take: 20, // Process 20 per run (was 5) — larger batch closes schema gap faster
       });
 
       let schemasInjected = 0;
-      const baseSiteUrl = siteUrl || process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+      const { getSiteDomain: _gsd } = await import("@/config/sites");
+      const baseSiteUrl = siteUrl || _gsd(siteId);
       for (const post of postsWithoutSchema) {
         if (!post.content_en || post.content_en.length < 100) continue;
         try {
@@ -224,7 +317,9 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
             { tags: post.tags }
           );
           schemasInjected++;
-        } catch {}
+        } catch (schemaErr) {
+          console.warn(`[seo-agent] Schema injection failed for post ${post.slug}:`, schemaErr instanceof Error ? schemaErr.message : schemaErr);
+        }
       }
 
       if (schemasInjected > 0) {
@@ -238,8 +333,112 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       console.warn("Schema auto-injection failed (non-fatal):", schemaError);
     }
 
-    // 13. ANALYZE CONTENT DIVERSITY + GENERATE STRATEGIC PROPOSALS
-    try {
+    // 12c. AUTO-INJECT INTERNAL LINKS FOR POSTS WITH < 3 INTERNAL LINKS
+    if (hasBudget(5_000)) {
+      try {
+        const postsWithFewLinks = await prisma.blogPost.findMany({
+          where: {
+            published: true,
+            ...siteFilter,
+          },
+          select: { id: true, slug: true, title_en: true, content_en: true, content_ar: true, category_id: true },
+          take: 50,
+          orderBy: { created_at: "desc" },
+        });
+
+        // Count internal links in each post (check both EN and AR)
+        const needsLinks = postsWithFewLinks.filter((post: { id: string; slug: string | null; content_en: string | null; content_ar: string | null }) => {
+          const enHtml = post.content_en || "";
+          const arHtml = post.content_ar || "";
+          const enInternalLinks = (enHtml.match(/href=["']\//g) || []).length;
+          const arInternalLinks = (arHtml.match(/href=["']\//g) || []).length;
+          return enInternalLinks < 3 || arInternalLinks < 3;
+        });
+
+        let linksInjected = 0;
+        const publishedSlugs = postsWithFewLinks
+          .filter((p: { slug: string | null }) => p.slug)
+          .map((p: { slug: string; title_en: string }) => ({ slug: p.slug, title: p.title_en }));
+
+        for (const post of needsLinks.slice(0, 10)) {
+          if (!post.content_en || post.content_en.length < 200) continue;
+
+          // Find 3 related posts (different slug, has title)
+          const relatedCandidates = publishedSlugs
+            .filter((p: { slug: string }) => p.slug !== post.slug)
+            .slice(0, 6);
+
+          if (relatedCandidates.length < 2) continue;
+
+          // Build a "Related Articles" section to append
+          const relatedLinks = relatedCandidates.slice(0, 3)
+            .map((r: { slug: string; title: string }) =>
+              `<li><a href="/blog/${r.slug}" class="internal-link">${r.title || r.slug}</a></li>`
+            ).join("\n");
+
+          const relatedSection = `\n<section class="related-articles"><h2>Related Articles</h2><ul>\n${relatedLinks}\n</ul></section>`;
+
+          // Append the section if it doesn't already have one
+          if (!post.content_en.includes("related-articles")) {
+            try {
+              await prisma.blogPost.update({
+                where: { id: post.id },
+                data: { content_en: post.content_en + relatedSection },
+              });
+              linksInjected++;
+            } catch (e) {
+              console.warn(`[seo-agent] Internal link injection failed for ${post.slug}:`, e instanceof Error ? e.message : e);
+            }
+          }
+        }
+
+        // Also inject Arabic related-articles for posts with content_ar and few Arabic internal links
+        let arLinksInjected = 0;
+        for (const post of needsLinks.slice(0, 10)) {
+          const arHtml = (post as Record<string, unknown>).content_ar as string | null;
+          if (!arHtml || arHtml.length < 200) continue;
+          if (arHtml.includes("related-articles")) continue;
+
+          const arInternalLinks = (arHtml.match(/href=["']\//g) || []).length;
+          if (arInternalLinks >= 3) continue;
+
+          const arRelatedCandidates = publishedSlugs
+            .filter((p: { slug: string }) => p.slug !== post.slug)
+            .slice(0, 3);
+          if (arRelatedCandidates.length < 2) continue;
+
+          const arRelatedLinks = arRelatedCandidates
+            .map((r: { slug: string; title: string }) =>
+              `<li><a href="/ar/blog/${r.slug}" class="internal-link">${r.title || r.slug}</a></li>`
+            ).join("\n");
+
+          const arRelatedSection = `\n<section class="related-articles" dir="rtl"><h2>مقالات ذات صلة</h2><ul>\n${arRelatedLinks}\n</ul></section>`;
+
+          try {
+            await prisma.blogPost.update({
+              where: { id: post.id },
+              data: { content_ar: arHtml + arRelatedSection },
+            });
+            arLinksInjected++;
+          } catch (e) {
+            console.warn(`[seo-agent] Arabic internal link injection failed for ${post.slug}:`, e instanceof Error ? e.message : e);
+          }
+        }
+
+        if (linksInjected > 0 || arLinksInjected > 0) {
+          fixes.push(`Injected internal link sections into ${linksInjected} EN + ${arLinksInjected} AR posts with < 3 links`);
+        }
+        report.internalLinkInjection = { postsChecked: needsLinks.length, linksInjected, arLinksInjected };
+      } catch (linkErr) {
+        console.warn("[seo-agent] Internal link injection failed (non-fatal):", linkErr instanceof Error ? linkErr.message : linkErr);
+      }
+    }
+
+    // 13. ANALYZE CONTENT DIVERSITY + GENERATE STRATEGIC PROPOSALS (budget-gated)
+    if (!hasBudget(5_000)) {
+      console.log(`[seo-agent:${siteId}] Budget low (${budgetLeft()}ms left), skipping content strategy`);
+      report.contentStrategy = { status: "budget_exhausted" };
+    } else try {
       const {
         generateContentProposals,
         saveContentProposals,
@@ -268,7 +467,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       // Generate proposals from GSC data (if available) then apply diversity quotas
       if (searchData) {
         const existingPosts = await prisma.blogPost.findMany({
-          where: { published: true, deletedAt: null, ...siteFilter },
+          where: { published: true, ...siteFilter },
           select: { slug: true },
         });
         const existingSlugs = existingPosts.map((p: any) => p.slug);
@@ -276,7 +475,7 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
         let proposals = generateContentProposals(searchData, existingSlugs);
         proposals = applyDiversityQuotas(proposals, diversity);
 
-        const saved = await saveContentProposals(prisma, proposals, fixes);
+        const saved = await saveContentProposals(prisma, proposals, fixes, siteId);
 
         report.contentStrategy = {
           proposalsGenerated: proposals.length,
@@ -353,6 +552,31 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
     console.warn("Failed to store SEO agent report:", dbError);
   }
 
+  // ── Mark modified posts for IndexNow resubmission ────────────────────────
+  // When the seo-agent fixes content (internal links, meta, schema), the updated
+  // version should be re-crawled by Google. Reset submission flags so the next
+  // google-indexing cron picks them up.
+  if (fixes.length > 0 && siteId) {
+    try {
+      const { getSiteDomain } = await import("@/config/sites");
+      const recentlyModified = await prisma.blogPost.findMany({
+        where: { siteId, published: true, updated_at: { gte: new Date(agentStart) } },
+        select: { slug: true },
+      });
+      if (recentlyModified.length > 0) {
+        const siteUrl = getSiteDomain(siteId);
+        const urls = recentlyModified.map((p: { slug: string }) => `${siteUrl}/blog/${p.slug}`);
+        await prisma.uRLIndexingStatus.updateMany({
+          where: { site_id: siteId, url: { in: urls } },
+          data: { submitted_indexnow: false, last_submitted_at: null },
+        });
+        console.log(`[seo-agent:${siteId}] Marked ${urls.length} modified posts for IndexNow resubmission`);
+      }
+    } catch (resubErr) {
+      console.warn("[seo-agent] Resubmission marking failed (non-fatal):", resubErr instanceof Error ? resubErr.message : resubErr);
+    }
+  }
+
   console.log(
     `SEO Agent completed: ${issues.length} issues found, ${fixes.length} fixes applied, health: ${report.summary.healthScore}%`,
   );
@@ -369,20 +593,20 @@ async function checkContentGeneration(prisma: any, issues: string[], siteId?: st
     today.getMonth(),
     today.getDate(),
   );
-  const siteFilter = siteId ? { site_id: siteId } : {};
+  // ScheduledContent has no site_id column — filter only on models that have it
   const blogSiteFilter = siteId ? { siteId } : {};
+  const topicSiteFilter = siteId ? { site_id: siteId } : {};
 
   try {
-    // Check for content generated today
+    // Check for content generated today (ScheduledContent has no site_id — filter by content_type only)
     const todayContent = await prisma.scheduledContent.count({
       where: {
         created_at: { gte: startOfDay },
         content_type: "blog_post",
-        ...siteFilter,
       },
     });
 
-    // Check for content published today
+    // Check for content published today (BlogPost has siteId)
     const todayPublished = await prisma.blogPost.count({
       where: {
         created_at: { gte: startOfDay },
@@ -391,9 +615,9 @@ async function checkContentGeneration(prisma: any, issues: string[], siteId?: st
       },
     });
 
-    // Check pending topics (statuses: planned, queued, ready)
+    // Check pending topics (TopicProposal has site_id)
     const pendingTopics = await prisma.topicProposal.count({
-      where: { status: { in: ["planned", "queued", "ready", "approved"] }, ...siteFilter },
+      where: { status: { in: ["planned", "queued", "ready", "approved"] }, ...topicSiteFilter },
     });
 
     if (todayContent === 0 && today.getHours() >= 10) {
@@ -423,7 +647,8 @@ async function checkContentGeneration(prisma: any, issues: string[], siteId?: st
             ? "partial"
             : "stalled",
     };
-  } catch {
+  } catch (err) {
+    console.error(`[seo-agent] DB check failed for ${siteId}:`, err instanceof Error ? err.message : err);
     return {
       status: "db_unavailable",
       contentGeneratedToday: 0,
@@ -440,7 +665,7 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
   const blogSiteFilter = siteId ? { siteId } : {};
   try {
     const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null, ...blogSiteFilter },
+      where: { published: true, ...blogSiteFilter },
       select: {
         id: true,
         title_en: true,
@@ -458,6 +683,7 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
         keywords_json: true,
         authority_links_json: true,
       },
+      take: 100, // Prevent OOM on large sites — audit max 100 posts per run
     });
 
     let totalScore = 0;
@@ -467,25 +693,30 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
     for (const post of posts) {
       const postProblems: string[] = [];
 
-      // Check meta title
-      if (!post.meta_title_en || post.meta_title_en.length < 20) {
-        postProblems.push("Missing or short EN meta title");
+      // Check meta title (2025: optimal 50-60 chars, min 30)
+      if (!post.meta_title_en || post.meta_title_en.length < 30) {
+        postProblems.push("Missing or short EN meta title (<30 chars, optimal 50-60)");
       }
       if (post.meta_title_en && post.meta_title_en.length > 60) {
-        postProblems.push("EN meta title too long (>60 chars)");
+        postProblems.push("EN meta title too long (>60 chars, may be truncated in SERP)");
       }
 
-      // Check meta description
-      if (!post.meta_description_en || post.meta_description_en.length < 50) {
-        postProblems.push("Missing or short EN meta description");
+      // Check meta description (2025: optimal 120-160 chars, min 70)
+      if (!post.meta_description_en || post.meta_description_en.length < 70) {
+        postProblems.push("Missing or short EN meta description (<70 chars, optimal 120-160)");
       }
       if (post.meta_description_en && post.meta_description_en.length > 160) {
         postProblems.push("EN meta description too long (>160 chars)");
       }
 
-      // Check content length
+      // Check content length (2025: 800+ min for indexing, 1200+ target)
       if (post.content_en && post.content_en.length < 500) {
-        postProblems.push("EN content too short (<500 chars)");
+        postProblems.push("EN content critically short (<500 chars)");
+      } else if (post.content_en) {
+        const words = post.content_en.split(/\s+/).filter(Boolean).length;
+        if (words < 800) {
+          postProblems.push(`Thin content (${words} words, min 800 for indexing quality)`);
+        }
       }
 
       // Check Arabic content
@@ -519,9 +750,18 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
         }
       }
 
-      // Calculate SEO score
+      // Calculate SEO score (2025 standards: weighted by severity)
       let score = 100;
-      score -= postProblems.length * 10;
+      for (const problem of postProblems) {
+        if (problem.includes("critically short") || problem.includes("Missing or short EN meta title")) {
+          score -= 15; // High-severity: missing essentials
+        } else if (problem.includes("Thin content") || problem.includes("Missing or short EN meta description")) {
+          score -= 10; // Medium-severity: quality issues
+        } else {
+          score -= 5;  // Low-severity: minor issues
+        }
+      }
+      // E-E-A-T bonuses: authority links and keywords show topical depth
       if (post.authority_links_json) score += 5;
       if (post.keywords_json) score += 5;
       score = Math.max(0, Math.min(100, score));
@@ -568,7 +808,8 @@ async function auditBlogPosts(prisma: any, issues: string[], fixes: string[], si
       postsWithIssues,
       topIssues: Object.entries(postIssues).slice(0, 5),
     };
-  } catch {
+  } catch (err) {
+    console.warn("[seo-agent] auditBlogPosts failed:", err instanceof Error ? err.message : err);
     return {
       totalPosts: 0,
       averageSEOScore: 0,
@@ -587,15 +828,15 @@ async function checkIndexingStatus(
   siteUrl?: string,
   siteId?: string,
 ) {
-  siteUrl =
-    siteUrl ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://www.yalla-london.com";
+  if (!siteUrl) {
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+    siteUrl = getSiteDomain(siteId || getDefaultSiteId());
+  }
   const blogSiteFilter = siteId ? { siteId } : {};
 
   try {
     const posts = await prisma.blogPost.findMany({
-      where: { published: true, deletedAt: null, ...blogSiteFilter },
+      where: { published: true, ...blogSiteFilter },
       select: { slug: true, created_at: true },
       orderBy: { created_at: "desc" },
       take: 20,
@@ -616,80 +857,87 @@ async function checkIndexingStatus(
       siteUrl,
       message: "URLs ready for indexing verification",
     };
-  } catch {
+  } catch (err) {
+    console.warn("[seo-agent] checkIndexingStatus failed:", err instanceof Error ? err.message : err);
     return { status: "check_failed", checkedUrls: 0 };
   }
 }
 
 /**
- * Submit new/updated URLs to search engines via IndexNow
+ * Discover new/updated URLs that need IndexNow submission.
+ *
+ * NOTE (KG-019): IndexNow submission is handled exclusively by the
+ * seo/cron route via lib/seo/indexing-service.ts, which has proper
+ * exponential backoff and error handling. This function only discovers
+ * URLs and marks them as pending in URLIndexingStatus so that seo/cron
+ * picks them up. This avoids double-submitting URLs to IndexNow within
+ * the same 30-minute window.
  */
 async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, siteId?: string) {
-  siteUrl =
-    siteUrl ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://www.yalla-london.com";
-  const indexNowKey = process.env.INDEXNOW_KEY;
+  if (!siteUrl) {
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+    siteUrl = getSiteDomain(siteId || getDefaultSiteId());
+  }
   const blogSiteFilter = siteId ? { siteId } : {};
 
   try {
-    // Find posts created in the last 24 hours that haven't been submitted
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    // Find posts created in the last 7 days that may need submission
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const newPosts = await prisma.blogPost.findMany({
       where: {
         published: true,
-        deletedAt: null,
-        created_at: { gte: oneDayAgo },
+        created_at: { gte: sevenDaysAgo },
         ...blogSiteFilter,
       },
       select: { slug: true },
     });
 
     if (newPosts.length === 0) {
-      return { submitted: 0, message: "No new posts to submit" };
+      return { submitted: 0, message: "No new posts to submit", delegatedTo: "seo/cron" };
     }
 
     const urls = newPosts.map((p: any) => `${siteUrl}/blog/${p.slug}`);
 
-    // Submit via IndexNow if key available
-    if (indexNowKey) {
+    // IndexNow submission is delegated to seo/cron (via lib/seo/indexing-service.ts)
+    // which uses fetchWithRetry with exponential backoff for better reliability.
+    console.log(
+      `[SEO-Agent] Found ${urls.length} new URLs — IndexNow submission delegated to seo/cron`,
+    );
+    fixes.push(
+      `Found ${urls.length} new URLs for indexing (submission handled by seo/cron)`,
+    );
+
+    // Track URLs as discovered in URLIndexingStatus so seo/cron and verify-indexing pick them up
+    // Status lifecycle: discovered → submitted → indexed/not_indexed
+    if (siteId) {
       try {
-        await fetch("https://api.indexnow.org/indexnow", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            host: new URL(siteUrl).hostname,
-            key: indexNowKey,
-            urlList: urls,
-          }),
-        });
-        fixes.push(`Submitted ${urls.length} new URLs to IndexNow`);
-      } catch (e) {
-        console.warn("IndexNow submission failed:", e);
+        await Promise.allSettled(
+          urls.map((url: string) =>
+            prisma.uRLIndexingStatus.upsert({
+              where: { site_id_url: { site_id: siteId, url } },
+              create: {
+                site_id: siteId,
+                url,
+                slug: url.split("/blog/")[1] || null,
+                status: "discovered",
+                submitted_indexnow: false,
+                last_submitted_at: null,
+              },
+              update: {
+                // Don't overwrite submitted/indexed — only update if still in initial state
+              },
+            }),
+          ),
+        );
+      } catch (trackErr) {
+        console.warn("[seo-agent] URL tracking in URLIndexingStatus failed (non-fatal):", trackErr instanceof Error ? trackErr.message : trackErr);
       }
     }
 
-    // Submit sitemap via IndexNow (Google deprecated ping endpoint in 2023)
-    if (indexNowKey) {
-      try {
-        await fetch("https://api.indexnow.org/indexnow", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            host: new URL(siteUrl).hostname,
-            key: indexNowKey,
-            urlList: [`${siteUrl}/sitemap.xml`],
-          }),
-        });
-        fixes.push("Submitted sitemap to IndexNow");
-      } catch (e) {
-        console.warn("Sitemap IndexNow submission failed:", e);
-      }
-    }
-
-    return { submitted: urls.length, urls };
-  } catch {
-    return { submitted: 0, error: "Failed to check for new posts" };
+    return { discovered: urls.length, urls, delegatedTo: "seo/cron", submitted: 0 };
+  } catch (err) {
+    console.warn("[seo-agent] submitNewUrls failed:", err instanceof Error ? err.message : err);
+    return { submitted: 0, discovered: 0, error: "Failed to check for new posts" };
   }
 }
 
@@ -697,14 +945,15 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
  * Verify sitemap is healthy and accessible
  */
 async function verifySitemapHealth(issues: string[], siteUrl?: string) {
-  siteUrl =
-    siteUrl ||
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://www.yalla-london.com";
+  if (!siteUrl) {
+    const { getSiteDomain, getDefaultSiteId } = await import("@/config/sites");
+    siteUrl = getSiteDomain(getDefaultSiteId());
+  }
 
   try {
     const response = await fetch(`${siteUrl}/sitemap.xml`, {
       headers: { "User-Agent": "YallaLondon-SEO-Agent/1.0" },
+      signal: AbortSignal.timeout(8_000),
     });
 
     if (!response.ok) {
@@ -722,8 +971,8 @@ async function verifySitemapHealth(issues: string[], siteUrl?: string) {
     }
 
     return { healthy: true, urlCount, status: 200 };
-  } catch {
-    // Can't reach own sitemap - likely running locally or DNS issue
+  } catch (err) {
+    console.warn("[seo-agent] verifySitemapHealth failed (may be running locally):", err instanceof Error ? err.message : err);
     return {
       healthy: "unknown",
       message: "Could not fetch sitemap (may be running locally)",
@@ -739,7 +988,7 @@ async function detectContentGaps(prisma: any, issues: string[], siteId?: string)
     const categories = await prisma.category.findMany({
       include: {
         posts: {
-          where: { published: true, deletedAt: null },
+          where: { published: true, ...(siteId ? { siteId } : {}) },
           orderBy: { created_at: "desc" },
           take: 1,
           select: { created_at: true },
@@ -766,10 +1015,10 @@ async function detectContentGaps(prisma: any, issues: string[], siteId?: string)
     // Check language balance
     const siteFilterForPosts = siteId ? { siteId } : {};
     const enPosts = await prisma.blogPost.count({
-      where: { published: true, content_en: { not: "" }, deletedAt: null, ...siteFilterForPosts },
+      where: { published: true, content_en: { not: "" }, ...siteFilterForPosts },
     });
     const arPosts = await prisma.blogPost.count({
-      where: { published: true, content_ar: { not: "" }, deletedAt: null, ...siteFilterForPosts },
+      where: { published: true, content_ar: { not: "" }, ...siteFilterForPosts },
     });
 
     if (arPosts < enPosts * 0.5) {
@@ -779,13 +1028,22 @@ async function detectContentGaps(prisma: any, issues: string[], siteId?: string)
     }
 
     return { categoryGaps: gaps, enPosts, arPosts };
-  } catch {
+  } catch (err) {
+    console.warn("[seo-agent] detectContentGaps failed:", err instanceof Error ? err.message : err);
     return { categoryGaps: [], enPosts: 0, arPosts: 0 };
   }
 }
 
 /**
  * Auto-fix common SEO issues
+ *
+ * Fixes (in priority order):
+ * 1. Missing meta titles → generate from title_en (truncated to 57 chars)
+ * 2. Missing meta descriptions → generate from excerpt_en (truncated to 155 chars)
+ * 3. Meta titles that are too long (> 60 chars) → trim to 57 + "..."
+ * 4. Meta titles that are too short (< 30 chars) → prepend site keyword context
+ * 5. Meta descriptions that are too long (> 160 chars) → trim to 155 + "…"
+ * 6. Meta descriptions that are too short (< 120 chars) → extend from content excerpt
  */
 async function autoFixSEOIssues(
   prisma: any,
@@ -796,40 +1054,134 @@ async function autoFixSEOIssues(
   const fixedCount = { metaTitles: 0, metaDescriptions: 0, slugs: 0 };
   const blogSiteFilter = siteId ? { siteId } : {};
 
+  // ── Fix 1 + 2: Missing meta titles OR descriptions ─────────────────────────
   try {
-    // Fix posts with missing meta titles
     const postsWithoutMeta = await prisma.blogPost.findMany({
       where: {
         published: true,
-        deletedAt: null,
         ...blogSiteFilter,
-        OR: [{ meta_title_en: null }, { meta_title_en: "" }],
+        OR: [
+          { meta_title_en: null },
+          { meta_title_en: "" },
+          { meta_description_en: null },
+          { meta_description_en: "" },
+        ],
       },
-      select: { id: true, title_en: true, title_ar: true, excerpt_en: true },
+      select: { id: true, title_en: true, excerpt_en: true, content_en: true },
+      take: 50,
     });
 
     for (const post of postsWithoutMeta) {
-      const metaTitle = (post.title_en || "").slice(0, 60);
-      const metaDesc = (post.excerpt_en || post.title_en || "").slice(0, 155);
+      const updates: Record<string, string> = {};
 
-      try {
-        await prisma.blogPost.update({
-          where: { id: post.id },
-          data: {
-            meta_title_en: metaTitle || undefined,
-            meta_description_en: metaDesc || undefined,
-          },
-        });
-        fixedCount.metaTitles++;
-      } catch (e) {
-        console.warn("Failed to auto-fix meta title:", e);
+      if (!post.meta_title_en) {
+        // Build a 50-57 char title: clip at last word boundary before 57 chars
+        let title = (post.title_en || "").trim();
+        if (title.length > 57) {
+          title = title.substring(0, 57);
+          const lastSpace = title.lastIndexOf(" ");
+          if (lastSpace > 40) title = title.substring(0, lastSpace);
+          title = title + "…";
+        }
+        if (title.length >= 10) updates.meta_title_en = title;
+      }
+
+      if (!post.meta_description_en) {
+        // Build 120-155 char description: prefer excerpt, fall back to content strip
+        const source = post.excerpt_en || (post.content_en || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+        let desc = source.substring(0, 155).trim();
+        const lastSentence = desc.search(/[.!?][^.!?]*$/);
+        if (lastSentence > 80) desc = desc.substring(0, lastSentence + 1);
+        if (desc.length >= 50) updates.meta_description_en = desc;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        try {
+          await prisma.blogPost.update({ where: { id: post.id }, data: updates });
+          fixedCount.metaTitles++;
+        } catch (e) {
+          console.warn("[seo-agent] Failed to auto-fix meta fields:", e instanceof Error ? e.message : e);
+        }
       }
     }
 
     if (fixedCount.metaTitles > 0) {
-      fixes.push(`Auto-generated ${fixedCount.metaTitles} missing meta titles`);
+      fixes.push(`Auto-generated missing meta fields for ${fixedCount.metaTitles} posts`);
     }
-  } catch {}
+  } catch (metaErr) {
+    console.warn("[seo-agent] Missing meta auto-fix failed:", metaErr instanceof Error ? metaErr.message : metaErr);
+  }
+
+  // ── Fix 3: Meta titles too long (> 60 chars) ──────────────────────────────
+  try {
+    const postsLongTitle = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        ...blogSiteFilter,
+        meta_title_en: { not: null },
+      },
+      select: { id: true, meta_title_en: true },
+      take: 100,
+    });
+
+    let longTitleFixed = 0;
+    for (const post of postsLongTitle) {
+      const title = post.meta_title_en || "";
+      if (title.length > 60) {
+        let trimmed = title.substring(0, 57);
+        const lastSpace = trimmed.lastIndexOf(" ");
+        if (lastSpace > 40) trimmed = trimmed.substring(0, lastSpace);
+        trimmed = trimmed.replace(/[.,;:!?-]+$/, "") + "…";
+        try {
+          await prisma.blogPost.update({ where: { id: post.id }, data: { meta_title_en: trimmed } });
+          longTitleFixed++;
+        } catch (e) {
+          console.warn("[seo-agent] Long title trim failed:", e instanceof Error ? e.message : e);
+        }
+      }
+    }
+    if (longTitleFixed > 0) {
+      fixes.push(`Trimmed ${longTitleFixed} meta titles exceeding 60 chars`);
+    }
+  } catch (err) {
+    console.warn("[seo-agent] Long title fix failed:", err instanceof Error ? err.message : err);
+  }
+
+  // ── Fix 4: Meta descriptions too long (> 160 chars) ───────────────────────
+  try {
+    const postsLongDesc = await prisma.blogPost.findMany({
+      where: {
+        published: true,
+        ...blogSiteFilter,
+        meta_description_en: { not: null },
+      },
+      select: { id: true, meta_description_en: true },
+      take: 100,
+    });
+
+    let longDescFixed = 0;
+    for (const post of postsLongDesc) {
+      const desc = post.meta_description_en || "";
+      if (desc.length > 160) {
+        let trimmed = desc.substring(0, 155);
+        const lastSpace = trimmed.lastIndexOf(" ");
+        if (lastSpace > 120) trimmed = trimmed.substring(0, lastSpace);
+        trimmed = trimmed.replace(/[.,;:!?]+$/, "") + "…";
+        try {
+          await prisma.blogPost.update({ where: { id: post.id }, data: { meta_description_en: trimmed } });
+          longDescFixed++;
+          fixedCount.metaDescriptions++;
+        } catch (e) {
+          console.warn("[seo-agent] Long desc trim failed:", e instanceof Error ? e.message : e);
+        }
+      }
+    }
+    if (longDescFixed > 0) {
+      fixes.push(`Trimmed ${longDescFixed} meta descriptions exceeding 160 chars`);
+    }
+  } catch (err) {
+    console.warn("[seo-agent] Long description fix failed:", err instanceof Error ? err.message : err);
+  }
 
   return fixedCount;
 }
@@ -953,8 +1305,7 @@ async function queueContentRewrites(
   const postsToRewrite = await prisma.blogPost.findMany({
     where: {
       published: true,
-      deletedAt: null,
-      ...blogSiteFilter,
+           ...blogSiteFilter,
       slug: { in: candidateSlugs },
       created_at: { lt: thirtyDaysAgo },
     },
@@ -975,7 +1326,7 @@ async function queueContentRewrites(
     const existingProposal = await prisma.topicProposal.findFirst({
       where: {
         ...siteFilter,
-        source: "seo-agent-rewrite",
+        title: { startsWith: "[REWRITE]" },
         status: { in: ["planned", "queued", "ready"] },
         primary_keyword: post.slug,
       },
@@ -990,18 +1341,22 @@ async function queueContentRewrites(
     await prisma.topicProposal.create({
       data: {
         title: `[REWRITE] ${post.title_en || post.slug}`,
-        description: `Auto-queued rewrite: Low CTR/engagement after 30+ days. Original slug: ${post.slug}`,
         primary_keyword: post.slug,
         longtails: post.tags || [],
+        featured_longtails: [],
         questions: [],
         suggested_page_type: "guide",
         locale: "en",
         status: "ready",
         confidence_score: 0.8,
-        source: "seo-agent-rewrite",
         intent: "rewrite",
         evergreen: true,
         ...siteFilter,
+        source_weights_json: {
+          source: "seo-agent-rewrite",
+          originalSlug: post.slug,
+          reason: "Low CTR",
+        },
         authority_links_json: {
           contentType: "rewrite",
           originalPostId: post.id,

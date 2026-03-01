@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,12 +45,13 @@ const defaultTheme: ThemeConfig = {
 }
 
 const fontOptions = [
+  { value: 'Anybody', label: 'Anybody (Display)' },
+  { value: 'Source Serif 4', label: 'Source Serif 4 (Editorial)' },
   { value: 'Inter', label: 'Inter (Modern)' },
   { value: 'Roboto', label: 'Roboto (Clean)' },
   { value: 'Open Sans', label: 'Open Sans (Friendly)' },
   { value: 'Lato', label: 'Lato (Professional)' },
   { value: 'Poppins', label: 'Poppins (Bold)' },
-  { value: 'Playfair Display', label: 'Playfair Display (Elegant)' },
   { value: 'Merriweather', label: 'Merriweather (Readable)' },
   { value: 'Source Sans Pro', label: 'Source Sans Pro (Versatile)' }
 ]
@@ -58,8 +59,8 @@ const fontOptions = [
 const presetThemes = [
   {
     name: 'Yalla London',
-    colors: { primaryColor: '#3B82F6', secondaryColor: '#1E40AF', accentColor: '#F59E0B' },
-    font: 'Inter'
+    colors: { primaryColor: '#C8322B', secondaryColor: '#1C1917', accentColor: '#C49A2A' },
+    font: 'Anybody'
   },
   {
     name: 'Modern Blue',
@@ -74,7 +75,7 @@ const presetThemes = [
   {
     name: 'Elegant Purple',
     colors: { primaryColor: '#7C3AED', secondaryColor: '#5B21B6', accentColor: '#EC4899' },
-    font: 'Playfair Display'
+    font: 'Source Serif 4'
   },
   {
     name: 'Nature Green',
@@ -188,7 +189,7 @@ export default function ThemeSettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Theme Settings</h1>
-              <p className="text-gray-600 mt-2">Customize your site's appearance and branding</p>
+              <p className="text-gray-600 mt-2">Customize your site&apos;s appearance and branding</p>
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={resetTheme}>

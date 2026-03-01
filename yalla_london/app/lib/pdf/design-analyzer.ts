@@ -5,7 +5,7 @@
  * then generates a brand-adapted editable design template.
  */
 
-import { getBrandProfile, type DesignTemplate, type DesignElement, type BrandProfile } from "./brand-design-system";
+import { getBrandProfile, type DesignTemplate, type DesignElement, type DesignBrandProfile } from "./brand-design-system";
 
 // ─── Analysis Types ───────────────────────────────────────────────
 
@@ -78,7 +78,7 @@ async function callVisionAPI(
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5-20250929",
+          model: "claude-sonnet-4-6",
           max_tokens: 2000,
           messages: [{
             role: "user",
@@ -194,7 +194,7 @@ function parseAnalysisJSON(text: string): DesignAnalysis | null {
 function getDefaultAnalysis(): DesignAnalysis {
   return {
     layout: { type: "hero-centered", headerPosition: "center", textDensity: "minimal", imageRatio: 60 },
-    colors: { dominant: "#1A1F36", secondary: "#E8634B", accent: "#F59E0B", background: "#FFFFFF", textColor: "#111827" },
+    colors: { dominant: "#1C1917", secondary: "#C8322B", accent: "#F59E0B", background: "#FFFFFF", textColor: "#111827" },
     typography: { headingStyle: "bold", headingSize: "large", bodySize: "medium", alignment: "center" },
     elements: { hasLogo: true, hasHeroImage: true, hasOverlay: true, hasIcons: false, hasDividers: true, hasCTA: true, hasGrid: false, numberOfImages: 1, numberOfTextBlocks: 3 },
     mood: "modern",
@@ -242,7 +242,7 @@ export function generateDesignFromAnalysis(
 
 function buildBackground(
   analysis: DesignAnalysis,
-  brand: BrandProfile,
+  brand: DesignBrandProfile,
 ): { type: "solid" | "gradient" | "image"; color?: string; gradient?: { from: string; to: string; angle: number } } {
   if (analysis.elements.hasHeroImage && analysis.layout.imageRatio > 60) {
     // Hero-image style: use gradient as base (image to be added by user)
@@ -264,7 +264,7 @@ function buildBackground(
 
 function buildElementsFromAnalysis(
   analysis: DesignAnalysis,
-  brand: BrandProfile,
+  brand: DesignBrandProfile,
   isRTL: boolean,
 ): DesignElement[] {
   const elements: DesignElement[] = [];

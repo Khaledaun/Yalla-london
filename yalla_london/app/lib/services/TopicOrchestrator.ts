@@ -184,7 +184,7 @@ function enhanceTopicWithKeywords(topic: any, category: string, locale: string):
   ];
   
   return {
-    id: `topic_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: `topic_${Date.now()}_${crypto.randomUUID().slice(0, 9)}`,
     title: topic.title,
     slug: topic.slug || primaryKeyword.replace(/\s+/g, '-'),
     category,
@@ -194,7 +194,7 @@ function enhanceTopicWithKeywords(topic: any, category: string, locale: string):
     questions,
     rationale: topic.rationale || `Generated topic about ${primaryKeyword} for London travel content`,
     sources: topic.sources || [],
-    confidence_score: 0.75 + (Math.random() * 0.2), // 0.75-0.95
+    confidence_score: 0.8, // Fixed confidence for generated topics
     status: PHASE2_TOPIC_LIMITS.MANUAL_APPROVAL_REQUIRED ? 'proposed' : 'approved',
     created_at: new Date().toISOString(),
     safety_check: { passed: true, flags: [] } // Will be updated by safety check

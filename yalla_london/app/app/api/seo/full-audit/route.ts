@@ -33,9 +33,10 @@ export async function GET(request: NextRequest) {
     const includePageSpeed = searchParams.get("pagespeed") === "true";
 
     // Per-site scoping: query param > header > default
+    const { getDefaultSiteId } = await import("@/config/sites");
     const siteId = searchParams.get("siteId")
       || request.headers.get("x-site-id")
-      || "yalla-london";
+      || getDefaultSiteId();
     const seoConfig = getSiteSeoConfig(siteId);
 
     const endDate = new Date().toISOString().split("T")[0];
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
           required: [
             "GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL - Service account email",
             "GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY - Service account private key (PEM format)",
-            "NEXT_PUBLIC_SITE_URL - Your verified site URL in GSC (e.g. https://www.yalla-london.com)",
+            "NEXT_PUBLIC_SITE_URL - Your verified site URL in GSC (e.g. https://www.yoursite.com)",
           ],
           optional: [
             "GA4_PROPERTY_ID - Numeric GA4 property ID for traffic data",

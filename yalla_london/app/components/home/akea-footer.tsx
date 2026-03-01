@@ -239,8 +239,8 @@ export function AkeaFooter({ locale = 'en' }: AkeaFooterProps) {
               </li>
               <li className="flex items-center gap-3 text-sm text-gray-400">
                 <Mail size={18} className="text-orange-500 flex-shrink-0" />
-                <a href="mailto:hello@yallalondon.com" className="hover:text-orange-500 transition-colors">
-                  hello@yallalondon.com
+                <a href={`mailto:hello@${(process.env.NEXT_PUBLIC_SITE_URL || 'zenitha.luxury').replace(/^https?:\/\/(www\.)?/, '')}`} className="hover:text-orange-500 transition-colors">
+                  {`hello@${(process.env.NEXT_PUBLIC_SITE_URL || 'zenitha.luxury').replace(/^https?:\/\/(www\.)?/, '')}`}
                 </a>
               </li>
               <li className="flex items-center gap-3 text-sm text-gray-400">

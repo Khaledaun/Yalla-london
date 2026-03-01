@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import NextImage from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -69,12 +70,7 @@ export function PhotoPoolManager() {
   const [uploadTags, setUploadTags] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
-  // Fetch photos from API - refetch when site or category changes
-  useEffect(() => {
-    fetchPhotos()
-  }, [selectedCategory, currentSite.id])
-
-  const fetchPhotos = async () => {
+  const fetchPhotos = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -94,35 +90,14 @@ export function PhotoPoolManager() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedCategory, currentSite.id, searchQuery])
 
-  // Dropzone configuration
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    const newFiles: UploadingFile[] = acceptedFiles.map(file => ({
-      id: Math.random().toString(36).substr(2, 9),
-      file,
-      progress: 0,
-      status: 'uploading' as const,
-      previewUrl: URL.createObjectURL(file)
-    }))
+  // Fetch photos from API - refetch when site or category changes
+  useEffect(() => {
+    fetchPhotos()
+  }, [fetchPhotos])
 
-    setUploadingFiles(prev => [...prev, ...newFiles])
-
-    // Simulate upload for each file
-    newFiles.forEach(uploadFile => {
-      simulateUpload(uploadFile)
-    })
-  }, [])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp']
-    },
-    maxSize: 10 * 1024 * 1024 // 10MB
-  })
-
-  const simulateUpload = async (uploadFile: UploadingFile) => {
+  const simulateUpload = useCallback(async (uploadFile: UploadingFile) => {
     // Simulate progress
     for (let i = 0; i <= 100; i += 10) {
       await new Promise(resolve => setTimeout(resolve, 100))
@@ -156,7 +131,33 @@ export function PhotoPoolManager() {
     setTimeout(() => {
       setUploadingFiles(prev => prev.filter(f => f.id !== uploadFile.id))
     }, 2000)
-  }
+  }, [uploadCategory, uploadTags])
+
+  // Dropzone configuration
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const newFiles: UploadingFile[] = acceptedFiles.map(file => ({
+      id: Math.random().toString(36).substr(2, 9),
+      file,
+      progress: 0,
+      status: 'uploading' as const,
+      previewUrl: URL.createObjectURL(file)
+    }))
+
+    setUploadingFiles(prev => [...prev, ...newFiles])
+
+    // Simulate upload for each file
+    newFiles.forEach(uploadFile => {
+      simulateUpload(uploadFile)
+    })
+  }, [simulateUpload])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+    },
+    maxSize: 10 * 1024 * 1024 // 10MB
+  })
 
   const handleCopyUrl = (url: string, id: string) => {
     navigator.clipboard.writeText(url)
@@ -287,7 +288,7 @@ export function PhotoPoolManager() {
 
               <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="bg-[#1A1F36] hover:bg-[#2d3452]">
+                  <Button className="bg-[#1C1917] hover:bg-[#3D3835]">
                     <Upload className="w-4 h-4 mr-2" /> Upload Photos
                   </Button>
                 </DialogTrigger>
@@ -340,12 +341,12 @@ export function PhotoPoolManager() {
                       <div className="space-y-2">
                         {uploadingFiles.map(file => (
                           <div key={file.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded">
-                            <img src={file.previewUrl} alt="" className="w-12 h-12 object-cover rounded" />
+                            <NextImage src={file.previewUrl} alt="" width={48} height={48} className="w-12 h-12 object-cover rounded" unoptimized />
                             <div className="flex-1">
                               <div className="text-sm font-medium truncate">{file.file.name}</div>
                               <div className="h-2 bg-gray-200 rounded-full mt-1">
                                 <div
-                                  className="h-full bg-[#E8634B] rounded-full transition-all"
+                                  className="h-full bg-[#C8322B] rounded-full transition-all"
                                   style={{ width: `${file.progress}%` }}
                                 />
                               </div>
@@ -407,7 +408,7 @@ export function PhotoPoolManager() {
                 {filteredPhotos.map(photo => (
                   <tr key={photo.id} className="hover:bg-gray-50">
                     <td className="p-3">
-                      <img src={photo.url} alt={photo.alt_text} className="w-16 h-12 object-cover rounded" />
+                      <NextImage src={photo.url} alt={photo.alt_text} width={64} height={48} className="w-16 h-12 object-cover rounded" unoptimized />
                     </td>
                     <td className="p-3 font-medium">{photo.title}</td>
                     <td className="p-3">
@@ -481,17 +482,22 @@ function PhotoCard({
   return (
     <div
       className={`relative group rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
-        isSelected ? 'border-[#E8634B] ring-2 ring-[#E8634B]/20' : 'border-transparent hover:border-gray-200'
+        isSelected ? 'border-[#C8322B] ring-2 ring-[#C8322B]/20' : 'border-transparent hover:border-gray-200'
       }`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
       onClick={onSelect}
     >
       <div className="aspect-square">
-        <img
+        <NextImage
           src={photo.url}
           alt={photo.alt_text || photo.title}
+          width={0}
+          height={0}
+          sizes="(min-width: 1024px) 16vw, (min-width: 768px) 25vw, 50vw"
           className="w-full h-full object-cover"
+          style={{ width: '100%', height: '100%' }}
+          unoptimized
         />
       </div>
 
@@ -504,7 +510,7 @@ function PhotoCard({
 
       {/* Selection Checkbox */}
       <div className={`absolute top-2 right-2 w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
-        isSelected ? 'bg-[#E8634B] border-[#E8634B]' : 'bg-white/80 border-gray-300'
+        isSelected ? 'bg-[#C8322B] border-[#C8322B]' : 'bg-white/80 border-gray-300'
       }`}>
         {isSelected && <Check className="w-4 h-4 text-white" />}
       </div>

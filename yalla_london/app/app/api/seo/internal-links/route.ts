@@ -123,7 +123,8 @@ export async function POST(request: NextRequest) {
 }
 
 async function analyzeInternalLinks(): Promise<NextResponse> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+  const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+  const baseUrl = getSiteDomain(getDefaultSiteId());
   
   // In production, this would scan your actual site
   // For now, using mock data based on your site structure
@@ -249,7 +250,8 @@ async function analyzeInternalLinks(): Promise<NextResponse> {
 }
 
 async function getLinkSuggestions(targetUrl: string): Promise<NextResponse> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+  const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+  const baseUrl = getSiteDomain(getDefaultSiteId());
   
   // In production, analyze the target page content and find relevant pages to link to
   const suggestions: InternalLink[] = [
@@ -281,7 +283,8 @@ async function getLinkSuggestions(targetUrl: string): Promise<NextResponse> {
 }
 
 async function getOrphanedPages(): Promise<NextResponse> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+  const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+  const baseUrl = getSiteDomain(getDefaultSiteId());
   
   // Mock orphaned pages
   const orphanedPages = [
@@ -328,7 +331,7 @@ async function getBrokenLinks(): Promise<NextResponse> {
       status: 404,
       referrers: [
         {
-          url: 'https://yalla-london.com/blog/old-post',
+          url: '/blog/old-post',
           anchorText: 'external resource',
           context: 'Referenced in blog post about London dining'
         }
@@ -360,7 +363,8 @@ async function getBrokenLinks(): Promise<NextResponse> {
 
 async function scanAllPages(): Promise<NextResponse> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+    const { getDefaultSiteId, getSiteDomain } = await import("@/config/sites");
+    const baseUrl = getSiteDomain(getDefaultSiteId());
     
     // In production, this would:
     // 1. Crawl all pages on the site

@@ -2,6 +2,8 @@
  * Phase 4C Topic Generation API
  * Auto-generate topics based on policies and content gaps
  */
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from 'next/server';
 import { isFeatureEnabled } from '@/lib/feature-flags';
 import { prisma } from '@/lib/db';
@@ -131,7 +133,7 @@ export async function POST(request: NextRequest) {
           generated_by: 'policy_engine',
           policy_id: policy_id
         },
-        confidence_score: 0.75 + (Math.random() * 0.2), // Random score between 0.75-0.95
+        confidence_score: 0.7, // Fixed default — real confidence computed by LLM topic analysis
         status: 'proposed'
       };
 

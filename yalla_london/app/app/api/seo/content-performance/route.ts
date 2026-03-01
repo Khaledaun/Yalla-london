@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { searchConsole } from '@/lib/integrations/google-search-console';
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getBaseUrl } from '@/lib/url-utils';
 
 interface ContentPerformance {
   id: string;
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sort') || 'impressions';
     const dateRange = searchParams.get('range') || '28d';
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com';
+    const baseUrl = await getBaseUrl();
 
     // If specific content ID is requested
     if (contentId) {

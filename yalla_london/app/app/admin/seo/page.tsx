@@ -1,1053 +1,993 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import {
-  Search,
-  TrendingUp,
-  Link,
-  Target,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  Globe,
-  BarChart3,
-  Zap,
-  Download,
-  RefreshCw,
-  ExternalLink,
-  FileText,
+  Search, AlertTriangle, CheckCircle, XCircle, Clock, Globe, Zap,
+  RefreshCw, ExternalLink, FileText, ChevronDown, ChevronRight,
+  Loader2, Send, Activity, Eye, Shield, Play, Filter, BarChart3,
+  Radio, Database, ArrowUpRight, Info, Settings, AlertCircle,
+  History, TrendingUp, CheckSquare, Hash,
 } from "lucide-react";
 import { toast } from "sonner";
 
-interface SEOHealth {
-  overallScore: number;
-  autoPublishRate: number;
-  reviewQueue: number;
-  criticalIssues: number;
-  lastChecked: string;
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface IndexingArticle {
+  id: string; title: string; slug: string; url: string;
+  publishedAt: string | null; seoScore: number; wordCount: number;
+  indexingStatus: "indexed" | "submitted" | "not_indexed" | "error" | "never_submitted";
+  submittedAt: string | null; lastCrawledAt: string | null;
+  lastInspectedAt: string | null; coverageState: string | null;
+  submittedIndexnow: boolean; submittedSitemap: boolean;
+  submissionAttempts: number; notIndexedReasons: string[];
+  fixAction: string | null;
 }
 
-interface ArticleSEO {
-  id: string;
-  title: string;
-  url: string;
-  seoScore: number;
-  keywords: string[];
-  issues: string[];
-  lastAudit: string;
-}
-
-interface CrawlResult {
-  url: string;
-  status: "success" | "error" | "warning";
-  issues: string[];
-  score: number;
-  lastCrawled: string;
+interface IndexingData {
+  success: boolean; siteId: string; baseUrl: string;
+  config: { hasIndexNowKey: boolean; hasGscCredentials: boolean; gscSiteUrl: string };
+  summary: { total: number; indexed: number; submitted: number; notIndexed: number; neverSubmitted: number; errors: number };
+  healthDiagnosis: { status: "healthy"|"warning"|"critical"|"not_started"; message: string; detail: string; indexingRate: number };
+  recentActivity: Array<{ jobName: string; status: string; startedAt: string; durationMs: number; itemsProcessed: number; itemsSucceeded: number; errorMessage: string|null }>;
+  articles: IndexingArticle[];
+  systemIssues: Array<{ severity: "critical"|"warning"|"info"; category: string; message: string; detail: string; fixAction?: string }>;
 }
 
 interface IndexingStats {
-  totalReports: number;
-  totalSubmissions: number;
-  totalAudits: number;
-  totalGoogleSubmitted: number;
-  totalIndexNowSubmitted: number;
-  lastSubmission: string | null;
-  lastSuccessfulSubmission: string | null;
-  latestSnapshot: {
-    totalPages: number;
-    inspected: number;
-    indexed: number;
-    notIndexed: number;
-    date: string;
-  } | null;
-  latestSubmissionResult: {
-    indexNow: { submitted: number; status: string };
-    googleApi: { submitted: number; failed: number; errors: string[]; status: string };
-  } | null;
-  timeline: {
-    date: string;
-    mode: string;
-    totalPages: number;
-    googleSubmitted: number;
-    googleStatus: string;
-    indexNowSubmitted: number;
-    indexNowStatus: string;
-  }[];
+  totalReports: number; totalSubmissions: number; totalAudits: number;
+  totalGoogleSubmitted: number; totalIndexNowSubmitted: number;
+  lastSubmission: string | null; lastSuccessfulSubmission: string | null;
+  latestSnapshot: { totalPages: number; inspected: number; indexed: number; notIndexed: number; date: string } | null;
+  latestSubmissionResult: { indexNow: { submitted: number; status: string }; googleApi: { submitted: number; failed: number; errors: string[]; status: string } } | null;
+  timeline: Array<{ date: string; mode: string; totalPages: number; googleSubmitted: number; googleStatus: string; indexNowSubmitted: number; indexNowStatus: string }>;
 }
 
-interface IndexingReport {
-  id: string;
-  type: string;
-  date: string;
-  data: {
-    mode: string;
-    totalPages: number;
-    inspected: number;
-    indexed: number;
-    notIndexed: number;
-    indexedPages?: string[];
-    notIndexedPages?: { url: string; label: string; reason: string }[];
-    submission?: {
-      indexNow: { submitted: number; status: string };
-      googleApi: { submitted: number; failed: number; errors: string[]; status: string };
-    };
-    errors?: string[];
-    elapsed: string;
-  };
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function timeAgo(d: string): string {
+  const diff = Date.now() - new Date(d).getTime();
+  if (diff < 60_000) return `${Math.floor(diff/1000)}s ago`;
+  if (diff < 3_600_000) return `${Math.floor(diff/60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff/3_600_000)}h ago`;
+  return `${Math.floor(diff/86_400_000)}d ago`;
 }
 
-export default function SEOCommandCenter() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [seoHealth, setSeoHealth] = useState<SEOHealth>({
-    overallScore: 0,
-    autoPublishRate: 0,
-    reviewQueue: 0,
-    criticalIssues: 0,
-    lastChecked: new Date().toISOString(),
-  });
+const STATUS_CONFIG = {
+  indexed:         { label:"Indexed",          color:"#2D5A3D", bg:"rgba(45,90,61,0.1)",   border:"rgba(45,90,61,0.25)" },
+  submitted:       { label:"Submitted",         color:"#C49A2A", bg:"rgba(196,154,42,0.1)", border:"rgba(196,154,42,0.25)" },
+  not_indexed:     { label:"Not Indexed",       color:"#C8322B", bg:"rgba(200,50,43,0.1)",  border:"rgba(200,50,43,0.25)" },
+  error:           { label:"Error",             color:"#C8322B", bg:"rgba(200,50,43,0.1)",  border:"rgba(200,50,43,0.25)" },
+  never_submitted: { label:"Never Submitted",   color:"#78716C", bg:"rgba(120,113,108,0.1)",border:"rgba(120,113,108,0.2)" },
+};
 
-  const [articleSEO, setArticleSEO] = useState<ArticleSEO[]>([]);
-  const [crawlResults, setCrawlResults] = useState<CrawlResult[]>([]);
-  const [isCrawling, setIsCrawling] = useState(false);
-  const [crawlProgress, setCrawlProgress] = useState(0);
-  const [indexingStats, setIndexingStats] = useState<IndexingStats | null>(null);
-  const [indexingHistory, setIndexingHistory] = useState<IndexingReport[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const HEALTH_CONFIG = {
+  healthy:     { color:"#2D5A3D", bg:"rgba(45,90,61,0.08)",   icon: CheckCircle,    label:"Healthy" },
+  warning:     { color:"#C49A2A", bg:"rgba(196,154,42,0.08)", icon: AlertTriangle,  label:"Warning" },
+  critical:    { color:"#C8322B", bg:"rgba(200,50,43,0.08)",  icon: XCircle,        label:"Critical" },
+  not_started: { color:"#78716C", bg:"rgba(120,113,108,0.08)",icon: Clock,          label:"Not Started" },
+};
 
-  useEffect(() => {
-    loadSEOData();
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default function IndexingCenter() {
+  const [data, setData] = useState<IndexingData | null>(null);
+  const [stats, setStats] = useState<IndexingStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [tab, setTab] = useState<"overview"|"articles"|"activity"|"issues"|"audit">("overview");
+  const [filter, setFilter] = useState<"all"|"indexed"|"submitted"|"not_indexed"|"never_submitted"|"error">("all");
+  const [search, setSearch] = useState("");
+  const [expandedIssues, setExpandedIssues] = useState<string[]>([]);
+  const [auditResult, setAuditResult] = useState<null|{ passed: number; failed: number; avgScore: number; autoFixed: number; issues: Array<{ url: string; issues: string[] }> }>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [complianceOpen, setComplianceOpen] = useState(false);
+  // Comprehensive compliance audit state (batched)
+  const [complianceResult, setComplianceResult] = useState<null|{
+    averageCompliance: number;
+    articlesAudited: number;
+    fullComplianceCount: number;
+    standardsVersion: string;
+    totalArticles: number;
+    results: Array<{ slug: string; title: string; compliancePercent: number; passed: number; total: number; blockers: number; warnings: number }>;
+  }>(null);
+  const [complianceAuditLoading, setComplianceAuditLoading] = useState(false);
+  const [auditProgress, setAuditProgress] = useState<{ audited: number; total: number; batch: number; totalBatches: number } | null>(null);
+  const [fixingAll, setFixingAll] = useState(false);
+  const [fixProgress, setFixProgress] = useState<{ fixed: number; total: number } | null>(null);
+  const abortRef = useRef(false);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/content-indexing");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setData(json);
+    } catch (e) {
+      toast.error("Failed to load indexing data");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const loadSEOData = async () => {
-    setIsLoading(true);
+  const fetchStats = useCallback(async () => {
     try {
-      // Fetch SEO overview from real API
-      const overviewRes = await fetch("/api/admin/seo?type=overview");
-      if (overviewRes.ok) {
-        const data = await overviewRes.json();
-        setSeoHealth({
-          overallScore: data.averageScore || 0,
-          autoPublishRate: data.autoPublishRate || 0,
-          reviewQueue: data.reviewQueue || 0,
-          criticalIssues: data.criticalIssues || 0,
-          lastChecked: new Date().toISOString(),
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load SEO overview:", error);
-    }
-
-    try {
-      // Fetch article SEO data from real content API
-      const contentRes = await fetch("/api/admin/content?limit=20");
-      if (contentRes.ok) {
-        const contentData = await contentRes.json();
-        const posts = contentData.data || [];
-        setArticleSEO(
-          posts.map((p: any) => {
-            const issues: string[] = [];
-            if (!p.meta_title_en) issues.push("Missing meta title");
-            if (!p.meta_description_en) issues.push("Missing meta description");
-            if (!p.featured_image) issues.push("Missing featured image");
-
-            return {
-              id: p.id,
-              title: p.title_en || p.title_ar || "Untitled",
-              url: `/blog/${p.slug}`,
-              seoScore: p.seo_score || 0,
-              keywords: p.tags || [],
-              issues,
-              lastAudit: p.updated_at
-                ? new Date(p.updated_at).toLocaleDateString()
-                : "Never",
-            };
-          }),
-        );
-      }
-    } catch (error) {
-      console.error("Failed to load article SEO data:", error);
-    }
-
-    // Fetch indexing stats and history
-    try {
-      const [statsRes, historyRes] = await Promise.all([
-        fetch("/api/admin/seo/indexing?type=stats"),
-        fetch("/api/admin/seo/indexing?type=history&limit=10"),
-      ]);
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setIndexingStats(statsData.stats || null);
-      }
-      if (historyRes.ok) {
-        const historyData = await historyRes.json();
-        setIndexingHistory(historyData.reports || []);
-      }
-    } catch (error) {
-      console.error("Failed to load indexing data:", error);
-    }
-
-    setIsLoading(false);
-  };
-
-  const submitAllForIndexing = async () => {
-    setIsSubmitting(true);
-    try {
-      const res = await fetch("/api/seo/check-and-index?submit_all=true");
-      if (res.ok) {
-        const data = await res.json();
-        toast.success(
-          `Submitted ${data.submission?.googleApi?.submitted || 0} pages to Google Indexing API`,
-        );
-        // Reload data to show new submission in history
-        loadSEOData();
-      } else {
-        toast.error("Indexing submission failed");
-      }
-    } catch (error) {
-      toast.error("Failed to submit for indexing");
+      const res = await fetch("/api/admin/seo/indexing");
+      if (!res.ok) return;
+      const json = await res.json();
+      setStats(json.stats ?? null);
     } finally {
-      setIsSubmitting(false);
+      setStatsLoading(false);
     }
-  };
+  }, []);
 
-  const runIndexingAudit = async () => {
-    setIsSubmitting(true);
+  useEffect(() => { fetchData(); fetchStats(); }, [fetchData, fetchStats]);
+
+  const doAction = async (action: string, payload?: Record<string, unknown>) => {
+    setActionLoading(action);
     try {
-      const res = await fetch("/api/seo/check-and-index?limit=8");
-      if (res.ok) {
-        const data = await res.json();
-        toast.success(
-          `Inspected ${data.summary?.inspected || 0} pages: ${data.summary?.indexed || 0} indexed, ${data.summary?.notIndexed || 0} not indexed`,
-        );
-        loadSEOData();
-      } else {
-        toast.error("Indexing audit failed");
+      // refresh_stats just re-fetches without hitting the API
+      if (action === "refresh_stats") {
+        await fetchData();
+        await fetchStats();
+        toast.success("Stats refreshed");
+        setActionLoading(null);
+        return;
       }
-    } catch (error) {
-      toast.error("Failed to run indexing audit");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const startCrawl = async () => {
-    setIsCrawling(true);
-    setCrawlProgress(0);
-
-    try {
-      // Call real SEO crawler API
-      const res = await fetch("/api/admin/seo/crawler", {
+      // run_seo_cron calls the cron endpoint directly
+      if (action === "run_seo_cron") {
+        const res = await fetch("/api/admin/run-all-crons", { method: "POST" });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Cron failed");
+        toast.success(json.message || "SEO Agent triggered");
+        await fetchData();
+        setActionLoading(null);
+        return;
+      }
+      const res = await fetch("/api/admin/content-indexing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "crawl" }),
+        body: JSON.stringify({ action, ...payload }),
       });
-
-      if (res.ok) {
-        const data = await res.json();
-        setCrawlProgress(100);
-        if (data.results) {
-          setCrawlResults(
-            data.results.map((r: any) => ({
-              url: r.url,
-              status:
-                r.score >= 80 ? "success" : r.score >= 50 ? "warning" : "error",
-              issues: r.issues || [],
-              score: r.score || 0,
-              lastCrawled: new Date().toISOString(),
-            })),
-          );
-        }
-        toast.success("SEO crawl completed!");
-      } else {
-        // Fallback: generate crawl results from quick-fixes
-        const qfRes = await fetch("/api/admin/seo?type=quick-fixes");
-        if (qfRes.ok) {
-          const qfData = await qfRes.json();
-          const fixes = qfData.quickFixes || [];
-          setCrawlResults(
-            fixes.map((f: any) => ({
-              url: `/blog/${f.slug}`,
-              status: f.fixes.length > 0 ? "warning" : "success",
-              issues: f.fixes.map((fix: string) => fix.replace(/_/g, " ")),
-              score: Math.max(0, 100 - f.fixes.length * 15),
-              lastCrawled: new Date().toISOString(),
-            })),
-          );
-        }
-        setCrawlProgress(100);
-        toast.success("SEO analysis completed!");
-      }
-    } catch (error) {
-      toast.error("SEO crawl failed");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Action failed");
+      toast.success(json.message || "Done");
+      await fetchData();
+    } catch (e: any) {
+      toast.error(e.message || "Failed");
     } finally {
-      setIsCrawling(false);
+      setActionLoading(null);
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return "text-green-600";
-    if (score >= 70) return "text-yellow-600";
-    return "text-red-600";
-  };
-
-  const getScoreBadge = (score: number) => {
-    if (score >= 90) return <Badge className="bg-green-500">Excellent</Badge>;
-    if (score >= 70) return <Badge className="bg-yellow-500">Good</Badge>;
-    return <Badge className="bg-red-500">Needs Work</Badge>;
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "success":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "warning":
-        return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case "error":
-        return <AlertTriangle className="h-4 w-4 text-red-500" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-400" />;
+  const runAudit = async () => {
+    setAuditLoading(true);
+    try {
+      const res = await fetch("/api/admin/content-indexing", {
+        method: "POST",
+        headers: { "Content-Type":"application/json" },
+        body: JSON.stringify({ action: "compliance_audit" }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setAuditResult(json.result ?? null);
+      setComplianceOpen(true);
+      toast.success("Audit complete");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setAuditLoading(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-900">
-            Loading SEO Data...
-          </h2>
+  // Filtered articles
+  const filteredArticles = (data?.articles ?? []).filter(a => {
+    if (filter !== "all" && a.indexingStatus !== filter) return false;
+    if (search && !a.title.toLowerCase().includes(search.toLowerCase()) && !a.url.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const TABS = [
+    { id:"overview",  label:"Overview",  icon:BarChart3 },
+    { id:"articles",  label:"Articles",  icon:FileText, badge: data?.summary?.neverSubmitted ?? 0 },
+    { id:"activity",  label:"Activity",  icon:Activity },
+    { id:"issues",    label:"Issues",    icon:AlertTriangle, badge: data?.systemIssues?.filter(i=>i.severity==="critical").length ?? 0 },
+    { id:"audit",     label:"SEO Audit", icon:CheckSquare },
+  ] as const;
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="text-center">
+        <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+             style={{ backgroundColor:"var(--neu-bg,#EDE9E1)", boxShadow:"var(--neu-raised)" }}>
+          <Loader2 size={24} className="animate-spin" style={{ color:"#C8322B" }} />
         </div>
+        <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", textTransform:"uppercase", letterSpacing:2 }}>
+          Loading Indexing Center
+        </p>
       </div>
-    );
-  }
+    </div>
+  );
+
+  const healthCfg = data ? HEALTH_CONFIG[data.healthDiagnosis.status] : HEALTH_CONFIG.not_started;
+  const HealthIcon = healthCfg.icon;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <Search className="h-8 w-8 text-yellow-500" />
-                SEO Command Center
-              </h1>
-              <p className="text-gray-600 mt-1">
-                Monitor SEO health, article scores, and optimization
-              </p>
+    <div className="space-y-4 max-w-7xl mx-auto">
+
+      {/* ── Page Header ─────────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:24, color:"#1C1917", letterSpacing:-0.5 }}>
+            Indexing Center
+          </h1>
+          <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:12, color:"#78716C", letterSpacing:0, marginTop:2 }}>
+            مركز الفهرسة
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button onClick={() => { setLoading(true); fetchData(); fetchStats(); }}
+                  className="p-2.5 rounded-xl transition-all"
+                  style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)", color:"#78716C" }}>
+            <RefreshCw size={15} />
+          </button>
+          <button onClick={() => doAction("submit_all")} disabled={!!actionLoading}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl transition-all"
+                  style={{ backgroundColor:"#C8322B", color:"#FAF8F4", fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, boxShadow:"4px 4px 10px rgba(200,50,43,0.3)", opacity: actionLoading?"0.7":"1" }}>
+            {actionLoading==="submit_all" ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+            Submit All
+          </button>
+        </div>
+      </div>
+
+      {/* ── Config Warnings ─────────────────────────────────────────── */}
+      {data && (!data.config.hasIndexNowKey || !data.config.hasGscCredentials) && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl"
+             style={{ backgroundColor:"rgba(196,154,42,0.08)", border:"1px solid rgba(196,154,42,0.25)" }}>
+          <AlertTriangle size={16} style={{ color:"#C49A2A", flexShrink:0, marginTop:1 }} />
+          <div>
+            <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#C49A2A", textTransform:"uppercase", letterSpacing:1 }}>
+              Configuration Incomplete
             </div>
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={startCrawl}
-                disabled={isCrawling}
-                className="bg-yellow-500 hover:bg-yellow-600"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 mr-2 ${isCrawling ? "animate-spin" : ""}`}
-                />
-                {isCrawling ? "Analyzing..." : "Run SEO Analysis"}
-              </Button>
-              <Button variant="outline" onClick={loadSEOData}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
+            <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#78716C", marginTop:3, lineHeight:1.6 }}>
+              {!data.config.hasIndexNowKey && "· INDEXNOW_KEY missing — IndexNow submission disabled. "}
+              {!data.config.hasGscCredentials && "· GSC credentials missing — Google Search Console disabled."}
+            </div>
+            <Link href="/admin/command-center/settings/api-keys"
+                  style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#4A7BA8", textDecoration:"underline", marginTop:4, display:"inline-block" }}>
+              Configure API Keys →
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* ── Health Diagnosis Card ────────────────────────────────────── */}
+      {data && (
+        <div className="neu-card" style={{ borderLeft:`4px solid ${healthCfg.color}` }}>
+          <div className="flex items-start gap-4">
+            <div style={{ width:50, height:50, borderRadius:"50%", backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)", display:"flex", alignItems:"center", justifyContent:"center", color: healthCfg.color, flexShrink:0 }}>
+              <HealthIcon size={22} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <span style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:18, color:"#1C1917" }}>
+                  {data.healthDiagnosis.message}
+                </span>
+                <span className="neu-badge" style={{ backgroundColor: healthCfg.bg, color: healthCfg.color, border:`1px solid ${healthCfg.color}33` }}>
+                  {healthCfg.label}
+                </span>
+              </div>
+              <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", marginTop:6, lineHeight:1.6 }}>
+                {data.healthDiagnosis.detail}
+              </p>
+              {/* Progress */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="neu-section-label">Indexing Progress</span>
+                  <span style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:14, color: healthCfg.color }}>
+                    {data.healthDiagnosis.indexingRate}%
+                  </span>
+                </div>
+                <div className="relative rounded-full overflow-hidden"
+                     style={{ height:12, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                  <div className="h-full rounded-full transition-all duration-700"
+                       style={{ width:`${data.healthDiagnosis.indexingRate}%`, backgroundColor: healthCfg.color }} />
+                </div>
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Summary KPI Row ─────────────────────────────────────────── */}
+      {data && (
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          {[
+            { label:"Total",          val: data.summary.total,          color:"#1C1917" },
+            { label:"Indexed",        val: data.summary.indexed,        color:"#2D5A3D" },
+            { label:"Submitted",      val: data.summary.submitted,      color:"#C49A2A" },
+            { label:"Not Indexed",    val: data.summary.notIndexed,     color:"#C8322B" },
+            { label:"Never Sent",     val: data.summary.neverSubmitted, color:"#78716C" },
+            { label:"Errors",         val: data.summary.errors,         color:"#C8322B" },
+          ].map(({ label, val, color }) => (
+            <div key={label} className="text-center p-3 rounded-xl"
+                 style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
+              <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:22, color }}>{val}</div>
+              <div className="neu-section-label mt-0.5">{label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Tabs ────────────────────────────────────────────────────── */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          const badge = "badge" in t && (t.badge as number) > 0 ? t.badge : null;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id as typeof tab)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl transition-all flex-shrink-0"
+                    style={{
+                      backgroundColor:"var(--neu-bg)",
+                      boxShadow: active ? "var(--neu-inset)" : "var(--neu-flat)",
+                      fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight: active?600:500,
+                      textTransform:"uppercase", letterSpacing:1,
+                      color: active ? "#C8322B" : "#78716C",
+                    }}>
+              <Icon size={13} />
+              {t.label}
+              {badge && badge > 0 && (
+                <span style={{ backgroundColor:"#C8322B", color:"#FAF8F4", borderRadius:9999, padding:"1px 5px", fontSize:8, fontWeight:700 }}>
+                  {badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* SEO Health Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-yellow-100 text-sm">Avg SEO Score</p>
-                  <p className="text-3xl font-bold">
-                    {seoHealth.overallScore}/100
-                  </p>
-                </div>
-                <BarChart3 className="h-8 w-8 text-yellow-200" />
-              </div>
-            </CardContent>
-          </Card>
+      {/* ════════════════════════════════════════════════════════════════
+          TAB: OVERVIEW
+          ════════════════════════════════════════════════════════════════ */}
+      {tab === "overview" && (
+        <div className="space-y-4">
+          {/* Quick Actions */}
+          <div className="neu-card">
+            <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:16, color:"#1C1917" }} className="mb-1">
+              Submission Actions
+            </div>
+            <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:11, color:"#78716C", letterSpacing:0 }} className="mb-4">
+              إجراءات التقديم
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { id:"submit_all",          label:"Submit All",           desc:"Submit every unindexed URL",     icon:Send,        color:"#C8322B" },
+                { id:"run_seo_cron",        label:"Run SEO Agent",        desc:"Run indexing & discovery cron",  icon:Play,        color:"#4A7BA8" },
+                { id:"compliance_audit",    label:"SEO Audit",            desc:"Audit all pages for compliance", icon:CheckSquare, color:"#C49A2A", custom: runAudit },
+                { id:"refresh_stats",       label:"Refresh Stats",        desc:"Pull fresh from database",       icon:RefreshCw,   color:"#2D5A3D" },
+              ].map((a) => {
+                const Icon = a.icon;
+                const running = actionLoading === a.id || (a.id==="compliance_audit" && auditLoading);
+                return (
+                  <button key={a.id}
+                          onClick={() => a.custom ? a.custom() : doAction(a.id)}
+                          disabled={!!actionLoading || auditLoading}
+                          className="flex flex-col items-center gap-2 p-4 rounded-xl text-center transition-all"
+                          style={{ backgroundColor:"var(--neu-bg)", boxShadow: running?"var(--neu-inset)":"var(--neu-raised)", cursor:(actionLoading||auditLoading)?"not-allowed":"pointer", opacity:(actionLoading||auditLoading)&&!running?0.5:1 }}>
+                    <div style={{ width:40, height:40, borderRadius:"50%", backgroundColor: a.color, display:"flex", alignItems:"center", justifyContent:"center", color:"#FAF8F4", boxShadow:`2px 2px 8px ${a.color}44` }}>
+                      {running ? <Loader2 size={16} className="animate-spin" /> : <Icon size={16} />}
+                    </div>
+                    <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1, color:"#1C1917" }}>
+                      {running ? "Running…" : a.label}
+                    </div>
+                    <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>{a.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm">Auto-Publish Rate</p>
-                  <p className="text-3xl font-bold">
-                    {seoHealth.autoPublishRate}%
-                  </p>
-                </div>
-                <Zap className="h-8 w-8 text-green-200" />
+          {/* Stats Timeline */}
+          {stats && stats.timeline && stats.timeline.length > 0 && (
+            <div className="neu-card">
+              <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:16, color:"#1C1917" }} className="mb-4">
+                Submission Timeline
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm">Review Queue</p>
-                  <p className="text-3xl font-bold">{seoHealth.reviewQueue}</p>
-                </div>
-                <Globe className="h-8 w-8 text-blue-200" />
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {stats.timeline.slice(0, 20).map((t, i) => (
+                  <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                       style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
+                    <div style={{ width:6, height:6, borderRadius:"50%", backgroundColor: t.googleStatus==="success"?"#2D5A3D":"#C49A2A", flexShrink:0 }} />
+                    <div className="flex-1 min-w-0">
+                      <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#1C1917" }}>
+                        {new Date(t.date).toLocaleDateString()} · {t.mode}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <div className="text-center">
+                        <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:12, color:"#4A7BA8" }}>{t.googleSubmitted}</div>
+                        <div className="neu-section-label" style={{ fontSize:7 }}>Google</div>
+                      </div>
+                      <div className="text-center">
+                        <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:12, color:"#C49A2A" }}>{t.indexNowSubmitted}</div>
+                        <div className="neu-section-label" style={{ fontSize:7 }}>IndexNow</div>
+                      </div>
+                      <div className="text-center">
+                        <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:12, color:"#1C1917" }}>{t.totalPages}</div>
+                        <div className="neu-section-label" style={{ fontSize:7 }}>Total</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm">Critical Issues</p>
-                  <p className="text-3xl font-bold">
-                    {seoHealth.criticalIssues}
-                  </p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-purple-200" />
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          )}
         </div>
+      )}
 
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="indexing">Indexing Monitor</TabsTrigger>
-            <TabsTrigger value="articles">Article SEO</TabsTrigger>
-            <TabsTrigger value="crawl">Analysis Results</TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-yellow-500" />
-                    SEO Health Status
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span>Average SEO Score</span>
-                    <div className="flex items-center gap-2">
-                      <Progress
-                        value={seoHealth.overallScore}
-                        className="w-20"
-                      />
-                      <span className={getScoreColor(seoHealth.overallScore)}>
-                        {seoHealth.overallScore}/100
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Auto-Publish Rate</span>
-                    <div className="flex items-center gap-2">
-                      <Progress
-                        value={seoHealth.autoPublishRate}
-                        className="w-20"
-                      />
-                      <span
-                        className={getScoreColor(seoHealth.autoPublishRate)}
-                      >
-                        {seoHealth.autoPublishRate}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Articles in Review Queue</span>
-                    <span className="font-bold">{seoHealth.reviewQueue}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Critical Issues</span>
-                    <span
-                      className={`font-bold ${seoHealth.criticalIssues > 0 ? "text-red-600" : "text-green-600"}`}
-                    >
-                      {seoHealth.criticalIssues}
-                    </span>
-                  </div>
-                  <div className="pt-4 border-t">
-                    <p className="text-sm text-gray-600">
-                      Last checked:{" "}
-                      {new Date(seoHealth.lastChecked).toLocaleString()}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-yellow-500" />
-                    Article Score Distribution
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span>Total Articles</span>
-                      <span className="font-bold text-2xl">
-                        {articleSEO.length}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Score 90+</span>
-                      <span className="font-bold text-green-600">
-                        {articleSEO.filter((a) => a.seoScore >= 90).length}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Score 70-89</span>
-                      <span className="font-bold text-yellow-600">
-                        {
-                          articleSEO.filter(
-                            (a) => a.seoScore >= 70 && a.seoScore < 90,
-                          ).length
-                        }
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Score &lt; 70</span>
-                      <span className="font-bold text-red-600">
-                        {articleSEO.filter((a) => a.seoScore < 70).length}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>With Issues</span>
-                      <span className="font-bold text-orange-600">
-                        {articleSEO.filter((a) => a.issues.length > 0).length}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Indexing Monitor Tab */}
-          <TabsContent value="indexing" className="space-y-6">
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <Button
-                onClick={submitAllForIndexing}
-                disabled={isSubmitting}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                {isSubmitting ? (
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Zap className="h-4 w-4 mr-2" />
-                )}
-                Submit All Pages
-              </Button>
-              <Button
-                onClick={runIndexingAudit}
-                disabled={isSubmitting}
-                variant="outline"
-              >
-                {isSubmitting ? (
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Search className="h-4 w-4 mr-2" />
-                )}
-                Check Index Status
-              </Button>
-            </div>
-
-            {/* Current Status Cards */}
-            {indexingStats && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="text-sm text-gray-500">Total Pages</div>
-                    <div className="text-2xl font-bold">
-                      {indexingStats.latestSnapshot?.totalPages || "—"}
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="text-sm text-gray-500">Confirmed Indexed</div>
-                    <div className="text-2xl font-bold text-green-600">
-                      {indexingStats.latestSnapshot?.indexed ?? "—"}
-                    </div>
-                    {indexingStats.latestSnapshot && (
-                      <div className="text-xs text-gray-400">
-                        of {indexingStats.latestSnapshot.inspected} inspected
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="text-sm text-gray-500">Not Indexed</div>
-                    <div className="text-2xl font-bold text-red-600">
-                      {indexingStats.latestSnapshot?.notIndexed ?? "—"}
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="text-sm text-gray-500">Total Submitted</div>
-                    <div className="text-2xl font-bold text-blue-600">
-                      {indexingStats.totalGoogleSubmitted}
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      via Google Indexing API
-                    </div>
-                  </CardContent>
-                </Card>
+      {/* ════════════════════════════════════════════════════════════════
+          TAB: ARTICLES
+          ════════════════════════════════════════════════════════════════ */}
+      {tab === "articles" && (
+        <div className="space-y-4">
+          {/* Filter + Search Bar */}
+          <div className="neu-card p-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* Search */}
+              <div className="flex-1 relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color:"#78716C" }} />
+                <input
+                  value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder="Search articles..."
+                  className="neu-input pl-9"
+                  style={{ fontSize:11 }}
+                />
               </div>
-            )}
+              {/* Status filter */}
+              <div className="flex gap-1.5 flex-wrap">
+                {(["all","indexed","submitted","not_indexed","never_submitted","error"] as const).map((f) => (
+                  <button key={f} onClick={() => setFilter(f)}
+                          className="px-3 py-2 rounded-lg transition-all"
+                          style={{ backgroundColor:"var(--neu-bg)", boxShadow: filter===f?"var(--neu-inset)":"var(--neu-flat)", fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight: filter===f?600:400, textTransform:"uppercase", letterSpacing:0.8, color: filter===f?"#C8322B":"#78716C" }}>
+                    {f === "all" ? `All (${data?.articles?.length ?? 0})` : f === "not_indexed" ? `Not Indexed (${data?.summary?.notIndexed ?? 0})` : f === "never_submitted" ? `Never Sent (${data?.summary?.neverSubmitted ?? 0})` : f}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
 
-            {/* Latest Submission Result */}
-            {indexingStats?.latestSubmissionResult && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Zap className="h-5 w-5 text-yellow-500" />
-                    Latest Submission
-                    {indexingStats.lastSubmission && (
-                      <span className="text-sm font-normal text-gray-500 ml-2">
-                        {new Date(indexingStats.lastSubmission).toLocaleString()}
-                      </span>
-                    )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">Google Indexing API</span>
-                        <Badge
-                          className={
-                            indexingStats.latestSubmissionResult.googleApi.status === "success"
-                              ? "bg-green-500"
-                              : "bg-red-500"
-                          }
-                        >
-                          {indexingStats.latestSubmissionResult.googleApi.status}
-                        </Badge>
+          {/* Bulk action */}
+          <div className="flex items-center gap-2">
+            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#78716C" }}>
+              {filteredArticles.length} articles
+            </span>
+            {filter === "never_submitted" && filteredArticles.length > 0 && (
+              <button onClick={() => doAction("submit_all")} disabled={!!actionLoading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
+                      style={{ backgroundColor:"#C8322B", color:"#FAF8F4", fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>
+                {actionLoading==="submit_all" ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+                Submit All ({filteredArticles.length})
+              </button>
+            )}
+          </div>
+
+          {/* Article list */}
+          <div className="space-y-2">
+            {filteredArticles.length === 0 ? (
+              <div className="neu-card text-center py-12">
+                <FileText size={28} className="mx-auto mb-3 opacity-20" style={{ color:"#78716C" }} />
+                <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", textTransform:"uppercase", letterSpacing:1 }}>
+                  No articles match
+                </p>
+              </div>
+            ) : (
+              filteredArticles.map((article) => {
+                const sc = STATUS_CONFIG[article.indexingStatus];
+                const scoreColor = article.seoScore >= 70 ? "#2D5A3D" : article.seoScore >= 40 ? "#C49A2A" : "#C8322B";
+                return (
+                  <div key={article.id} className="neu-card" style={{ padding:"16px 20px" }}>
+                    <div className="flex items-start gap-3">
+                      {/* Status dot */}
+                      <div style={{ width:8, height:8, borderRadius:"50%", backgroundColor: sc.color, marginTop:5, flexShrink:0 }} />
+
+                      {/* Main content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:13, color:"#1C1917" }} className="truncate">
+                              {article.title}
+                            </div>
+                            <a href={article.url} target="_blank" rel="noopener noreferrer"
+                               style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#4A7BA8", textDecoration:"none" }}
+                               className="flex items-center gap-1 mt-0.5 hover:underline truncate">
+                              {article.url} <ExternalLink size={9} />
+                            </a>
+                          </div>
+                          {/* Actions */}
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className="neu-badge" style={{ backgroundColor: sc.bg, color: sc.color, border:`1px solid ${sc.border}`, fontSize:8 }}>
+                              {sc.label}
+                            </span>
+                            {article.indexingStatus !== "indexed" && (
+                              <button onClick={() => doAction("submit", { slugs: [article.slug] })}
+                                      disabled={!!actionLoading}
+                                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg"
+                                      style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-raised)", fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, textTransform:"uppercase", letterSpacing:0.8, color:"#C8322B", cursor: actionLoading?"not-allowed":"pointer" }}>
+                                {actionLoading === "submit" ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
+                                {article.submissionAttempts > 0 ? "Resubmit" : "Submit"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Metadata row */}
+                        <div className="flex items-center gap-3 mt-2 flex-wrap">
+                          <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color: scoreColor }}>
+                            SEO {article.seoScore}
+                          </span>
+                          <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>
+                            {article.wordCount.toLocaleString()} words
+                          </span>
+                          {article.submittedAt && (
+                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>
+                              Sent {timeAgo(article.submittedAt)}
+                            </span>
+                          )}
+                          {article.lastCrawledAt && (
+                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>
+                              Crawled {timeAgo(article.lastCrawledAt)}
+                            </span>
+                          )}
+                          {article.submissionAttempts > 0 && (
+                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>
+                              {article.submissionAttempts} attempts
+                            </span>
+                          )}
+                          {article.submittedIndexnow && <span className="neu-badge" style={{ backgroundColor:"rgba(74,123,168,0.1)", color:"#4A7BA8", border:"1px solid rgba(74,123,168,0.2)", fontSize:7 }}>IndexNow</span>}
+                          {article.submittedSitemap && <span className="neu-badge" style={{ backgroundColor:"rgba(45,90,61,0.1)", color:"#2D5A3D", border:"1px solid rgba(45,90,61,0.2)", fontSize:7 }}>Sitemap</span>}
+                        </div>
+
+                        {/* Indexing notes — only appear for non-indexed articles */}
+                        {article.notIndexedReasons && article.notIndexedReasons.length > 0 && (
+                          <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor:"rgba(200,50,43,0.04)", border:"1px solid rgba(200,50,43,0.12)" }}>
+                            <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, color:"#C8322B", textTransform:"uppercase", letterSpacing:1, marginBottom:4 }}>
+                              {article.indexingStatus === "submitted" ? "Pending — Notes:" : "Not Indexed — Reasons:"}
+                            </div>
+                            {article.notIndexedReasons.map((r, i) => (
+                              <div key={i} style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#78716C", lineHeight:1.6 }}>
+                                · {r}
+                              </div>
+                            ))}
+                            {article.fixAction && (
+                              <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#4A7BA8", marginTop:4 }}>
+                                → Fix: {article.fixAction}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="text-2xl font-bold">
-                        {indexingStats.latestSubmissionResult.googleApi.submitted} submitted
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════
+          TAB: ACTIVITY
+          ════════════════════════════════════════════════════════════════ */}
+      {tab === "activity" && (
+        <div className="space-y-3">
+          <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:16, color:"#1C1917" }}>Recent Indexing Activity</div>
+          {!data?.recentActivity || data.recentActivity.length === 0 ? (
+            <div className="neu-card text-center py-12">
+              <Activity size={28} className="mx-auto mb-3 opacity-20" style={{ color:"#78716C" }} />
+              <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", textTransform:"uppercase", letterSpacing:1 }}>No activity recorded yet</p>
+            </div>
+          ) : (
+            data.recentActivity.map((a, i) => {
+              const ok = a.status === "success";
+              return (
+                <div key={i} className="neu-card" style={{ padding:"16px 20px" }}>
+                  <div className="flex items-start gap-3">
+                    <div style={{ width:8, height:8, borderRadius:"50%", backgroundColor: ok?"#2D5A3D":"#C8322B", marginTop:5, flexShrink:0 }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:0.5 }}>
+                          {a.jobName}
+                        </span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="neu-badge" style={{ backgroundColor: ok?"rgba(45,90,61,0.1)":"rgba(200,50,43,0.1)", color: ok?"#2D5A3D":"#C8322B", border:`1px solid ${ok?"rgba(45,90,61,0.25)":"rgba(200,50,43,0.25)"}` }}>
+                            {a.status}
+                          </span>
+                        </div>
                       </div>
-                      {indexingStats.latestSubmissionResult.googleApi.failed > 0 && (
-                        <div className="text-sm text-red-600">
-                          {indexingStats.latestSubmissionResult.googleApi.failed} failed
+                      <div className="flex items-center gap-4 mt-2 flex-wrap">
+                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>{timeAgo(a.startedAt)}</span>
+                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>{a.itemsSucceeded}/{a.itemsProcessed} items</span>
+                        {a.durationMs > 0 && <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>{(a.durationMs/1000).toFixed(1)}s</span>}
+                      </div>
+                      {a.errorMessage && (
+                        <div className="mt-2 p-2 rounded-lg" style={{ backgroundColor:"rgba(200,50,43,0.05)", border:"1px solid rgba(200,50,43,0.12)" }}>
+                          <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#C8322B" }}>{a.errorMessage}</p>
                         </div>
                       )}
                     </div>
-                    <div className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">IndexNow (Bing/Yandex)</span>
-                        <Badge
-                          className={
-                            indexingStats.latestSubmissionResult.indexNow.status === "success"
-                              ? "bg-green-500"
-                              : "bg-yellow-500"
-                          }
-                        >
-                          {indexingStats.latestSubmissionResult.indexNow.status}
-                        </Badge>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════
+          TAB: ISSUES
+          ════════════════════════════════════════════════════════════════ */}
+      {tab === "issues" && (
+        <div className="space-y-3">
+          <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:16, color:"#1C1917" }}>Indexing Issues & Diagnostics</div>
+          {!data?.systemIssues || data.systemIssues.length === 0 ? (
+            <div className="neu-card text-center py-12">
+              <CheckCircle size={28} className="mx-auto mb-3" style={{ color:"#2D5A3D", opacity:0.5 }} />
+              <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#2D5A3D", textTransform:"uppercase", letterSpacing:1 }}>
+                No issues found — all clear
+              </p>
+            </div>
+          ) : (
+            data.systemIssues.map((issue, i) => {
+              const key = `${i}`;
+              const isOpen = expandedIssues.includes(key);
+              const sev = { critical:{ c:"#C8322B", bg:"rgba(200,50,43,0.08)", b:"rgba(200,50,43,0.2)" }, warning:{ c:"#C49A2A", bg:"rgba(196,154,42,0.08)", b:"rgba(196,154,42,0.2)" }, info:{ c:"#4A7BA8", bg:"rgba(74,123,168,0.08)", b:"rgba(74,123,168,0.2)" } }[issue.severity];
+              return (
+                <div key={key} className="rounded-2xl overflow-hidden transition-all"
+                     style={{ backgroundColor:"var(--neu-bg)", boxShadow: isOpen?"var(--neu-raised)":"var(--neu-flat)", border:`1px solid ${sev.b}` }}>
+                  <button className="w-full flex items-center gap-3 p-4 text-left"
+                          onClick={() => setExpandedIssues(prev => prev.includes(key) ? prev.filter(x=>x!==key) : [...prev, key])}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", backgroundColor: sev.c, flexShrink:0 }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="neu-badge" style={{ backgroundColor: sev.bg, color: sev.c, border:`1px solid ${sev.b}`, fontSize:7 }}>
+                          {issue.severity}
+                        </span>
+                        <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C", textTransform:"uppercase", letterSpacing:0.8 }}>
+                          {issue.category}
+                        </span>
                       </div>
-                      <div className="text-2xl font-bold">
-                        {indexingStats.latestSubmissionResult.indexNow.submitted} submitted
+                      <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917", marginTop:3 }}>
+                        {issue.message}
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Submission Timeline */}
-            {indexingStats?.timeline && indexingStats.timeline.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Clock className="h-5 w-5 text-yellow-500" />
-                    Submission History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {indexingStats.timeline.map((entry, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between border-b pb-3 last:border-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          {entry.googleStatus === "success" ? (
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          ) : (
-                            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                          )}
-                          <div>
-                            <div className="font-medium text-sm">
-                              {entry.mode === "submit-all"
-                                ? "Bulk Submit All"
-                                : "Submit Unindexed"}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {new Date(entry.date).toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm">
-                          <div className="text-right">
-                            <span className="font-medium">{entry.googleSubmitted}</span>
-                            <span className="text-gray-500 ml-1">Google</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="font-medium">{entry.indexNowSubmitted}</span>
-                            <span className="text-gray-500 ml-1">IndexNow</span>
-                          </div>
-                          <Badge variant="outline" className="text-xs">
-                            {entry.totalPages} pages
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Detailed Reports */}
-            {indexingHistory.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <FileText className="h-5 w-5 text-yellow-500" />
-                    Detailed Reports
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {indexingHistory.map((report) => (
-                      <div key={report.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              className={
-                                report.type === "indexing_submission"
-                                  ? "bg-blue-500"
-                                  : "bg-gray-500"
-                              }
-                            >
-                              {report.type === "indexing_submission"
-                                ? "Submission"
-                                : "Audit"}
-                            </Badge>
-                            <span className="text-sm text-gray-600">
-                              {new Date(report.date).toLocaleString()}
-                            </span>
-                          </div>
-                          <span className="text-sm text-gray-400">
-                            {report.data.elapsed}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                          <div>
-                            <span className="text-gray-500">Total Pages:</span>{" "}
-                            <span className="font-medium">{report.data.totalPages}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Inspected:</span>{" "}
-                            <span className="font-medium">{report.data.inspected}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Indexed:</span>{" "}
-                            <span className="font-medium text-green-600">
-                              {report.data.indexed}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Not Indexed:</span>{" "}
-                            <span className="font-medium text-red-600">
-                              {report.data.notIndexed}
-                            </span>
-                          </div>
-                        </div>
-
-                        {report.data.submission && (
-                          <div className="mt-3 pt-3 border-t flex gap-4 text-sm">
-                            <div>
-                              Google:{" "}
-                              <span className="font-medium">
-                                {report.data.submission.googleApi.submitted} submitted
-                              </span>
-                              {report.data.submission.googleApi.status !== "success" &&
-                                report.data.submission.googleApi.status !== "skipped" && (
-                                  <Badge variant="destructive" className="ml-2 text-xs">
-                                    {report.data.submission.googleApi.status}
-                                  </Badge>
-                                )}
-                            </div>
-                            <div>
-                              IndexNow:{" "}
-                              <span className="font-medium">
-                                {report.data.submission.indexNow.submitted} submitted
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        {report.data.notIndexedPages &&
-                          report.data.notIndexedPages.length > 0 && (
-                            <div className="mt-3 pt-3 border-t">
-                              <div className="text-sm text-red-600 mb-2">
-                                Not indexed URLs:
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {report.data.notIndexedPages.map((p: any, i: number) => (
-                                  <Badge key={i} variant="outline" className="text-xs">
-                                    {p.label || p.url}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                        {report.data.errors && report.data.errors.length > 0 && (
-                          <div className="mt-3 pt-3 border-t">
-                            <div className="text-sm text-yellow-600 mb-1">
-                              Errors:
-                            </div>
-                            {report.data.errors.slice(0, 3).map((err: string, i: number) => (
-                              <div key={i} className="text-xs text-gray-500">
-                                {err}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Empty State */}
-            {!indexingStats && indexingHistory.length === 0 && (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Globe className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    No Indexing Data Yet
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    Run an indexing audit or submit your pages to start tracking.
-                  </p>
-                  <div className="flex justify-center gap-3">
-                    <Button
-                      onClick={runIndexingAudit}
-                      disabled={isSubmitting}
-                      variant="outline"
-                    >
-                      <Search className="h-4 w-4 mr-2" />
-                      Check Index Status
-                    </Button>
-                    <Button
-                      onClick={submitAllForIndexing}
-                      disabled={isSubmitting}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <Zap className="h-4 w-4 mr-2" />
-                      Submit All Pages
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* Article SEO Tab */}
-          <TabsContent value="articles" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-yellow-500" />
-                  Article SEO Scores
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {articleSEO.length === 0 ? (
-                  <div className="text-center py-12">
-                    <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No Articles Yet
-                    </h3>
-                    <p className="text-gray-600">
-                      Create articles to see their SEO scores here.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {articleSEO.map((article) => (
-                      <div key={article.id} className="border rounded-lg p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg mb-2">
-                              {article.title}
-                            </h3>
-                            <div className="text-sm text-gray-600 mb-2">
-                              URL: {article.url}
-                            </div>
-                            {article.keywords.length > 0 && (
-                              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                <span className="text-sm">Tags:</span>
-                                {article.keywords.slice(0, 5).map((keyword) => (
-                                  <Badge
-                                    key={keyword}
-                                    variant="outline"
-                                    className="text-xs"
-                                  >
-                                    {keyword}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-                            {article.issues.length > 0 && (
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm text-red-600">
-                                  Issues:
-                                </span>
-                                {article.issues.map((issue) => (
-                                  <Badge
-                                    key={issue}
-                                    variant="destructive"
-                                    className="text-xs"
-                                  >
-                                    {issue}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <div className="text-right">
-                              <div
-                                className={`text-2xl font-bold ${getScoreColor(article.seoScore)}`}
-                              >
-                                {article.seoScore}/100
-                              </div>
-                              {getScoreBadge(article.seoScore)}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              Updated: {article.lastAudit}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Crawl Results Tab */}
-          <TabsContent value="crawl" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-yellow-500" />
-                  SEO Analysis Results
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isCrawling ? (
-                  <div className="space-y-4">
-                    <div className="text-center">
-                      <RefreshCw className="h-8 w-8 animate-spin text-yellow-500 mx-auto mb-4" />
-                      <p className="text-gray-600">Analyzing your website...</p>
-                      <Progress value={crawlProgress} className="mt-4" />
-                      <p className="text-sm text-gray-500 mt-2">
-                        {crawlProgress}% complete
+                    <ChevronDown size={14} style={{ color:"#78716C", flexShrink:0, transform: isOpen?"rotate(180deg)":undefined, transition:"transform 200ms" }} />
+                  </button>
+                  {isOpen && (
+                    <div className="px-4 pb-4 pt-0" style={{ borderTop:`1px solid ${sev.b}` }}>
+                      <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", lineHeight:1.7, paddingTop:12 }}>
+                        {issue.detail}
                       </p>
-                    </div>
-                  </div>
-                ) : crawlResults.length > 0 ? (
-                  <div className="space-y-4">
-                    {crawlResults.map((result, index) => (
-                      <div key={index} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            {getStatusIcon(result.status)}
-                            <div>
-                              <div className="font-medium">{result.url}</div>
-                              <div className="text-sm text-gray-600">
-                                Analyzed:{" "}
-                                {new Date(result.lastCrawled).toLocaleString()}
-                              </div>
-                            </div>
+                      {issue.fixAction && (
+                        <div className="mt-3 p-3 rounded-xl" style={{ backgroundColor:"rgba(74,123,168,0.06)", border:"1px solid rgba(74,123,168,0.15)" }}>
+                          <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, color:"#4A7BA8", textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>
+                            Recommended Fix:
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`text-lg font-bold ${getScoreColor(result.score)}`}
-                            >
-                              {result.score}/100
-                            </span>
-                            {getScoreBadge(result.score)}
+                          <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#1C1917" }}>{issue.fixAction}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════
+          TAB: SEO AUDIT — Comprehensive 13-Check Compliance
+          ════════════════════════════════════════════════════════════════ */}
+      {tab === "audit" && (
+        <div className="space-y-4">
+          <div className="neu-card">
+            <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:16, color:"#1C1917" }} className="mb-1">
+              SEO Compliance Audit (13 Checks)
+            </div>
+            <div style={{ fontFamily:"'IBM Plex Sans Arabic',sans-serif", fontSize:11, color:"#78716C", letterSpacing:0 }} className="mb-4">
+              تدقيق امتثال تحسين محركات البحث — ١٣ فحص
+            </div>
+            <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, color:"#78716C", lineHeight:1.7, marginBottom:16 }}>
+              Runs all 13 pre-publication gate checks on every published article: route existence, meta title &amp; description,
+              word count, heading hierarchy, internal links, readability, image alt text, author attribution (E-E-A-T),
+              structured data, authenticity signals (Jan 2026 Update), and affiliate links. Reports blockers, warnings,
+              and compliance percentage. Click any article to see its detailed checklist with GSC data.
+            </p>
+            <div className="flex gap-3 flex-wrap">
+              <button onClick={async () => {
+                        setComplianceAuditLoading(true);
+                        setComplianceResult(null);
+                        abortRef.current = false;
+                        const BATCH_SIZE = 10;
+                        let allResults: Array<{ slug: string; title: string; compliancePercent: number; passed: number; total: number; blockers: number; warnings: number }> = [];
+                        let currentOffset = 0;
+                        let totalArticles = 0;
+                        let standardsVersion = "";
+                        let batchNum = 0;
+                        try {
+                          // First batch to discover total
+                          const firstRes = await fetch("/api/admin/seo/article-compliance", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "audit_all", offset: 0, limit: BATCH_SIZE }),
+                          });
+                          const firstJson = await firstRes.json();
+                          if (!firstJson.success) { toast.error(firstJson.error || "Audit failed"); setComplianceAuditLoading(false); return; }
+                          totalArticles = firstJson.totalArticles || firstJson.articlesAudited;
+                          standardsVersion = firstJson.standardsVersion;
+                          allResults = [...firstJson.results];
+                          currentOffset = firstJson.nextOffset ?? totalArticles;
+                          batchNum = 1;
+                          const totalBatches = Math.ceil(totalArticles / BATCH_SIZE);
+                          setAuditProgress({ audited: allResults.length, total: totalArticles, batch: batchNum, totalBatches });
+
+                          // Subsequent batches
+                          while (currentOffset < totalArticles && !abortRef.current) {
+                            batchNum++;
+                            const res = await fetch("/api/admin/seo/article-compliance", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ action: "audit_all", offset: currentOffset, limit: BATCH_SIZE }),
+                            });
+                            const json = await res.json();
+                            if (!json.success) { toast.error(`Batch ${batchNum} failed: ${json.error}`); break; }
+                            allResults = [...allResults, ...json.results];
+                            currentOffset = json.nextOffset ?? totalArticles;
+                            setAuditProgress({ audited: allResults.length, total: totalArticles, batch: batchNum, totalBatches });
+                          }
+
+                          // Calculate aggregate
+                          const avgCompliance = allResults.length > 0
+                            ? Math.round(allResults.reduce((s, r) => s + r.compliancePercent, 0) / allResults.length) : 0;
+                          const fullComplianceCount = allResults.filter(r => r.compliancePercent === 100).length;
+                          const result = {
+                            averageCompliance: avgCompliance,
+                            articlesAudited: allResults.length,
+                            fullComplianceCount,
+                            standardsVersion,
+                            totalArticles,
+                            results: allResults.sort((a, b) => a.compliancePercent - b.compliancePercent),
+                          };
+                          setComplianceResult(result);
+                          toast.success(`Audit complete: ${avgCompliance}% average across ${allResults.length} articles`);
+                        } catch (e: any) {
+                          toast.error(e.message || "Audit failed");
+                        } finally {
+                          setComplianceAuditLoading(false);
+                          setAuditProgress(null);
+                        }
+                      }}
+                      disabled={complianceAuditLoading}
+                      className="flex items-center gap-2 px-5 py-3 rounded-xl transition-all"
+                      style={{ backgroundColor:"#C49A2A", color:"#FAF8F4", fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, boxShadow:"4px 4px 10px rgba(196,154,42,0.3)", opacity: complianceAuditLoading?0.7:1, cursor: complianceAuditLoading?"not-allowed":"pointer" }}>
+                {complianceAuditLoading ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
+                {complianceAuditLoading ? "Auditing All Pages…" : "Run Full Compliance Audit"}
+              </button>
+              {complianceAuditLoading && (
+                <button onClick={() => { abortRef.current = true; }}
+                        className="flex items-center gap-1.5 px-4 py-3 rounded-xl"
+                        style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)", fontFamily:"'IBM Plex Mono',monospace", fontSize:9, fontWeight:600, textTransform:"uppercase", letterSpacing:1, color:"#C8322B" }}>
+                  <XCircle size={14} /> Cancel
+                </button>
+              )}
+              {complianceResult && complianceResult.results.some(r => r.compliancePercent < 100) && (
+                <button onClick={async () => {
+                          setFixingAll(true);
+                          const failingArticles = complianceResult.results.filter(r => r.compliancePercent < 100);
+                          let fixCount = 0;
+                          setFixProgress({ fixed: 0, total: failingArticles.length });
+                          for (let i = 0; i < failingArticles.length; i++) {
+                            const article = failingArticles[i];
+                            try {
+                              // Get article ID first
+                              const checkRes = await fetch(`/api/admin/seo/article-compliance?slug=${encodeURIComponent(article.slug)}`);
+                              if (!checkRes.ok) continue;
+                              const checkData = await checkRes.json();
+                              const res = await fetch("/api/admin/seo/article-compliance", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ action: "auto_fix", articleId: checkData.article.id }),
+                              });
+                              const result = await res.json();
+                              if (result.fixesApplied > 0) fixCount += result.fixesApplied;
+                            } catch (fixErr) {
+                              console.warn(`[seo-dashboard] auto_fix failed for ${article.slug}:`, fixErr instanceof Error ? fixErr.message : fixErr);
+                            }
+                            setFixProgress({ fixed: i + 1, total: failingArticles.length });
+                          }
+                          toast.success(`Applied ${fixCount} auto-fixes across ${failingArticles.length} articles`);
+                          setFixingAll(false);
+                          setFixProgress(null);
+                        }}
+                        disabled={fixingAll}
+                        className="flex items-center gap-2 px-5 py-3 rounded-xl transition-all"
+                        style={{ backgroundColor:"#C8322B", color:"#FAF8F4", fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1.5, boxShadow:"4px 4px 10px rgba(200,50,43,0.3)", opacity: fixingAll?0.7:1, cursor: fixingAll?"not-allowed":"pointer" }}>
+                  {fixingAll ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+                  {fixingAll ? "Fixing Issues…" : "Fix All Issues"}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Batched Audit Progress */}
+          {auditProgress && (
+            <div className="neu-card">
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:1 }}>
+                  Auditing batch {auditProgress.batch} of {auditProgress.totalBatches}
+                </span>
+                <span style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:16, color:"#C49A2A" }}>
+                  {auditProgress.audited}/{auditProgress.total}
+                </span>
+              </div>
+              <div className="relative rounded-full overflow-hidden"
+                   style={{ height:10, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                <div className="h-full rounded-full transition-all duration-500"
+                     style={{ width:`${auditProgress.total > 0 ? Math.round((auditProgress.audited / auditProgress.total) * 100) : 0}%`, backgroundColor:"#C49A2A" }} />
+              </div>
+              <p style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#78716C", marginTop:6 }}>
+                {Math.round((auditProgress.audited / Math.max(1, auditProgress.total)) * 100)}% complete — processing {Math.min(10, auditProgress.total - auditProgress.audited)} articles in current batch…
+              </p>
+            </div>
+          )}
+
+          {/* Fix All Progress */}
+          {fixProgress && (
+            <div className="neu-card">
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917", textTransform:"uppercase", letterSpacing:1 }}>
+                  Fixing article {fixProgress.fixed} of {fixProgress.total}
+                </span>
+                <span style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:16, color:"#C8322B" }}>
+                  {fixProgress.fixed}/{fixProgress.total}
+                </span>
+              </div>
+              <div className="relative rounded-full overflow-hidden"
+                   style={{ height:10, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                <div className="h-full rounded-full transition-all duration-500"
+                     style={{ width:`${fixProgress.total > 0 ? Math.round((fixProgress.fixed / fixProgress.total) * 100) : 0}%`, backgroundColor:"#C8322B" }} />
+              </div>
+            </div>
+          )}
+
+          {/* Compliance Results */}
+          {complianceResult && (
+            <div className="space-y-3">
+              {/* Summary KPIs */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label:"Articles Audited", val: complianceResult.articlesAudited, color:"#1C1917" },
+                  { label:"Avg Compliance",   val: `${complianceResult.averageCompliance}%`, color: complianceResult.averageCompliance>=90?"#2D5A3D":complianceResult.averageCompliance>=70?"#C49A2A":"#C8322B" },
+                  { label:"100% Compliant",   val: complianceResult.fullComplianceCount, color:"#2D5A3D" },
+                  { label:"Need Fixes",       val: complianceResult.articlesAudited - complianceResult.fullComplianceCount, color:"#C8322B" },
+                ].map(({ label, val, color }) => (
+                  <div key={label} className="text-center p-4 rounded-xl"
+                       style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
+                    <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:24, color }}>{val}</div>
+                    <div className="neu-section-label mt-1">{label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Standards version */}
+              <div className="p-3 rounded-xl" style={{ backgroundColor:"rgba(74,123,168,0.06)", border:"1px solid rgba(74,123,168,0.15)" }}>
+                <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:9, color:"#4A7BA8" }}>
+                  Standards v{complianceResult.standardsVersion} · 13-check gate · Jan 2026 Authenticity Update active
+                </span>
+              </div>
+
+              {/* Per-article results */}
+              <div className="neu-card">
+                <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:14, color:"#1C1917" }} className="mb-3">
+                  Per-Article Compliance ({complianceResult.results.length} articles)
+                </div>
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                  {complianceResult.results.map((article, i) => {
+                    const pctColor = article.compliancePercent >= 90 ? "#2D5A3D" : article.compliancePercent >= 70 ? "#C49A2A" : "#C8322B";
+                    const pctBg = article.compliancePercent >= 90 ? "rgba(45,90,61,0.08)" : article.compliancePercent >= 70 ? "rgba(196,154,42,0.08)" : "rgba(200,50,43,0.08)";
+                    return (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl"
+                           style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
+                        {/* Compliance bar */}
+                        <div style={{ width:48, textAlign:"center", flexShrink:0 }}>
+                          <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:16, color: pctColor }}>
+                            {article.compliancePercent}%
                           </div>
                         </div>
-                        {result.issues.length > 0 && (
-                          <div className="mt-3 pt-3 border-t">
-                            <div className="text-sm text-red-600 mb-2">
-                              Issues found:
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {result.issues.map((issue, issueIndex) => (
-                                <Badge
-                                  key={issueIndex}
-                                  variant="destructive"
-                                  className="text-xs"
-                                >
-                                  {issue}
-                                </Badge>
-                              ))}
-                            </div>
+                        {/* Article info */}
+                        <div className="flex-1 min-w-0">
+                          <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917" }} className="truncate">
+                            {article.title}
                           </div>
-                        )}
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:8, color:"#78716C" }}>
+                              {article.passed}/{article.total} checks
+                            </span>
+                            {article.blockers > 0 && (
+                              <span className="neu-badge" style={{ backgroundColor:"rgba(200,50,43,0.1)", color:"#C8322B", border:"1px solid rgba(200,50,43,0.25)", fontSize:7 }}>
+                                {article.blockers} blocker{article.blockers !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                            {article.warnings > 0 && (
+                              <span className="neu-badge" style={{ backgroundColor:"rgba(196,154,42,0.1)", color:"#C49A2A", border:"1px solid rgba(196,154,42,0.25)", fontSize:7 }}>
+                                {article.warnings} warning{article.warnings !== 1 ? "s" : ""}
+                              </span>
+                            )}
+                          </div>
+                          {/* Progress bar */}
+                          <div className="mt-2 relative rounded-full overflow-hidden"
+                               style={{ height:4, backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-inset)" }}>
+                            <div className="h-full rounded-full transition-all duration-500"
+                                 style={{ width:`${article.compliancePercent}%`, backgroundColor: pctColor }} />
+                          </div>
+                        </div>
+                        {/* Checklist link */}
+                        <Link href={`/admin/articles/${article.slug}/seo-checklist`}
+                              className="flex items-center gap-1 px-3 py-2 rounded-lg flex-shrink-0"
+                              style={{ backgroundColor: pctBg, fontFamily:"'IBM Plex Mono',monospace", fontSize:8, fontWeight:600, color: pctColor, textDecoration:"none", textTransform:"uppercase", letterSpacing:0.8 }}>
+                          <Eye size={11} /> Checklist
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Legacy audit results (from content-indexing API) */}
+          {auditResult && !complianceResult && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label:"Passing",    val: auditResult.passed,    color:"#2D5A3D" },
+                  { label:"Failing",    val: auditResult.failed,    color:"#C8322B" },
+                  { label:"Avg Score",  val: `${auditResult.avgScore}`, color: auditResult.avgScore>=70?"#2D5A3D":auditResult.avgScore>=40?"#C49A2A":"#C8322B" },
+                  { label:"Auto-Fixed", val: auditResult.autoFixed, color:"#4A7BA8" },
+                ].map(({ label, val, color }) => (
+                  <div key={label} className="text-center p-4 rounded-xl"
+                       style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
+                    <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:800, fontSize:24, color }}>{val}</div>
+                    <div className="neu-section-label mt-1">{label}</div>
+                  </div>
+                ))}
+              </div>
+              {auditResult.issues && auditResult.issues.length > 0 && (
+                <div className="neu-card">
+                  <div style={{ fontFamily:"'Anybody',sans-serif", fontWeight:700, fontSize:14, color:"#1C1917" }} className="mb-3">
+                    Failing Articles ({auditResult.issues.length})
+                  </div>
+                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                    {auditResult.issues.map((item, i) => (
+                      <div key={i} className="p-3 rounded-xl" style={{ backgroundColor:"var(--neu-bg)", boxShadow:"var(--neu-flat)" }}>
+                        <div style={{ fontFamily:"'IBM Plex Mono',monospace", fontSize:10, fontWeight:600, color:"#1C1917" }} className="truncate">
+                          {item.url}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {item.issues.map((iss, j) => (
+                            <span key={j} className="neu-badge neu-badge-red" style={{ fontSize:8 }}>{iss}</span>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Globe className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No Analysis Results
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      Run an SEO analysis to check your website
-                    </p>
-                    <Button
-                      onClick={startCrawl}
-                      className="bg-yellow-500 hover:bg-yellow-600"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Run SEO Analysis
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

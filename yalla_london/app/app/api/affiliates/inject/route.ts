@@ -507,7 +507,7 @@ async function bulkInjectAffiliates() {
   const posts = await prisma.blogPost.findMany({
     where: {
       published: true,
-      deletedAt: null,
+      
       content_en: { not: "" },
     },
     select: { id: true, content_en: true, content_ar: true, slug: true },

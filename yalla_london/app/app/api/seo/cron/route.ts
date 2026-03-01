@@ -1,5 +1,66 @@
+export const maxDuration = 60;
+
 import { NextRequest, NextResponse } from "next/server";
-import { runAutomatedIndexing, pingSitemaps } from "@/lib/seo/indexing-service";
+import { runAutomatedIndexing, pingSitemaps, type IndexingReport } from "@/lib/seo/indexing-service";
+import { getActiveSiteIds, getSiteDomain } from "@/config/sites";
+import { logCronExecution } from "@/lib/cron-logger";
+
+const BUDGET_MS = 53_000; // 53s usable out of 60s maxDuration
+
+/**
+ * After IndexNow/GSC submission, update URLIndexingStatus so the
+ * verify-indexing cron knows these URLs have been submitted.
+ * Without this, URLs stay in "discovered" forever (KG-052).
+ */
+/**
+ * After IndexNow/GSC submission, update URLIndexingStatus for ALL
+ * discovered/pending URLs for this site. runAutomatedIndexing() already
+ * includes every discovered/pending URL in the submission batch (lines
+ * 1282-1289 of indexing-service.ts), so all of them should be marked
+ * as submitted when at least one channel succeeds.
+ *
+ * Previous bug (KG-055): A 10-minute time window meant URLs discovered
+ * hours before the cron ran were never transitioned from "discovered"
+ * to "submitted", causing 18+ articles to stay stuck forever.
+ */
+async function trackSubmittedUrls(report: IndexingReport, siteId: string) {
+  if (report.urlsProcessed === 0) return;
+
+  const indexNowSuccess = report.indexNow.some((r) => r.success);
+  const gscSuccess = report.sitemapPings?.google_gsc === true;
+
+  // Only track if at least one submission channel succeeded
+  if (!indexNowSuccess && !gscSuccess) return;
+
+  try {
+    const { prisma } = await import("@/lib/db");
+
+    // Build update data conditionally — only set channel flags when true
+    // to avoid overwriting existing true values with undefined.
+    const updateData: Record<string, unknown> = {
+      status: "submitted",
+      last_submitted_at: new Date(),
+    };
+    if (indexNowSuccess) updateData.submitted_indexnow = true;
+    if (gscSuccess) updateData.submitted_sitemap = true;
+
+    // Update ALL discovered/pending URLs for this site — they were all
+    // included in the submission batch by runAutomatedIndexing().
+    const result = await prisma.uRLIndexingStatus.updateMany({
+      where: {
+        site_id: siteId,
+        status: { in: ["discovered", "pending"] },
+      },
+      data: updateData,
+    });
+
+    if (result.count > 0) {
+      console.log(`[SEO-CRON] Marked ${result.count} URLs as "submitted" for ${siteId}`);
+    }
+  } catch (e) {
+    console.warn(`[SEO-CRON] Failed to track submitted URLs for ${siteId}:`, e instanceof Error ? e.message : e);
+  }
+}
 
 /**
  * Cron endpoint for automated SEO tasks
@@ -19,20 +80,14 @@ import { runAutomatedIndexing, pingSitemaps } from "@/lib/seo/indexing-service";
  */
 
 // Verify cron secret to prevent unauthorized access
+// If CRON_SECRET is configured and doesn't match, reject.
+// If CRON_SECRET is NOT configured, allow — Vercel crons don't send secrets unless configured.
 function verifyCronSecret(request: NextRequest): boolean {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  // In production, always require CRON_SECRET
   if (!cronSecret) {
-    if (process.env.NODE_ENV === "production") {
-      console.error(
-        "CRON_SECRET not configured in production - rejecting request",
-      );
-      return false;
-    }
-    console.warn("CRON_SECRET not configured - allowing in development");
-    return true;
+    return true; // No secret configured — allow (Vercel crons work without CRON_SECRET)
   }
 
   return authHeader === `Bearer ${cronSecret}`;
@@ -45,6 +100,36 @@ export async function GET(request: NextRequest) {
   }
 
   const searchParams = request.nextUrl.searchParams;
+
+  // Healthcheck mode — quick response confirming endpoint is alive
+  if (searchParams.get("healthcheck") === "true") {
+    try {
+      const { prisma } = await import("@/lib/db");
+      let lastRun = null;
+      try {
+        lastRun = await prisma.cronJobLog.findFirst({
+          where: { job_name: "seo-cron" },
+          orderBy: { started_at: "desc" },
+          select: { status: true, started_at: true, duration_ms: true },
+        });
+      } catch {
+        // cron_job_logs table may not exist yet — still healthy
+        await prisma.$queryRaw`SELECT 1`;
+      }
+      return NextResponse.json({
+        status: "healthy",
+        endpoint: "seo-cron",
+        lastRun,
+        timestamp: new Date().toISOString(),
+      });
+    } catch {
+      return NextResponse.json(
+        { status: "unhealthy", endpoint: "seo-cron" },
+        { status: 503 },
+      );
+    }
+  }
+
   const task = searchParams.get("task") || "daily";
 
   const startTime = Date.now();
@@ -57,23 +142,119 @@ export async function GET(request: NextRequest) {
   console.log(`[SEO-CRON] Starting task="${task}" at ${results.timestamp}`);
 
   try {
+    // Run indexing per-site to prevent cross-site URL contamination.
+    // Previously ran without siteId, which collected ALL posts from ALL sites
+    // and submitted them under a single domain (yalla-london.com).
+    const activeSites = getActiveSiteIds();
+
     switch (task) {
       case "daily":
-        // Daily: Submit new/updated content + ping sitemaps
-        const dailyReport = await runAutomatedIndexing("updated");
-        results.actions.push({ name: "submit_updated", report: dailyReport });
-        console.log(
-          `[SEO-CRON] Daily: processed ${dailyReport.urlsProcessed} URLs, errors: ${dailyReport.errors.length}`,
-        );
+        // ── PHASE 1: Lightweight fixes FIRST (fast, critical) ────────────
+        // Ghost fix and stuck URL resubmission MUST run before the main
+        // submission loop. Previously they ran AFTER the main loop and got
+        // skipped when budget was exhausted (55+ runs exceeded 50s).
+        for (const sid of activeSites) {
+          if (Date.now() - startTime > BUDGET_MS - 10_000) break; // Reserve 10s for fixes
+
+          // Fix ghost submissions: status="submitted" but no channel flag set
+          try {
+            const { prisma: pFix } = await import("@/lib/db");
+            const ghostFixed = await pFix.uRLIndexingStatus.updateMany({
+              where: {
+                site_id: sid,
+                status: "submitted",
+                submitted_indexnow: false,
+                submitted_sitemap: false,
+                submitted_google_api: false,
+              },
+              data: { status: "discovered" },
+            });
+            if (ghostFixed.count > 0) {
+              console.log(`[SEO-CRON] Fixed ${ghostFixed.count} ghost submission(s) for ${sid}`);
+              results.actions.push({ name: "fix_ghost_submissions", site: sid, count: ghostFixed.count });
+            }
+          } catch (ghostErr) {
+            console.warn(`[SEO-CRON] Ghost fix failed for ${sid}:`, ghostErr instanceof Error ? ghostErr.message : ghostErr);
+          }
+
+          // Resubmit "discovered" URLs stuck for >1h (was 6h — too long)
+          try {
+            const { prisma: pStuck } = await import("@/lib/db");
+            const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+            const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
+            const siteUrl = getSiteDomain(sid);
+            const stuckUrls = await pStuck.uRLIndexingStatus.findMany({
+              where: {
+                site_id: sid,
+                status: { in: ["discovered", "pending"] },
+                OR: [
+                  { last_submitted_at: null },
+                  { last_submitted_at: { lt: oneHourAgo } },
+                ],
+              },
+              select: { url: true, id: true },
+              take: 50,
+              orderBy: { created_at: "asc" },
+            });
+            if (stuckUrls.length > 0) {
+              const indexNowKey = process.env.INDEXNOW_KEY;
+              if (indexNowKey) {
+                await submitToIndexNow(stuckUrls.map(u => u.url), siteUrl);
+                await pStuck.uRLIndexingStatus.updateMany({
+                  where: { id: { in: stuckUrls.map(u => u.id) } },
+                  data: { status: "submitted", last_submitted_at: new Date(), submitted_indexnow: true },
+                });
+                console.log(`[SEO-CRON] Resubmitted ${stuckUrls.length} stuck "discovered" URLs for ${sid}`);
+                results.actions.push({ name: "resubmit_stuck", site: sid, count: stuckUrls.length });
+              }
+            }
+          } catch (stuckErr) {
+            console.warn(`[SEO-CRON] Stuck URL resubmission failed for ${sid}:`, stuckErr instanceof Error ? stuckErr.message : stuckErr);
+          }
+        }
+
+        // ── PHASE 2: Main submission loop (expensive) ────────────────────
+        for (const sid of activeSites) {
+          if (Date.now() - startTime > BUDGET_MS) {
+            console.log(`[SEO-CRON] Budget exhausted (${Date.now() - startTime}ms), skipping remaining sites`);
+            break;
+          }
+          try {
+            const siteUrl = getSiteDomain(sid);
+            const dailyReport = await runAutomatedIndexing("updated", sid, siteUrl);
+            await trackSubmittedUrls(dailyReport, sid);
+            results.actions.push({ name: "submit_updated", site: sid, report: dailyReport });
+            console.log(
+              `[SEO-CRON] Daily [${sid}]: processed ${dailyReport.urlsProcessed} URLs, errors: ${dailyReport.errors.length}`,
+            );
+          } catch (siteErr) {
+            const msg = siteErr instanceof Error ? siteErr.message : String(siteErr);
+            results.actions.push({ name: "submit_updated", site: sid, error: msg });
+            console.error(`[SEO-CRON] Daily [${sid}] FAILED: ${msg}`);
+          }
+        }
         break;
 
       case "weekly":
-        // Weekly: Submit all content
-        const weeklyReport = await runAutomatedIndexing("all");
-        results.actions.push({ name: "submit_all", report: weeklyReport });
-        console.log(
-          `[SEO-CRON] Weekly: processed ${weeklyReport.urlsProcessed} URLs, errors: ${weeklyReport.errors.length}`,
-        );
+        for (const sid of activeSites) {
+          if (Date.now() - startTime > BUDGET_MS) {
+            console.log(`[SEO-CRON] Budget exhausted (${Date.now() - startTime}ms), skipping remaining sites`);
+            break;
+          }
+          try {
+            const siteUrl = getSiteDomain(sid);
+            const weeklyReport = await runAutomatedIndexing("all", sid, siteUrl);
+            await trackSubmittedUrls(weeklyReport, sid);
+            results.actions.push({ name: "submit_all", site: sid, report: weeklyReport });
+            console.log(
+              `[SEO-CRON] Weekly [${sid}]: processed ${weeklyReport.urlsProcessed} URLs, errors: ${weeklyReport.errors.length}`,
+            );
+          } catch (siteErr) {
+            const msg = siteErr instanceof Error ? siteErr.message : String(siteErr);
+            results.actions.push({ name: "submit_all", site: sid, error: msg });
+            console.error(`[SEO-CRON] Weekly [${sid}] FAILED: ${msg}`);
+          }
+        }
         break;
 
       case "ping":
@@ -84,12 +265,25 @@ export async function GET(request: NextRequest) {
         break;
 
       case "new":
-        // Submit only new content
-        const newReport = await runAutomatedIndexing("new");
-        results.actions.push({ name: "submit_new", report: newReport });
-        console.log(
-          `[SEO-CRON] New: processed ${newReport.urlsProcessed} URLs, errors: ${newReport.errors.length}`,
-        );
+        for (const sid of activeSites) {
+          if (Date.now() - startTime > BUDGET_MS) {
+            console.log(`[SEO-CRON] Budget exhausted (${Date.now() - startTime}ms), skipping remaining sites`);
+            break;
+          }
+          try {
+            const siteUrl = getSiteDomain(sid);
+            const newReport = await runAutomatedIndexing("new", sid, siteUrl);
+            await trackSubmittedUrls(newReport, sid);
+            results.actions.push({ name: "submit_new", site: sid, report: newReport });
+            console.log(
+              `[SEO-CRON] New [${sid}]: processed ${newReport.urlsProcessed} URLs, errors: ${newReport.errors.length}`,
+            );
+          } catch (siteErr) {
+            const msg = siteErr instanceof Error ? siteErr.message : String(siteErr);
+            results.actions.push({ name: "submit_new", site: sid, error: msg });
+            console.error(`[SEO-CRON] New [${sid}] FAILED: ${msg}`);
+          }
+        }
         break;
 
       default:
@@ -100,6 +294,19 @@ export async function GET(request: NextRequest) {
     results.success = true;
     results.durationMs = durationMs;
     console.log(`[SEO-CRON] Completed task="${task}" in ${durationMs}ms`);
+
+    const totalUrlsProcessed = results.actions.reduce((sum: number, a: any) => sum + (a.report?.urlsProcessed || 0), 0);
+    const siteErrors = results.actions.filter((a: any) => a.error).length;
+
+    await logCronExecution(`seo-cron-${task}`, siteErrors > 0 && totalUrlsProcessed === 0 ? "failed" : "completed", {
+      durationMs,
+      itemsProcessed: totalUrlsProcessed,
+      itemsSucceeded: totalUrlsProcessed,
+      itemsFailed: siteErrors,
+      sitesProcessed: activeSites,
+      resultSummary: { task, actionsCount: results.actions.length, totalUrlsProcessed, siteErrors },
+    }).catch((e: unknown) => console.warn("[SEO-CRON] Failed to log execution:", e));
+
     return NextResponse.json(results);
   } catch (error) {
     const durationMs = Date.now() - startTime;
@@ -109,6 +316,12 @@ export async function GET(request: NextRequest) {
     console.error(
       `[SEO-CRON] FAILED task="${task}" after ${durationMs}ms: ${error}`,
     );
+
+    await logCronExecution(`seo-cron-${task}`, "failed", {
+      durationMs,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }).catch((e: unknown) => console.warn("[SEO-CRON] Failed to log execution:", e));
+
     return NextResponse.json(results, { status: 500 });
   }
 }

@@ -55,7 +55,11 @@ export class DynamicInternalLinking {
   private maxLinksPerPage: number = 5;
   private minRelevanceScore: number = 0.6;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com') {
+  constructor(baseUrl?: string) {
+    if (!baseUrl) {
+      const { getSiteDomain, getDefaultSiteId } = require("@/config/sites");
+      baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
+    }
     this.baseUrl = baseUrl;
   }
 
@@ -424,7 +428,7 @@ export class DynamicInternalLinking {
     opportunity: LinkOpportunity,
     sourcePageId: string
   ): Promise<InternalLink> {
-    const linkId = `link_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const linkId = `link_${Date.now()}_${crypto.randomUUID().slice(0, 9)}`;
     
     const link: InternalLink = {
       id: linkId,

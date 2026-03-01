@@ -81,7 +81,7 @@ export function SocialProof({
 
   // Cycle through recent bookings
   useEffect(() => {
-    if (recentBookings.length <= 1) return;
+    if (recentBookings.length <= 1) return undefined;
 
     const interval = setInterval(() => {
       setCurrentBookingIndex((prev) => (prev + 1) % recentBookings.length);
@@ -90,12 +90,12 @@ export function SocialProof({
     return () => clearInterval(interval);
   }, [recentBookings.length]);
 
-  // Generate realistic-looking numbers if no real data
+  // Only show real data — never show fake numbers to visitors
   const displayStats = stats || {
-    views_today: Math.floor(Math.random() * 50) + 20,
-    views_week: Math.floor(Math.random() * 200) + 100,
-    views_month: Math.floor(Math.random() * 800) + 400,
-    active_viewers: Math.floor(Math.random() * 5) + 2,
+    views_today: 0,
+    views_week: 0,
+    views_month: 0,
+    active_viewers: 0,
   };
 
   const translations = {
@@ -129,15 +129,15 @@ export function SocialProof({
             <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500" />
           </span>
           <span className="font-semibold text-green-600">{displayStats.active_viewers}</span>
-          <span className="text-gray-600">{t.viewingNow}</span>
+          <span className="text-stone">{t.viewingNow}</span>
         </motion.div>
       )}
 
       {/* Weekly Views */}
       {showViewers && displayStats.views_week > 0 && (
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Eye className="h-4 w-4 text-purple-500" />
-          <span className="font-semibold text-gray-900">{displayStats.views_week.toLocaleString()}</span>
+        <div className="flex items-center gap-2 text-sm text-stone">
+          <Eye className="h-4 w-4 text-london-500" />
+          <span className="font-semibold text-charcoal">{displayStats.views_week.toLocaleString()}</span>
           <span>{t.viewedThisWeek}</span>
         </div>
       )}
@@ -188,7 +188,8 @@ export function SocialProofBadge({
   count?: number;
   locale?: 'en' | 'ar';
 }) {
-  const displayCount = count || Math.floor(Math.random() * 8) + 3;
+  const displayCount = count || 0;
+  if (displayCount === 0) return null;
   const isArabic = locale === 'ar';
 
   return (

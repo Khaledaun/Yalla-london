@@ -5,7 +5,7 @@ import { BrandShowcase } from '@/components/brand-showcase';
 
 export default function BrandShowcasePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-cream to-cream-100 py-12">
       <BrandShowcase />
     </div>
   );
@@ -13,5 +13,6 @@ export default function BrandShowcasePage() {
 
 export const metadata = {
   title: 'Brand Platform Showcase',
-  description: 'Demonstration of the multi-brand platform system'
+  description: 'Demonstration of the multi-brand platform system',
+  robots: { index: false, follow: false },
 };

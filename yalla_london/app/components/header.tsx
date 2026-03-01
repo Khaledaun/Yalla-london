@@ -16,8 +16,10 @@ export function Header() {
 
   const navigation = [
     { name: t('home'), href: '/' },
+    { name: t('information'), href: '/information' },
     { name: t('blog'), href: '/blog' },
     { name: t('recommendations'), href: '/recommendations' },
+    { name: t('londonByFoot'), href: '/london-by-foot' },
     { name: t('eventsTickets'), href: '/events' },
     { name: t('about'), href: '/about' },
   ]
@@ -31,12 +33,12 @@ export function Header() {
   }
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 ${isRTL ? 'rtl' : 'ltr'}`}>
+    <header className={`fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-sand ${isRTL ? 'rtl' : 'ltr'}`}>
       <div className="max-w-6xl mx-auto px-6">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="text-2xl font-bold text-purple-800 hover:text-purple-900 transition-colors font-prestige">
+            <Link href="/" className="text-2xl font-bold text-london-800 hover:text-london-900 transition-colors font-prestige">
               Yalla London
             </Link>
           </div>
@@ -47,7 +49,7 @@ export function Header() {
               <Link
                 key={item.name}
                 href={item.href}
-                className="text-gray-700 hover:text-purple-800 font-medium transition-colors"
+                className="text-stone hover:text-london-800 font-medium transition-colors"
               >
                 {item.name}
               </Link>
@@ -69,9 +71,9 @@ export function Header() {
               aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
             >
               {isMobileMenuOpen ? (
-                <X className="h-6 w-6 text-gray-700" />
+                <X className="h-6 w-6 text-stone" />
               ) : (
-                <Menu className="h-6 w-6 text-gray-700" />
+                <Menu className="h-6 w-6 text-stone" />
               )}
             </Button>
           </div>
@@ -79,19 +81,19 @@ export function Header() {
 
         {/* Mobile Navigation Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-lg">
+          <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-sand shadow-lg">
             <nav className="px-6 py-4 space-y-4">
               {navigation.map((item) => (
                 <Link
                   key={item.name}
                   href={item.href}
                   onClick={handleMobileLinkClick}
-                  className="block text-gray-700 hover:text-purple-800 font-medium transition-colors py-2 border-b border-gray-100 last:border-b-0"
+                  className="block text-stone hover:text-london-800 font-medium transition-colors py-2 border-b border-sand last:border-b-0"
                 >
                   {item.name}
                 </Link>
               ))}
-              <div className="pt-4 border-t border-gray-200">
+              <div className="pt-4 border-t border-sand">
                 <LanguageSwitcher />
               </div>
             </nav>

@@ -3,9 +3,10 @@
  *
  * Create a new site with the provided configuration.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { generateContentIdeas } from '@/lib/ai/content-generator';
 import { isAIAvailable } from '@/lib/ai/provider';
 import { requireAdmin } from "@/lib/admin-middleware";

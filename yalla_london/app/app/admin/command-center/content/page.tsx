@@ -7,7 +7,7 @@
  * Generate articles, edit with AI assistance, and manage content queue.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -131,11 +131,7 @@ export default function ContentHubPage() {
   const [selectedLocale, setSelectedLocale] = useState<"ar" | "en">("ar");
   const [isGenerating, setIsGenerating] = useState(false);
 
-  useEffect(() => {
-    loadContent();
-  }, [typeFilter, statusFilter]);
-
-  const loadContent = async () => {
+  const loadContent = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(
@@ -151,7 +147,11 @@ export default function ContentHubPage() {
       setContent([]);
     }
     setIsLoading(false);
-  };
+  }, [typeFilter, statusFilter]);
+
+  useEffect(() => {
+    loadContent();
+  }, [loadContent]);
 
   const generateContent = async () => {
     if (!generatorPrompt && !selectedTemplate) return;
@@ -207,7 +207,7 @@ export default function ContentHubPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="space-y-6">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -310,9 +310,11 @@ export default function ContentHubPage() {
                       onChange={(e) => setSelectedSite(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                     >
-                      <option value="arabaldives">Arabaldives</option>
                       <option value="yalla-london">Yalla London</option>
-                      <option value="gulf-maldives">Gulf Maldives</option>
+                      <option value="arabaldives">Arabaldives</option>
+                      <option value="french-riviera">Yalla Riviera</option>
+                      <option value="istanbul">Yalla Istanbul</option>
+                      <option value="thailand">Yalla Thailand</option>
                     </select>
                   </div>
                   <div>
@@ -604,18 +606,27 @@ export default function ContentHubPage() {
                           <button
                             className="p-1 hover:bg-gray-100 rounded"
                             title="Edit"
+                            onClick={() => { window.location.href = `/admin/editor?id=${item.id}`; }}
                           >
                             <Edit className="h-4 w-4 text-gray-500" />
                           </button>
                           <button
                             className="p-1 hover:bg-gray-100 rounded"
                             title="Preview"
+                            onClick={() => { window.open(`/admin/editor?id=${item.id}&preview=true`, '_blank'); }}
                           >
                             <Eye className="h-4 w-4 text-gray-500" />
                           </button>
                           <button
                             className="p-1 hover:bg-gray-100 rounded"
                             title="Delete"
+                            onClick={async () => {
+                              if (!confirm(`Delete "${item.title}"?`)) return;
+                              const res = await fetch(`/api/admin/command-center/content?id=${item.id}`, { method: 'DELETE' });
+                              if (res.ok) {
+                                setContent(prev => prev.filter(c => c.id !== item.id));
+                              }
+                            }}
                           >
                             <Trash2 className="h-4 w-4 text-gray-500" />
                           </button>

@@ -36,6 +36,7 @@ import type {
   VideoCategory,
   VideoFormat,
 } from "@/lib/video/brand-video-engine";
+import { SITES as SITE_CONFIG, getDefaultSiteId } from "@/config/sites";
 
 // Dynamic import for Remotion player (SSR incompatible)
 const VideoPlayer = dynamic(
@@ -43,13 +44,11 @@ const VideoPlayer = dynamic(
   { ssr: false, loading: () => <div className="h-[500px] bg-muted rounded-lg animate-pulse flex items-center justify-center text-muted-foreground">Loading video player...</div> },
 );
 
-const SITES = [
-  { id: "yalla-london", name: "Yalla London", destination: "London" },
-  { id: "arabaldives", name: "Arabaldives", destination: "Maldives" },
-  { id: "gulf-maldives", name: "Gulf Maldives", destination: "Maldives" },
-  { id: "arab-bali", name: "Arab Bali", destination: "Bali" },
-  { id: "luxury-escapes-me", name: "Luxury Escapes ME", destination: "Middle East" },
-];
+const SITES = Object.values(SITE_CONFIG).map((s) => ({
+  id: s.id,
+  name: s.name,
+  destination: s.destination,
+}));
 
 const CATEGORIES: Array<{ value: VideoCategory; label: string; icon: React.ReactNode; description: string }> = [
   { value: "destination-highlight", label: "Destination Highlight", icon: <Sparkles className="w-4 h-4" />, description: "Scenic showcase of the destination" },
@@ -79,7 +78,7 @@ const FORMATS: Array<{ value: VideoFormat; label: string; icon: React.ReactNode;
 
 export default function VideoStudioPage() {
   const [activeTab, setActiveTab] = useState("create");
-  const [selectedSite, setSelectedSite] = useState("yalla-london");
+  const [selectedSite, setSelectedSite] = useState(getDefaultSiteId());
   const [selectedCategory, setSelectedCategory] = useState<VideoCategory>("destination-highlight");
   const [selectedFormat, setSelectedFormat] = useState<VideoFormat>("instagram-reel");
   const [locale, setLocale] = useState<"en" | "ar">("en");
@@ -321,7 +320,7 @@ export default function VideoStudioPage() {
                   ) : (
                     <div className="h-[400px] bg-muted rounded-lg flex flex-col items-center justify-center gap-4 text-muted-foreground">
                       <Video className="w-12 h-12" />
-                      <p>Click "Generate Video" to create a preview</p>
+                      <p>Click &quot;Generate Video&quot; to create a preview</p>
                     </div>
                   )}
                 </CardContent>

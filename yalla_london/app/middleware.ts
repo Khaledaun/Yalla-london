@@ -39,11 +39,15 @@ const DOMAIN_TO_SITE: Record<
     siteName: "Arabaldives",
     locale: "ar",
   },
-  // Yalla Dubai (UAE)
-  "yalladubai.com": { siteId: "dubai", siteName: "Yalla Dubai", locale: "en" },
-  "www.yalladubai.com": {
-    siteId: "dubai",
-    siteName: "Yalla Dubai",
+  // Yalla Riviera (French Riviera)
+  "yallariviera.com": {
+    siteId: "french-riviera",
+    siteName: "Yalla Riviera",
+    locale: "en",
+  },
+  "www.yallariviera.com": {
+    siteId: "french-riviera",
+    siteName: "Yalla Riviera",
     locale: "en",
   },
   // Yalla Istanbul (Turkey)
@@ -68,6 +72,17 @@ const DOMAIN_TO_SITE: Record<
     siteName: "Yalla Thailand",
     locale: "en",
   },
+  // Zenitha Yachts (Mediterranean)
+  "zenithayachts.com": {
+    siteId: "zenitha-yachts-med",
+    siteName: "Zenitha Yachts",
+    locale: "en",
+  },
+  "www.zenithayachts.com": {
+    siteId: "zenitha-yachts-med",
+    siteName: "Zenitha Yachts",
+    locale: "en",
+  },
   // Legacy/deprecated domains (redirect to main brands)
   "gulfmaldives.com": {
     siteId: "arabaldives",
@@ -90,13 +105,13 @@ const DOMAIN_TO_SITE: Record<
     locale: "ar",
   },
   "luxuryescapes.me": {
-    siteId: "dubai",
-    siteName: "Yalla Dubai",
+    siteId: "french-riviera",
+    siteName: "Yalla Riviera",
     locale: "ar",
   },
   "www.luxuryescapes.me": {
-    siteId: "dubai",
-    siteName: "Yalla Dubai",
+    siteId: "french-riviera",
+    siteName: "Yalla Riviera",
     locale: "ar",
   },
   // Development
@@ -107,7 +122,9 @@ const DOMAIN_TO_SITE: Record<
   },
 };
 
-const DEFAULT_SITE = {
+// Default site when hostname is not in DOMAIN_TO_SITE (e.g. Vercel preview URLs).
+// Falls back to localhost mapping, which points to yalla-london as primary active site.
+const DEFAULT_SITE = DOMAIN_TO_SITE["localhost:3000"] || {
   siteId: "yalla-london",
   siteName: "Yalla London",
   locale: "en",
@@ -118,8 +135,16 @@ const EXCLUDED_PATHS = [
   "/api/webhooks",
   "/_next",
   "/favicon.ico",
+  "/favicon.png",
+  "/favicon.svg",
   "/robots.txt",
   "/sitemap.xml",
+  "/manifest.json",
+  "/og-image.jpg",
+  "/icons/",
+  "/images/",
+  "/branding/",
+  "/screenshots/",
 ];
 
 // SECURITY: Allowed origins for CSRF protection
@@ -128,18 +153,16 @@ const ALLOWED_ORIGINS = new Set([
   "https://www.yallalondon.com",
   "https://yalla-london.com",
   "https://www.yalla-london.com",
+  "https://zenithayachts.com",
+  "https://www.zenithayachts.com",
   "https://arabaldives.com",
   "https://www.arabaldives.com",
-  "https://yalladubai.com",
-  "https://www.yalladubai.com",
+  "https://yallariviera.com",
+  "https://www.yallariviera.com",
   "https://yallaistanbul.com",
   "https://www.yallaistanbul.com",
   "https://yallathailand.com",
   "https://www.yallathailand.com",
-  // Legacy domains
-  "https://gulfmaldives.com",
-  "https://arabbali.com",
-  "https://luxuryescapes.me",
   "http://localhost:3000",
 ]);
 
@@ -148,9 +171,29 @@ const isProduction = process.env.NODE_ENV === "production";
 export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
 
-  // Skip excluded paths
-  if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
+  // ── Arabic locale detection from URL prefix ────────────────────────
+  // Detect FIRST so all subsequent checks use effectivePathname.
+  // /ar and /ar/* routes serve Arabic content by rewriting to the
+  // English route with an x-locale: ar header. Pages read this header
+  // (via LanguageProvider initialLocale) to render Arabic content.
+  const isArabicRoute = pathname.startsWith("/ar/") || pathname === "/ar";
+  const locale = isArabicRoute ? "ar" : "en";
+  const effectivePathname = isArabicRoute
+    ? pathname.replace(/^\/ar\/?/, "/") || "/"
+    : pathname;
+
+  // Skip excluded paths — use effectivePathname so /ar/_next, /ar/api etc.
+  // are correctly excluded (the /ar/ prefix is stripped before matching).
+  if (EXCLUDED_PATHS.some((path) => effectivePathname.startsWith(path))) {
     return NextResponse.next();
+  }
+
+  // Block internal-only pages from public access → redirect to admin login
+  const BLOCKED_PUBLIC_PATHS = ["/brand-guidelines", "/brand-showcase"];
+  if (BLOCKED_PUBLIC_PATHS.some((path) => effectivePathname.startsWith(path))) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/admin";
+    return NextResponse.redirect(url, 302);
   }
 
   // Get hostname from request (used for redirect + tenant resolution)
@@ -167,18 +210,28 @@ export function middleware(request: NextRequest) {
   }
 
   // SECURITY: CSRF protection for mutating requests
+  // Use effectivePathname so /ar/api/* requests are also protected.
   const method = request.method.toUpperCase();
   if (
     ["POST", "PUT", "DELETE", "PATCH"].includes(method) &&
-    pathname.startsWith("/api/")
+    effectivePathname.startsWith("/api/")
   ) {
     const origin = request.headers.get("origin");
-    // Allow cron/webhook routes without Origin (server-to-server calls)
+    // Allow cron/webhook/auth/admin-auth routes without strict Origin check
     const isInternalRoute =
-      pathname.startsWith("/api/cron/") ||
-      pathname.startsWith("/api/webhooks/") ||
-      pathname.startsWith("/api/internal/");
-    if (!isInternalRoute) {
+      effectivePathname.startsWith("/api/cron/") ||
+      effectivePathname.startsWith("/api/webhooks/") ||
+      effectivePathname.startsWith("/api/internal/") ||
+      effectivePathname.startsWith("/api/auth/") ||
+      effectivePathname === "/api/admin/login" ||
+      effectivePathname === "/api/admin/setup" ||
+      effectivePathname === "/api/admin/migrate" ||
+      effectivePathname === "/api/admin/session";
+    // Requests with Bearer token auth (e.g. test-connections.html using
+    // CRON_SECRET) are validated by route-level requireAdminOrCron /
+    // withAdminAuth — no Origin check needed.
+    const hasBearerAuth = (request.headers.get("authorization") || "").startsWith("Bearer ");
+    if (!isInternalRoute && !hasBearerAuth) {
       if (!origin || !ALLOWED_ORIGINS.has(origin)) {
         return NextResponse.json(
           { error: "Forbidden: Invalid origin" },
@@ -191,23 +244,34 @@ export function middleware(request: NextRequest) {
   // Resolve tenant from hostname
   const tenant = DOMAIN_TO_SITE[hostname] || DEFAULT_SITE;
 
-  // Create response with tenant headers
-  const response = NextResponse.next();
+  // Create response — rewrite for Arabic routes, next for English
+  const response = isArabicRoute
+    ? (() => {
+        const url = request.nextUrl.clone();
+        url.pathname = effectivePathname;
+        return NextResponse.rewrite(url);
+      })()
+    : NextResponse.next();
 
   // Add tenant context headers
   response.headers.set("x-site-id", tenant.siteId);
   response.headers.set("x-site-name", tenant.siteName);
   response.headers.set("x-site-locale", tenant.locale);
   response.headers.set("x-hostname", hostname);
+  // Locale headers for i18n — read by LanguageProvider via layout
+  response.headers.set("x-locale", locale);
+  response.headers.set("x-direction", locale === "ar" ? "rtl" : "ltr");
 
   // Cloudflare CDN: Vary by site for correct multi-tenant caching
   // Without this, Cloudflare may serve Site A's cached page to Site B
-  if (!pathname.startsWith("/api/") && !pathname.startsWith("/admin")) {
+  // Use effectivePathname so /ar/api and /ar/admin are correctly excluded.
+  if (!effectivePathname.startsWith("/api/") && !effectivePathname.startsWith("/admin")) {
     response.headers.set("Vary", "Accept-Encoding, x-site-id");
   }
 
   // Home page: short edge cache for dynamic content
-  if (pathname === "/") {
+  // Use effectivePathname so /ar (Arabic homepage) also gets cache headers.
+  if (effectivePathname === "/") {
     response.headers.set(
       "Cache-Control",
       "public, max-age=0, s-maxage=300, stale-while-revalidate=600",
@@ -270,5 +334,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|public/).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|favicon\\.png|favicon\\.svg|og-image\\.jpg|icons/|images/|branding/|screenshots/|public/).*)",
+  ],
 };

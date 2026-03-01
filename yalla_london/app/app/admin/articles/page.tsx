@@ -3,82 +3,30 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { SyncStatusIndicator } from '@/components/admin/SyncStatusIndicator'
+import { RichArticleList } from '@/components/admin/RichArticleList'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  FileText, 
-  Plus, 
-  Edit, 
-  Eye, 
+import {
+  FileText,
+  Plus,
+  Edit,
+  Eye,
   Trash2,
   Search,
-  Filter,
   Calendar,
   User,
   Tag,
   TrendingUp,
-  Clock,
   CheckCircle2,
-  AlertCircle,
   XCircle,
-  PlayCircle,
-  ArrowRight,
-  BarChart3,
   Globe,
-  Users,
-  Heart,
-  MessageSquare
+  ClipboardCheck
 } from 'lucide-react'
 
-interface Article {
-  id: string
-  title: string
-  slug: string
-  excerpt: string
-  content: string
-  status: 'draft' | 'generated' | 'reviewed' | 'ready-to-publish' | 'published' | 'scheduled'
-  contentType: string
-  author: {
-    id: string
-    name: string
-    avatar?: string
-  }
-  seoScore: number
-  publishedAt?: string
-  scheduledAt?: string
-  createdAt: string
-  updatedAt: string
-  tags: string[]
-  category: string
-  featured: boolean
-  viewCount: number
-  shareCount: number
-  commentCount: number
-  language: 'en' | 'ar'
-  workflow: {
-    currentStep: number
-    totalSteps: number
-    steps: WorkflowStep[]
-  }
-  analytics: {
-    impressions: number
-    clicks: number
-    ctr: number
-    avgPosition: number
-  }
-}
-
-interface WorkflowStep {
-  id: string
-  name: string
-  status: 'pending' | 'in-progress' | 'completed' | 'skipped'
-  assignee?: string
-  completedAt?: string
-  notes?: string
-}
+// M-016 fix: removed dead Article/WorkflowStep interfaces (fields don't exist in schema)
 
 interface BlogPostAdmin {
   id: string
@@ -130,7 +78,13 @@ export default function ArticlesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [categories, setCategories] = useState<string[]>([])
   const [selectedArticle, setSelectedArticle] = useState<BlogPostAdmin | null>(null)
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
+  const [viewMode, setViewMode] = useState<'cards' | 'table' | 'pipeline'>('pipeline')
+  const [bulkAuditing, setBulkAuditing] = useState(false)
+  const [bulkAuditResult, setBulkAuditResult] = useState<{
+    averageCompliance: number;
+    articlesAudited: number;
+    fullComplianceCount: number;
+  } | null>(null)
 
   // Fetch articles from backend
   useEffect(() => {
@@ -138,32 +92,58 @@ export default function ArticlesPage() {
       try {
         setLoading(true)
         setError(null)
-        
+
         const params = new URLSearchParams({
           limit: '100', // Get all articles for admin view
           status: selectedStatus === 'all' ? '' : selectedStatus,
           category: selectedCategory === 'all' ? '' : selectedCategory,
           search: searchQuery
         })
-        
+
         // Remove empty parameters
         const cleanParams = new URLSearchParams()
         for (const [key, value] of params.entries()) {
           if (value) cleanParams.set(key, value)
         }
-        
-        const response = await fetch(`/api/admin/content?${cleanParams}`)
-        const data = await response.json()
-        
-        if (data.success) {
-          setArticles(data.data)
-          // Extract unique categories
+
+        // C-004 fix: use /api/admin/articles (new, site-scoped API) instead of /api/admin/content
+        const response = await fetch(`/api/admin/articles?${cleanParams}&source=published`)
+
+        // Auth failures — show empty list, not an error
+        if (response.status === 401 || response.status === 403) {
+          setArticles([])
+          setLoading(false)
+          return
+        }
+
+        const data = await response.json().catch(() => null)
+
+        if (data?.success && data.articles) {
+          // Map from new API shape to BlogPostAdmin shape for Card/Table views
+          const mapped: BlogPostAdmin[] = data.articles.map((a: Record<string, unknown>) => ({
+            id: a.id,
+            title_en: a.title || '',
+            title_ar: a.titleAr || '',
+            slug: a.slug || '',
+            excerpt_en: (a.metaDescription as string) || '',
+            excerpt_ar: '',
+            published: a.status === 'published',
+            page_type: 'blog',
+            author: { id: '', name: (a.author as string) || 'Editorial', email: '' },
+            category: a.category ? { id: '', name_en: a.category as string, name_ar: '', slug: '' } : undefined,
+            seo_score: (a.seoScore as number) || 0,
+            tags: [],
+            created_at: a.createdAt as string,
+            updated_at: a.updatedAt as string,
+          }))
+          setArticles(mapped)
           const uniqueCategories = Array.from(new Set(
-            data.data.map((article: BlogPostAdmin) => article.category?.name_en).filter(Boolean)
+            mapped.map((article: BlogPostAdmin) => article.category?.name_en).filter(Boolean)
           )) as string[]
           setCategories(uniqueCategories)
         } else {
-          throw new Error(data.error || 'Failed to fetch articles')
+          console.warn('Articles API error:', data?.error)
+          setArticles([])
         }
       } catch (err) {
         console.error('Error fetching articles:', err)
@@ -176,6 +156,46 @@ export default function ArticlesPage() {
 
     fetchArticles()
   }, [selectedStatus, selectedCategory, searchQuery])
+
+  // Bulk SEO compliance audit
+  const handleBulkAudit = async () => {
+    setBulkAuditing(true)
+    setBulkAuditResult(null)
+    const BATCH_SIZE = 10
+    let allResults: Array<{ compliancePercent: number }> = []
+    let currentOffset = 0
+    let totalArticles = 0
+    try {
+      // Batched audit to avoid Vercel timeouts
+      let hasMore = true
+      while (hasMore) {
+        const res = await fetch('/api/admin/seo/article-compliance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'audit_all', offset: currentOffset, limit: BATCH_SIZE }),
+        })
+        const data = await res.json()
+        if (!data.success) break
+        totalArticles = data.totalArticles || totalArticles
+        allResults = [...allResults, ...data.results]
+        hasMore = !!data.hasMore
+        currentOffset = data.nextOffset ?? totalArticles
+      }
+      if (allResults.length > 0) {
+        const avg = Math.round(allResults.reduce((s, r) => s + r.compliancePercent, 0) / allResults.length)
+        const full = allResults.filter(r => r.compliancePercent === 100).length
+        setBulkAuditResult({
+          averageCompliance: avg,
+          articlesAudited: allResults.length,
+          fullComplianceCount: full,
+        })
+      }
+    } catch (err) {
+      console.error('Bulk audit failed:', err)
+    } finally {
+      setBulkAuditing(false)
+    }
+  }
 
   // Toggle publish status
   const handleTogglePublish = async (articleId: string, currentStatus: boolean) => {
@@ -231,20 +251,22 @@ export default function ArticlesPage() {
     }
   }
 
+  // H-010 fix: add null-safety to prevent crashes on missing fields
   const filteredArticles = articles.filter(article => {
-    const matchesSearch = searchQuery === '' || 
-      article.title_en.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.title_ar.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      article.author.name.toLowerCase().includes(searchQuery.toLowerCase())
-    
-    const matchesStatus = selectedStatus === 'all' || 
+    const q = searchQuery.toLowerCase()
+    const matchesSearch = searchQuery === '' ||
+      (article.title_en || '').toLowerCase().includes(q) ||
+      (article.title_ar || '').toLowerCase().includes(q) ||
+      (article.tags || []).some(tag => tag.toLowerCase().includes(q)) ||
+      (article.author?.name || '').toLowerCase().includes(q)
+
+    const matchesStatus = selectedStatus === 'all' ||
       (selectedStatus === 'published' && article.published) ||
       (selectedStatus === 'draft' && !article.published)
-    
-    const matchesCategory = selectedCategory === 'all' || 
+
+    const matchesCategory = selectedCategory === 'all' ||
       article.category?.name_en === selectedCategory
-    
+
     return matchesSearch && matchesStatus && matchesCategory
   })
 
@@ -268,12 +290,27 @@ export default function ArticlesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Articles</h1>
           <p className="text-sm text-gray-500 mt-1">Manage your blog posts and articles</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button
-            variant="outline"
+            variant={viewMode === 'pipeline' ? 'default' : 'outline'}
+            onClick={() => setViewMode('pipeline')}
+          >
+            Pipeline View
+          </Button>
+          <Button
+            variant={viewMode === 'cards' ? 'default' : 'outline'}
             onClick={() => setViewMode(viewMode === 'cards' ? 'table' : 'cards')}
           >
             {viewMode === 'cards' ? 'Table View' : 'Card View'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleBulkAudit}
+            disabled={bulkAuditing}
+            className="text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+          >
+            <ClipboardCheck className="h-4 w-4 mr-2" />
+            {bulkAuditing ? 'Auditing...' : 'SEO Audit All'}
           </Button>
           <Button
             className="bg-blue-600 hover:bg-blue-700"
@@ -287,6 +324,36 @@ export default function ArticlesPage() {
       <div className="space-y-6">
         {/* Sync Status Indicator */}
         <SyncStatusIndicator />
+
+        {/* Bulk Audit Result Banner */}
+        {bulkAuditResult && (
+          <div className={`rounded-lg border p-4 flex items-center justify-between ${
+            bulkAuditResult.averageCompliance >= 90 ? 'bg-green-50 border-green-200' :
+            bulkAuditResult.averageCompliance >= 70 ? 'bg-yellow-50 border-yellow-200' :
+            'bg-red-50 border-red-200'
+          }`}>
+            <div>
+              <p className="font-semibold text-gray-900">
+                SEO Compliance Audit Complete
+              </p>
+              <p className="text-sm text-gray-600 mt-1">
+                {bulkAuditResult.articlesAudited} articles audited &middot;{' '}
+                {bulkAuditResult.fullComplianceCount} at 100% &middot;{' '}
+                Average compliance: <strong className={
+                  bulkAuditResult.averageCompliance >= 90 ? 'text-green-700' :
+                  bulkAuditResult.averageCompliance >= 70 ? 'text-yellow-700' :
+                  'text-red-700'
+                }>{bulkAuditResult.averageCompliance}%</strong>
+              </p>
+            </div>
+            <button
+              onClick={() => setBulkAuditResult(null)}
+              className="text-gray-400 hover:text-gray-600 text-lg"
+            >
+              &times;
+            </button>
+          </div>
+        )}
 
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -452,10 +519,14 @@ export default function ArticlesPage() {
                     : "Try adjusting your search or filter criteria."
                   }
                 </p>
-                <Button className="mt-4" onClick={() => {/* TODO: Add create article logic */}}>
+                <Button className="mt-4" onClick={() => window.location.href = '/admin/editor'}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Article
                 </Button>
+              </div>
+            ) : viewMode === 'pipeline' ? (
+              <div className="mt-2">
+                <RichArticleList source="all" showHeader={true} siteId={undefined} />
               </div>
             ) : viewMode === 'cards' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -543,16 +614,26 @@ export default function ArticlesPage() {
                         Edit
                       </Button>
                       
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="flex-1"
                         onClick={() => window.open(`/blog/${article.slug}`, '_blank')}
                       >
                         <Eye className="h-3 w-3 mr-1" />
                         {article.published ? 'View' : 'Preview'}
                       </Button>
-                      
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.location.href = `/admin/articles/${article.slug}/seo-checklist`}
+                        className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200"
+                      >
+                        <ClipboardCheck className="h-3 w-3 mr-1" />
+                        SEO
+                      </Button>
+
                       <Button
                         size="sm"
                         variant={article.published ? "secondary" : "default"}
@@ -620,19 +701,28 @@ export default function ArticlesPage() {
                         </td>
                         <td className="p-2">
                           <div className="flex items-center gap-1">
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
-                              onClick={() => {/* TODO: Edit functionality */}}
+                              onClick={() => window.location.href = `/admin/editor?slug=${article.slug}`}
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => window.open(`/blog/${article.slug}`, '_blank')}
                             >
                               <Eye className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.location.href = `/admin/articles/${article.slug}/seo-checklist`}
+                              className="text-indigo-600 hover:text-indigo-700"
+                              title="SEO Checklist"
+                            >
+                              <ClipboardCheck className="h-3 w-3" />
                             </Button>
                             <Button
                               variant="ghost"

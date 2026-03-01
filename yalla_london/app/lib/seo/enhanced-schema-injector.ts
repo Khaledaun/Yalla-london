@@ -41,19 +41,26 @@ export class EnhancedSchemaInjector {
   private schemaGenerator: SchemaGenerator;
   private baseUrl: string;
 
-  constructor(baseUrl: string = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.yalla-london.com') {
-    this.baseUrl = baseUrl;
-    this.schemaGenerator = new SchemaGenerator(baseUrl, {
-      siteName: 'Yalla London',
-      description: 'Luxury London travel guide',
+  constructor(baseUrl?: string, siteId?: string) {
+    // Dynamic multi-site config — avoids hardcoding any single site's branding
+    let resolvedBaseUrl = baseUrl || process.env.NEXT_PUBLIC_SITE_URL;
+    const { getSiteConfig, getSiteDomain, getDefaultSiteId } = require('@/config/sites');
+    const effectiveSiteId = siteId || getDefaultSiteId();
+    const config = getSiteConfig(effectiveSiteId);
+    resolvedBaseUrl = resolvedBaseUrl || getSiteDomain(effectiveSiteId);
+    // config should always exist for a valid effectiveSiteId from getDefaultSiteId()
+    const domain = config?.domain || getSiteDomain(effectiveSiteId).replace('https://www.', '');
+    const brandConfig = {
+      siteName: config?.name || effectiveSiteId,
+      description: config ? `Luxury ${config.destination} travel guide` : 'Luxury travel guide',
       contact: {
-        email: 'hello@yalla-london.com',
-        social: {
-          twitter: 'https://twitter.com/yallalondon',
-          instagram: 'https://instagram.com/yallalondon'
-        }
+        email: `hello@${domain}`,
+        social: {} as Record<string, string>,
       }
-    });
+    };
+
+    this.baseUrl = resolvedBaseUrl || getSiteDomain(effectiveSiteId);
+    this.schemaGenerator = new SchemaGenerator(this.baseUrl, brandConfig);
   }
 
   /**
@@ -215,7 +222,7 @@ export class EnhancedSchemaInjector {
         content,
         slug: this.extractSlugFromUrl(url),
         publishedAt: new Date().toISOString(),
-        author: additionalData?.author || 'Yalla London Team',
+        author: additionalData?.author || `${this.schemaGenerator.getOrganizationName()} Team`,
         category: additionalData?.category,
         tags: additionalData?.tags,
         featuredImage: additionalData?.featuredImage
@@ -223,33 +230,16 @@ export class EnhancedSchemaInjector {
       schemas.push(articleSchema);
       types.push('Article');
 
-      // FAQ Schema
-      if (analysis.detectedElements.hasFAQ && analysis.extractedData.faqs) {
-        const faqSchema = this.schemaGenerator.generateFAQ(analysis.extractedData.faqs);
-        schemas.push(faqSchema);
-        types.push('FAQ');
-      }
-
-      // HowTo Schema
-      if (analysis.detectedElements.hasHowTo && analysis.extractedData.steps) {
-        const howToSchema = this.schemaGenerator.generateHowTo({
-          name: title,
-          description: content.substring(0, 160),
-          steps: analysis.extractedData.steps,
-          totalTime: this.extractTimeFromContent(content),
-          supplies: this.extractSuppliesFromContent(content),
-          tools: this.extractToolsFromContent(content)
-        });
-        schemas.push(howToSchema);
-        types.push('HowTo');
-      }
+      // FAQ Schema — DEPRECATED (Aug 2023): FAQPage restricted to govt/health sites only
+      // HowTo Schema — DEPRECATED (Sept 2023): No longer generates rich results
+      // FAQ/HowTo content is still valuable — it just gets Article schema instead
 
       // Review Schema
       if (analysis.detectedElements.hasReview) {
         const reviewSchema = this.schemaGenerator.generateReviewFromContent({
           title,
           content,
-          author: additionalData?.author || 'Yalla London Team',
+          author: additionalData?.author || `${this.schemaGenerator.getOrganizationName()} Team`,
           publishedAt: new Date().toISOString(),
           slug: this.extractSlugFromUrl(url),
           rating: analysis.extractedData.rating,
@@ -273,6 +263,58 @@ export class EnhancedSchemaInjector {
         const placeSchema = this.schemaGenerator.generatePlace(additionalData.placeData);
         schemas.push(placeSchema);
         types.push('Place');
+      }
+
+      // TouristDestination Schema — auto-detect destination/guide articles
+      // Connects content to Google Maps entities (Gemini audit action #4)
+      if (!analysis.detectedElements.hasPlace) {
+        const isDestinationArticle = additionalData?.pageType === 'guide' ||
+          additionalData?.pageType === 'place' ||
+          /\b(neighborhood|district|area|quarter|guide to|exploring)\b/i.test(title);
+        if (isDestinationArticle) {
+          const cityName = additionalData?.category || title.replace(/guide|best|top|\d+/gi, '').trim();
+          const destSchema = this.schemaGenerator.generatePlace({
+            name: cityName,
+            description: title,
+            type: 'TouristDestination',
+            address: '',
+            city: cityName,
+            country: additionalData?.country || 'United Kingdom',
+            slug: this.extractSlugFromUrl(url),
+            touristType: 'luxury',
+          });
+          schemas.push(destSchema);
+          types.push('TouristDestination');
+        }
+      }
+
+      // ItemList Schema — auto-detect listicle articles
+      // Google extracts structured lists for rich results and AI Overviews
+      const isListicle = additionalData?.pageType === 'list' ||
+        /\b(top\s+\d+|best\s+\d+|\d+\s+best|\d+\s+top)\b/i.test(title);
+      if (isListicle) {
+        // Extract H2 headings from content as list items
+        const h2Pattern = /<h2[^>]*>(.*?)<\/h2>/gi;
+        const h2Items: Array<{ name: string; position: number }> = [];
+        let h2Match;
+        let pos = 1;
+        while ((h2Match = h2Pattern.exec(content)) !== null) {
+          const itemName = h2Match[1].replace(/<[^>]*>/g, '').trim();
+          if (itemName && itemName.length > 3) {
+            h2Items.push({ name: itemName, position: pos++ });
+          }
+        }
+        if (h2Items.length >= 3) {
+          const itemListSchema = this.schemaGenerator.generateItemList(
+            h2Items.map(item => ({
+              name: item.name,
+              position: item.position,
+              url: `${url}#${item.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`,
+            }))
+          );
+          schemas.push(itemListSchema as unknown as SchemaBaseProps);
+          types.push('ItemList');
+        }
       }
 
       // Breadcrumb Schema
@@ -372,8 +414,7 @@ export class EnhancedSchemaInjector {
     score += analysis.confidence * 20;
 
     // Bonus for specific schema types
-    if (schemas.some(s => s['@type'] === 'FAQPage')) score += 10;
-    if (schemas.some(s => s['@type'] === 'HowTo')) score += 10;
+    // FAQPage and HowTo deprecated — no bonus for deprecated schema types
     if (schemas.some(s => s['@type'] === 'Review')) score += 10;
     if (schemas.some(s => s['@type'] === 'Event')) score += 10;
     if (schemas.some(s => s['@type'] === 'Place')) score += 10;

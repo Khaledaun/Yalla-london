@@ -12,7 +12,7 @@ export class AdvancedAnalytics {
   private language: 'en' | 'ar';
 
   constructor(language: 'en' | 'ar' = 'en') {
-    this.gaId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || '';
+    this.gaId = (process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || '').trim();
     this.language = language;
   }
 
@@ -37,7 +37,7 @@ export class AdvancedAnalytics {
 
   // Track scroll depth for engagement metrics
   trackScrollDepth() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return undefined;
 
     let maxScroll = 0;
     const milestones = [25, 50, 75, 100];
@@ -65,7 +65,7 @@ export class AdvancedAnalytics {
 
   // Track time on page for content quality metrics
   trackTimeOnPage() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return undefined;
 
     const startTime = Date.now();
     const intervals = [30, 60, 120, 300]; // 30s, 1m, 2m, 5m
@@ -97,7 +97,7 @@ export class AdvancedAnalytics {
 
   // Track internal link clicks for SEO
   trackInternalLinkClicks() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return undefined;
 
     const handleClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -121,7 +121,7 @@ export class AdvancedAnalytics {
 
   // Track external link clicks
   trackExternalLinkClicks() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return undefined;
 
     const handleClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement;

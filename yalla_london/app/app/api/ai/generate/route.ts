@@ -4,6 +4,7 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
 import { performanceMonitor, trackApiResponseTime } from '@/lib/performance-monitoring';
+import { processPromptSafely, validateLLMOutput } from '@/lib/prompt-safety';
 
 interface AIGenerateRequest {
   prompt: string;
@@ -170,12 +171,13 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   const transaction = performanceMonitor.startTransaction('AI Generate', 'ai.generation');
   
   try {
-    // Check if AI features are enabled
-    if (process.env.FEATURE_CONTENT_PIPELINE !== 'true') {
+    // Check if AI features are enabled (accepts '1' or 'true')
+    const pipelineFlag = process.env.FEATURE_CONTENT_PIPELINE;
+    if (pipelineFlag !== 'true' && pipelineFlag !== '1') {
       return NextResponse.json(
-        { 
-          status: 'error', 
-          error: 'AI content generation is not enabled. Set FEATURE_CONTENT_PIPELINE=true to enable.' 
+        {
+          status: 'error',
+          error: 'AI content generation is not enabled. Set FEATURE_CONTENT_PIPELINE=1 to enable.'
         },
         { status: 403 }
       );
@@ -218,11 +220,31 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       );
     }
     
-    // Create messages
+    // SECURITY: Run prompt injection detection & build structured prompt
     const systemPrompt = createSystemPrompt(type, language);
+    const safetyResult = processPromptSafely(systemPrompt, prompt, {
+      maxInputLength: 4000,
+      riskThreshold: 70,
+      context: { type, language },
+    });
+
+    if (!safetyResult) {
+      console.warn('Prompt injection detected:', { clientId, type, language });
+      return NextResponse.json(
+        {
+          status: 'error',
+          error: 'Your prompt was flagged by our safety system. Please rephrase your request.',
+        },
+        { status: 400 },
+      );
+    }
+
+    const { prompt: structuredPrompt, safety: promptSafety } = safetyResult;
+
+    // Create messages with structured prompt (clear delimiters)
     const messages = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: prompt }
+      { role: 'system', content: structuredPrompt.system },
+      { role: 'user', content: structuredPrompt.user }
     ];
     
     const options = {
@@ -260,7 +282,20 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     
     const content = result.choices?.[0]?.message?.content || '';
     const tokensUsed = result.usage?.total_tokens || 0;
-    
+
+    // SECURITY: Validate LLM output for leaked prompts/sensitive data
+    const outputValidation = validateLLMOutput(content);
+    if (!outputValidation.valid) {
+      console.warn('LLM output validation failed:', outputValidation.issues);
+      return NextResponse.json(
+        {
+          status: 'error',
+          error: 'Generated content failed output validation',
+        },
+        { status: 500 },
+      );
+    }
+
     // Safety check
     const safetyCheck = performSafetyCheck(prompt, content);
     
@@ -350,7 +385,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const status = {
-      enabled: process.env.FEATURE_CONTENT_PIPELINE === 'true',
+      enabled: process.env.FEATURE_CONTENT_PIPELINE === 'true' || process.env.FEATURE_CONTENT_PIPELINE === '1',
       providers: {
         abacus: {
           configured: !!process.env.ABACUSAI_API_KEY,

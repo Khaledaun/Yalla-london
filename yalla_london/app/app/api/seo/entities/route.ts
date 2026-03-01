@@ -5,6 +5,7 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId, getSiteConfig, getSiteDomain } from '@/config/sites';
 
 
 // Get all entities
@@ -27,21 +28,26 @@ export async function GET(request: NextRequest) {
     }
 
     // For now, return mock data since we don't have entities table yet
+    const _defaultSiteId = getDefaultSiteId();
+    const _siteConfig = getSiteConfig(_defaultSiteId);
+    const _siteDomain = getSiteDomain(_defaultSiteId);
+    const _siteName = _siteConfig?.name || 'Yalla London';
+    const _siteRawDomain = _siteConfig?.domain || 'example.com';
     const mockEntities = [
       {
         id: '1',
-        name: 'Yalla London',
+        name: _siteName,
         type: 'Organization',
         description: 'Luxury London travel guide and experience curator',
-        url: 'https://yallalondon.com',
-        identifier: '#organization-yalla-london',
+        url: _siteDomain,
+        identifier: `#organization-${_defaultSiteId}`,
         sameAs: [
-          'https://www.instagram.com/yallalondon',
-          'https://twitter.com/yallalondon'
+          `https://www.instagram.com/${_defaultSiteId.replace(/-/g, '')}`,
+          `https://twitter.com/${_defaultSiteId.replace(/-/g, '')}`
         ],
         properties: {
           logo: 'https://i.pinimg.com/736x/fc/41/c5/fc41c56045c5b08eb352453e0b891d97.jpg',
-          contactEmail: 'hello@yallalondon.com'
+          contactEmail: `hello@${_siteRawDomain}`
         },
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

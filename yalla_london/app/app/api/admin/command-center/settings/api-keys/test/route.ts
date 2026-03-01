@@ -3,9 +3,10 @@
  *
  * Test if an API key is valid by making a simple request.
  */
+export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 import { testApiKey, AIProvider } from '@/lib/ai/provider';
 import { decrypt } from '@/lib/encryption';
 import { requireAdmin } from "@/lib/admin-middleware";

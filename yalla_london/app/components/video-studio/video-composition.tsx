@@ -19,6 +19,7 @@ import {
   Easing,
   Img,
 } from "remotion";
+import { sanitizeSvg } from "@/lib/html-sanitizer";
 import type {
   VideoTemplateConfig,
   VideoScene,
@@ -345,7 +346,7 @@ const LogoElement: React.FC<{
           alignItems: "center",
           justifyContent: "center",
         }}
-        dangerouslySetInnerHTML={{ __html: brand.logoSvg }}
+        dangerouslySetInnerHTML={{ __html: sanitizeSvg(brand.logoSvg) }}
       />
     );
   }
@@ -361,7 +362,7 @@ const LogoElement: React.FC<{
         color: "#FFFFFF",
         fontSize: Math.min(width, height) * 0.4,
         fontWeight: 700,
-        fontFamily: "Plus Jakarta Sans, sans-serif",
+        fontFamily: "Anybody, sans-serif",
         letterSpacing: 2,
       }}
     >
@@ -397,7 +398,7 @@ const CounterElement: React.FC<{
         fontSize: counter.fontSize,
         fontWeight: counter.fontWeight,
         color: counter.color,
-        fontFamily: "Plus Jakarta Sans, sans-serif",
+        fontFamily: "Anybody, sans-serif",
       }}
     >
       {counter.prefix}{Math.round(value)}{counter.suffix}

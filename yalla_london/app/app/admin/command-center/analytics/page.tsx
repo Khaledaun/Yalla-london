@@ -7,7 +7,7 @@
  * Overview of traffic, rankings, and performance across the entire network.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -78,11 +78,7 @@ export default function AnalyticsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  useEffect(() => {
-    loadAnalytics();
-  }, [selectedSite, dateRange]);
-
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(
@@ -98,7 +94,11 @@ export default function AnalyticsPage() {
       setSites([]);
     }
     setIsLoading(false);
-  };
+  }, [selectedSite, dateRange]);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
 
   // Calculate totals
   const totals = sites.reduce(

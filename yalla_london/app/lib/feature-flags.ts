@@ -1,7 +1,93 @@
 /**
  * Phase-4 Feature Flags Management
  * All new features ship disabled by default; enable progressively
+ *
+ * Two-layer system:
+ * 1. Database flags (FeatureFlag table) — toggled via admin dashboard
+ * 2. Environment variables — fallback when DB flag doesn't exist
+ *
+ * DB flags take precedence over env vars. This means Khaled can toggle
+ * features from the dashboard without redeploying.
  */
+
+// --- In-memory cache for DB flags (avoids hitting DB on every check) ---
+const FLAG_CACHE_TTL_MS = 60_000; // 60 seconds
+let _flagCache: Map<string, boolean> | null = null;
+let _flagCacheTimestamp = 0;
+
+async function loadDbFlags(): Promise<Map<string, boolean>> {
+  const now = Date.now();
+  if (_flagCache && now - _flagCacheTimestamp < FLAG_CACHE_TTL_MS) {
+    return _flagCache;
+  }
+
+  try {
+    const { prisma } = await import("@/lib/db");
+    const flags = await prisma.featureFlag.findMany({
+      select: { name: true, enabled: true },
+    });
+    const map = new Map<string, boolean>();
+    for (const f of flags) {
+      map.set(f.name, f.enabled);
+    }
+    _flagCache = map;
+    _flagCacheTimestamp = now;
+    return map;
+  } catch {
+    // DB unavailable — return empty map, env vars will be used as fallback
+    return _flagCache ?? new Map();
+  }
+}
+
+/**
+ * Check if a feature flag is enabled — DB first, env var fallback.
+ * Use this in any async context (cron jobs, API routes, server components).
+ *
+ * Precedence:
+ *   1. FeatureFlag table row with matching name → use its `enabled` value
+ *   2. Environment variable with matching name → "1" or "true" = enabled
+ *   3. Default → disabled (false)
+ */
+export async function isFeatureFlagEnabled(name: string): Promise<boolean> {
+  const dbFlags = await loadDbFlags();
+
+  // DB flag exists → use it
+  if (dbFlags.has(name)) {
+    return dbFlags.get(name)!;
+  }
+
+  // Fallback to env var
+  const envVal = process.env[name];
+  if (envVal !== undefined) {
+    return envVal === "1" || envVal === "true";
+  }
+
+  return false;
+}
+
+/**
+ * Get feature flag value — returns null if the flag is not defined anywhere.
+ * Useful when the caller needs to distinguish "off" from "not configured."
+ *
+ * Returns: true (enabled), false (disabled), or null (not set in DB or env).
+ */
+export async function getFeatureFlagValue(name: string): Promise<boolean | null> {
+  const dbFlags = await loadDbFlags();
+  if (dbFlags.has(name)) {
+    return dbFlags.get(name)!;
+  }
+  const envVal = process.env[name];
+  if (envVal !== undefined) {
+    return envVal === "1" || envVal === "true";
+  }
+  return null;
+}
+
+/** Force-refresh the flag cache (e.g. after toggling a flag via the API) */
+export function invalidateFlagCache(): void {
+  _flagCache = null;
+  _flagCacheTimestamp = 0;
+}
 
 export interface FeatureFlags {
   FEATURE_AI_SEO_AUDIT: number;

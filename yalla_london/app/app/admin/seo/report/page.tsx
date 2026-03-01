@@ -1838,7 +1838,7 @@ export default function SEOReportPage() {
                       <textarea
                         value={customUrls}
                         onChange={(e) => setCustomUrls(e.target.value)}
-                        placeholder={`https://www.yalla-london.com/blog/spring-london-2026-best-things-to-do-arab-visitors\nhttps://www.yalla-london.com/blog/best-luxury-spas-london-2026-women-friendly-halal`}
+                        placeholder={`https://your-site.com/blog/spring-london-2026-best-things-to-do-arab-visitors\nhttps://your-site.com/blog/best-luxury-spas-london-2026-women-friendly-halal`}
                         rows={4}
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
@@ -1934,7 +1934,7 @@ export default function SEOReportPage() {
                           "kensington-chelsea-arab-guide-2026-hotels-restaurants-shopping",
                           "london-with-kids-2026-activities-arab-families",
                         ].map((slug) => {
-                          const url = `https://www.yalla-london.com/blog/${slug}`;
+                          const url = `${typeof window !== "undefined" ? window.location.origin : ""}/blog/${slug}`;
                           const status = statusChecks[url];
                           return (
                             <div
@@ -2014,7 +2014,7 @@ export default function SEOReportPage() {
                           "london-with-kids-2026-activities-arab-families",
                         ].forEach((slug) => {
                           checkUrlStatus(
-                            `https://www.yalla-london.com/blog/${slug}`,
+                            `${typeof window !== "undefined" ? window.location.origin : ""}/blog/${slug}`,
                           );
                         });
                       }}
@@ -2091,7 +2091,7 @@ export default function SEOReportPage() {
                                     >
                                       <td className="py-2 px-2 text-gray-700 truncate max-w-[300px]">
                                         {url.replace(
-                                          "https://www.yalla-london.com",
+                                          typeof window !== "undefined" ? window.location.origin : "",
                                           "",
                                         )}
                                       </td>

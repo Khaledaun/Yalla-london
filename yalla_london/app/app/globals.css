@@ -3,47 +3,63 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Google Fonts - Inter + Playfair Display + Cairo for elegant Arabic typography */
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
+/* Brand Kit v2 — Design Tokens & Animations */
+@import './yalla-tokens.css';
+@import './yalla-animations.css';
 
-/* Dynamic Brand Theming System - Middle Eastern Inspired Luxury */
+/* Zenitha Yachts — Maritime Design Tokens */
+@import './zenitha-tokens.css';
+
+/* Google Fonts — Brand Kit v2 Typography Stack */
+@import url('https://fonts.googleapis.com/css2?family=Anybody:wght@400;500;600;700;800&family=Source+Serif+4:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+
+/* Yalla London — Brand Kit v2 Theming System */
 :root {
-  /* Primary palette - Rich burgundy and gold */
-  --color-primary: #8B1538;
-  --color-secondary: #D4AF37;
-  --color-accent: #C5A572;
-  --color-background: #FFFDF8;
-  --color-text: #2D1810;
-  --color-muted: #6B5B4F;
+  /* Primary palette — London Red & Gold */
+  --color-primary: #C8322B;
+  --color-secondary: #C49A2A;
+  --color-accent: #3B7EA1;
+  --color-background: #FAF8F4;
+  --color-text: #1C1917;
+  --color-muted: #5c564f;
 
   /* Extended palette */
-  --color-cream: #FDF8F3;
-  --color-sand: #F5EDE4;
-  --color-deep-burgundy: #5C0A23;
-  --color-gold-light: #E8D5A3;
-  --color-warm-gray: #9C8B7A;
-  --color-charcoal: #3D2F27;
+  --color-cream: #FAF8F4;
+  --color-sand: #D6D0C4;
+  --color-deep-burgundy: #8b1f1c;
+  --color-gold-light: #d9b938;
+  --color-warm-gray: #5C564F;
+  --color-charcoal: #1C1917;
+  --color-graphite: #3D3835;
+  --color-thames: #3B7EA1;
+  --color-stamp: #4A7BA8;
+  --color-forest: #2D5A3D;
 
   /* Semantic color mappings */
   --color-brand-primary: var(--color-primary);
   --color-brand-secondary: var(--color-secondary);
   --color-brand-accent: var(--color-accent);
 
-  /* Font families */
-  --font-inter: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', sans-serif;
-  --font-serif: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
-  --font-cairo: 'Cairo', 'Inter', 'Segoe UI', 'Arial', sans-serif;
-  --font-arabic: 'Cairo', 'Inter', 'Segoe UI', 'Arial', sans-serif;
+  /* Font families — Brand Kit v2 */
+  --font-display: 'Anybody', sans-serif;
+  --font-editorial: 'Source Serif 4', Georgia, serif;
+  --font-body: 'Source Serif 4', Georgia, serif;
+  --font-system: 'IBM Plex Mono', 'Courier New', monospace;
+  --font-arabic: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
+  /* Legacy aliases */
+  --font-inter: 'Source Serif 4', Georgia, serif;
+  --font-serif: 'Source Serif 4', Georgia, serif;
+  --font-cairo: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', sans-serif;
 
   /* Shadows and effects */
-  --shadow-luxury: 0 4px 20px rgba(139, 21, 56, 0.08);
-  --shadow-elegant: 0 8px 40px rgba(139, 21, 56, 0.12);
-  --shadow-card: 0 2px 12px rgba(45, 24, 16, 0.06);
+  --shadow-luxury: 0 4px 20px rgba(28, 25, 23, 0.08);
+  --shadow-elegant: 0 8px 40px rgba(28, 25, 23, 0.12);
+  --shadow-card: 0 2px 12px rgba(28, 25, 23, 0.06);
 
   /* Border radius */
-  --radius-soft: 12px;
-  --radius-card: 16px;
-  --radius-button: 8px;
+  --radius-soft: 8px;
+  --radius-card: 4px;
+  --radius-button: 4px;
 }
 
 /* Platform-specific brand classes */
@@ -77,24 +93,34 @@
 
 /* Elegant gold gradient */
 .gradient-gold {
-  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-accent) 50%, var(--color-gold-light) 100%);
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-gold-light) 100%);
 }
 
 .gradient-gold-text {
-  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-accent) 100%);
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-gold-light) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
 }
 
+/* Tri-color bar — signature brand element */
+.tricolor-bar {
+  display: flex;
+  height: var(--yalla-bar-height, 3px);
+  gap: 0;
+}
+.tricolor-bar .bar-london { flex: 1; background: var(--color-primary); }
+.tricolor-bar .bar-gold   { flex: 1; background: var(--color-secondary); }
+.tricolor-bar .bar-sky    { flex: 1; background: var(--color-accent); }
+
 /* Warm cream backgrounds */
 .bg-cream { background-color: var(--color-cream); }
 .bg-sand { background-color: var(--color-sand); }
 
-/* Decorative border with Islamic-inspired pattern */
+/* Decorative border — tri-color gradient */
 .border-decorative {
-  border-image: linear-gradient(90deg, var(--color-secondary), var(--color-accent), var(--color-secondary)) 1;
+  border-image: linear-gradient(90deg, var(--color-primary), var(--color-secondary), var(--color-accent)) 1;
 }
 
 /* Ornamental divider */
@@ -154,29 +180,41 @@
     text-wrap: balance;
   }
 
-  .font-inter {
-    font-family: var(--font-inter);
+  .font-display {
+    font-family: var(--font-display);
   }
 
-  .font-cairo {
-    font-family: var(--font-cairo);
+  .font-editorial {
+    font-family: var(--font-editorial);
+  }
+
+  .font-system {
+    font-family: var(--font-system);
   }
 
   .font-arabic {
     font-family: var(--font-arabic);
   }
 
+  /* Legacy aliases */
+  .font-inter {
+    font-family: var(--font-body);
+  }
+
+  .font-cairo {
+    font-family: var(--font-arabic);
+  }
+
   .font-serif {
-    font-family: var(--font-serif);
+    font-family: var(--font-editorial);
   }
 
   .font-prestige {
-    font-family: var(--font-serif);
+    font-family: var(--font-display);
   }
 
-  /* Legacy support - map tajawal to cairo */
   .font-tajawal {
-    font-family: var(--font-cairo);
+    font-family: var(--font-arabic);
   }
 
   /* Enhanced typography for admin interface */
@@ -292,14 +330,14 @@
     background-color: white;
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
-    border: 1px solid rgba(212, 175, 55, 0.1);
+    border: 1px solid rgba(196, 154, 42, 0.1);
     transition: all 0.3s ease;
   }
 
   .card-elegant:hover {
     box-shadow: var(--shadow-luxury);
     transform: translateY(-4px);
-    border-color: rgba(212, 175, 55, 0.3);
+    border-color: rgba(196, 154, 42, 0.3);
   }
 
   /* Decorative heading with underline */
@@ -379,6 +417,12 @@
   [dir="rtl"] .link-animated::after {
     left: auto;
     right: 0;
+    /* Animate from the right side in RTL mode */
+    transform-origin: right;
+  }
+
+  [dir="rtl"] .link-animated:hover::after {
+    width: 100%;
   }
 }
 
@@ -467,13 +511,14 @@
   background: var(--color-secondary);
 }
 
-/* Dark mode adjustments */
+/* Dark mode adjustments — Brand Kit v2 */
 .dark {
-  --color-background: #1A1412;
-  --color-text: #F5EDE4;
-  --color-muted: #9C8B7A;
-  --color-cream: #2D2420;
-  --color-sand: #3D3530;
+  --color-background: #1C1917;
+  --color-text: #FAF8F4;
+  --color-muted: #78716C;
+  --color-cream: #1C1917;
+  --color-sand: #3D3835;
+  --color-charcoal: #FAF8F4;
   --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
   --shadow-luxury: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
@@ -504,4 +549,690 @@
   --tw-space-x-reverse: 1;
   margin-right: calc(2rem * var(--tw-space-x-reverse));
   margin-left: calc(2rem * calc(1 - var(--tw-space-x-reverse)));
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   HQ ADMIN DASHBOARD — NEUMORPHIC DESIGN SYSTEM
+   Soft UI on cream surface. Built on yalla-tokens.css foundation.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── Neumorphic Surface ─── */
+  --neu-bg:           #EDE9E1;  /* Slightly deeper than cream — shadow range needs this */
+  --neu-shadow-light: #FAF8F4;  /* Brand cream = light shadow highlight */
+  --neu-shadow-dark:  #CAC5BC;  /* Warm gray = dark shadow depth */
+
+  /* ─── Neumorphic Shadow Levels ─── */
+  --neu-raised:  6px 6px 14px var(--neu-shadow-dark), -6px -6px 14px var(--neu-shadow-light);
+  --neu-pressed: 3px 3px 7px var(--neu-shadow-dark),  -3px -3px 7px var(--neu-shadow-light);
+  --neu-inset:   inset 4px 4px 9px var(--neu-shadow-dark), inset -4px -4px 9px var(--neu-shadow-light);
+  --neu-flat:    1px 1px 3px var(--neu-shadow-dark),  -1px -1px 3px var(--neu-shadow-light);
+
+  /* ─── Glow rings for focus states ─── */
+  --neu-glow-red:   0 0 0 3px rgba(200,50,43,0.15);
+  --neu-glow-gold:  0 0 0 3px rgba(196,154,42,0.18);
+  --neu-glow-stamp: 0 0 0 3px rgba(74,123,168,0.15);
+}
+
+/* ─── Admin body uses neumorphic background ─── */
+.admin-neu-body {
+  background-color: var(--neu-bg);
+  color: var(--yalla-charcoal, #1C1917);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* ─── RTL mirror ─── */
+[dir="rtl"] {
+  --neu-raised: -6px 6px 14px var(--neu-shadow-dark), 6px -6px 14px var(--neu-shadow-light);
+  --neu-inset:  inset -4px 4px 9px var(--neu-shadow-dark), inset 4px -4px 9px var(--neu-shadow-light);
+}
+
+/* ─── Neumorphic Utility Classes ─── */
+.neu-surface   { background-color: var(--neu-bg); }
+.neu-raised    { background-color: var(--neu-bg); box-shadow: var(--neu-raised); }
+.neu-pressed   { background-color: var(--neu-bg); box-shadow: var(--neu-pressed); }
+.neu-inset     { background-color: var(--neu-bg); box-shadow: var(--neu-inset); }
+.neu-flat      { background-color: var(--neu-bg); box-shadow: var(--neu-flat); }
+
+/* ─── Neumorphic Card ─── */
+.neu-card {
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-raised);
+  border-radius: 16px;
+  padding: 24px;
+  transition: box-shadow 200ms var(--yalla-ease, cubic-bezier(0.4,0,0.2,1));
+}
+.neu-card:hover { box-shadow: var(--neu-pressed); }
+
+/* ─── Neumorphic Icon Container ─── */
+.neu-icon-circle {
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-inset);
+  border-radius: 9999px;
+  width: 50px; height: 50px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ─── Neumorphic Input ─── */
+.neu-input {
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-inset);
+  border: none; outline: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: #1C1917;
+  width: 100%;
+  transition: box-shadow 200ms;
+}
+.neu-input:focus {
+  box-shadow: var(--neu-inset), var(--neu-glow-gold);
+}
+.neu-input::placeholder { color: #78716C; }
+
+/* ─── Neumorphic Buttons ─── */
+.neu-btn-primary {
+  background-color: #C8322B;
+  box-shadow: 4px 4px 10px var(--neu-shadow-dark), -2px -2px 6px rgba(200,50,43,0.2);
+  color: #FAF8F4;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border-radius: 10px;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: all 200ms var(--yalla-ease, cubic-bezier(0.4,0,0.2,1));
+}
+.neu-btn-primary:hover  { background-color: #B82D26; box-shadow: var(--neu-pressed); }
+.neu-btn-primary:active { box-shadow: inset 3px 3px 8px rgba(0,0,0,0.25); }
+
+.neu-btn-secondary {
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-raised);
+  color: #1C1917;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border-radius: 10px;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: all 200ms var(--yalla-ease, cubic-bezier(0.4,0,0.2,1));
+}
+.neu-btn-secondary:active { box-shadow: var(--neu-inset); }
+
+.neu-btn-gold {
+  background-color: #C49A2A;
+  box-shadow: 4px 4px 10px var(--neu-shadow-dark), -2px -2px 6px rgba(196,154,42,0.25);
+  color: #FAF8F4;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border-radius: 10px;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: all 200ms var(--yalla-ease, cubic-bezier(0.4,0,0.2,1));
+}
+.neu-btn-gold:active { box-shadow: inset 3px 3px 8px rgba(0,0,0,0.2); }
+
+/* ─── Neumorphic Nav Item States ─── */
+.neu-nav-item {
+  transition: all 200ms var(--yalla-ease, cubic-bezier(0.4,0,0.2,1));
+  border-radius: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #78716C;
+}
+.neu-nav-item:hover {
+  box-shadow: var(--neu-flat);
+  color: #1C1917;
+}
+.neu-nav-item.active {
+  box-shadow: var(--neu-inset);
+  color: #1C1917;
+  font-weight: 600;
+}
+.neu-nav-item.active .neu-nav-icon { color: #C8322B; }
+
+/* ─── Tri-color Bar ─── */
+.neu-tricolor {
+  display: flex;
+  height: 3px;
+  width: 100%;
+}
+.neu-tricolor-red   { flex: 1; background: #C8322B; }
+.neu-tricolor-gold  { flex: 1; background: #C49A2A; }
+.neu-tricolor-stamp { flex: 1; background: #4A7BA8; }
+
+/* ─── Status Badges ─── */
+.neu-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.neu-badge-green  { background: rgba(45,90,61,0.1);   color: #2D5A3D; border: 1px solid rgba(45,90,61,0.25); }
+.neu-badge-red    { background: rgba(200,50,43,0.1);  color: #C8322B; border: 1px solid rgba(200,50,43,0.25); }
+.neu-badge-gold   { background: rgba(196,154,42,0.1); color: #C49A2A; border: 1px solid rgba(196,154,42,0.25); }
+.neu-badge-stamp  { background: rgba(74,123,168,0.1); color: #4A7BA8; border: 1px solid rgba(74,123,168,0.25); }
+.neu-badge-stone  { background: rgba(120,113,108,0.1); color: #78716C; border: 1px solid rgba(120,113,108,0.2); }
+
+/* ─── Health Indicators ─── */
+.neu-health-green  { color: #2D5A3D; }
+.neu-health-yellow { color: #C49A2A; }
+.neu-health-red    { color: #C8322B; }
+.neu-health-gray   { color: #78716C; }
+
+/* ─── Section Label ─── */
+.neu-section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #78716C;
+}
+
+/* ─── KPI Number ─── */
+.neu-kpi-number {
+  font-family: 'Anybody', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  color: #1C1917;
+  line-height: 1;
+}
+
+/* ─── Form card top accent ─── */
+.neu-card-accented {
+  position: relative;
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-raised);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.neu-card-accented::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #C8322B 33.3%, #C49A2A 33.3% 66.6%, #4A7BA8 66.6%);
+}
+
+/* ─── Toggle Switch ─── */
+.neu-toggle-track {
+  box-shadow: var(--neu-inset);
+  border-radius: 9999px;
+  width: 52px; height: 28px;
+  background-color: var(--neu-bg);
+  position: relative; cursor: pointer;
+  transition: all 300ms var(--yalla-ease-bounce, cubic-bezier(0.34,1.56,0.64,1));
+}
+.neu-toggle-thumb {
+  position: absolute;
+  top: 4px; left: 4px;
+  width: 20px; height: 20px;
+  border-radius: 9999px;
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-raised);
+  transition: all 300ms var(--yalla-ease-bounce, cubic-bezier(0.34,1.56,0.64,1));
+}
+.neu-toggle-track.on .neu-toggle-thumb {
+  left: calc(100% - 24px);
+  background-color: #C8322B;
+  box-shadow: var(--neu-glow-red);
+}
+
+/* ─── Pipeline Step Dot ─── */
+.neu-pipeline-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background-color: var(--neu-bg);
+  box-shadow: var(--neu-flat);
+}
+.neu-pipeline-dot.active  { background-color: #2D5A3D; box-shadow: 0 0 0 3px rgba(45,90,61,0.2); }
+.neu-pipeline-dot.warning { background-color: #C49A2A; box-shadow: 0 0 0 3px rgba(196,154,42,0.2); }
+.neu-pipeline-dot.error   { background-color: #C8322B; box-shadow: 0 0 0 3px rgba(200,50,43,0.2); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ARTICLE CONTENT TYPOGRAPHY — .yalla-article-content
+   Rich editorial styling for blog post HTML content.
+   Used by BlogPostClient for dangerouslySetInnerHTML output.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.yalla-article-content {
+  font-family: var(--font-editorial);
+  font-size: 1.125rem;
+  line-height: 1.85;
+  color: var(--color-charcoal);
+}
+
+/* ─── Paragraphs ─── */
+.yalla-article-content p {
+  margin-bottom: 1.75rem;
+  font-weight: 400;
+}
+
+.yalla-article-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* ─── Headings ─── */
+.yalla-article-content h1,
+.yalla-article-content h2,
+.yalla-article-content h3,
+.yalla-article-content h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--color-charcoal);
+  line-height: 1.25;
+}
+
+.yalla-article-content h1 {
+  font-size: 2rem;
+  margin-top: 3rem;
+  margin-bottom: 1.25rem;
+}
+
+.yalla-article-content h2 {
+  font-size: 1.625rem;
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--color-sand);
+  position: relative;
+}
+
+.yalla-article-content h2::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 80px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-secondary), var(--color-accent));
+}
+
+[dir="rtl"] .yalla-article-content h2::after {
+  left: auto;
+  right: 0;
+}
+
+.yalla-article-content h3 {
+  font-size: 1.375rem;
+  margin-top: 2.25rem;
+  margin-bottom: 0.875rem;
+  color: var(--color-primary);
+}
+
+.yalla-article-content h4 {
+  font-size: 1.125rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.9375rem;
+}
+
+/* Remove top margin from first heading */
+.yalla-article-content > h1:first-child,
+.yalla-article-content > h2:first-child,
+.yalla-article-content > h3:first-child {
+  margin-top: 0;
+}
+
+/* ─── Links ─── */
+.yalla-article-content a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--color-secondary);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.yalla-article-content a:hover {
+  color: var(--color-deep-burgundy);
+  text-decoration-color: var(--color-primary);
+  background-color: rgba(196, 154, 42, 0.08);
+  border-radius: 2px;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
+
+/* External links — subtle indicator */
+.yalla-article-content a[href^="http"]::after {
+  content: ' \2197';
+  font-size: 0.75em;
+  vertical-align: super;
+  opacity: 0.5;
+}
+
+/* Internal links — no arrow */
+.yalla-article-content a[href^="/"]::after,
+.yalla-article-content a[href^="#"]::after {
+  content: none;
+}
+
+/* ─── Bold & Emphasis ─── */
+.yalla-article-content strong,
+.yalla-article-content b {
+  font-weight: 700;
+  color: var(--color-charcoal);
+}
+
+.yalla-article-content em,
+.yalla-article-content i {
+  font-style: italic;
+}
+
+/* ─── Blockquotes ─── */
+.yalla-article-content blockquote {
+  margin: 2.5rem 0;
+  padding: 1.5rem 1.75rem;
+  border-left: 4px solid var(--color-primary);
+  background: linear-gradient(135deg, rgba(200, 50, 43, 0.04), rgba(196, 154, 42, 0.04));
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--color-graphite);
+}
+
+[dir="rtl"] .yalla-article-content blockquote {
+  border-left: none;
+  border-right: 4px solid var(--color-primary);
+  border-radius: 8px 0 0 8px;
+}
+
+.yalla-article-content blockquote p {
+  margin-bottom: 0.75rem;
+}
+
+.yalla-article-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* ─── Unordered Lists ─── */
+.yalla-article-content ul {
+  margin: 1.5rem 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+[dir="rtl"] .yalla-article-content ul {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.yalla-article-content ul > li {
+  position: relative;
+  padding-left: 1.75rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.7;
+}
+
+[dir="rtl"] .yalla-article-content ul > li {
+  padding-left: 0;
+  padding-right: 1.75rem;
+}
+
+.yalla-article-content ul > li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.65em;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  border-radius: 50%;
+}
+
+[dir="rtl"] .yalla-article-content ul > li::before {
+  left: auto;
+  right: 0;
+}
+
+/* ─── Ordered Lists ─── */
+.yalla-article-content ol {
+  margin: 1.5rem 0;
+  padding-left: 0;
+  list-style: none;
+  counter-reset: article-counter;
+}
+
+[dir="rtl"] .yalla-article-content ol {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.yalla-article-content ol > li {
+  position: relative;
+  padding-left: 2.5rem;
+  margin-bottom: 0.875rem;
+  line-height: 1.7;
+  counter-increment: article-counter;
+}
+
+[dir="rtl"] .yalla-article-content ol > li {
+  padding-left: 0;
+  padding-right: 2.5rem;
+}
+
+.yalla-article-content ol > li::before {
+  content: counter(article-counter);
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: white;
+  font-family: var(--font-system);
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 50%;
+}
+
+[dir="rtl"] .yalla-article-content ol > li::before {
+  left: auto;
+  right: 0;
+}
+
+/* ─── Nested lists ─── */
+.yalla-article-content li ul,
+.yalla-article-content li ol {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+.yalla-article-content li ul > li::before {
+  width: 6px;
+  height: 6px;
+  background: var(--color-sand);
+  border: 1.5px solid var(--color-stone, #78716C);
+}
+
+/* ─── Tables ─── */
+.yalla-article-content table {
+  width: 100%;
+  margin: 2rem 0;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+}
+
+.yalla-article-content thead {
+  background: var(--color-charcoal);
+  color: white;
+}
+
+.yalla-article-content th {
+  padding: 0.875rem 1rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: left;
+}
+
+[dir="rtl"] .yalla-article-content th {
+  text-align: right;
+}
+
+.yalla-article-content td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--color-sand);
+}
+
+.yalla-article-content tbody tr:nth-child(even) {
+  background-color: var(--color-cream);
+}
+
+.yalla-article-content tbody tr:hover {
+  background-color: rgba(196, 154, 42, 0.06);
+}
+
+.yalla-article-content tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ─── Images ─── */
+.yalla-article-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 2rem 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* ─── Horizontal Rules (section dividers) ─── */
+.yalla-article-content hr {
+  border: none;
+  margin: 3rem auto;
+  height: 3px;
+  width: 100px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary), var(--color-accent));
+  border-radius: 2px;
+}
+
+/* ─── Code / Pre ─── */
+.yalla-article-content code {
+  font-family: var(--font-system);
+  font-size: 0.875em;
+  background: var(--color-cream);
+  color: var(--color-primary);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  border: 1px solid var(--color-sand);
+}
+
+.yalla-article-content pre {
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  background: var(--color-charcoal);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.yalla-article-content pre code {
+  background: none;
+  color: var(--color-cream);
+  border: none;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+/* ─── Special content markers ─── */
+
+/* Tip / info callout — wraps content in a styled box */
+.yalla-article-content .tip,
+.yalla-article-content .info,
+.yalla-article-content [data-callout="tip"] {
+  margin: 2rem 0;
+  padding: 1.25rem 1.5rem;
+  background: rgba(59, 126, 161, 0.06);
+  border-left: 4px solid var(--color-accent);
+  border-radius: 0 8px 8px 0;
+  font-size: 1rem;
+}
+
+/* Warning callout */
+.yalla-article-content .warning,
+.yalla-article-content [data-callout="warning"] {
+  margin: 2rem 0;
+  padding: 1.25rem 1.5rem;
+  background: rgba(245, 158, 11, 0.06);
+  border-left: 4px solid #f59e0b;
+  border-radius: 0 8px 8px 0;
+  font-size: 1rem;
+}
+
+/* ─── RTL Arabic typography ─── */
+[dir="rtl"] .yalla-article-content {
+  font-family: var(--font-arabic);
+  font-size: 1.125rem;
+  line-height: 2;
+}
+
+[dir="rtl"] .yalla-article-content h1,
+[dir="rtl"] .yalla-article-content h2,
+[dir="rtl"] .yalla-article-content h3,
+[dir="rtl"] .yalla-article-content h4 {
+  font-family: var(--font-arabic);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .yalla-article-content {
+    font-size: 1rem;
+    line-height: 1.8;
+  }
+
+  .yalla-article-content h1 { font-size: 1.625rem; }
+  .yalla-article-content h2 { font-size: 1.375rem; }
+  .yalla-article-content h3 { font-size: 1.125rem; }
+
+  .yalla-article-content blockquote {
+    margin: 1.5rem 0;
+    padding: 1rem 1.25rem;
+  }
+
+  .yalla-article-content table {
+    font-size: 0.8125rem;
+  }
+
+  .yalla-article-content th,
+  .yalla-article-content td {
+    padding: 0.625rem 0.75rem;
+  }
+}
+
+/* ─── Print ─── */
+@media print {
+  .yalla-article-content a::after {
+    content: ' (' attr(href) ')';
+    font-size: 0.75em;
+    color: #666;
+  }
 }

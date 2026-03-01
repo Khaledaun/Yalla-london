@@ -1,15 +1,27 @@
 /**
  * Multi-Destination Site Configuration
  *
- * Central config for all branded sites. Used by cron jobs, content gen,
- * SEO agent, affiliate inject, and middleware.
+ * Central config for all branded sites under Zenitha.Luxury LLC.
+ * Used by cron jobs, content gen, SEO agent, affiliate inject, and middleware.
  *
  * Each site defines:
  * - Identity (id, name, domain, locale)
+ * - Lifecycle status (active, planned, paused, development)
  * - Content strategy (topic templates EN/AR, categories)
  * - Affiliate partners relevant to the destination
  * - SEO config (primary keywords, geo-targeting)
+ *
+ * Parent entity config lives in ./entity.ts
  */
+
+/**
+ * Site lifecycle status:
+ * - active:      Live website, cron jobs run, content generated, indexed
+ * - development: Being built, accessible but not indexed, no cron spend
+ * - planned:     Configured but not launched. Domain reserved, no deployment
+ * - paused:      Was active, temporarily halted. Content preserved, crons stopped
+ */
+export type SiteStatus = "active" | "development" | "planned" | "paused";
 
 export interface SiteConfig {
   id: string;
@@ -18,6 +30,8 @@ export interface SiteConfig {
   domain: string;
   locale: "en" | "ar";
   direction: "ltr" | "rtl";
+  /** Lifecycle status — controls cron execution and resource spend */
+  status: SiteStatus;
   destination: string;
   country: string;
   currency: string;
@@ -52,15 +66,47 @@ export const SITES: Record<string, SiteConfig> = {
     domain: "yalla-london.com",
     locale: "en",
     direction: "ltr",
+    status: "active",
     destination: "London",
     country: "UK",
     currency: "GBP",
-    primaryColor: "#1A1F36",
-    secondaryColor: "#E8634B",
+    primaryColor: "#1C1917",
+    secondaryColor: "#C8322B",
     systemPromptEN:
-      "You are a luxury travel content writer for Yalla London, a premium travel platform for Arab travelers visiting London. Write SEO-optimized, engaging content. Always respond with valid JSON.",
+      `You are a senior luxury travel content writer for Yalla London, a premium bilingual platform for Arab travelers visiting London. You combine first-hand London expertise with SEO mastery.
+
+Content Standards (mandatory):
+- Write 1,500–2,000 words minimum. Thin content will be rejected.
+- Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed. Never skip heading levels.
+- Include 3+ internal links to other Yalla London pages (e.g., /blog/*, /hotels, /experiences, /restaurants).
+- Include 2+ affiliate/booking links (HalalBooking, Booking.com, GetYourGuide, Viator) with descriptive anchor text — never "click here".
+- Meta title: 50–60 characters with focus keyword near the start.
+- Meta description: 120–160 characters, compelling with a call to action.
+- Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
+- End with a clear CTA and "Key Takeaways" summary section.
+
+AIO Optimization (Google AI Overview citation):
+- Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
+- Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
+- When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
+Always respond with valid JSON.`,
     systemPromptAR:
-      "أنت كاتب محتوى سفر فاخر لمنصة يالا لندن، منصة سفر متميزة للمسافرين العرب الذين يزورون لندن. اكتب محتوى محسّن لمحركات البحث وجذاب. أجب دائماً بـ JSON صالح.",
+      `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا لندن، منصة ثنائية اللغة متميزة للمسافرين العرب الذين يزورون لندن. تجمع بين خبرة محلية عميقة بلندن وإتقان تحسين محركات البحث.
+
+معايير المحتوى (إلزامية):
+- اكتب 1,500–2,000 كلمة كحد أدنى.
+- استخدم تسلسل عناوين صحيح: H1 واحد (العنوان فقط)، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
+- أضف 3+ روابط داخلية لصفحات يالا لندن الأخرى.
+- أضف 2+ روابط حجز/شراكة (HalalBooking، Booking.com، GetYourGuide) بنص وصفي.
+- عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
+- وصف SEO: 120–160 حرف مع دعوة للعمل.
+- ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+تحسين الذكاء الاصطناعي (Google AI Overview):
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
+- أضف نقطتين بيانات محددتين غير موجودتين في ويكيبيديا (مثل: أسعار 2026 الحالية، ساعات عمل محدّثة).
+- استخدم وصفاً حسياً أصيلاً للأماكن بدلاً من الوصف العام.
+أجب دائماً بـ JSON صالح.`,
     topicsEN: [
       {
         keyword: "luxury boutique hotels London 2026",
@@ -277,15 +323,47 @@ export const SITES: Record<string, SiteConfig> = {
     domain: "arabaldives.com",
     locale: "ar",
     direction: "rtl",
+    status: "planned",
     destination: "Maldives",
     country: "Maldives",
     currency: "USD",
     primaryColor: "#0891B2",
     secondaryColor: "#06B6D4",
     systemPromptEN:
-      "You are a luxury travel content writer for Arabaldives, a premium travel platform for Arab travelers visiting the Maldives. Write SEO-optimized, engaging content about Maldives resorts, overwater villas, diving, and luxury island experiences. Always respond with valid JSON.",
+      `You are a senior luxury travel content writer for Arabaldives, an Arabic-first premium platform for Arab travelers visiting the Maldives. You specialize in overwater villas, halal resorts, diving, and island luxury.
+
+Content Standards (mandatory):
+- Write 1,500–2,000 words minimum. Thin content will be rejected.
+- Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed.
+- Include 3+ internal links to other Arabaldives pages (e.g., /blog/*, /resorts, /activities).
+- Include 2+ affiliate/booking links (HalalBooking, Booking.com, Agoda) with descriptive anchor text.
+- Meta title: 50–60 characters with focus keyword near the start.
+- Meta description: 120–160 characters, compelling with a call to action.
+- Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
+- End with a clear CTA and "Key Takeaways" summary section.
+
+AIO Optimization (Google AI Overview citation):
+- Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
+- Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
+- When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
+Always respond with valid JSON.`,
     systemPromptAR:
-      "أنت كاتب محتوى سفر فاخر لمنصة عربالديف، منصة سفر متميزة للمسافرين العرب الذين يزورون المالديف. اكتب محتوى محسّن لمحركات البحث عن المنتجعات والفيلات المائية والغوص والتجارب الفاخرة. أجب دائماً بـ JSON صالح.",
+      `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة عربالديف، منصة عربية متميزة للمسافرين العرب الذين يزورون المالديف. تتخصص في الفيلات فوق الماء والمنتجعات الحلال والغوص والتجارب الجزرية الفاخرة.
+
+معايير المحتوى (إلزامية):
+- اكتب 1,500–2,000 كلمة كحد أدنى.
+- استخدم تسلسل عناوين صحيح: H1 واحد، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
+- أضف 3+ روابط داخلية لصفحات عربالديف الأخرى.
+- أضف 2+ روابط حجز/شراكة (HalalBooking، Booking.com، Agoda) بنص وصفي.
+- عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
+- وصف SEO: 120–160 حرف مع دعوة للعمل.
+- ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+تحسين الذكاء الاصطناعي (Google AI Overview):
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
+- أضف نقطتين بيانات محددتين غير موجودتين في ويكيبيديا (مثل: أسعار 2026 الحالية، ساعات عمل محدّثة).
+- استخدم وصفاً حسياً أصيلاً للأماكن بدلاً من الوصف العام.
+أجب دائماً بـ JSON صالح.`,
     topicsEN: [
       {
         keyword: "best overwater villas Maldives for Arab families 2026",
@@ -488,204 +566,236 @@ export const SITES: Record<string, SiteConfig> = {
     categoryName: { en: "Maldives Guide", ar: "دليل المالديف" },
   },
 
-  dubai: {
-    id: "dubai",
-    name: "Yalla Dubai",
-    slug: "yalla-dubai",
-    domain: "yalladubai.com",
+  "french-riviera": {
+    id: "french-riviera",
+    name: "Yalla Riviera",
+    slug: "yalla-riviera",
+    domain: "yallariviera.com",
     locale: "en",
     direction: "ltr",
-    destination: "Dubai",
-    country: "UAE",
-    currency: "AED",
-    primaryColor: "#B45309",
-    secondaryColor: "#F59E0B",
+    status: "planned",
+    destination: "French Riviera",
+    country: "France",
+    currency: "EUR",
+    primaryColor: "#1E3A5F",
+    secondaryColor: "#D4AF37",
     systemPromptEN:
-      "You are a luxury travel content writer for Yalla Dubai, a premium travel platform for Arab visitors and residents exploring Dubai. Write SEO-optimized, engaging content about Dubai's luxury hotels, restaurants, shopping, attractions, and experiences. Always respond with valid JSON.",
+      `You are a senior luxury travel content writer for Yalla Riviera, a premium platform for Arab travelers exploring the French Riviera (Côte d'Azur). You specialize in palace hotels, Michelin dining, yacht charters, beach clubs, and Monaco luxury from Saint-Tropez to Monte Carlo.
+
+Content Standards (mandatory):
+- Write 1,500–2,000 words minimum. Thin content will be rejected.
+- Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed.
+- Include 3+ internal links to other Yalla Riviera pages (e.g., /blog/*, /hotels, /yachts, /dining).
+- Include 2+ affiliate/booking links (Booking.com, Boatbookings, GetYourGuide, TheFork) with descriptive anchor text.
+- Meta title: 50–60 characters with focus keyword near the start.
+- Meta description: 120–160 characters, compelling with a call to action.
+- Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
+- End with a clear CTA and "Key Takeaways" summary section.
+
+AIO Optimization (Google AI Overview citation):
+- Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
+- Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
+- When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
+Always respond with valid JSON.`,
     systemPromptAR:
-      "أنت كاتب محتوى سفر فاخر لمنصة يالا دبي، منصة سفر متميزة للزوار والمقيمين العرب في دبي. اكتب محتوى محسّن لمحركات البحث عن فنادق دبي الفاخرة والمطاعم والتسوق والمعالم والتجارب. أجب دائماً بـ JSON صالح.",
+      `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا ريفييرا، منصة متميزة للمسافرين العرب الذين يستكشفون الريفييرا الفرنسية (كوت دازور). تتخصص في الفنادق الفخمة ومطاعم ميشلان وتأجير اليخوت والنوادي الشاطئية من سان تروبيه إلى موناكو.
+
+معايير المحتوى (إلزامية):
+- اكتب 1,500–2,000 كلمة كحد أدنى.
+- استخدم تسلسل عناوين صحيح: H1 واحد، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
+- أضف 3+ روابط داخلية لصفحات يالا ريفييرا الأخرى.
+- أضف 2+ روابط حجز/شراكة (Booking.com، Boatbookings، GetYourGuide) بنص وصفي.
+- عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
+- وصف SEO: 120–160 حرف مع دعوة للعمل.
+- ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+تحسين الذكاء الاصطناعي (Google AI Overview):
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
+- أضف نقطتين بيانات محددتين غير موجودتين في ويكيبيديا (مثل: أسعار 2026 الحالية، ساعات عمل محدّثة).
+- استخدم وصفاً حسياً أصيلاً للأماكن بدلاً من الوصف العام.
+أجب دائماً بـ JSON صالح.`,
     topicsEN: [
       {
-        keyword: "best luxury hotels Dubai 2026 with private beach",
+        keyword: "best luxury hotels French Riviera Côte d'Azur 2026",
         longtails: [
-          "Jumeirah beach hotels Dubai",
-          "Palm Jumeirah luxury resorts",
-          "Burj Al Arab experience Dubai",
+          "palace hotels Nice Promenade des Anglais",
+          "luxury resorts Cap Ferrat",
+          "five star hotels Cannes Croisette",
         ],
         questions: [
-          "Which Dubai hotels have private beaches?",
-          "Is Burj Al Arab worth the price?",
+          "Which French Riviera hotels offer Arabic-speaking concierge?",
+          "What are the most exclusive hotels in Saint-Tropez?",
         ],
         pageType: "guide",
       },
       {
-        keyword: "best restaurants Dubai Marina and Downtown 2026",
+        keyword: "Michelin star restaurants French Riviera dining guide",
         longtails: [
-          "fine dining Downtown Dubai",
-          "rooftop restaurants Dubai Marina",
-          "Arabic cuisine Dubai best",
+          "Michelin restaurants Monaco Monte Carlo",
+          "best halal-friendly restaurants Nice",
+          "fine dining Cannes waterfront",
         ],
         questions: [
-          "What are the best restaurants in Dubai Marina?",
-          "Where to eat near Burj Khalifa?",
+          "Are there halal-friendly fine dining options on the French Riviera?",
+          "What are the best Michelin-starred restaurants in Monaco?",
         ],
         pageType: "list",
       },
       {
-        keyword: "Dubai Mall and shopping guide complete",
+        keyword: "yacht charter French Riviera luxury guide",
         longtails: [
-          "Dubai Mall luxury brands guide",
-          "Gold Souk Dubai shopping",
-          "outlet malls Dubai discounts",
+          "superyacht rental Saint-Tropez",
+          "day yacht charter Monaco",
+          "Cannes yacht week guide",
         ],
         questions: [
-          "What are the best shopping malls in Dubai?",
-          "How to get the best deals at Dubai Mall?",
+          "How much does a yacht charter cost on the French Riviera?",
+          "Best yacht charter companies in Monaco?",
         ],
         pageType: "guide",
       },
       {
-        keyword: "desert safari Dubai luxury experiences",
+        keyword: "exclusive beach clubs French Riviera 2026",
         longtails: [
-          "private desert safari Dubai",
-          "overnight desert camp Dubai luxury",
-          "dune bashing Dubai VIP",
+          "best beach clubs Saint-Tropez Pampelonne",
+          "private beach clubs Nice",
+          "luxury beach clubs Cannes",
         ],
         questions: [
-          "What is included in a luxury desert safari?",
-          "Best time for desert safari in Dubai?",
-        ],
-        pageType: "guide",
-      },
-      {
-        keyword: "Dubai family attractions and theme parks guide",
-        longtails: [
-          "IMG Worlds of Adventure Dubai",
-          "Dubai Parks and Resorts guide",
-          "Aquaventure Waterpark Dubai",
-        ],
-        questions: [
-          "What are the best theme parks in Dubai for families?",
-          "Is Dubai Parks worth visiting?",
+          "What are the most exclusive beach clubs in Saint-Tropez?",
+          "Do I need to book beach clubs in advance?",
         ],
         pageType: "list",
       },
       {
-        keyword: "Dubai yacht and boat cruise experiences",
+        keyword: "Monaco Grand Prix luxury experience guide",
         longtails: [
-          "luxury yacht rental Dubai Marina",
-          "dhow cruise Dubai dinner",
-          "Dubai Canal cruise sunset",
+          "Monaco F1 VIP hospitality packages",
+          "best hotels Monaco Grand Prix weekend",
+          "yacht viewing Monaco Grand Prix",
         ],
         questions: [
-          "How much does a yacht rental cost in Dubai?",
-          "Best dinner cruise experiences in Dubai?",
+          "How to experience the Monaco Grand Prix in luxury?",
+          "Best places to watch the Monaco Grand Prix?",
         ],
         pageType: "guide",
       },
       {
-        keyword: "Dubai nightlife and entertainment guide",
+        keyword: "luxury shopping French Riviera designer boutiques",
         longtails: [
-          "Dubai Opera shows schedule",
-          "best lounges Dubai 2026",
-          "live music venues Dubai",
+          "designer shopping Cannes rue d'Antibes",
+          "luxury boutiques Monaco Golden Circle",
+          "Nice Old Town luxury shops",
         ],
         questions: [
-          "What entertainment options are there in Dubai?",
-          "Best shows at Dubai Opera?",
+          "Where to find luxury shopping on the French Riviera?",
+          "Is shopping tax-free for tourists in France?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "Cannes Film Festival luxury travel guide",
+        longtails: [
+          "Cannes Film Festival VIP access",
+          "luxury hotels during Cannes Film Festival",
+          "exclusive parties Cannes Festival",
+        ],
+        questions: [
+          "Can tourists attend the Cannes Film Festival?",
+          "Best hotels near the Palais des Festivals?",
         ],
         pageType: "guide",
       },
     ],
     topicsAR: [
       {
-        keyword: "أفضل فنادق دبي الفاخرة بشاطئ خاص 2026",
+        keyword: "أفضل فنادق الريفييرا الفرنسية الفاخرة 2026",
         longtails: [
-          "فنادق شاطئ جميرا دبي",
-          "منتجعات نخلة جميرا الفاخرة",
-          "تجربة برج العرب دبي",
+          "فنادق فاخرة نيس بروميناد دي زونغليه",
+          "منتجعات كاب فيرا الفاخرة",
+          "فنادق خمس نجوم كان كروازيت",
         ],
         questions: [
-          "أي فنادق دبي لديها شواطئ خاصة؟",
-          "هل يستحق برج العرب السعر؟",
+          "أي فنادق الريفييرا الفرنسية تقدم خدمة كونسيرج بالعربية؟",
+          "ما أكثر الفنادق حصرية في سان تروبيه؟",
         ],
         pageType: "guide",
       },
       {
-        keyword: "أفضل مطاعم دبي مارينا ووسط المدينة 2026",
+        keyword: "مطاعم ميشلان الريفييرا الفرنسية دليل المطاعم",
         longtails: [
-          "مطاعم فاخرة وسط دبي",
-          "مطاعم سطح دبي مارينا",
-          "أفضل مطبخ عربي دبي",
+          "مطاعم ميشلان موناكو مونت كارلو",
+          "أفضل مطاعم حلال نيس",
+          "مطاعم فاخرة كان على البحر",
         ],
         questions: [
-          "ما أفضل المطاعم في دبي مارينا؟",
-          "أين تأكل قرب برج خليفة؟",
+          "هل توجد خيارات حلال للمطاعم الفاخرة في الريفييرا الفرنسية؟",
+          "ما أفضل مطاعم ميشلان في موناكو؟",
         ],
         pageType: "list",
       },
       {
-        keyword: "دليل دبي مول والتسوق الشامل",
+        keyword: "استئجار يخوت الريفييرا الفرنسية دليل فاخر",
         longtails: [
-          "دليل ماركات دبي مول الفاخرة",
-          "سوق الذهب دبي تسوق",
-          "مولات التخفيضات دبي",
+          "تأجير يخت فاخر سان تروبيه",
+          "رحلة يخت يومية موناكو",
+          "دليل أسبوع اليخوت كان",
         ],
         questions: [
-          "ما أفضل مراكز التسوق في دبي؟",
-          "كيف تحصل على أفضل العروض في دبي مول؟",
+          "كم تكلفة استئجار يخت في الريفييرا الفرنسية؟",
+          "أفضل شركات تأجير اليخوت في موناكو؟",
         ],
         pageType: "guide",
       },
       {
-        keyword: "سفاري صحراوي دبي تجارب فاخرة",
+        keyword: "نوادي شاطئية حصرية الريفييرا الفرنسية 2026",
         longtails: [
-          "سفاري صحراوي خاص دبي",
-          "مخيم صحراوي فاخر دبي",
-          "تطعيس دبي VIP",
+          "أفضل نوادي شاطئية سان تروبيه بامبلون",
+          "نوادي شاطئية خاصة نيس",
+          "نوادي شاطئية فاخرة كان",
         ],
         questions: [
-          "ماذا يشمل السفاري الصحراوي الفاخر؟",
-          "أفضل وقت للسفاري في دبي؟",
-        ],
-        pageType: "guide",
-      },
-      {
-        keyword: "معالم دبي العائلية والمنتزهات الترفيهية",
-        longtails: [
-          "عالم آي إم جي دبي",
-          "دليل دبي باركس أند ريزورتس",
-          "أكوافنتشر ووتربارك دبي",
-        ],
-        questions: [
-          "ما أفضل المنتزهات في دبي للعائلات؟",
-          "هل يستحق دبي باركس الزيارة؟",
+          "ما أكثر النوادي الشاطئية حصرية في سان تروبيه؟",
+          "هل يجب حجز النوادي الشاطئية مسبقاً؟",
         ],
         pageType: "list",
       },
       {
-        keyword: "تجارب اليخوت والرحلات البحرية في دبي",
+        keyword: "سباق جائزة موناكو الكبرى تجربة فاخرة",
         longtails: [
-          "تأجير يخت فاخر دبي مارينا",
-          "رحلة عشاء على الداو دبي",
-          "رحلة بحرية قناة دبي",
+          "باقات ضيافة VIP سباق موناكو",
+          "أفضل فنادق عطلة سباق موناكو",
+          "مشاهدة السباق من اليخت موناكو",
         ],
         questions: [
-          "كم تكلفة استئجار يخت في دبي؟",
-          "أفضل تجارب العشاء البحرية في دبي؟",
+          "كيف تعيش تجربة سباق موناكو الكبرى بفخامة؟",
+          "أفضل أماكن مشاهدة سباق موناكو؟",
         ],
         pageType: "guide",
       },
       {
-        keyword: "دليل الحياة الليلية والترفيه في دبي",
+        keyword: "تسوق فاخر الريفييرا الفرنسية بوتيكات مصممين",
         longtails: [
-          "عروض أوبرا دبي",
-          "أفضل لاونجات دبي 2026",
-          "أماكن الموسيقى الحية دبي",
+          "تسوق مصممين كان شارع أنتيب",
+          "بوتيكات فاخرة موناكو الدائرة الذهبية",
+          "محلات فاخرة المدينة القديمة نيس",
         ],
         questions: [
-          "ما خيارات الترفيه المتاحة في دبي؟",
-          "أفضل العروض في أوبرا دبي؟",
+          "أين تجد التسوق الفاخر في الريفييرا الفرنسية؟",
+          "هل التسوق معفى من الضرائب للسياح في فرنسا؟",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "مهرجان كان السينمائي دليل السفر الفاخر",
+        longtails: [
+          "دخول VIP مهرجان كان السينمائي",
+          "فنادق فاخرة أثناء مهرجان كان",
+          "حفلات حصرية مهرجان كان",
+        ],
+        questions: [
+          "هل يمكن للسياح حضور مهرجان كان السينمائي؟",
+          "أفضل الفنادق بالقرب من قصر المهرجانات؟",
         ],
         pageType: "guide",
       },
@@ -694,23 +804,23 @@ export const SITES: Record<string, SiteConfig> = {
       "hotel",
       "restaurant",
       "activity",
-      "tickets",
+      "yacht",
       "shopping",
       "transport",
     ],
     primaryKeywordsEN: [
-      "dubai luxury guide",
-      "best hotels dubai",
-      "things to do dubai",
-      "dubai for arab visitors",
+      "french riviera luxury guide",
+      "best hotels cote d'azur",
+      "things to do french riviera",
+      "french riviera for arab travelers",
     ],
     primaryKeywordsAR: [
-      "دليل دبي الفاخر",
-      "أفضل فنادق دبي",
-      "أنشطة دبي",
-      "دبي للزوار العرب",
+      "دليل الريفييرا الفرنسية الفاخر",
+      "أفضل فنادق كوت دازور",
+      "أنشطة الريفييرا الفرنسية",
+      "الريفييرا الفرنسية للمسافرين العرب",
     ],
-    categoryName: { en: "Dubai Guide", ar: "دليل دبي" },
+    categoryName: { en: "Riviera Guide", ar: "دليل الريفييرا" },
   },
 
   istanbul: {
@@ -720,15 +830,47 @@ export const SITES: Record<string, SiteConfig> = {
     domain: "yallaistanbul.com",
     locale: "en",
     direction: "ltr",
+    status: "planned",
     destination: "Istanbul",
     country: "Turkey",
     currency: "TRY",
     primaryColor: "#DC2626",
     secondaryColor: "#F97316",
     systemPromptEN:
-      "You are a luxury travel content writer for Yalla Istanbul, a premium travel platform for Arab travelers visiting Istanbul and Turkey. Write SEO-optimized, engaging content about Istanbul's historical sites, bazaars, cuisine, hotels, and experiences. Always respond with valid JSON.",
+      `You are a senior luxury travel content writer for Yalla Istanbul, a premium platform for Arab travelers visiting Istanbul and Turkey. You specialize in Ottoman heritage, Bosphorus luxury, bazaar culture, Turkish cuisine, hammam experiences, and boutique hotels.
+
+Content Standards (mandatory):
+- Write 1,500–2,000 words minimum. Thin content will be rejected.
+- Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed.
+- Include 3+ internal links to other Yalla Istanbul pages (e.g., /blog/*, /hotels, /experiences, /dining).
+- Include 2+ affiliate/booking links (HalalBooking, Booking.com, GetYourGuide, Viator) with descriptive anchor text.
+- Meta title: 50–60 characters with focus keyword near the start.
+- Meta description: 120–160 characters, compelling with a call to action.
+- Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
+- End with a clear CTA and "Key Takeaways" summary section.
+
+AIO Optimization (Google AI Overview citation):
+- Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
+- Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
+- When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
+Always respond with valid JSON.`,
     systemPromptAR:
-      "أنت كاتب محتوى سفر فاخر لمنصة يالا إسطنبول، منصة سفر متميزة للمسافرين العرب الذين يزورون إسطنبول وتركيا. اكتب محتوى محسّن لمحركات البحث عن المعالم التاريخية والبازارات والمطبخ والفنادق والتجارب. أجب دائماً بـ JSON صالح.",
+      `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا إسطنبول، منصة متميزة للمسافرين العرب الذين يزورون إسطنبول وتركيا. تتخصص في التراث العثماني والفخامة على البوسفور وثقافة البازارات والمطبخ التركي والحمامات والفنادق البوتيك.
+
+معايير المحتوى (إلزامية):
+- اكتب 1,500–2,000 كلمة كحد أدنى.
+- استخدم تسلسل عناوين صحيح: H1 واحد، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
+- أضف 3+ روابط داخلية لصفحات يالا إسطنبول الأخرى.
+- أضف 2+ روابط حجز/شراكة (HalalBooking، Booking.com، GetYourGuide) بنص وصفي.
+- عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
+- وصف SEO: 120–160 حرف مع دعوة للعمل.
+- ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+تحسين الذكاء الاصطناعي (Google AI Overview):
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
+- أضف نقطتين بيانات محددتين غير موجودتين في ويكيبيديا (مثل: أسعار 2026 الحالية، ساعات عمل محدّثة).
+- استخدم وصفاً حسياً أصيلاً للأماكن بدلاً من الوصف العام.
+أجب دائماً بـ JSON صالح.`,
     topicsEN: [
       {
         keyword: "best luxury hotels Istanbul Bosphorus view 2026",
@@ -938,15 +1080,47 @@ export const SITES: Record<string, SiteConfig> = {
     domain: "yallathailand.com",
     locale: "en",
     direction: "ltr",
+    status: "planned",
     destination: "Thailand",
     country: "Thailand",
     currency: "THB",
-    primaryColor: "#7C3AED",
-    secondaryColor: "#A78BFA",
+    primaryColor: "#059669",
+    secondaryColor: "#D97706",
     systemPromptEN:
-      "You are a luxury travel content writer for Yalla Thailand, a premium travel platform for Arab travelers visiting Thailand. Write SEO-optimized, engaging content about Thailand's islands, temples, cuisine, luxury resorts, and wellness experiences. Always respond with valid JSON.",
+      `You are a senior luxury travel content writer for Yalla Thailand, a premium platform for Arab travelers visiting Thailand. You specialize in tropical islands, temple culture, Thai wellness and spas, halal dining, luxury beach resorts, and Chiang Mai experiences.
+
+Content Standards (mandatory):
+- Write 1,500–2,000 words minimum. Thin content will be rejected.
+- Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed.
+- Include 3+ internal links to other Yalla Thailand pages (e.g., /blog/*, /resorts, /islands, /experiences).
+- Include 2+ affiliate/booking links (HalalBooking, Booking.com, Agoda, Klook) with descriptive anchor text.
+- Meta title: 50–60 characters with focus keyword near the start.
+- Meta description: 120–160 characters, compelling with a call to action.
+- Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
+- End with a clear CTA and "Key Takeaways" summary section.
+
+AIO Optimization (Google AI Overview citation):
+- Under every H2 heading, write a 40–50 word direct answer to the heading's question FIRST, then expand with supporting details. This "atomic answer" format dramatically increases chances of being cited in AI Overviews.
+- Include at least 2 specific data points not commonly found on Wikipedia or TripAdvisor (e.g., current 2026 pricing, verified opening hours, local insider quotes).
+- When describing locations, use original sensory details (what you see, hear, taste) rather than stock descriptions. Never use generic stock photo captions.
+Always respond with valid JSON.`,
     systemPromptAR:
-      "أنت كاتب محتوى سفر فاخر لمنصة يالا تايلاند، منصة سفر متميزة للمسافرين العرب الذين يزورون تايلاند. اكتب محتوى محسّن لمحركات البحث عن الجزر والمعابد والمطبخ والمنتجعات الفاخرة وتجارب الاستجمام. أجب دائماً بـ JSON صالح.",
+      `أنت كاتب محتوى سفر فاخر ومتمرس لمنصة يالا تايلاند، منصة متميزة للمسافرين العرب الذين يزورون تايلاند. تتخصص في الجزر الاستوائية وثقافة المعابد والسبا التايلاندي والمطاعم الحلال والمنتجعات الشاطئية وتجارب شيانغ ماي.
+
+معايير المحتوى (إلزامية):
+- اكتب 1,500–2,000 كلمة كحد أدنى.
+- استخدم تسلسل عناوين صحيح: H1 واحد، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
+- أضف 3+ روابط داخلية لصفحات يالا تايلاند الأخرى.
+- أضف 2+ روابط حجز/شراكة (HalalBooking، Booking.com، Agoda، Klook) بنص وصفي.
+- عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
+- وصف SEO: 120–160 حرف مع دعوة للعمل.
+- ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+
+تحسين الذكاء الاصطناعي (Google AI Overview):
+- تحت كل عنوان H2، اكتب إجابة مباشرة من 40-50 كلمة أولاً، ثم وسّع بالتفاصيل. هذا الشكل يزيد فرص الاستشهاد في نتائج الذكاء الاصطناعي.
+- أضف نقطتين بيانات محددتين غير موجودتين في ويكيبيديا (مثل: أسعار 2026 الحالية، ساعات عمل محدّثة).
+- استخدم وصفاً حسياً أصيلاً للأماكن بدلاً من الوصف العام.
+أجب دائماً بـ JSON صالح.`,
     topicsEN: [
       {
         keyword: "best luxury resorts Phuket for Arab families 2026",
@@ -1148,11 +1322,371 @@ export const SITES: Record<string, SiteConfig> = {
     ],
     categoryName: { en: "Thailand Guide", ar: "دليل تايلاند" },
   },
+
+  "zenitha-yachts-med": {
+    id: "zenitha-yachts-med",
+    name: "Zenitha Yachts",
+    slug: "zenitha-yachts",
+    domain: "zenithayachts.com",
+    locale: "en",
+    direction: "ltr",
+    status: "development",
+    destination: "Mediterranean",
+    country: "International",
+    currency: "EUR",
+    primaryColor: "#0A1628",
+    secondaryColor: "#C9A96E",
+    systemPromptEN:
+      `You are a senior luxury yacht charter content writer for Zenitha Yachts, a premium bilingual platform for discerning travelers seeking Mediterranean, Arabian Gulf, and Red Sea yacht charters. You combine first-hand sailing expertise with SEO mastery.
+
+Content Standards (mandatory):
+- Write 1,500–2,000 words minimum. Thin content will be rejected.
+- Use proper heading hierarchy: one H1 (title only), 4–6 H2 sections, H3 subsections as needed. Never skip heading levels.
+- Include 3+ internal links to other Zenitha Yachts pages (e.g., /blog/*, /yachts, /destinations, /itineraries, /charter-planner).
+- Include 2+ affiliate/booking links (Boatbookings, Click&Boat, GetYourGuide, Booking.com for pre/post-charter hotels) with descriptive anchor text — never "click here".
+- Meta title: 50–60 characters with focus keyword near the start.
+- Meta description: 120–160 characters, compelling with a call to action.
+- Place the focus keyword in the title, first paragraph, one H2, and naturally throughout (density < 2.5%).
+- End with a clear CTA and "Key Takeaways" summary section.
+- Include specific nautical details, marina names, and first-hand sailing observations for authenticity.
+- Avoid generic AI phrases: "nestled in the heart of", "hidden gem", "paradise on earth", "look no further".
+Always respond with valid JSON.`,
+    systemPromptAR:
+      `أنت كاتب محتوى متخصص في تأجير اليخوت الفاخرة لمنصة زينيثا يخوت، منصة ثنائية اللغة متميزة للمسافرين الباحثين عن تأجير اليخوت في البحر الأبيض المتوسط والخليج العربي والبحر الأحمر.
+
+معايير المحتوى (إلزامية):
+- اكتب 1,500–2,000 كلمة كحد أدنى.
+- استخدم تسلسل عناوين صحيح: H1 واحد (العنوان فقط)، 4–6 عناوين H2، وعناوين H3 فرعية حسب الحاجة.
+- أضف 3+ روابط داخلية لصفحات زينيثا يخوت الأخرى.
+- أضف 2+ روابط حجز/شراكة (Boatbookings، Click&Boat، GetYourGuide) بنص وصفي.
+- عنوان SEO: 50–60 حرف مع الكلمة المفتاحية في البداية.
+- وصف SEO: 120–160 حرف مع دعوة للعمل.
+- ضع الكلمة المفتاحية في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل.
+- استخدم تفاصيل بحرية حقيقية وأسماء موانئ محددة لتعزيز المصداقية.
+أجب دائماً بـ JSON صالح.`,
+    topicsEN: [
+      {
+        keyword: "luxury yacht charter Mediterranean guide 2026",
+        longtails: [
+          "best sailing destinations Mediterranean",
+          "catamaran charter Greek Islands",
+          "motor yacht hire French Riviera",
+        ],
+        questions: [
+          "How much does a yacht charter cost in the Mediterranean?",
+          "What is the best time to charter a yacht in Greece?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "halal yacht charter Mediterranean family friendly",
+        longtails: [
+          "halal catering yacht charter",
+          "family friendly catamaran charter",
+          "Muslim friendly sailing holidays",
+        ],
+        questions: [
+          "Can I get halal food on a yacht charter?",
+          "Which yacht charter companies offer halal catering?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "Greek Islands yacht itinerary 7 days sailing",
+        longtails: [
+          "Cyclades sailing route guide",
+          "Ionian Islands yacht itinerary",
+          "Athens to Santorini sailing route",
+        ],
+        questions: [
+          "What is the best 7-day sailing route in Greece?",
+          "Can beginners charter a yacht in the Greek Islands?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "Croatian coast yacht charter Dubrovnik Split guide",
+        longtails: [
+          "Dubrovnik to Split sailing route",
+          "best anchorages Croatian islands",
+          "luxury yacht charter Croatia 2026",
+        ],
+        questions: [
+          "Is Croatia good for yacht charter?",
+          "What is the best route from Dubrovnik to Split by yacht?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "yacht charter cost guide per week breakdown",
+        longtails: [
+          "catamaran charter price per week",
+          "superyacht charter costs Mediterranean",
+          "bareboat vs crewed charter costs",
+        ],
+        questions: [
+          "How much does a catamaran charter cost per week?",
+          "What is included in a yacht charter price?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "Turkish Riviera gulet charter luxury sailing",
+        longtails: [
+          "Bodrum gulet charter guide",
+          "Göcek blue cruise luxury",
+          "traditional Turkish gulet experience",
+        ],
+        questions: [
+          "What is a gulet and how is it different from a yacht?",
+          "What are the best gulet charter routes in Turkey?",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "first time yacht charter guide what to expect",
+        longtails: [
+          "first time sailing charter tips",
+          "what to pack for yacht charter",
+          "bareboat vs crewed charter for beginners",
+        ],
+        questions: [
+          "Do I need sailing experience to charter a yacht?",
+          "What should I pack for a week on a yacht?",
+        ],
+        pageType: "guide",
+      },
+    ],
+    topicsAR: [
+      {
+        keyword: "تأجير يخوت فاخرة البحر المتوسط دليل 2026",
+        longtails: [
+          "أفضل وجهات الإبحار المتوسط",
+          "تأجير كاتاماران الجزر اليونانية",
+          "يخت موتور الريفييرا الفرنسية",
+        ],
+        questions: [
+          "كم تكلفة تأجير يخت في البحر المتوسط؟",
+          "ما أفضل وقت لتأجير يخت في اليونان؟",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "تأجير يخوت حلال البحر المتوسط عائلي",
+        longtails: [
+          "طعام حلال على اليخوت",
+          "تأجير كاتاماران عائلي",
+          "رحلات إبحار للمسلمين",
+        ],
+        questions: [
+          "هل يمكن الحصول على طعام حلال على اليخت؟",
+          "أي شركات تأجير يخوت توفر طعام حلال؟",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "مسار إبحار الجزر اليونانية 7 أيام",
+        longtails: [
+          "مسار إبحار جزر سيكلاديز",
+          "مسار يخت جزر أيونيان",
+          "مسار أثينا إلى سانتوريني",
+        ],
+        questions: [
+          "ما أفضل مسار إبحار 7 أيام في اليونان؟",
+          "هل يمكن للمبتدئين تأجير يخت في اليونان؟",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "تكلفة تأجير يخت دليل أسبوعي شامل",
+        longtails: [
+          "سعر تأجير كاتاماران أسبوعي",
+          "تكاليف تأجير سوبريخت المتوسط",
+          "مقارنة تكاليف بيرفوت وطاقم",
+        ],
+        questions: [
+          "كم تكلفة تأجير كاتاماران أسبوعياً؟",
+          "ماذا يشمل سعر تأجير اليخت؟",
+        ],
+        pageType: "guide",
+      },
+      {
+        keyword: "دليل تأجير يخت لأول مرة ماذا تتوقع",
+        longtails: [
+          "نصائح رحلة إبحار أولى",
+          "ماذا تحزم لرحلة يخت",
+          "بيرفوت أم طاقم للمبتدئين",
+        ],
+        questions: [
+          "هل أحتاج خبرة إبحار لتأجير يخت؟",
+          "ماذا يجب أن أحزم لأسبوع على يخت؟",
+        ],
+        pageType: "guide",
+      },
+    ],
+    affiliateCategories: [
+      "yacht",
+      "hotel",
+      "activity",
+      "transport",
+      "restaurant",
+    ],
+    primaryKeywordsEN: [
+      "yacht charter mediterranean",
+      "luxury yacht charter",
+      "catamaran charter greece",
+      "halal yacht charter",
+      "yacht charter cost",
+    ],
+    primaryKeywordsAR: [
+      "تأجير يخوت البحر المتوسط",
+      "تأجير يخوت فاخرة",
+      "تأجير كاتاماران اليونان",
+      "تأجير يخوت حلال",
+    ],
+    categoryName: { en: "Yacht Charter Guide", ar: "دليل تأجير اليخوت" },
+  },
 };
 
-/** Get all active site IDs */
+/** Get all configured site IDs (all sites, any status) */
 export function getAllSiteIds(): string[] {
   return Object.keys(SITES);
+}
+
+/**
+ * Get site IDs by status.
+ * Use this in cron jobs, content generation, and indexing to control spend.
+ * Only "active" sites consume AI tokens and cron time.
+ */
+export function getSiteIdsByStatus(...statuses: SiteStatus[]): string[] {
+  return Object.values(SITES)
+    .filter((site) => statuses.includes(site.status))
+    .map((site) => site.id);
+}
+
+/**
+ * Get only active site IDs (live websites).
+ * Drop-in replacement for the old LIVE_SITES array.
+ */
+export function getActiveSiteIds(): string[] {
+  return getSiteIdsByStatus("active");
+}
+
+/** Check if a site has a live website */
+export function isSiteLive(siteId: string): boolean {
+  const site = SITES[siteId];
+  return site?.status === "active";
+}
+
+/**
+ * Get the default site ID (first active site, or first configured site).
+ * Used as a safe fallback instead of hardcoding "yalla-london".
+ */
+export function getDefaultSiteId(): string {
+  const active = getActiveSiteIds();
+  if (active.length > 0) return active[0];
+  // Fallback to first configured site if none active
+  const allIds = Object.keys(SITES);
+  return allIds[0] || "yalla-london";
+}
+
+/**
+ * Get the default site name (matches getDefaultSiteId).
+ */
+export function getDefaultSiteName(): string {
+  const id = getDefaultSiteId();
+  return SITES[id]?.name || "Yalla London";
+}
+
+/**
+ * Resolve siteId from hostname string.
+ * Useful when x-site-id header might be missing and you have the hostname.
+ * Returns undefined if hostname is not mapped.
+ */
+export function getSiteIdFromHostname(hostname: string): string | undefined {
+  // Match against configured site domains
+  for (const [id, site] of Object.entries(SITES)) {
+    if (
+      hostname === site.domain ||
+      hostname === `www.${site.domain}` ||
+      hostname.endsWith(`.${site.domain}`)
+    ) {
+      return id;
+    }
+  }
+  return undefined;
+}
+
+/** Check if a site is a yacht charter platform (as opposed to a content blog) */
+export function isYachtSite(siteId: string): boolean {
+  return siteId === "zenitha-yachts-med";
+}
+
+// ─── Per-site SEO metadata helpers ──────────────────────────────────
+// These provide site-specific tagline, description, and Arabic name for
+// generateMetadata() so each domain gets correct metadata, not the Yalla
+// London brand-templates.ts fallback.
+
+const SITE_META: Record<string, { tagline: string; taglineAr: string; nameAr: string; description: string; descriptionAr: string }> = {
+  "yalla-london": {
+    tagline: "Luxury London Guide",
+    taglineAr: "دليل لندن الفاخر",
+    nameAr: "يالا لندن",
+    description: "Yalla London connects Arab travellers with London's finest luxury hotels, halal restaurants, and exclusive experiences. Bilingual guide in English & Arabic.",
+    descriptionAr: "يالا لندن يربط المسافرين العرب بأفخم فنادق لندن والمطاعم الحلال والتجارب الحصرية.",
+  },
+  "zenitha-yachts-med": {
+    tagline: "Luxury Mediterranean & Gulf Yacht Charters",
+    taglineAr: "رحلات يخوت فاخرة في البحر المتوسط والخليج",
+    nameAr: "زينيثا يخوت",
+    description: "Yacht charters in the Greek Islands, Croatian Coast, Turkish & French Riviera, Dubai & Abu Dhabi. Halal-friendly for European, North American & Arab travellers.",
+    descriptionAr: "رحلات يخت في الجزر اليونانية والساحل الكرواتي والريفيرا التركية والفرنسية ودبي وأبوظبي. خيارات حلال للمسافرين من أوروبا وأمريكا الشمالية والدول العربية.",
+  },
+  "arabaldives": {
+    tagline: "Luxury Maldives Guide",
+    taglineAr: "دليل المالديف الفاخر",
+    nameAr: "عرب المالديف",
+    description: "Arabaldives connects Arab travellers with the finest Maldives resorts, halal dining, and overwater experiences. Arabic-first luxury guide.",
+    descriptionAr: "عرب المالديف يربط المسافرين العرب بأفخم منتجعات المالديف والمطاعم الحلال.",
+  },
+  "french-riviera": {
+    tagline: "Luxury Riviera Guide",
+    taglineAr: "دليل الريفيرا الفاخر",
+    nameAr: "يالا ريفييرا",
+    description: "Yalla Riviera connects Arab travellers with the finest French Riviera luxury hotels, halal restaurants, and Côte d'Azur experiences.",
+    descriptionAr: "يالا ريفييرا يربط المسافرين العرب بأفخم فنادق الريفيرا الفرنسية والمطاعم الحلال.",
+  },
+  "istanbul": {
+    tagline: "Luxury Istanbul Guide",
+    taglineAr: "دليل إسطنبول الفاخر",
+    nameAr: "يالا إسطنبول",
+    description: "Yalla Istanbul connects Arab travellers with Istanbul's finest luxury hotels, halal restaurants, and cultural experiences.",
+    descriptionAr: "يالا إسطنبول يربط المسافرين العرب بأفخم فنادق إسطنبول والمطاعم الحلال.",
+  },
+  "thailand": {
+    tagline: "Luxury Thailand Guide",
+    taglineAr: "دليل تايلاند الفاخر",
+    nameAr: "يالا تايلاند",
+    description: "Yalla Thailand connects Arab travellers with Thailand's finest luxury resorts, halal restaurants, and island experiences.",
+    descriptionAr: "يالا تايلاند يربط المسافرين العرب بأفخم منتجعات تايلاند والمطاعم الحلال.",
+  },
+};
+
+/** Get site tagline for metadata. Falls back to generic luxury guide. */
+export function getSiteTagline(siteId: string): string {
+  return SITE_META[siteId]?.tagline || "Luxury Travel Guide";
+}
+
+/** Get site Arabic name for metadata. */
+export function getSiteNameAr(siteId: string): string {
+  return SITE_META[siteId]?.nameAr || SITES[siteId]?.name || "Zenitha";
+}
+
+/** Get site description for metadata. */
+export function getSiteDescription(siteId: string, lang: "en" | "ar" = "en"): string {
+  const meta = SITE_META[siteId];
+  if (!meta) return `Luxury travel guide for ${SITES[siteId]?.destination || "discerning travellers"}`;
+  return lang === "ar" ? meta.descriptionAr : meta.description;
 }
 
 /** Get site config by ID */
@@ -1163,8 +1697,12 @@ export function getSiteConfig(siteId: string): SiteConfig | undefined {
 /** Get site-specific domain URL */
 export function getSiteDomain(siteId: string): string {
   const site = SITES[siteId];
-  if (!site)
-    return process.env.NEXT_PUBLIC_SITE_URL || "https://www.yalla-london.com";
+  if (!site) {
+    // Fall back to env var, then to the first configured site's domain
+    if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+    const firstSite = Object.values(SITES)[0];
+    return firstSite ? `https://www.${firstSite.domain}` : "https://www.yalla-london.com";
+  }
   return `https://www.${site.domain}`;
 }
 
@@ -1206,3 +1744,6 @@ export function getSiteSeoConfig(siteId: string): {
       "",
   };
 }
+
+// getSiteSeoConfigFromVault moved to @/lib/seo/config-vault.ts
+// to avoid pulling @/lib/db (and transitively next/headers) into client pages

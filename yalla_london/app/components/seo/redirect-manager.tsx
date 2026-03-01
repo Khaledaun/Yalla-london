@@ -155,100 +155,7 @@ export function RedirectManager() {
     return matchesSearch && matchesStatus;
   });
 
-  const renderRedirectForm = (redirect: Partial<Redirect>) => {
-    const [formData, setFormData] = useState(redirect);
-
-    const handleSave = () => {
-      if (!formData.fromPath || !formData.toPath) return;
-      saveRedirect(formData);
-    };
-
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            {redirect.id ? 'Edit Redirect' : 'New Redirect'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="from-path">From Path</Label>
-              <Input
-                id="from-path"
-                value={formData.fromPath || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, fromPath: e.target.value }))}
-                placeholder="/old-page"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="to-path">To Path</Label>
-              <Input
-                id="to-path"
-                value={formData.toPath || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, toPath: e.target.value }))}
-                placeholder="/new-page"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="status-code">Status Code</Label>
-              <Select
-                value={formData.statusCode?.toString()}
-                onValueChange={(value) => setFormData(prev => ({ 
-                  ...prev, 
-                  statusCode: parseInt(value) as Redirect['statusCode']
-                }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="301">301 - Permanent Redirect</SelectItem>
-                  <SelectItem value="302">302 - Temporary Redirect</SelectItem>
-                  <SelectItem value="307">307 - Temporary Redirect (POST preserved)</SelectItem>
-                  <SelectItem value="308">308 - Permanent Redirect (POST preserved)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center space-x-2 pt-6">
-              <input
-                type="checkbox"
-                id="is-active"
-                checked={formData.isActive}
-                onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-              />
-              <Label htmlFor="is-active">Active</Label>
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="notes">Notes (optional)</Label>
-            <Input
-              id="notes"
-              value={formData.notes || ''}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              placeholder="Why this redirect exists..."
-            />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsEditing(null)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave}>
-              <Save className="h-4 w-4 mr-2" />
-              Save Redirect
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
+  // Form rendering is handled by the RedirectForm component below
 
   return (
     <div className="space-y-6">
@@ -329,9 +236,11 @@ export function RedirectManager() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          {renderRedirectForm(
-            isEditing === 'new' ? newRedirect : redirects.find(r => r.id === isEditing) || newRedirect
-          )}
+          <RedirectForm
+            redirect={isEditing === 'new' ? newRedirect : redirects.find(r => r.id === isEditing) || newRedirect}
+            onSave={saveRedirect}
+            onCancel={() => setIsEditing(null)}
+          />
         </motion.div>
       )}
 
@@ -417,5 +326,105 @@ export function RedirectManager() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// Extracted as a proper React component so hooks are called unconditionally
+function RedirectForm({ redirect, onSave, onCancel }: {
+  redirect: Partial<Redirect>;
+  onSave: (redirect: Partial<Redirect>) => void;
+  onCancel: () => void;
+}) {
+  const [formData, setFormData] = useState(redirect);
+
+  const handleSave = () => {
+    if (!formData.fromPath || !formData.toPath) return;
+    onSave(formData);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          {redirect.id ? 'Edit Redirect' : 'New Redirect'}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="from-path">From Path</Label>
+            <Input
+              id="from-path"
+              value={formData.fromPath || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, fromPath: e.target.value }))}
+              placeholder="/old-page"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="to-path">To Path</Label>
+            <Input
+              id="to-path"
+              value={formData.toPath || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, toPath: e.target.value }))}
+              placeholder="/new-page"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="status-code">Status Code</Label>
+            <Select
+              value={formData.statusCode?.toString()}
+              onValueChange={(value) => setFormData(prev => ({
+                ...prev,
+                statusCode: parseInt(value) as Redirect['statusCode']
+              }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="301">301 - Permanent Redirect</SelectItem>
+                <SelectItem value="302">302 - Temporary Redirect</SelectItem>
+                <SelectItem value="307">307 - Temporary Redirect (POST preserved)</SelectItem>
+                <SelectItem value="308">308 - Permanent Redirect (POST preserved)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center space-x-2 pt-6">
+            <input
+              type="checkbox"
+              id="is-active"
+              checked={formData.isActive}
+              onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+            />
+            <Label htmlFor="is-active">Active</Label>
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="notes">Notes (optional)</Label>
+          <Input
+            id="notes"
+            value={formData.notes || ''}
+            onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+            placeholder="Why this redirect exists..."
+          />
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave}>
+            <Save className="h-4 w-4 mr-2" />
+            Save Redirect
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

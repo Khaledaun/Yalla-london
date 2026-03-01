@@ -1,25 +1,30 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { withAdminAuth } from "@/lib/admin-middleware";
-
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { withAdminAuth } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
+    const siteId = request.headers.get("x-site-id") || searchParams.get("siteId") || getDefaultSiteId();
 
     switch (type) {
       case "overview":
-        return await getSEOOverview();
+        return await getSEOOverview(siteId);
       case "trends":
-        return await getSEOTrends();
+        return await getSEOTrends(siteId);
       case "audits":
         return await getSEOAudits();
+      case "articles":
+        return await getArticlesWithSEOData(siteId);
       case "quick-fixes":
-        return await getQuickFixes();
+        return await getQuickFixes(siteId);
       default:
-        return await getSEOOverview();
+        return await getSEOOverview(siteId);
     }
   } catch (error) {
     console.error("Error fetching SEO data:", error);
@@ -34,10 +39,13 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { action, data } = body;
+    const siteId = request.headers.get("x-site-id") || getDefaultSiteId();
 
     switch (action) {
       case "run_audit":
         return await handleRunAudit(data);
+      case "run_full_audit":
+        return await handleRunFullAudit(siteId);
       case "apply_quick_fix":
         return await handleApplyQuickFix(data);
       case "generate_internal_links":
@@ -54,20 +62,35 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
   }
 });
 
-async function getSEOOverview() {
+async function getSEOOverview(siteId: string) {
+  // Import SEO thresholds from centralized standards — single source of truth
+  let qualityGateScore = 70;
+  let autoPublishThreshold = 85;
+  let criticalThreshold = 50;
+  try {
+    const { CONTENT_QUALITY } = await import("@/lib/seo/standards");
+    qualityGateScore = CONTENT_QUALITY.qualityGateScore;
+    // Auto-publish: 15 points above quality gate (excellent content)
+    autoPublishThreshold = Math.min(100, qualityGateScore + 15);
+    // Critical: below the blocking threshold
+    criticalThreshold = Math.round(qualityGateScore * 0.7);
+  } catch { /* use fallbacks */ }
+
+  const siteFilter = { siteId, deletedAt: null };
+
   const avgScoreResult = await prisma.blogPost.aggregate({
     _avg: { seo_score: true },
-    where: { seo_score: { not: null } },
+    where: { seo_score: { not: null }, ...siteFilter },
   });
 
   const averageScore = Math.round(avgScoreResult._avg.seo_score || 0);
 
   const autoPublishCount = await prisma.blogPost.count({
-    where: { seo_score: { gte: 85 }, published: true },
+    where: { seo_score: { gte: autoPublishThreshold }, published: true, ...siteFilter },
   });
 
   const totalPublished = await prisma.blogPost.count({
-    where: { published: true },
+    where: { published: true, ...siteFilter },
   });
 
   const autoPublishRate =
@@ -76,11 +99,11 @@ async function getSEOOverview() {
       : 0;
 
   const reviewQueue = await prisma.blogPost.count({
-    where: { seo_score: { gte: 70, lt: 85 }, published: false },
+    where: { seo_score: { gte: qualityGateScore, lt: autoPublishThreshold }, published: false, ...siteFilter },
   });
 
   const criticalIssues = await prisma.blogPost.count({
-    where: { seo_score: { lt: 50 } },
+    where: { seo_score: { lt: criticalThreshold }, ...siteFilter },
   });
 
   const analyticsSnapshot = await prisma.analyticsSnapshot.findFirst({
@@ -88,20 +111,271 @@ async function getSEOOverview() {
   });
   const indexedPages = analyticsSnapshot?.indexed_pages || 0;
 
+  // Count indexed URLs from URLIndexingStatus
+  let indexedUrlCount = 0;
+  try {
+    indexedUrlCount = await prisma.uRLIndexingStatus.count({
+      where: { status: "indexed" },
+    });
+  } catch { /* table may not exist yet */ }
+
+  // Check SEO standards freshness — alert dashboard if stale
+  let standardsHealth: { version: string; ageInDays: number; isStale: boolean; message: string } | null = null;
+  try {
+    const { STANDARDS_VERSION } = await import("@/lib/seo/standards");
+    const ageMs = Date.now() - new Date(STANDARDS_VERSION).getTime();
+    const ageInDays = Math.round(ageMs / (1000 * 60 * 60 * 24));
+    const isStale = ageInDays > 30;
+    standardsHealth = {
+      version: STANDARDS_VERSION,
+      ageInDays,
+      isStale,
+      message: isStale
+        ? `SEO standards last updated ${ageInDays} days ago — review Google Search Central changelog for algorithm updates`
+        : `SEO standards current (updated ${ageInDays} day${ageInDays === 1 ? "" : "s"} ago)`,
+    };
+  } catch { /* standards module not available */ }
+
   return NextResponse.json({
     averageScore,
     autoPublishRate,
     reviewQueue,
     criticalIssues,
-    indexedPages,
+    indexedPages: indexedUrlCount || indexedPages,
+    totalPublished,
     canShowInternalLinks: indexedPages >= 40,
+    standardsHealth,
   });
 }
 
-async function getSEOTrends() {
+/**
+ * Returns all published articles with their SEO data, latest audit, and indexing status.
+ * Used by the SEO Audits page for the full page-by-page view.
+ */
+async function getArticlesWithSEOData(siteId: string) {
+  const articles = await prisma.blogPost.findMany({
+    where: { published: true, deletedAt: null, siteId },
+    select: {
+      id: true,
+      title_en: true,
+      slug: true,
+      meta_title_en: true,
+      meta_description_en: true,
+      content_en: true,
+      content_ar: true,
+      featured_image: true,
+      tags: true,
+      seo_score: true,
+      created_at: true,
+      updated_at: true,
+    },
+    orderBy: { created_at: "desc" },
+    take: 100,
+  });
+
+  // Get latest audit for each article
+  const articleIds = articles.map(a => a.id);
+  const latestAudits = await prisma.seoAuditResult.findMany({
+    where: { content_id: { in: articleIds } },
+    orderBy: { created_at: "desc" },
+  });
+
+  // Group audits by content_id, take latest
+  const auditMap = new Map<string, typeof latestAudits[0]>();
+  for (const audit of latestAudits) {
+    if (!auditMap.has(audit.content_id)) {
+      auditMap.set(audit.content_id, audit);
+    }
+  }
+
+  // Get indexing statuses
+  const slugUrls = articles.map(a => `/blog/${a.slug}`);
+  let indexingMap = new Map<string, { status: string; indexing_state: string | null; last_inspected_at: Date | null }>();
+  try {
+    const indexingRecords = await prisma.uRLIndexingStatus.findMany({
+      where: { url: { in: slugUrls } },
+      select: { url: true, status: true, indexing_state: true, last_inspected_at: true },
+    });
+    for (const rec of indexingRecords) {
+      indexingMap.set(rec.url, rec);
+    }
+  } catch { /* table may not exist */ }
+
+  const enrichedArticles = articles.map(article => {
+    const audit = auditMap.get(article.id);
+    const idxRecord = indexingMap.get(`/blog/${article.slug}`);
+    const content = article.content_en || "";
+    const wordCount = content.split(/\s+/).filter(Boolean).length;
+
+    let indexingStatus = "never_submitted";
+    if (idxRecord) {
+      if (idxRecord.status === "indexed" || idxRecord.indexing_state === "INDEXED") {
+        indexingStatus = "indexed";
+      } else if (idxRecord.status === "submitted") {
+        indexingStatus = "submitted";
+      } else if (idxRecord.status === "error") {
+        indexingStatus = "error";
+      } else {
+        indexingStatus = "not_indexed";
+      }
+    }
+
+    // Parse breakdown from audit
+    let breakdown: Record<string, number> = {};
+    if (audit?.breakdown_json) {
+      try {
+        breakdown = typeof audit.breakdown_json === "string"
+          ? JSON.parse(audit.breakdown_json)
+          : audit.breakdown_json as Record<string, number>;
+      } catch { /* ignore parse errors */ }
+    }
+
+    // Parse suggestions
+    let suggestions: string[] = [];
+    if (audit?.suggestions) {
+      try {
+        suggestions = typeof audit.suggestions === "string"
+          ? JSON.parse(audit.suggestions)
+          : Array.isArray(audit.suggestions) ? audit.suggestions : [];
+      } catch { /* ignore */ }
+    }
+
+    // Parse quick fixes
+    let quickFixes: string[] = [];
+    if (audit?.quick_fixes) {
+      try {
+        quickFixes = typeof audit.quick_fixes === "string"
+          ? JSON.parse(audit.quick_fixes)
+          : Array.isArray(audit.quick_fixes) ? audit.quick_fixes : [];
+      } catch { /* ignore */ }
+    }
+
+    return {
+      id: article.id,
+      title: article.title_en || "Untitled",
+      slug: article.slug,
+      url: `/blog/${article.slug}`,
+      seoScore: article.seo_score || 0,
+      wordCount,
+      hasFeaturedImage: !!article.featured_image,
+      hasMetaTitle: !!article.meta_title_en,
+      hasMetaDescription: !!article.meta_description_en,
+      hasArabicContent: !!(article.content_ar && article.content_ar.length > 100),
+      indexingStatus,
+      lastAudited: audit?.created_at?.toISOString() || null,
+      breakdown,
+      suggestions,
+      quickFixes,
+      createdAt: article.created_at.toISOString(),
+    };
+  });
+
+  return NextResponse.json({
+    articles: enrichedArticles,
+    summary: {
+      total: enrichedArticles.length,
+      averageScore: enrichedArticles.length > 0
+        ? Math.round(enrichedArticles.reduce((sum, a) => sum + a.seoScore, 0) / enrichedArticles.length)
+        : 0,
+      indexed: enrichedArticles.filter(a => a.indexingStatus === "indexed").length,
+      submitted: enrichedArticles.filter(a => a.indexingStatus === "submitted").length,
+      neverSubmitted: enrichedArticles.filter(a => a.indexingStatus === "never_submitted").length,
+      needsAudit: enrichedArticles.filter(a => !a.lastAudited).length,
+      criticalScore: enrichedArticles.filter(a => a.seoScore < 50).length,
+    },
+  });
+}
+
+/**
+ * Full site audit — audits ALL published articles and returns results.
+ * CPU-only operation (no network calls), safe within 60s budget.
+ */
+async function handleRunFullAudit(siteId: string) {
+  const BUDGET_MS = 53_000;
+  const startTime = Date.now();
+
+  const articles = await prisma.blogPost.findMany({
+    where: { published: true, deletedAt: null, siteId },
+    select: {
+      id: true,
+      title_en: true,
+      title_ar: true,
+      meta_title_en: true,
+      meta_description_en: true,
+      content_en: true,
+      content_ar: true,
+      featured_image: true,
+      slug: true,
+      tags: true,
+      seo_score: true,
+    },
+    take: 100,
+  });
+
+  const results: Array<{
+    id: string;
+    title: string;
+    slug: string;
+    previousScore: number;
+    newScore: number;
+    suggestions: string[];
+    quickFixes: string[];
+    breakdown: Record<string, number>;
+  }> = [];
+
+  for (const article of articles) {
+    if (Date.now() - startTime > BUDGET_MS) break;
+
+    const auditResult = performSEOAudit(article);
+
+    // Save audit result
+    await prisma.seoAuditResult.create({
+      data: {
+        content_id: article.id,
+        content_type: "blog_post",
+        score: auditResult.score,
+        breakdown_json: auditResult.breakdown,
+        suggestions: auditResult.suggestions,
+        quick_fixes: auditResult.quickFixes,
+        internal_link_offers: auditResult.internalLinkOffers,
+      },
+    });
+
+    // Update article SEO score
+    await prisma.blogPost.update({
+      where: { id: article.id },
+      data: { seo_score: auditResult.score },
+    });
+
+    results.push({
+      id: article.id,
+      title: article.title_en || "Untitled",
+      slug: article.slug,
+      previousScore: article.seo_score || 0,
+      newScore: auditResult.score,
+      suggestions: auditResult.suggestions,
+      quickFixes: auditResult.quickFixes,
+      breakdown: auditResult.breakdown,
+    });
+  }
+
+  const totalScore = results.reduce((sum, r) => sum + r.newScore, 0);
+  const avgScore = results.length > 0 ? Math.round(totalScore / results.length) : 0;
+
+  return NextResponse.json({
+    success: true,
+    audited: results.length,
+    total: articles.length,
+    averageScore: avgScore,
+    results,
+    durationMs: Date.now() - startTime,
+  });
+}
+
+async function getSEOTrends(siteId: string) {
   const trends = await prisma.blogPost.findMany({
     select: { seo_score: true, created_at: true, page_type: true },
-    where: { seo_score: { not: null } },
+    where: { seo_score: { not: null }, siteId, deletedAt: null },
     orderBy: { created_at: "desc" },
     take: 100,
   });
@@ -148,7 +422,7 @@ async function getSEOAudits() {
   return NextResponse.json({ audits });
 }
 
-async function getQuickFixes() {
+async function getQuickFixes(siteId: string) {
   const articlesNeedingFixes = await prisma.blogPost.findMany({
     where: {
       OR: [
@@ -157,6 +431,8 @@ async function getQuickFixes() {
         { featured_image: null },
       ],
       published: true,
+      siteId,
+      deletedAt: null,
     },
     select: {
       id: true,

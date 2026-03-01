@@ -7,7 +7,7 @@
  * Accessible via Cmd/Ctrl+K shortcut from anywhere in the admin dashboard.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search,
@@ -259,6 +259,21 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
     return () => clearTimeout(timer);
   }, [query, performSearch]);
 
+  // Handle selection
+  const handleSelect = useCallback((result: SearchResult) => {
+    // Save to recent searches
+    const newRecent = [query, ...recentSearches.filter(s => s !== query)].slice(0, 5);
+    setRecentSearches(newRecent);
+    localStorage.setItem('admin-recent-searches', JSON.stringify(newRecent));
+
+    if (result.action) {
+      result.action();
+    } else if (result.href) {
+      router.push(result.href);
+    }
+    onClose();
+  }, [query, recentSearches, router, onClose]);
+
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     switch (e.key) {
@@ -280,22 +295,7 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
         onClose();
         break;
     }
-  }, [results, selectedIndex, onClose]);
-
-  // Handle selection
-  const handleSelect = (result: SearchResult) => {
-    // Save to recent searches
-    const newRecent = [query, ...recentSearches.filter(s => s !== query)].slice(0, 5);
-    setRecentSearches(newRecent);
-    localStorage.setItem('admin-recent-searches', JSON.stringify(newRecent));
-
-    if (result.action) {
-      result.action();
-    } else if (result.href) {
-      router.push(result.href);
-    }
-    onClose();
-  };
+  }, [results, selectedIndex, onClose, handleSelect]);
 
   // Get icon color by type
   const getTypeColor = (type: SearchResult['type']) => {
@@ -358,7 +358,7 @@ export function GlobalSearch({ isOpen, onClose }: GlobalSearchProps) {
             {!isLoading && query && results.length === 0 && (
               <div className="p-8 text-center text-gray-500">
                 <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                No results found for "{query}"
+                No results found for &quot;{query}&quot;
               </div>
             )}
 

@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { blogPosts, categories } from '@/data/blog-content';
 import { extendedBlogPosts } from '@/data/blog-content-extended';
+import { getDefaultSiteId, getSiteConfig } from '@/config/sites';
 
 // Force dynamic rendering to avoid build-time database access
 export const dynamic = 'force-dynamic';
@@ -27,14 +28,19 @@ export async function GET(
       );
     }
 
-    // Try database first
+    // Resolve site identity from request headers (set by middleware)
+    const siteId = request.headers.get('x-site-id') || getDefaultSiteId();
+
+    // Try database first — scoped to current site
     let post: any = null;
 
     try {
-      post = await prisma.blogPost.findUnique({
+      post = await prisma.blogPost.findFirst({
         where: {
           slug,
-          published: true
+          published: true,
+          deletedAt: null,
+          siteId,
         },
         include: {
           category: {
@@ -102,12 +108,16 @@ export async function GET(
             name_ar: category.name_ar,
             slug: category.slug
           } : null,
-          author: {
-            id: 'author-yalla',
-            name: 'Yalla London Editorial',
-            email: 'editorial@yalla-london.com',
-            image: null
-          },
+          author: await (async () => {
+            try {
+              const { getAuthorForPost } = await import("@/lib/content-pipeline/author-rotation");
+              const author = await getAuthorForPost(staticPost.id);
+              if (author) {
+                return { id: author.id, name: author.name, email: null, image: author.avatarUrl };
+              }
+            } catch { /* fallback */ }
+            return { id: 'editorial', name: `${getSiteConfig(siteId)?.name || 'Editorial'} Team`, email: null, image: null };
+          })(),
           place: null
         };
       }
@@ -130,7 +140,6 @@ export async function GET(
     return NextResponse.json(
       {
         error: 'Failed to fetch blog post',
-        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     );

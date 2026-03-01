@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useLanguage } from './language-provider'
 import { getTranslation } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
@@ -54,15 +54,15 @@ export function NewsletterSignup() {
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="text-center p-6 bg-green-50 rounded-lg"
+        className="text-center p-6 bg-cream rounded-lg"
       >
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Check className="h-8 w-8 text-green-600" />
+        <div className="w-16 h-16 bg-cream-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Check className="h-8 w-8 text-forest" />
         </div>
-        <h3 className="text-xl font-bold text-green-800 mb-2">
+        <h3 className="text-xl font-bold text-forest mb-2">
           {language === 'en' ? 'Welcome to Yalla London!' : 'مرحباً بك في يالا لندن!'}
         </h3>
-        <p className="text-green-700">
+        <p className="text-forest">
           {language === 'en' 
             ? 'Check your email for your free London luxury guide'
             : 'تحقق من بريدك الإلكتروني للحصول على دليل لندن الفاخر المجاني'
@@ -73,20 +73,20 @@ export function NewsletterSignup() {
   }
 
   return (
-    <Card className="border-0 luxury-shadow bg-gradient-to-br from-purple-50 to-yellow-50">
+    <Card className="border-0 luxury-shadow bg-gradient-to-br from-cream to-cream-100">
       <CardContent className="p-8">
         <div className="flex items-start gap-4 mb-6">
-          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Gift className="h-6 w-6 text-purple-600" />
+          <div className="w-12 h-12 bg-london-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Gift className="h-6 w-6 text-london-600" />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
+            <h3 className="text-xl font-bold text-charcoal mb-2">
               {language === 'en' 
                 ? 'Get Your Free London Luxury Guide' 
                 : 'احصل على دليل لندن الفاخر المجاني'
               }
             </h3>
-            <p className="text-gray-600 text-sm">
+            <p className="text-stone text-sm">
               {language === 'en'
                 ? 'Exclusive insider tips, hidden gems, and luxury experiences delivered to your inbox'
                 : 'نصائح حصرية من الداخل وكنوز مخفية وتجارب فاخرة تصل إلى صندوق الوارد'
@@ -98,7 +98,7 @@ export function NewsletterSignup() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-stone" />
               <Input
                 type="email"
                 placeholder={language === 'en' ? 'Enter your email' : 'أدخل بريدك الإلكتروني'}
@@ -110,7 +110,7 @@ export function NewsletterSignup() {
             </div>
             <Button 
               type="submit" 
-              className="bg-purple-800 hover:bg-purple-900 px-6"
+              className="bg-london-800 hover:bg-london-900 px-6"
               disabled={isLoading}
             >
               {isLoading 
@@ -120,7 +120,7 @@ export function NewsletterSignup() {
             </Button>
           </div>
           
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-stone">
             {language === 'en'
               ? 'No spam, unsubscribe anytime. Your email is safe with us.'
               : 'لا رسائل مزعجة، إلغاء الاشتراك في أي وقت. بريدك الإلكتروني آمن معنا.'

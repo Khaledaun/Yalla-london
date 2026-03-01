@@ -1,60 +1,103 @@
 
 import { brandConfig } from '@/config/brand-config';
+import { getSiteConfig, getDefaultSiteId, getSiteDomain, getSiteDescription, getSiteNameAr } from '@/config/sites';
 
 interface StructuredDataProps {
-  type?: 'website' | 'article' | 'event' | 'restaurant' | 'organization' | 'place' | 'review' | 'faq' | 'breadcrumb'
+  type?: 'website' | 'article' | 'event' | 'restaurant' | 'organization' | 'place' | 'review' | 'faq' | 'breadcrumb' | 'product' | 'itemList'
   data?: any
   language?: 'en' | 'ar'
+  siteId?: string
 }
 
-export function StructuredData({ type = 'website', data, language = 'en' }: StructuredDataProps) {
+export function StructuredData({ type = 'website', data, language = 'en', siteId }: StructuredDataProps) {
+
+  // Resolve site identity — use siteId if provided, fall back to default
+  const resolvedSiteId = siteId || getDefaultSiteId();
+  const siteConfig = getSiteConfig(resolvedSiteId);
+  const siteName = siteConfig?.name || brandConfig.siteName;
+  const siteSlug = siteConfig?.slug || resolvedSiteId;
+  const siteDomain = getSiteDomain(resolvedSiteId);
+  const siteCountry = siteConfig?.country || 'UK';
+  const siteDestination = siteConfig?.destination || 'London';
 
   const getBaseStructuredData = () => {
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://yalla-london.com')
-    
+    // Use config-driven per-site domain directly.
+    // NEXT_PUBLIC_SITE_URL is a build-time constant for the primary domain only —
+    // it overrides all secondary sites in a multi-tenant deployment and must NOT
+    // be used here. siteDomain (from getSiteDomain) is already correct per site.
+    const baseUrl = siteDomain;
+    // Per-site name and description — avoids falling back to Yalla London brandConfig
+    const nameAr = getSiteNameAr(resolvedSiteId);
+    const descriptionEN = getSiteDescription(resolvedSiteId, 'en');
+    const descriptionAR = getSiteDescription(resolvedSiteId, 'ar');
+    const localizedName = language === 'en' ? siteName : nameAr;
+    const localizedDescription = language === 'en' ? descriptionEN : descriptionAR;
+    const contactEmail = `hello@${siteConfig?.domain || 'zenitha.luxury'}`;
+
+    // Zenitha Yachts uses TravelAgency as a more precise entity type for yacht charter
+    const isZenitha = resolvedSiteId === "zenitha-yachts-med";
+
     const organizationData = {
       "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": language === 'en' ? brandConfig.siteName : brandConfig.siteNameAr,
+      "@type": isZenitha ? "TravelAgency" : "Organization",
+      "name": localizedName,
       "url": baseUrl,
-      "logo": `${baseUrl}/logo.png`,
-      "description": language === 'en' ? brandConfig.description : brandConfig.descriptionAr,
-      "address": brandConfig.contact.address ? {
+      "logo": `${baseUrl}/images/${siteSlug}-logo.svg`,
+      "description": localizedDescription,
+      "address": {
         "@type": "PostalAddress",
-        "addressCountry": "GB",
-        "addressLocality": "London",
-        "streetAddress": language === 'en' ? brandConfig.contact.address.en : brandConfig.contact.address.ar
-      } : {
-        "@type": "PostalAddress",
-        "addressCountry": "GB",
-        "addressLocality": "London"
+        "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry,
+        "addressLocality": siteDestination
       },
       "contactPoint": {
         "@type": "ContactPoint",
-        "email": brandConfig.contact.email,
-        "telephone": brandConfig.contact.phone,
+        "email": contactEmail,
         "contactType": "customer service"
       },
-      "sameAs": Object.values(brandConfig.contact.social).filter(Boolean)
+      "sameAs": [] as string[],
+      // Zenitha Yachts-specific fields for yacht charter entity classification
+      ...(isZenitha ? {
+        "areaServed": [
+          { "@type": "Place", "name": "Mediterranean Sea" },
+          { "@type": "Place", "name": "Arabian Gulf" },
+          { "@type": "Place", "name": "Red Sea" }
+        ],
+        "knowsLanguage": ["en", "ar"],
+        "hasOfferCatalog": {
+          "@type": "OfferCatalog",
+          "name": "Luxury Yacht Charters",
+          "itemListElement": [
+            { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Mediterranean Yacht Charter" } },
+            { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Arabian Gulf Yacht Charter" } },
+            { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Halal Catering Yacht Charter" } }
+          ]
+        }
+      } : {})
     }
 
     const websiteData = {
       "@context": "https://schema.org",
       "@type": "WebSite",
-      "name": language === 'en' ? brandConfig.siteName : brandConfig.siteNameAr,
+      "name": localizedName,
       "url": baseUrl,
-      "description": language === 'en' ? brandConfig.description : brandConfig.descriptionAr,
+      "description": localizedDescription,
       "inLanguage": [language],
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": `${baseUrl}/search?q={search_term_string}`,
-        "query-input": "required name=search_term_string"
-      },
       "publisher": {
         "@type": "Organization",
-        "name": brandConfig.seo.author,
-        "logo": `${baseUrl}/logo.png`
-      }
+        "name": siteName,
+        "logo": `${baseUrl}/images/${siteSlug}-logo.svg`
+      },
+      // Zenitha Yachts: SearchAction enables Google Sitelinks Searchbox
+      ...(isZenitha ? {
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": `${baseUrl}/yachts?q={search_term_string}`
+          },
+          "query-input": "required name=search_term_string"
+        }
+      } : {})
     }
 
     return { organizationData, websiteData }
@@ -71,40 +114,52 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
       "name": eventData.venue,
       "address": {
         "@type": "PostalAddress",
-        "addressLocality": "London",
-        "addressCountry": "GB"
+        "addressLocality": eventData.city || siteDestination,
+        "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry
       }
     },
     "offers": {
       "@type": "Offer",
       "price": eventData.price,
-      "priceCurrency": "GBP",
+      "priceCurrency": eventData.currency || (siteCountry === 'UK' ? 'GBP' : 'USD'),
       "availability": "https://schema.org/InStock"
+    },
+    "organizer": {
+      "@type": "Organization",
+      "name": siteName,
+      "url": siteDomain
     }
   })
 
-  const getArticleStructuredData = (articleData: any) => ({
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": articleData.title,
-    "description": articleData.description,
-    "author": {
-      "@type": "Organization",
-      "name": "Yalla London"
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "Yalla London",
-      "logo": {
-        "@type": "ImageObject",
-        "url": "https://i.pinimg.com/736x/fc/41/c5/fc41c56045c5b08eb352453e0b891d97.jpg"
-      }
-    },
-    "datePublished": articleData.publishDate,
-    "dateModified": articleData.modifiedDate || articleData.publishDate,
-    "mainEntityOfPage": articleData.url,
-    "image": articleData.image
-  })
+  const getArticleStructuredData = (articleData: any) => {
+    // Use config-driven per-site domain directly.
+    // NEXT_PUBLIC_SITE_URL is a build-time constant for the primary domain only —
+    // it overrides all secondary sites in a multi-tenant deployment and must NOT
+    // be used here. siteDomain (from getSiteDomain) is already correct per site.
+    const baseUrl = siteDomain;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": articleData.title,
+      "description": articleData.description,
+      "author": {
+        "@type": "Person",
+        "name": `${siteName} Editorial`
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": siteName,
+        "logo": {
+          "@type": "ImageObject",
+          "url": `${baseUrl}/images/${siteSlug}-logo.svg`
+        }
+      },
+      "datePublished": articleData.publishDate,
+      "dateModified": articleData.modifiedDate || articleData.publishDate,
+      "mainEntityOfPage": articleData.url,
+      "image": articleData.image
+    };
+  }
 
   const getRestaurantStructuredData = (restaurantData: any) => ({
     "@context": "https://schema.org",
@@ -114,8 +169,8 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
     "address": {
       "@type": "PostalAddress",
       "streetAddress": restaurantData.address,
-      "addressLocality": "London",
-      "addressCountry": "GB"
+      "addressLocality": restaurantData.city || siteDestination,
+      "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry
     },
     "telephone": restaurantData.phone,
     "priceRange": restaurantData.priceRange,
@@ -137,8 +192,8 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
     "address": {
       "@type": "PostalAddress",
       "streetAddress": placeData.address,
-      "addressLocality": "London",
-      "addressCountry": "GB",
+      "addressLocality": placeData.city || siteDestination,
+      "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry,
       "postalCode": placeData.postalCode
     },
     "geo": placeData.coordinates ? {
@@ -191,18 +246,27 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
     }
   })
 
-  const getFAQStructuredData = (faqData: any) => ({
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": faqData.questions.map((qa: any) => ({
-      "@type": "Question",
-      "name": qa.question,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": qa.answer
-      }
-    }))
-  })
+  // FAQPage schema deprecated Aug 2023 — restricted to gov/health sites only.
+  // Render FAQ content as Article schema with Q&A formatting instead.
+  const getFAQStructuredData = (faqData: any) => {
+    // Use config-driven per-site domain directly.
+    // NEXT_PUBLIC_SITE_URL is a build-time constant for the primary domain only —
+    // it overrides all secondary sites in a multi-tenant deployment and must NOT
+    // be used here. siteDomain (from getSiteDomain) is already correct per site.
+    const baseUrl = siteDomain;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": faqData.title || "Frequently Asked Questions",
+      "description": faqData.description || "Common questions and answers",
+      "author": { "@type": "Person", "name": `${siteName} Editorial` },
+      "publisher": {
+        "@type": "Organization",
+        "name": siteName,
+        "logo": { "@type": "ImageObject", "url": `${baseUrl}/images/${siteSlug}-logo.svg` }
+      },
+    };
+  }
 
   const getBreadcrumbStructuredData = (breadcrumbData: any) => ({
     "@context": "https://schema.org",
@@ -231,8 +295,8 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
       "address": {
         "@type": "PostalAddress",
         "streetAddress": eventData.location?.address,
-        "addressLocality": "London",
-        "addressCountry": "GB"
+        "addressLocality": eventData.location?.city || siteDestination,
+        "addressCountry": siteCountry === 'UK' ? 'GB' : siteCountry
       },
       "geo": eventData.location?.coordinates ? {
         "@type": "GeoCoordinates",
@@ -243,13 +307,13 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
     "image": eventData.image ? [eventData.image] : undefined,
     "organizer": {
       "@type": "Organization",
-      "name": eventData.organizer || brandConfig.siteName,
-      "url": process.env.NEXT_PUBLIC_SITE_URL
+      "name": eventData.organizer || siteName,
+      "url": siteDomain
     },
     "offers": eventData.price ? {
       "@type": "Offer",
       "price": eventData.price.toString(),
-      "priceCurrency": eventData.currency || "GBP",
+      "priceCurrency": eventData.currency || (siteCountry === 'UK' ? 'GBP' : 'USD'),
       "availability": eventData.availability || "https://schema.org/InStock",
       "url": eventData.ticketUrl,
       "validFrom": eventData.salesStart
@@ -261,45 +325,98 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
   })
 
   // Enhanced article schema for better AEO
-  const getEnhancedArticleStructuredData = (articleData: any) => ({
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": articleData.title,
-    "description": articleData.description || articleData.excerpt,
-    "author": {
-      "@type": "Organization",
-      "name": brandConfig.seo.author,
-      "url": process.env.NEXT_PUBLIC_SITE_URL
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": brandConfig.seo.author,
-      "logo": {
+  const getEnhancedArticleStructuredData = (articleData: any) => {
+    // Use config-driven per-site domain directly.
+    // NEXT_PUBLIC_SITE_URL is a build-time constant for the primary domain only —
+    // it overrides all secondary sites in a multi-tenant deployment and must NOT
+    // be used here. siteDomain (from getSiteDomain) is already correct per site.
+    const baseUrl = siteDomain;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": articleData.title,
+      "description": articleData.description || articleData.excerpt,
+      "author": {
+        "@type": "Organization",
+        "name": siteName,
+        "url": baseUrl
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": siteName,
+        "logo": {
+          "@type": "ImageObject",
+          "url": `${baseUrl}/images/${siteSlug}-logo.svg`
+        }
+      },
+      "datePublished": articleData.publishDate || articleData.datePublished,
+      "dateModified": articleData.modifiedDate || articleData.publishDate,
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": articleData.url
+      },
+      "image": articleData.image ? {
         "@type": "ImageObject",
-        "url": `${process.env.NEXT_PUBLIC_SITE_URL}/logo.png`
-      }
-    },
-    "datePublished": articleData.publishDate || articleData.datePublished,
-    "dateModified": articleData.modifiedDate || articleData.publishDate,
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": articleData.url
-    },
-    "image": articleData.image ? {
-      "@type": "ImageObject",
-      "url": articleData.image,
-      "width": articleData.imageWidth || 1200,
-      "height": articleData.imageHeight || 630
-    } : undefined,
-    "articleSection": articleData.category,
-    "keywords": articleData.tags ? articleData.tags.join(', ') : undefined,
-    "wordCount": articleData.wordCount,
-    "articleBody": articleData.content,
-    "inLanguage": language,
-    "about": articleData.topics ? articleData.topics.map((topic: string) => ({
-      "@type": "Thing",
-      "name": topic
-    })) : undefined
+        "url": articleData.image,
+        "width": articleData.imageWidth || 1200,
+        "height": articleData.imageHeight || 630
+      } : undefined,
+      "articleSection": articleData.category,
+      "keywords": articleData.tags ? articleData.tags.join(', ') : undefined,
+      "wordCount": articleData.wordCount,
+      "articleBody": articleData.content,
+      "inLanguage": language,
+      "about": articleData.topics ? articleData.topics.map((topic: string) => ({
+        "@type": "Thing",
+        "name": topic
+      })) : undefined
+    };
+  }
+
+  const getProductStructuredData = (productData: any) => {
+    // Use config-driven per-site domain directly.
+    // NEXT_PUBLIC_SITE_URL is a build-time constant for the primary domain only —
+    // it overrides all secondary sites in a multi-tenant deployment and must NOT
+    // be used here. siteDomain (from getSiteDomain) is already correct per site.
+    const baseUrl = siteDomain;
+    return {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": productData.name || productData.title,
+      "description": productData.description,
+      "image": productData.image,
+      "brand": {
+        "@type": "Organization",
+        "name": siteName
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": productData.price?.toString() || "0",
+        "priceCurrency": productData.currency || (siteCountry === 'UK' ? 'GBP' : 'USD'),
+        "availability": productData.availability || "https://schema.org/InStock",
+        "url": productData.url || baseUrl,
+        "seller": {
+          "@type": "Organization",
+          "name": siteName
+        }
+      },
+      "category": productData.category,
+      "sku": productData.sku
+    };
+  }
+
+  const getItemListStructuredData = (listData: any) => ({
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": listData.name,
+    "description": listData.description,
+    "numberOfItems": listData.items?.length || 0,
+    "itemListElement": listData.items?.map((item: any, index: number) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "name": item.name,
+      "url": item.url
+    })) || []
   })
 
   const generateStructuredData = () => {
@@ -320,6 +437,10 @@ export function StructuredData({ type = 'website', data, language = 'en' }: Stru
         return [organizationData, getReviewStructuredData(data)]
       case 'faq':
         return [organizationData, getFAQStructuredData(data)]
+      case 'product':
+        return [organizationData, getProductStructuredData(data)]
+      case 'itemList':
+        return [organizationData, getItemListStructuredData(data)]
       case 'breadcrumb':
         return [getBreadcrumbStructuredData(data)]
       case 'organization':

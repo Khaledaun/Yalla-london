@@ -1,6 +1,7 @@
 
 import { Metadata } from 'next';
 import { SchemaGenerator } from '@/lib/seo/schema-generator';
+import { getDefaultSiteId, getSiteDomain } from '@/config/sites';
 
 interface EnhancedMetadataProps {
   title: string;
@@ -31,7 +32,7 @@ export function generateEnhancedMetadata({
   section,
   tags = []
 }: EnhancedMetadataProps): Metadata {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://yalla-london.com';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId());
   const currentUrl = `${baseUrl}${language === 'ar' ? '/ar' : ''}/${slug}`;
   const alternateUrl = `${baseUrl}${language === 'ar' ? '' : '/ar'}/${slug}`;
   
@@ -146,7 +147,7 @@ export function generateArticleMetadata({
   if (typeof window === 'undefined') {
     // Server-side: prepare schema for injection
     const generator = new SchemaGenerator(
-      process.env.NEXT_PUBLIC_SITE_URL || 'https://example.com',
+      process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId()),
       { siteName: 'Yalla London', description: 'Your Guide to London' }
     );
     const articleSchema = generator.generateArticle({
@@ -207,7 +208,7 @@ export function generateEventMetadata({
   // Add event-specific structured data
   if (typeof window === 'undefined') {
     const generator = new SchemaGenerator(
-      process.env.NEXT_PUBLIC_SITE_URL || 'https://example.com',
+      process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId()),
       { siteName: 'Yalla London', description: 'Your Guide to London' }
     );
     const eventSchema = generator.generateEvent({
@@ -273,7 +274,7 @@ export function generatePlaceMetadata({
   // Add place-specific structured data
   if (typeof window === 'undefined') {
     const generator = new SchemaGenerator(
-      process.env.NEXT_PUBLIC_SITE_URL || 'https://example.com',
+      process.env.NEXT_PUBLIC_SITE_URL || getSiteDomain(getDefaultSiteId()),
       { siteName: 'Yalla London', description: 'Your Guide to London' }
     );
     const placeSchema = generator.generatePlace({

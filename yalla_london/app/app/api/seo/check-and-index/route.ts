@@ -41,9 +41,10 @@ export async function GET(request: NextRequest) {
   );
 
   // Per-site scoping: query param > header > default
+  const { getDefaultSiteId } = await import("@/config/sites");
   const siteId = searchParams.get("siteId")
     || request.headers.get("x-site-id")
-    || "yalla-london";
+    || getDefaultSiteId();
   const seoConfig = getSiteSeoConfig(siteId);
   const siteUrl = seoConfig.siteUrl;
   const gscSiteUrl = seoConfig.gscSiteUrl;
@@ -66,8 +67,10 @@ export async function GET(request: NextRequest) {
     // Strategy A: Database
     try {
       const { prisma } = await import("@/lib/db");
+      // Note: siteId column exists in Prisma schema but not yet migrated to DB.
+      // Skip siteId filter until migration is run.
       const posts = await prisma.blogPost.findMany({
-        where: { published: true, deletedAt: null, ...(siteId ? { siteId } : {}) },
+        where: { published: true, deletedAt: null },
         select: { id: true, slug: true, title_en: true, created_at: true },
         orderBy: { created_at: "desc" },
       });

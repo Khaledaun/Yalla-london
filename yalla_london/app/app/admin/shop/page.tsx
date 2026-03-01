@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { MophyAdminLayout } from '@/components/admin/mophy/mophy-admin-layout'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
   Package, Plus, Search, Edit, Trash2, Eye, DollarSign,
-  TrendingUp, ShoppingCart, Download, FileText, MoreHorizontal
+  TrendingUp, ShoppingCart, Download, MoreHorizontal, Loader2,
+  ArrowUpRight, ArrowDownRight
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -17,65 +19,67 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
-const products = [
-  {
-    id: '1',
-    name: 'Complete London Guide 2026',
-    type: 'PDF Guide',
-    price: 9.99,
-    sales: 234,
-    revenue: 2337.66,
-    status: 'active',
-    image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=100&q=80'
-  },
-  {
-    id: '2',
-    name: 'Halal Restaurant Guide',
-    type: 'PDF Guide',
-    price: 7.99,
-    sales: 156,
-    revenue: 1246.44,
-    status: 'active',
-    image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=100&q=80'
-  },
-  {
-    id: '3',
-    name: 'London Shopping Secrets',
-    type: 'PDF Guide',
-    price: 6.99,
-    sales: 189,
-    revenue: 1321.11,
-    status: 'active',
-    image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=100&q=80'
-  },
-  {
-    id: '4',
-    name: 'Family Adventure Pack',
-    type: 'Bundle',
-    price: 14.99,
-    sales: 312,
-    revenue: 4676.88,
-    status: 'active',
-    image: 'https://images.unsplash.com/photo-1529655683826-aba9b3e77383?w=100&q=80'
-  },
-  {
-    id: '5',
-    name: 'Prayer Times & Mosques Guide',
-    type: 'PDF Guide',
-    price: 4.99,
-    sales: 98,
-    revenue: 489.02,
-    status: 'active',
-    image: 'https://images.unsplash.com/photo-1564769625392-651b89c75a66?w=100&q=80'
-  },
-]
+interface ProductStat {
+  id: string
+  name: string
+  name_ar?: string
+  slug: string
+  type: string
+  price: number
+  currency: string
+  image: string | null
+  is_active: boolean
+  totalPurchases: number
+  completedSales: number
+  revenue: number
+}
+
+interface RecentOrder {
+  id: string
+  product: string
+  customer: string
+  amount: number
+  currency: string
+  date: string
+}
+
+interface ShopStats {
+  totalRevenue: number
+  totalSales: number
+  activeProducts: number
+  monthlyGrowth: number
+  thisMonthRevenue: number
+}
 
 export default function AdminShopPage() {
   const [searchQuery, setSearchQuery] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<ShopStats>({
+    totalRevenue: 0, totalSales: 0, activeProducts: 0, monthlyGrowth: 0, thisMonthRevenue: 0,
+  })
+  const [products, setProducts] = useState<ProductStat[]>([])
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
 
-  const totalRevenue = products.reduce((sum, p) => sum + p.revenue, 0)
-  const totalSales = products.reduce((sum, p) => sum + p.sales, 0)
-  const activeProducts = products.filter(p => p.status === 'active').length
+  useEffect(() => {
+    fetch('/api/admin/shop/stats')
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed')
+        const data = await res.json()
+        setStats(data.stats)
+        setProducts(data.products)
+        setRecentOrders(data.recentOrders)
+      })
+      .catch((err) => {
+        console.error('Failed to fetch shop stats:', err)
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  const filteredProducts = products.filter(p =>
+    !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const sym = (c: string) => c === 'GBP' ? '£' : c === 'USD' ? '$' : c + ' '
 
   return (
     <MophyAdminLayout pageTitle="Shop & Products">
@@ -84,10 +88,13 @@ export default function AdminShopPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Shop & Products</h1>
             <p className="text-gray-500 dark:text-gray-400">
-              Manage digital products and PDF guides for sale
+              Manage digital products and track revenue
             </p>
           </div>
-          <Button className="bg-[#1A1F36] hover:bg-[#2d3452]">
+          <Button
+            className="bg-[#1C1917] hover:bg-[#3D3835]"
+            onClick={() => { window.location.href = '/admin/command-center/products/pdf'; }}
+          >
             <Plus className="w-4 h-4 mr-2" /> Add Product
           </Button>
         </div>
@@ -100,7 +107,11 @@ export default function AdminShopPage() {
                 <DollarSign className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold">£{totalRevenue.toFixed(2)}</div>
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                ) : (
+                  <div className="text-2xl font-bold">£{stats.totalRevenue.toFixed(2)}</div>
+                )}
                 <div className="text-sm text-gray-500">Total Revenue</div>
               </div>
             </CardContent>
@@ -111,7 +122,11 @@ export default function AdminShopPage() {
                 <ShoppingCart className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold">{totalSales}</div>
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                ) : (
+                  <div className="text-2xl font-bold">{stats.totalSales}</div>
+                )}
                 <div className="text-sm text-gray-500">Total Sales</div>
               </div>
             </CardContent>
@@ -122,7 +137,11 @@ export default function AdminShopPage() {
                 <Package className="w-5 h-5 text-purple-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold">{activeProducts}</div>
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                ) : (
+                  <div className="text-2xl font-bold">{stats.activeProducts}</div>
+                )}
                 <div className="text-sm text-gray-500">Active Products</div>
               </div>
             </CardContent>
@@ -133,7 +152,20 @@ export default function AdminShopPage() {
                 <TrendingUp className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold">+23%</div>
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <span className="text-2xl font-bold">
+                      {stats.monthlyGrowth >= 0 ? '+' : ''}{stats.monthlyGrowth}%
+                    </span>
+                    {stats.monthlyGrowth >= 0 ? (
+                      <ArrowUpRight className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <ArrowDownRight className="w-4 h-4 text-red-500" />
+                    )}
+                  </div>
+                )}
                 <div className="text-sm text-gray-500">This Month</div>
               </div>
             </CardContent>
@@ -158,61 +190,125 @@ export default function AdminShopPage() {
         {/* Products Table */}
         <Card>
           <CardContent className="p-0">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Sales</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {products.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50">
-                    <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="w-12 h-12 rounded-lg object-cover"
-                        />
-                        <span className="font-medium">{product.name}</span>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <Badge variant="secondary">{product.type}</Badge>
-                    </td>
-                    <td className="p-4 font-medium">£{product.price}</td>
-                    <td className="p-4">{product.sales}</td>
-                    <td className="p-4 font-medium text-green-600">£{product.revenue.toFixed(2)}</td>
-                    <td className="p-4">
-                      <Badge className="bg-green-500">Active</Badge>
-                    </td>
-                    <td className="p-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem><Eye className="w-4 h-4 mr-2" /> View</DropdownMenuItem>
-                          <DropdownMenuItem><Edit className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
-                          <DropdownMenuItem><Download className="w-4 h-4 mr-2" /> Download</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600"><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                <span className="ml-2 text-gray-500">Loading products...</span>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <Package className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p>No products found. Add your first digital product to start selling.</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Sales</th>
+                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredProducts.map((product) => (
+                    <tr key={product.id} className="hover:bg-gray-50">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          {product.image ? (
+                            <Image
+                              src={product.image}
+                              alt={product.name}
+                              width={48}
+                              height={48}
+                              className="w-12 h-12 rounded-lg object-cover"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
+                              <Package className="w-6 h-6 text-gray-400" />
+                            </div>
+                          )}
+                          <span className="font-medium">{product.name}</span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <Badge variant="secondary">{product.type.replace('_', ' ')}</Badge>
+                      </td>
+                      <td className="p-4 font-medium">{sym(product.currency)}{product.price.toFixed(2)}</td>
+                      <td className="p-4">{product.completedSales}</td>
+                      <td className="p-4 font-medium text-green-600">
+                        {sym(product.currency)}{product.revenue.toFixed(2)}
+                      </td>
+                      <td className="p-4">
+                        <Badge className={product.is_active ? 'bg-green-500' : 'bg-gray-400'}>
+                          {product.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </td>
+                      <td className="p-4">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => window.open(`/${product.slug}`, '_blank')}><Eye className="w-4 h-4 mr-2" /> View</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { window.location.href = `/admin/command-center/products/pdf?id=${product.id}`; }}><Edit className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => window.open(`/api/admin/shop/download?id=${product.id}`, '_blank')}><Download className="w-4 h-4 mr-2" /> Download</DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-600" onClick={async () => {
+                              if (!confirm(`Delete "${product.name}"?`)) return;
+                              const res = await fetch(`/api/admin/shop?id=${product.id}`, { method: 'DELETE' });
+                              if (res.ok) setProducts(prev => prev.filter(p => p.id !== product.id));
+                            }}><Trash2 className="w-4 h-4 mr-2" /> Delete</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </CardContent>
         </Card>
+
+        {/* Recent Orders */}
+        {recentOrders.length > 0 && (
+          <Card>
+            <CardContent className="p-0">
+              <div className="p-4 border-b">
+                <h3 className="font-semibold text-gray-900">Recent Orders</h3>
+              </div>
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {recentOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50">
+                      <td className="p-4 font-medium">{order.product}</td>
+                      <td className="p-4 text-gray-500">{order.customer}</td>
+                      <td className="p-4 font-medium text-green-600">
+                        {sym(order.currency)}{order.amount.toFixed(2)}
+                      </td>
+                      <td className="p-4 text-gray-500">
+                        {new Date(order.date).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </MophyAdminLayout>
   )

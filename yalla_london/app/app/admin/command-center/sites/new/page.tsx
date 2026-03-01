@@ -344,7 +344,7 @@ export default function SiteCreatorWizard() {
               </div>
               <h2 className="text-2xl font-bold mb-2">Review Your Site</h2>
               <p className="text-gray-600">
-                Here's what the AI generated based on your description. You can customize it in the next step.
+                Here&apos;s what the AI generated based on your description. You can customize it in the next step.
               </p>
             </div>
 
@@ -643,19 +643,19 @@ function generateMockConfig(prompt: string, preset: string | null): SiteConfig {
   let primaryColor = '#0066CC';
 
   if (isMaldives) {
-    name = isArabic ? 'دليل المالديف' : 'Maldives Guide';
-    domain = isArabic ? 'arabmaldives.com' : 'maldivesguide.com';
+    name = isArabic ? 'عرب الدايفز' : 'Arabaldives';
+    domain = 'arabaldives.com';
     niche = 'Maldives Luxury Travel';
     primaryColor = '#0891B2';
   } else if (isThailand) {
-    name = isArabic ? 'عرب تايلاند' : 'Thailand Explorer';
-    domain = isArabic ? 'arabthailand.com' : 'thailandexplorer.com';
+    name = isArabic ? 'يلا تايلاند' : 'Yalla Thailand';
+    domain = 'yallathailand.com';
     niche = 'Thailand Travel';
-    primaryColor = '#7C3AED';
+    primaryColor = '#059669';
   } else if (isBali) {
-    name = isArabic ? 'عرب بالي' : 'Bali Dreams';
-    domain = isArabic ? 'arabbali.com' : 'balidreams.com';
-    niche = 'Bali Travel';
+    name = isArabic ? 'يلا تايلاند' : 'Yalla Thailand';
+    domain = 'yallathailand.com';
+    niche = 'Thailand Travel';
     primaryColor = '#059669';
   }
 

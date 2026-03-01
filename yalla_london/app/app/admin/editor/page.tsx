@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { sanitizeHtml } from '@/lib/html-sanitizer'
 import { 
   Edit3, 
   Eye, 
@@ -54,6 +55,31 @@ export default function PastePreviewEditor() {
   const [ogVideo, setOgVideo] = useState('')
   const [isRewriting, setIsRewriting] = useState(false)
   const [seoScore, setSeoScore] = useState(0)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const applyFormat = (prefix: string, suffix: string = prefix) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = content.substring(start, end) || 'text';
+    const newContent = content.substring(0, start) + prefix + selected + suffix + content.substring(end);
+    setContent(newContent);
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(start + prefix.length, start + prefix.length + selected.length);
+    }, 0);
+  };
+
+  const applyLineFormat = (linePrefix: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const lineStart = content.lastIndexOf('\n', start - 1) + 1;
+    const newContent = content.substring(0, lineStart) + linePrefix + content.substring(lineStart);
+    setContent(newContent);
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(start + linePrefix.length, start + linePrefix.length); }, 0);
+  };
 
   const handlePasteFromWord = () => {
     // Simulate pasting from Word
@@ -266,9 +292,8 @@ Each hotel's unique character and world-class amenities ensure that your visit t
         setExcerpt(generatedExcerpt)
       }
       
-      // Auto-generate SEO score
-      const seoScore = Math.floor(Math.random() * 30) + 70 // 70-100
-      setSeoScore(seoScore)
+      // TODO: connect to real SEO scoring API
+      setSeoScore(0)
       
       alert('AI Review completed! All fields have been auto-generated based on your content.')
     } catch (error) {
@@ -607,43 +632,43 @@ Each hotel's unique character and world-class amenities ensure that your visit t
           {(activeView === 'edit' || activeView === 'split') && (
             <div className="bg-gray-50 border-b border-gray-200 px-4 py-2">
               <div className="flex items-center gap-2">
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Bold" onClick={() => applyFormat('**')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Bold className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Italic" onClick={() => applyFormat('*')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Italic className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Underline" onClick={() => applyFormat('<u>', '</u>')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Underline className="h-4 w-4" />
                 </button>
                 <div className="w-px h-6 bg-gray-300 mx-2"></div>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Align Left" onClick={() => applyFormat('<div style="text-align:left">', '</div>')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <AlignLeft className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Align Center" onClick={() => applyFormat('<div style="text-align:center">', '</div>')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <AlignCenter className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Align Right" onClick={() => applyFormat('<div style="text-align:right">', '</div>')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <AlignRight className="h-4 w-4" />
                 </button>
                 <div className="w-px h-6 bg-gray-300 mx-2"></div>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Bullet List" onClick={() => applyLineFormat('- ')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <List className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Ordered List" onClick={() => applyLineFormat('1. ')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <ListOrdered className="h-4 w-4" />
                 </button>
                 <div className="w-px h-6 bg-gray-300 mx-2"></div>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Insert Link" onClick={() => { const url = prompt('Link URL:'); if (url) applyFormat('[', `](${url})`); }} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Link className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Insert Image" onClick={() => { const url = prompt('Image URL:'); if (url) applyFormat('![', `](${url})`); }} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Image className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Insert Video" onClick={() => { const url = prompt('Video URL:'); if (url) { setContent(c => c + `\n<video src="${url}" controls></video>\n`); } }} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <Video className="h-4 w-4" />
                 </button>
-                <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
+                <button title="Insert Location" onClick={() => applyFormat('📍 **', '**')} className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded">
                   <MapPin className="h-4 w-4" />
                 </button>
               </div>
@@ -657,6 +682,7 @@ Each hotel's unique character and world-class amenities ensure that your visit t
               <div className={`${activeView === 'split' ? 'w-1/2' : 'w-full'} flex flex-col`}>
                 <div className="flex-1 p-4">
                   <textarea
+                    ref={textareaRef}
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     className="w-full h-full border border-gray-300 rounded-md p-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
@@ -680,10 +706,11 @@ Each hotel's unique character and world-class amenities ensure that your visit t
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-600">SEO Score:</span>
                       <span className={`text-sm font-medium ${
-                        seoScore >= 90 ? 'text-green-600' : 
+                        seoScore === 0 ? 'text-gray-400' :
+                        seoScore >= 90 ? 'text-green-600' :
                         seoScore >= 70 ? 'text-yellow-600' : 'text-red-600'
                       }`}>
-                        {seoScore}%
+                        {seoScore === 0 ? 'Not scored' : `${seoScore}%`}
                       </span>
                     </div>
                   </div>
@@ -693,15 +720,15 @@ Each hotel's unique character and world-class amenities ensure that your visit t
                   <div className={`${deviceView === 'mobile' ? 'max-w-sm mx-auto' : 'max-w-4xl mx-auto'}`}>
                     {content ? (
                       <div className="prose prose-lg max-w-none">
-                        <div dangerouslySetInnerHTML={{ 
-                          __html: content
+                        <div dangerouslySetInnerHTML={{
+                          __html: sanitizeHtml(content
                             .replace(/^# (.*$)/gim, '<h1>$1</h1>')
                             .replace(/^## (.*$)/gim, '<h2>$1</h2>')
                             .replace(/^### (.*$)/gim, '<h3>$1</h3>')
                             .replace(/^\* (.*$)/gim, '<li>$1</li>')
                             .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
                             .replace(/\*(.*)\*/gim, '<em>$1</em>')
-                            .replace(/\n/gim, '<br>')
+                            .replace(/\n/gim, '<br>'))
                         }} />
                       </div>
                     ) : (

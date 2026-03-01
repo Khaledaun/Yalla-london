@@ -1,0 +1,338 @@
+{
+  "generated": "2026-02-19",
+  "tool": "static-analysis",
+  "site": "yalla-london",
+  "standards_reference": "lib/seo/standards.ts v2026-02-18",
+  "schema_format": "JSON-LD (inline <script type='application/ld+json'>)",
+  "summary": {
+    "pages_with_schema": 11,
+    "pages_without_schema": 17,
+    "schema_types_in_use": ["Organization", "WebSite", "Article", "NewsArticle", "BreadcrumbList", "CollectionPage", "ItemList", "WebPage"],
+    "schema_types_available_but_unused": ["Event", "Restaurant", "Place", "TouristAttraction", "Review", "FAQPage (deprecated)"],
+    "deprecated_schemas_present": ["FAQPage (deprecated Aug 2023, still in structured-data.tsx)"],
+    "schema_injection_methods": [
+      "Root layout: StructuredData component (Organization + WebSite on every page)",
+      "Per-page: inline generateStructuredData() functions with JSON-LD script tags",
+      "lib/seo/schema-generator.ts: Advanced generator (used by enhanced-schema API, not by most pages)"
+    ],
+    "multi_site_readiness": "PARTIAL -- blog/[slug] uses dynamic siteName/siteDomain. StructuredData component and news/[slug] hardcode 'Yalla London'."
+  },
+  "schema_by_page_type": {
+    "root_layout": {
+      "path": "app/layout.tsx",
+      "component": "StructuredData (components/structured-data.tsx)",
+      "schemas": [
+        {
+          "type": "Organization",
+          "fields": ["name", "url", "logo", "description", "address (PostalAddress)", "contactPoint", "sameAs"],
+          "source": "brandConfig",
+          "multi_site": false,
+          "issues": [
+            "Logo path hardcoded to /images/yalla-london-logo.svg (L20)",
+            "Fallback URL hardcoded to https://yalla-london.com (L13)",
+            "Address hardcoded to GB/London (L24-30)",
+            "No @id for entity linking"
+          ]
+        },
+        {
+          "type": "WebSite",
+          "fields": ["name", "url", "description", "inLanguage", "publisher"],
+          "source": "brandConfig",
+          "multi_site": false,
+          "issues": [
+            "Publisher logo hardcoded to /images/yalla-london-logo.svg (L51)",
+            "No @id for entity linking",
+            "No SearchAction (correct -- no site search exists)"
+          ]
+        }
+      ],
+      "note": "These schemas are injected on EVERY page via the root layout head."
+    },
+    "blog_detail": {
+      "path": "app/blog/[slug]/page.tsx",
+      "schemas": [
+        {
+          "type": "Article",
+          "fields": ["headline", "description", "image", "datePublished", "dateModified", "author (Organization)", "publisher (Organization)", "mainEntityOfPage", "articleSection", "keywords", "wordCount", "inLanguage"],
+          "multi_site": true,
+          "note": "Uses dynamic siteName, siteDomain, siteSlug from site config. Logo path derived from siteSlug. Best multi-site implementation in codebase.",
+          "issues": [
+            "Author type is Organization, not Person -- weaker E-E-A-T signal",
+            "inLanguage hardcoded to 'en-GB' even for Arabic content"
+          ]
+        },
+        {
+          "type": "BreadcrumbList",
+          "fields": ["itemListElement (Home > Blog > Post Title)"],
+          "multi_site": true
+        }
+      ]
+    },
+    "blog_listing": {
+      "path": "app/blog/page.tsx",
+      "schemas": [
+        {
+          "type": "CollectionPage",
+          "fields": ["name", "description", "url", "isPartOf (WebSite)", "mainEntity (ItemList)"],
+          "multi_site": true,
+          "note": "Uses siteName and baseUrl dynamically"
+        },
+        {
+          "type": "ItemList",
+          "fields": ["itemListElement (ListItem for each post with name, url, image, datePublished, author)"],
+          "multi_site": true
+        }
+      ]
+    },
+    "blog_category": {
+      "path": "app/blog/category/[slug]/page.tsx",
+      "schemas": [
+        {
+          "type": "CollectionPage",
+          "fields": ["name", "description", "url", "isPartOf (WebSite)", "mainEntity (ItemList)"],
+          "multi_site": false,
+          "issues": [
+            "Publisher name hardcoded to 'Yalla London' (L176)",
+            "isPartOf name hardcoded to 'Yalla London Blog' (L172)",
+            "name includes hardcoded 'Yalla London Blog' (L169)"
+          ]
+        },
+        {
+          "type": "BreadcrumbList",
+          "fields": ["itemListElement (Home > Blog > Category)"],
+          "multi_site": false,
+          "issues": ["Uses hardcoded siteName"]
+        }
+      ]
+    },
+    "news_detail": {
+      "path": "app/news/[slug]/page.tsx",
+      "schemas": [
+        {
+          "type": "NewsArticle",
+          "fields": ["headline", "description", "image", "datePublished", "author (Organization -- source org)", "publisher (Organization)", "mainEntityOfPage", "articleSection", "keywords", "inLanguage"],
+          "multi_site": false,
+          "issues": [
+            "Publisher name hardcoded to 'Yalla London' (L346)",
+            "Publisher logo hardcoded to /images/yalla-london-logo.svg (L350)"
+          ]
+        },
+        {
+          "type": "BreadcrumbList",
+          "fields": ["itemListElement (Home > News > Article)"],
+          "multi_site": false,
+          "issues": ["baseUrl uses getDefaultSiteId() which resolves to yalla-london"]
+        }
+      ]
+    },
+    "news_listing": {
+      "path": "app/news/page.tsx",
+      "schemas": [
+        {
+          "type": "CollectionPage",
+          "fields": ["name", "description", "url", "publisher"],
+          "multi_site": false,
+          "note": "Includes nested ItemList with news items. Correct listing pattern."
+        },
+        {
+          "type": "ItemList",
+          "fields": ["itemListElement (ListItem for each news item)"]
+        }
+      ]
+    },
+    "information_hub_landing": {
+      "path": "app/information/page.tsx",
+      "schemas": [
+        { "type": "WebPage", "fields": ["name", "description", "url", "isPartOf (WebSite)"] },
+        { "type": "CollectionPage", "fields": ["name", "description", "mainEntity (ItemList of sections)"] },
+        { "type": "BreadcrumbList", "fields": ["itemListElement (Home > Information)"] }
+      ]
+    },
+    "information_section": {
+      "path": "app/information/[section]/page.tsx",
+      "schemas": [
+        { "type": "WebPage", "fields": ["name", "description", "url", "isPartOf"] },
+        { "type": "CollectionPage", "fields": ["name", "description", "mainEntity (ItemList of articles in section)"] },
+        { "type": "BreadcrumbList", "fields": ["itemListElement (Home > Information > Section)"], "note": "Conditional" }
+      ]
+    },
+    "information_articles_listing": {
+      "path": "app/information/articles/page.tsx",
+      "schemas": [
+        { "type": "CollectionPage", "fields": ["name", "description", "url"] },
+        { "type": "ItemList", "fields": ["itemListElement (ListItem for each article)"] }
+      ]
+    },
+    "information_article_detail": {
+      "path": "app/information/articles/[slug]/page.tsx",
+      "schemas": [
+        { "type": "Article", "fields": ["headline", "description", "author", "publisher", "datePublished", "dateModified", "mainEntityOfPage", "articleSection", "keywords", "wordCount", "inLanguage"] },
+        { "type": "BreadcrumbList", "fields": ["itemListElement (Home > Information > Articles > Article)"] }
+      ]
+    },
+    "homepage": {
+      "path": "app/page.tsx",
+      "schemas": [],
+      "inherits": "Root layout Organization + WebSite only",
+      "missing": ["WebPage with mainEntity", "No specific homepage schema"],
+      "recommendation": "Add WebPage schema with description of site purpose"
+    },
+    "about_page": {
+      "path": "app/about/page.tsx",
+      "schemas": [],
+      "inherits": "Root layout Organization + WebSite only",
+      "missing": ["AboutPage schema", "Person schema for team/founder"],
+      "recommendation": "Add AboutPage schema type"
+    },
+    "contact_page": {
+      "path": "app/contact/page.tsx",
+      "schemas": [],
+      "inherits": "Root layout Organization + WebSite only",
+      "missing": ["ContactPage schema"],
+      "recommendation": "Add ContactPage with contactPoint details"
+    },
+    "events_listing": {
+      "path": "app/events/page.tsx",
+      "schemas": [],
+      "inherits": "Root layout Organization + WebSite only",
+      "missing": ["ItemList of Event schemas"],
+      "recommendation": "Use existing getEnhancedEventStructuredData() from structured-data.tsx"
+    },
+    "experiences_page": {
+      "path": "app/experiences/page.tsx",
+      "schemas": [],
+      "inherits": "Root layout Organization + WebSite only",
+      "missing": ["ItemList or CollectionPage for experiences"]
+    },
+    "hotels_page": {
+      "path": "app/hotels/page.tsx",
+      "schemas": [],
+      "inherits": "Root layout Organization + WebSite only",
+      "missing": ["ItemList of Hotel/LodgingBusiness schemas"]
+    },
+    "shop_pages": {
+      "path": "app/shop/*.tsx",
+      "schemas": [],
+      "inherits": "Root layout Organization + WebSite only",
+      "missing": ["Product schema on shop/[slug]", "ItemList on shop listing"],
+      "recommendation": "Add Product schema with offers, pricing, availability"
+    },
+    "london_by_foot": {
+      "path": "app/london-by-foot/*.tsx",
+      "schemas": [],
+      "inherits": "Root layout Organization + WebSite only",
+      "missing": ["TouristAttraction or TouristTrip schema"],
+      "recommendation": "Add TouristTrip or Route schema with Place sub-items"
+    }
+  },
+  "deprecated_schemas_found": [
+    {
+      "type": "FAQPage",
+      "deprecated_date": "2023-08",
+      "location": "components/structured-data.tsx L189-200 (getFAQStructuredData function)",
+      "reason": "Restricted to authoritative government and health websites only since August 2023",
+      "also_in": "lib/seo/schema-generator.ts (FAQPageSchema type definition)",
+      "action_required": "Remove getFAQStructuredData() and 'faq' case from component. Remove FAQPageSchema from schema-generator.ts. Replace callers with Article schema.",
+      "severity": "CRITICAL",
+      "standards_ref": "SCHEMA_TYPES.deprecated.FAQPage in lib/seo/standards.ts"
+    }
+  ],
+  "structured_data_component": {
+    "file": "components/structured-data.tsx",
+    "supported_types": ["website", "article", "event", "restaurant", "organization", "place", "review", "faq", "breadcrumb"],
+    "generators": {
+      "getBaseStructuredData": "Organization + WebSite (every page)",
+      "getEventStructuredData": "Basic Event schema",
+      "getEnhancedEventStructuredData": "Extended Event with geo, offers, performers, organizer",
+      "getArticleStructuredData": "Basic Article (LEGACY -- hardcodes 'Yalla London', uses Pinterest logo URL)",
+      "getEnhancedArticleStructuredData": "Extended Article with wordCount, articleBody, topics",
+      "getRestaurantStructuredData": "Restaurant with address, rating, cuisine",
+      "getPlaceStructuredData": "TouristAttraction with geo, hours, amenities, rating",
+      "getReviewStructuredData": "Review with rating, author, itemReviewed",
+      "getFAQStructuredData": "FAQPage -- DEPRECATED by Google Aug 2023",
+      "getBreadcrumbStructuredData": "BreadcrumbList"
+    },
+    "hardcoded_values": [
+      { "value": "Yalla London", "locations": ["author.name (L88)", "publisher.name (L92)"], "type": "brand name" },
+      { "value": "/images/yalla-london-logo.svg", "locations": ["Organization logo (L20)", "WebSite publisher logo (L51)", "Article publisher logo fallback (L274)"], "type": "logo path" },
+      { "value": "https://yalla-london.com", "locations": ["baseUrl fallback (L13)"], "type": "URL" },
+      { "value": "Pinterest hosted image URL", "locations": ["Article publisher logo (L95)"], "type": "logo URL" },
+      { "value": "London/GB address", "locations": ["Organization address (L24-30)", "Restaurant address (L112-113)", "Place address (L137-138)", "Event location (L229-230)"], "type": "geo" }
+    ]
+  },
+  "schema_generator_library": {
+    "file": "lib/seo/schema-generator.ts",
+    "status": "Available but underutilized by public pages",
+    "types_defined": ["PersonSchema", "OrganizationSchema", "ArticleSchema", "EventSchema", "PlaceSchema", "ReviewSchema", "ProductSchema", "OfferSchema", "AggregateRating", "GeoCoordinates", "OpeningHoursSpecification", "PropertyValue", "BreadcrumbList", "FAQPageSchema (deprecated)", "HowToSchema (deprecated)", "VideoObjectSchema", "RecipeSchema"],
+    "usage": "Primarily used by /api/seo/enhanced-schema API route and pre-publication gate. Most public pages use inline generateStructuredData() instead.",
+    "recommendation": "Migrate inline generators to use centralized schema-generator.ts for consistency"
+  },
+  "findings": [
+    {
+      "id": "SCHEMA-001",
+      "severity": "CRITICAL",
+      "description": "FAQPage schema still generated in structured-data.tsx despite Google deprecation since August 2023. Will trigger validation warnings in GSC.",
+      "recommendation": "Remove getFAQStructuredData() and 'faq' case. Replace with Article schema where FAQ content exists."
+    },
+    {
+      "id": "SCHEMA-002",
+      "severity": "CRITICAL",
+      "description": "StructuredData component has 6+ hardcoded 'Yalla London' references plus London-specific addresses. All non-London sites emit incorrect schema.",
+      "recommendation": "Replace hardcoded values with site config. Use getSiteConfig(siteId) pattern from blog/[slug] as reference."
+    },
+    {
+      "id": "SCHEMA-003",
+      "severity": "HIGH",
+      "description": "Legacy getArticleStructuredData() (L81-102) uses Pinterest-hosted image as publisher logo and hardcodes 'Yalla London'. Should be removed.",
+      "recommendation": "Remove legacy function. All callers should use getEnhancedArticleStructuredData()."
+    },
+    {
+      "id": "SCHEMA-004",
+      "severity": "HIGH",
+      "description": "News detail page hardcodes 'Yalla London' as publisher name (L346) and logo path (L350).",
+      "recommendation": "Use dynamic site config from headers."
+    },
+    {
+      "id": "SCHEMA-005",
+      "severity": "HIGH",
+      "description": "No schema on 7+ public page types: homepage, about, contact, events listing, experiences, hotels, shop, london-by-foot. Only Organization + WebSite from root layout.",
+      "recommendation": "Add appropriate schema: WebPage (homepage), AboutPage (about), ContactPage (contact), ItemList+Event (events), Product (shop), TouristTrip (london-by-foot)."
+    },
+    {
+      "id": "SCHEMA-006",
+      "severity": "MEDIUM",
+      "description": "Article author type is Organization instead of Person. Google E-E-A-T guidelines favor Person author with credentials.",
+      "recommendation": "Add Person author schema with name, url, and credentials. Keep Organization as publisher."
+    },
+    {
+      "id": "SCHEMA-007",
+      "severity": "MEDIUM",
+      "description": "Blog category page CollectionPage hardcodes 'Yalla London' in publisher (L176), name (L169), and isPartOf (L172).",
+      "recommendation": "Replace with dynamic site config."
+    },
+    {
+      "id": "SCHEMA-008",
+      "severity": "MEDIUM",
+      "description": "Article inLanguage hardcoded to 'en-GB' regardless of Arabic content view.",
+      "recommendation": "Read locale from headers and set inLanguage accordingly."
+    },
+    {
+      "id": "SCHEMA-009",
+      "severity": "MEDIUM",
+      "description": "No @id for entity linking. Organization and WebSite schemas lack @id URIs, preventing knowledge graph consolidation.",
+      "recommendation": "Add @id: '{baseUrl}/#organization' and @id: '{baseUrl}/#website'. Reference in Article publisher/author fields."
+    },
+    {
+      "id": "SCHEMA-010",
+      "severity": "LOW",
+      "description": "Review and Place/TouristAttraction generators exist in StructuredData component but are never used on any page.",
+      "recommendation": "Wire Review schema to review-type articles. Wire Place to london-by-foot and experiences pages."
+    },
+    {
+      "id": "SCHEMA-011",
+      "severity": "LOW",
+      "description": "Duplicate schema generation logic across structured-data.tsx component, per-page inline generators, and schema-generator.ts library. Maintenance burden and inconsistency risk.",
+      "recommendation": "Consolidate to schema-generator.ts as canonical source, invoked from page-level code."
+    }
+  ]
+}

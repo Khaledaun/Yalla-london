@@ -43,6 +43,9 @@ model User {
   // Team & Expertise
   teamMemberProfile TeamMember[]
 
+  @@index([role])
+  @@index([isActive])
+  @@index([createdAt])
   @@map(name: "users")
 }
 
@@ -150,10 +153,252 @@ model BlogPost {
   @@index([siteId])
   @@index([siteId, published])
   @@index([siteId, created_at])
+  @@index([siteId, slug])
   @@index([published])
   @@index([category_id])
   @@index([author_id])
   @@index([created_at])
+}
+
+// ─────────────────────────────────────────────────────────
+// Information Hub Models
+// ─────────────────────────────────────────────────────────
+
+model InformationSection {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name_en         String
+  name_ar         String
+  description_en  String?
+  description_ar  String?
+  icon            String?
+  featured_image  String?
+  sort_order      Int      @default(1)
+  published       Boolean  @default(true)
+  subsections     Json?    // Array of { id, title_en, title_ar, content_en, content_ar }
+
+  siteId          String?
+  deletedAt       DateTime?
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  articles        InformationArticle[]
+
+  @@index([siteId])
+  @@index([published])
+  @@index([sort_order])
+  @@map("information_sections")
+}
+
+model InformationCategory {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  name_en         String
+  name_ar         String
+  description_en  String?
+  description_ar  String?
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  articles        InformationArticle[]
+
+  @@map("information_categories")
+}
+
+model InformationArticle {
+  id                   String   @id @default(cuid())
+  slug                 String   @unique
+  section_id           String
+  category_id          String
+  title_en             String
+  title_ar             String
+  excerpt_en           String?
+  excerpt_ar           String?
+  content_en           String   @db.Text
+  content_ar           String   @db.Text
+  featured_image       String?
+  reading_time         Int      @default(5)
+  published            Boolean  @default(false)
+
+  // SEO fields
+  meta_title_en        String?
+  meta_title_ar        String?
+  meta_description_en  String?
+  meta_description_ar  String?
+  tags                 String[]
+  keywords             String[]
+  page_type            String?  @default("article")
+  seo_score            Int?     @default(0)
+  faq_questions        Json?    // Array of { question_en, question_ar, answer_en, answer_ar }
+
+  // Multi-tenant and soft delete
+  siteId               String?
+  deletedAt            DateTime?
+
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  section              InformationSection  @relation(fields: [section_id], references: [id])
+  category             InformationCategory @relation(fields: [category_id], references: [id])
+
+  @@index([section_id])
+  @@index([category_id])
+  @@index([siteId])
+  @@index([siteId, published])
+  @@index([published])
+  @@index([page_type])
+  @@index([seo_score])
+  @@index([created_at])
+  @@map("information_articles")
+}
+
+// ─────────────────────────────────────────────────────────
+// Fact Verification System
+// ─────────────────────────────────────────────────────────
+
+model FactEntry {
+  id                 String   @id @default(cuid())
+  article_type       String   // 'blog' | 'information'
+  article_slug       String
+  fact_text_en       String   @db.Text
+  fact_text_ar       String?  @db.Text
+  fact_location      String?  // Section/paragraph identifier within article
+  category           String?  // price, schedule, regulation, statistic, contact, address, transport
+
+  // Verification state
+  status             String   @default("pending") // pending, verified, outdated, disputed, updated
+  confidence_score   Int?     @default(0) // 0-100
+  last_verified_at   DateTime?
+  next_check_at      DateTime?
+  verification_count Int      @default(0)
+
+  // Source tracking
+  source_url         String?  @db.Text
+  source_name        String?
+  source_type        String?  // official_gov, transport_authority, tourism_board, news, review_site
+  source_last_checked DateTime?
+
+  // Update tracking
+  original_value     String?  @db.Text
+  current_value      String?  @db.Text
+  updated_value      String?  @db.Text  // Proposed new value if fact changed
+  update_applied     Boolean  @default(false)
+  update_applied_at  DateTime?
+
+  // Agent metadata
+  agent_notes        String?  @db.Text
+  verification_log   Json?    // Array of { date, source, result, notes }
+
+  siteId             String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  @@index([article_type, article_slug])
+  @@index([status])
+  @@index([next_check_at])
+  @@index([category])
+  @@index([siteId])
+  @@map("fact_entries")
+}
+
+// ─────────────────────────────────────────────────────────
+// London News Carousel System
+// ─────────────────────────────────────────────────────────
+
+model NewsItem {
+  id                 String    @id @default(cuid())
+  slug               String    @unique
+  status             String    @default("draft") // draft, published, archived, expired
+
+  // Content
+  headline_en        String
+  headline_ar        String
+  summary_en         String    @db.Text  // 200 words max
+  summary_ar         String    @db.Text
+  announcement_en    String    // Short announcement (few words)
+  announcement_ar    String
+
+  // Source
+  source_name        String    // BBC, TfL, Visit London, etc.
+  source_url         String    @db.Text
+  source_logo        String?
+
+  // Media
+  featured_image     String?
+  image_alt_en       String?
+  image_alt_ar       String?
+  image_credit       String?
+
+  // Classification
+  news_category      String    // events, transport, weather, health, festivals, sales, holidays, strikes, popup, general
+  relevance_score    Int       @default(50)  // 0-100 how relevant for London travellers
+  is_major           Boolean   @default(false)  // Featured/lead story
+  urgency            String    @default("normal") // breaking, urgent, normal, low
+
+  // Date relevance
+  event_start_date   DateTime? // When the event/news starts
+  event_end_date     DateTime? // When it ends (for ongoing events)
+  expires_at         DateTime? // When to auto-archive
+
+  // SEO
+  meta_title_en      String?
+  meta_title_ar      String?
+  meta_description_en String?
+  meta_description_ar String?
+  tags               String[]
+  keywords           String[]
+
+  // Internal linking
+  related_article_slugs String[] // Slugs of related blog/info articles
+  related_shop_slugs    String[] // Slugs of related shop products
+  affiliate_link_ids    String[] // IDs of relevant affiliate links
+
+  // Agent metadata
+  agent_source       String?   // Which research source found this
+  agent_notes        String?   @db.Text
+  research_log       Json?     // Array of { source, query, found_at, relevance }
+
+  // Information hub cross-reference
+  updates_info_article Boolean  @default(false) // Does this news update an info article?
+  affected_info_slugs  String[] // Which info articles should be flagged
+
+  siteId             String?
+  published_at       DateTime?
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  @@index([status])
+  @@index([news_category])
+  @@index([is_major])
+  @@index([published_at])
+  @@index([expires_at])
+  @@index([siteId])
+  @@index([siteId, status])
+  @@map("news_items")
+}
+
+model NewsResearchLog {
+  id                 String   @id @default(cuid())
+  run_type           String   @default("daily") // daily, weekly_deep, manual
+  status             String   @default("running") // running, completed, failed
+  sources_checked    String[] // List of sources checked
+  items_found        Int      @default(0)
+  items_published    Int      @default(0)
+  items_skipped      Int      @default(0)
+  facts_flagged      Int      @default(0) // Facts in info articles that need updating
+  duration_ms        Int?
+  error_message      String?  @db.Text
+  result_summary     Json?    // Detailed results
+
+  siteId             String?
+  created_at         DateTime @default(now())
+
+  @@index([run_type])
+  @@index([created_at])
+  @@index([siteId])
+  @@map("news_research_logs")
 }
 
 model Recommendation {
@@ -207,7 +452,11 @@ model ScheduledContent {
   published      Boolean  @default(false)
   created_at     DateTime @default(now())
   updated_at     DateTime @updatedAt
-  
+
+  // Publishing workflow
+  content_id     String?  // ID of the BlogPost to publish
+  site_id        String?  // Which site this content belongs to
+
   // Phase 4+ Extensions
   page_type              String?  // guide, place, event, list, faq, news, itinerary
   topic_proposal_id      String?  // Reference to TopicProposal
@@ -222,6 +471,10 @@ model ScheduledContent {
   @@index([topic_proposal_id])
   @@index([seo_score])
   @@index([generation_source])
+  @@index([content_id])
+  @@index([site_id])
+  @@index([scheduled_time])
+  @@index([status])
 }
 
 // Phase 3.2 - Social Media Embeds
@@ -389,7 +642,7 @@ model TopicProposal {
   suggested_window_start  DateTime?
   suggested_window_end    DateTime?
   source_weights_json     Json     // Citation weights and provenance
-  status                  String   @default("planned") // planned, queued, generated, drafted, ready, published
+  status                  String   @default("planned") // planned, proposed, ready, queued, generating, generated, drafted, approved, published
   confidence_score        Float?   // 0.0 - 1.0
   planned_at              DateTime? // When this topic is scheduled for generation
   evergreen               Boolean  @default(true) // true = evergreen, false = seasonal
@@ -1546,12 +1799,15 @@ model SeoStructuredData {
 // Feature Flags for Command Center
 model FeatureFlag {
   id          String   @id @default(cuid())
-  name        String   @unique
+  name        String
   description String?
   enabled     Boolean  @default(false)
+  siteId      String?  // null = global flag, set = per-site flag
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
-  
+
+  @@unique([name, siteId])
+  @@index([siteId])
   @@map(name: "feature_flags")
 }
 
@@ -1967,6 +2223,7 @@ model Lead {
   activities      LeadActivity[]
 
   @@unique([site_id, email])
+  @@index([email])
   @@index([site_id, created_at])
   @@index([lead_type])
   @@index([status])
@@ -2037,6 +2294,7 @@ model PageView {
   viewed_at   DateTime @default(now())
 
   @@index([site_id, viewed_at])
+  @@index([site_id, path])
   @@index([path])
   @@index([content_id])
   @@index([session_id])
@@ -2078,6 +2336,14 @@ model DigitalProduct {
   is_active       Boolean  @default(true)
   featured        Boolean  @default(false)
 
+  // Commerce Engine extensions
+  sku               String?    @unique // Product inventory identifier (e.g., "YL-ITN-001")
+  version           Int        @default(1) // Version number for product revisions
+  tier              Int?       // 1=high priority, 2=medium, 3=low (from product ontology)
+  ontologyCategory  String?    // "itinerary_template", "wall_art", "travel_guide", etc.
+  etsyListingId     String?    @unique // Cross-reference to Etsy listing
+  briefId           String?    // Link back to ProductBrief that spawned this product
+
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
@@ -2085,6 +2351,7 @@ model DigitalProduct {
 
   @@index([site_id])
   @@index([product_type])
+  @@index([tier])
   @@map("digital_products")
 }
 
@@ -2113,7 +2380,19 @@ model Purchase {
 
   // Attribution
   utm_source      String?
+  utm_medium      String?
   utm_campaign    String?
+  coupon_code     String?
+  attribution_tags Json?   // { referrer, custom_tags, landing_page }
+
+  // Commerce Engine: sales channel tracking
+  channel         String   @default("website") // "website" | "etsy"
+
+  // Fee breakdown (cents)
+  gross_amount    Int?     // Total before fees (defaults to amount if null)
+  platform_fees   Int?     // Etsy/Stripe platform fees
+  processing_fees Int?     // Payment processing fees
+  net_amount      Int?     // Amount after all fees
 
   created_at      DateTime @default(now())
   completed_at    DateTime?
@@ -2123,6 +2402,7 @@ model Purchase {
   @@index([site_id, created_at])
   @@index([customer_email])
   @@index([download_token])
+  @@index([channel])
   @@map("purchases")
 }
 
@@ -2132,6 +2412,13 @@ enum ProductType {
   TEMPLATE         // Planning templates
   BUNDLE           // Multiple products
   MEMBERSHIP       // Recurring access
+  // Commerce Engine extensions
+  WALL_ART         // Vintage travel posters, prints (digital download)
+  PRESET           // Lightroom presets, photo filters
+  PLANNER          // Trip planner bundles, journal templates
+  STICKER          // GoodNotes stickers, digital stickers
+  WORKSHEET        // Educational worksheets, checklists
+  EVENT_GUIDE      // Seasonal event guides, holiday specials
 }
 
 enum PurchaseStatus {
@@ -2410,4 +2697,1351 @@ model Invoice {
   @@index([billing_entity_id])
   @@index([status])
   @@map("invoices")
+}
+
+/// ArticleDraft — Incremental content generation pipeline (Reservoir + Builder)
+/// Articles are built phase-by-phase, each phase completing within a single cron invocation.
+/// Only articles passing quality threshold are promoted to BlogPost for publishing.
+model ArticleDraft {
+  id                  String   @id @default(cuid())
+  site_id             String
+  keyword             String
+  locale              String   @default("en")
+  topic_title         String?
+
+  // Pipeline phase tracking
+  current_phase       String   @default("research")  // research, outline, drafting, assembly, images, seo, scoring, reservoir, published, rejected
+  phase_attempts      Int      @default(0)
+  last_error          String?
+  sections_completed  Int      @default(0)           // Track how many sections drafted so far
+  sections_total      Int      @default(0)           // Total sections planned by outline
+
+  // Phase outputs (populated incrementally as phases complete)
+  research_data       Json?    @db.JsonB             // SERP analysis, competitor structure, PAA questions, keyword data
+  outline_data        Json?    @db.JsonB             // Structured outline: sections[], heading hierarchy, word targets, link plan
+  sections_data       Json?    @db.JsonB             // Array of {heading, content, wordCount, status} per section
+  assembled_html      String?  @db.Text              // Full assembled article HTML (EN or AR)
+  assembled_html_alt  String?  @db.Text              // Translation (AR if locale=en, EN if locale=ar)
+  seo_meta            Json?    @db.JsonB             // {metaTitle, metaDescription, schema, ogImage, keywords, internalLinks}
+  images_data         Json?    @db.JsonB             // {featured: PhotoEntry, inline: PhotoEntry[], unsplash_used: boolean}
+
+  // Quality scoring (populated in scoring phase)
+  quality_score       Float?                         // Overall 0-100
+  seo_score           Float?                         // SEO-specific 0-100
+  word_count          Int?
+  readability_score   Float?                         // Flesch-Kincaid or similar
+  content_depth_score Float?                         // Topic coverage completeness
+
+  // Source tracking
+  topic_proposal_id   String?                        // FK to TopicProposal if sourced from there
+  ai_model_used       String?                        // Which AI model generated each phase
+  generation_strategy String?                        // "topic_db", "template_cycle", "trending", "gap_fill"
+
+  // Bilingual pairing — EN and AR drafts reference each other
+  paired_draft_id     String?                        // ID of the paired locale draft (EN→AR or AR→EN)
+
+  // Publishing
+  blog_post_id        String?                        // Set when promoted to BlogPost
+  published_at        DateTime?
+  rejection_reason    String?
+  needs_review        Boolean  @default(true)        // Flagged for admin review after auto-publish
+
+  // Timestamps
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+  phase_started_at    DateTime?                      // When current phase began processing
+  completed_at        DateTime?                      // When final phase completed
+
+  @@index([current_phase, site_id])
+  @@index([current_phase, created_at])
+  @@index([quality_score])
+  @@index([site_id, current_phase])
+  @@index([created_at])
+  @@index([paired_draft_id])
+  @@map("article_drafts")
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Design System Models
+// ══════════════════════════════════════════════════════════════════
+
+/// Design — Canvas designs created in the Design Studio (social graphics, headers, covers, etc.)
+model Design {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  type          String   // canvas, social-post, email-header, pdf-cover, logo, banner
+  category      String?  // travel-guide, social-post, flyer, menu, itinerary, infographic, poster, brochure
+  site          String   // yalla-london, arabaldives, etc.
+  canvasData    Json     // Full Konva stage JSON for re-editing
+  thumbnail     String?  // S3 URL of auto-generated preview thumbnail
+  exportedUrls  Json?    // { png: "...", svg: "...", pdf: "..." }
+  width         Int
+  height        Int
+  tags          String[]
+  isTemplate    Boolean  @default(false)
+  templateId    String?  // If created from a template, reference it
+  status        String   @default("draft") // draft, published, archived
+  createdBy     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([site, type])
+  @@index([status])
+  @@index([isTemplate])
+  @@index([createdAt])
+  @@map("designs")
+}
+
+/// PdfGuide — Generated travel PDF guides with AI content
+model PdfGuide {
+  id              String   @id @default(cuid())
+  title           String
+  slug            String   @unique
+  description     String?
+  site            String
+  style           String   // luxury, budget, family, adventure, honeymoon
+  language        String   @default("en")
+  contentSections Json     // Array of generated content sections
+  htmlContent     String?  @db.Text // Rendered HTML
+  pdfUrl          String?  // S3 URL of generated PDF binary
+  coverDesignId   String?  // Link to Design for the cover
+  status          String   @default("draft") // draft, generating, generated, published, failed
+  price           Float?   @default(0)
+  isGated         Boolean  @default(false) // Require email to download
+  downloads       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  pdfDownloads    PdfDownload[]
+
+  @@index([site])
+  @@index([status])
+  @@index([slug])
+  @@map("pdf_guides")
+}
+
+/// PdfDownload — Track PDF guide downloads for analytics and lead capture
+model PdfDownload {
+  id           String   @id @default(cuid())
+  pdfGuideId   String
+  pdfGuide     PdfGuide @relation(fields: [pdfGuideId], references: [id])
+  leadId       String?
+  email        String?
+  ip           String?
+  userAgent    String?
+  downloadedAt DateTime @default(now())
+
+  @@index([pdfGuideId])
+  @@index([email])
+  @@map("pdf_downloads")
+}
+
+/// EmailTemplate — Reusable email templates for campaigns and notifications
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  site        String
+  type        String   // notification, campaign, welcome, transactional, newsletter
+  subject     String?
+  htmlContent String   @db.Text
+  jsonContent Json?    // Structured block data for re-editing
+  thumbnail   String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([site, type])
+  @@index([isDefault])
+  @@map("email_templates")
+}
+
+/// EmailCampaign — Email campaigns sent to subscribers
+model EmailCampaign {
+  id             String    @id @default(cuid())
+  name           String
+  site           String
+  templateId     String?
+  subject        String
+  htmlContent    String    @db.Text
+  recipientCount Int       @default(0)
+  sentCount      Int       @default(0)
+  openCount      Int       @default(0)
+  clickCount     Int       @default(0)
+  status         String    @default("draft") // draft, scheduled, sending, sent, failed
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([site])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("email_campaigns")
+}
+
+/// VideoProject — Video compositions created in the Video Studio
+model VideoProject {
+  id              String   @id @default(cuid())
+  title           String
+  site            String
+  category        String   // destination-highlight, blog-promo, hotel-showcase, etc.
+  format          String   // instagram-reel, youtube-short, etc.
+  language        String   @default("en")
+  scenes          Json     // Array of scene configurations (for template-based)
+  compositionCode String?  @db.Text // AI-generated Remotion React component code
+  prompt          String?  @db.Text // Original user prompt that generated this video
+  duration        Int      // Total duration in seconds
+  fps             Int      @default(30)
+  width           Int
+  height          Int
+  thumbnail       String?  // S3 URL
+  exportedUrl     String?  // S3 URL of rendered MP4
+  status          String   @default("draft") // draft, rendering, rendered, failed, queued
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([site])
+  @@index([status])
+  @@index([category])
+  @@map("video_projects")
+}
+
+/// ContentPipeline — AI content engine pipeline runs (Researcher → Ideator → Scripter → Analyst)
+model ContentPipeline {
+  id                 String   @id @default(cuid())
+  site               String
+  status             String   @default("researching") // researching, ideating, scripting, analyzing, complete, paused
+  topic              String?
+  language           String   @default("en")
+  researchData       Json?    // Researcher output: trends, audience, keywords, competitors
+  contentAngles      Json?    // Ideator output: angles with cross-platform maps
+  scripts            Json?    // Scripter output: platform-specific scripts + asset links
+  analysisData       Json?    // Analyst output: grades, patterns, recommendations
+  generatedPosts     Json?    // Array of { platform, text, designId, videoId, scheduledContentId }
+  generatedArticleId String?
+  generatedEmailId   String?
+  generatedVideoIds  Json?
+  generatedDesignIds Json?
+  feedForwardApplied Json?    // Recommendations from previous pipeline that were applied
+  createdBy          String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  performance        ContentPerformance[]
+
+  @@index([site])
+  @@index([status])
+  @@index([createdAt])
+  @@map("content_pipelines")
+}
+
+/// ContentPerformance — Performance tracking for content pipeline outputs
+model ContentPerformance {
+  id             String    @id @default(cuid())
+  pipelineId     String
+  pipeline       ContentPipeline @relation(fields: [pipelineId], references: [id])
+  platform       String    // twitter, instagram, linkedin, blog, email, tiktok, youtube
+  contentType    String    // post, reel, story, article, newsletter, video
+  postUrl        String?   // URL of the published post
+  publishedAt    DateTime?
+  impressions    Int       @default(0)
+  engagements    Int       @default(0)
+  clicks         Int       @default(0)
+  shares         Int       @default(0)
+  saves          Int       @default(0)
+  comments       Int       @default(0)
+  conversionRate Float?
+  grade          String?   // A, B, C, D, F — set by Analyst
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([pipelineId])
+  @@index([platform])
+  @@index([grade])
+  @@map("content_performance")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ZENITHA YACHTS — Yacht Charter Platform Models
+// Added: Feb 21, 2026 | Site ID: zenitha-yachts-med
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─── ENUMS ──────────────────────────────────────────────────
+
+enum YachtType {
+  SAILBOAT
+  CATAMARAN
+  MOTOR_YACHT
+  GULET
+  SUPERYACHT
+  POWER_CATAMARAN
+}
+
+enum YachtSource {
+  NAUSYS
+  MMK
+  CHARTER_INDEX
+  MANUAL
+}
+
+enum InquiryStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  SENT_TO_BROKER
+  BOOKED
+  LOST
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  BOOKED
+  HOLD
+  MAINTENANCE
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DestinationRegion {
+  MEDITERRANEAN
+  ARABIAN_GULF
+  RED_SEA
+  INDIAN_OCEAN
+  CARIBBEAN
+  SOUTHEAST_ASIA
+}
+
+enum SyncStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ItineraryDifficulty {
+  EASY
+  MODERATE
+  ADVANCED
+}
+
+// ─── MODEL: Yacht ─────────────────────────────────────────
+
+/// Yacht — Main yacht inventory for charter platform
+model Yacht {
+  id                    String              @id @default(cuid())
+  externalId            String?             // ID from NauSYS/MMK/Charter Index
+  source                YachtSource         @default(MANUAL)
+  name                  String
+  slug                  String
+  type                  YachtType           @default(SAILBOAT)
+
+  // Specs
+  length                Decimal?            @db.Decimal(6,2)
+  beam                  Decimal?            @db.Decimal(5,2)
+  draft                 Decimal?            @db.Decimal(4,2)
+  yearBuilt             Int?
+  builder               String?
+  model                 String?
+
+  // Capacity
+  cabins                Int                 @default(0)
+  berths                Int                 @default(0)
+  bathrooms             Int                 @default(0)
+  crewSize              Int                 @default(0)
+
+  // Pricing
+  pricePerWeekLow       Decimal?            @db.Decimal(10,2)
+  pricePerWeekHigh      Decimal?            @db.Decimal(10,2)
+  currency              String              @default("EUR")
+
+  // Content
+  description_en        String?             @db.Text
+  description_ar        String?             @db.Text
+  features              Json?               // amenities, equipment list
+  images                Json?               // array of image URLs
+  waterSports           Json?               // available water sports
+
+  // GCC Differentiators
+  halalCateringAvailable Boolean            @default(false)
+  familyFriendly        Boolean             @default(false)
+  crewIncluded          Boolean             @default(false)
+
+  // Location
+  homePort              String?
+  cruisingArea          String?
+
+  // Ratings
+  rating                Decimal?            @db.Decimal(3,2)
+  reviewCount           Int                 @default(0)
+
+  // Status
+  status                String              @default("active") // active, inactive, pending_review
+  featured              Boolean             @default(false)
+
+  // Multi-site
+  siteId                String
+  destinationId         String?
+
+  // Sync
+  lastSyncedAt          DateTime?
+  syncHash              String?             // hash for dedup
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relations
+  destination           YachtDestination?   @relation(fields: [destinationId], references: [id])
+  reviews               YachtReview[]
+  inquiries             CharterInquiry[]
+  availability          YachtAvailability[]
+
+  @@unique([externalId, source])
+  @@index([siteId])
+  @@index([destinationId])
+  @@index([type])
+  @@index([status, siteId])
+  @@unique([slug, siteId])
+  @@index([pricePerWeekLow])
+  @@index([halalCateringAvailable])
+  @@map("yachts")
+}
+
+// ─── MODEL: YachtDestination ──────────────────────────────
+
+/// YachtDestination — Cruising regions and destinations for charter
+model YachtDestination {
+  id                    String              @id @default(cuid())
+  name                  String
+  slug                  String
+  region                DestinationRegion
+  country               String?
+
+  description_en        String?             @db.Text
+  description_ar        String?             @db.Text
+
+  seasonStart           String?             // "May"
+  seasonEnd             String?             // "October"
+  bestMonths            Json?               // ["June", "July", "August"]
+
+  heroImage             String?
+  galleryImages         Json?
+
+  averagePricePerWeek   Decimal?            @db.Decimal(10,2)
+  highlights            Json?               // key attractions
+  weatherInfo           Json?
+  marinas               Json?               // marina list with coords
+
+  siteId                String
+  status                String              @default("active")
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relations
+  yachts                Yacht[]
+  itineraries           CharterItinerary[]
+
+  @@unique([slug, siteId])
+  @@index([siteId])
+  @@index([region])
+  @@map("yacht_destinations")
+}
+
+// ─── MODEL: CharterInquiry ────────────────────────────────
+
+/// CharterInquiry — Lead CRM for charter inquiries
+model CharterInquiry {
+  id                    String              @id @default(cuid())
+  referenceNumber       String?             @unique // ZY-2026-0001 format
+  firstName             String
+  lastName              String
+  email                 String
+  phone                 String?
+  whatsappNumber        String?
+
+  destination           String?
+  preferredDates        Json?               // { start, end, flexible }
+  guestCount            Int                 @default(2)
+  childrenCount         Int                 @default(0)
+  budget                Decimal?            @db.Decimal(10,2)
+  budgetCurrency        String              @default("EUR")
+
+  yachtTypePreference   YachtType?
+  preferences           Json?               // { halal, crew, watersports, privacy }
+  experienceLevel       String              @default("first_time") // first_time, some, experienced
+  languagePreference    String              @default("en")
+  contactPreference     String              @default("email") // email, whatsapp, phone
+  message               String?             @db.Text
+
+  status                InquiryStatus       @default(NEW)
+  brokerAssigned        String?
+  brokerNotes           String?             @db.Text
+
+  // Attribution
+  source                String?             // organic, paid, whatsapp, referral
+  utmSource             String?
+  utmMedium             String?
+  utmCampaign           String?
+
+  // Links
+  yachtId               String?
+  siteId                String
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relations
+  yacht                 Yacht?              @relation(fields: [yachtId], references: [id])
+
+  @@index([siteId])
+  @@index([status])
+  @@index([email])
+  @@index([createdAt])
+  @@map("charter_inquiries")
+}
+
+// ─── MODEL: YachtAvailability ─────────────────────────────
+
+/// YachtAvailability — Booking slots per yacht (high cardinality: 100K+ rows)
+model YachtAvailability {
+  id                    String              @id @default(cuid())
+  yachtId               String
+  startDate             DateTime
+  endDate               DateTime
+  status                AvailabilityStatus  @default(AVAILABLE)
+  priceForPeriod        Decimal?            @db.Decimal(10,2)
+  currency              String              @default("EUR")
+  source                YachtSource
+  lastCheckedAt         DateTime            @default(now())
+
+  createdAt             DateTime            @default(now())
+
+  // Relations
+  yacht                 Yacht               @relation(fields: [yachtId], references: [id], onDelete: Cascade)
+
+  @@index([yachtId])
+  @@index([startDate, endDate])
+  @@index([status])
+  @@map("yacht_availability")
+}
+
+// ─── MODEL: YachtReview ───────────────────────────────────
+
+/// YachtReview — Guest reviews for yachts (bilingual EN/AR)
+model YachtReview {
+  id                    String              @id @default(cuid())
+  yachtId               String
+  authorName            String
+  authorEmail           String?
+  rating                Int                 // 1-5
+  title                 String?
+  content_en            String?             @db.Text
+  content_ar            String?             @db.Text
+  charterDate           DateTime?
+  destination           String?
+  verified              Boolean             @default(false)
+  status                ReviewStatus        @default(PENDING)
+  siteId                String
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relations
+  yacht                 Yacht               @relation(fields: [yachtId], references: [id], onDelete: Cascade)
+
+  @@index([yachtId])
+  @@index([siteId])
+  @@index([status])
+  @@map("yacht_reviews")
+}
+
+// ─── MODEL: CharterItinerary ──────────────────────────────
+
+/// CharterItinerary — Pre-built sailing routes with day-by-day breakdowns
+model CharterItinerary {
+  id                    String              @id @default(cuid())
+  title_en              String
+  title_ar              String?
+  slug                  String
+  destinationId         String
+  duration              Int                 // days
+  difficulty            ItineraryDifficulty @default(EASY)
+
+  description_en        String?             @db.Text
+  description_ar        String?             @db.Text
+
+  stops                 Json                // [{ day, port, lat, lng, activities, restaurants, notes }]
+  recommendedYachtTypes Json?               // ["CATAMARAN", "SAILBOAT"]
+  estimatedCost         Decimal?            @db.Decimal(10,2)
+  currency              String              @default("EUR")
+  bestSeason            String?
+  heroImage             String?
+
+  siteId                String
+  status                String              @default("active")
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relations
+  destination           YachtDestination    @relation(fields: [destinationId], references: [id])
+
+  @@unique([slug, siteId])
+  @@index([siteId])
+  @@index([destinationId])
+  @@map("charter_itineraries")
+}
+
+// ─── MODEL: BrokerPartner ────────────────────────────────
+
+/// BrokerPartner — Charter broker/partner directory
+model BrokerPartner {
+  id                    String              @id @default(cuid())
+  companyName           String
+  contactName           String?
+  email                 String
+  phone                 String?
+  website               String?
+  commissionRate        Decimal?            @db.Decimal(5,2)
+  destinations          Json?               // regions they cover
+  status                String              @default("active")
+  totalLeadsSent        Int                 @default(0)
+  totalBookings         Int                 @default(0)
+  siteId                String
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([siteId])
+  @@map("broker_partners")
+}
+
+// ─── MODEL: YachtSyncLog ─────────────────────────────────
+
+/// YachtSyncLog — External API sync tracking (NauSYS/MMK/Charter Index)
+model YachtSyncLog {
+  id                    String              @id @default(cuid())
+  source                YachtSource
+  syncType              String              @default("incremental") // full, incremental
+  startedAt             DateTime            @default(now())
+  completedAt           DateTime?
+  yachtsProcessed       Int                 @default(0)
+  yachtsCreated         Int                 @default(0)
+  yachtsUpdated         Int                 @default(0)
+  yachtsDeactivated     Int                 @default(0)
+  errors                Json?
+  status                SyncStatus          @default(RUNNING)
+  siteId                String
+
+  @@index([siteId])
+  @@index([source])
+  @@index([startedAt])
+  @@map("yacht_sync_logs")
+}
+
+// ---------------------------------------------------------------------------
+// AI / Token Usage Tracking
+// ---------------------------------------------------------------------------
+
+/// One row per AI API call — used for token monitoring and per-site cost separation.
+/// Written as a fire-and-forget insert from lib/ai/provider.ts; never blocks the caller.
+model ApiUsageLog {
+  id               String   @id @default(cuid())
+  /// Site this call was made for (passed via AICompletionOptions.siteId)
+  siteId           String   @default("unknown")
+  /// AI provider: grok | claude | openai | gemini
+  provider         String
+  /// Exact model string returned by the API or used in the request
+  model            String
+  /// Task category from provider-config.ts TaskType
+  taskType         String?
+  /// Which cron/API route triggered this call (e.g. "daily-content-generate", "weekly-topics")
+  calledFrom       String?
+  /// Tokens in the prompt / system message
+  promptTokens     Int      @default(0)
+  /// Tokens in the completion / response
+  completionTokens Int      @default(0)
+  /// promptTokens + completionTokens
+  totalTokens      Int      @default(0)
+  /// Estimated cost in USD based on published model pricing
+  estimatedCostUsd Float    @default(0)
+  /// false when the AI call threw an error
+  success          Boolean  @default(true)
+  /// Error message (if success = false)
+  errorMessage     String?
+  createdAt        DateTime @default(now())
+
+  @@index([siteId, createdAt])
+  @@index([provider, createdAt])
+  @@index([taskType, createdAt])
+  @@index([createdAt])
+  @@map("api_usage_logs")
+}
+
+// =============================================================================
+// COMMERCE ENGINE — Hybrid Commerce + Etsy Integration
+// =============================================================================
+
+/// Weekly AI-generated market research run per site
+model TrendRun {
+  id                String   @id @default(cuid())
+  siteId            String
+  runDate           DateTime @default(now())
+  status            String   @default("pending") // pending, running, completed, failed
+
+  // AI-generated research output
+  nichesJson        Json?    // Array of niche opportunities with scores
+  trendsJson        Json?    // Array of trend signals with sources
+  opportunitiesJson Json?    // Array of product opportunity briefs
+
+  // Run metadata
+  aiProvider        String?
+  aiModel           String?
+  promptTokens      Int      @default(0)
+  completionTokens  Int      @default(0)
+  estimatedCostUsd  Float    @default(0)
+  durationMs        Int?
+  errorMessage      String?
+
+  createdAt         DateTime @default(now())
+
+  // Relations
+  briefs            ProductBrief[]
+
+  @@index([siteId, runDate])
+  @@index([status])
+  @@map("trend_runs")
+}
+
+/// Product opportunity brief — AI-generated, requires operator approval before production
+model ProductBrief {
+  id                String      @id @default(cuid())
+  siteId            String
+  trendRunId        String?
+
+  // Product concept
+  title             String
+  description       String      @db.Text
+  productType       ProductType @default(TEMPLATE)
+  tier              Int         @default(1) // 1=high priority, 2=medium, 3=low
+  ontologyCategory  String      // "itinerary_template", "travel_guide", "wall_art", etc.
+
+  // Market data
+  targetPrice       Int?        // cents
+  currency          String      @default("USD")
+  keywordsJson      Json?       // Array of target keywords
+  competitorUrls    Json?       // Array of competitor listing URLs (manually entered)
+
+  // Design brief (AI-generated, human-editable)
+  designNotesJson   Json?       // { format, dimensions, colorPalette, fontSuggestions, styleNotes }
+  listingCopyJson   Json?       // { title, description, tags[], section, materials }
+
+  // Workflow
+  status            String      @default("draft") // draft, approved, in_production, listed, archived
+  approvedAt        DateTime?
+  approvedBy        String?
+  rejectionNote     String?
+
+  // Link to final product
+  digitalProductId  String?
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  trendRun          TrendRun?          @relation(fields: [trendRunId], references: [id])
+  etsyDraft         EtsyListingDraft?
+
+  @@index([siteId, status])
+  @@index([trendRunId])
+  @@index([tier, status])
+  @@map("product_briefs")
+}
+
+/// Etsy listing staging area — human approval required before publish
+model EtsyListingDraft {
+  id                String   @id @default(cuid())
+  siteId            String
+  briefId           String   @unique
+
+  // Etsy listing fields
+  title             String   // max 140 chars (primary variant)
+  titleVariants     Json?    // Array of alternative titles for A/B testing
+  description       String   @db.Text
+  descriptionBlocks Json?    // Structured description: [{ heading, body, type }]
+  tags              String[] // max 13 tags, each max 20 chars
+  categoryPath      String?  // Etsy taxonomy path (e.g., "Paper & Party Supplies > Planners")
+  price             Int      // cents
+  currency          String   @default("USD")
+  quantity          Int      @default(999)
+  section           String?  // Etsy shop section
+  materials         String[] // Listed materials
+
+  // Digital delivery
+  fileUrl           String?  // S3/R2 URL to the product file
+  previewImages     Json?    // Array of image URLs (up to 10)
+
+  // Etsy API fields (populated after publish)
+  etsyListingId     String?  @unique // Etsy's listing ID after creation
+  etsyState         String?  // draft, active, inactive, removed
+  etsyUrl           String?  // Published listing URL
+
+  // Workflow
+  status            String   @default("draft") // draft, ready_for_review, approved, publishing, published, failed, archived
+  reviewNote        String?
+  approvedAt        DateTime?
+  publishedAt       DateTime?
+  lastSyncAt        DateTime?
+  errorMessage      String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  brief             ProductBrief @relation(fields: [briefId], references: [id])
+
+  @@index([siteId, status])
+  @@index([etsyListingId])
+  @@map("etsy_listing_drafts")
+}
+
+/// Per-site Etsy shop connection configuration
+model EtsyShopConfig {
+  id                        String   @id @default(cuid())
+  siteId                    String   @unique
+
+  // Shop identification
+  shopId                    String?  // Etsy shop ID (from API)
+  shopName                  String?
+  shopUrl                   String?
+
+  // OAuth2 tokens (referenced by Credential.id — encrypted)
+  accessTokenCredentialId   String?
+  refreshTokenCredentialId  String?
+  apiKeyCredentialId        String?
+
+  // API config
+  scopes                    String[] // ["listings_r", "listings_w", "transactions_r"]
+  tokenExpiresAt            DateTime?
+
+  // Shop stats (manually entered or CSV import — Etsy has no stats API)
+  statsJson                 Json?    // { views, favorites, orders, revenue, conversionRate, lastUpdated }
+  lastCsvImportAt           DateTime?
+
+  // Status
+  connectionStatus          String   @default("not_connected") // not_connected, connected, token_expired, error
+  lastTestedAt              DateTime?
+
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@map("etsy_shop_configs")
+}
+
+/// Bundle / collection of digital products
+model ProductPack {
+  id              String   @id @default(cuid())
+  siteId          String
+
+  name_en         String
+  name_ar         String?
+  slug            String   @unique
+  description_en  String   @db.Text
+  description_ar  String?  @db.Text
+
+  // Pricing (bundle discount)
+  price           Int      // cents
+  compare_price   Int?     // sum of individual prices
+  currency        String   @default("USD")
+
+  // Products in this pack
+  productIds      String[]
+
+  // Display
+  cover_image     String?
+  is_active       Boolean  @default(true)
+  featured        Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([siteId])
+  @@map("product_packs")
+}
+
+/// 30-day marketing launch calendar entry
+model CommerceCampaign {
+  id              String   @id @default(cuid())
+  siteId          String
+  briefId         String?
+
+  name            String
+  description     String?
+
+  // Schedule
+  startDate       DateTime
+  endDate         DateTime
+
+  // UTM tracking
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String   // auto-generated slug
+  couponCode      String?  // Etsy coupon or Stripe coupon code
+  discountPercent Int?     // 0-100
+
+  // Tasks (JSON array of { day, task, channel, status, completedAt })
+  tasksJson       Json?
+
+  // Results (populated after campaign ends)
+  resultsJson     Json?    // { views, clicks, conversions, revenue }
+
+  status          String   @default("planned") // planned, active, paused, completed
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([siteId, status])
+  @@index([startDate])
+  @@map("commerce_campaigns")
+}
+
+/// Commerce notification / alert
+model CommerceAlert {
+  id              String   @id @default(cuid())
+  siteId          String
+
+  type            String   // "sale", "trend_spike", "campaign_milestone", "weekly_report"
+  severity        String   @default("info") // critical, warning, info
+  title           String
+  message         String
+
+  // Context references
+  productId       String?
+  briefId         String?
+  campaignId      String?
+
+  // State
+  read            Boolean  @default(false)
+  readAt          DateTime?
+  actionUrl       String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([siteId, read, createdAt])
+  @@index([type])
+  @@map("commerce_alerts")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COCKPIT UPGRADE MODELS (Feb 27, 2026)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Persistent development/operational tasks with "Do Now" actions
+/// Auto-generated from diagnostics, cron failures, pipeline stalls
+model DevTask {
+  id            String    @id @default(cuid())
+  siteId        String
+  title         String
+  description   String?   @db.Text
+  category      String    // content, seo, pipeline, config, security, automation, database
+  priority      String    @default("medium") // critical, high, medium, low
+  status        String    @default("pending") // pending, in_progress, completed, dismissed
+  dueDate       DateTime?
+  source        String    @default("manual") // manual, diagnostic, cron, audit, builder
+  sourceRef     String?   // diagnostic runId, cron name, audit finding ID
+  actionLabel   String?   // "Run Content Builder", "Fix DB Schema"
+  actionApi     String?   // "/api/cron/content-builder"
+  actionPayload Json?     // { manual: true }
+  completedAt   DateTime?
+  completedBy   String?   // userId or "system"
+  metadata      Json?     // extra context (error details, diagnostic result)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  @@index([siteId, status])
+  @@index([priority, status])
+  @@index([dueDate])
+  @@index([source, sourceRef])
+  @@map("dev_tasks")
+}
+
+/// Persistent system diagnostic run results for trend tracking
+/// Referenced by SEO agent and CLAUDE.md for system health history
+model SystemDiagnostic {
+  id              String    @id @default(cuid())
+  siteId          String?   // null for cross-site diagnostics
+  runId           String    @unique // groups tests from a single run
+  mode            String    // quick, full, group
+  groups          String[]  // ["general", "pipeline", "indexing"]
+
+  // Aggregate results
+  totalTests      Int       @default(0)
+  passed          Int       @default(0)
+  warnings        Int       @default(0)
+  failed          Int       @default(0)
+  healthScore     Int       @default(0) // 0-100
+  verdict         String    @default("unknown") // ALL_SYSTEMS_GO, OPERATIONAL, NEEDS_ATTENTION, CRITICAL
+
+  // Detailed results
+  results         Json      // Array of DiagnosticResult objects
+  envStatus       Json?     // { confirmed: [], missing: [] }
+  recommendations Json?     // string[]
+
+  // Fix tracking
+  fixesAttempted  Int       @default(0)
+  fixesSucceeded  Int       @default(0)
+
+  durationMs      Int?
+  ranBy           String?   // userId
+  created_at      DateTime  @default(now())
+
+  @@index([siteId, created_at])
+  @@index([verdict])
+  @@map("system_diagnostics")
+}
+
+// =============================================================================
+// COMMERCE ENGINE — Extended Models (Phase 0–1 Scaffold)
+// =============================================================================
+
+/// Tenant — Each website is a tenant with its own config, shop, and integrations
+model Tenant {
+  id                String   @id @default(cuid())
+  domain            String   @unique
+  siteId            String   @unique // matches config/sites.ts slug
+  name              String
+  locale            String   @default("en")
+  currency          String   @default("USD")
+  timezone          String   @default("UTC")
+  primaryLanguages  String[] @default(["en"])
+  destination       String?  // "London", "Maldives", "French Riviera", etc.
+  status            String   @default("active") // active, paused, archived
+  logoUrl           String?
+  faviconUrl        String?
+  brandColorsJson   Json?    // { primary, secondary, accent }
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  integrations      TenantIntegration[]
+  distributionAssets DistributionAsset[]
+  commerceSettings  CommerceSettings?
+
+  @@index([status])
+  @@map("tenants")
+}
+
+/// TenantIntegration — Per-tenant API integrations (Etsy, GA4, Pinterest, etc.)
+model TenantIntegration {
+  id                String   @id @default(cuid())
+  tenantId          String
+  integrationType   String   // "etsy", "ga4", "gsc", "pinterest", "email_provider", "stripe", "website_shop"
+  isEnabled         Boolean  @default(false)
+  configJson        Json?    // Integration-specific config (non-secret)
+  credentialIds     String[] // References to Credential model IDs
+  lastSyncAt        DateTime?
+  syncStatus        String   @default("not_configured") // not_configured, healthy, error, rate_limited
+  errorMessage      String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, integrationType])
+  @@index([integrationType])
+  @@map("tenant_integrations")
+}
+
+/// DistributionAsset — Owned media channels per tenant (FB groups, email lists, agent networks)
+model DistributionAsset {
+  id              String   @id @default(cuid())
+  tenantId        String
+  siteId          String
+
+  assetType       String   // "facebook_group", "email_list", "agent_network", "instagram", "pinterest", "tiktok", "youtube", "seo_traffic", "website"
+  name            String
+  url             String?
+  size            Int?     // members, subscribers, followers, monthly visitors
+  growthRate      Float?   // % per month
+  engagementRate  Float?   // %
+  notes           String?  @db.Text
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([siteId, assetType])
+  @@map("distribution_assets")
+}
+
+/// CommerceSettings — Global commerce configuration per tenant
+model CommerceSettings {
+  id                  String   @id @default(cuid())
+  tenantId            String   @unique
+
+  // Feature flags
+  etsyEnabled         Boolean  @default(false)
+  websiteShopEnabled  Boolean  @default(true)
+  pinterestEnabled    Boolean  @default(false)
+  autoPublishToEtsy   Boolean  @default(false) // Always false by default — operator approval gate
+  growthBlueprintUnlocked Boolean @default(false) // Unlocked by KPI thresholds
+
+  // Etsy shop identity
+  etsyShopName        String?
+  etsyShopUrl         String?
+  shopAboutCopy       String?  @db.Text
+  shopPoliciesJson    Json?    // { returns, shipping, customization, privacy }
+  brandVoice          String?  // "professional", "friendly", "luxury", "casual"
+
+  // Pricing defaults
+  defaultCurrency     String   @default("USD")
+  pricingBandsJson    Json?    // { tier1: { min, max }, tier2: { min, max }, tier3: { min, max } }
+
+  // Thresholds for Growth Blueprint unlock
+  minMonthlySales     Int      @default(50)   // orders
+  minMonthlyRevenue   Int      @default(100000) // cents ($1000)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  tenant              Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@map("commerce_settings")
+}
+
+/// Order — Unified order record across all channels (Etsy, website, affiliate)
+model CommerceOrder {
+  id                String   @id @default(cuid())
+  siteId            String
+
+  // Channel
+  channel           String   // "etsy", "website", "affiliate"
+  externalOrderId   String?  // Etsy order ID, Stripe payment ID, etc.
+
+  // Customer
+  customerEmail     String?
+  customerName      String?
+
+  // Financials (all in cents)
+  grossAmount       Int      // Total before fees
+  platformFees      Int      @default(0) // Etsy fees, Stripe fees
+  processingFees    Int      @default(0) // Payment processing fees
+  netAmount         Int      // grossAmount - platformFees - processingFees
+  currency          String   @default("USD")
+
+  // Product reference
+  productId         String?  // DigitalProduct ID
+  productName       String?
+  quantity          Int      @default(1)
+
+  // Attribution
+  utmSource         String?
+  utmMedium         String?
+  utmCampaign       String?
+  couponCode        String?
+  attributionTags   Json?    // { source, campaign, medium, referrer, custom tags }
+
+  // Status
+  status            String   @default("pending") // pending, completed, refunded, disputed, cancelled
+
+  orderedAt         DateTime @default(now())
+  completedAt       DateTime?
+
+  @@index([siteId, orderedAt])
+  @@index([channel, orderedAt])
+  @@index([status])
+  @@index([externalOrderId])
+  @@map("commerce_orders")
+}
+
+/// Payout — Tracks payouts from channels to bank account
+model Payout {
+  id                String   @id @default(cuid())
+  siteId            String
+
+  source            String   // "etsy", "stripe", "affiliate"
+  externalPayoutId  String?  // Etsy deposit ID, Stripe payout ID
+
+  // Amount
+  grossAmount       Int      // cents
+  fees              Int      @default(0) // any deducted fees
+  netAmount         Int      // actual received
+  currency          String   @default("USD")
+
+  // Status
+  status            String   @default("pending") // pending, in_transit, paid, failed, cancelled
+
+  // Bank info
+  payoutProfileId   String?  // Reference to PayoutProfileTemplate
+  bankLast4         String?  // Last 4 of account number
+
+  // Period
+  periodStart       DateTime?
+  periodEnd         DateTime?
+
+  scheduledAt       DateTime?
+  paidAt            DateTime?
+
+  createdAt         DateTime @default(now())
+
+  @@index([siteId, createdAt])
+  @@index([source, status])
+  @@map("payouts")
+}
+
+/// PayoutProfileTemplate — Banking/payout configuration (Mercury / Zenitha.Luxury LLC)
+model PayoutProfileTemplate {
+  id                  String   @id @default(cuid())
+  name                String   // "Mercury — Zenitha.Luxury LLC"
+  isDefault           Boolean  @default(false)
+
+  // Legal entity
+  legalEntityName     String   // "Zenitha.Luxury LLC"
+  entityType          String   @default("LLC") // LLC, Corp, Sole Proprietor
+  taxId               String?  // EIN
+  beneficiaryAddress  String   @db.Text
+
+  // Domestic ACH
+  domesticBankName    String
+  domesticRoutingAba  String
+  domesticAccountType String   @default("Checking") // Checking, Savings
+  domesticAccountNumber String
+
+  // International Wire (USD)
+  intlSwiftBic        String?
+  intlAba             String?
+  intlAccountNumber   String?
+
+  // International Wire (Non-USD via intermediary)
+  intermediaryBank    String?
+  intermediarySwift   String?
+  intermediaryAba     String?
+  beneficiaryBankAccount String?
+  wireReference       String?  @db.Text // Section 70 memo
+
+  // Bank address
+  bankAddress         String?  @db.Text
+
+  // Validation
+  isVerified          Boolean  @default(false)
+  verifiedAt          DateTime?
+  lastValidatedAt     DateTime?
+  validationIssues    Json?    // Array of { field, issue, severity }
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("payout_profile_templates")
+}
+
+/// TrendSignal — Individual trend data points from various sources
+model TrendSignal {
+  id              String   @id @default(cuid())
+  siteId          String
+  trendRunId      String?  // Optionally linked to a TrendRun
+
+  // Signal data
+  keyword         String
+  source          String   // "google_trends", "etsy_search", "pinterest", "social", "manual", "ai_discovery"
+  metric          String   // "search_volume", "trend_velocity", "competition", "ctr"
+  value           Float
+  previousValue   Float?   // For WoW comparison
+  changePercent   Float?   // Week-over-week change
+
+  // Context
+  category        String?  // Product category this signal relates to
+  seasonality     String?  // "year_round", "seasonal_peak", "seasonal_low"
+  confidence      Float    @default(0.5) // 0-1 confidence in the signal
+
+  capturedAt      DateTime @default(now())
+
+  @@index([siteId, capturedAt])
+  @@index([keyword])
+  @@index([source])
+  @@index([trendRunId])
+  @@map("trend_signals")
+}
+
+/// KeywordCluster — Grouped keywords with search intent and volume data
+model KeywordCluster {
+  id              String   @id @default(cuid())
+  siteId          String
+
+  // Cluster identity
+  name            String   // "London itinerary template" cluster name
+  primaryKeyword  String
+  secondaryKeywords String[] // Related terms
+  longTailKeywords  String[] // Long-tail variations
+
+  // Metrics
+  totalSearchVolume Int?
+  avgCompetition    Float?   // 0-1 scale
+  intent            String?  // "commercial", "informational", "transactional", "navigational"
+  buyerIntentScore  Float?   // 0-100
+
+  // Seasonality
+  seasonality       String?  // "evergreen", "winter_peak", "summer_peak", "holiday"
+  peakMonths        Int[]    // [11, 12] for Nov-Dec
+
+  // Usage
+  briefId           String?  // ProductBrief that uses this cluster
+  productType       String?  // Mapped product type
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([siteId])
+  @@index([primaryKeyword])
+  @@index([intent])
+  @@map("keyword_clusters")
+}
+
+/// CommerceTask — Ops checklist items for the commerce pipeline
+model CommerceTask {
+  id              String   @id @default(cuid())
+  siteId          String
+
+  // Task details
+  title           String
+  description     String?  @db.Text
+  category        String   // "design", "listing", "marketing", "production", "review", "publish", "research"
+  priority        String   @default("medium") // low, medium, high, urgent
+
+  // Ownership
+  assignedTo      String?  // User email or "system"
+  dueDate         DateTime?
+
+  // Context
+  briefId         String?
+  campaignId      String?
+  productId       String?
+  listingDraftId  String?
+
+  // Status
+  status          String   @default("pending") // pending, in_progress, completed, blocked, cancelled
+  completedAt     DateTime?
+  blockedReason   String?
+
+  // Dependencies
+  dependsOn       String[] // Array of CommerceTask IDs
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([siteId, status])
+  @@index([category])
+  @@index([priority, status])
+  @@index([briefId])
+  @@index([campaignId])
+  @@map("commerce_tasks")
 }

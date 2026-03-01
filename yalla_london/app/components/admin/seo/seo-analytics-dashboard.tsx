@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -92,11 +92,7 @@ export default function SEOAnalyticsDashboard() {
   const [selectedTimeRange, setSelectedTimeRange] = useState('30d')
   const { toast } = useToast()
 
-  useEffect(() => {
-    fetchDashboardData()
-  }, [selectedTimeRange])
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true)
       
@@ -131,7 +127,11 @@ export default function SEOAnalyticsDashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedTimeRange, toast])
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [fetchDashboardData])
 
   const refreshData = async () => {
     setRefreshing(true)
@@ -178,7 +178,7 @@ export default function SEOAnalyticsDashboard() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">SEO & Analytics Dashboard</h1>
-          <p className="text-gray-600">Monitor your site's performance and SEO health</p>
+          <p className="text-gray-600">Monitor your site&apos;s performance and SEO health</p>
         </div>
         <div className="flex gap-2">
           <select 

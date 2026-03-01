@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, 'claude/**' ]
 
 env:
   NODE_VERSION: '20.18.1'
@@ -13,8 +13,8 @@ env:
   DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test_db'
   DIRECT_URL: 'postgresql://postgres:postgres@localhost:5432/test_db'
   SHADOW_DATABASE_URL: ${{ secrets.SHADOW_DATABASE_URL }}
-  # SECURITY: Generate a random NEXTAUTH_SECRET per CI run (no hardcoded fallback)
-  NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || github.run_id }}
+  # SECURITY: Generate a unique NEXTAUTH_SECRET per CI run (composite of run context, hard to predict)
+  NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || format('{0}-{1}-{2}', github.run_id, github.run_attempt, github.sha) }}
   ABACUSAI_API_KEY: ${{ secrets.ABACUSAI_API_KEY || 'ci-placeholder' }}
 
   # Production readiness flags

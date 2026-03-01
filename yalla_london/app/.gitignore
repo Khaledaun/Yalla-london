@@ -53,3 +53,6 @@ Thumbs.db
 /tmp
 *.tmp
 *.temp
+
+# User uploads (test artifacts & runtime uploads)
+/public/uploads/

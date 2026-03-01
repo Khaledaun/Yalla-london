@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, File, Image, X } from 'lucide-react';
+import { Upload, File, Image, X, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface UploadFile {
   file: File;
@@ -10,20 +10,21 @@ interface UploadFile {
   progress: number;
   status: 'pending' | 'uploading' | 'success' | 'error';
   error?: string;
+  url?: string;
 }
 
-export function MediaUploader() {
+export function MediaUploader({ onUploadComplete }: { onUploadComplete?: (files: { url: string; name: string }[]) => void }) {
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles: UploadFile[] = acceptedFiles.map(file => ({
       file,
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       progress: 0,
       status: 'pending'
     }));
-    
+
     setUploadFiles(prev => [...prev, ...newFiles]);
   }, []);
 
@@ -44,39 +45,60 @@ export function MediaUploader() {
 
   const handleUploadFiles = async () => {
     setIsUploading(true);
-    
+    const uploadedFiles: { url: string; name: string }[] = [];
+
     for (const uploadFile of uploadFiles.filter(f => f.status === 'pending')) {
       try {
         // Update status to uploading
-        setUploadFiles(prev => prev.map(f => 
-          f.id === uploadFile.id ? { ...f, status: 'uploading' } : f
+        setUploadFiles(prev => prev.map(f =>
+          f.id === uploadFile.id ? { ...f, status: 'uploading', progress: 10 } : f
         ));
 
-        // Simulate upload progress
-        for (let progress = 0; progress <= 100; progress += 10) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          setUploadFiles(prev => prev.map(f => 
-            f.id === uploadFile.id ? { ...f, progress } : f
-          ));
+        // Build FormData and call real upload API
+        const formData = new FormData();
+        formData.append('file', uploadFile.file);
+
+        setUploadFiles(prev => prev.map(f =>
+          f.id === uploadFile.id ? { ...f, progress: 30 } : f
+        ));
+
+        const res = await fetch('/api/media/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        setUploadFiles(prev => prev.map(f =>
+          f.id === uploadFile.id ? { ...f, progress: 80 } : f
+        ));
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({ error: 'Upload failed' }));
+          throw new Error(errData.error || `Upload failed (${res.status})`);
         }
 
+        const data = await res.json();
+
         // Mark as success
-        setUploadFiles(prev => prev.map(f => 
-          f.id === uploadFile.id ? { ...f, status: 'success', progress: 100 } : f
+        setUploadFiles(prev => prev.map(f =>
+          f.id === uploadFile.id ? { ...f, status: 'success', progress: 100, url: data.url } : f
         ));
+        uploadedFiles.push({ url: data.url, name: uploadFile.file.name });
 
       } catch (error) {
-        setUploadFiles(prev => prev.map(f => 
-          f.id === uploadFile.id ? { 
-            ...f, 
-            status: 'error', 
-            error: error instanceof Error ? error.message : 'Upload failed' 
+        setUploadFiles(prev => prev.map(f =>
+          f.id === uploadFile.id ? {
+            ...f,
+            status: 'error',
+            error: error instanceof Error ? error.message : 'Upload failed'
           } : f
         ));
       }
     }
-    
+
     setIsUploading(false);
+    if (uploadedFiles.length > 0 && onUploadComplete) {
+      onUploadComplete(uploadedFiles);
+    }
   };
 
   const getFileIcon = (file: File) => {
@@ -118,7 +140,7 @@ export function MediaUploader() {
               }
             </p>
             <p className="text-sm text-gray-500">
-              Supports images, videos, PDFs, and documents up to 10MB
+              Supports images, videos, PDFs, and documents up to 50MB
             </p>
           </div>
         </div>
@@ -156,7 +178,7 @@ export function MediaUploader() {
                 className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg"
               >
                 {getFileIcon(uploadFile.file)}
-                
+
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">
                     {uploadFile.file.name}
@@ -164,6 +186,18 @@ export function MediaUploader() {
                   <p className="text-xs text-gray-500">
                     {(uploadFile.file.size / 1024 / 1024).toFixed(2)} MB
                   </p>
+                  {uploadFile.status === 'error' && uploadFile.error && (
+                    <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {uploadFile.error}
+                    </p>
+                  )}
+                  {uploadFile.status === 'success' && uploadFile.url && (
+                    <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                      <CheckCircle className="h-3 w-3" />
+                      Uploaded
+                    </p>
+                  )}
                 </div>
 
                 {uploadFile.status === 'uploading' && (
@@ -204,10 +238,10 @@ export function MediaUploader() {
       <div className="bg-gray-50 rounded-lg p-4">
         <h4 className="text-sm font-medium text-gray-900 mb-2">Upload Guidelines</h4>
         <ul className="text-xs text-gray-600 space-y-1">
-          <li>• Maximum file size: 10MB</li>
+          <li>• Maximum file size: 50MB</li>
           <li>• Supported formats: JPEG, PNG, GIF, WebP, MP4, MOV, PDF, DOC, DOCX</li>
-          <li>• Files will be automatically optimized for web delivery</li>
-          <li>• All uploads are scanned for security</li>
+          <li>• Images are automatically optimized (WebP + AVIF variants generated)</li>
+          <li>• All uploads are stored in cloud storage</li>
         </ul>
       </div>
     </div>

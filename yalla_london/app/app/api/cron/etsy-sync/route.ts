@@ -116,6 +116,16 @@ async function handleSync(request: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Sync failed";
     console.error("[etsy-sync] Fatal error:", message);
+
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    await onCronFailure({ jobName: "etsy-sync", error: err }).catch(() => {});
+
+    const { logCronExecution: logFatal } = await import("@/lib/cron-logger");
+    await logFatal("etsy-sync", "failed", {
+      durationMs: Date.now() - startTime,
+      errorMessage: message,
+    }).catch(() => {});
+
     return NextResponse.json(
       { success: false, error: message },
       { status: 500 },

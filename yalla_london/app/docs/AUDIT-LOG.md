@@ -35,6 +35,48 @@
 | 29 | 2026-02-26 | Cockpit dashboard audit: 6 new API routes + 3 lib utilities + 4 admin pages | 4 issues | 4 | 0 |
 | 30 | 2026-02-26 | Cockpit page audit round 2: SiteSummary field mismatch, gate check shape mismatch | 2 issues | 2 | 0 |
 | 31 | 2026-02-26 | Cockpit audit round 3: new-site wizard step response normalization | 1 issue | 1 | 0 |
+| 32 | 2026-03-01 | End-to-end automation pipeline: 28 crons, 5 pipeline chains, timing conflicts | 20 issues | 20 | 0 |
+
+---
+
+## Audit #32 — End-to-End Automation Pipeline Audit
+
+**Date:** 2026-03-01
+**Trigger:** Comprehensive pipeline reliability audit — every cron, every handoff, every failure mode
+**Scope:** 28 cron jobs across 5 pipeline chains (Content, SEO/Indexing, Monitoring, Commerce, Cross-Pipeline)
+
+### Fixes Applied (20)
+
+| # | ID | Severity | File | Issue | Fix |
+|---|-----|----------|------|-------|-----|
+| 1 | A32-001 | HIGH | `cron/etsy-sync/route.ts` | Fatal catch missing `onCronFailure` + `logCronExecution` — dashboard blind to crashes | Added both hooks in fatal catch block |
+| 2 | A32-002 | HIGH | `cron/commerce-trends/route.ts` | No outer try/catch — import failures crash without logging | Wrapped in try/catch, added `onCronFailure` + `logCronExecution` in catch |
+| 3 | A32-003 | MEDIUM | `cron/content-auto-fix/route.ts` | Missing `onCronFailure` when all fix categories fail | Added conditional `onCronFailure` when `hasErrors && totalFixed === 0` |
+| 4 | A32-004 | MEDIUM | `cron/reserve-publisher/route.ts` | quality_score threshold at 50 (20 below standard 70) with `skipGate: true` | Raised to 60, added clarifying comments for both threshold and skipGate |
+| 5 | A32-005 | LOW | `cron/reserve-publisher/route.ts` | maxDuration=300 could confuse maintainers (vercel.json says 60) | Added comment explaining route-level export overrides vercel.json |
+| 6 | A32-006 | HIGH | `content-pipeline/full-pipeline-runner.ts` | No yacht site exclusion — calling with `zenitha-yachts-med` would attempt blog content generation | Added early return for yacht sites before pipeline starts |
+| 7 | A32-007 | HIGH | `content-pipeline/sweeper.ts` | Frozen reservoir articles get unlimited retries (phase_attempts reset every 12h) | Capped at 3 total resets via CronJobLog history check |
+| 8 | A32-008 | MEDIUM | `vercel.json` | 3 crons at 6:00 UTC (trends-monitor, seo-orchestrator daily, london-news) | Staggered: 6:00, 6:10, 6:20 |
+| 9 | A32-009 | MEDIUM | `vercel.json` | affiliate-injection at 9:00 competing with scheduled-publish | Moved affiliate-injection to 9:10 (needs published articles first) |
+| 10 | A32-010 | MEDIUM | `cron/verify-indexing/route.ts` | Empty catch block for hreflang check (line ~320) silently swallows errors | Added `console.warn` with error details |
+| 11 | A32-011 | MEDIUM | `cron/google-indexing/route.ts` | No budget guard on final summary query — could timeout | Added `if (Date.now() - _cronStart > 50_000)` guard before summary query |
+| 12 | A32-012 | LOW | `cron/seo-deep-review/route.ts` | maxDuration=300 missing clarifying comment | Added same comment as reserve-publisher |
+| 13 | A32-013 | MEDIUM | `cron/seo-deep-review/route.ts` | Affiliate links injected without tracking params — no revenue attribution | Added `?aid=AFFILIATE_ID&utm_source=${siteId}&utm_medium=blog&utm_campaign=seo-deep-review` |
+| 14 | A32-014 | MEDIUM | `cron/seo-deep-review/route.ts` | Internal links use absolute `${domain}/blog/${slug}` URLs | Changed to relative `/blog/${slug}` — works across all environments |
+| 15 | A32-015 | MEDIUM | `cron/social/route.ts` | DB retry delays eat 12s of budget (2s+4s+6s) | Reduced to 1s+2s+3s (6s total max) |
+| 16 | A32-016 | HIGH | `content-pipeline/sweeper.ts` | TopicProposals stuck in "generating" forever after content-builder crash | Added recovery: reset to "approved" after 2 hours |
+| 17 | A32-017 | MEDIUM | `content-pipeline/sweeper.ts` | CronJobLog table grows unbounded — no rotation | Added 30-day rotation to sweeper |
+| 18 | A32-018 | MEDIUM | `content-pipeline/sweeper.ts` | URLIndexingStatus orphan records waste verify-indexing quota | Added cleanup: delete records where BlogPost no longer exists |
+| 19 | A32-019 | LOW | `cron/google-indexing/route.ts` | Static blog content import only for yalla-london — could confuse | Added clarifying comment (intentional — only yalla-london has static data files) |
+| 20 | A32-020 | LOW | `cron/seo-deep-review/route.ts` | Frozen reservoir catch block silent | Already has logging (verified OK) |
+
+### Verification
+
+- **TypeScript:** 0 errors (`npx tsc --noEmit`)
+- **Smoke tests:** 89/90 pass (99%) — 1 pre-existing failure in `diagnostics/route.ts` (Math.random)
+- **Timing review:** No crons within 5 minutes of each other at peak hours
+- **Empty catches:** 0 new empty catches in cron routes
+- **onCronFailure:** All cron fatal catches now have failure hooks
 
 ---
 

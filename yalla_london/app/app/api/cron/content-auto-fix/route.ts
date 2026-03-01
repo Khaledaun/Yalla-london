@@ -437,6 +437,12 @@ async function handleAutoFix(request: NextRequest) {
   const totalFixed = results.enhanced + results.enhancedLowScore + results.metaTrimmedPosts + results.metaTrimmedDrafts + (results.stuckUnstuck || 0) + (results.stuckRejected || 0) + (results.headingsFixed || 0);
   const hasErrors = results.errors.length > 0;
 
+  // Fire onCronFailure if everything failed — ensures dashboard visibility
+  if (hasErrors && totalFixed === 0) {
+    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
+    await onCronFailure({ jobName: "content-auto-fix", error: results.errors.join("; ") }).catch(() => {});
+  }
+
   await logCronExecution("content-auto-fix", hasErrors && totalFixed === 0 ? "failed" : "completed", {
     durationMs,
     itemsProcessed: totalFixed + results.enhanceFailed,

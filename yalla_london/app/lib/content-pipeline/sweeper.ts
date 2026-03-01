@@ -283,6 +283,9 @@ export async function runSweeper(): Promise<SweeperResult> {
     // reservoir — no other system picks them up. Reset their attempt counter
     // so they get another chance (enhancement may succeed with different AI output).
     // Only reset articles that have been stuck for >12 hours to avoid thrashing.
+    // CAP: Maximum 3 total resets per draft — after that, it's permanently stuck
+    // and needs manual intervention. We track resets via sweeper-agent CronJobLog entries.
+    const MAX_FROZEN_RESETS = 3;
     let frozenReservoir: Array<Record<string, unknown>> = [];
     try {
       frozenReservoir = await prisma.articleDraft.findMany({
@@ -294,8 +297,32 @@ export async function runSweeper(): Promise<SweeperResult> {
         },
         take: MAX_RECOVERIES_PER_RUN,
       });
-    } catch {
-      console.warn("[sweeper] Non-fatal: failed to query frozen reservoir articles");
+    } catch (frozenErr) {
+      console.warn("[sweeper] Non-fatal: failed to query frozen reservoir articles:", frozenErr instanceof Error ? frozenErr.message : frozenErr);
+    }
+
+    // Count past resets per draft from CronJobLog to enforce the cap
+    const frozenResetCounts = new Map<string, number>();
+    if (frozenReservoir.length > 0) {
+      try {
+        const pastResets = await prisma.cronJobLog.findMany({
+          where: {
+            job_name: "sweeper-agent",
+            status: "completed",
+            result_summary: { path: ["fix"], string_contains: "Reset phase_attempts to 0" },
+          },
+          select: { result_summary: true },
+          take: 500,
+        });
+        for (const log of pastResets) {
+          const summary = log.result_summary as Record<string, unknown> | null;
+          if (summary?.target && typeof summary.target === "string") {
+            frozenResetCounts.set(summary.target, (frozenResetCounts.get(summary.target) || 0) + 1);
+          }
+        }
+      } catch (countErr) {
+        console.warn("[sweeper] Non-fatal: could not count past frozen resets:", countErr instanceof Error ? countErr.message : countErr);
+      }
     }
 
     for (const draft of frozenReservoir) {
@@ -309,6 +336,14 @@ export async function runSweeper(): Promise<SweeperResult> {
 
       // Skip if already recovered recently
       if (recentlyRecoveredIds.has(draftId)) {
+        skipped++;
+        continue;
+      }
+
+      // Skip if already reset MAX_FROZEN_RESETS times — permanently stuck
+      const pastResets = frozenResetCounts.get(draftId) || 0;
+      if (pastResets >= MAX_FROZEN_RESETS) {
+        console.log(`[sweeper] Skipping frozen draft ${draftId} (${keyword} ${locale}): already reset ${pastResets}x (cap: ${MAX_FROZEN_RESETS}) — needs manual review`);
         skipped++;
         continue;
       }
@@ -328,17 +363,96 @@ export async function runSweeper(): Promise<SweeperResult> {
           keyword,
           locale,
           problem: `Frozen in reservoir after ${attempts} failed enhancement attempts: ${lastError.substring(0, 100)}`,
-          diagnosis: "Article was permanently stuck — content-selector skips articles with 3+ failed attempts. Reset attempt counter for another try.",
+          diagnosis: `Article was permanently stuck — content-selector skips articles with 3+ failed attempts. Reset #${pastResets + 1} of ${MAX_FROZEN_RESETS} max.`,
           fix: "Reset phase_attempts to 0 — content-selector will try enhancement again on next run",
           previousPhase: "reservoir",
           newPhase: "reservoir",
         });
 
-        console.log(`[sweeper] Unfroze reservoir draft ${draftId} (${keyword} ${locale}): was at ${attempts} failed enhancement attempts`);
+        console.log(`[sweeper] Unfroze reservoir draft ${draftId} (${keyword} ${locale}): was at ${attempts} failed attempts, reset #${pastResets + 1}/${MAX_FROZEN_RESETS}`);
       } catch (unfreezeErr) {
         console.warn(`[sweeper] Failed to unfreeze reservoir draft ${draftId}:`, unfreezeErr instanceof Error ? unfreezeErr.message : unfreezeErr);
         skipped++;
       }
+    }
+
+    // ── 5. Recover TopicProposals stuck in "generating" ──────────────
+    // If content-builder or full-pipeline-runner crashes after claiming a
+    // TopicProposal (status="generating") but before creating the ArticleDraft,
+    // the topic is permanently stuck. Reset to "approved" after 2 hours.
+    try {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      const stuckTopics = await prisma.topicProposal.updateMany({
+        where: {
+          status: "generating",
+          updated_at: { lt: twoHoursAgo },
+        },
+        data: {
+          status: "approved",
+          updated_at: new Date(),
+        },
+      });
+      if (stuckTopics.count > 0) {
+        console.log(`[sweeper] Recovered ${stuckTopics.count} TopicProposal(s) stuck in "generating" for 2+ hours`);
+        recovered.push({
+          draftId: `topic-proposals-${stuckTopics.count}`,
+          keyword: `${stuckTopics.count} stuck topic(s)`,
+          locale: "all",
+          problem: `${stuckTopics.count} TopicProposal(s) stuck in "generating" for 2+ hours`,
+          diagnosis: "Content builder crashed after claiming topic but before creating draft.",
+          fix: `Reset ${stuckTopics.count} topic(s) to "approved" — they will be claimed again on next run`,
+          previousPhase: "generating",
+          newPhase: "approved",
+        });
+      }
+    } catch (topicErr) {
+      console.warn("[sweeper] Non-fatal: TopicProposal recovery failed:", topicErr instanceof Error ? topicErr.message : topicErr);
+    }
+
+    // ── 6. CronJobLog rotation — delete logs older than 30 days ───────
+    try {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const deleted = await prisma.cronJobLog.deleteMany({
+        where: { started_at: { lt: thirtyDaysAgo } },
+      });
+      if (deleted.count > 0) {
+        console.log(`[sweeper] Rotated ${deleted.count} CronJobLog entries older than 30 days`);
+      }
+    } catch (rotateErr) {
+      console.warn("[sweeper] Non-fatal: CronJobLog rotation failed:", rotateErr instanceof Error ? rotateErr.message : rotateErr);
+    }
+
+    // ── 7. URLIndexingStatus orphan cleanup ───────────────────────────
+    // Remove tracking records for BlogPosts that no longer exist (deleted slugs waste
+    // verify-indexing quota). We check by slug since URL contains the slug.
+    try {
+      const trackingRecords = await prisma.uRLIndexingStatus.findMany({
+        where: { slug: { not: null }, site_id: { in: activeSiteIds } },
+        select: { id: true, slug: true, site_id: true },
+        take: 200,
+      });
+
+      if (trackingRecords.length > 0) {
+        const slugsToCheck = trackingRecords.filter((r: Record<string, unknown>) => r.slug).map((r: Record<string, unknown>) => r.slug as string);
+        const existingPosts = await prisma.blogPost.findMany({
+          where: { slug: { in: slugsToCheck }, deletedAt: null },
+          select: { slug: true },
+        });
+        const existingSlugs = new Set(existingPosts.map((p: Record<string, unknown>) => p.slug));
+
+        const orphanIds = trackingRecords
+          .filter((r: Record<string, unknown>) => r.slug && !existingSlugs.has(r.slug as string))
+          .map((r: Record<string, unknown>) => r.id as string);
+
+        if (orphanIds.length > 0) {
+          const deletedOrphans = await prisma.uRLIndexingStatus.deleteMany({
+            where: { id: { in: orphanIds } },
+          });
+          console.log(`[sweeper] Cleaned up ${deletedOrphans.count} orphaned URLIndexingStatus record(s) for deleted BlogPosts`);
+        }
+      }
+    } catch (orphanErr) {
+      console.warn("[sweeper] Non-fatal: URLIndexingStatus orphan cleanup failed:", orphanErr instanceof Error ? orphanErr.message : orphanErr);
     }
 
     const durationMs = Date.now() - start;

@@ -317,7 +317,9 @@ async function handleVerifyIndexing(request: NextRequest) {
                     console.warn(`[verify-indexing] HREFLANG MISMATCH: ${url} is indexed but counterpart ${counterpartUrl} is ${counterpart.status}`);
                   }
                 }
-              } catch { /* hreflang check is non-critical */ }
+              } catch (hreflangErr) {
+                console.warn("[verify-indexing] hreflang check failed:", hreflangErr instanceof Error ? hreflangErr.message : hreflangErr);
+              }
             } else {
               siteNotIndexed++;
               console.log(`[verify-indexing] ${url} → NOT INDEXED (${inspection.coverageState || inspection.indexingState})`);

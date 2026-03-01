@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 5 minutes — Vercel Pro allows up to 300s for crons
+export const maxDuration = 300; // 5 minutes — Vercel Pro allows up to 300s. Route-level export overrides vercel.json's 60s default for cron/**.
 
 /**
  * Reserve Publisher — Daily Safety Net (21:00 UTC)
@@ -323,7 +323,7 @@ async function tryReservoirPublish(
         site_id: siteId,
         current_phase: "reservoir",
         locale: targetLocale,
-        quality_score: { gte: 50 }, // Accept anything decent — this is a safety net
+        quality_score: { gte: 60 }, // Safety-net threshold: lenient (60) vs normal gate (70), but not dangerously low
         assembled_html: { not: null },
       },
       orderBy: [
@@ -341,7 +341,7 @@ async function tryReservoirPublish(
       prisma,
       SITES,
       getSiteDomain,
-      { skipGate: true }, // Admin-level override — this is a safety net cron
+      { skipGate: true }, // skipGate is intentional: this is the LAST line of defense (21:00 UTC) — if the regular pipeline failed all day, we publish whatever we have. Quality is still gated by the quality_score >= 60 filter above.
     );
 
     if (result) {

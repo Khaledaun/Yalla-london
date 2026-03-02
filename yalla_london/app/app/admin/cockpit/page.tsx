@@ -421,6 +421,28 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
     }
   };
 
+  const syncWithGoogle = async () => {
+    setSubmitLoading("gsc-sync");
+    setSubmitResult(null);
+    try {
+      const res = await fetch("/api/cron/gsc-sync", { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        const updated = json.totalIndexedUpdated || 0;
+        const newTracking = json.totalNewTracking || 0;
+        const pages = json.totalPagesProcessed || 0;
+        setSubmitResult(`✅ GSC sync complete: ${pages} pages scanned, ${updated} newly confirmed indexed, ${newTracking} new URLs tracked`);
+      } else {
+        setSubmitResult(`❌ GSC sync failed: ${json.error || json.message || "Unknown error"}`);
+      }
+      await fetchData();
+    } catch (e) {
+      setSubmitResult(`❌ ${e instanceof Error ? e.message : "GSC sync error"}`);
+    } finally {
+      setSubmitLoading(null);
+    }
+  };
+
   const statusColor = {
     indexed: "text-emerald-400 bg-emerald-950/40 border-emerald-800",
     submitted: "text-blue-400 bg-blue-950/40 border-blue-800",
@@ -540,7 +562,16 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
               </div>
             )}
 
-            {/* Action row */}
+            {/* Primary action: Sync with Google to get real indexed count */}
+            <button
+              onClick={syncWithGoogle}
+              disabled={submitLoading === "gsc-sync"}
+              className="w-full px-4 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-bold disabled:opacity-50 transition-colors"
+            >
+              {submitLoading === "gsc-sync" ? "⏳ Syncing with Google Search Console…" : "📡 Sync with Google — Get Real Indexed Count"}
+            </button>
+
+            {/* Secondary action row */}
             <div className="flex flex-wrap gap-2 items-center">
               <button
                 onClick={submitAll}
@@ -556,12 +587,12 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
               >
                 {submitLoading === "resubmit-stuck" ? "⏳ Resubmitting…" : "🔄 Resubmit All Stuck"}
               </button>
-              {submitResult && (
-                <span className={`text-xs px-2 py-1 rounded-lg ${submitResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : submitResult.startsWith("⚠️") ? "bg-amber-950/30 text-amber-300" : "bg-red-950/30 text-red-300"}`}>
-                  {submitResult}
-                </span>
-              )}
             </div>
+            {submitResult && (
+              <div className={`text-xs px-3 py-2 rounded-xl ${submitResult.startsWith("✅") ? "bg-emerald-950/30 text-emerald-300 border border-emerald-800" : submitResult.startsWith("⚠️") ? "bg-amber-950/30 text-amber-300 border border-amber-800" : "bg-red-950/30 text-red-300 border border-red-800"}`}>
+                {submitResult}
+              </div>
+            )}
 
             {/* Article List */}
             <div className="space-y-2">

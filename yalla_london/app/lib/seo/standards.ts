@@ -188,6 +188,70 @@ export const CONTENT_TYPE_THRESHOLDS = {
     requireAffiliateLinks: true,
     requireAuthenticitySignals: false,
   },
+  comparison: {
+    /** Comparisons: 1,200–1,800 words — side-by-side reviews with affiliate links */
+    minWords: 1200,
+    targetWords: 1800,
+    thinContentThreshold: 400,
+    metaTitleMin: 30,
+    metaTitleOptimal: { min: 50, max: 60 },
+    metaDescriptionMin: 120,
+    metaDescriptionOptimal: { min: 120, max: 160 },
+    qualityGateScore: 65,
+    seoScoreBlocker: 45,
+    minInternalLinks: 3,
+    minH2Count: 3,
+    requireAffiliateLinks: true,
+    requireAuthenticitySignals: true,
+  },
+  review: {
+    /** Reviews (hotel, restaurant, service): 800–1,500 words — experience-based */
+    minWords: 800,
+    targetWords: 1500,
+    thinContentThreshold: 300,
+    metaTitleMin: 30,
+    metaTitleOptimal: { min: 50, max: 60 },
+    metaDescriptionMin: 100,
+    metaDescriptionOptimal: { min: 120, max: 160 },
+    qualityGateScore: 60,
+    seoScoreBlocker: 40,
+    minInternalLinks: 2,
+    minH2Count: 3,
+    requireAffiliateLinks: true,
+    requireAuthenticitySignals: true,
+  },
+  events: {
+    /** Events: 600–1,200 words — date-specific, practical info heavy */
+    minWords: 600,
+    targetWords: 1200,
+    thinContentThreshold: 250,
+    metaTitleMin: 20,
+    metaTitleOptimal: { min: 40, max: 60 },
+    metaDescriptionMin: 80,
+    metaDescriptionOptimal: { min: 100, max: 160 },
+    qualityGateScore: 50,
+    seoScoreBlocker: 30,
+    minInternalLinks: 2,
+    minH2Count: 2,
+    requireAffiliateLinks: true,
+    requireAuthenticitySignals: true,
+  },
+  sales: {
+    /** Deals/offers: 500–1,000 words — price-focused, affiliate-heavy */
+    minWords: 500,
+    targetWords: 1000,
+    thinContentThreshold: 200,
+    metaTitleMin: 20,
+    metaTitleOptimal: { min: 40, max: 60 },
+    metaDescriptionMin: 80,
+    metaDescriptionOptimal: { min: 100, max: 160 },
+    qualityGateScore: 45,
+    seoScoreBlocker: 25,
+    minInternalLinks: 2,
+    minH2Count: 2,
+    requireAffiliateLinks: true,
+    requireAuthenticitySignals: false,
+  },
 } as const;
 
 export type ContentTypeKey = keyof typeof CONTENT_TYPE_THRESHOLDS;
@@ -201,7 +265,36 @@ export function getThresholdsForUrl(targetUrl: string) {
   if (path.startsWith("/news/") || path.includes("/ar/news/")) return CONTENT_TYPE_THRESHOLDS.news;
   if (path.startsWith("/information/") || path.includes("/ar/information/")) return CONTENT_TYPE_THRESHOLDS.information;
   if (path.startsWith("/guides/") || path.includes("/ar/guides/")) return CONTENT_TYPE_THRESHOLDS.guide;
+  if (path.startsWith("/events/") || path.includes("/ar/events/")) return CONTENT_TYPE_THRESHOLDS.events;
+  if (path.startsWith("/deals/") || path.includes("/ar/deals/") || path.startsWith("/offers/")) return CONTENT_TYPE_THRESHOLDS.sales;
+  if (path.startsWith("/reviews/") || path.includes("/ar/reviews/")) return CONTENT_TYPE_THRESHOLDS.review;
+  if (path.startsWith("/compare/") || path.includes("/ar/compare/")) return CONTENT_TYPE_THRESHOLDS.comparison;
   return CONTENT_TYPE_THRESHOLDS.blog;
+}
+
+/**
+ * Get thresholds by page_type field value (from BlogPost or AI generate).
+ * Falls back to blog thresholds for unknown types.
+ */
+export function getThresholdsForPageType(pageType: string) {
+  const typeMap: Record<string, keyof typeof CONTENT_TYPE_THRESHOLDS> = {
+    guide: "guide",
+    comparison: "comparison",
+    "hotel-review": "review",
+    "restaurant-review": "review",
+    "service-review": "review",
+    review: "review",
+    news: "news",
+    events: "events",
+    sales: "sales",
+    listicle: "blog",
+    "deep-dive": "blog",
+    seasonal: "blog",
+    answer: "information",
+    information: "information",
+  };
+  const key = typeMap[pageType] || "blog";
+  return CONTENT_TYPE_THRESHOLDS[key];
 }
 
 // ─── E-E-A-T Requirements (Updated for Jan 2026 Authenticity Update) ────────

@@ -2511,6 +2511,28 @@ model URLIndexingStatus {
   @@map("url_indexing_status")
 }
 
+// Daily per-page Google Search Console performance snapshots.
+// Populated by the gsc-sync cron from GSC Search Analytics API (dimensions: ['page']).
+// Enables per-article clicks/impressions in dashboard and trend comparison (this week vs last week).
+model GscPagePerformance {
+  id          String   @id @default(cuid())
+  site_id     String
+  url         String
+  date        DateTime @db.Date
+
+  clicks      Int      @default(0)
+  impressions Int      @default(0)
+  ctr         Float    @default(0)  // 0-1 range from GSC
+  position    Float    @default(0)  // Average position in search results
+
+  created_at  DateTime @default(now())
+
+  @@unique([site_id, url, date])
+  @@index([site_id, date])
+  @@index([site_id, url])
+  @@map("gsc_page_performance")
+}
+
 // Cron job execution log — tracks every cron run for monitoring & debugging
 model CronJobLog {
   id            String   @id @default(cuid())
@@ -4044,4 +4066,56 @@ model CommerceTask {
   @@index([briefId])
   @@index([campaignId])
   @@map("commerce_tasks")
+}
+
+// ─── Performance Audit (PageSpeed Insights) ────────────────────────────────
+model PerformanceAudit {
+  id                String   @id @default(cuid())
+  siteId            String
+  url               String
+  strategy          String   @default("mobile") // mobile | desktop
+  performanceScore  Float?
+  accessibilityScore Float?
+  bestPracticesScore Float?
+  seoScore          Float?
+
+  // Core Web Vitals
+  lcpMs             Float?   // Largest Contentful Paint (ms)
+  clsScore          Float?   // Cumulative Layout Shift
+  inpMs             Float?   // Interaction to Next Paint (ms)
+  fcpMs             Float?   // First Contentful Paint (ms)
+  tbtMs             Float?   // Total Blocking Time (ms)
+  speedIndex        Float?
+
+  // Diagnostics
+  diagnostics       Json?    // Raw PSI opportunities/diagnostics
+  runId             String   // Groups pages from same audit run
+
+  createdAt         DateTime @default(now())
+
+  @@index([siteId, createdAt])
+  @@index([runId])
+  @@index([url, strategy])
+  @@map("performance_audits")
+}
+
+// ─── Auto-Fix Log (tracks all automated remediation actions) ──────────────
+model AutoFixLog {
+  id          String   @id @default(cuid())
+  siteId      String
+  targetType  String   // "blogpost" | "draft" | "url" | "schema"
+  targetId    String   // BlogPost/ArticleDraft/URL ID
+  fixType     String   // e.g. "meta_trim", "word_expand", "heading_fix", "affiliate_inject", "internal_link_add", "arabic_meta_gen"
+  agent       String   // Which cron/agent applied the fix: "content-auto-fix", "seo-agent", "auto-remediate"
+  before      Json?    // Snapshot of relevant fields before fix
+  after       Json?    // Snapshot of relevant fields after fix
+  success     Boolean  @default(true)
+  error       String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([siteId, createdAt])
+  @@index([fixType])
+  @@index([targetId])
+  @@map("auto_fix_logs")
 }

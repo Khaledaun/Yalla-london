@@ -78,6 +78,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/gsc-sync",
+      "schedule": "0 4 * * *"
+    },
+    {
       "path": "/api/cron/weekly-topics",
       "schedule": "0 4 * * 1"
     },

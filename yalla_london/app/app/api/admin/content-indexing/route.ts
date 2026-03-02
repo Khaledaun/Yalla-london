@@ -469,10 +469,10 @@ export async function GET(request: NextRequest) {
           contentType: yachtContentType,
           notIndexedReasons: indexingStatus === "never_submitted" ? ["Page has never been submitted to search engines"] : [],
           fixAction: null,
-          gscClicks: typeof perfMetrics?.clicks === "number" ? perfMetrics.clicks : null,
-          gscImpressions: typeof perfMetrics?.impressions === "number" ? perfMetrics.impressions : null,
-          gscCtr: typeof perfMetrics?.ctr === "number" ? perfMetrics.ctr : null,
-          gscPosition: typeof perfMetrics?.position === "number" ? perfMetrics.position : null,
+          gscClicks: null,
+          gscImpressions: null,
+          gscCtr: null,
+          gscPosition: null,
         });
       }
     }
@@ -531,15 +531,43 @@ export async function GET(request: NextRequest) {
             contentType: "news" as const,
             notIndexedReasons: indexingStatus === "never_submitted" ? ["News article has never been submitted to search engines"] : [],
             fixAction: null,
-            gscClicks: typeof perfMetrics?.clicks === "number" ? perfMetrics.clicks : null,
-            gscImpressions: typeof perfMetrics?.impressions === "number" ? perfMetrics.impressions : null,
-            gscCtr: typeof perfMetrics?.ctr === "number" ? perfMetrics.ctr : null,
-            gscPosition: typeof perfMetrics?.position === "number" ? perfMetrics.position : null,
+            gscClicks: null,
+            gscImpressions: null,
+            gscCtr: null,
+            gscPosition: null,
           });
         }
       } catch (err) {
         console.warn("[content-indexing] Failed to load news items:", err instanceof Error ? err.message : err);
       }
+    }
+
+    // 4d. Enrich articles with REAL GSC performance data from GscPagePerformance table.
+    //     The URL Inspection API (inspection_result) does NOT contain performance data —
+    //     clicks/impressions come from the GSC Search Analytics API, synced by gsc-sync cron.
+    try {
+      const { getPagePerformance, getPageTrends } = await import("@/lib/seo/gsc-trend-analysis");
+      const articleFullUrls = articles.map((a) => `${baseUrl}${a.url}`);
+      const [perfMap, trendMap] = await Promise.all([
+        getPagePerformance(siteId, articleFullUrls),
+        getPageTrends(siteId, articleFullUrls),
+      ]);
+      for (const article of articles) {
+        const fullUrl = `${baseUrl}${article.url}`;
+        const perf = perfMap.get(fullUrl);
+        const trend = trendMap.get(fullUrl);
+        if (perf) {
+          article.gscClicks = perf.clicks;
+          article.gscImpressions = perf.impressions;
+          article.gscCtr = perf.ctr;
+          article.gscPosition = perf.position;
+        }
+        // Attach trend data as extra fields (won't break existing interface — added to response)
+        (article as unknown as Record<string, unknown>).gscClicksTrend = trend?.clicksChangePercent ?? null;
+        (article as unknown as Record<string, unknown>).gscImpressionsTrend = trend?.impressionsChangePercent ?? null;
+      }
+    } catch (err) {
+      console.warn("[content-indexing] Failed to enrich with GSC performance data:", err instanceof Error ? err.message : String(err));
     }
 
     // 5. Summary counts — use shared utility for aggregate numbers

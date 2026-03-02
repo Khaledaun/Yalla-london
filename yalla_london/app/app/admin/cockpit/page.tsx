@@ -86,6 +86,9 @@ interface CockpitData {
     blockers: Array<{ reason: string; count: number; severity: "critical" | "warning" | "info" }>;
     lastSubmissionAge: string | null; lastVerificationAge: string | null;
     channelBreakdown: { indexnow: number; sitemap: number; googleApi: number };
+    gscTotalClicks7d: number; gscTotalImpressions7d: number;
+    gscClicksTrend: number | null; gscImpressionsTrend: number | null;
+    lastGscSync: string | null;
   };
   cronHealth: { failedLast24h: number; timedOutLast24h: number; lastRunAt: string | null; recentJobs: Array<{ name: string; status: string; durationMs: number | null; startedAt: string; error: string | null; plainError: string | null; itemsProcessed: number }> };
   revenue: RevenueSnapshot;
@@ -997,6 +1000,40 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
           )}
         </div>
 
+        {/* GSC Search Performance — real clicks/impressions from gsc-sync */}
+        {(indexing.gscTotalClicks7d > 0 || indexing.gscTotalImpressions7d > 0) && (
+          <div className="mt-3">
+            <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">GSC Performance (7d)</div>
+            <div className="grid grid-cols-2 gap-2 text-center text-xs">
+              <div className="bg-zinc-800/50 rounded-lg p-2">
+                <div className="text-lg font-bold text-cyan-400">
+                  {indexing.gscTotalClicks7d.toLocaleString()}
+                  {indexing.gscClicksTrend != null && (
+                    <span className={`text-[10px] ml-1 ${indexing.gscClicksTrend > 0 ? "text-emerald-400" : indexing.gscClicksTrend < 0 ? "text-red-400" : "text-zinc-500"}`}>
+                      {indexing.gscClicksTrend > 0 ? "▲" : indexing.gscClicksTrend < 0 ? "▼" : "—"}{Math.abs(indexing.gscClicksTrend)}%
+                    </span>
+                  )}
+                </div>
+                <div className="text-zinc-500 text-[10px]">Clicks</div>
+              </div>
+              <div className="bg-zinc-800/50 rounded-lg p-2">
+                <div className="text-lg font-bold text-violet-400">
+                  {indexing.gscTotalImpressions7d.toLocaleString()}
+                  {indexing.gscImpressionsTrend != null && (
+                    <span className={`text-[10px] ml-1 ${indexing.gscImpressionsTrend > 0 ? "text-emerald-400" : indexing.gscImpressionsTrend < 0 ? "text-red-400" : "text-zinc-500"}`}>
+                      {indexing.gscImpressionsTrend > 0 ? "▲" : indexing.gscImpressionsTrend < 0 ? "▼" : "—"}{Math.abs(indexing.gscImpressionsTrend)}%
+                    </span>
+                  )}
+                </div>
+                <div className="text-zinc-500 text-[10px]">Impressions</div>
+              </div>
+            </div>
+            {indexing.lastGscSync && (
+              <div className="mt-1 text-[9px] text-zinc-600 text-center">Last GSC sync: {indexing.lastGscSync}</div>
+            )}
+          </div>
+        )}
+
         {/* Tap to see full details */}
         <button
           onClick={() => setShowIndexPanel(true)}
@@ -1054,6 +1091,9 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/cron/seo-agent", {}, "SEO")} loading={actionLoading === "SEO"}>
             🔍 Submit to Google
+          </ActionButton>
+          <ActionButton onClick={() => triggerAction("/api/cron/gsc-sync", {}, "GSC Sync")} loading={actionLoading === "GSC Sync"}>
+            📡 Sync GSC Data
           </ActionButton>
           <Link href="/admin/cockpit/validator" className="col-span-2 px-3 py-2 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-center block">
             🩺 System Validator
@@ -1955,6 +1995,30 @@ function CronsTab() {
   );
 }
 
+// ─── Performance Audit Types ──────────────────────────────────────────────────
+
+interface AuditPageResult {
+  url: string;
+  performance: number | null;
+  accessibility: number | null;
+  bestPractices: number | null;
+  seo: number | null;
+  lcpMs: number | null;
+  cls: number | null;
+  error: string | null;
+}
+
+interface AuditSummary {
+  runId: string;
+  avgPerformance: number;
+  avgAccessibility: number;
+  avgSeo: number;
+  avgLcpMs: number;
+  pagesAudited: number;
+  pages: AuditPageResult[];
+  createdAt: string;
+}
+
 // ─── Tab 5: Sites Overview ────────────────────────────────────────────────────
 
 function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite: (id: string) => void }) {
@@ -1962,6 +2026,43 @@ function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite:
   const [publishResult, setPublishResult] = useState<Record<string, string>>({});
   const [expandedSite, setExpandedSite] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [auditSiteId, setAuditSiteId] = useState<string | null>(null);
+  const [auditLoading, setAuditLoading] = useState<string | null>(null);
+  const [auditResults, setAuditResults] = useState<Record<string, AuditSummary>>({});
+
+  const runAudit = async (siteId: string) => {
+    setAuditLoading(siteId);
+    try {
+      const res = await fetch("/api/admin/performance-audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId, strategy: "mobile" }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setAuditResults((prev) => ({
+          ...prev,
+          [siteId]: {
+            runId: json.runId,
+            avgPerformance: json.summary.avgPerformance,
+            avgAccessibility: json.summary.avgAccessibility,
+            avgSeo: json.summary.avgSeo,
+            avgLcpMs: json.summary.avgLcpMs,
+            pagesAudited: json.pagesAudited,
+            pages: json.pages,
+            createdAt: new Date().toISOString(),
+          },
+        }));
+        setAuditSiteId(siteId);
+      } else {
+        setPublishResult((prev) => ({ ...prev, [siteId]: `❌ Audit failed: ${json.error}` }));
+      }
+    } catch (e) {
+      setPublishResult((prev) => ({ ...prev, [siteId]: `❌ Audit error: ${e instanceof Error ? e.message : "Network error"}` }));
+    } finally {
+      setAuditLoading(null);
+    }
+  };
 
   const publishSite = async (siteId: string) => {
     setPublishLoading(siteId);
@@ -2122,6 +2223,13 @@ function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite:
               >
                 SEO
               </ActionButton>
+              <ActionButton
+                onClick={() => runAudit(site.id)}
+                loading={auditLoading === site.id}
+                variant="amber"
+              >
+                Audit Site
+              </ActionButton>
               <button
                 onClick={() => setExpandedSite(isExpanded ? null : site.id)}
                 className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-zinc-700"
@@ -2160,6 +2268,63 @@ function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite:
                   />
                 </div>
                 <p className="text-xs text-zinc-500 mt-1">{readiness.passCount}/{readiness.total} checks passed</p>
+              </div>
+            )}
+
+            {/* Performance Audit Results Panel */}
+            {auditSiteId === site.id && auditResults[site.id] && (
+              <div className="mt-3 border-t border-zinc-800 pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-zinc-400">Performance Audit (Mobile)</p>
+                  <button onClick={() => setAuditSiteId(null)} className="text-xs text-zinc-500 hover:text-zinc-300">✕ Close</button>
+                </div>
+                {/* Summary scores */}
+                <div className="grid grid-cols-4 gap-2 text-xs text-center mb-3">
+                  {[
+                    { label: "Perf", value: auditResults[site.id].avgPerformance, threshold: 90 },
+                    { label: "A11y", value: auditResults[site.id].avgAccessibility, threshold: 90 },
+                    { label: "SEO", value: auditResults[site.id].avgSeo, threshold: 90 },
+                    { label: "LCP", value: auditResults[site.id].avgLcpMs, threshold: 2500, isMs: true },
+                  ].map((m) => (
+                    <div key={m.label} className="bg-zinc-800/50 rounded p-2">
+                      <div className={`font-bold ${
+                        m.isMs ? (m.value <= m.threshold ? "text-emerald-400" : "text-red-400") :
+                        m.value >= m.threshold ? "text-emerald-400" : m.value >= 50 ? "text-amber-400" : "text-red-400"
+                      }`}>
+                        {m.isMs ? `${(m.value / 1000).toFixed(1)}s` : m.value}
+                      </div>
+                      <div className="text-zinc-500">{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-zinc-500 mb-2">{auditResults[site.id].pagesAudited} pages audited</p>
+                {/* Per-page results */}
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {auditResults[site.id].pages.map((p) => (
+                    <div key={p.url} className="flex items-center justify-between text-xs bg-zinc-800/30 rounded px-2 py-1.5">
+                      <span className="text-zinc-400 truncate max-w-[55%]">{new URL(p.url).pathname}</span>
+                      <div className="flex gap-2 text-right shrink-0">
+                        {p.error ? (
+                          <span className="text-red-400">Error</span>
+                        ) : (
+                          <>
+                            <span className={p.performance != null && p.performance >= 90 ? "text-emerald-400" : p.performance != null && p.performance >= 50 ? "text-amber-400" : "text-red-400"}>
+                              {p.performance ?? "–"}
+                            </span>
+                            <span className={p.seo != null && p.seo >= 90 ? "text-emerald-400" : "text-amber-400"}>
+                              {p.seo ?? "–"}
+                            </span>
+                            {p.lcpMs != null && (
+                              <span className={p.lcpMs <= 2500 ? "text-emerald-400" : "text-red-400"}>
+                                {(p.lcpMs / 1000).toFixed(1)}s
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </Card>
@@ -3084,6 +3249,12 @@ function CockpitPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href="/admin/cockpit/write"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white"
+            >
+              + Write
+            </Link>
             {lastRefresh && (
               <span className="text-xs text-zinc-600 hidden sm:block">
                 Updated {timeAgo(lastRefresh.toISOString())}

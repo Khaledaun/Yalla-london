@@ -9,13 +9,13 @@ import { logCronExecution } from "@/lib/cron-logger";
  *
  * Runs twice daily at 11:00 and 17:00 UTC.
  * GSC API quota: 2,000 inspections/day per property.
- * Target throughput: ~150 URLs per run × 2 runs = ~300 URLs/day.
+ * Target throughput: ~35 URLs per site per run × 2 runs = ~70 URLs/site/day.
  *
  * Pipeline position:
  *   Content Selector (8:30) → Google Indexing (9:15) → Verify Indexing (11:00, 17:00)
  *
  * What it does:
- * 1. Priority-based queue: never-inspected → submitted >7d → errors → discovered → indexed re-check
+ * 1. Priority-based queue: P0 gsc-confirmed → P1 never-inspected → P2 stuck >7d → P3 errors → P4 discovered → P5 indexed re-check (21d)
  * 2. Uses Google Search Console URL Inspection API to verify indexing state
  * 3. Updates URLIndexingStatus with real coverage/indexing data from Google
  * 4. Logs results for dashboard visibility
@@ -66,12 +66,12 @@ async function handleVerifyIndexing(request: NextRequest) {
     // Timing thresholds for priority queue
     const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const twentyOneDaysAgo = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000);
 
-    // Per-site budget: 20 URLs per site per run
-    // Math: 20 URLs × 350ms rate-limit = 7s, leaving 46s for queue building + rate-drop checks.
-    // Reduced from 35 (21s rate-limit alone) — 55 runs were exceeding the 50s threshold.
-    const MAX_PER_SITE = 20;
+    // Per-site budget: 35 URLs per site per run
+    // Math: 35 URLs × 350ms rate-limit = 12.25s, leaving 40.75s for queue building + rate-drop checks.
+    // Safe after rate-limit reduction from 600ms → 350ms (original 35 × 600ms = 21s caused timeouts).
+    const MAX_PER_SITE = 35;
 
     let totalChecked = 0;
     let totalIndexed = 0;
@@ -95,22 +95,40 @@ async function handleVerifyIndexing(request: NextRequest) {
       gsc.setSiteUrl(seoConfig.gscSiteUrl);
 
       // Priority-based verification queue:
+      // P0: Indexed by gsc-sync (has impressions) but never inspected — need full coverage data
       // P1: Never inspected (brand new tracking records)
       // P2: Submitted >7d ago still not indexed (stuck)
       // P3: Error status (inspect again to see if resolved)
       // P4: Discovered/submitted not checked in 4h
-      // P5: Indexed URLs not re-checked in 14d (catch deindexing)
-      // Slots filled top-down from P1→P5 until MAX_PER_SITE reached
+      // P5: Indexed URLs not re-checked in 21d (catch deindexing — extended from 14d since gsc-sync handles fast confirmation)
+      // Slots filled top-down from P0→P5 until MAX_PER_SITE reached
       let urlsToCheck: Array<Record<string, unknown>> = [];
       let remaining = MAX_PER_SITE;
       try {
+        // P0: Indexed by gsc-sync but never URL-inspected — need full coverage data
+        if (remaining > 0) {
+          const gscIndexedNoInspection = await prisma.uRLIndexingStatus.findMany({
+            where: {
+              site_id: siteId,
+              status: "indexed",
+              last_inspected_at: null,
+            },
+            orderBy: { updated_at: "desc" },
+            take: Math.min(remaining, 10), // Cap at 10 to leave room for other priorities
+          });
+          urlsToCheck.push(...gscIndexedNoInspection);
+          remaining -= gscIndexedNoInspection.length;
+        }
+
         // P1: Never inspected — highest priority
         if (remaining > 0) {
+          const existingIds = urlsToCheck.map(u => u.id as string);
           const neverInspected = await prisma.uRLIndexingStatus.findMany({
             where: {
               site_id: siteId,
               last_inspected_at: null,
               status: { in: ["submitted", "discovered", "pending"] },
+              ...(existingIds.length > 0 ? { id: { notIn: existingIds } } : {}),
             },
             orderBy: { last_submitted_at: "desc" },
             take: remaining,
@@ -171,16 +189,15 @@ async function handleVerifyIndexing(request: NextRequest) {
           remaining -= routine.length;
         }
 
-        // P5: Indexed re-check every 14 days (catch deindexing)
+        // P5: Indexed re-check every 21 days (catch deindexing — gsc-sync handles fast confirmation)
         if (remaining > 0) {
+          const existingIds5 = urlsToCheck.map(u => u.id as string);
           const recheck = await prisma.uRLIndexingStatus.findMany({
             where: {
               site_id: siteId,
               status: "indexed",
-              OR: [
-                { last_inspected_at: null },
-                { last_inspected_at: { lt: fourteenDaysAgo } },
-              ],
+              last_inspected_at: { not: null, lt: twentyOneDaysAgo },
+              ...(existingIds5.length > 0 ? { id: { notIn: existingIds5 } } : {}),
             },
             orderBy: { last_inspected_at: "asc" },
             take: remaining,

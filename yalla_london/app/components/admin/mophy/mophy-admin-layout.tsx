@@ -29,6 +29,7 @@ const navigation = [
     items: [
       { label: '🚀 Mission Control',  href: '/admin/cockpit' },
       { label: '✏️ Write Article',    href: '/admin/cockpit/write' },
+      { label: '⚡ Bulk Generator',   href: '/admin/cockpit/bulk-generate' },
       { label: '✈️ Departures Board', href: '/admin/departures' },
       { label: '🩺 System Validator', href: '/admin/cockpit/validator' },
       { label: '📋 Content Matrix',   href: '/admin/cockpit?tab=content' },

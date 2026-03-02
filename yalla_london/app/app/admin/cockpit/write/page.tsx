@@ -142,6 +142,71 @@ export default function SimpleWriterPage() {
   const [isPublished, setIsPublished] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
 
+  // AI Generate state
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiKeyword, setAiKeyword] = useState("");
+  const [showAiPanel, setShowAiPanel] = useState(false);
+
+  // ─── AI Generate ──────────────────────────────────────────────────────
+
+  const aiGenerate = useCallback(async (mode: "pick" | "generate") => {
+    setAiGenerating(true);
+    setSaveResult(null);
+    try {
+      if (mode === "pick") {
+        const res = await fetch("/api/admin/ai-generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "pick_topic" }),
+        });
+        const json = await res.json();
+        if (json.success && json.topic?.keyword) {
+          setAiKeyword(json.topic.keyword);
+          setSaveResult(`Topic picked: "${json.topic.keyword}"`);
+        } else {
+          setSaveResult("No topics available. Type a keyword manually.");
+        }
+        return;
+      }
+
+      // Generate full article
+      const keyword = aiKeyword.trim();
+      if (!keyword) {
+        setSaveResult("Error: Enter a keyword or pick a topic first");
+        return;
+      }
+
+      const res = await fetch("/api/admin/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "generate",
+          keyword,
+          language: "en",
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.content) {
+        const c = json.content;
+        setTitleEn(c.titleEn || keyword);
+        setMetaTitleEn(c.metaTitleEn || "");
+        setMetaDescriptionEn(c.metaDescriptionEn || "");
+        setTags((c.tags || []).join(", "));
+        if (editorRef.current) {
+          editorRef.current.innerHTML = c.bodyEn || "";
+        }
+        setShowAiPanel(false);
+        setSaveResult(`AI generated ${json.wordCount || 0} words. Review and publish when ready.`);
+      } else {
+        setSaveResult(`Error: ${json.error || "Generation failed"}`);
+      }
+    } catch (e) {
+      setSaveResult(`Error: ${e instanceof Error ? e.message : "Network error"}`);
+    } finally {
+      setAiGenerating(false);
+    }
+  }, [aiKeyword]);
+
   // ─── Data Loading ───────────────────────────────────────────────────────
 
   const fetchList = useCallback(async () => {
@@ -264,6 +329,12 @@ export default function SimpleWriterPage() {
             </button>
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setShowAiPanel(!showAiPanel)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-900/50 hover:bg-violet-800/50 text-violet-300 border border-violet-700"
+              >
+                AI
+              </button>
+              <button
                 onClick={() => save(false)}
                 disabled={saving || !titleEn.trim()}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 disabled:opacity-50"
@@ -280,6 +351,46 @@ export default function SimpleWriterPage() {
             </div>
           </div>
         </div>
+
+        {/* AI Generate Panel */}
+        {showAiPanel && (
+          <div className="max-w-2xl mx-auto px-4 mt-2">
+            <div className="rounded-lg border border-violet-800/50 bg-violet-950/30 px-4 py-3 space-y-2">
+              <p className="text-xs font-medium text-violet-300">AI Article Generator</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={aiKeyword}
+                  onChange={(e) => setAiKeyword(e.target.value)}
+                  placeholder="Keyword (e.g. halal restaurants London)"
+                  className="flex-1 text-sm px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 placeholder:text-zinc-600 outline-none"
+                />
+                <button
+                  onClick={() => aiGenerate("pick")}
+                  disabled={aiGenerating}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 disabled:opacity-50 shrink-0"
+                >
+                  Pick Topic
+                </button>
+              </div>
+              <button
+                onClick={() => aiGenerate("generate")}
+                disabled={aiGenerating || !aiKeyword.trim()}
+                className="w-full py-2 rounded-lg text-sm font-medium bg-violet-700 hover:bg-violet-600 text-white border border-violet-600 disabled:opacity-50"
+              >
+                {aiGenerating ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Generating article…
+                  </span>
+                ) : (
+                  "Generate Full Article"
+                )}
+              </button>
+              <p className="text-xs text-zinc-500">Writes ~1,500 words with SEO, internal links, and affiliate links. Review before publishing.</p>
+            </div>
+          </div>
+        )}
 
         {/* Save result toast */}
         {saveResult && (
@@ -402,12 +513,20 @@ export default function SimpleWriterPage() {
             <Link href="/admin/cockpit" className="text-sm text-zinc-400 hover:text-zinc-200">← Cockpit</Link>
             <h1 className="text-base font-bold text-white">Write</h1>
           </div>
-          <button
-            onClick={newArticle}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white"
-          >
-            + New Article
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/cockpit/bulk-generate"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-900/50 hover:bg-violet-800/50 text-violet-300 border border-violet-700"
+            >
+              Bulk AI
+            </Link>
+            <button
+              onClick={newArticle}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-700 hover:bg-emerald-600 text-white"
+            >
+              + New
+            </button>
+          </div>
         </div>
       </div>
 

@@ -48,7 +48,7 @@ async function handleGscSync(request: NextRequest) {
 
     const { prisma } = await import("@/lib/db");
     const { GoogleSearchConsole } = await import("@/lib/integrations/google-search-console");
-    const { getActiveSiteIds, getSiteSeoConfig, getSiteDomain } = await import("@/config/sites");
+    const { getActiveSiteIds, getSiteSeoConfig, getSiteDomain, SITES } = await import("@/config/sites");
 
     const gsc = new GoogleSearchConsole();
     if (!gsc.isConfigured()) {
@@ -64,6 +64,8 @@ async function handleGscSync(request: NextRequest) {
         timestamp: new Date().toISOString(),
       });
     }
+
+    const { syncAllUrlsToTracking } = await import("@/lib/seo/indexing-service");
 
     const activeSites = getActiveSiteIds();
     const today = new Date();
@@ -100,6 +102,9 @@ async function handleGscSync(request: NextRequest) {
       const seoConfig = getSiteSeoConfig(siteId);
       gsc.setSiteUrl(seoConfig.gscSiteUrl);
       const siteBaseUrl = getSiteDomain(siteId);
+      // Extract bare domain for URL matching (handles both www. and non-www.)
+      // GSC may return URLs with or without www — match on the bare domain
+      const bareDomain = SITES[siteId]?.domain || siteBaseUrl.replace(/^https?:\/\/(www\.)?/, "");
 
       let sitePagesProcessed = 0;
       let siteIndexedUpdated = 0;
@@ -110,6 +115,19 @@ async function handleGscSync(request: NextRequest) {
       let sitePreviousImpressions = 0;
 
       try {
+        // ── Step 0: Sync all published URLs to tracking table ──
+        // Ensures every published page has a URLIndexingStatus record before we
+        // cross-reference with GSC. Without this, pages that exist but haven't
+        // been discovered by SEO agent show as "never submitted" in the dashboard.
+        try {
+          const syncResult = await syncAllUrlsToTracking(siteId, siteBaseUrl);
+          if (syncResult.synced > 0) {
+            console.log(`[gsc-sync] ${siteId}: Synced ${syncResult.synced} new URLs to tracking (total: ${syncResult.total})`);
+          }
+        } catch (syncErr) {
+          console.warn(`[gsc-sync] ${siteId}: URL sync failed:`, syncErr instanceof Error ? syncErr.message : String(syncErr));
+        }
+
         // ── Step 1: Fetch CURRENT period per-page performance ──
         const currentData = await gsc.getSearchAnalytics(
           toDateStr(currentStart),
@@ -133,7 +151,7 @@ async function handleGscSync(request: NextRequest) {
 
           const pageUrl = row.keys[0];
           // Skip URLs that don't belong to this site (GSC may return cross-domain)
-          if (!pageUrl.includes(siteBaseUrl.replace("https://", ""))) continue;
+          if (!pageUrl.includes(bareDomain)) continue;
 
           try {
             await prisma.gscPagePerformance.upsert({
@@ -173,7 +191,7 @@ async function handleGscSync(request: NextRequest) {
         const urlsWithImpressions = currentData.rows
           .filter((r: { impressions?: number }) => (r.impressions || 0) > 0)
           .map((r: { keys: string[] }) => r.keys[0])
-          .filter((url: string) => url.includes(siteBaseUrl.replace("https://", "")));
+          .filter((url: string) => url.includes(bareDomain));
 
         if (urlsWithImpressions.length > 0) {
           try {
@@ -200,7 +218,7 @@ async function handleGscSync(request: NextRequest) {
         try {
           const allGscUrls = currentData.rows
             .map((r: { keys: string[] }) => r.keys[0])
-            .filter((url: string) => url.includes(siteBaseUrl.replace("https://", "")));
+            .filter((url: string) => url.includes(bareDomain));
 
           const existing = await prisma.uRLIndexingStatus.findMany({
             where: { site_id: siteId, url: { in: allGscUrls } },
@@ -258,7 +276,7 @@ async function handleGscSync(request: NextRequest) {
               for (const row of previousData.rows) {
                 if (Date.now() - cronStart > BUDGET_MS - 3000) break;
                 const pageUrl = row.keys[0];
-                if (!pageUrl.includes(siteBaseUrl.replace("https://", ""))) continue;
+                if (!pageUrl.includes(bareDomain)) continue;
 
                 sitePreviousClicks += row.clicks || 0;
                 sitePreviousImpressions += row.impressions || 0;

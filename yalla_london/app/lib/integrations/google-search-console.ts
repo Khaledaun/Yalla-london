@@ -198,7 +198,7 @@ export class GoogleSearchConsole {
           startDate,
           endDate,
           dimensions,
-          rowLimit: 100,
+          rowLimit: 1000,
         }),
       });
 

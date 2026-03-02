@@ -136,6 +136,34 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     });
   } catch { /* table may not exist */ }
 
+  // ── 2b. Cross-reference with GscPagePerformance ────────────────────────
+  // GSC Search Analytics is the ultimate source of truth for indexing.
+  // Any URL with impressions > 0 in GscPagePerformance is DEFINITELY indexed
+  // by Google, even if URLIndexingStatus hasn't been updated yet.
+  let gscConfirmedUrls = new Set<string>();
+  try {
+    const gscRecords = await prisma.gscPagePerformance.findMany({
+      where: { site_id: siteId, impressions: { gt: 0 } },
+      select: { url: true },
+      distinct: ["url"],
+      take: 2000,
+    });
+    gscConfirmedUrls = new Set(gscRecords.map((r: { url: string }) => r.url));
+  } catch { /* GscPagePerformance table may not exist yet */ }
+
+  // Build a url→status lookup from URLIndexingStatus for cross-referencing
+  let trackingUrlMap = new Map<string, string>();
+  try {
+    const trackingWithUrls = await prisma.uRLIndexingStatus.findMany({
+      where: { site_id: siteId },
+      select: { url: true, status: true, indexing_state: true },
+      take: 2000,
+    });
+    for (const r of trackingWithUrls) {
+      trackingUrlMap.set(r.url, r.status);
+    }
+  } catch { /* non-critical */ }
+
   // ── 3. Resolve status for each tracking record ────────────────────────
 
   let indexed = 0;
@@ -155,27 +183,80 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     else if (status === "chronic_failure") chronicFailures++;
   }
 
+  // ── 3b. Promote URLs confirmed by GSC but not yet marked indexed ──────
+  // If GscPagePerformance shows a URL with impressions but URLIndexingStatus
+  // still says "submitted"/"discovered"/"error", count it as indexed.
+  // This closes the gap where gsc-sync runs daily but URLIndexingStatus
+  // hasn't been updated yet.
+  for (const gscUrl of gscConfirmedUrls) {
+    const trackingStatus = trackingUrlMap.get(gscUrl);
+    if (trackingStatus && trackingStatus !== "indexed") {
+      // This URL is confirmed indexed by GSC but not marked in our tracking.
+      // Promote it: decrement its current bucket, increment indexed.
+      if (trackingStatus === "submitted" || trackingStatus === "pending") { submitted--; indexed++; }
+      else if (trackingStatus === "discovered") { discovered--; indexed++; }
+      else if (trackingStatus === "error") { errors--; indexed++; }
+    }
+    // If URL is in GSC but has NO tracking record, it's still counted
+    // under neverSubmitted below — but it's actually indexed. We handle
+    // this by checking gscConfirmedUrls when computing neverSubmitted.
+  }
+
+  // Ensure no negative counts from the promotion
+  submitted = Math.max(0, submitted);
+  discovered = Math.max(0, discovered);
+  errors = Math.max(0, errors);
+
   // "neverSubmitted" = published pages that have NO tracking record at all.
   // tracked = everything in URLIndexingStatus (regardless of status).
   // If published > tracked, the difference are orphaned/never-submitted pages.
+  // HOWEVER: some untracked pages may already be indexed (GSC found them).
+  // We count those as indexed, not neverSubmitted.
   const tracked = trackingRecords.length;
-  const neverSubmitted = Math.max(0, publishedCount - tracked);
+  const rawNeverSubmitted = Math.max(0, publishedCount - tracked);
+
+  // Count how many "untracked" pages are actually confirmed indexed by GSC
+  // These are URLs in gscConfirmedUrls that don't have a URLIndexingStatus record
+  let untrackedButIndexed = 0;
+  for (const gscUrl of gscConfirmedUrls) {
+    if (!trackingUrlMap.has(gscUrl)) {
+      untrackedButIndexed++;
+    }
+  }
+  // Cap to avoid counting more than the gap
+  untrackedButIndexed = Math.min(untrackedButIndexed, rawNeverSubmitted);
+  indexed += untrackedButIndexed;
+  const neverSubmitted = Math.max(0, rawNeverSubmitted - untrackedButIndexed);
 
   // Total must equal the sum of all buckets — this is the invariant
   const total = indexed + submitted + discovered + neverSubmitted + errors + deindexed + chronicFailures;
 
   // ── 4. Stale submissions (submitted >14d, still not indexed) ──────────
+  // Exclude URLs that GSC confirms as indexed — they're not really stale.
 
   const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   let staleCount = 0;
   try {
-    staleCount = await prisma.uRLIndexingStatus.count({
-      where: {
-        site_id: siteId,
-        status: "submitted",
-        last_submitted_at: { lt: fourteenDaysAgo },
-      },
-    });
+    if (gscConfirmedUrls.size > 0) {
+      // Query stale submissions, then subtract those confirmed by GSC
+      const staleRecords = await prisma.uRLIndexingStatus.findMany({
+        where: {
+          site_id: siteId,
+          status: "submitted",
+          last_submitted_at: { lt: fourteenDaysAgo },
+        },
+        select: { url: true },
+      });
+      staleCount = staleRecords.filter((r: { url: string }) => !gscConfirmedUrls.has(r.url)).length;
+    } else {
+      staleCount = await prisma.uRLIndexingStatus.count({
+        where: {
+          site_id: siteId,
+          status: "submitted",
+          last_submitted_at: { lt: fourteenDaysAgo },
+        },
+      });
+    }
   } catch { /* non-critical */ }
 
   // ── 5. Velocity: indexed in last 7 days + previous 7 days (trend) ────

@@ -150,8 +150,8 @@ async function handlePost(request: NextRequest) {
   const siteId = body.siteId || getDefaultSiteId();
   const strategy = body.strategy || "mobile";
   const siteConfig = getSiteConfig(siteId);
-  const domain = getSiteDomain(siteId);
-  const baseUrl = `https://${domain}`;
+  // getSiteDomain() already returns "https://www.domain.com" — use directly
+  const baseUrl = getSiteDomain(siteId);
 
   if (!siteConfig) {
     return NextResponse.json({ success: false, error: `Unknown site: ${siteId}` }, { status: 400 });
@@ -185,10 +185,11 @@ async function handlePost(request: NextRequest) {
       })),
     });
   } catch (err) {
-    console.warn("[performance-audit] Audit failed:", err instanceof Error ? err.message : err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn("[performance-audit] Audit failed:", errMsg);
     return NextResponse.json({
       success: false,
-      error: "Performance audit failed. Try again.",
+      error: `Performance audit failed: ${errMsg.substring(0, 200)}`,
     }, { status: 500 });
   }
 }

@@ -17,6 +17,10 @@ async function handleGet(request: NextRequest) {
   const { prisma } = await import("@/lib/db");
   const { getDefaultSiteId } = await import("@/config/sites");
 
+  // Ensure table exists before querying
+  const { ensurePerformanceAudits } = await import("@/lib/db/ensure-tables");
+  await ensurePerformanceAudits();
+
   const siteId = request.nextUrl.searchParams.get("siteId") || getDefaultSiteId();
   const runId = request.nextUrl.searchParams.get("runId");
 
@@ -158,6 +162,10 @@ async function handlePost(request: NextRequest) {
   }
 
   try {
+    // Ensure the performance_audits table exists (self-healing migration)
+    const { ensurePerformanceAudits } = await import("@/lib/db/ensure-tables");
+    await ensurePerformanceAudits();
+
     const { runSiteAudit, saveAuditResults } = await import("@/lib/performance/site-auditor");
 
     // Run audit (budget: 50s to leave room for DB save)

@@ -50,6 +50,10 @@ async function handleGscSync(request: NextRequest) {
     const { GoogleSearchConsole } = await import("@/lib/integrations/google-search-console");
     const { getActiveSiteIds, getSiteSeoConfig, getSiteDomain, SITES } = await import("@/config/sites");
 
+    // Ensure the gsc_page_performance table exists (self-healing migration)
+    const { ensureGscPagePerformance } = await import("@/lib/db/ensure-tables");
+    await ensureGscPagePerformance();
+
     const gsc = new GoogleSearchConsole();
     if (!gsc.isConfigured()) {
       await logCronExecution("gsc-sync", "completed", {

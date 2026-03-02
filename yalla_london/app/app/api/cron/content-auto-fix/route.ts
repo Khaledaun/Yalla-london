@@ -54,6 +54,10 @@ async function handleAutoFix(request: NextRequest) {
     stuckUnstuck: 0,
     stuckRejected: 0,
     headingsFixed: 0,
+    internalLinksInjected: 0,
+    affiliateLinksInjected: 0,
+    duplicateMetasFixed: 0,
+    arabicMetaGenerated: 0,
     errors: [] as string[],
   };
 
@@ -442,9 +446,120 @@ async function handleAutoFix(request: NextRequest) {
     }
   }
 
+  // ── 7. INTERNAL LINK INJECTION — articles missing internal links ──────────
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const postsNoLinks = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_en: { not: null },
+        },
+        select: { id: true, content_en: true, siteId: true },
+        take: 20,
+        orderBy: { created_at: "desc" },
+      });
+
+      const { injectInternalLinks } = await import("@/lib/auto-remediate/engine") as { injectInternalLinks: (id: string, siteId: string) => Promise<{ success: boolean }> };
+      for (const post of postsNoLinks) {
+        const linkCount = ((post.content_en || "").match(/class="internal-link"|href="\/blog\//gi) || []).length;
+        if (linkCount < 1 && (post.content_en || "").length > 2000) {
+          const result = await injectInternalLinks(post.id, post.siteId);
+          if (result.success) results.internalLinksInjected++;
+          if (results.internalLinksInjected >= 5) break; // max 5 per run
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`internal-links: ${msg}`);
+      console.warn("[content-auto-fix] Internal link injection failed:", msg);
+    }
+  }
+
+  // ── 8. AFFILIATE LINK INJECTION — published articles missing affiliate links
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const postsNoAffiliates = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_en: { not: null },
+        },
+        select: { id: true, content_en: true, siteId: true },
+        take: 20,
+        orderBy: { created_at: "desc" },
+      });
+
+      const affiliatePattern = /booking\.com|halalbooking|agoda|getyourguide|viator|klook|boatbookings|class="affiliate/i;
+      const { injectAffiliateLinks } = await import("@/lib/auto-remediate/engine") as { injectAffiliateLinks: (id: string, siteId: string) => Promise<{ success: boolean }> };
+
+      for (const post of postsNoAffiliates) {
+        if (!affiliatePattern.test(post.content_en || "") && (post.content_en || "").length > 2000) {
+          const result = await injectAffiliateLinks(post.id, post.siteId);
+          if (result.success) results.affiliateLinksInjected++;
+          if (results.affiliateLinksInjected >= 5) break; // max 5 per run
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`affiliate-links: ${msg}`);
+      console.warn("[content-auto-fix] Affiliate link injection failed:", msg);
+    }
+  }
+
+  // ── 9. DUPLICATE META DESCRIPTIONS — rewrite duplicates for uniqueness ─────
+  if (Date.now() - cronStart < BUDGET_MS - 5_000) {
+    try {
+      const { fixDuplicateMetas } = await import("@/lib/auto-remediate/engine");
+      for (const siteId of activeSiteIds) {
+        const fixes = await fixDuplicateMetas(siteId, 3);
+        results.duplicateMetasFixed += fixes.filter((f) => f.success).length;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`duplicate-metas: ${msg}`);
+      console.warn("[content-auto-fix] Duplicate meta fix failed:", msg);
+    }
+  }
+
+  // ── 10. ARABIC META GENERATION — bilingual articles missing Arabic meta ────
+  if (Date.now() - cronStart < BUDGET_MS - 10_000) {
+    try {
+      const postsMissingArMeta = await prisma.blogPost.findMany({
+        where: {
+          siteId: { in: activeSiteIds },
+          published: true,
+          deletedAt: null,
+          content_ar: { not: null },
+          OR: [
+            { meta_title_ar: null },
+            { meta_description_ar: null },
+          ],
+        },
+        select: { id: true },
+        take: 2,
+      });
+
+      if (postsMissingArMeta.length > 0) {
+        const { generateArabicMeta } = await import("@/lib/auto-remediate/engine") as { generateArabicMeta: (id: string) => Promise<{ success: boolean }> };
+        for (const post of postsMissingArMeta) {
+          if (Date.now() - cronStart > BUDGET_MS - 8_000) break;
+          const result = await generateArabicMeta(post.id);
+          if (result.success) results.arabicMetaGenerated++;
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      results.errors.push(`arabic-meta: ${msg}`);
+      console.warn("[content-auto-fix] Arabic meta generation failed:", msg);
+    }
+  }
+
   // ── Log + respond ──────────────────────────────────────────────────────────
   const durationMs = Date.now() - cronStart;
-  const totalFixed = results.enhanced + results.enhancedLowScore + results.metaTrimmedPosts + results.metaTrimmedDrafts + (results.stuckUnstuck || 0) + (results.stuckRejected || 0) + (results.headingsFixed || 0);
+  const totalFixed = results.enhanced + results.enhancedLowScore + results.metaTrimmedPosts + results.metaTrimmedDrafts + (results.stuckUnstuck || 0) + (results.stuckRejected || 0) + (results.headingsFixed || 0) + results.internalLinksInjected + results.affiliateLinksInjected + results.duplicateMetasFixed + results.arabicMetaGenerated;
   const hasErrors = results.errors.length > 0;
 
   // Fire onCronFailure if everything failed — ensures dashboard visibility
@@ -466,7 +581,7 @@ async function handleAutoFix(request: NextRequest) {
     success: true,
     durationMs,
     results,
-    summary: `Enhanced ${results.enhanced} word-count + ${results.enhancedLowScore} low-score drafts, trimmed ${results.metaTrimmedPosts + results.metaTrimmedDrafts} metas, unstuck ${results.stuckUnstuck} drafts, rejected ${results.stuckRejected} permanently stuck, fixed ${results.headingsFixed} heading hierarchies`,
+    summary: `Enhanced ${results.enhanced} word-count + ${results.enhancedLowScore} low-score drafts, trimmed ${results.metaTrimmedPosts + results.metaTrimmedDrafts} metas, unstuck ${results.stuckUnstuck} drafts, rejected ${results.stuckRejected} stuck, headings ${results.headingsFixed}, links +${results.internalLinksInjected}, affiliates +${results.affiliateLinksInjected}, dupe metas ${results.duplicateMetasFixed}, Arabic meta ${results.arabicMetaGenerated}`,
   });
 }
 

@@ -4067,3 +4067,55 @@ model CommerceTask {
   @@index([campaignId])
   @@map("commerce_tasks")
 }
+
+// ─── Performance Audit (PageSpeed Insights) ────────────────────────────────
+model PerformanceAudit {
+  id                String   @id @default(cuid())
+  siteId            String
+  url               String
+  strategy          String   @default("mobile") // mobile | desktop
+  performanceScore  Float?
+  accessibilityScore Float?
+  bestPracticesScore Float?
+  seoScore          Float?
+
+  // Core Web Vitals
+  lcpMs             Float?   // Largest Contentful Paint (ms)
+  clsScore          Float?   // Cumulative Layout Shift
+  inpMs             Float?   // Interaction to Next Paint (ms)
+  fcpMs             Float?   // First Contentful Paint (ms)
+  tbtMs             Float?   // Total Blocking Time (ms)
+  speedIndex        Float?
+
+  // Diagnostics
+  diagnostics       Json?    // Raw PSI opportunities/diagnostics
+  runId             String   // Groups pages from same audit run
+
+  createdAt         DateTime @default(now())
+
+  @@index([siteId, createdAt])
+  @@index([runId])
+  @@index([url, strategy])
+  @@map("performance_audits")
+}
+
+// ─── Auto-Fix Log (tracks all automated remediation actions) ──────────────
+model AutoFixLog {
+  id          String   @id @default(cuid())
+  siteId      String
+  targetType  String   // "blogpost" | "draft" | "url" | "schema"
+  targetId    String   // BlogPost/ArticleDraft/URL ID
+  fixType     String   // e.g. "meta_trim", "word_expand", "heading_fix", "affiliate_inject", "internal_link_add", "arabic_meta_gen"
+  agent       String   // Which cron/agent applied the fix: "content-auto-fix", "seo-agent", "auto-remediate"
+  before      Json?    // Snapshot of relevant fields before fix
+  after       Json?    // Snapshot of relevant fields after fix
+  success     Boolean  @default(true)
+  error       String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([siteId, createdAt])
+  @@index([fixType])
+  @@index([targetId])
+  @@map("auto_fix_logs")
+}

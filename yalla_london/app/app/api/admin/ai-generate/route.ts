@@ -9,13 +9,20 @@ export const maxDuration = 60;
  *        Returns the generated content for review before publishing.
  *
  * Actions:
- *   - generate   — AI generates a full article from a topic
- *   - publish    — Saves a generated article to BlogPost and publishes
- *   - pick_topic — Returns the next available topic without generating
+ *   - generate      — AI generates a full article from a topic
+ *   - publish       — Saves a generated article to BlogPost and publishes
+ *   - pick_topic    — Returns the next available topic without generating
+ *   - content_types — Returns available content types with descriptions
+ *
+ * Content types are defined in @/lib/content-automation/content-types.ts
+ * 12 types: guide, comparison, hotel-review, restaurant-review, service-review,
+ * news, events, sales, listicle, deep-dive, seasonal, answer.
+ * To add new types, edit that file — both ai-generate and bulk-generate use it.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
+import { CONTENT_TYPES } from "@/lib/content-automation/content-types";
 
 async function handlePost(request: NextRequest) {
   const body = await request.json();
@@ -30,6 +37,22 @@ async function handlePost(request: NextRequest) {
 
   const language: "en" | "ar" = body.language || "en";
 
+  // ─── CONTENT TYPES ─────────────────────────────────────────────────────
+  if (action === "content_types") {
+    return NextResponse.json({
+      success: true,
+      types: Object.values(CONTENT_TYPES).map(t => ({
+        id: t.id,
+        label: t.label,
+        labelAr: t.labelAr,
+        description: t.description,
+        minWords: t.minWords,
+        targetWords: t.targetWords,
+        requireAffiliateLinks: t.requireAffiliateLinks,
+      })),
+    });
+  }
+
   // ─── PICK TOPIC ─────────────────────────────────────────────────────────
   if (action === "pick_topic") {
     const topic = await pickTopic(language, siteId);
@@ -43,7 +66,6 @@ async function handlePost(request: NextRequest) {
 
     let topic: TopicInfo;
     if (keyword) {
-      // Manual keyword — user typed it
       topic = {
         id: null,
         keyword,
@@ -52,7 +74,6 @@ async function handlePost(request: NextRequest) {
         pageType,
       };
     } else {
-      // Auto-pick from DB
       topic = await pickTopic(language, siteId);
       if (!topic.keyword) {
         return NextResponse.json({
@@ -90,7 +111,6 @@ async function handlePost(request: NextRequest) {
         wordCount: countWords((content.body as string) || ""),
       });
     } catch (err) {
-      // Revert topic status if we claimed one
       if (topic.id) {
         const { prisma } = await import("@/lib/db");
         await prisma.topicProposal.updateMany({
@@ -163,14 +183,16 @@ async function handlePost(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // CRITICAL: title_ar and content_ar are required String fields in Prisma
+    // Must provide non-null values — fallback to English content
     const blogPost = await prisma.blogPost.create({
       data: {
         title_en: titleEn,
-        title_ar: body.titleAr || null,
+        title_ar: body.titleAr || titleEn,
         excerpt_en: body.excerptEn || null,
         excerpt_ar: body.excerptAr || null,
         content_en: contentEn,
-        content_ar: body.bodyAr || null,
+        content_ar: body.bodyAr || contentEn,
         meta_title_en: body.metaTitleEn || titleEn.substring(0, 60),
         meta_description_en: body.metaDescriptionEn || "",
         meta_title_ar: body.metaTitleAr || null,
@@ -193,7 +215,7 @@ async function handlePost(request: NextRequest) {
       await prisma.topicProposal.updateMany({
         where: { id: body.topicId },
         data: { status: "published" },
-      }).catch(() => {});
+      }).catch((e: unknown) => console.warn("[ai-generate] Topic status update failed:", e));
     }
 
     // Submit to IndexNow
@@ -267,14 +289,14 @@ async function pickTopic(language: string, siteId: string): Promise<TopicInfo> {
 
   // Fallback: site config templates
   const { getSiteConfig } = await import("@/config/sites");
-  const site = getSiteConfig(siteId);
-  if (!site) return { id: null, keyword: "", longtails: [], questions: [], pageType: "guide" };
+  const siteConfig = getSiteConfig(siteId);
+  if (!siteConfig) return { id: null, keyword: "", longtails: [], questions: [], pageType: "guide" };
 
-  const templates = language === "en" ? site.topicsEN : site.topicsAR;
+  const templates = language === "en" ? siteConfig.topicsEN : siteConfig.topicsAR;
   if (!templates || templates.length === 0) return { id: null, keyword: "", longtails: [], questions: [], pageType: "guide" };
 
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000);
-  const t = templates[dayOfYear % templates.length] as Record<string, unknown>;
+  const t = templates[dayOfYear % templates.length] as unknown as Record<string, unknown>;
   return {
     id: null,
     keyword: (t.keyword as string) || "",
@@ -291,6 +313,8 @@ async function generateArticle(
 ) {
   const { generateJSON } = await import("@/lib/ai/provider");
 
+  const contentType = CONTENT_TYPES[topic.pageType] || CONTENT_TYPES.guide;
+
   const baseSystemPrompt = language === "en" ? site.systemPromptEN : site.systemPromptAR;
   const systemPrompt = `${baseSystemPrompt}
 
@@ -302,28 +326,27 @@ CONTENT QUALITY REQUIREMENTS:
 - NEVER use these AI-generic phrases: "nestled in the heart of", "whether you're a", "look no further", "in conclusion", "it's worth noting"
 - Vary sentence length: mix short punchy sentences with longer descriptive ones`;
 
-  const prompt = language === "en"
-    ? `Write a comprehensive, SEO-optimized blog article about "${topic.keyword}" for ${site.name}, targeting Arab travelers visiting ${site.destination}.
+  const typeGuidelines = language === "en"
+    ? contentType.promptGuidelinesEN
+    : contentType.promptGuidelinesAR;
 
-Content Requirements (mandatory):
-- 1,500–2,000 words minimum
-- Include practical tips, insider advice, luxury recommendations
-- Focus keyword "${topic.keyword}" in title, first paragraph, one H2
-- Secondary keywords: ${topic.longtails.join(", ") || "none"}
+  const filledGuidelines = typeGuidelines
+    .replace(/\{keyword\}/g, topic.keyword)
+    .replace(/\{siteName\}/g, site.name)
+    .replace(/\{destination\}/g, site.destination);
+
+  const jsonSpec = language === "en"
+    ? `
+
+Secondary keywords: ${topic.longtails.join(", ") || "none"}
 ${topic.questions.length ? `\nAnswer these questions (use as headings):\n${topic.questions.map(q => `- ${q}`).join("\n")}` : ""}
-
-Structure:
-- 4–6 H2 headings, H3 subheadings where appropriate
-- 3+ internal links to /blog/*, /hotels, /experiences, /restaurants
-- 2+ affiliate/booking links (HalalBooking, Booking.com, GetYourGuide, Viator)
-- "Key Takeaways" section + clear CTA at the end
 
 Return JSON:
 {
   "title": "Title with keyword (50-60 chars)",
   "titleTranslation": "Arabic title",
-  "body": "Full HTML (h2,h3,p,ul/ol,a). MINIMUM 1,500 words.",
-  "bodyTranslation": "Full Arabic HTML translation (1,000+ words)",
+  "body": "Full HTML (h2,h3,p,ul/ol,a). MINIMUM ${contentType.minWords} words.",
+  "bodyTranslation": "Full Arabic HTML translation",
   "excerpt": "Excerpt (120-160 chars)",
   "excerptTranslation": "Arabic excerpt",
   "metaTitle": "SEO title (50-60 chars)",
@@ -336,16 +359,14 @@ Return JSON:
   "pageType": "${topic.pageType}",
   "seoScore": 90
 }`
-    : `اكتب مقالة شاملة عن "${topic.keyword}" لمنصة ${site.name}، تستهدف المسافرين العرب.
-
-المتطلبات: 1,500+ كلمة، نصائح عملية، روابط داخلية 3+، روابط حجز 2+.
+    : `
 
 أرجع JSON:
 {
   "title": "عنوان (50-60 حرف)",
   "titleTranslation": "English title",
-  "body": "HTML كامل (1,500+ كلمة)",
-  "bodyTranslation": "Full English translation (1,000+ words)",
+  "body": "HTML كامل (${contentType.minWords}+ كلمة)",
+  "bodyTranslation": "Full English translation",
   "excerpt": "مقتطف (120-160 حرف)",
   "excerptTranslation": "English excerpt",
   "metaTitle": "عنوان SEO (50-60 حرف)",
@@ -358,6 +379,8 @@ Return JSON:
   "pageType": "${topic.pageType}",
   "seoScore": 90
 }`;
+
+  const prompt = filledGuidelines + jsonSpec;
 
   const result = await generateJSON<Record<string, unknown>>(prompt, {
     systemPrompt,

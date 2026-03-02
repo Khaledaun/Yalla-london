@@ -2,15 +2,20 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Bulk Article Generator API
+ * Bulk Article Generator API — Multi-Phased
  *
- * POST — Generates multiple articles in a pipeline:
- *         generate → audit → fix → queue → publish → submit
+ * POST — Generates multiple articles in a pipeline with timeout protection.
+ *
+ * Multi-phase design for Vercel 60s limit:
+ *   Phase 1 (start):   Claims topics, generates as many articles as budget allows
+ *   Phase 2 (continue): Continues generating remaining articles from a run
+ *   Phase 3 (publish_all): Publishes all ready articles
  *
  * Actions:
- *   - start       — Kicks off a bulk generation run (returns runId)
- *   - status      — Returns current progress for a runId
- *   - publish_all — Publishes all generated articles from a run
+ *   - start        — Kicks off a bulk generation run (returns runId + partial results)
+ *   - continue     — Continues generating remaining articles from a prior run
+ *   - status       — Returns current progress for a runId
+ *   - publish_all  — Publishes all generated articles from a run
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -20,6 +25,7 @@ interface BulkArticle {
   index: number;
   keyword: string;
   topicId: string | null;
+  pageType: string;
   status: "pending" | "generating" | "generated" | "auditing" | "fixing" | "ready" | "publishing" | "published" | "failed";
   error?: string;
   content?: Record<string, unknown>;
@@ -29,16 +35,23 @@ interface BulkArticle {
   blogPostId?: string;
 }
 
-// In-memory run state (survives within a single serverless invocation)
-// For cross-request persistence, we write to CronJobLog
-const activeRuns = new Map<string, {
+interface RunState {
   siteId: string;
   language: string;
+  autoPublish: boolean;
   total: number;
   articles: BulkArticle[];
   startedAt: number;
   completedAt?: number;
-}>();
+  phasesCompleted: number;
+}
+
+// In-memory run state (survives within a single serverless invocation)
+// For cross-invocation persistence, we write to CronJobLog
+const activeRuns = new Map<string, RunState>();
+
+const BUDGET_MS = 50_000; // 50s budget, leaving 10s for CronJobLog write + response
+const PER_ARTICLE_ESTIMATE_MS = 20_000; // ~20s per article generation
 
 async function handlePost(request: NextRequest) {
   const body = await request.json();
@@ -53,26 +66,702 @@ async function handlePost(request: NextRequest) {
 
   // ─── STATUS ──────────────────────────────────────────────────────────────
   if (action === "status") {
-    const runId = body.runId;
-    if (!runId) {
-      return NextResponse.json({ success: false, error: "runId required" }, { status: 400 });
-    }
+    return handleStatus(body, siteId);
+  }
 
-    // Check in-memory first
-    const run = activeRuns.get(runId);
-    if (run) {
-      return NextResponse.json({
-        success: true,
-        runId,
-        siteId: run.siteId,
-        total: run.total,
-        completed: run.articles.filter(a => ["published", "ready", "failed"].includes(a.status)).length,
-        articles: run.articles,
-        done: run.completedAt != null,
+  // ─── CONTINUE ────────────────────────────────────────────────────────────
+  if (action === "continue") {
+    return handleContinue(body, request, site, siteId);
+  }
+
+  // ─── START ───────────────────────────────────────────────────────────────
+  if (action === "start") {
+    return handleStart(body, request, site, siteId);
+  }
+
+  // ─── PUBLISH_ALL ─────────────────────────────────────────────────────────
+  if (action === "publish_all") {
+    return handlePublishAll(body, request, siteId, getSiteDomain);
+  }
+
+  return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 });
+}
+
+// ─── STATUS Handler ──────────────────────────────────────────────────────────
+
+async function handleStatus(body: Record<string, unknown>, siteId: string) {
+  const runId = body.runId as string;
+  if (!runId) {
+    return NextResponse.json({ success: false, error: "runId required" }, { status: 400 });
+  }
+
+  // Check in-memory first
+  const run = activeRuns.get(runId);
+  if (run) {
+    const pending = run.articles.filter(a => a.status === "pending").length;
+    return NextResponse.json({
+      success: true,
+      runId,
+      siteId: run.siteId,
+      language: run.language,
+      total: run.total,
+      completed: run.articles.filter(a => ["published", "ready", "failed"].includes(a.status)).length,
+      pending,
+      needsContinuation: pending > 0 && !run.completedAt,
+      articles: run.articles,
+      phasesCompleted: run.phasesCompleted,
+      done: run.completedAt != null,
+    });
+  }
+
+  // Check DB log
+  const { prisma } = await import("@/lib/db");
+  const recentLogs = await prisma.cronJobLog.findMany({
+    where: { job_name: "bulk-generate" },
+    orderBy: { completed_at: "desc" },
+    take: 20,
+  });
+
+  const log = recentLogs.find(l => {
+    const summary = l.result_summary as Record<string, unknown> | null;
+    return summary?.runId === runId;
+  });
+
+  if (log) {
+    const summary = log.result_summary as Record<string, unknown> | null;
+    const logArticles = (summary?.articles as BulkArticle[]) || [];
+    const pending = logArticles.filter(a => a.status === "pending").length;
+    return NextResponse.json({
+      success: true,
+      runId,
+      siteId: (summary?.siteId as string) || siteId,
+      language: (summary?.language as string) || "en",
+      total: (summary?.total as number) || 0,
+      completed: (summary?.completed as number) || 0,
+      pending,
+      needsContinuation: pending > 0,
+      articles: logArticles,
+      phasesCompleted: (summary?.phasesCompleted as number) || 1,
+      done: pending === 0,
+    });
+  }
+
+  return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
+}
+
+// ─── START Handler ───────────────────────────────────────────────────────────
+
+async function handleStart(
+  body: Record<string, unknown>,
+  request: NextRequest,
+  site: { id: string; name: string; destination: string; systemPromptEN: string; systemPromptAR: string },
+  siteId: string,
+) {
+  const language: "en" | "ar" = (body.language as "en" | "ar") || "en";
+  const count = Math.min(Math.max((body.count as number) || 1, 1), 20); // 1-20 articles
+  const topicSource: "auto" | "manual" = (body.topicSource as "auto" | "manual") || "auto";
+  const manualKeywords: string[] = (body.keywords as string[]) || [];
+  const pageType = (body.pageType as string) || "guide";
+  const autoPublish = body.autoPublish !== false;
+
+  const runId = `bulk-${siteId}-${Date.now()}`;
+  const startTime = Date.now();
+
+  // Build topic list
+  const articles: BulkArticle[] = [];
+
+  if (topicSource === "manual" && manualKeywords.length > 0) {
+    for (let i = 0; i < Math.min(manualKeywords.length, count); i++) {
+      articles.push({
+        index: i,
+        keyword: manualKeywords[i].trim(),
+        topicId: null,
+        pageType,
+        status: "pending",
       });
     }
+  } else {
+    const { prisma } = await import("@/lib/db");
+    const candidates = await prisma.topicProposal.findMany({
+      where: {
+        status: { in: ["ready", "queued", "planned", "proposed"] },
+        locale: language,
+        site_id: siteId,
+      },
+      orderBy: [{ confidence_score: "desc" }, { created_at: "asc" }],
+      take: count,
+    });
 
-    // Check DB log — search by job_name and match runId in result_summary JSON
+    if (candidates.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: "No topics available. Generate topics first (Sites tab → Gen Topics), or use manual keywords.",
+      }, { status: 404 });
+    }
+
+    // Claim topics atomically
+    for (let i = 0; i < candidates.length; i++) {
+      const c = candidates[i];
+      const claimed = await prisma.topicProposal.updateMany({
+        where: { id: c.id, status: { in: ["ready", "queued", "planned", "proposed"] } },
+        data: { status: "generating", updated_at: new Date() },
+      });
+
+      if (claimed.count > 0) {
+        articles.push({
+          index: i,
+          keyword: c.primary_keyword,
+          topicId: c.id,
+          pageType: c.suggested_page_type || pageType,
+          status: "pending",
+        });
+      }
+    }
+
+    if (articles.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: "All available topics are already being processed.",
+      }, { status: 409 });
+    }
+  }
+
+  // Store run state
+  const runState: RunState = {
+    siteId,
+    language,
+    autoPublish,
+    total: articles.length,
+    articles,
+    startedAt: startTime,
+    phasesCompleted: 0,
+  };
+  activeRuns.set(runId, runState);
+
+  // Process as many articles as budget allows
+  await processArticles(runState, site, siteId, startTime, request);
+
+  // Persist to CronJobLog
+  await persistRunState(runId, runState, siteId, startTime);
+
+  const pending = runState.articles.filter(a => a.status === "pending").length;
+  const generated = runState.articles.filter(a => ["generated", "ready", "published"].includes(a.status)).length;
+  const published = runState.articles.filter(a => a.status === "published").length;
+  const failed = runState.articles.filter(a => a.status === "failed").length;
+
+  return NextResponse.json({
+    success: true,
+    runId,
+    total: articles.length,
+    generated,
+    published,
+    failed,
+    pending,
+    needsContinuation: pending > 0,
+    phasesCompleted: runState.phasesCompleted,
+    articles: articles.map(a => ({
+      index: a.index,
+      keyword: a.keyword,
+      pageType: a.pageType,
+      status: a.status,
+      wordCount: a.wordCount,
+      seoScore: a.seoScore,
+      slug: a.slug,
+      blogPostId: a.blogPostId,
+      error: a.error,
+    })),
+    elapsed: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
+    message: pending > 0
+      ? `Phase 1 complete: ${generated} generated, ${pending} remaining. Tap "Continue" to generate the rest.`
+      : `All ${articles.length} articles processed.`,
+  });
+}
+
+// ─── CONTINUE Handler ────────────────────────────────────────────────────────
+
+async function handleContinue(
+  body: Record<string, unknown>,
+  request: NextRequest,
+  site: { id: string; name: string; destination: string; systemPromptEN: string; systemPromptAR: string },
+  siteId: string,
+) {
+  const runId = body.runId as string;
+  if (!runId) {
+    return NextResponse.json({ success: false, error: "runId required" }, { status: 400 });
+  }
+
+  let runState = activeRuns.get(runId);
+
+  // If not in memory, try to restore from CronJobLog
+  if (!runState) {
+    const restored = await restoreRunState(runId);
+    if (!restored) {
+      return NextResponse.json({ success: false, error: "Run not found or expired" }, { status: 404 });
+    }
+    runState = restored;
+    activeRuns.set(runId, runState);
+  }
+
+  const pending = runState.articles.filter(a => a.status === "pending").length;
+  if (pending === 0) {
+    return NextResponse.json({
+      success: true,
+      runId,
+      message: "All articles already processed",
+      needsContinuation: false,
+      articles: runState.articles.map(a => ({
+        index: a.index, keyword: a.keyword, pageType: a.pageType, status: a.status,
+        wordCount: a.wordCount, seoScore: a.seoScore, slug: a.slug, blogPostId: a.blogPostId, error: a.error,
+      })),
+    });
+  }
+
+  const startTime = Date.now();
+
+  // Continue processing
+  await processArticles(runState, site, siteId, startTime, request);
+  runState.phasesCompleted++;
+
+  // Persist updated state
+  await persistRunState(runId, runState, siteId, runState.startedAt);
+
+  const newPending = runState.articles.filter(a => a.status === "pending").length;
+  const generated = runState.articles.filter(a => ["generated", "ready", "published"].includes(a.status)).length;
+  const published = runState.articles.filter(a => a.status === "published").length;
+  const failed = runState.articles.filter(a => a.status === "failed").length;
+
+  return NextResponse.json({
+    success: true,
+    runId,
+    total: runState.total,
+    generated,
+    published,
+    failed,
+    pending: newPending,
+    needsContinuation: newPending > 0,
+    phasesCompleted: runState.phasesCompleted,
+    articles: runState.articles.map(a => ({
+      index: a.index, keyword: a.keyword, pageType: a.pageType, status: a.status,
+      wordCount: a.wordCount, seoScore: a.seoScore, slug: a.slug, blogPostId: a.blogPostId, error: a.error,
+    })),
+    elapsed: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
+    message: newPending > 0
+      ? `Phase ${runState.phasesCompleted} complete: ${generated} total generated, ${newPending} remaining.`
+      : `All ${runState.total} articles processed across ${runState.phasesCompleted} phases.`,
+  });
+}
+
+// ─── PUBLISH_ALL Handler ─────────────────────────────────────────────────────
+
+async function handlePublishAll(
+  body: Record<string, unknown>,
+  request: NextRequest,
+  siteId: string,
+  getSiteDomain: (id: string) => string,
+) {
+  const runId = body.runId as string;
+  const run = activeRuns.get(runId);
+  if (!run) {
+    return NextResponse.json({ success: false, error: "Run not found or expired" }, { status: 404 });
+  }
+
+  const readyArticles = run.articles.filter(a => a.status === "ready" && a.content);
+  if (readyArticles.length === 0) {
+    return NextResponse.json({ success: false, error: "No ready articles to publish" }, { status: 400 });
+  }
+
+  const { prisma } = await import("@/lib/db");
+  const startTime = Date.now();
+  let pubCount = 0;
+
+  for (const article of readyArticles) {
+    // Budget guard for publish_all
+    if (Date.now() - startTime > BUDGET_MS) {
+      article.error = "Budget exceeded — remaining articles not published";
+      break;
+    }
+
+    try {
+      const content = article.content!;
+      const titleEn = (content.title as string) || article.keyword;
+      const slug = titleEn
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .substring(0, 80);
+
+      // Check duplicate slug
+      const existing = await prisma.blogPost.findFirst({
+        where: { slug, siteId, deletedAt: null },
+      });
+      if (existing) {
+        article.error = `Slug "${slug}" already exists`;
+        continue;
+      }
+
+      // Get category + author
+      let categoryId: string | undefined;
+      const cat = await prisma.category.findFirst({ where: { slug: "general" } });
+      categoryId = cat?.id;
+      if (!categoryId) {
+        const newCat = await prisma.category.create({
+          data: { name_en: "General", name_ar: "عام", slug: "general" },
+        });
+        categoryId = newCat.id;
+      }
+
+      const adminUser = await prisma.user.findFirst({ where: { role: "admin" }, select: { id: true } });
+      const authorId = adminUser?.id || (await prisma.user.upsert({
+        where: { email: "system@zenitha.luxury" },
+        update: {},
+        create: { email: "system@zenitha.luxury", name: "Editorial Team", role: "admin" },
+      })).id;
+
+      const bodyHtml = (content.body as string) || "";
+
+      // CRITICAL: title_ar and content_ar are required non-nullable String fields
+      const blogPost = await prisma.blogPost.create({
+        data: {
+          title_en: titleEn,
+          title_ar: (content.titleTranslation as string) || titleEn,
+          excerpt_en: (content.excerpt as string) || null,
+          excerpt_ar: (content.excerptTranslation as string) || null,
+          content_en: bodyHtml,
+          content_ar: (content.bodyTranslation as string) || bodyHtml,
+          meta_title_en: (content.metaTitle as string) || titleEn.substring(0, 60),
+          meta_description_en: (content.metaDescription as string) || "",
+          meta_title_ar: (content.metaTitleTranslation as string) || null,
+          meta_description_ar: (content.metaDescriptionTranslation as string) || null,
+          slug,
+          tags: [...((content.tags as string[]) || []), "ai-generated", "bulk-generated", `site-${siteId}`],
+          published: true,
+          siteId,
+          category_id: categoryId,
+          author_id: authorId,
+          page_type: (content.pageType as string) || article.pageType,
+          seo_score: (content.seoScore as number) || 80,
+          keywords_json: (content.keywords as string[]) || [],
+          questions_json: (content.questions as string[]) || [],
+        },
+      });
+
+      article.blogPostId = blogPost.id;
+      article.slug = slug;
+      article.status = "published";
+      pubCount++;
+
+      // Mark topic as published
+      if (article.topicId) {
+        await prisma.topicProposal.updateMany({
+          where: { id: article.topicId },
+          data: { status: "published" },
+        }).catch((e: unknown) => console.warn("[bulk-generate] Topic status update failed:", e));
+      }
+
+      // Submit to IndexNow (fire-and-forget)
+      try {
+        const domain = getSiteDomain(siteId);
+        const articleUrl = `https://${domain}/blog/${slug}`;
+        const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+        submitToIndexNow([articleUrl]).catch((e: Error) =>
+          console.warn("[bulk-generate] IndexNow failed:", e.message)
+        );
+      } catch {
+        console.warn("[bulk-generate] IndexNow setup failed");
+      }
+    } catch (err) {
+      article.status = "failed";
+      article.error = `Publish failed: ${err instanceof Error ? err.message : "Unknown"}`;
+    }
+  }
+
+  return NextResponse.json({
+    success: true,
+    published: pubCount,
+    total: readyArticles.length,
+  });
+}
+
+// ─── Core Generation Logic ───────────────────────────────────────────────────
+
+async function processArticles(
+  runState: RunState,
+  site: { id: string; name: string; destination: string; systemPromptEN: string; systemPromptAR: string },
+  siteId: string,
+  phaseStartTime: number,
+  request: NextRequest,
+) {
+  const { generateJSON } = await import("@/lib/ai/provider");
+  const { CONTENT_TYPES } = await import("@/lib/content-automation/content-types");
+  const { getSiteDomain } = await import("@/config/sites");
+
+  const language = runState.language as "en" | "ar";
+  const baseSystemPrompt = language === "en"
+    ? site.systemPromptEN
+    : site.systemPromptAR;
+
+  const systemPrompt = `${baseSystemPrompt}
+
+CONTENT QUALITY REQUIREMENTS:
+- First-hand experience is the #1 ranking signal (Google Jan 2026 Authenticity Update)
+- Include sensory details: what you see, hear, smell, taste at specific locations
+- Add 2-3 "insider tips" per article — real advice a tourist guide would share
+- Include at least one honest limitation or "what most guides won't tell you" moment
+- NEVER use these AI-generic phrases: "nestled in the heart of", "whether you're a", "look no further", "in conclusion", "it's worth noting"
+- Vary sentence length: mix short punchy sentences with longer descriptive ones`;
+
+  const pendingArticles = runState.articles.filter(a => a.status === "pending");
+
+  for (const article of pendingArticles) {
+    // Budget check: need at least PER_ARTICLE_ESTIMATE_MS remaining
+    const elapsed = Date.now() - phaseStartTime;
+    if (elapsed > BUDGET_MS - PER_ARTICLE_ESTIMATE_MS) {
+      // Not enough time for another article — stop this phase
+      break;
+    }
+
+    // ── GENERATE ──
+    article.status = "generating";
+
+    try {
+      const contentType = CONTENT_TYPES[article.pageType] || CONTENT_TYPES.guide;
+      const prompt = buildPrompt(article.keyword, article.pageType, language, {
+        name: site.name,
+        destination: site.destination,
+      }, contentType);
+
+      const result = await generateJSON<Record<string, unknown>>(prompt, {
+        systemPrompt,
+        maxTokens: 6000,
+        temperature: 0.7,
+      });
+
+      const bodyHtml = (result.body as string) || (result.bodyTranslation as string) || "";
+      article.wordCount = countWords(bodyHtml);
+      article.seoScore = (result.seoScore as number) || 80;
+      article.content = result;
+      article.status = "generated";
+
+    } catch (err) {
+      article.status = "failed";
+      article.error = err instanceof Error ? err.message : "Generation failed";
+
+      // Revert topic
+      if (article.topicId) {
+        const { prisma } = await import("@/lib/db");
+        await prisma.topicProposal.updateMany({
+          where: { id: article.topicId, status: "generating" },
+          data: { status: "ready" },
+        }).catch((e: unknown) => console.warn("[bulk-generate] Topic revert failed:", e));
+      }
+      continue;
+    }
+
+    // ── AUDIT & FIX ──
+    article.status = "auditing";
+    const content = article.content!;
+    const contentType = CONTENT_TYPES[article.pageType] || CONTENT_TYPES.guide;
+
+    // Check word count against type-specific minimum
+    if (article.wordCount && article.wordCount < contentType.minWords * 0.5) {
+      article.status = "failed";
+      article.error = `Only ${article.wordCount} words — minimum for ${article.pageType} is ${contentType.minWords}`;
+      continue;
+    }
+
+    // Auto-fix: trim meta description if too long
+    article.status = "fixing";
+    const metaDesc = (content.metaDescription as string) || "";
+    if (metaDesc.length > 160) {
+      content.metaDescription = metaDesc.substring(0, 155).replace(/\s+\S*$/, "") + "…";
+    }
+    const metaTitle = (content.metaTitle as string) || "";
+    if (metaTitle.length > 60) {
+      content.metaTitle = metaTitle.substring(0, 57).replace(/\s+\S*$/, "") + "…";
+    }
+
+    article.status = "ready";
+
+    // ── AUTO-PUBLISH (if enabled and budget allows) ──
+    if (runState.autoPublish) {
+      const publishElapsed = Date.now() - phaseStartTime;
+      if (publishElapsed < BUDGET_MS - 5000) {
+        await publishArticle(article, content, siteId, getSiteDomain);
+      }
+    }
+  }
+
+  // Check if all articles are done
+  const stillPending = runState.articles.filter(a => a.status === "pending").length;
+  if (stillPending === 0) {
+    runState.completedAt = Date.now();
+  }
+  runState.phasesCompleted++;
+}
+
+// ─── Publish a single article ────────────────────────────────────────────────
+
+async function publishArticle(
+  article: BulkArticle,
+  content: Record<string, unknown>,
+  siteId: string,
+  getSiteDomain: (id: string) => string,
+) {
+  article.status = "publishing";
+
+  try {
+    const { prisma } = await import("@/lib/db");
+
+    const titleEn = (content.title as string) || article.keyword;
+    const slug = titleEn
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .substring(0, 80);
+
+    // Check duplicate slug
+    const existing = await prisma.blogPost.findFirst({
+      where: { slug, siteId, deletedAt: null },
+    });
+    if (existing) {
+      article.slug = slug;
+      article.status = "ready";
+      article.error = `Slug "${slug}" already exists — saved as ready`;
+      return;
+    }
+
+    // Get category + author
+    let categoryId: string | undefined;
+    const cat = await prisma.category.findFirst({ where: { slug: "general" } });
+    categoryId = cat?.id;
+    if (!categoryId) {
+      const newCat = await prisma.category.create({
+        data: { name_en: "General", name_ar: "عام", slug: "general" },
+      });
+      categoryId = newCat.id;
+    }
+
+    const adminUser = await prisma.user.findFirst({ where: { role: "admin" }, select: { id: true } });
+    const authorId = adminUser?.id || (await prisma.user.upsert({
+      where: { email: "system@zenitha.luxury" },
+      update: {},
+      create: { email: "system@zenitha.luxury", name: "Editorial Team", role: "admin" },
+    })).id;
+
+    const bodyHtml = (content.body as string) || "";
+
+    // CRITICAL: title_ar and content_ar are required non-nullable String fields
+    const blogPost = await prisma.blogPost.create({
+      data: {
+        title_en: titleEn,
+        title_ar: (content.titleTranslation as string) || titleEn,
+        excerpt_en: (content.excerpt as string) || null,
+        excerpt_ar: (content.excerptTranslation as string) || null,
+        content_en: bodyHtml,
+        content_ar: (content.bodyTranslation as string) || bodyHtml,
+        meta_title_en: (content.metaTitle as string) || titleEn.substring(0, 60),
+        meta_description_en: (content.metaDescription as string) || "",
+        meta_title_ar: (content.metaTitleTranslation as string) || null,
+        meta_description_ar: (content.metaDescriptionTranslation as string) || null,
+        slug,
+        tags: [...((content.tags as string[]) || []), "ai-generated", "bulk-generated", `site-${siteId}`],
+        published: true,
+        siteId,
+        category_id: categoryId,
+        author_id: authorId,
+        page_type: (content.pageType as string) || article.pageType,
+        seo_score: (content.seoScore as number) || 80,
+        keywords_json: (content.keywords as string[]) || [],
+        questions_json: (content.questions as string[]) || [],
+      },
+    });
+
+    article.blogPostId = blogPost.id;
+    article.slug = slug;
+    article.status = "published";
+
+    // Mark topic as published
+    if (article.topicId) {
+      await prisma.topicProposal.updateMany({
+        where: { id: article.topicId },
+        data: { status: "published" },
+      }).catch((e: unknown) => console.warn("[bulk-generate] Topic status update failed:", e));
+    }
+
+    // Submit to IndexNow (fire-and-forget)
+    try {
+      const domain = getSiteDomain(siteId);
+      const articleUrl = `https://${domain}/blog/${slug}`;
+      const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+      submitToIndexNow([articleUrl]).catch((e: Error) =>
+        console.warn("[bulk-generate] IndexNow failed:", e.message)
+      );
+    } catch {
+      console.warn("[bulk-generate] IndexNow setup failed");
+    }
+  } catch (err) {
+    article.status = "failed";
+    article.error = `Publish failed: ${err instanceof Error ? err.message : "Unknown"}`;
+  }
+}
+
+// ─── Persistence ─────────────────────────────────────────────────────────────
+
+async function persistRunState(runId: string, runState: RunState, siteId: string, startTime: number) {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const generated = runState.articles.filter(a => ["generated", "ready", "published"].includes(a.status)).length;
+    const published = runState.articles.filter(a => a.status === "published").length;
+    const failed = runState.articles.filter(a => a.status === "failed").length;
+
+    await prisma.cronJobLog.create({
+      data: {
+        job_name: "bulk-generate",
+        job_type: "manual",
+        status: failed === runState.articles.length ? "failed" : "completed",
+        site_id: siteId,
+        started_at: new Date(startTime),
+        completed_at: new Date(),
+        duration_ms: Date.now() - startTime,
+        items_processed: runState.articles.length,
+        items_succeeded: generated,
+        items_failed: failed,
+        result_summary: {
+          runId,
+          siteId,
+          language: runState.language,
+          autoPublish: runState.autoPublish,
+          total: runState.articles.length,
+          generated,
+          published,
+          failed,
+          completed: generated + failed,
+          phasesCompleted: runState.phasesCompleted,
+          articles: runState.articles.map(a => ({
+            index: a.index,
+            keyword: a.keyword,
+            topicId: a.topicId,
+            pageType: a.pageType,
+            status: a.status,
+            wordCount: a.wordCount,
+            seoScore: a.seoScore,
+            slug: a.slug,
+            blogPostId: a.blogPostId,
+            error: a.error,
+            // Don't persist full content — too large for JSON field
+          })),
+        },
+      },
+    });
+  } catch (e) {
+    console.warn("[bulk-generate] CronJobLog write failed:", e);
+  }
+}
+
+async function restoreRunState(runId: string): Promise<RunState | null> {
+  try {
     const { prisma } = await import("@/lib/db");
     const recentLogs = await prisma.cronJobLog.findMany({
       where: { job_name: "bulk-generate" },
@@ -85,424 +774,23 @@ async function handlePost(request: NextRequest) {
       return summary?.runId === runId;
     });
 
-    if (log) {
-      const summary = log.result_summary as Record<string, unknown> | null;
-      const logArticles = (summary?.articles as BulkArticle[]) || [];
-      return NextResponse.json({
-        success: true,
-        runId,
-        siteId: (summary?.siteId as string) || siteId,
-        total: (summary?.total as number) || 0,
-        completed: (summary?.completed as number) || 0,
-        articles: logArticles,
-        done: true,
-      });
-    }
+    if (!log) return null;
 
-    return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
-  }
+    const summary = log.result_summary as Record<string, unknown>;
+    const articles = (summary.articles as BulkArticle[]) || [];
 
-  // ─── START ───────────────────────────────────────────────────────────────
-  if (action === "start") {
-    const language: "en" | "ar" = body.language || "en";
-    const count = Math.min(Math.max(body.count || 1, 1), 10); // 1-10 articles
-    const topicSource: "auto" | "manual" = body.topicSource || "auto";
-    const manualKeywords: string[] = body.keywords || [];
-    const pageType = body.pageType || "guide";
-    const autoPublish = body.autoPublish !== false;
-
-    const runId = `bulk-${siteId}-${Date.now()}`;
-    const BUDGET_MS = 53_000;
-    const startTime = Date.now();
-
-    // Build topic list
-    const articles: BulkArticle[] = [];
-
-    if (topicSource === "manual" && manualKeywords.length > 0) {
-      // Manual keywords
-      for (let i = 0; i < Math.min(manualKeywords.length, count); i++) {
-        articles.push({
-          index: i,
-          keyword: manualKeywords[i].trim(),
-          topicId: null,
-          status: "pending",
-        });
-      }
-    } else {
-      // Auto-pick topics from DB
-      const { prisma } = await import("@/lib/db");
-      const candidates = await prisma.topicProposal.findMany({
-        where: {
-          status: { in: ["ready", "queued", "planned", "proposed"] },
-          locale: language,
-          site_id: siteId,
-        },
-        orderBy: [{ confidence_score: "desc" }, { created_at: "asc" }],
-        take: count,
-      });
-
-      if (candidates.length === 0) {
-        return NextResponse.json({
-          success: false,
-          error: "No topics available. Generate topics first (Sites tab → Gen Topics), or use manual keywords.",
-        }, { status: 404 });
-      }
-
-      // Claim topics atomically
-      for (let i = 0; i < candidates.length; i++) {
-        const c = candidates[i];
-        const claimed = await prisma.topicProposal.updateMany({
-          where: { id: c.id, status: { in: ["ready", "queued", "planned", "proposed"] } },
-          data: { status: "generating", updated_at: new Date() },
-        });
-
-        if (claimed.count > 0) {
-          articles.push({
-            index: i,
-            keyword: c.primary_keyword,
-            topicId: c.id,
-            status: "pending",
-          });
-        }
-      }
-
-      if (articles.length === 0) {
-        return NextResponse.json({
-          success: false,
-          error: "All available topics are already being processed.",
-        }, { status: 409 });
-      }
-    }
-
-    // Store run
-    activeRuns.set(runId, {
-      siteId,
-      language,
-      total: articles.length,
+    return {
+      siteId: (summary.siteId as string) || "",
+      language: (summary.language as string) || "en",
+      autoPublish: (summary.autoPublish as boolean) ?? true,
+      total: (summary.total as number) || 0,
       articles,
-      startedAt: startTime,
-    });
-
-    // Process articles sequentially with budget guard
-    const { generateJSON } = await import("@/lib/ai/provider");
-
-    const baseSystemPrompt = language === "en" ? site.systemPromptEN : site.systemPromptAR;
-    const systemPrompt = `${baseSystemPrompt}
-
-CONTENT QUALITY REQUIREMENTS:
-- First-hand experience is the #1 ranking signal (Google Jan 2026 Authenticity Update)
-- Include sensory details: what you see, hear, smell, taste at specific locations
-- Add 2-3 "insider tips" per article — real advice a tourist guide would share
-- Include at least one honest limitation or "what most guides won't tell you" moment
-- NEVER use these AI-generic phrases: "nestled in the heart of", "whether you're a", "look no further", "in conclusion", "it's worth noting"
-- Vary sentence length: mix short punchy sentences with longer descriptive ones`;
-
-    let generated = 0;
-    let published = 0;
-    let failed = 0;
-
-    for (const article of articles) {
-      // Budget check
-      if (Date.now() - startTime > BUDGET_MS) {
-        article.status = "failed";
-        article.error = "Budget exceeded — try generating fewer articles";
-        failed++;
-        continue;
-      }
-
-      // ── GENERATE ──
-      article.status = "generating";
-
-      try {
-        const prompt = buildPrompt(article.keyword, pageType, language, site, []);
-
-        const result = await generateJSON<Record<string, unknown>>(prompt, {
-          systemPrompt,
-          maxTokens: 6000,
-          temperature: 0.7,
-        });
-
-        const body_html = (result.body as string) || (result.bodyTranslation as string) || "";
-        article.wordCount = countWords(body_html);
-        article.seoScore = (result.seoScore as number) || 80;
-        article.content = result;
-        article.status = "generated";
-        generated++;
-
-      } catch (err) {
-        article.status = "failed";
-        article.error = err instanceof Error ? err.message : "Generation failed";
-        failed++;
-
-        // Revert topic
-        if (article.topicId) {
-          const { prisma } = await import("@/lib/db");
-          await prisma.topicProposal.updateMany({
-            where: { id: article.topicId, status: "generating" },
-            data: { status: "ready" },
-          }).catch(() => {});
-        }
-        continue;
-      }
-
-      // ── AUDIT & FIX (inline checks) ──
-      article.status = "auditing";
-      const content = article.content!;
-      const bodyHtml = (content.body as string) || "";
-
-      // Check word count
-      if (article.wordCount && article.wordCount < 300) {
-        article.status = "failed";
-        article.error = `Only ${article.wordCount} words — minimum is 300`;
-        failed++;
-        generated--;
-        continue;
-      }
-
-      // Auto-fix: trim meta description if too long
-      article.status = "fixing";
-      const metaDesc = (content.metaDescription as string) || "";
-      if (metaDesc.length > 160) {
-        content.metaDescription = metaDesc.substring(0, 155).replace(/\s+\S*$/, "") + "…";
-      }
-      const metaTitle = (content.metaTitle as string) || "";
-      if (metaTitle.length > 60) {
-        content.metaTitle = metaTitle.substring(0, 57).replace(/\s+\S*$/, "") + "…";
-      }
-
-      article.status = "ready";
-
-      // ── PUBLISH ──
-      if (autoPublish && Date.now() - startTime < BUDGET_MS) {
-        article.status = "publishing";
-
-        try {
-          const { prisma } = await import("@/lib/db");
-
-          const titleEn = (content.title as string) || article.keyword;
-          const slug = titleEn
-            .toLowerCase()
-            .replace(/[^a-z0-9\s-]/g, "")
-            .replace(/\s+/g, "-")
-            .replace(/-+/g, "-")
-            .substring(0, 80);
-
-          // Check duplicate slug
-          const existing = await prisma.blogPost.findFirst({
-            where: { slug, siteId, deletedAt: null },
-          });
-          if (existing) {
-            article.slug = slug;
-            article.status = "ready";
-            article.error = `Slug "${slug}" already exists — saved as ready, not published`;
-            continue;
-          }
-
-          // Get category + author
-          let categoryId: string | undefined;
-          const cat = await prisma.category.findFirst({ where: { slug: "general" } });
-          categoryId = cat?.id;
-          if (!categoryId) {
-            const newCat = await prisma.category.create({
-              data: { name_en: "General", name_ar: "عام", slug: "general" },
-            });
-            categoryId = newCat.id;
-          }
-
-          const adminUser = await prisma.user.findFirst({ where: { role: "admin" }, select: { id: true } });
-          const authorId = adminUser?.id || (await prisma.user.upsert({
-            where: { email: "system@zenitha.luxury" },
-            update: {},
-            create: { email: "system@zenitha.luxury", name: "Editorial Team", role: "admin" },
-          })).id;
-
-          const blogPost = await prisma.blogPost.create({
-            data: {
-              title_en: titleEn,
-              title_ar: (content.titleTranslation as string) || null,
-              excerpt_en: (content.excerpt as string) || null,
-              excerpt_ar: (content.excerptTranslation as string) || null,
-              content_en: bodyHtml,
-              content_ar: (content.bodyTranslation as string) || null,
-              meta_title_en: (content.metaTitle as string) || titleEn.substring(0, 60),
-              meta_description_en: (content.metaDescription as string) || "",
-              meta_title_ar: (content.metaTitleTranslation as string) || null,
-              meta_description_ar: (content.metaDescriptionTranslation as string) || null,
-              slug,
-              tags: [...((content.tags as string[]) || []), "ai-generated", "bulk-generated", `site-${siteId}`],
-              published: true,
-              siteId,
-              category_id: categoryId,
-              author_id: authorId,
-              page_type: (content.pageType as string) || pageType,
-              seo_score: (content.seoScore as number) || 80,
-              keywords_json: (content.keywords as string[]) || [],
-              questions_json: (content.questions as string[]) || [],
-            },
-          });
-
-          article.blogPostId = blogPost.id;
-          article.slug = slug;
-          article.status = "published";
-          published++;
-
-          // Mark topic as published
-          if (article.topicId) {
-            await prisma.topicProposal.updateMany({
-              where: { id: article.topicId },
-              data: { status: "published" },
-            }).catch(() => {});
-          }
-
-          // Submit to IndexNow
-          try {
-            const domain = getSiteDomain(siteId);
-            const articleUrl = `https://${domain}/blog/${slug}`;
-            const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
-            submitToIndexNow([articleUrl]).catch((e: Error) =>
-              console.warn("[bulk-generate] IndexNow failed:", e.message)
-            );
-          } catch {
-            console.warn("[bulk-generate] IndexNow setup failed");
-          }
-
-        } catch (err) {
-          article.status = "failed";
-          article.error = `Publish failed: ${err instanceof Error ? err.message : "Unknown"}`;
-          failed++;
-          published--;
-        }
-      }
-    }
-
-    // Mark run as complete
-    const run = activeRuns.get(runId)!;
-    run.completedAt = Date.now();
-
-    // Log to CronJobLog for persistence
-    try {
-      const { prisma } = await import("@/lib/db");
-      const endTime = new Date();
-      await prisma.cronJobLog.create({
-        data: {
-          job_name: "bulk-generate",
-          job_type: "manual",
-          status: failed === articles.length ? "failed" : "completed",
-          site_id: siteId,
-          started_at: new Date(startTime),
-          completed_at: endTime,
-          duration_ms: Date.now() - startTime,
-          items_processed: articles.length,
-          items_succeeded: generated,
-          items_failed: failed,
-          result_summary: {
-            runId,
-            siteId,
-            language,
-            total: articles.length,
-            generated,
-            published,
-            failed,
-            completed: generated + failed,
-            articles: articles.map(a => ({
-              keyword: a.keyword,
-              status: a.status,
-              wordCount: a.wordCount,
-              seoScore: a.seoScore,
-              slug: a.slug,
-              blogPostId: a.blogPostId,
-              error: a.error,
-            })),
-          },
-        },
-      });
-    } catch (e) {
-      console.warn("[bulk-generate] CronJobLog write failed:", e);
-    }
-
-    return NextResponse.json({
-      success: true,
-      runId,
-      total: articles.length,
-      generated,
-      published,
-      failed,
-      articles: articles.map(a => ({
-        index: a.index,
-        keyword: a.keyword,
-        status: a.status,
-        wordCount: a.wordCount,
-        seoScore: a.seoScore,
-        slug: a.slug,
-        blogPostId: a.blogPostId,
-        error: a.error,
-      })),
-      elapsed: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
-    });
+      startedAt: log.started_at?.getTime() || Date.now(),
+      phasesCompleted: (summary.phasesCompleted as number) || 1,
+    };
+  } catch {
+    return null;
   }
-
-  // ─── PUBLISH_ALL ─────────────────────────────────────────────────────────
-  if (action === "publish_all") {
-    const runId = body.runId;
-    const run = activeRuns.get(runId);
-    if (!run) {
-      return NextResponse.json({ success: false, error: "Run not found or expired" }, { status: 404 });
-    }
-
-    const readyArticles = run.articles.filter(a => a.status === "ready" && a.content);
-    if (readyArticles.length === 0) {
-      return NextResponse.json({ success: false, error: "No ready articles to publish" }, { status: 400 });
-    }
-
-    let pubCount = 0;
-    for (const article of readyArticles) {
-      try {
-        const publishRes = await fetch(new URL("/api/admin/ai-generate", request.url), {
-          method: "POST",
-          headers: { "Content-Type": "application/json", cookie: request.headers.get("cookie") || "" },
-          body: JSON.stringify({
-            action: "publish",
-            siteId: run.siteId,
-            topicId: article.topicId,
-            titleEn: (article.content!.title as string) || article.keyword,
-            titleAr: (article.content!.titleTranslation as string) || null,
-            bodyEn: (article.content!.body as string) || "",
-            bodyAr: (article.content!.bodyTranslation as string) || null,
-            excerptEn: (article.content!.excerpt as string) || null,
-            excerptAr: (article.content!.excerptTranslation as string) || null,
-            metaTitleEn: (article.content!.metaTitle as string) || null,
-            metaTitleAr: (article.content!.metaTitleTranslation as string) || null,
-            metaDescriptionEn: (article.content!.metaDescription as string) || null,
-            metaDescriptionAr: (article.content!.metaDescriptionTranslation as string) || null,
-            tags: (article.content!.tags as string[]) || [],
-            keywords: (article.content!.keywords as string[]) || [],
-            questions: (article.content!.questions as string[]) || [],
-            pageType: (article.content!.pageType as string) || "guide",
-            seoScore: (article.content!.seoScore as number) || 80,
-          }),
-        });
-        const pubJson = await publishRes.json();
-        if (pubJson.success) {
-          article.status = "published";
-          article.slug = pubJson.slug;
-          article.blogPostId = pubJson.id;
-          pubCount++;
-        } else {
-          article.error = pubJson.error;
-        }
-      } catch (e) {
-        article.error = e instanceof Error ? e.message : "Publish failed";
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      published: pubCount,
-      total: readyArticles.length,
-    });
-  }
-
-  return NextResponse.json({ success: false, error: `Unknown action: ${action}` }, { status: 400 });
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -512,29 +800,26 @@ function buildPrompt(
   pageType: string,
   language: "en" | "ar",
   site: { name: string; destination: string },
-  longtails: string[],
+  contentType: { promptGuidelinesEN: string; promptGuidelinesAR: string; minWords: number },
 ): string {
-  if (language === "en") {
-    return `Write a comprehensive, SEO-optimized blog article about "${keyword}" for ${site.name}, targeting Arab travelers visiting ${site.destination}.
+  const guidelines = language === "en"
+    ? contentType.promptGuidelinesEN
+    : contentType.promptGuidelinesAR;
 
-Content Requirements (mandatory):
-- 1,500–2,000 words minimum
-- Include practical tips, insider advice, luxury recommendations
-- Focus keyword "${keyword}" in title, first paragraph, one H2
-- Secondary keywords: ${longtails.join(", ") || "none"}
+  const filled = guidelines
+    .replace(/\{keyword\}/g, keyword)
+    .replace(/\{siteName\}/g, site.name)
+    .replace(/\{destination\}/g, site.destination);
 
-Structure:
-- 4–6 H2 headings, H3 subheadings where appropriate
-- 3+ internal links to /blog/*, /hotels, /experiences, /restaurants
-- 2+ affiliate/booking links (HalalBooking, Booking.com, GetYourGuide, Viator)
-- "Key Takeaways" section + clear CTA at the end
+  const jsonSpec = language === "en"
+    ? `
 
 Return JSON:
 {
   "title": "Title with keyword (50-60 chars)",
   "titleTranslation": "Arabic title",
-  "body": "Full HTML (h2,h3,p,ul/ol,a). MINIMUM 1,500 words.",
-  "bodyTranslation": "Full Arabic HTML translation (1,000+ words)",
+  "body": "Full HTML (h2,h3,p,ul/ol,a). MINIMUM ${contentType.minWords} words.",
+  "bodyTranslation": "Full Arabic HTML translation",
   "excerpt": "Excerpt (120-160 chars)",
   "excerptTranslation": "Arabic excerpt",
   "metaTitle": "SEO title (50-60 chars)",
@@ -546,19 +831,15 @@ Return JSON:
   "questions": ["Q1?","Q2?","Q3?"],
   "pageType": "${pageType}",
   "seoScore": 90
-}`;
-  }
-
-  return `اكتب مقالة شاملة عن "${keyword}" لمنصة ${site.name}، تستهدف المسافرين العرب.
-
-المتطلبات: 1,500+ كلمة، نصائح عملية، روابط داخلية 3+، روابط حجز 2+.
+}`
+    : `
 
 أرجع JSON:
 {
   "title": "عنوان (50-60 حرف)",
   "titleTranslation": "English title",
-  "body": "HTML كامل (1,500+ كلمة)",
-  "bodyTranslation": "Full English translation (1,000+ words)",
+  "body": "HTML كامل (${contentType.minWords}+ كلمة)",
+  "bodyTranslation": "Full English translation",
   "excerpt": "مقتطف (120-160 حرف)",
   "excerptTranslation": "English excerpt",
   "metaTitle": "عنوان SEO (50-60 حرف)",
@@ -571,6 +852,8 @@ Return JSON:
   "pageType": "${pageType}",
   "seoScore": 90
 }`;
+
+  return filled + jsonSpec;
 }
 
 function countWords(html: string): number {

@@ -552,8 +552,8 @@ export async function GET(request: NextRequest) {
           article.gscPosition = perf.position;
         }
         // Attach trend data as extra fields (won't break existing interface — added to response)
-        (article as Record<string, unknown>).gscClicksTrend = trend?.clicksChangePercent ?? null;
-        (article as Record<string, unknown>).gscImpressionsTrend = trend?.impressionsChangePercent ?? null;
+        (article as unknown as Record<string, unknown>).gscClicksTrend = trend?.clicksChangePercent ?? null;
+        (article as unknown as Record<string, unknown>).gscImpressionsTrend = trend?.impressionsChangePercent ?? null;
       }
     } catch (err) {
       console.warn("[content-indexing] Failed to enrich with GSC performance data:", err instanceof Error ? err.message : String(err));

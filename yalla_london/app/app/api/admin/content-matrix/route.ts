@@ -447,8 +447,8 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
           item.gscImpressions = perf.impressions;
         }
         if (trend) {
-          (item as Record<string, unknown>).gscClicksTrend = trend.clicksChangePercent;
-          (item as Record<string, unknown>).gscImpressionsTrend = trend.impressionsChangePercent;
+          (item as unknown as Record<string, unknown>).gscClicksTrend = trend.clicksChangePercent;
+          (item as unknown as Record<string, unknown>).gscImpressionsTrend = trend.impressionsChangePercent;
         }
       }
     } catch (err) {

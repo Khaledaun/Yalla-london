@@ -113,14 +113,13 @@ export async function auditPage(
 ): Promise<PageAuditResult> {
   const apiKey = process.env.PAGESPEED_API_KEY || process.env.PSI_API_KEY;
 
-  const params = new URLSearchParams({
-    url,
-    strategy,
-    category: "PERFORMANCE",
-    category: "ACCESSIBILITY",
-    category: "BEST_PRACTICES",
-    category: "SEO",
-  });
+  const params = new URLSearchParams();
+  params.set("url", url);
+  params.set("strategy", strategy);
+  params.append("category", "PERFORMANCE");
+  params.append("category", "ACCESSIBILITY");
+  params.append("category", "BEST_PRACTICES");
+  params.append("category", "SEO");
   // URLSearchParams overwrites duplicate keys, so we build the URL manually
   const queryUrl = `${PSI_API_URL}?url=${encodeURIComponent(url)}&strategy=${strategy}&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO${apiKey ? `&key=${apiKey}` : ""}`;
 

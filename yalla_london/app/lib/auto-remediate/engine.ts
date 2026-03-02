@@ -448,10 +448,10 @@ Requirements:
       prompt,
       maxTokens: 300,
       taskType: "copywriting",
-    });
+    } as unknown as Parameters<typeof generateCompletion>[0]);
 
     // Parse response
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    const jsonMatch = (response as unknown as string).match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return { fixType: "arabic_meta_gen", targetId: blogPostId, success: false, before: {}, after: {}, error: "AI returned non-JSON" };
     }

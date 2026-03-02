@@ -51,7 +51,7 @@ interface RunState {
 const activeRuns = new Map<string, RunState>();
 
 const BUDGET_MS = 50_000; // 50s budget, leaving 10s for CronJobLog write + response
-const PER_ARTICLE_ESTIMATE_MS = 20_000; // ~20s per article generation
+const PER_ARTICLE_ESTIMATE_MS = 32_000; // Must exceed AI call timeout (30s) + overhead
 
 async function handlePost(request: NextRequest) {
   const body = await request.json();
@@ -162,7 +162,7 @@ async function handleStart(
   const topicSource: "auto" | "manual" = (body.topicSource as "auto" | "manual") || "auto";
   const manualKeywords: string[] = (body.keywords as string[]) || [];
   const pageType = (body.pageType as string) || "guide";
-  const autoPublish = body.autoPublish !== false;
+  const autoPublish = body.autoPublish === true; // Default OFF — require explicit opt-in
 
   const runId = `bulk-${siteId}-${Date.now()}`;
   const startTime = Date.now();
@@ -360,126 +360,59 @@ async function handlePublishAll(
   getSiteDomain: (id: string) => string,
 ) {
   const runId = body.runId as string;
-  const run = activeRuns.get(runId);
-  if (!run) {
-    return NextResponse.json({ success: false, error: "Run not found or expired" }, { status: 404 });
+  if (!runId) {
+    return NextResponse.json({ success: false, error: "runId required" }, { status: 400 });
   }
 
-  const readyArticles = run.articles.filter(a => a.status === "ready" && a.content);
-  if (readyArticles.length === 0) {
+  // Restore from memory or CronJobLog (same pattern as handleContinue)
+  let run = activeRuns.get(runId);
+  if (!run) {
+    const restored = await restoreRunState(runId);
+    if (!restored) {
+      return NextResponse.json({ success: false, error: "Run not found or expired" }, { status: 404 });
+    }
+    run = restored;
+    activeRuns.set(runId, run);
+  }
+
+  // "ready" articles with content in memory can be published directly.
+  // Articles restored from CronJobLog have content stripped — re-generate is required.
+  const readyWithContent = run.articles.filter(a => a.status === "ready" && a.content);
+  const readyWithoutContent = run.articles.filter(a => a.status === "ready" && !a.content);
+
+  if (readyWithContent.length === 0 && readyWithoutContent.length === 0) {
     return NextResponse.json({ success: false, error: "No ready articles to publish" }, { status: 400 });
+  }
+
+  if (readyWithContent.length === 0 && readyWithoutContent.length > 0) {
+    return NextResponse.json({
+      success: false,
+      error: `${readyWithoutContent.length} articles are ready but their content was lost (server restarted). Tap "Continue" to re-generate, then "Publish All".`,
+      needsRegeneration: true,
+      readyCount: readyWithoutContent.length,
+    }, { status: 409 });
   }
 
   const { prisma } = await import("@/lib/db");
   const startTime = Date.now();
   let pubCount = 0;
 
-  for (const article of readyArticles) {
+  for (const article of readyWithContent) {
     // Budget guard for publish_all
     if (Date.now() - startTime > BUDGET_MS) {
       article.error = "Budget exceeded — remaining articles not published";
       break;
     }
 
-    try {
-      const content = article.content!;
-      const titleEn = (content.title as string) || article.keyword;
-      const slug = titleEn
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-")
-        .substring(0, 80);
-
-      // Check duplicate slug
-      const existing = await prisma.blogPost.findFirst({
-        where: { slug, siteId, deletedAt: null },
-      });
-      if (existing) {
-        article.error = `Slug "${slug}" already exists`;
-        continue;
-      }
-
-      // Get category + author
-      let categoryId: string | undefined;
-      const cat = await prisma.category.findFirst({ where: { slug: "general" } });
-      categoryId = cat?.id;
-      if (!categoryId) {
-        const newCat = await prisma.category.create({
-          data: { name_en: "General", name_ar: "عام", slug: "general" },
-        });
-        categoryId = newCat.id;
-      }
-
-      const adminUser = await prisma.user.findFirst({ where: { role: "admin" }, select: { id: true } });
-      const authorId = adminUser?.id || (await prisma.user.upsert({
-        where: { email: "system@zenitha.luxury" },
-        update: {},
-        create: { email: "system@zenitha.luxury", name: "Editorial Team", role: "admin" },
-      })).id;
-
-      const bodyHtml = (content.body as string) || "";
-
-      // CRITICAL: title_ar and content_ar are required non-nullable String fields
-      const blogPost = await prisma.blogPost.create({
-        data: {
-          title_en: titleEn,
-          title_ar: (content.titleTranslation as string) || titleEn,
-          excerpt_en: (content.excerpt as string) || null,
-          excerpt_ar: (content.excerptTranslation as string) || null,
-          content_en: bodyHtml,
-          content_ar: (content.bodyTranslation as string) || bodyHtml,
-          meta_title_en: (content.metaTitle as string) || titleEn.substring(0, 60),
-          meta_description_en: (content.metaDescription as string) || "",
-          meta_title_ar: (content.metaTitleTranslation as string) || null,
-          meta_description_ar: (content.metaDescriptionTranslation as string) || null,
-          slug,
-          tags: [...((content.tags as string[]) || []), "ai-generated", "bulk-generated", `site-${siteId}`],
-          published: true,
-          siteId,
-          category_id: categoryId,
-          author_id: authorId,
-          page_type: (content.pageType as string) || article.pageType,
-          seo_score: (content.seoScore as number) || 80,
-          keywords_json: (content.keywords as string[]) || [],
-          questions_json: (content.questions as string[]) || [],
-        },
-      });
-
-      article.blogPostId = blogPost.id;
-      article.slug = slug;
-      article.status = "published";
-      pubCount++;
-
-      // Mark topic as published
-      if (article.topicId) {
-        await prisma.topicProposal.updateMany({
-          where: { id: article.topicId },
-          data: { status: "published" },
-        }).catch((e: unknown) => console.warn("[bulk-generate] Topic status update failed:", e));
-      }
-
-      // Submit to IndexNow (fire-and-forget)
-      try {
-        const domain = getSiteDomain(siteId);
-        const articleUrl = `https://${domain}/blog/${slug}`;
-        const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
-        submitToIndexNow([articleUrl]).catch((e: Error) =>
-          console.warn("[bulk-generate] IndexNow failed:", e.message)
-        );
-      } catch {
-        console.warn("[bulk-generate] IndexNow setup failed");
-      }
-    } catch (err) {
-      article.status = "failed";
-      article.error = `Publish failed: ${err instanceof Error ? err.message : "Unknown"}`;
-    }
+    await publishArticle(article, article.content!, siteId, getSiteDomain, prisma);
+    if (article.status === "published") pubCount++;
   }
 
   return NextResponse.json({
     success: true,
     published: pubCount,
-    total: readyArticles.length,
+    total: readyWithContent.length,
+    lostContent: readyWithoutContent.length,
   });
 }
 
@@ -563,8 +496,8 @@ CONTENT QUALITY REQUIREMENTS:
     const content = article.content!;
     const contentType = CONTENT_TYPES[article.pageType] || CONTENT_TYPES.guide;
 
-    // Check word count against type-specific minimum
-    if (article.wordCount && article.wordCount < contentType.minWords * 0.5) {
+    // Check word count against type-specific minimum (80% threshold — below this, content is too thin)
+    if (article.wordCount && article.wordCount < contentType.minWords * 0.8) {
       article.status = "failed";
       article.error = `Only ${article.wordCount} words — minimum for ${article.pageType} is ${contentType.minWords}`;
       continue;
@@ -586,7 +519,7 @@ CONTENT QUALITY REQUIREMENTS:
     // ── AUTO-PUBLISH (if enabled and budget allows) ──
     if (runState.autoPublish) {
       const publishElapsed = Date.now() - phaseStartTime;
-      if (publishElapsed < BUDGET_MS - 5000) {
+      if (publishElapsed < BUDGET_MS - 8000) { // 8s buffer for DB writes during publish
         await publishArticle(article, content, siteId, getSiteDomain);
       }
     }
@@ -607,30 +540,38 @@ async function publishArticle(
   content: Record<string, unknown>,
   siteId: string,
   getSiteDomain: (id: string) => string,
+  prismaInstance?: InstanceType<typeof import("@prisma/client").PrismaClient>,
 ) {
   article.status = "publishing";
 
   try {
-    const { prisma } = await import("@/lib/db");
+    const prisma = prismaInstance || (await import("@/lib/db")).prisma;
 
     const titleEn = (content.title as string) || article.keyword;
-    const slug = titleEn
+    let slug = titleEn
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, "")
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-")
       .substring(0, 80);
 
-    // Check duplicate slug
-    const existing = await prisma.blogPost.findFirst({
-      where: { slug, siteId, deletedAt: null },
-    });
-    if (existing) {
-      article.slug = slug;
-      article.status = "ready";
-      article.error = `Slug "${slug}" already exists — saved as ready`;
-      return;
+    // Slug dedup: append -2, -3, etc. if slug already exists (globally unique constraint)
+    let slugAttempt = slug;
+    let suffix = 1;
+    while (true) {
+      const existing = await prisma.blogPost.findFirst({
+        where: { slug: slugAttempt, deletedAt: null },
+      });
+      if (!existing) break;
+      suffix++;
+      slugAttempt = `${slug.substring(0, 76)}-${suffix}`;
+      if (suffix > 10) {
+        article.status = "failed";
+        article.error = `Slug "${slug}" has 10+ duplicates — skipping`;
+        return;
+      }
     }
+    slug = slugAttempt;
 
     // Get category + author
     let categoryId: string | undefined;
@@ -672,7 +613,7 @@ async function publishArticle(
         category_id: categoryId,
         author_id: authorId,
         page_type: (content.pageType as string) || article.pageType,
-        seo_score: (content.seoScore as number) || 80,
+        seo_score: (content.seoScore as number) || 65, // Conservative default — don't inflate scores
         keywords_json: (content.keywords as string[]) || [],
         questions_json: (content.questions as string[]) || [],
       },

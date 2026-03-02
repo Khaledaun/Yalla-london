@@ -134,22 +134,29 @@ async function handlePost(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Title is required" }, { status: 400 });
     }
 
-    const slug = body.slug || titleEn
+    let slug = body.slug || titleEn
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, "")
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-")
       .substring(0, 80);
 
-    // Check duplicate slug
-    const existing = await prisma.blogPost.findFirst({
-      where: { slug, siteId, deletedAt: null },
-    });
-    if (existing) {
-      return NextResponse.json({
-        success: false,
-        error: `An article with slug "${slug}" already exists. Change the title.`,
-      }, { status: 409 });
+    // Slug dedup: append -2, -3, etc. if slug already exists (globally unique constraint)
+    const baseSlug = slug;
+    let suffix = 1;
+    while (true) {
+      const existing = await prisma.blogPost.findFirst({
+        where: { slug, deletedAt: null },
+      });
+      if (!existing) break;
+      suffix++;
+      slug = `${baseSlug.substring(0, 76)}-${suffix}`;
+      if (suffix > 10) {
+        return NextResponse.json({
+          success: false,
+          error: `Slug "${baseSlug}" has 10+ duplicates. Use a more unique title.`,
+        }, { status: 409 });
+      }
     }
 
     // Get or create category + author
@@ -176,10 +183,14 @@ async function handlePost(request: NextRequest) {
     const contentEn = body.bodyEn || "";
     const wordCount = countWords(contentEn);
 
-    if (shouldPublish && wordCount < 300) {
+    // Use type-specific word count threshold
+    const { getThresholdsForPageType } = await import("@/lib/seo/standards");
+    const thresholds = getThresholdsForPageType(body.pageType || "guide");
+
+    if (shouldPublish && wordCount < thresholds.thinContentThreshold) {
       return NextResponse.json({
         success: false,
-        error: `Article is only ${wordCount} words. Need 300+ to publish.`,
+        error: `Article is only ${wordCount} words. Need ${thresholds.thinContentThreshold}+ to publish (type: ${body.pageType || "guide"}).`,
       }, { status: 400 });
     }
 
@@ -204,7 +215,7 @@ async function handlePost(request: NextRequest) {
         category_id: categoryId,
         author_id: authorId,
         page_type: body.pageType || "guide",
-        seo_score: body.seoScore || 80,
+        seo_score: body.seoScore || 65, // Conservative default — don't inflate scores
         keywords_json: body.keywords || [],
         questions_json: body.questions || [],
       },

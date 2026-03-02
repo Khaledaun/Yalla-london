@@ -2572,24 +2572,6 @@ model CronJobLog {
   @@map("cron_job_logs")
 }
 
-// Per-page daily GSC Search Analytics snapshots — tracks clicks, impressions, CTR, position
-model GscPagePerformance {
-  id            String   @id @default(cuid())
-  site_id       String
-  url           String
-  date          DateTime @db.Date
-  clicks        Int      @default(0)
-  impressions   Int      @default(0)
-  ctr           Float    @default(0)
-  position      Float    @default(0)
-  created_at    DateTime @default(now())
-
-  @@unique([site_id, url, date])
-  @@index([site_id, date])
-  @@index([site_id, url])
-  @@map("gsc_page_performance")
-}
-
 // Periodic site health snapshots — aggregated health metrics per site
 model SiteHealthCheck {
   id            String   @id @default(cuid())

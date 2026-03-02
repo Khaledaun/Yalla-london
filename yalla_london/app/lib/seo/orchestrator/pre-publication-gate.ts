@@ -44,6 +44,7 @@ export async function runPrePublicationGate(
     seo_score?: number;
     author_id?: string;
     keywords_json?: unknown;
+    page_type?: string;
   },
   siteUrl?: string,
   options?: {
@@ -58,11 +59,14 @@ export async function runPrePublicationGate(
   // ── Import SEO standards dynamically — single source of truth ──
   // When standards.ts is updated (e.g., after algorithm changes),
   // all enforcement thresholds in this gate update automatically.
-  const { CONTENT_QUALITY, EEAT_REQUIREMENTS, getThresholdsForUrl } = await import("@/lib/seo/standards");
+  const { CONTENT_QUALITY, EEAT_REQUIREMENTS, getThresholdsForUrl, getThresholdsForPageType } = await import("@/lib/seo/standards");
 
   // Per-content-type thresholds: news/information/guides have intentionally
-  // shorter content than blog posts. Use URL to detect type and select thresholds.
-  const typeThresholds = getThresholdsForUrl(targetUrl);
+  // shorter content than blog posts. Use page_type when available (more accurate
+  // than URL for /blog/ paths), fall back to URL-based detection.
+  const typeThresholds = content.page_type
+    ? getThresholdsForPageType(content.page_type)
+    : getThresholdsForUrl(targetUrl);
   const {
     metaTitleMin,
     metaTitleOptimal,

@@ -91,7 +91,7 @@ export default function BulkGeneratePage() {
           }
         }
       })
-      .catch(() => {});
+      .catch((e: unknown) => console.warn("[bulk-generate] Sites fetch failed:", e));
 
     // Fetch content types
     fetch("/api/admin/ai-generate", {
@@ -105,7 +105,7 @@ export default function BulkGeneratePage() {
           setContentTypes(data.types);
         }
       })
-      .catch(() => {});
+      .catch((e: unknown) => console.warn("[bulk-generate] Content types fetch failed:", e));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -298,7 +298,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Inspection-level issues — extract from stored inspection_result JSON
-        const inspectionResult = record?.inspection_result as Record<string, any> | null;
+        const inspectionResult = record?.inspection_result as unknown as Record<string, any> | null;
         if (inspectionResult) {
           // Verdict — Google's primary reason for not indexing
           if (inspectionResult.verdict && inspectionResult.verdict !== "PASS" && inspectionResult.verdict !== "NEUTRAL") {
@@ -360,7 +360,7 @@ export async function GET(request: NextRequest) {
           }
           // Raw result for deep inspection
           if (inspectionResult.rawResult) {
-            const raw = inspectionResult.rawResult as Record<string, any>;
+            const raw = inspectionResult.rawResult as unknown as Record<string, any>;
             const indexStatusResult = raw.indexStatusResult || {};
             // Extract any additional details from raw API response
             if (indexStatusResult.sitemap && Array.isArray(indexStatusResult.sitemap)) {
@@ -398,7 +398,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Extract GSC performance data from inspection_result JSON if available
-      const inspection = record?.inspection_result as Record<string, any> | null;
+      const inspection = record?.inspection_result as unknown as Record<string, any> | null;
       const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
       const gscClicks = typeof perfMetrics?.clicks === "number" ? perfMetrics.clicks : null;
       const gscImpressions = typeof perfMetrics?.impressions === "number" ? perfMetrics.impressions : null;
@@ -444,7 +444,7 @@ export async function GET(request: NextRequest) {
           else if (record.status === "submitted") indexingStatus = "submitted";
           else indexingStatus = "not_indexed";
         }
-        const inspection = record?.inspection_result as Record<string, any> | null;
+        const inspection = record?.inspection_result as unknown as Record<string, any> | null;
         const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
         const yachtContentType = yp.urlPrefix === "yachts" ? "yacht" as const
           : yp.urlPrefix === "destinations" ? "destination" as const
@@ -509,7 +509,7 @@ export async function GET(request: NextRequest) {
             else indexingStatus = "not_indexed";
           }
           const wordCount = newsItem.summary_en ? newsItem.summary_en.split(/\s+/).filter(Boolean).length : 0;
-          const inspection = record?.inspection_result as Record<string, any> | null;
+          const inspection = record?.inspection_result as unknown as Record<string, any> | null;
           const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
           articles.push({
             id: newsItem.id,
@@ -725,7 +725,7 @@ export async function GET(request: NextRequest) {
       });
 
       for (const report of recentSeoReports) {
-        const data = report.data as Record<string, any>;
+        const data = report.data as unknown as Record<string, any>;
         if (data?.indexingIssues && Array.isArray(data.indexingIssues)) {
           for (const issue of data.indexingIssues) {
             systemIssues.push({

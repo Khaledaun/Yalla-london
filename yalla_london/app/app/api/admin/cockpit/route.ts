@@ -88,6 +88,12 @@ interface IndexingStatus {
   dailyQuotaRemaining: number | null;
   chronicFailures: number;
   velocity7dPrevious: number;
+  // GSC Search Analytics totals (populated by gsc-sync cron)
+  gscTotalClicks7d: number;
+  gscTotalImpressions7d: number;
+  gscClicksTrend: number | null;
+  gscImpressionsTrend: number | null;
+  lastGscSync: string | null;
 }
 
 interface CronHealth {
@@ -432,6 +438,26 @@ async function buildIndexing(_prisma: any, activeSiteIds: string[]): Promise<Ind
     indexing.dailyQuotaRemaining = summary.dailyQuotaRemaining;
     indexing.chronicFailures = summary.chronicFailures;
     indexing.velocity7dPrevious = summary.velocity7dPrevious;
+
+    // ── GSC Search Analytics totals ──
+    try {
+      const { getPerformanceTrend, getLastGscSyncTime } = await import("@/lib/seo/gsc-trend-analysis");
+
+      const [siteTrend, lastSyncTime] = await Promise.all([
+        getPerformanceTrend(targetSiteId, "7d"),
+        getLastGscSyncTime(),
+      ]);
+
+      indexing.gscTotalClicks7d = siteTrend.totalClicks.current;
+      indexing.gscTotalImpressions7d = siteTrend.totalImpressions.current;
+      indexing.gscClicksTrend = siteTrend.totalClicks.changePercent;
+      indexing.gscImpressionsTrend = siteTrend.totalImpressions.changePercent;
+      indexing.lastGscSync = lastSyncTime
+        ? `${Math.round((Date.now() - lastSyncTime.getTime()) / 3600000)}h ago`
+        : null;
+    } catch (gscErr) {
+      console.warn("[cockpit] GSC trend query failed:", gscErr instanceof Error ? gscErr.message : gscErr);
+    }
   } catch (err) {
     console.warn("[cockpit] indexing query failed:", err instanceof Error ? err.message : err);
   }
@@ -727,6 +753,11 @@ function emptyIndexing(): IndexingStatus {
     dailyQuotaRemaining: null,
     chronicFailures: 0,
     velocity7dPrevious: 0,
+    gscTotalClicks7d: 0,
+    gscTotalImpressions7d: 0,
+    gscClicksTrend: null,
+    gscImpressionsTrend: null,
+    lastGscSync: null,
   };
 }
 

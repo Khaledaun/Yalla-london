@@ -172,16 +172,13 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
       });
       for (const row of indexingRows) {
         if (row.slug) {
-          // Extract GSC performance from inspection_result JSON
-          const inspection = row.inspection_result as Record<string, unknown> | null;
-          const perf = (inspection?.performanceMetrics || inspection?.performance) as Record<string, unknown> | null;
           indexingMap.set(row.slug, {
             status: row.status,
             coverageState: row.coverage_state ?? null,
             lastSubmittedAt: row.last_submitted_at,
             lastCrawledAt: row.last_crawled_at,
-            gscClicks: typeof perf?.clicks === "number" ? perf.clicks : null,
-            gscImpressions: typeof perf?.impressions === "number" ? perf.impressions : null,
+            gscClicks: null, // Enriched below from GscPagePerformance
+            gscImpressions: null,
           });
         }
       }
@@ -424,6 +421,39 @@ export const GET = withAdminAuth(async (req: NextRequest) => {
       rejected: items.filter((i) => i.status === "rejected").length,
       stuck: items.filter((i) => i.status === "stuck").length,
     };
+
+    // ── Enrich with real GSC performance data from GscPagePerformance table ──
+    // The URL Inspection API (inspection_result) does NOT contain clicks/impressions.
+    // Real data comes from GSC Search Analytics, synced by the gsc-sync cron.
+    try {
+      const { getPagePerformance, getPageTrends } = await import("@/lib/seo/gsc-trend-analysis");
+      const { getSiteDomain } = await import("@/config/sites");
+      const siteBaseUrl = getSiteDomain(targetSiteId);
+      const slugToUrl = (slug: string | null) => slug ? `${siteBaseUrl}/blog/${slug}` : "";
+      const itemUrls = items
+        .filter((i) => i.slug)
+        .map((i) => slugToUrl(i.slug));
+      const [perfMap, trendMap] = await Promise.all([
+        getPagePerformance(targetSiteId, itemUrls),
+        getPageTrends(targetSiteId, itemUrls),
+      ]);
+      for (const item of items) {
+        if (!item.slug) continue;
+        const fullUrl = slugToUrl(item.slug);
+        const perf = perfMap.get(fullUrl);
+        const trend = trendMap.get(fullUrl);
+        if (perf) {
+          item.gscClicks = perf.clicks;
+          item.gscImpressions = perf.impressions;
+        }
+        if (trend) {
+          (item as Record<string, unknown>).gscClicksTrend = trend.clicksChangePercent;
+          (item as Record<string, unknown>).gscImpressionsTrend = trend.impressionsChangePercent;
+        }
+      }
+    } catch (err) {
+      console.warn("[content-matrix] GSC enrichment failed:", err instanceof Error ? err.message : String(err));
+    }
 
     // ── Pagination ────────────────────────────────────────
     const totalItems = items.length;

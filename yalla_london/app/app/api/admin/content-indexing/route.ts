@@ -397,14 +397,7 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Extract GSC performance data from inspection_result JSON if available
-      const inspection = record?.inspection_result as Record<string, any> | null;
-      const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
-      const gscClicks = typeof perfMetrics?.clicks === "number" ? perfMetrics.clicks : null;
-      const gscImpressions = typeof perfMetrics?.impressions === "number" ? perfMetrics.impressions : null;
-      const gscCtr = typeof perfMetrics?.ctr === "number" ? perfMetrics.ctr : null;
-      const gscPosition = typeof perfMetrics?.position === "number" ? perfMetrics.position : null;
-
+      // GSC performance data will be enriched below from GscPagePerformance table
       return {
         id: post.id,
         title: post.title_en || post.title_ar || "(Untitled)",
@@ -425,10 +418,10 @@ export async function GET(request: NextRequest) {
         contentType: "blog" as const,
         notIndexedReasons: reasons,
         fixAction,
-        gscClicks,
-        gscImpressions,
-        gscCtr,
-        gscPosition,
+        gscClicks: null as number | null,
+        gscImpressions: null as number | null,
+        gscCtr: null as number | null,
+        gscPosition: null as number | null,
       };
     });
 
@@ -444,8 +437,6 @@ export async function GET(request: NextRequest) {
           else if (record.status === "submitted") indexingStatus = "submitted";
           else indexingStatus = "not_indexed";
         }
-        const inspection = record?.inspection_result as Record<string, any> | null;
-        const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
         const yachtContentType = yp.urlPrefix === "yachts" ? "yacht" as const
           : yp.urlPrefix === "destinations" ? "destination" as const
           : "itinerary" as const;
@@ -469,10 +460,10 @@ export async function GET(request: NextRequest) {
           contentType: yachtContentType,
           notIndexedReasons: indexingStatus === "never_submitted" ? ["Page has never been submitted to search engines"] : [],
           fixAction: null,
-          gscClicks: typeof perfMetrics?.clicks === "number" ? perfMetrics.clicks : null,
-          gscImpressions: typeof perfMetrics?.impressions === "number" ? perfMetrics.impressions : null,
-          gscCtr: typeof perfMetrics?.ctr === "number" ? perfMetrics.ctr : null,
-          gscPosition: typeof perfMetrics?.position === "number" ? perfMetrics.position : null,
+          gscClicks: null,
+          gscImpressions: null,
+          gscCtr: null,
+          gscPosition: null,
         });
       }
     }
@@ -509,8 +500,6 @@ export async function GET(request: NextRequest) {
             else indexingStatus = "not_indexed";
           }
           const wordCount = newsItem.summary_en ? newsItem.summary_en.split(/\s+/).filter(Boolean).length : 0;
-          const inspection = record?.inspection_result as Record<string, any> | null;
-          const perfMetrics = inspection?.performanceMetrics || inspection?.performance || null;
           articles.push({
             id: newsItem.id,
             title: newsItem.headline_en || "(Untitled News)",
@@ -531,15 +520,43 @@ export async function GET(request: NextRequest) {
             contentType: "news" as const,
             notIndexedReasons: indexingStatus === "never_submitted" ? ["News article has never been submitted to search engines"] : [],
             fixAction: null,
-            gscClicks: typeof perfMetrics?.clicks === "number" ? perfMetrics.clicks : null,
-            gscImpressions: typeof perfMetrics?.impressions === "number" ? perfMetrics.impressions : null,
-            gscCtr: typeof perfMetrics?.ctr === "number" ? perfMetrics.ctr : null,
-            gscPosition: typeof perfMetrics?.position === "number" ? perfMetrics.position : null,
+            gscClicks: null,
+            gscImpressions: null,
+            gscCtr: null,
+            gscPosition: null,
           });
         }
       } catch (err) {
         console.warn("[content-indexing] Failed to load news items:", err instanceof Error ? err.message : err);
       }
+    }
+
+    // 4d. Enrich articles with REAL GSC performance data from GscPagePerformance table.
+    //     The URL Inspection API (inspection_result) does NOT contain performance data —
+    //     clicks/impressions come from the GSC Search Analytics API, synced by gsc-sync cron.
+    try {
+      const { getPagePerformance, getPageTrends } = await import("@/lib/seo/gsc-trend-analysis");
+      const articleFullUrls = articles.map((a) => `${baseUrl}${a.url}`);
+      const [perfMap, trendMap] = await Promise.all([
+        getPagePerformance(siteId, articleFullUrls),
+        getPageTrends(siteId, articleFullUrls),
+      ]);
+      for (const article of articles) {
+        const fullUrl = `${baseUrl}${article.url}`;
+        const perf = perfMap.get(fullUrl);
+        const trend = trendMap.get(fullUrl);
+        if (perf) {
+          article.gscClicks = perf.clicks;
+          article.gscImpressions = perf.impressions;
+          article.gscCtr = perf.ctr;
+          article.gscPosition = perf.position;
+        }
+        // Attach trend data as extra fields (won't break existing interface — added to response)
+        (article as Record<string, unknown>).gscClicksTrend = trend?.clicksChangePercent ?? null;
+        (article as Record<string, unknown>).gscImpressionsTrend = trend?.impressionsChangePercent ?? null;
+      }
+    } catch (err) {
+      console.warn("[content-indexing] Failed to enrich with GSC performance data:", err instanceof Error ? err.message : String(err));
     }
 
     // 5. Summary counts — use shared utility for aggregate numbers

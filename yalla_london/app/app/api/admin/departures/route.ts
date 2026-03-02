@@ -57,6 +57,7 @@ interface CronDef {
 
 const CRON_DEFS: CronDef[] = [
   { path: '/api/cron/analytics',              schedule: '0 3 * * *',          label: 'Analytics Sync',            icon: '📊', type: 'cron', category: 'analytics',    description: 'Syncs GA4 + Search Console data into the dashboard. Updates traffic, clicks, and keyword rankings.',           feedsInto: 'Dashboard metrics' },
+  { path: '/api/cron/gsc-sync',               schedule: '0 4 * * *',          label: 'GSC Data Sync',             icon: '📡', type: 'cron', category: 'seo',          description: 'Pulls per-page clicks/impressions/CTR/position from Google Search Console. Cross-references indexing status — URLs with impressions confirmed indexed.', feedsInto: 'Cockpit + Content Matrix' },
   { path: '/api/cron/weekly-topics',          schedule: '0 4 * * 1',          label: 'Weekly Topic Research',     icon: '🔍', type: 'cron', category: 'content',      description: 'Generates new content topic ideas for all active sites. Creates TopicProposal records that feed the content builder.', feedsInto: 'Content Builder' },
   { path: '/api/cron/daily-content-generate', schedule: '0 5 * * *',          label: 'Daily Content Generation',  icon: '✍️', type: 'cron', category: 'content',      description: 'Creates new article drafts from approved topics. Each draft enters the 8-phase pipeline.',                     feedsInto: 'Content Builder' },
   { path: '/api/cron/seo-orchestrator?mode=weekly', schedule: '0 5 * * 0',   label: 'SEO Orchestrator (weekly)', icon: '🎯', type: 'cron', category: 'seo',          description: 'Deep weekly SEO audit. Checks indexing gaps, content quality, schema markup, and generates health reports.',    feedsInto: 'SEO Reports' },
@@ -171,6 +172,7 @@ function nextFireTime(expr: string, from: Date = new Date()): Date {
 function scheduleLabel(expr: string): string {
   const labels: Record<string, string> = {
     '0 3 * * *': 'Daily 3:00 AM UTC',
+    '0 4 * * *': 'Daily 4:00 AM UTC',
     '0 4 * * 1': 'Mon 4:00 AM UTC',
     '0 5 * * *': 'Daily 5:00 AM UTC',
     '0 5 * * 0': 'Sun 5:00 AM UTC',

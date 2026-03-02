@@ -2511,6 +2511,28 @@ model URLIndexingStatus {
   @@map("url_indexing_status")
 }
 
+// Daily per-page Google Search Console performance snapshots.
+// Populated by the gsc-sync cron from GSC Search Analytics API (dimensions: ['page']).
+// Enables per-article clicks/impressions in dashboard and trend comparison (this week vs last week).
+model GscPagePerformance {
+  id          String   @id @default(cuid())
+  site_id     String
+  url         String
+  date        DateTime @db.Date
+
+  clicks      Int      @default(0)
+  impressions Int      @default(0)
+  ctr         Float    @default(0)  // 0-1 range from GSC
+  position    Float    @default(0)  // Average position in search results
+
+  created_at  DateTime @default(now())
+
+  @@unique([site_id, url, date])
+  @@index([site_id, date])
+  @@index([site_id, url])
+  @@map("gsc_page_performance")
+}
+
 // Cron job execution log — tracks every cron run for monitoring & debugging
 model CronJobLog {
   id            String   @id @default(cuid())

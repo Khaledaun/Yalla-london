@@ -86,6 +86,9 @@ interface CockpitData {
     blockers: Array<{ reason: string; count: number; severity: "critical" | "warning" | "info" }>;
     lastSubmissionAge: string | null; lastVerificationAge: string | null;
     channelBreakdown: { indexnow: number; sitemap: number; googleApi: number };
+    gscTotalClicks7d: number; gscTotalImpressions7d: number;
+    gscClicksTrend: number | null; gscImpressionsTrend: number | null;
+    lastGscSync: string | null;
   };
   cronHealth: { failedLast24h: number; timedOutLast24h: number; lastRunAt: string | null; recentJobs: Array<{ name: string; status: string; durationMs: number | null; startedAt: string; error: string | null; plainError: string | null; itemsProcessed: number }> };
   revenue: RevenueSnapshot;
@@ -997,6 +1000,40 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
           )}
         </div>
 
+        {/* GSC Search Performance — real clicks/impressions from gsc-sync */}
+        {(indexing.gscTotalClicks7d > 0 || indexing.gscTotalImpressions7d > 0) && (
+          <div className="mt-3">
+            <div className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1.5">GSC Performance (7d)</div>
+            <div className="grid grid-cols-2 gap-2 text-center text-xs">
+              <div className="bg-zinc-800/50 rounded-lg p-2">
+                <div className="text-lg font-bold text-cyan-400">
+                  {indexing.gscTotalClicks7d.toLocaleString()}
+                  {indexing.gscClicksTrend != null && (
+                    <span className={`text-[10px] ml-1 ${indexing.gscClicksTrend > 0 ? "text-emerald-400" : indexing.gscClicksTrend < 0 ? "text-red-400" : "text-zinc-500"}`}>
+                      {indexing.gscClicksTrend > 0 ? "▲" : indexing.gscClicksTrend < 0 ? "▼" : "—"}{Math.abs(indexing.gscClicksTrend)}%
+                    </span>
+                  )}
+                </div>
+                <div className="text-zinc-500 text-[10px]">Clicks</div>
+              </div>
+              <div className="bg-zinc-800/50 rounded-lg p-2">
+                <div className="text-lg font-bold text-violet-400">
+                  {indexing.gscTotalImpressions7d.toLocaleString()}
+                  {indexing.gscImpressionsTrend != null && (
+                    <span className={`text-[10px] ml-1 ${indexing.gscImpressionsTrend > 0 ? "text-emerald-400" : indexing.gscImpressionsTrend < 0 ? "text-red-400" : "text-zinc-500"}`}>
+                      {indexing.gscImpressionsTrend > 0 ? "▲" : indexing.gscImpressionsTrend < 0 ? "▼" : "—"}{Math.abs(indexing.gscImpressionsTrend)}%
+                    </span>
+                  )}
+                </div>
+                <div className="text-zinc-500 text-[10px]">Impressions</div>
+              </div>
+            </div>
+            {indexing.lastGscSync && (
+              <div className="mt-1 text-[9px] text-zinc-600 text-center">Last GSC sync: {indexing.lastGscSync}</div>
+            )}
+          </div>
+        )}
+
         {/* Tap to see full details */}
         <button
           onClick={() => setShowIndexPanel(true)}
@@ -1054,6 +1091,9 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
           </ActionButton>
           <ActionButton onClick={() => triggerAction("/api/cron/seo-agent", {}, "SEO")} loading={actionLoading === "SEO"}>
             🔍 Submit to Google
+          </ActionButton>
+          <ActionButton onClick={() => triggerAction("/api/cron/gsc-sync", {}, "GSC Sync")} loading={actionLoading === "GSC Sync"}>
+            📡 Sync GSC Data
           </ActionButton>
           <Link href="/admin/cockpit/validator" className="col-span-2 px-3 py-2 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 text-center block">
             🩺 System Validator

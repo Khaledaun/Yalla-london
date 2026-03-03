@@ -442,8 +442,10 @@ async function buildPipeline(prisma: any, activeSiteIds: string[]): Promise<Pipe
 }
 
 // ─────────────────────────────────────────────
-// Indexing builder — uses shared getIndexingSummary() as single source of truth.
-// No timeout fallback — getIndexingSummary() is parallelized and fast.
+// Indexing builder — LIGHTWEIGHT version for cockpit.
+// getIndexingSummary() runs 23+ DB operations and routinely times out (15s+).
+// The cockpit only needs aggregate counts, so we query URLIndexingStatus directly
+// with a single groupBy — ~200ms instead of 15s.
 // ─────────────────────────────────────────────
 
 async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<IndexingStatus> {
@@ -453,33 +455,54 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
   if (!targetSiteId) return indexing;
 
   try {
-    const { getIndexingSummary } = await import("@/lib/seo/indexing-summary");
-    const summary = await getIndexingSummary(targetSiteId);
+    // Single groupBy query — replaces 23+ queries in getIndexingSummary()
+    const statusGroups = await prisma.uRLIndexingStatus.groupBy({
+      by: ["status"],
+      _count: { id: true },
+      where: { site_id: targetSiteId },
+    });
 
-    // Map IndexingSummary → IndexingStatus
-    indexing.total = summary.total;
-    indexing.indexed = summary.indexed;
-    indexing.submitted = summary.submitted;
-    indexing.discovered = summary.discovered;
-    indexing.neverSubmitted = summary.neverSubmitted;
-    indexing.errors = summary.errors;
-    indexing.rate = summary.rate;
-    indexing.staleCount = summary.staleCount;
-    indexing.orphanedCount = summary.orphanedCount;
-    indexing.deindexedCount = summary.deindexed;
-    indexing.velocity7d = summary.velocity7d;
-    indexing.velocity7dPrevious = summary.velocity7dPrevious;
-    indexing.avgTimeToIndexDays = summary.avgTimeToIndexDays;
-    indexing.topBlocker = summary.topBlocker;
-    indexing.blockers = summary.blockers;
-    indexing.lastSubmissionAge = summary.lastSubmissionAge;
-    indexing.lastVerificationAge = summary.lastVerificationAge;
-    indexing.channelBreakdown = summary.channelBreakdown;
-    indexing.dailyQuotaRemaining = summary.dailyQuotaRemaining;
-    indexing.chronicFailures = summary.chronicFailures;
-    indexing.dataSource = "full";
+    let total = 0;
+    for (const group of statusGroups) {
+      const count = group._count.id;
+      total += count;
+      const status = (group.status || "").toLowerCase();
+      if (status === "indexed" || status === "verified") indexing.indexed += count;
+      else if (status === "submitted" || status === "pending") indexing.submitted += count;
+      else if (status === "discovered") indexing.discovered += count;
+      else if (status === "error" || status === "failed") indexing.errors += count;
+      else if (status === "deindexed") indexing.deindexedCount += count;
+      else if (status === "chronic_failure") { indexing.chronicFailures += count; indexing.errors += count; }
+      else indexing.neverSubmitted += count;
+    }
+
+    indexing.total = total;
+    indexing.rate = total > 0 ? Math.round((indexing.indexed / total) * 100) : 0;
+
+    // Quick velocity check — indexed in last 7 days
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    indexing.velocity7d = await prisma.uRLIndexingStatus.count({
+      where: {
+        site_id: targetSiteId,
+        status: { in: ["indexed", "verified"] },
+        last_inspected_at: { gte: sevenDaysAgo },
+      },
+    }).catch(() => 0);
+
+    // If no URLIndexingStatus records exist, fall back to BlogPost count
+    if (total === 0) {
+      const publishedCount = await prisma.blogPost.count({
+        where: { siteId: targetSiteId, published: true, deletedAt: null },
+      }).catch(() => 0);
+      if (publishedCount > 0) {
+        indexing.total = publishedCount;
+        indexing.neverSubmitted = publishedCount;
+      }
+    }
+
+    indexing.dataSource = "lightweight";
   } catch (summaryErr) {
-    console.warn("[cockpit] getIndexingSummary failed:", summaryErr instanceof Error ? summaryErr.message : summaryErr);
+    console.warn("[cockpit] indexing query failed:", summaryErr instanceof Error ? summaryErr.message : summaryErr);
     indexing.dataSource = "error";
   }
 

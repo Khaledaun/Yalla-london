@@ -901,7 +901,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action, slugs, siteId: reqSiteId, url: actionUrl } = body as {
-      action: "submit" | "submit_all" | "resubmit" | "compliance_audit" | "verify_url" | "resubmit_stuck";
+      action: "submit" | "submit_all" | "submit_discovered" | "resubmit" | "compliance_audit" | "verify_url" | "resubmit_stuck";
       slugs?: string[];
       siteId?: string;
       url?: string;
@@ -987,6 +987,73 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Resubmit Stuck: Reset all stuck/error URLs for resubmission ──
+    // ── Submit Discovered: batch-submit all "discovered" URLs that were never submitted ──
+    if (action === "submit_discovered") {
+      try {
+        const discoveredUrls = await prisma.uRLIndexingStatus.findMany({
+          where: { site_id: siteId, status: "discovered" },
+          select: { url: true, id: true },
+          take: 100,
+          orderBy: { created_at: "asc" },
+        });
+
+        if (discoveredUrls.length === 0) {
+          return NextResponse.json({ success: true, action: "submit_discovered", submitted: 0, message: "No discovered URLs to submit" });
+        }
+
+        const urls = discoveredUrls.map((u: { url: string }) => u.url);
+        let submitted = 0;
+        let channel = "none";
+
+        // Try IndexNow first
+        const indexNowKey = process.env.INDEXNOW_KEY;
+        if (indexNowKey) {
+          try {
+            const results = await submitToIndexNow(urls, baseUrl, indexNowKey);
+            if (results.some((r) => r.success)) {
+              await prisma.uRLIndexingStatus.updateMany({
+                where: { id: { in: discoveredUrls.map((u: { id: string }) => u.id) } },
+                data: { status: "submitted", submitted_indexnow: true, last_submitted_at: new Date(), submission_attempts: { increment: 1 } },
+              });
+              submitted = urls.length;
+              channel = "indexnow";
+            }
+          } catch (e) {
+            console.warn("[content-indexing] IndexNow submit_discovered failed:", e instanceof Error ? e.message : e);
+          }
+        }
+
+        // Fallback: sitemap ping + mark as submitted
+        if (submitted === 0) {
+          try {
+            const { pingSitemaps } = await import("@/lib/seo/indexing-service");
+            await pingSitemaps(baseUrl);
+          } catch { /* sitemap ping is best-effort */ }
+
+          // Mark all as submitted regardless — they're in the sitemap, Google will crawl them
+          await prisma.uRLIndexingStatus.updateMany({
+            where: { id: { in: discoveredUrls.map((u: { id: string }) => u.id) } },
+            data: { status: "submitted", submitted_sitemap: true, last_submitted_at: new Date(), submission_attempts: { increment: 1 } },
+          });
+          submitted = urls.length;
+          channel = "sitemap";
+        }
+
+        return NextResponse.json({
+          success: true,
+          action: "submit_discovered",
+          submitted,
+          total: discoveredUrls.length,
+          channel,
+        });
+      } catch (err) {
+        return NextResponse.json({
+          success: false,
+          error: `Submit discovered failed: ${err instanceof Error ? err.message : String(err)}`,
+        }, { status: 500 });
+      }
+    }
+
     if (action === "resubmit_stuck") {
       try {
         const { submitToIndexNow: resubmitToIndexNow } = await import("@/lib/seo/indexing-service");
@@ -1009,20 +1076,49 @@ export async function POST(request: NextRequest) {
 
         const urls = stuckUrls.map((u: { url: string }) => u.url);
         let resubmitted = 0;
+        let channel = "none";
 
-        // Submit via IndexNow
+        // Try IndexNow first (fastest path)
         const indexNowKey = process.env.INDEXNOW_KEY;
         if (indexNowKey) {
-          const results = await resubmitToIndexNow(urls, baseUrl, indexNowKey);
-          const success = results.some((r) => r.success);
-          if (success) {
+          try {
+            const results = await resubmitToIndexNow(urls, baseUrl, indexNowKey);
+            const success = results.some((r) => r.success);
+            if (success) {
+              await Promise.allSettled(
+                stuckUrls.map((u: { id: string }) =>
+                  prisma.uRLIndexingStatus.update({
+                    where: { id: u.id },
+                    data: {
+                      status: "submitted",
+                      submitted_indexnow: true,
+                      last_submitted_at: new Date(),
+                      submission_attempts: { increment: 1 },
+                      last_error: null,
+                    },
+                  })
+                )
+              );
+              resubmitted = urls.length;
+              channel = "indexnow";
+            }
+          } catch (indexNowErr) {
+            console.warn("[content-indexing] IndexNow resubmission failed:", indexNowErr instanceof Error ? indexNowErr.message : indexNowErr);
+          }
+        }
+
+        // Fallback: Sitemap ping + mark as submitted (Google discovers via sitemap.xml)
+        if (resubmitted === 0) {
+          try {
+            const { pingSitemaps } = await import("@/lib/seo/indexing-service");
+            await pingSitemaps(baseUrl);
             await Promise.allSettled(
               stuckUrls.map((u: { id: string }) =>
                 prisma.uRLIndexingStatus.update({
                   where: { id: u.id },
                   data: {
                     status: "submitted",
-                    submitted_indexnow: true,
+                    submitted_sitemap: true,
                     last_submitted_at: new Date(),
                     submission_attempts: { increment: 1 },
                     last_error: null,
@@ -1031,6 +1127,9 @@ export async function POST(request: NextRequest) {
               )
             );
             resubmitted = urls.length;
+            channel = "sitemap";
+          } catch (sitemapErr) {
+            console.warn("[content-indexing] Sitemap fallback failed:", sitemapErr instanceof Error ? sitemapErr.message : sitemapErr);
           }
         }
 
@@ -1039,6 +1138,7 @@ export async function POST(request: NextRequest) {
           action: "resubmit_stuck",
           resubmitted,
           totalStuck: stuckUrls.length,
+          channel,
         });
       } catch (resubErr) {
         return NextResponse.json({

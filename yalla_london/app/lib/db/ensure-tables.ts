@@ -10,6 +10,15 @@
 
 export async function ensureGscPagePerformance(): Promise<void> {
   const { prisma } = await import("@/lib/db");
+
+  // Quick check — skip DDL if table already exists
+  try {
+    await prisma.$queryRawUnsafe(`SELECT 1 FROM "gsc_page_performance" LIMIT 1`);
+    return;
+  } catch {
+    // Table doesn't exist — create it below
+  }
+
   try {
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "gsc_page_performance" (
@@ -23,21 +32,35 @@ export async function ensureGscPagePerformance(): Promise<void> {
         "position" DOUBLE PRECISION NOT NULL DEFAULT 0,
         "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "gsc_page_performance_pkey" PRIMARY KEY ("id")
-      );
-      CREATE UNIQUE INDEX IF NOT EXISTS "gsc_page_performance_site_id_url_date_key"
-        ON "gsc_page_performance"("site_id", "url", "date");
-      CREATE INDEX IF NOT EXISTS "gsc_page_performance_site_id_date_idx"
-        ON "gsc_page_performance"("site_id", "date");
-      CREATE INDEX IF NOT EXISTS "gsc_page_performance_site_id_url_idx"
-        ON "gsc_page_performance"("site_id", "url");
+      )
     `);
   } catch (err) {
-    console.warn("[ensure-tables] Failed to ensure gsc_page_performance:", err instanceof Error ? err.message : err);
+    console.warn("[ensure-tables] Failed to create gsc_page_performance table:", err instanceof Error ? err.message : err);
+    return;
+  }
+
+  for (const sql of [
+    `CREATE UNIQUE INDEX IF NOT EXISTS "gsc_page_performance_site_id_url_date_key" ON "gsc_page_performance"("site_id", "url", "date")`,
+    `CREATE INDEX IF NOT EXISTS "gsc_page_performance_site_id_date_idx" ON "gsc_page_performance"("site_id", "date")`,
+    `CREATE INDEX IF NOT EXISTS "gsc_page_performance_site_id_url_idx" ON "gsc_page_performance"("site_id", "url")`,
+  ]) {
+    try { await prisma.$executeRawUnsafe(sql); } catch { /* index creation is non-fatal */ }
   }
 }
 
 export async function ensurePerformanceAudits(): Promise<void> {
   const { prisma } = await import("@/lib/db");
+
+  // Quick check — skip DDL if table already exists
+  try {
+    await prisma.$queryRawUnsafe(`SELECT 1 FROM "performance_audits" LIMIT 1`);
+    return; // Table exists — nothing to do
+  } catch {
+    // Table doesn't exist — create it below
+  }
+
+  // Split each statement into a separate call. Some Supabase connection poolers
+  // (PgBouncer in transaction mode) reject multi-statement raw SQL.
   try {
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "performance_audits" (
@@ -59,19 +82,33 @@ export async function ensurePerformanceAudits(): Promise<void> {
         "runId" TEXT NOT NULL,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "performance_audits_pkey" PRIMARY KEY ("id")
-      );
-      CREATE INDEX IF NOT EXISTS "performance_audits_siteId_createdAt_idx"
-        ON "performance_audits"("siteId", "createdAt");
-      CREATE INDEX IF NOT EXISTS "performance_audits_runId_idx"
-        ON "performance_audits"("runId");
+      )
     `);
   } catch (err) {
-    console.warn("[ensure-tables] Failed to ensure performance_audits:", err instanceof Error ? err.message : err);
+    console.warn("[ensure-tables] Failed to create performance_audits table:", err instanceof Error ? err.message : err);
+    return; // Don't try indexes if table creation failed
+  }
+
+  // Create indexes individually (non-fatal if these fail)
+  for (const sql of [
+    `CREATE INDEX IF NOT EXISTS "performance_audits_siteId_createdAt_idx" ON "performance_audits"("siteId", "createdAt")`,
+    `CREATE INDEX IF NOT EXISTS "performance_audits_runId_idx" ON "performance_audits"("runId")`,
+    `CREATE INDEX IF NOT EXISTS "performance_audits_url_strategy_idx" ON "performance_audits"("url", "strategy")`,
+  ]) {
+    try { await prisma.$executeRawUnsafe(sql); } catch { /* index creation is non-fatal */ }
   }
 }
 
 export async function ensureAutoFixLogs(): Promise<void> {
   const { prisma } = await import("@/lib/db");
+
+  try {
+    await prisma.$queryRawUnsafe(`SELECT 1 FROM "auto_fix_logs" LIMIT 1`);
+    return;
+  } catch {
+    // Table doesn't exist — create it below
+  }
+
   try {
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "auto_fix_logs" (
@@ -87,13 +124,17 @@ export async function ensureAutoFixLogs(): Promise<void> {
         "error" TEXT,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT "auto_fix_logs_pkey" PRIMARY KEY ("id")
-      );
-      CREATE INDEX IF NOT EXISTS "auto_fix_logs_siteId_createdAt_idx"
-        ON "auto_fix_logs"("siteId", "createdAt");
-      CREATE INDEX IF NOT EXISTS "auto_fix_logs_fixType_idx"
-        ON "auto_fix_logs"("fixType");
+      )
     `);
   } catch (err) {
-    console.warn("[ensure-tables] Failed to ensure auto_fix_logs:", err instanceof Error ? err.message : err);
+    console.warn("[ensure-tables] Failed to create auto_fix_logs table:", err instanceof Error ? err.message : err);
+    return;
+  }
+
+  for (const sql of [
+    `CREATE INDEX IF NOT EXISTS "auto_fix_logs_siteId_createdAt_idx" ON "auto_fix_logs"("siteId", "createdAt")`,
+    `CREATE INDEX IF NOT EXISTS "auto_fix_logs_fixType_idx" ON "auto_fix_logs"("fixType")`,
+  ]) {
+    try { await prisma.$executeRawUnsafe(sql); } catch { /* index creation is non-fatal */ }
   }
 }

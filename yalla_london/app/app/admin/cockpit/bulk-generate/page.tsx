@@ -62,7 +62,7 @@ export default function BulkGeneratePage() {
   const [sites, setSites] = useState<Array<{ id: string; name: string }>>([]);
   const [language, setLanguage] = useState<"en" | "ar">("en");
   const [topicSource, setTopicSource] = useState<"auto" | "manual">("auto");
-  const [count, setCount] = useState(3);
+  const [count, setCount] = useState(1); // Default 1 to avoid 504 timeouts (each article ~30-40s, Vercel limit 60s)
   const [manualKeywords, setManualKeywords] = useState("");
   const [pageType, setPageType] = useState("guide");
   const [autoPublish, setAutoPublish] = useState(true);
@@ -151,8 +151,14 @@ export default function BulkGeneratePage() {
       });
 
       // Handle non-JSON responses (504 timeout, 502 gateway, etc.)
+      // 504 is EXPECTED when generating 2+ articles — the AI call takes 25-35s each.
+      // Vercel kills the request at 60s, but the article may have been saved.
       if (!res.ok && res.status >= 500) {
-        setError(`Server error (HTTP ${res.status}). The generation may have timed out. Try generating fewer articles or tap "Continue" if a run already started.`);
+        setError(
+          res.status === 504
+            ? `Generation timed out — Vercel's 60-second limit was reached. Your article(s) may still have been created. Check the Content Matrix tab, or try generating 1 article at a time.`
+            : `Server error (HTTP ${res.status}). Try generating fewer articles or tap "Continue" if a run already started.`
+        );
         setRunning(false);
         return;
       }
@@ -405,7 +411,7 @@ export default function BulkGeneratePage() {
                   <span className="text-lg font-bold text-white w-8 text-center">{count}</span>
                 </div>
                 <p className="text-xs text-zinc-500 mt-1">
-                  ~2-3 per phase (60s limit). {count > 3 ? `Will need ${Math.ceil(count / 2)} phases.` : "Should complete in 1 phase."}
+                  Each article takes ~30-40s. {count === 1 ? "Should complete in 1 phase." : count === 2 ? "May need 2 phases (tap Continue if first times out)." : `Will need ~${count} phases — tap Continue after each.`}
                 </p>
               </div>
             )}

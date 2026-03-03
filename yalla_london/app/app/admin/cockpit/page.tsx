@@ -65,6 +65,7 @@ interface SiteSummary {
   topicsQueued: number;
   lastPublishedAt: string | null;
   lastCronAt: string | null;
+  dataError: string | null;
 }
 
 interface RevenueSnapshot {
@@ -89,6 +90,13 @@ interface CockpitData {
     gscTotalClicks7d: number; gscTotalImpressions7d: number;
     gscClicksTrend: number | null; gscImpressionsTrend: number | null;
     lastGscSync: string | null;
+    dataSource?: "full" | "lightweight";
+    impressionDiagnostic?: {
+      gscDelayNote: string | null;
+      blockedByGate: number;
+      publishVelocity: { thisWeek: number; lastWeek: number };
+      topDroppers: Array<{ url: string; impressionsDelta: number }>;
+    } | null;
   };
   cronHealth: { failedLast24h: number; timedOutLast24h: number; lastRunAt: string | null; recentJobs: Array<{ name: string; status: string; durationMs: number | null; startedAt: string; error: string | null; plainError: string | null; itemsProcessed: number }> };
   revenue: RevenueSnapshot;
@@ -546,7 +554,7 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
                 ["Indexed", data.summary.indexed, "text-emerald-400", "indexed"],
                 ["Submitted", data.summary.submitted, "text-blue-400", "submitted"],
                 ["Not Indexed", data.summary.notIndexed, "text-amber-400", "not_indexed"],
-                ["Never Sent", data.summary.neverSubmitted, "text-zinc-400", "never_submitted"],
+                ["Untracked", data.summary.neverSubmitted, "text-zinc-400", "never_submitted"],
                 ["Errors", data.summary.errors, "text-red-400", "error"],
               ].map(([label, val, color, filter]) => (
                 <button
@@ -1006,7 +1014,47 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
             <div className="flex justify-between mt-1 text-[9px] text-zinc-600">
               <span>{indexing.indexed} indexed</span>
               <span>{indexing.submitted} pending</span>
-              <span>{indexing.neverSubmitted ?? 0} unsubmitted</span>
+              <span>{indexing.discovered ?? 0} discovered</span>
+              <span>{indexing.neverSubmitted ?? 0} untracked</span>
+            </div>
+            {indexing.dataSource === "lightweight" && (
+              <div className="mt-1 text-[9px] text-zinc-600 italic">Numbers are approximate (blog posts only). Full count includes static pages.</div>
+            )}
+          </div>
+        )}
+
+        {/* Impression Drop Diagnostic — only shown when impressions are falling */}
+        {indexing.impressionDiagnostic && (
+          <div className="mt-3 bg-amber-950/20 border border-amber-800/50 rounded-lg p-3">
+            <div className="text-xs font-semibold text-amber-300 mb-2">Why impressions are dropping</div>
+            <div className="space-y-1.5 text-[11px] text-zinc-300">
+              {indexing.impressionDiagnostic.gscDelayNote && (
+                <div className="flex items-start gap-1.5">
+                  <span className="text-amber-400 mt-0.5 shrink-0">!</span>
+                  <span>{indexing.impressionDiagnostic.gscDelayNote}</span>
+                </div>
+              )}
+              <div className="flex items-start gap-1.5">
+                <span className="text-blue-400 mt-0.5 shrink-0">#</span>
+                <span>Publishing velocity: {indexing.impressionDiagnostic.publishVelocity.thisWeek} this week vs {indexing.impressionDiagnostic.publishVelocity.lastWeek} last week</span>
+              </div>
+              {indexing.impressionDiagnostic.blockedByGate > 0 && (
+                <div className="flex items-start gap-1.5">
+                  <span className="text-red-400 mt-0.5 shrink-0">X</span>
+                  <span>{indexing.impressionDiagnostic.blockedByGate} article(s) stuck in reservoir — quality score below 70</span>
+                </div>
+              )}
+              {indexing.impressionDiagnostic.topDroppers.length > 0 && (
+                <div className="mt-1.5">
+                  <div className="text-[10px] text-zinc-500 mb-1">Top impression losers:</div>
+                  {indexing.impressionDiagnostic.topDroppers.map((d, i) => (
+                    <div key={i} className="flex justify-between text-[10px] py-0.5">
+                      <span className="text-zinc-400 truncate mr-2">{d.url.replace(/^https?:\/\/[^/]+/, "")}</span>
+                      <span className="text-red-400 shrink-0">{d.impressionsDelta}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2070,7 +2118,7 @@ interface AuditSummary {
 
 // ─── Tab 5: Sites Overview ────────────────────────────────────────────────────
 
-function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite: (id: string) => void }) {
+function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; onSelectSite: (id: string) => void; onRefresh: () => void }) {
   const [publishLoading, setPublishLoading] = useState<string | null>(null);
   const [publishResult, setPublishResult] = useState<Record<string, string>>({});
   const [expandedSite, setExpandedSite] = useState<string | null>(null);
@@ -2202,8 +2250,22 @@ function SitesTab({ sites, onSelectSite }: { sites: SiteSummary[]; onSelectSite:
               </div>
             </div>
 
+            {/* Data load error — show instead of misleading zeros */}
+            {site.dataError && (
+              <div className="mt-2 bg-red-950/30 border border-red-800/50 rounded-lg px-3 py-2 text-xs text-red-300">
+                <div className="font-medium mb-1">Data load failed</div>
+                <div className="text-red-400/80 text-[10px]">{site.dataError}</div>
+                <button
+                  onClick={() => onRefresh()}
+                  className="mt-1.5 px-2 py-0.5 rounded bg-red-900/50 hover:bg-red-800/50 text-red-300 text-[10px] border border-red-700/50"
+                >
+                  Tap to retry
+                </button>
+              </div>
+            )}
+
             {/* Content gap warning */}
-            {daysSincePublish !== null && daysSincePublish > 3 && (
+            {!site.dataError && daysSincePublish !== null && daysSincePublish > 3 && (
               <div className="mt-2 bg-amber-950/20 border border-amber-800/50 rounded-lg px-3 py-1.5 text-xs text-amber-300">
                 {daysSincePublish}d since last publish — content gap detected
               </div>
@@ -3361,7 +3423,7 @@ function CockpitPage() {
           <CronsTab />
         )}
         {activeTab === "sites" && cockpitData && (
-          <SitesTab sites={cockpitData.sites} onSelectSite={handleSiteSelect} />
+          <SitesTab sites={cockpitData.sites} onSelectSite={handleSiteSelect} onRefresh={fetchData} />
         )}
         {activeTab === "ai" && (
           <AIConfigTab />

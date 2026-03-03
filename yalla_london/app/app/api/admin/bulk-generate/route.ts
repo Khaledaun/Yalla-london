@@ -599,17 +599,21 @@ async function publishArticle(
     try {
       const { runPrePublicationGate } = await import("@/lib/seo/orchestrator/pre-publication-gate");
       const domain = getSiteDomain(siteId);
-      const gateResult = await runPrePublicationGate({
-        url: `${domain}/blog/${slug}`,
-        title: titleEn,
-        metaTitle: (content.metaTitle as string) || titleEn.substring(0, 60),
-        metaDescription: (content.metaDescription as string) || "",
-        content: bodyHtml,
-        seoScore: (content.seoScore as number) || 65,
-        locale: "en",
-      });
-      passesGate = !gateResult.blocked;
-      if (gateResult.blocked) {
+      const gateResult = await runPrePublicationGate(
+        `${domain}/blog/${slug}`,
+        {
+          title_en: titleEn,
+          meta_title_en: (content.metaTitle as string) || titleEn.substring(0, 60),
+          meta_description_en: (content.metaDescription as string) || "",
+          content_en: bodyHtml,
+          seo_score: (content.seoScore as number) || 65,
+          locale: "en",
+        },
+        domain,
+        { skipRouteCheck: true },
+      );
+      passesGate = gateResult.allowed;
+      if (!gateResult.allowed) {
         console.warn(`[bulk-generate] Pre-pub gate BLOCKED "${titleEn}": ${gateResult.checks.filter(c => !c.passed && c.severity !== "warning").map(c => c.name).join(", ")}`);
       }
     } catch (gateErr) {

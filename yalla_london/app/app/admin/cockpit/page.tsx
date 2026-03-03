@@ -317,7 +317,7 @@ interface IndexingPanelData {
   recentActivity: Array<{ jobName: string; status: string; startedAt: string; durationMs: number; itemsProcessed: number; itemsSucceeded: number; errorMessage: string | null }>;
 }
 
-function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => void }) {
+function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; onClose: () => void; onSummaryUpdate?: (summary: { total: number; indexed: number; submitted: number; discovered: number; neverSubmitted: number; errors: number; rate: number }) => void }) {
   const [data, setData] = useState<IndexingPanelData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -334,12 +334,24 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || `HTTP ${res.status}`);
       setData(json);
+      // Push fresh summary numbers back to the cockpit so Mission tab stays in sync
+      if (onSummaryUpdate && json.summary) {
+        onSummaryUpdate({
+          total: json.summary.total,
+          indexed: json.summary.indexed,
+          submitted: json.summary.submitted,
+          discovered: json.summary.discovered,
+          neverSubmitted: json.summary.neverSubmitted,
+          errors: json.summary.errors,
+          rate: json.summary.rate ?? (json.summary.total > 0 ? Math.round((json.summary.indexed / json.summary.total) * 100) : 0),
+        });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load indexing data");
     } finally {
       setLoading(false);
     }
-  }, [siteId]);
+  }, [siteId, onSummaryUpdate]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -772,7 +784,7 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
 
 // ─── Tab 1: Mission Control ───────────────────────────────────────────────────
 
-function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitData | null; onRefresh: () => void; onSwitchTab: (tab: TabId) => void; siteId: string }) {
+function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: { data: CockpitData | null; onRefresh: () => void; onSwitchTab: (tab: TabId) => void; siteId: string; onUpdateIndexing?: (summary: { total: number; indexed: number; submitted: number; discovered: number; neverSubmitted: number; errors: number; rate: number }) => void }) {
   const [actionResult, setActionResult] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [showIndexPanel, setShowIndexPanel] = useState(false);
@@ -810,7 +822,12 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
         setActionResult(`✅ ${label} triggered`);
       }
     } catch (e) {
-      setActionResult(`❌ Network error: ${e instanceof Error ? e.message : String(e)}`);
+      const msg = e instanceof Error ? e.message : String(e);
+      // Safari throws "The string did not match the expected pattern" for URL issues
+      const isSafariUrlError = msg.includes("expected pattern");
+      setActionResult(isSafariUrlError
+        ? `❌ Request failed — try refreshing the page and retrying.`
+        : `❌ Network error: ${msg}`);
     } finally {
       setActionLoading(null);
       onRefresh(); // Always refresh — shows current state regardless of success/failure
@@ -833,7 +850,7 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
     <>
     {/* Indexing Panel Overlay */}
     {showIndexPanel && (
-      <IndexingPanel siteId={effectiveSiteId} onClose={() => setShowIndexPanel(false)} />
+      <IndexingPanel siteId={effectiveSiteId} onClose={() => { setShowIndexPanel(false); onRefresh(); }} onSummaryUpdate={onUpdateIndexing} />
     )}
     <div className="space-y-4">
       {/* System Status Row */}
@@ -2189,10 +2206,14 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
   const quickAction = async (endpoint: string, body: object, label: string) => {
     setActionLoading(label);
     try {
-      await fetch(endpoint, {
+      // Cron routes require CRON_SECRET — route through departures API
+      const isCronRoute = endpoint.startsWith("/api/cron/");
+      const fetchUrl = isCronRoute ? "/api/admin/departures" : endpoint;
+      const fetchBody = isCronRoute ? { path: endpoint, ...body } : body;
+      await fetch(fetchUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(fetchBody),
       });
     } catch {
       console.warn(`[sites] ${label} failed`);
@@ -2421,7 +2442,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 <div className="space-y-1 max-h-48 overflow-y-auto">
                   {auditResults[site.id].pages.map((p) => (
                     <div key={p.url} className="flex items-center justify-between text-xs bg-zinc-800/30 rounded px-2 py-1.5">
-                      <span className="text-zinc-400 truncate max-w-[55%]">{new URL(p.url).pathname}</span>
+                      <span className="text-zinc-400 truncate max-w-[55%]">{(() => { try { return new URL(p.url).pathname; } catch { return p.url; } })()}</span>
                       <div className="flex gap-2 text-right shrink-0">
                         {p.error ? (
                           <span className="text-red-400">Error</span>
@@ -3347,6 +3368,27 @@ function CockpitPage() {
     setActiveTab("content");
   };
 
+  // When IndexingPanel loads fresh data, push summary back to cockpit
+  // so Mission tab numbers stay in sync with panel numbers
+  const handleUpdateIndexing = useCallback((summary: { total: number; indexed: number; submitted: number; discovered: number; neverSubmitted: number; errors: number; rate: number }) => {
+    setCockpitData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        indexing: {
+          ...prev.indexing,
+          total: summary.total,
+          indexed: summary.indexed,
+          submitted: summary.submitted,
+          discovered: summary.discovered,
+          neverSubmitted: summary.neverSubmitted,
+          errors: summary.errors,
+          rate: summary.rate,
+        },
+      };
+    });
+  }, []);
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Header */}
@@ -3419,7 +3461,7 @@ function CockpitPage() {
       {/* Content */}
       <main className="max-w-screen-xl mx-auto px-4 py-4 pb-20">
         {activeTab === "mission" && (
-          <MissionTab data={cockpitData} onRefresh={fetchCockpit} onSwitchTab={setActiveTab} siteId={activeSiteId} />
+          <MissionTab data={cockpitData} onRefresh={fetchCockpit} onSwitchTab={setActiveTab} siteId={activeSiteId} onUpdateIndexing={handleUpdateIndexing} />
         )}
         {activeTab === "content" && (
           <ContentTab activeSiteId={activeSiteId} />

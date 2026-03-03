@@ -32,6 +32,9 @@ export interface AICompletionOptions {
   taskType?: string;
   /** Cron/API route that triggered this call — for attribution */
   calledFrom?: string;
+  /** Override the default 25s timeout per AI call (milliseconds). Use for dedicated
+   *  API routes where each call gets its own 60s Vercel function execution. */
+  timeoutMs?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +212,7 @@ async function callGrok(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    signal: AbortSignal.timeout(25_000), // 25s max per AI call — leaves room within 60s Vercel limit
+    signal: AbortSignal.timeout(options.timeoutMs || 25_000),
     body: JSON.stringify({
       model,
       max_tokens: options.maxTokens || 4096,
@@ -258,7 +261,7 @@ async function callClaude(
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
     },
-    signal: AbortSignal.timeout(25_000), // 25s max per AI call — leaves room within 60s Vercel limit
+    signal: AbortSignal.timeout(options.timeoutMs || 25_000),
     body: JSON.stringify({
       model,
       max_tokens: options.maxTokens || 4096,
@@ -315,7 +318,7 @@ async function callOpenAI(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    signal: AbortSignal.timeout(25_000), // 25s max per AI call — leaves room within 60s Vercel limit
+    signal: AbortSignal.timeout(options.timeoutMs || 25_000),
     body: JSON.stringify({
       model,
       max_tokens: options.maxTokens || 4096,
@@ -371,7 +374,7 @@ async function callGemini(
       headers: {
         'Content-Type': 'application/json',
       },
-      signal: AbortSignal.timeout(25_000), // 25s max per AI call — leaves room within 60s Vercel limit
+      signal: AbortSignal.timeout(options.timeoutMs || 25_000),
       body: JSON.stringify({
         contents,
         systemInstruction: systemInstruction

@@ -144,7 +144,7 @@ export default function SimpleWriterPage() {
 
   // AI Generate state
   const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiPhase, setAiPhase] = useState(0); // 0=idle, 1=outline, 2=writing, 3=polishing
+  const [aiPhase, setAiPhase] = useState(0); // 0=idle, 1=outline, 2=writing-part1, 3=writing-part2, 4=polishing
   const [aiKeyword, setAiKeyword] = useState("");
   const [showAiPanel, setShowAiPanel] = useState(false);
 
@@ -172,7 +172,9 @@ export default function SimpleWriterPage() {
         return;
       }
 
-      // ─── 3-Phase Article Generation ──────────────────────────────────
+      // ─── 4-Phase Article Generation ──────────────────────────────────
+      // Phase 1: Outline → Phase 2a: Write first half → Phase 2b: Write second half → Phase 3: Polish SEO
+      // Each phase is a separate API call to avoid Vercel 60s timeout
       const keyword = aiKeyword.trim();
       if (!keyword) {
         setSaveResult("Error: Enter a keyword or pick a topic first");
@@ -181,7 +183,7 @@ export default function SimpleWriterPage() {
 
       // Phase 1: Research & Outline
       setAiPhase(1);
-      setSaveResult("Phase 1/3: Planning outline and keywords…");
+      setSaveResult("Step 1/4: Planning outline and keywords…");
 
       const res1 = await fetch("/api/admin/ai-generate", {
         method: "POST",
@@ -194,12 +196,12 @@ export default function SimpleWriterPage() {
       });
       if (!res1.ok) {
         const err1 = await res1.json().catch(() => ({}));
-        setSaveResult(`Error in Phase 1: ${err1.error || `Server returned ${res1.status}`}`);
+        setSaveResult(`Error in Step 1: ${err1.error || `Server returned ${res1.status}`}`);
         return;
       }
       const json1 = await res1.json();
       if (!json1.success || !json1.outline) {
-        setSaveResult(`Error in Phase 1: ${json1.error || "No outline returned"}`);
+        setSaveResult(`Error in Step 1: ${json1.error || "No outline returned"}`);
         return;
       }
 
@@ -209,39 +211,77 @@ export default function SimpleWriterPage() {
       setMetaTitleEn(outline.metaTitle || "");
       setMetaDescriptionEn(outline.metaDescription || "");
 
-      // Phase 2: Write Full Article
+      // Phase 2a: Write First Half
       setAiPhase(2);
-      setSaveResult("Phase 2/3: Writing full article…");
+      const headingCount = (outline.headings || []).length;
+      setSaveResult(`Step 2/4: Writing first half (${Math.ceil(headingCount / 2)} of ${headingCount} sections)…`);
 
-      const res2 = await fetch("/api/admin/ai-generate", {
+      const res2a = await fetch("/api/admin/ai-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "phase2_write",
+          action: "phase2a_write",
           keyword,
           outline,
           language: "en",
         }),
       });
-      if (!res2.ok) {
-        const err2 = await res2.json().catch(() => ({}));
-        setSaveResult(`Error in Phase 2: ${err2.error || `Server returned ${res2.status}`}`);
+      if (!res2a.ok) {
+        const err2a = await res2a.json().catch(() => ({}));
+        setSaveResult(`Error in Step 2: ${err2a.error || `Server returned ${res2a.status}`}`);
         return;
       }
-      const json2 = await res2.json();
-      if (!json2.success || !json2.body) {
-        setSaveResult(`Error in Phase 2: ${json2.error || "No body returned"}`);
+      const json2a = await res2a.json();
+      if (!json2a.success || !json2a.body) {
+        setSaveResult(`Error in Step 2: ${json2a.error || "No body returned"}`);
         return;
       }
 
-      // Show body immediately after Phase 2
+      // Show first half immediately
       if (editorRef.current) {
-        editorRef.current.innerHTML = json2.body;
+        editorRef.current.innerHTML = json2a.body;
+      }
+
+      // Phase 2b: Write Second Half
+      setAiPhase(3);
+      setSaveResult(`Step 3/4: Writing second half (${json2a.wordCount || 0} words so far)…`);
+
+      const res2b = await fetch("/api/admin/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "phase2b_write",
+          keyword,
+          outline,
+          previousBody: json2a.body,
+          language: "en",
+        }),
+      });
+      if (!res2b.ok) {
+        const err2b = await res2b.json().catch(() => ({}));
+        // First half is already written — show what we have
+        setSaveResult(`First half written (${json2a.wordCount || 0} words) but second half failed: ${err2b.error || res2b.status}. You can still edit and publish.`);
+        setTags((outline.keywords || []).join(", "));
+        setShowAiPanel(false);
+        return;
+      }
+      const json2b = await res2b.json();
+      if (!json2b.success || !json2b.body) {
+        setSaveResult(`First half written (${json2a.wordCount || 0} words) but second half failed: ${json2b.error || "No body returned"}. You can still edit and publish.`);
+        setTags((outline.keywords || []).join(", "));
+        setShowAiPanel(false);
+        return;
+      }
+
+      // Show full article
+      const fullBody = json2b.body; // Server already combined both halves
+      if (editorRef.current) {
+        editorRef.current.innerHTML = fullBody;
       }
 
       // Phase 3: Polish SEO
-      setAiPhase(3);
-      setSaveResult(`Phase 3/3: Polishing SEO (${json2.wordCount || 0} words written)…`);
+      setAiPhase(4);
+      setSaveResult(`Step 4/4: Polishing SEO (${json2b.wordCount || 0} words written)…`);
 
       const res3 = await fetch("/api/admin/ai-generate", {
         method: "POST",
@@ -250,14 +290,14 @@ export default function SimpleWriterPage() {
           action: "phase3_polish",
           keyword,
           outline,
-          body: json2.body,
+          body: fullBody,
           language: "en",
         }),
       });
       if (!res3.ok) {
         const err3 = await res3.json().catch(() => ({}));
         // Phase 3 is non-critical — article is already written
-        setSaveResult(`Article written (${json2.wordCount || 0} words) but SEO polish failed: ${err3.error || res3.status}. You can still publish.`);
+        setSaveResult(`Article written (${json2b.wordCount || 0} words) but SEO polish failed: ${err3.error || res3.status}. You can still publish.`);
         setTags((outline.keywords || []).join(", "));
         setShowAiPanel(false);
         return;
@@ -273,9 +313,9 @@ export default function SimpleWriterPage() {
       }
 
       setShowAiPanel(false);
-      const finalWc = json3.wordCount || json2.wordCount || 0;
+      const finalWc = json3.wordCount || json2b.wordCount || 0;
       const improvements = json3.improvements?.length ? ` Improvements: ${json3.improvements.join(", ")}` : "";
-      setSaveResult(`AI generated ${finalWc} words in 3 phases. Review and publish when ready.${improvements}`);
+      setSaveResult(`AI generated ${finalWc} words in 4 steps. Review and publish when ready.${improvements}`);
     } catch (e) {
       setSaveResult(`Error: ${e instanceof Error ? e.message : "Network error"}`);
     } finally {
@@ -458,9 +498,10 @@ export default function SimpleWriterPage() {
                 {aiGenerating ? (
                   <span className="flex items-center justify-center gap-2">
                     <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {aiPhase === 1 ? "Step 1/3: Planning outline…" :
-                     aiPhase === 2 ? "Step 2/3: Writing article…" :
-                     aiPhase === 3 ? "Step 3/3: Polishing SEO…" :
+                    {aiPhase === 1 ? "Step 1/4: Planning outline…" :
+                     aiPhase === 2 ? "Step 2/4: Writing first half…" :
+                     aiPhase === 3 ? "Step 3/4: Writing second half…" :
+                     aiPhase === 4 ? "Step 4/4: Polishing SEO…" :
                      "Generating…"}
                   </span>
                 ) : (
@@ -472,11 +513,11 @@ export default function SimpleWriterPage() {
                 <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
                   <div
                     className="h-full bg-violet-500 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.round((aiPhase / 3) * 100)}%` }}
+                    style={{ width: `${Math.round((aiPhase / 4) * 100)}%` }}
                   />
                 </div>
               )}
-              <p className="text-xs text-zinc-500">3-phase generation: Outline → Write → Polish. ~1,500 words with SEO, internal links, and affiliate links.</p>
+              <p className="text-xs text-zinc-500">4-step generation: Outline → Write (2 parts) → Polish. ~1,500 words with SEO and affiliate links.</p>
             </div>
           </div>
         )}

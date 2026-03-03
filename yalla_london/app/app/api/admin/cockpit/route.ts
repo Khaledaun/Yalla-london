@@ -252,20 +252,14 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     ? allSiteIds.filter((id) => id === requestedSiteId)
     : allSiteIds;
 
-  // ── 5. Pipeline ───────────────────────────────────────
-  const pipeline = await buildPipeline(prisma, activeSiteIds);
-
-  // ── 6. Indexing ───────────────────────────────────────
-  const indexing = await buildIndexing(prisma, activeSiteIds);
-
-  // ── 7. Cron health ────────────────────────────────────
-  const cronHealth = await buildCronHealth(prisma);
-
-  // ── 8. Per-site summaries ─────────────────────────────
-  const sites = await buildSites(prisma, allSiteIds);
-
-  // ── 9. Revenue snapshot ─────────────────────────────
-  const revenue = await buildRevenue(prisma, activeSiteIds);
+  // ── 5-9. Run all builders in PARALLEL (was sequential — caused 504 timeouts) ──
+  const [pipeline, indexing, cronHealth, sites, revenue] = await Promise.all([
+    buildPipeline(prisma, activeSiteIds),
+    buildIndexingLight(prisma, activeSiteIds),
+    buildCronHealth(prisma),
+    buildSites(prisma, allSiteIds),
+    buildRevenue(prisma, activeSiteIds),
+  ]);
 
   // ── 10. Alerts ────────────────────────────────────────
   const alerts = computeAlerts({
@@ -402,52 +396,190 @@ async function buildPipeline(prisma: any, activeSiteIds: string[]): Promise<Pipe
 }
 
 // ─────────────────────────────────────────────
-// Indexing builder — delegates to shared utility
+// Indexing builder — LIGHTWEIGHT version for cockpit
+//
+// Does NOT call getIndexingSummary() (which calls getAllIndexableUrls and
+// loads all content into memory — 15-30 seconds). Instead uses simple
+// groupBy + count queries that complete in <1 second.
+//
+// The full getIndexingSummary() is used by content-indexing API where
+// the user has explicitly requested detailed indexing data.
 // ─────────────────────────────────────────────
 
-async function buildIndexing(_prisma: any, activeSiteIds: string[]): Promise<IndexingStatus> {
+async function buildIndexingLight(prisma: any, activeSiteIds: string[]): Promise<IndexingStatus> {
   const indexing = emptyIndexing();
 
   try {
-    const { getIndexingSummary } = await import("@/lib/seo/indexing-summary");
+    const targetSiteId = activeSiteIds[0];
+    if (!targetSiteId) return indexing;
 
-    // Use first active site for single-site view, or aggregate across all
-    const targetSiteId = activeSiteIds.length === 1
-      ? activeSiteIds[0]
-      : activeSiteIds[0]; // TODO: aggregate mode for multi-site
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
-    const summary = await getIndexingSummary(targetSiteId);
+    // Run all lightweight queries in parallel
+    const [
+      publishedCount,
+      statusGroups,
+      velocity7d,
+      velocity7dPrevious,
+      channelCounts,
+      lastSub,
+      lastVer,
+      cronHealthCounts,
+    ] = await Promise.all([
+      // 1. Published blog posts count (replaces getAllIndexableUrls)
+      prisma.blogPost.count({
+        where: { siteId: targetSiteId, published: true, deletedAt: null },
+      }).catch(() => 0),
 
-    indexing.total = summary.total;
-    indexing.indexed = summary.indexed;
-    indexing.submitted = summary.submitted;
-    indexing.discovered = summary.discovered;
-    indexing.neverSubmitted = summary.neverSubmitted;
-    indexing.errors = summary.errors;
-    indexing.rate = summary.rate;
-    indexing.staleCount = summary.staleCount;
-    indexing.orphanedCount = summary.orphanedCount;
-    indexing.deindexedCount = summary.deindexed;
-    indexing.velocity7d = summary.velocity7d;
-    indexing.avgTimeToIndexDays = summary.avgTimeToIndexDays;
-    indexing.topBlocker = summary.topBlocker;
-    indexing.blockers = summary.blockers;
-    indexing.lastSubmissionAge = summary.lastSubmissionAge;
-    indexing.lastVerificationAge = summary.lastVerificationAge;
-    indexing.channelBreakdown = summary.channelBreakdown;
-    indexing.dailyQuotaRemaining = summary.dailyQuotaRemaining;
-    indexing.chronicFailures = summary.chronicFailures;
-    indexing.velocity7dPrevious = summary.velocity7dPrevious;
+      // 2. URLIndexingStatus grouped by status
+      prisma.uRLIndexingStatus.groupBy({
+        by: ["status"],
+        _count: { id: true },
+        where: { site_id: targetSiteId },
+      }).catch(() => []),
 
-    // ── GSC Search Analytics totals ──
+      // 3. Velocity: indexed in last 7d
+      prisma.uRLIndexingStatus.count({
+        where: { site_id: targetSiteId, status: "indexed", updated_at: { gte: sevenDaysAgo } },
+      }).catch(() => 0),
+
+      // 4. Velocity: indexed 7-14d ago
+      prisma.uRLIndexingStatus.count({
+        where: {
+          site_id: targetSiteId, status: "indexed",
+          updated_at: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
+        },
+      }).catch(() => 0),
+
+      // 5. Channel breakdown
+      Promise.all([
+        prisma.uRLIndexingStatus.count({ where: { site_id: targetSiteId, submitted_indexnow: true } }).catch(() => 0),
+        prisma.uRLIndexingStatus.count({ where: { site_id: targetSiteId, submitted_sitemap: true } }).catch(() => 0),
+        prisma.uRLIndexingStatus.count({ where: { site_id: targetSiteId, submitted_google_api: true } }).catch(() => 0),
+      ]),
+
+      // 6. Last submission timestamp
+      prisma.uRLIndexingStatus.findFirst({
+        where: { site_id: targetSiteId, last_submitted_at: { not: null } },
+        orderBy: { last_submitted_at: "desc" },
+        select: { last_submitted_at: true },
+      }).catch(() => null),
+
+      // 7. Last verification timestamp
+      prisma.uRLIndexingStatus.findFirst({
+        where: { site_id: targetSiteId, last_inspected_at: { not: null } },
+        orderBy: { last_inspected_at: "desc" },
+        select: { last_inspected_at: true },
+      }).catch(() => null),
+
+      // 8. Cron health for SEO
+      Promise.all([
+        prisma.cronJobLog.count({
+          where: { job_name: "seo-agent", started_at: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
+        }).catch(() => 0),
+        prisma.cronJobLog.count({
+          where: { job_name: "seo-cron", started_at: { gte: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
+        }).catch(() => 0),
+      ]),
+    ]);
+
+    // Parse status groups
+    let indexed = 0, submitted = 0, discovered = 0, errors = 0, deindexed = 0, chronicFailures = 0;
+    for (const g of statusGroups) {
+      const s = g.status as string;
+      const c = g._count.id;
+      if (s === "indexed") indexed += c;
+      else if (s === "submitted" || s === "pending") submitted += c;
+      else if (s === "discovered") discovered += c;
+      else if (s === "error") errors += c;
+      else if (s === "deindexed") deindexed += c;
+      else if (s === "chronic_failure") chronicFailures += c;
+    }
+
+    // GSC cross-reference (fast — just needs unique URL count with impressions > 0)
+    let gscIndexedBoost = 0;
+    try {
+      const gscIndexedCount = await prisma.gscPagePerformance.findMany({
+        where: { site_id: targetSiteId, impressions: { gt: 0 } },
+        select: { url: true },
+        distinct: ["url"],
+        take: 2000,
+      });
+      // Count GSC-confirmed URLs that our tracking doesn't show as indexed
+      // Don't need full URL matching — just boost the indexed count by the delta
+      const gscCount = gscIndexedCount.length;
+      if (gscCount > indexed) {
+        gscIndexedBoost = Math.min(gscCount - indexed, submitted + discovered);
+        indexed += gscIndexedBoost;
+        // Reduce submitted/discovered proportionally
+        const subRatio = submitted > 0 ? submitted / (submitted + discovered || 1) : 0;
+        const boostFromSub = Math.round(gscIndexedBoost * subRatio);
+        submitted = Math.max(0, submitted - boostFromSub);
+        discovered = Math.max(0, discovered - (gscIndexedBoost - boostFromSub));
+      }
+    } catch { /* GscPagePerformance table may not exist yet */ }
+
+    const tracked = statusGroups.reduce((sum: number, g: { _count: { id: number } }) => sum + g._count.id, 0);
+    const neverSubmitted = Math.max(0, publishedCount - tracked);
+    const total = indexed + submitted + discovered + neverSubmitted + errors + deindexed + chronicFailures;
+
+    indexing.total = total;
+    indexing.indexed = indexed;
+    indexing.submitted = submitted;
+    indexing.discovered = discovered;
+    indexing.neverSubmitted = neverSubmitted;
+    indexing.errors = errors;
+    indexing.rate = total > 0 ? Math.round((indexed / total) * 100) : 0;
+    indexing.staleCount = 0; // Skip expensive stale check in cockpit — available in full indexing view
+    indexing.orphanedCount = neverSubmitted;
+    indexing.deindexedCount = deindexed;
+    indexing.velocity7d = velocity7d;
+    indexing.velocity7dPrevious = velocity7dPrevious;
+    indexing.channelBreakdown = {
+      indexnow: channelCounts[0],
+      sitemap: channelCounts[1],
+      googleApi: channelCounts[2],
+    };
+    indexing.chronicFailures = chronicFailures;
+    indexing.dailyQuotaRemaining = null; // Skip in cockpit — available in full indexing view
+
+    // Timestamps
+    const ageStr = (d: Date | null) => {
+      if (!d) return null;
+      const h = Math.round((Date.now() - d.getTime()) / 3600000);
+      return h < 1 ? "< 1h ago" : h < 24 ? `${h}h ago` : `${Math.round(h / 24)}d ago`;
+    };
+    indexing.lastSubmissionAge = ageStr(lastSub?.last_submitted_at ?? null);
+    indexing.lastVerificationAge = ageStr(lastVer?.last_inspected_at ?? null);
+
+    // Blockers (lightweight — skip thin content check)
+    const blockers: IndexingStatus["blockers"] = [];
+    if (!process.env.INDEXNOW_KEY) {
+      blockers.push({ reason: "IndexNow key not set", count: publishedCount, severity: "critical" });
+    }
+    if (neverSubmitted > 0) {
+      blockers.push({ reason: `${neverSubmitted} article(s) not tracked by SEO agent`, count: neverSubmitted, severity: "critical" });
+    }
+    if (discovered > 0) {
+      blockers.push({ reason: `${discovered} article(s) discovered but never submitted`, count: discovered, severity: "warning" });
+    }
+    if (errors > 0) {
+      blockers.push({ reason: `${errors} submission error(s)`, count: errors, severity: "critical" });
+    }
+    if (cronHealthCounts[0] === 0) {
+      blockers.push({ reason: "SEO agent hasn't run in 3 days", count: 0, severity: "warning" });
+    }
+    indexing.blockers = blockers;
+    indexing.topBlocker = blockers.length > 0 ? blockers[0].reason : null;
+
+    // GSC trend (lightweight — just totals)
     try {
       const { getPerformanceTrend, getLastGscSyncTime } = await import("@/lib/seo/gsc-trend-analysis");
-
       const [siteTrend, lastSyncTime] = await Promise.all([
         getPerformanceTrend(targetSiteId, "7d"),
         getLastGscSyncTime(),
       ]);
-
       indexing.gscTotalClicks7d = siteTrend.totalClicks.current;
       indexing.gscTotalImpressions7d = siteTrend.totalImpressions.current;
       indexing.gscClicksTrend = siteTrend.totalClicks.changePercent;
@@ -525,11 +657,10 @@ async function buildCronHealth(prisma: any): Promise<CronHealth> {
 // ─────────────────────────────────────────────
 
 async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSummary[]> {
-  const results: SiteSummary[] = [];
-
-  for (const siteId of activeSiteIds) {
+  // Run all sites in PARALLEL (was serial for-loop — slow with N sites)
+  const results = await Promise.all(activeSiteIds.map(async (siteId) => {
     const siteConfig = SITES[siteId];
-    if (!siteConfig) continue;
+    if (!siteConfig) return null;
 
     try {
       const PIPELINE_PHASES = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"];
@@ -573,7 +704,7 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
 
       const published = articleAgg._count.id;
 
-      results.push({
+      return {
         id: siteId,
         name: siteConfig.name,
         domain: getSiteDomain(siteId),
@@ -587,10 +718,10 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         lastPublishedAt: latestPost?.created_at?.toISOString() ?? null,
         lastCronAt: null, // CronJobLog has no siteId column — shown as N/A
         isActive: siteConfig.status === "active",
-      });
+      } as SiteSummary;
     } catch (err) {
       console.warn(`[cockpit] site summary failed for ${siteId}:`, err instanceof Error ? err.message : err);
-      results.push({
+      return {
         id: siteId,
         name: siteConfig.name,
         domain: getSiteDomain(siteId),
@@ -604,11 +735,11 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         lastPublishedAt: null,
         lastCronAt: null,
         isActive: siteConfig.status === "active",
-      });
+      } as SiteSummary;
     }
-  }
+  }));
 
-  return results;
+  return results.filter((r): r is SiteSummary => r !== null);
 }
 
 // ─────────────────────────────────────────────

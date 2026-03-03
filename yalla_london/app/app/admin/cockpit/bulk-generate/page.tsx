@@ -76,13 +76,21 @@ export default function BulkGeneratePage() {
 
   // Load sites and content types on mount
   useEffect(() => {
+    // Helper: safely parse JSON response (Safari throws "The string did not match
+    // the expected pattern" when calling .json() on non-JSON responses like 504 HTML)
+    const safeJson = async (res: Response) => {
+      if (!res.ok) return null;
+      const text = await res.text();
+      try { return JSON.parse(text); } catch { return null; }
+    };
+
     // Fetch available sites
     fetch("/api/admin/cockpit")
-      .then(r => r.json())
+      .then(r => safeJson(r))
       .then(data => {
-        if (data.success && data.sites) {
-          const siteList = (data.sites as Array<{ siteId: string; name: string }>).map(s => ({
-            id: s.siteId,
+        if (data?.sites) {
+          const siteList = (data.sites as Array<{ siteId?: string; id?: string; name: string }>).map(s => ({
+            id: s.siteId || s.id || "",
             name: s.name,
           }));
           setSites(siteList);
@@ -99,9 +107,9 @@ export default function BulkGeneratePage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "content_types" }),
     })
-      .then(r => r.json())
+      .then(r => safeJson(r))
       .then(data => {
-        if (data.success && data.types) {
+        if (data?.success && data.types) {
           setContentTypes(data.types);
         }
       })
@@ -142,11 +150,27 @@ export default function BulkGeneratePage() {
         }),
       });
 
-      const json = await res.json();
+      // Handle non-JSON responses (504 timeout, 502 gateway, etc.)
+      if (!res.ok && res.status >= 500) {
+        setError(`Server error (HTTP ${res.status}). The generation may have timed out. Try generating fewer articles or tap "Continue" if a run already started.`);
+        setRunning(false);
+        return;
+      }
+
+      const text = await res.text();
+      let json: Record<string, unknown>;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        setError(`Server returned invalid response (HTTP ${res.status}). Try again in a moment.`);
+        setRunning(false);
+        return;
+      }
+
       if (json.success) {
-        setResult(json);
+        setResult(json as unknown as RunResult);
       } else {
-        setError(json.error || "Pipeline failed");
+        setError((json.error as string) || "Pipeline failed");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Network error");

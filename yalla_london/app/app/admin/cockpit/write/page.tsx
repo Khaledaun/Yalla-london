@@ -159,6 +159,7 @@ export default function SimpleWriterPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "pick_topic" }),
         });
+        if (!res.ok) { setSaveResult(`Error: Server returned ${res.status}`); return; }
         const json = await res.json();
         if (json.success && json.topic?.keyword) {
           setAiKeyword(json.topic.keyword);
@@ -185,6 +186,7 @@ export default function SimpleWriterPage() {
           language: "en",
         }),
       });
+      if (!res.ok) { setSaveResult(`Error: Server returned ${res.status}. Try again.`); return; }
       const json = await res.json();
       if (json.success && json.content) {
         const c = json.content;

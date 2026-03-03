@@ -613,7 +613,7 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         inPipeline: inPipelineCount,
         avgSeoScore: Math.round(articleAgg._avg.seo_score ?? 0),
         topicsQueued,
-        indexRate: published > 0 ? Math.round((indexedUrls / published) * 100) : 0,
+        indexRate: totalUrls > 0 ? Math.round((indexedUrls / totalUrls) * 100) : 0,
         lastPublishedAt: latestPost?.created_at?.toISOString() ?? null,
         lastCronAt: null, // CronJobLog has no siteId column — shown as N/A
         isActive: siteConfig.status === "active",

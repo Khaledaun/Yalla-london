@@ -340,25 +340,41 @@ export async function runSiteAudit(
 export async function saveAuditResults(result: SiteAuditResult): Promise<void> {
   const { prisma } = await import("@/lib/db");
 
+  // Ensure the table exists (migration may not have been deployed yet)
+  try {
+    const { ensurePerformanceAudits } = await import("@/lib/db/ensure-tables");
+    await ensurePerformanceAudits();
+  } catch (e) {
+    console.warn("[site-auditor] ensurePerformanceAudits failed:", e instanceof Error ? e.message : String(e));
+  }
+
   for (const page of result.pages) {
-    await prisma.performanceAudit.create({
-      data: {
-        siteId: result.siteId,
-        url: page.url,
-        strategy: result.strategy,
-        performanceScore: page.performanceScore,
-        accessibilityScore: page.accessibilityScore,
-        bestPracticesScore: page.bestPracticesScore,
-        seoScore: page.seoScore,
-        lcpMs: page.lcpMs,
-        clsScore: page.clsScore,
-        inpMs: page.inpMs,
-        fcpMs: page.fcpMs,
-        tbtMs: page.tbtMs,
-        speedIndex: page.speedIndex,
-        diagnostics: page.diagnostics as unknown as Record<string, unknown>,
-        runId: result.runId,
-      },
-    });
+    try {
+      await prisma.performanceAudit.create({
+        data: {
+          siteId: result.siteId,
+          url: page.url,
+          strategy: result.strategy,
+          performanceScore: page.performanceScore,
+          accessibilityScore: page.accessibilityScore,
+          bestPracticesScore: page.bestPracticesScore,
+          seoScore: page.seoScore,
+          lcpMs: page.lcpMs,
+          clsScore: page.clsScore,
+          inpMs: page.inpMs,
+          fcpMs: page.fcpMs,
+          tbtMs: page.tbtMs,
+          speedIndex: page.speedIndex,
+          diagnostics: page.diagnostics as unknown as Record<string, unknown>,
+          runId: result.runId,
+        },
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("does not exist")) {
+        throw new Error("Performance audit table missing. Run: npx prisma migrate deploy");
+      }
+      throw err;
+    }
   }
 }

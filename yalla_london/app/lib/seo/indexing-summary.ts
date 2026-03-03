@@ -454,7 +454,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const [seoAgentRuns, seoCronRuns] = await Promise.all([
       prisma.cronJobLog.count({ where: { job_name: "seo-agent", started_at: { gte: threeDaysAgo } } }),
-      prisma.cronJobLog.count({ where: { job_name: "seo-cron", started_at: { gte: threeDaysAgo } } }),
+      prisma.cronJobLog.count({ where: { job_name: { startsWith: "seo-cron" }, started_at: { gte: threeDaysAgo } } }),
     ]);
     if (seoAgentRuns === 0) {
       blockers.push({ reason: "SEO agent hasn't run in 3 days — new URLs not being discovered", count: 0, severity: "warning" });

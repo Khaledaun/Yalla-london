@@ -412,7 +412,8 @@ export async function POST(req: NextRequest) {
   if (auth) return auth;
 
   const body = await req.json().catch(() => ({}));
-  const { cronPath } = body as { cronPath?: string };
+  // Accept both "cronPath" (departures board) and "path" (cockpit GSC sync button)
+  const cronPath = (body as Record<string, string>).cronPath || (body as Record<string, string>).path;
 
   if (!cronPath || !cronPath.startsWith('/api/')) {
     return NextResponse.json({ error: 'Invalid cronPath' }, { status: 400 });

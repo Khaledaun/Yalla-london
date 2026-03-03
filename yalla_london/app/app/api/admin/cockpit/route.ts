@@ -95,7 +95,7 @@ interface IndexingStatus {
   gscImpressionsTrend: number | null;
   lastGscSync: string | null;
   // Data source indicator so frontend can show "(approx)" when using fallback
-  dataSource: "full" | "lightweight";
+  dataSource: "full" | "lightweight" | "error";
   // Impression drop diagnostic (only populated when trend is negative)
   impressionDiagnostic: {
     gscDelayNote: string | null;

@@ -1,9 +1,9 @@
 # Comprehensive Testing Checklist
 
 **Platform:** Yalla London / Zenitha Multi-Tenant Content Engine
-**Date:** 2026-03-02
-**Smoke Test Version:** v2.0 (221 tests)
-**Score:** 97% (215 pass, 6 warnings, 0 failures)
+**Date:** 2026-03-03
+**Smoke Test Version:** v2.1 (233 tests)
+**Score:** 97% (227 pass, 6 warnings, 0 failures)
 
 ---
 
@@ -32,7 +32,8 @@
 | O. Master Audit Engine | 5 | 5 | 0 | 0 | 100% |
 | P. Anti-Patterns | 4 | 3 | 1 | 0 | 75% |
 | Q. Vercel Deployment | 4 | 4 | 0 | 0 | 100% |
-| **TOTAL** | **221** | **215** | **6** | **0** | **97%** |
+| R. Cockpit Data Consistency | 12 | 12 | 0 | 0 | 100% |
+| **TOTAL** | **233** | **227** | **6** | **0** | **97%** |
 
 ### Platform Stats
 
@@ -366,6 +367,34 @@ All cron routes follow standard auth pattern: allow if `CRON_SECRET` is unset, r
 
 ---
 
+## R. Cockpit Data Consistency (12/12 PASS)
+
+### R1. Indexing Source Unification (5/5 PASS)
+
+- [x] **[P0]** Cockpit `buildIndexing()` uses `getIndexingSummary()` as primary data source (not `buildIndexingLight()`)
+- [x] **[P0]** `getIndexingSummary()` wrapped in 5-second timeout with `Promise.race` to prevent cockpit 504
+- [x] **[P0]** Fallback path uses lightweight DB queries (`BlogPost.count` + `URLIndexingStatus.groupBy`) when `getIndexingSummary()` times out or fails
+- [x] **[P0]** `dataSource` field set to `"full"` on primary path, `"lightweight"` on fallback path
+- [x] **[P1]** Frontend shows "(approx)" indicator when `dataSource === "lightweight"`
+
+### R2. Impression Diagnostic (3/3 PASS)
+
+- [x] **[P0]** `impressionDiagnostic` only populated when `gscImpressionsTrend < 0` (not on positive or null trend)
+- [x] **[P0]** Diagnostic includes `gscDelayNote`, `blockedByGate` count, `publishVelocity` (this week vs last week), and `topDroppers` (capped at 5)
+- [x] **[P1]** Frontend renders diagnostic panel conditionally with collapsible detail
+
+### R3. Site Error Surfacing (2/2 PASS)
+
+- [x] **[P0]** `SiteSummary` interface includes `dataError: string | null` — set in catch block when per-site queries fail
+- [x] **[P0]** Sites tab shows "Data load failed" card with retry button instead of misleading zeros when `dataError` is set
+
+### R4. Bulk Generate Budget (2/2 PASS)
+
+- [x] **[P0]** `BUDGET_MS` is 45,000ms (leaves 15s for response + logging within Vercel Pro 60s limit)
+- [x] **[P0]** `PER_ARTICLE_ESTIMATE_MS` is 40,000ms (ensures only 1 article per invocation: 45,000 - 40,000 = 5,000ms budget check)
+
+---
+
 ## Warning Summary
 
 | # | Category | Test | Severity | Status | Notes |
@@ -399,4 +428,4 @@ npx tsx scripts/cockpit-smoke-test.ts
 
 ---
 
-*Last updated: 2026-03-02 | Maintained by Claude Code (Audit Session)*
+*Last updated: 2026-03-03 | Maintained by Claude Code (Audit Session #33)*

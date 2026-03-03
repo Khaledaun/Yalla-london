@@ -72,7 +72,8 @@ async function getDbPost(slug: string, siteId: string) {
       }),
       3000,
     );
-  } catch {
+  } catch (e) {
+    console.warn("[blog] getDbPost failed for slug:", slug, e instanceof Error ? e.message : String(e));
     return null;
   }
 }
@@ -84,11 +85,13 @@ async function getDbSlugs(siteId?: string): Promise<string[]> {
       prisma.blogPost.findMany({
         where: { published: true, deletedAt: null, siteId },
         select: { slug: true },
+        take: 2000,
       }),
       8000,
     );
     return posts ? (posts as Array<{ slug: string }>).map((p) => p.slug) : [];
-  } catch {
+  } catch (e) {
+    console.warn("[blog] getDbSlugs failed:", e instanceof Error ? e.message : String(e));
     return [];
   }
 }
@@ -152,9 +155,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const siteConfig = getSiteConfig(siteId);
-  const siteName = siteConfig?.name || "Yalla London";
+  const siteName = siteConfig?.name || "Zenitha";
   const siteDomain = getSiteDomain(siteId);
-  const siteSlug = siteConfig?.slug || "yallalondon";
+  const siteSlug = siteConfig?.slug || getDefaultSiteId();
 
   const baseUrl =
     process.env.NEXT_PUBLIC_SITE_URL || siteDomain;
@@ -535,9 +538,9 @@ export default async function BlogPostPage({ params }: Props) {
   const headersList = await headers();
   const siteId = headersList.get("x-site-id") || getDefaultSiteId();
   const siteConfig = getSiteConfig(siteId);
-  const siteName = siteConfig?.name || "Yalla London";
+  const siteName = siteConfig?.name || "Zenitha";
   const siteDomain = getSiteDomain(siteId);
-  const siteSlug = siteConfig?.slug || "yallalondon";
+  const siteSlug = siteConfig?.slug || getDefaultSiteId();
 
   const result = await findPost(slug, siteId);
 

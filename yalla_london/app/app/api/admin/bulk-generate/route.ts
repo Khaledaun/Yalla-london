@@ -50,8 +50,8 @@ interface RunState {
 // For cross-invocation persistence, we write to CronJobLog
 const activeRuns = new Map<string, RunState>();
 
-const BUDGET_MS = 50_000; // 50s budget, leaving 10s for CronJobLog write + response
-const PER_ARTICLE_ESTIMATE_MS = 32_000; // Must exceed AI call timeout (30s) + overhead
+const BUDGET_MS = 45_000; // 45s budget — leaves 15s for CronJobLog write + response + Vercel overhead
+const PER_ARTICLE_ESTIMATE_MS = 40_000; // Ensures only 1 article per invocation (AI call ~30s + DB ops ~10s)
 
 async function handlePost(request: NextRequest) {
   const body = await request.json();
@@ -318,9 +318,8 @@ async function handleContinue(
 
   const startTime = Date.now();
 
-  // Continue processing
+  // Continue processing (processArticles() increments phasesCompleted internally)
   await processArticles(runState, site, siteId, startTime, request);
-  runState.phasesCompleted++;
 
   // Persist updated state
   await persistRunState(runId, runState, siteId, runState.startedAt);
@@ -560,7 +559,7 @@ async function publishArticle(
     let suffix = 1;
     while (true) {
       const existing = await prisma.blogPost.findFirst({
-        where: { slug: slugAttempt, deletedAt: null },
+        where: { slug: slugAttempt, siteId, deletedAt: null },
       });
       if (!existing) break;
       suffix++;
@@ -593,6 +592,35 @@ async function publishArticle(
 
     const bodyHtml = (content.body as string) || "";
 
+    // ── Pre-publication gate check ─────────────────────────────────────
+    // Run all 14 quality checks before allowing publish. Fail-closed:
+    // if the gate fails, article is created as unpublished (draft).
+    let passesGate = false;
+    try {
+      const { runPrePublicationGate } = await import("@/lib/seo/orchestrator/pre-publication-gate");
+      const domain = getSiteDomain(siteId);
+      const gateResult = await runPrePublicationGate(
+        `${domain}/blog/${slug}`,
+        {
+          title_en: titleEn,
+          meta_title_en: (content.metaTitle as string) || titleEn.substring(0, 60),
+          meta_description_en: (content.metaDescription as string) || "",
+          content_en: bodyHtml,
+          seo_score: (content.seoScore as number) || 65,
+          locale: "en",
+        },
+        domain,
+        { skipRouteCheck: true },
+      );
+      passesGate = gateResult.allowed;
+      if (!gateResult.allowed) {
+        console.warn(`[bulk-generate] Pre-pub gate BLOCKED "${titleEn}": ${gateResult.checks.filter(c => !c.passed && c.severity !== "warning").map(c => c.name).join(", ")}`);
+      }
+    } catch (gateErr) {
+      // Gate failure = fail-closed → publish as draft
+      console.warn("[bulk-generate] Pre-pub gate error (fail-closed):", gateErr instanceof Error ? gateErr.message : String(gateErr));
+    }
+
     // CRITICAL: title_ar and content_ar are required non-nullable String fields
     const blogPost = await prisma.blogPost.create({
       data: {
@@ -608,7 +636,7 @@ async function publishArticle(
         meta_description_ar: (content.metaDescriptionTranslation as string) || null,
         slug,
         tags: [...((content.tags as string[]) || []), "ai-generated", "bulk-generated", `site-${siteId}`],
-        published: true,
+        published: passesGate,
         siteId,
         category_id: categoryId,
         author_id: authorId,
@@ -621,7 +649,7 @@ async function publishArticle(
 
     article.blogPostId = blogPost.id;
     article.slug = slug;
-    article.status = "published";
+    article.status = passesGate ? "published" : "ready";
 
     // Mark topic as published
     if (article.topicId) {
@@ -631,16 +659,21 @@ async function publishArticle(
       }).catch((e: unknown) => console.warn("[bulk-generate] Topic status update failed:", e));
     }
 
-    // Submit to IndexNow (fire-and-forget)
+    // Track URL in indexing system immediately
+    const domain = getSiteDomain(siteId);
+    const articleUrl = `${domain}/blog/${slug}`;
     try {
-      const domain = getSiteDomain(siteId); // Already includes https://
-      const articleUrl = `${domain}/blog/${slug}`;
-      const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
-      submitToIndexNow([articleUrl]).catch((e: Error) =>
-        console.warn("[bulk-generate] IndexNow failed:", e.message)
-      );
-    } catch {
-      console.warn("[bulk-generate] IndexNow setup failed");
+      const { ensureUrlTracked, submitToIndexNow } = await import("@/lib/seo/indexing-service");
+      ensureUrlTracked(articleUrl, siteId, `blog/${slug}`).catch(() => {});
+
+      // Submit to IndexNow only if article passed the gate and was published
+      if (passesGate) {
+        submitToIndexNow([articleUrl]).catch((e: Error) =>
+          console.warn("[bulk-generate] IndexNow failed:", e.message)
+        );
+      }
+    } catch (e) {
+      console.warn("[bulk-generate] IndexNow/tracking setup failed:", e);
     }
   } catch (err) {
     article.status = "failed";
@@ -723,13 +756,14 @@ async function restoreRunState(runId: string): Promise<RunState | null> {
     return {
       siteId: (summary.siteId as string) || "",
       language: (summary.language as string) || "en",
-      autoPublish: (summary.autoPublish as boolean) ?? true,
+      autoPublish: (summary.autoPublish as boolean) ?? false,
       total: (summary.total as number) || 0,
       articles,
       startedAt: log.started_at?.getTime() || Date.now(),
       phasesCompleted: (summary.phasesCompleted as number) || 1,
     };
-  } catch {
+  } catch (e) {
+    console.warn("[bulk-generate] restoreRunState failed:", e);
     return null;
   }
 }

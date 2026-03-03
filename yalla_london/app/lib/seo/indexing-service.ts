@@ -1034,6 +1034,39 @@ export async function syncAllUrlsToTracking(siteId: string, siteUrl: string): Pr
   return { synced, total: allUrls.length, alreadyTracked: existing.length };
 }
 
+/**
+ * Ensure a single URL is tracked in URLIndexingStatus.
+ * Non-destructive upsert — creates a "discovered" record if none exists,
+ * does NOT overwrite existing status (if already indexed/submitted, no change).
+ *
+ * Call this whenever a BlogPost is created or published — ensures the URL
+ * appears in indexing dashboards immediately, not hours later when seo-agent discovers it.
+ *
+ * Fire-and-forget safe — all errors are caught and logged.
+ */
+export async function ensureUrlTracked(url: string, siteId: string, slug?: string): Promise<void> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    const derivedSlug = slug || url.replace(/^https?:\/\/[^/]+/, "").replace(/^\/ar/, "").replace(/^\//, "") || "/";
+
+    await prisma.uRLIndexingStatus.upsert({
+      where: { site_id_url: { site_id: siteId, url } },
+      create: {
+        site_id: siteId,
+        url,
+        slug: derivedSlug,
+        status: "discovered",
+        submitted_indexnow: false,
+        submitted_sitemap: false,
+        submitted_google_api: false,
+      },
+      update: {}, // Don't overwrite existing records — preserves indexed/submitted status
+    });
+  } catch (err) {
+    console.warn(`[indexing-service] ensureUrlTracked failed for ${url}:`, err instanceof Error ? err.message : err);
+  }
+}
+
 export async function getNewUrls(withinDays: number = 7, siteId?: string, siteUrl?: string): Promise<string[]> {
   const baseUrl = siteUrl || BASE_URL;
   const cutoffDate = new Date();

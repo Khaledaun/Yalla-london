@@ -319,6 +319,11 @@ Current word count: ${wordCount}`;
           }
         }
 
+        // ── Per-article budget check after AI operations ─────────────
+        if (Date.now() - articleStart > PER_ARTICLE_BUDGET_MS) {
+          fix.notes.push(`Per-article budget (${PER_ARTICLE_BUDGET_MS}ms) exceeded — skipping remaining checks`);
+        }
+
         // ── Fix 8: Canonical URL verification ─────────────────────────
         // Canonical is handled at render time by Next.js generateMetadata — verify it exists
         const expectedCanonical = `${domain}/blog/${slug}`;

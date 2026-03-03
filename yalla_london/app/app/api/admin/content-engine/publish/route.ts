@@ -141,6 +141,15 @@ export async function POST(request: NextRequest) {
         });
 
         created.articleId = blogPost.id;
+
+        // Track URL in indexing system immediately
+        try {
+          const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
+          const { getSiteDomain } = await import("@/config/sites");
+          ensureUrlTracked(`${getSiteDomain(siteId)}/blog/${slug}`, siteId, `blog/${slug}`).catch(() => {});
+        } catch {
+          // Non-fatal
+        }
       } catch (err) {
         console.warn("[content-engine/publish] Article creation failed:", err);
       }

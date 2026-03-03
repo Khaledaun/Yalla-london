@@ -48,7 +48,8 @@ async function getLatestDbTimestamp(
     if (!record) return fallback;
     const ts = record.updated_at || record.updatedAt;
     return ts ? new Date(ts).toISOString() : fallback;
-  } catch {
+  } catch (e) {
+    console.warn(`[sitemap] getLatestDbTimestamp(${model}) failed:`, e instanceof Error ? e.message : String(e));
     return fallback;
   }
 }
@@ -325,6 +326,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         siteId: siteId,
       },
       select: { slug: true, updated_at: true },
+      orderBy: { updated_at: "desc" },
+      take: 1000,
     });
     const dbSevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
     dbBlogPages = dbPosts
@@ -558,10 +561,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...dbBlogPages,
     ...eventPages,
     // Travel blog-specific sections (skip for yacht site)
-    ...(isYachtSite ? [] : categoryPages),
-    ...(isYachtSite ? [] : infoHubPages),
-    ...(isYachtSite ? [] : infoSectionPages),
-    ...(isYachtSite ? [] : infoArticlePages),
+    // Category, information hub, and walks pages use static Yalla London data —
+    // only include them for yalla-london until other sites have their own content.
+    ...(siteId === "yalla-london" ? categoryPages : []),
+    ...(siteId === "yalla-london" ? infoHubPages : []),
+    ...(siteId === "yalla-london" ? infoSectionPages : []),
+    ...(siteId === "yalla-london" ? infoArticlePages : []),
     ...newsLandingPages,
     ...newsPages,
     ...(isYachtSite ? [] : londonByFootPages),

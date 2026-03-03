@@ -720,6 +720,15 @@ export async function promoteToBlogPost(
     }
   }
 
+  // Track URL in indexing system immediately — makes it visible in dashboard
+  if (blogPost) {
+    const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
+    const articleUrl = `${getSiteDomain(siteId)}/blog/${slug}`;
+    ensureUrlTracked(articleUrl, siteId, `blog/${slug}`).catch(() => {});
+    // Also track the Arabic variant
+    ensureUrlTracked(`${getSiteDomain(siteId)}/ar/blog/${slug}`, siteId, `ar/blog/${slug}`).catch(() => {});
+  }
+
   // Auto-queue tweet for newly published article (fires when TWITTER_* env vars are set)
   try {
     const twitterEnabled = !!(

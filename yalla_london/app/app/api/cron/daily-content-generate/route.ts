@@ -506,6 +506,15 @@ async function generateArticle(
     }
   }
 
+  // Track URL in indexing system immediately
+  try {
+    const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
+    const postUrl = `${getSiteDomain(site.id)}/blog/${slug}`;
+    ensureUrlTracked(postUrl, site.id, `blog/${slug}`).catch(() => {});
+  } catch {
+    // Non-fatal
+  }
+
   // Auto-inject structured data (JSON-LD) for AIO visibility
   try {
     const { enhancedSchemaInjector } = await import(

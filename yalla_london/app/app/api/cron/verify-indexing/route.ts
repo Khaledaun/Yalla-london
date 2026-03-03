@@ -68,10 +68,10 @@ async function handleVerifyIndexing(request: NextRequest) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const twentyOneDaysAgo = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000);
 
-    // Per-site budget: 35 URLs per site per run
-    // Math: 35 URLs × 350ms rate-limit = 12.25s, leaving 40.75s for queue building + rate-drop checks.
-    // Safe after rate-limit reduction from 600ms → 350ms (original 35 × 600ms = 21s caused timeouts).
-    const MAX_PER_SITE = 35;
+    // Per-site budget: 50 URLs per site per run
+    // Math: 50 URLs × 350ms rate-limit = 17.5s, leaving 35.5s for queue building + rate-drop checks.
+    // Safe after rate-limit reduction from 600ms → 350ms and query parallelization.
+    const MAX_PER_SITE = 50;
 
     let totalChecked = 0;
     let totalIndexed = 0;

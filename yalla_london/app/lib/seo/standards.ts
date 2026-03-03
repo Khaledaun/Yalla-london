@@ -13,8 +13,8 @@
  */
 
 // ─── Last verified against Google docs ──────────────────────────────────────
-export const STANDARDS_VERSION = "2026-02-19";
-export const STANDARDS_SOURCE = "Google Search Central + Quality Rater Guidelines Sept 2025 + January 2026 Core Update";
+export const STANDARDS_VERSION = "2026-03-03";
+export const STANDARDS_SOURCE = "Google Search Central + Quality Rater Guidelines Sept 2025 + December 2025 Core Update + January 2026 Core Update (Authenticity)";
 
 // ─── Algorithm Context ──────────────────────────────────────────────────────
 export const ALGORITHM_CONTEXT = {
@@ -40,7 +40,7 @@ export const ALGORITHM_CONTEXT = {
   // ── January 2026 "Authenticity Update" (Core Update, rolled out Jan 4 2026) ──
   /** First-hand Experience is now the dominant E-E-A-T signal — content must prove lived experience */
   authenticityUpdateActive: true,
-  /** AI content not banned but mass-produced unedited AI content demoted. Human oversight required. */
+  /** AI content not banned — no percentage limit. Mass-produced unedited AI content demoted. Human oversight required. */
   aiContentRequiresHumanOversight: true,
   /** Stock photography penalized — original media signals authenticity */
   originalMediaPreferred: true,
@@ -362,8 +362,10 @@ export const SCHEMA_TYPES = {
     { type: "LearningVideo", deprecatedDate: "2025-06", reason: "Deprecated June 2025" },
     { type: "SpecialAnnouncement", deprecatedDate: "2025-06", reason: "Deprecated June 2025" },
     { type: "VehicleListing", deprecatedDate: "2025-06", reason: "Deprecated June 2025" },
-    { type: "PracticeProblems", deprecatedDate: "2025-11", reason: "Deprecated November 2025" },
-    { type: "SitelinksSearchBox", deprecatedDate: "2024-10", reason: "Deprecated October 2024" },
+    { type: "PracticeProblems", deprecatedDate: "2025-11", reason: "Deprecated November 2025, removed from Search Console" },
+    { type: "SitelinksSearchBox", deprecatedDate: "2024-10", reason: "Deprecated October 2024, integrated into core search" },
+    { type: "Dataset", deprecatedDate: "2026-01", reason: "Only serves Dataset Search, not general search results" },
+    { type: "QAPage", deprecatedDate: "2026-01", reason: "Limited adoption, overlap with other types" },
   ] as const,
 
   /** Best types for travel/luxury content sites */
@@ -386,6 +388,14 @@ export const SCHEMA_TYPES = {
 export const AIO_OPTIMIZATION = {
   /** Google says: no special optimization needed beyond standard SEO */
   noSpecialRequirements: true,
+  /** AI Overviews appear in 30-60% of US searches (varies by methodology) */
+  aiOverviewCoverage: { min: 0.30, max: 0.60, source: "Advanced Web Ranking / Seer Interactive 2025-2026" },
+  /** CRITICAL: Organic CTR drops 61% for queries with AI Overviews (Seer Interactive, Sept 2025) */
+  organicCtrDropWithAio: 0.61,
+  /** Zero-click rate: 43% with AIO vs 34% without */
+  zeroClickRate: { withAio: 0.43, withoutAio: 0.34 },
+  /** Coverage grew 58% year-over-year (Feb 2025 to Feb 2026) */
+  coverageGrowthYoY: 0.58,
   /** But studies show these patterns correlate with citation */
   bestPractices: {
     /** Answer-first approach: concise 50-70 word direct answer near top */
@@ -400,6 +410,8 @@ export const AIO_OPTIMIZATION = {
     topResultCorrelation: 0.92,
     /** Question-based queries 84% more likely to trigger AI Overview */
     questionQueryBoost: 0.84,
+    /** Queries 8+ words have 57% chance of triggering AIO */
+    longQueryTriggerRate: 0.57,
   },
 } as const;
 

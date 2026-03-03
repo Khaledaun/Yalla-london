@@ -83,7 +83,7 @@ export async function runOrchestrator(
   const { includeResearch = false, maxDurationMs = 50000 } = options;
   const deadline = startTime + maxDurationMs;
 
-  const runId = `orch-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+  const runId = `orch-${Date.now()}-${crypto.randomUUID().slice(0, 6)}`;
 
   // ── Phase 1: Parallel data collection ───────────────────────────────
   // Run live audit, agent performance check, and metrics collection

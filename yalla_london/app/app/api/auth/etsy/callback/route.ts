@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
   // Retrieve stored values from cookies
   const storedState = request.cookies.get("etsy_oauth_state")?.value;
   const codeVerifier = request.cookies.get("etsy_code_verifier")?.value;
-  const siteId = request.cookies.get("etsy_site_id")?.value ?? "yalla-london";
+  const { getDefaultSiteId } = await import("@/config/sites");
+  const siteId = request.cookies.get("etsy_site_id")?.value ?? getDefaultSiteId();
 
   // Validate state (CSRF protection)
   if (!storedState || state !== storedState) {

@@ -294,7 +294,7 @@ export async function sendEmail(params: SendEmailParams): Promise<void> {
             subject,
           },
         ],
-        from: { email: defaultFrom, name: "Yalla London" },
+        from: { email: defaultFrom, name: process.env.EMAIL_SENDER_NAME || "Zenitha" },
         content: [
           {
             type: "text/html",

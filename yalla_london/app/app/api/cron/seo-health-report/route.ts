@@ -1,330 +1,35 @@
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
-export const maxDuration = 60;
+
+/**
+ * DEPRECATED: seo-health-report cron route
+ *
+ * Superseded by:
+ * - /api/cron/seo-orchestrator (daily + weekly SEO orchestration)
+ * - /api/cron/seo-agent (3x daily — discovery, schema injection, auto-fix)
+ * - /api/seo/cron (daily + weekly — IndexNow submission, monitoring)
+ *
+ * This route is NOT scheduled in vercel.json.
+ * Kept as a stub so existing tests and references don't break.
+ */
 
 import { NextRequest, NextResponse } from "next/server";
-import { logCronExecution } from "@/lib/cron-logger";
 
-/**
- * SEO Health Dashboard - Weekly auto-report generation
- * Generates comprehensive reports using SeoReport model + BlogPost data
- */
-export async function POST(request: NextRequest) {
-  const _cronStart = Date.now();
-  try {
-    // Auth: allow if CRON_SECRET not set, reject if set and doesn't match
-    const authHeader = request.headers.get("Authorization");
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+const DEPRECATED_MSG = {
+  deprecated: true,
+  message: "seo-health-report is superseded by seo-orchestrator + seo-agent + seo/cron",
+  replacements: ["/api/cron/seo-orchestrator", "/api/cron/seo-agent", "/api/seo/cron"],
+};
 
-    const { prisma } = await import("@/lib/db");
-
-    // Extract optional siteId from query params or request body
-    const url = new URL(request.url);
-    const siteId = url.searchParams.get("siteId") || undefined;
-
-    const report = await generateWeeklyReport(prisma, siteId);
-
-    // Store report using SeoReport model (correct model from schema)
-    await prisma.seoReport.create({
-      data: {
-        reportType: "weekly_health",
-        data: {
-          auditStats: report.auditStats,
-          topIssues: report.topIssues,
-          schemaCoverage: report.schemaCoverage,
-          recommendations: report.recommendations,
-          metadata: report.metadata,
-        },
-      },
-    });
-
-    // Log the report
-    console.log("[SEO Health Report] Weekly report generated:", {
-      avg_score: report.auditStats.avg_seo_score,
-      total_articles: report.auditStats.total_articles,
-      issues_found: report.topIssues.total_issues,
-      timestamp: new Date().toISOString(),
-    });
-
-    await logCronExecution("seo-health-report", "completed", {
-      durationMs: Date.now() - _cronStart,
-      resultSummary: {
-        total_articles: report.auditStats.total_articles,
-        avg_seo_score: report.auditStats.avg_seo_score,
-        issues_found: report.topIssues.total_issues,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      report: {
-        total_articles: report.auditStats.total_articles,
-        avg_seo_score: report.auditStats.avg_seo_score,
-        issues_found: report.topIssues.total_issues,
-      },
-      message: "Weekly SEO health report generated successfully",
-    });
-  } catch (error) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    console.error("SEO health report error:", error);
-    await logCronExecution("seo-health-report", "failed", {
-      durationMs: Date.now() - _cronStart,
-      errorMessage: errMsg,
-    });
-
-    const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "seo-health-report", error: errMsg }).catch(() => {});
-
-    return NextResponse.json(
-      { success: false, error: errMsg },
-      { status: 500 },
-    );
-  }
-}
-
-/**
- * GET handler — supports healthcheck (read-only) and real execution for Vercel cron compatibility.
- *
- * - ?healthcheck=true  → returns latest report data (read-only)
- * - With CRON_SECRET    → generates a new weekly report (same as POST)
- */
 export async function GET(request: NextRequest) {
-  // Healthcheck mode — read-only, returns latest report
-  if (request.nextUrl.searchParams.get("healthcheck") === "true") {
-    try {
-      const { prisma } = await import("@/lib/db");
-
-      const latestReport = await prisma.seoReport.findFirst({
-        where: { reportType: "weekly_health" },
-        orderBy: { generatedAt: "desc" },
-        select: { generatedAt: true },
-      });
-
-      return NextResponse.json({
-        status: "healthy",
-        endpoint: "seo-health-report",
-        lastReport: latestReport?.generatedAt || null,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (hcErr) {
-      console.warn("[seo-health-report] Healthcheck failed:", hcErr instanceof Error ? hcErr.message : hcErr);
-      return NextResponse.json(
-        { status: "unhealthy", endpoint: "seo-health-report" },
-        { status: 503 },
-      );
-    }
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  // Real execution — delegate to POST handler to generate a new report
-  return POST(request);
+  console.log("[seo-health-report] DEPRECATED — use seo-orchestrator, seo-agent, or seo/cron");
+  return NextResponse.json(DEPRECATED_MSG);
 }
 
-/**
- * Generate comprehensive weekly report using BlogPost + SeoAuditResult
- */
-async function generateWeeklyReport(prisma: any, siteId?: string) {
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-  const auditStats = await generateAuditStats(prisma, oneWeekAgo, siteId);
-  const topIssues = await analyzeTopIssues(prisma, oneWeekAgo, siteId);
-  const schemaCoverage = await analyzeSchemacoverage(prisma, siteId);
-  const recommendations = generateRecommendations(
-    auditStats,
-    topIssues,
-    schemaCoverage,
-  );
-
-  return {
-    auditStats,
-    topIssues,
-    schemaCoverage,
-    recommendations,
-    metadata: {
-      report_period: "7_days",
-      generated_at: new Date().toISOString(),
-      total_audits_analyzed: auditStats.total_audits,
-    },
-  };
-}
-
-/**
- * Generate audit statistics from BlogPost + SeoAuditResult
- */
-async function generateAuditStats(prisma: any, since: Date, siteId?: string) {
-  const [recentArticles, recentAudits, avgScore] = await Promise.all([
-    prisma.blogPost.count({
-      where: { created_at: { gte: since }, ...(siteId ? { siteId } : {}) },
-    }),
-    prisma.seoAuditResult.findMany({
-      where: { created_at: { gte: since } },
-      select: { score: true },
-    }),
-    prisma.blogPost.aggregate({
-      _avg: { seo_score: true },
-      where: { seo_score: { not: null }, ...(siteId ? { siteId } : {}) },
-    }),
-  ]);
-
-  const scores = recentAudits
-    .map((a: any) => a.score)
-    .filter((s: number) => s > 0);
-
-  const scoreDistribution = {
-    excellent: scores.filter((s: number) => s >= 90).length,
-    good: scores.filter((s: number) => s >= 80 && s < 90).length,
-    fair: scores.filter((s: number) => s >= 70 && s < 80).length,
-    poor: scores.filter((s: number) => s < 70).length,
-  };
-
-  return {
-    total_articles: recentArticles,
-    total_audits: recentAudits.length,
-    avg_seo_score: Math.round(avgScore._avg.seo_score || 0),
-    audit_rate:
-      recentArticles > 0
-        ? Math.round((recentAudits.length / recentArticles) * 100)
-        : 0,
-    score_distribution: scoreDistribution,
-  };
-}
-
-/**
- * Analyze top SEO issues from audit results
- */
-async function analyzeTopIssues(prisma: any, since: Date, siteId?: string) {
-  const audits = await prisma.seoAuditResult.findMany({
-    where: { created_at: { gte: since } },
-    select: { suggestions: true, quick_fixes: true },
-  });
-
-  const issueCounter: Record<string, number> = {};
-
-  audits.forEach((audit: any) => {
-    // Count quick fix occurrences
-    const fixes = audit.quick_fixes || [];
-    if (Array.isArray(fixes)) {
-      fixes.forEach((fix: string) => {
-        issueCounter[fix] = (issueCounter[fix] || 0) + 1;
-      });
-    }
-    // Count suggestion occurrences
-    const suggestions = audit.suggestions || [];
-    if (Array.isArray(suggestions)) {
-      suggestions.forEach((suggestion: any) => {
-        const key =
-          typeof suggestion === "string"
-            ? suggestion
-            : suggestion?.title || "unknown";
-        issueCounter[key] = (issueCounter[key] || 0) + 1;
-      });
-    }
-  });
-
-  const topIssues = Object.entries(issueCounter)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 10)
-    .map(([issue, count]) => ({ issue, count }));
-
-  return {
-    top_issues: topIssues,
-    total_issues: Object.values(issueCounter).reduce((a, b) => a + b, 0),
-  };
-}
-
-/**
- * Analyze which articles have proper meta data (proxy for schema coverage)
- */
-async function analyzeSchemacoverage(prisma: any, siteId?: string) {
-  const siteFilter = siteId ? { siteId } : {};
-  const [total, withMeta, withImage] = await Promise.all([
-    prisma.blogPost.count({ where: { published: true, ...siteFilter } }),
-    prisma.blogPost.count({
-      where: {
-        published: true,
-        meta_title_en: { not: null },
-        meta_description_en: { not: null },
-        ...siteFilter,
-      },
-    }),
-    prisma.blogPost.count({
-      where: {
-        published: true,
-        featured_image: { not: null },
-        ...siteFilter,
-      },
-    }),
-  ]);
-
-  return {
-    total_articles: total,
-    articles_with_meta: withMeta,
-    articles_with_image: withImage,
-    meta_coverage: total > 0 ? Math.round((withMeta / total) * 100) : 0,
-    image_coverage: total > 0 ? Math.round((withImage / total) * 100) : 0,
-  };
-}
-
-/**
- * Generate recommendations based on analysis
- */
-function generateRecommendations(
-  auditStats: any,
-  topIssues: any,
-  schemaCoverage: any,
-) {
-  const recommendations = [];
-
-  if (auditStats.avg_seo_score < 80) {
-    recommendations.push({
-      type: "critical",
-      title: "Improve Overall SEO Score",
-      description: `Average SEO score is ${auditStats.avg_seo_score}. Focus on fixing the most common issues.`,
-      action: "Review and fix top issues identified in the report",
-    });
-  }
-
-  if (schemaCoverage.meta_coverage < 80) {
-    recommendations.push({
-      type: "important",
-      title: "Increase Meta Data Coverage",
-      description: `Only ${schemaCoverage.meta_coverage}% of published articles have complete meta data.`,
-      action: "Add meta titles and descriptions to articles missing them",
-    });
-  }
-
-  if (topIssues.top_issues.length > 0) {
-    const topIssue = topIssues.top_issues[0];
-    recommendations.push({
-      type: "focus",
-      title: `Address Top Issue: ${topIssue.issue}`,
-      description: `This issue affects ${topIssue.count} articles.`,
-      action: "Create a systematic approach to fix this recurring issue",
-    });
-  }
-
-  return recommendations;
-}
-
-/**
- * Generate real-time stats for dashboard display
- */
-async function generateRealtimeStats(prisma: any) {
-  const recentAudits = await prisma.seoAuditResult.findMany({
-    orderBy: { created_at: "desc" },
-    take: 20,
-    select: { created_at: true, score: true },
-  });
-
-  return {
-    recent_audits: recentAudits.length,
-    score_trend: recentAudits.map((a: any) => ({
-      date: a.created_at,
-      score: a.score,
-    })),
-    last_audit: recentAudits[0]?.created_at || null,
-  };
+export async function POST(request: NextRequest) {
+  return GET(request);
 }

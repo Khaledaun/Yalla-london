@@ -47,8 +47,9 @@ export async function GET(request: NextRequest) {
 
   // Retrieve stored values from cookies
   const storedState = request.cookies.get("pinterest_oauth_state")?.value;
+  const { getDefaultSiteId } = await import("@/config/sites");
   const siteId =
-    request.cookies.get("pinterest_site_id")?.value ?? "yalla-london";
+    request.cookies.get("pinterest_site_id")?.value ?? getDefaultSiteId();
 
   // Validate state (CSRF protection)
   if (!storedState || state !== storedState) {

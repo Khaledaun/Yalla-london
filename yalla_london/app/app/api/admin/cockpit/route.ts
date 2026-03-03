@@ -407,11 +407,7 @@ async function buildPipeline(prisma: any, activeSiteIds: string[]): Promise<Pipe
 
 // ─────────────────────────────────────────────
 // Indexing builder — uses shared getIndexingSummary() as single source of truth.
-//
-// Calls getIndexingSummary() with a 5s timeout. If it times out (e.g., large site),
-// falls back to lightweight DB queries that complete in <1 second but only count
-// blog posts (not static pages), producing an approximate total.
-// The `dataSource` field tells the frontend which path was used.
+// No timeout fallback — getIndexingSummary() is parallelized and fast.
 // ─────────────────────────────────────────────
 
 async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<IndexingStatus> {
@@ -420,13 +416,9 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
   const targetSiteId = activeSiteIds[0];
   if (!targetSiteId) return indexing;
 
-  // ── Try the authoritative source first (5s timeout) ────────────────────
   try {
     const { getIndexingSummary } = await import("@/lib/seo/indexing-summary");
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("indexing-summary-timeout")), 5000),
-    );
-    const summary = await Promise.race([getIndexingSummary(targetSiteId), timeoutPromise]);
+    const summary = await getIndexingSummary(targetSiteId);
 
     // Map IndexingSummary → IndexingStatus
     indexing.total = summary.total;
@@ -451,75 +443,8 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
     indexing.chronicFailures = summary.chronicFailures;
     indexing.dataSource = "full";
   } catch (summaryErr) {
-    // ── Fallback: lightweight DB queries (<1s) ─────────────────────────
-    console.warn("[cockpit] getIndexingSummary failed/timed out, using lightweight fallback:", summaryErr instanceof Error ? summaryErr.message : summaryErr);
-
-    try {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-      const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-
-      const [publishedCount, statusGroups, velocity7d, velocity7dPrevious, channelCounts, lastSub, lastVer] = await Promise.all([
-        prisma.blogPost.count({ where: { siteId: targetSiteId, published: true, deletedAt: null } }).catch(() => 0),
-        prisma.uRLIndexingStatus.groupBy({ by: ["status"], _count: { id: true }, where: { site_id: targetSiteId } }).catch(() => []),
-        prisma.uRLIndexingStatus.count({ where: { site_id: targetSiteId, status: "indexed", updated_at: { gte: sevenDaysAgo } } }).catch(() => 0),
-        prisma.uRLIndexingStatus.count({ where: { site_id: targetSiteId, status: "indexed", updated_at: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }).catch(() => 0),
-        Promise.all([
-          prisma.uRLIndexingStatus.count({ where: { site_id: targetSiteId, submitted_indexnow: true } }).catch(() => 0),
-          prisma.uRLIndexingStatus.count({ where: { site_id: targetSiteId, submitted_sitemap: true } }).catch(() => 0),
-          prisma.uRLIndexingStatus.count({ where: { site_id: targetSiteId, submitted_google_api: true } }).catch(() => 0),
-        ]),
-        prisma.uRLIndexingStatus.findFirst({ where: { site_id: targetSiteId, last_submitted_at: { not: null } }, orderBy: { last_submitted_at: "desc" }, select: { last_submitted_at: true } }).catch(() => null),
-        prisma.uRLIndexingStatus.findFirst({ where: { site_id: targetSiteId, last_inspected_at: { not: null } }, orderBy: { last_inspected_at: "desc" }, select: { last_inspected_at: true } }).catch(() => null),
-      ]);
-
-      let indexed = 0, submitted = 0, discovered = 0, errors = 0, deindexed = 0, chronicFailures = 0;
-      for (const g of statusGroups) {
-        const s = g.status as string;
-        const c = g._count.id;
-        if (s === "indexed") indexed += c;
-        else if (s === "submitted" || s === "pending") submitted += c;
-        else if (s === "discovered") discovered += c;
-        else if (s === "error") errors += c;
-        else if (s === "deindexed") deindexed += c;
-        else if (s === "chronic_failure") chronicFailures += c;
-      }
-
-      const tracked = statusGroups.reduce((sum: number, g: { _count: { id: number } }) => sum + g._count.id, 0);
-      const neverSubmitted = Math.max(0, publishedCount - tracked);
-      const total = indexed + submitted + discovered + neverSubmitted + errors + deindexed + chronicFailures;
-
-      indexing.total = total;
-      indexing.indexed = indexed;
-      indexing.submitted = submitted;
-      indexing.discovered = discovered;
-      indexing.neverSubmitted = neverSubmitted;
-      indexing.errors = errors;
-      indexing.rate = total > 0 ? Math.round((indexed / total) * 100) : 0;
-      indexing.orphanedCount = neverSubmitted;
-      indexing.deindexedCount = deindexed;
-      indexing.velocity7d = velocity7d;
-      indexing.velocity7dPrevious = velocity7dPrevious;
-      indexing.channelBreakdown = { indexnow: channelCounts[0], sitemap: channelCounts[1], googleApi: channelCounts[2] };
-      indexing.chronicFailures = chronicFailures;
-      indexing.dataSource = "lightweight"; // Flag so frontend shows "(approx)"
-
-      const ageStr = (d: Date | null) => {
-        if (!d) return null;
-        const h = Math.round((Date.now() - d.getTime()) / 3600000);
-        return h < 1 ? "< 1h ago" : h < 24 ? `${h}h ago` : `${Math.round(h / 24)}d ago`;
-      };
-      indexing.lastSubmissionAge = ageStr(lastSub?.last_submitted_at ?? null);
-      indexing.lastVerificationAge = ageStr(lastVer?.last_inspected_at ?? null);
-
-      // Blockers
-      if (!process.env.INDEXNOW_KEY) indexing.blockers.push({ reason: "IndexNow key not set", count: publishedCount, severity: "critical" });
-      if (neverSubmitted > 0) indexing.blockers.push({ reason: `${neverSubmitted} page(s) not tracked by SEO agent`, count: neverSubmitted, severity: "critical" });
-      if (discovered > 0) indexing.blockers.push({ reason: `${discovered} page(s) found by Google but we never submitted them`, count: discovered, severity: "warning" });
-      if (errors > 0) indexing.blockers.push({ reason: `${errors} submission error(s)`, count: errors, severity: "critical" });
-      indexing.topBlocker = indexing.blockers.length > 0 ? indexing.blockers[0].reason : null;
-    } catch (fallbackErr) {
-      console.warn("[cockpit] lightweight indexing fallback also failed:", fallbackErr instanceof Error ? fallbackErr.message : fallbackErr);
-    }
+    console.warn("[cockpit] getIndexingSummary failed:", summaryErr instanceof Error ? summaryErr.message : summaryErr);
+    indexing.dataSource = "error";
   }
 
   // ── GSC trend (always runs — fast DB queries) ─────────────────────────

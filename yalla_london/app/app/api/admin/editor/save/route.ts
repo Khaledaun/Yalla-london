@@ -98,6 +98,14 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
     const publicUrl = `${await getBaseUrl()}/blog/${newArticle.slug}`
 
+    // Track URL in indexing system immediately
+    try {
+      const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
+      ensureUrlTracked(publicUrl, siteId || (await import("@/config/sites")).getDefaultSiteId(), `blog/${newArticle.slug}`).catch(() => {});
+    } catch {
+      // Non-fatal
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Article saved successfully!',

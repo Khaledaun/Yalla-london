@@ -346,6 +346,7 @@ export async function runContentBuilder(
       }
 
       // Fire failure hook — triggers immediate recovery for retryable errors
+      // IMPORTANT: currentAttempts is the real number (not the Prisma { increment: 1 } object)
       onPipelineFailure({
         draftId: draftRecord.id as string,
         phase: currentPhase,
@@ -353,9 +354,9 @@ export async function runContentBuilder(
         locale: draftRecord.locale as string,
         keyword: draftRecord.keyword as string,
         siteId: siteId,
-        attemptNumber: updateData.phase_attempts as number,
+        attemptNumber: currentAttempts,
         wasRejected,
-      }).catch((err) => console.warn("[build-runner] onPipelineFailure hook error:", err instanceof Error ? err.message : err));
+      }, { deadlineMs: deadline.remainingMs() }).catch((err) => console.warn("[build-runner] onPipelineFailure hook error:", err instanceof Error ? err.message : err));
     }
 
     const updated = await prisma.articleDraft.update({

@@ -72,13 +72,17 @@ async function handleSocialCron(request: NextRequest) {
     // publishes them manually via /admin/social-calendar.
     const autoPublishPlatforms = twitterConfigured ? ['twitter', 'x'] : [];
 
-    // Count pending non-auto posts for dashboard visibility
+    // Count pending non-auto posts for dashboard visibility (scoped to active sites)
+    const { getActiveSiteIds } = await import("@/config/sites");
+    const activeSiteIds = getActiveSiteIds();
+
     const pendingManualCount = await prisma.scheduledContent.count({
       where: {
         scheduled_time: { lte: now },
         status: 'pending',
         published: false,
         platform: { notIn: ['blog', ...autoPublishPlatforms] },
+        site_id: { in: activeSiteIds },
       },
     }).catch(() => 0);
 
@@ -94,6 +98,7 @@ async function handleSocialCron(request: NextRequest) {
               status: 'pending',
               published: false,
               platform: { in: autoPublishPlatforms },
+              site_id: { in: activeSiteIds },
             },
             take: 20,
           });

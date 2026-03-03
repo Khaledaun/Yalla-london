@@ -107,6 +107,17 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     } catch (e) { console.warn("[indexing-summary] BlogPost.count fallback failed:", e instanceof Error ? e.message : e); }
   }
 
+  // ── 1b. Normalize "pending" → "discovered" (one-time migration per request) ──
+  // "pending" and "discovered" are semantically identical. Normalizing prevents confusion.
+  try {
+    await prisma.uRLIndexingStatus.updateMany({
+      where: { site_id: siteId, status: "pending" },
+      data: { status: "discovered" },
+    });
+  } catch {
+    // Non-critical — normalization is best-effort
+  }
+
   // ── 2. Get all URLIndexingStatus records for this site ────────────────
 
   let trackingRecords: Array<{
@@ -188,6 +199,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
   // still says "submitted"/"discovered"/"error", count it as indexed.
   // This closes the gap where gsc-sync runs daily but URLIndexingStatus
   // hasn't been updated yet.
+  const gscPromotedUrls: string[] = [];
   for (const gscUrl of gscConfirmedUrls) {
     const trackingStatus = trackingUrlMap.get(gscUrl);
     if (trackingStatus && trackingStatus !== "indexed") {
@@ -196,10 +208,24 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
       if (trackingStatus === "submitted" || trackingStatus === "pending") { submitted--; indexed++; }
       else if (trackingStatus === "discovered") { discovered--; indexed++; }
       else if (trackingStatus === "error") { errors--; indexed++; }
+      gscPromotedUrls.push(gscUrl);
     }
     // If URL is in GSC but has NO tracking record, it's still counted
     // under neverSubmitted below — but it's actually indexed. We handle
     // this by checking gscConfirmedUrls when computing neverSubmitted.
+  }
+
+  // Persist GSC promotions to DB — prevents recomputation on every call
+  if (gscPromotedUrls.length > 0) {
+    try {
+      await prisma.uRLIndexingStatus.updateMany({
+        where: { site_id: siteId, url: { in: gscPromotedUrls }, status: { not: "indexed" } },
+        data: { status: "indexed", updated_at: new Date() },
+      });
+      console.log(`[indexing-summary] Persisted GSC promotions: ${gscPromotedUrls.length} URL(s) → indexed`);
+    } catch (e) {
+      console.warn("[indexing-summary] GSC promotion persistence failed:", e instanceof Error ? e.message : e);
+    }
   }
 
   // Ensure no negative counts from the promotion
@@ -231,124 +257,98 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
   // Total must equal the sum of all buckets — this is the invariant
   const total = indexed + submitted + discovered + neverSubmitted + errors + deindexed + chronicFailures;
 
-  // ── 4. Stale submissions (submitted >14d, still not indexed) ──────────
-  // Exclude URLs that GSC confirms as indexed — they're not really stale.
+  // ── 4-9. Parallel operational queries ──────────────────────────────────
+  // These are all independent — run in parallel for speed.
 
   const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-  let staleCount = 0;
-  try {
-    if (gscConfirmedUrls.size > 0) {
-      // Query stale submissions, then subtract those confirmed by GSC
-      const staleRecords = await prisma.uRLIndexingStatus.findMany({
-        where: {
-          site_id: siteId,
-          status: "submitted",
-          last_submitted_at: { lt: fourteenDaysAgo },
-        },
-        select: { url: true },
-      });
-      staleCount = staleRecords.filter((r: { url: string }) => !gscConfirmedUrls.has(r.url)).length;
-    } else {
-      staleCount = await prisma.uRLIndexingStatus.count({
-        where: {
-          site_id: siteId,
-          status: "submitted",
-          last_submitted_at: { lt: fourteenDaysAgo },
-        },
-      });
-    }
-  } catch (e) { console.warn("[indexing-summary] stale submissions query failed:", e instanceof Error ? e.message : e); }
-
-  // ── 5. Velocity: indexed in last 7 days + previous 7 days (trend) ────
-
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const fourteenDaysAgoV = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
+
+  let staleCount = 0;
   let velocity7d = 0;
   let velocity7dPrevious = 0;
-  try {
-    [velocity7d, velocity7dPrevious] = await Promise.all([
-      prisma.uRLIndexingStatus.count({
-        where: { site_id: siteId, status: "indexed", updated_at: { gte: sevenDaysAgo } },
-      }),
-      prisma.uRLIndexingStatus.count({
-        where: {
-          site_id: siteId, status: "indexed",
-          updated_at: { gte: fourteenDaysAgoV, lt: sevenDaysAgo },
-        },
-      }),
-    ]);
-  } catch (e) { console.warn("[indexing-summary] velocity query failed:", e instanceof Error ? e.message : e); }
-
-  // ── 6. Channel breakdown ──────────────────────────────────────────────
-
   let viaIndexNow = 0;
   let viaSitemap = 0;
   let viaGoogleApi = 0;
-  try {
-    [viaIndexNow, viaSitemap, viaGoogleApi] = await Promise.all([
-      prisma.uRLIndexingStatus.count({ where: { site_id: siteId, submitted_indexnow: true } }),
-      prisma.uRLIndexingStatus.count({ where: { site_id: siteId, submitted_sitemap: true } }),
-      prisma.uRLIndexingStatus.count({ where: { site_id: siteId, submitted_google_api: true } }),
-    ]);
-  } catch (e) { console.warn("[indexing-summary] channel breakdown query failed:", e instanceof Error ? e.message : e); }
-
-  // ── 7. Timestamps ─────────────────────────────────────────────────────
-
   let lastSubmissionDate: Date | null = null;
   let lastVerificationDate: Date | null = null;
-  try {
-    const lastSub = await prisma.uRLIndexingStatus.findFirst({
+  let avgTimeToIndexDays: number | null = null;
+  let dailyQuotaRemaining: number | null = null;
+
+  const parallelResults = await Promise.allSettled([
+    // [0] Stale submissions
+    gscConfirmedUrls.size > 0
+      ? prisma.uRLIndexingStatus.findMany({
+          where: { site_id: siteId, status: "submitted", last_submitted_at: { lt: fourteenDaysAgo } },
+          select: { url: true },
+        }).then((records: Array<{ url: string }>) => records.filter(r => !gscConfirmedUrls.has(r.url)).length)
+      : prisma.uRLIndexingStatus.count({
+          where: { site_id: siteId, status: "submitted", last_submitted_at: { lt: fourteenDaysAgo } },
+        }),
+    // [1] Velocity 7d
+    prisma.uRLIndexingStatus.count({
+      where: { site_id: siteId, status: "indexed", updated_at: { gte: sevenDaysAgo } },
+    }),
+    // [2] Velocity previous 7d
+    prisma.uRLIndexingStatus.count({
+      where: { site_id: siteId, status: "indexed", updated_at: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+    }),
+    // [3] Channel: IndexNow
+    prisma.uRLIndexingStatus.count({ where: { site_id: siteId, submitted_indexnow: true } }),
+    // [4] Channel: Sitemap
+    prisma.uRLIndexingStatus.count({ where: { site_id: siteId, submitted_sitemap: true } }),
+    // [5] Channel: Google API
+    prisma.uRLIndexingStatus.count({ where: { site_id: siteId, submitted_google_api: true } }),
+    // [6] Last submission timestamp
+    prisma.uRLIndexingStatus.findFirst({
       where: { site_id: siteId, last_submitted_at: { not: null } },
       orderBy: { last_submitted_at: "desc" },
       select: { last_submitted_at: true },
-    });
-    lastSubmissionDate = lastSub?.last_submitted_at ?? null;
-
-    const lastVer = await prisma.uRLIndexingStatus.findFirst({
+    }),
+    // [7] Last verification timestamp
+    prisma.uRLIndexingStatus.findFirst({
       where: { site_id: siteId, last_inspected_at: { not: null } },
       orderBy: { last_inspected_at: "desc" },
       select: { last_inspected_at: true },
-    });
-    lastVerificationDate = lastVer?.last_inspected_at ?? null;
-  } catch (e) { console.warn("[indexing-summary] timestamps query failed:", e instanceof Error ? e.message : e); }
-
-  // ── 8. Average time to index ──────────────────────────────────────────
-
-  let avgTimeToIndexDays: number | null = null;
-  try {
-    const indexedWithDates = await prisma.uRLIndexingStatus.findMany({
+    }),
+    // [8] Avg time to index
+    prisma.uRLIndexingStatus.findMany({
       where: { site_id: siteId, status: "indexed", last_submitted_at: { not: null } },
       select: { last_submitted_at: true, updated_at: true },
       take: 30,
-    });
+    }),
+    // [9] Daily quota used
+    prisma.uRLIndexingStatus.count({
+      where: { site_id: siteId, submitted_google_api: true, last_submitted_at: { gte: todayMidnight } },
+    }),
+  ]);
+
+  // Extract results (default to safe values on failure)
+  if (parallelResults[0].status === "fulfilled") staleCount = parallelResults[0].value as number;
+  if (parallelResults[1].status === "fulfilled") velocity7d = parallelResults[1].value as number;
+  if (parallelResults[2].status === "fulfilled") velocity7dPrevious = parallelResults[2].value as number;
+  if (parallelResults[3].status === "fulfilled") viaIndexNow = parallelResults[3].value as number;
+  if (parallelResults[4].status === "fulfilled") viaSitemap = parallelResults[4].value as number;
+  if (parallelResults[5].status === "fulfilled") viaGoogleApi = parallelResults[5].value as number;
+  if (parallelResults[6].status === "fulfilled") {
+    const sub = parallelResults[6].value as { last_submitted_at: Date | null } | null;
+    lastSubmissionDate = sub?.last_submitted_at ?? null;
+  }
+  if (parallelResults[7].status === "fulfilled") {
+    const ver = parallelResults[7].value as { last_inspected_at: Date | null } | null;
+    lastVerificationDate = ver?.last_inspected_at ?? null;
+  }
+  if (parallelResults[8].status === "fulfilled") {
+    const indexedWithDates = parallelResults[8].value as Array<{ last_submitted_at: Date | null; updated_at: Date }>;
     const deltas = indexedWithDates
-      .filter((r: { last_submitted_at: Date | null }) => r.last_submitted_at)
-      .map((r: { last_submitted_at: Date | null; updated_at: Date }) =>
-        r.updated_at.getTime() - r.last_submitted_at!.getTime()
-      )
-      .filter((d: number) => d > 0);
+      .filter(r => r.last_submitted_at)
+      .map(r => r.updated_at.getTime() - r.last_submitted_at!.getTime())
+      .filter(d => d > 0);
     if (deltas.length >= 3) {
-      avgTimeToIndexDays = Math.round(
-        deltas.reduce((a: number, b: number) => a + b, 0) / deltas.length / (1000 * 60 * 60 * 24)
-      );
+      avgTimeToIndexDays = Math.round(deltas.reduce((a, b) => a + b, 0) / deltas.length / (1000 * 60 * 60 * 24));
     }
-  } catch (e) { console.warn("[indexing-summary] avg time-to-index query failed:", e instanceof Error ? e.message : e); }
-
-  // ── 9. Google Indexing API daily quota remaining ───────────────────────
-
-  let dailyQuotaRemaining: number | null = null;
-  try {
-    const todayMidnight = new Date();
-    todayMidnight.setHours(0, 0, 0, 0);
-    const usedToday = await prisma.uRLIndexingStatus.count({
-      where: {
-        site_id: siteId,
-        submitted_google_api: true,
-        last_submitted_at: { gte: todayMidnight },
-      },
-    });
-    dailyQuotaRemaining = Math.max(0, 200 - usedToday);
-  } catch (e) { console.warn("[indexing-summary] daily quota query failed:", e instanceof Error ? e.message : e); }
+  }
+  if (parallelResults[9].status === "fulfilled") dailyQuotaRemaining = Math.max(0, 200 - (parallelResults[9].value as number));
 
   // ── 10. Hreflang reciprocity check ────────────────────────────────────
   // Count pairs where one language version is indexed but its counterpart is not.
@@ -359,7 +359,6 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     const allTracked = await prisma.uRLIndexingStatus.findMany({
       where: { site_id: siteId },
       select: { url: true, status: true },
-      take: 1000, // Safety bound
     });
     const urlStatusMap = new Map<string, string>();
     for (const r of allTracked) {

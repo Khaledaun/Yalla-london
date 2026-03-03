@@ -909,9 +909,10 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
 
     // Track URLs as discovered in URLIndexingStatus so seo/cron and verify-indexing pick them up
     // Status lifecycle: discovered → submitted → indexed/not_indexed
+    let newlyTracked: string[] = [];
     if (siteId) {
       try {
-        await Promise.allSettled(
+        const results = await Promise.allSettled(
           urls.map((url: string) =>
             prisma.uRLIndexingStatus.upsert({
               where: { site_id_url: { site_id: siteId, url } },
@@ -929,12 +930,32 @@ async function submitNewUrls(prisma: any, fixes: string[], siteUrl?: string, sit
             }),
           ),
         );
+        // Collect URLs that were actually created (not pre-existing)
+        newlyTracked = urls.filter((_: string, i: number) => results[i].status === "fulfilled");
       } catch (trackErr) {
         console.warn("[seo-agent] URL tracking in URLIndexingStatus failed (non-fatal):", trackErr instanceof Error ? trackErr.message : trackErr);
       }
     }
 
-    return { discovered: urls.length, urls, delegatedTo: "seo/cron", submitted: 0 };
+    // Submit newly discovered URLs to IndexNow immediately (don't wait for seo/cron)
+    let indexNowSubmitted = 0;
+    if (newlyTracked.length > 0) {
+      try {
+        const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+        await submitToIndexNow(newlyTracked);
+        indexNowSubmitted = newlyTracked.length;
+        // Mark as submitted in DB
+        await prisma.uRLIndexingStatus.updateMany({
+          where: { site_id: siteId, url: { in: newlyTracked } },
+          data: { submitted_indexnow: true, last_submitted_at: new Date() },
+        }).catch(() => {});
+        fixes.push(`Submitted ${indexNowSubmitted} URLs to IndexNow immediately`);
+      } catch (indexNowErr) {
+        console.warn("[seo-agent] Immediate IndexNow submission failed (seo/cron will retry):", indexNowErr instanceof Error ? indexNowErr.message : indexNowErr);
+      }
+    }
+
+    return { discovered: urls.length, urls, submitted: indexNowSubmitted };
   } catch (err) {
     console.warn("[seo-agent] submitNewUrls failed:", err instanceof Error ? err.message : err);
     return { submitted: 0, discovered: 0, error: "Failed to check for new posts" };

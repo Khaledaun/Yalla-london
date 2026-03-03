@@ -330,6 +330,16 @@ async function processScheduledContentAction(
         });
       }
 
+      // Track URL in indexing system immediately
+      try {
+        const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
+        const { getDefaultSiteId } = await import("@/config/sites");
+        const trackSiteId = content.site_id || getDefaultSiteId();
+        ensureUrlTracked(url, trackSiteId, `blog/${blogPost.slug}`).catch(() => {});
+      } catch {
+        // Non-fatal
+      }
+
       // Trigger SEO audit if enabled
       if (options.triggerSeoAudit) {
         await triggerSeoAudit(blogPost.id, 'blog_post');

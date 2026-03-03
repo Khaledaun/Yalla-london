@@ -318,9 +318,8 @@ async function handleContinue(
 
   const startTime = Date.now();
 
-  // Continue processing
+  // Continue processing (processArticles() increments phasesCompleted internally)
   await processArticles(runState, site, siteId, startTime, request);
-  runState.phasesCompleted++;
 
   // Persist updated state
   await persistRunState(runId, runState, siteId, runState.startedAt);
@@ -646,7 +645,7 @@ async function publishArticle(
 
     article.blogPostId = blogPost.id;
     article.slug = slug;
-    article.status = passesGate ? "published" : "draft";
+    article.status = passesGate ? "published" : "ready";
 
     // Mark topic as published
     if (article.topicId) {
@@ -656,16 +655,21 @@ async function publishArticle(
       }).catch((e: unknown) => console.warn("[bulk-generate] Topic status update failed:", e));
     }
 
-    // Submit to IndexNow only if article passed the gate and was published
-    if (passesGate) try {
-      const domain = getSiteDomain(siteId); // Already includes https://
-      const articleUrl = `${domain}/blog/${slug}`;
-      const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
-      submitToIndexNow([articleUrl]).catch((e: Error) =>
-        console.warn("[bulk-generate] IndexNow failed:", e.message)
-      );
+    // Track URL in indexing system immediately
+    const domain = getSiteDomain(siteId);
+    const articleUrl = `${domain}/blog/${slug}`;
+    try {
+      const { ensureUrlTracked, submitToIndexNow } = await import("@/lib/seo/indexing-service");
+      ensureUrlTracked(articleUrl, siteId, `blog/${slug}`).catch(() => {});
+
+      // Submit to IndexNow only if article passed the gate and was published
+      if (passesGate) {
+        submitToIndexNow([articleUrl]).catch((e: Error) =>
+          console.warn("[bulk-generate] IndexNow failed:", e.message)
+        );
+      }
     } catch (e) {
-      console.warn("[bulk-generate] IndexNow setup failed:", e);
+      console.warn("[bulk-generate] IndexNow/tracking setup failed:", e);
     }
   } catch (err) {
     article.status = "failed";
@@ -748,7 +752,7 @@ async function restoreRunState(runId: string): Promise<RunState | null> {
     return {
       siteId: (summary.siteId as string) || "",
       language: (summary.language as string) || "en",
-      autoPublish: (summary.autoPublish as boolean) ?? true,
+      autoPublish: (summary.autoPublish as boolean) ?? false,
       total: (summary.total as number) || 0,
       articles,
       startedAt: log.started_at?.getTime() || Date.now(),

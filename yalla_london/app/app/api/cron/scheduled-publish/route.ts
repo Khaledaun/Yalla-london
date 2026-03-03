@@ -67,7 +67,8 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
               "@/lib/seo/orchestrator/pre-publication-gate"
             );
             const siteUrl = getSiteDomain(siteId);
-            const gateResult = await runPrePublicationGate(
+            // 10s timeout per gate check — prevents a single slow gate from consuming the entire cron budget
+            const gatePromise = runPrePublicationGate(
               `/blog/${postData.slug}`,
               {
                 title_en: postData.title_en || undefined,
@@ -81,6 +82,10 @@ export const GET = withCronLog("scheduled-publish", async (log) => {
               },
               siteUrl
             );
+            const gateTimeout = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error("Pre-pub gate timeout (10s)")), 10_000)
+            );
+            const gateResult = await Promise.race([gatePromise, gateTimeout]);
 
             if (!gateResult.allowed) {
               console.warn(
@@ -268,7 +273,8 @@ export const POST = withCronLog("scheduled-publish-manual", async (log) => {
         // Pre-publication gate: fail closed — don't publish if gate errors or blocks
         try {
           const siteUrl = getSiteDomain(siteId);
-          const gateResult = await runPrePublicationGate(
+          // 10s timeout per gate check — prevents a single slow gate from consuming entire cron budget
+          const gatePromise = runPrePublicationGate(
             `/blog/${postData.slug}`,
             {
               title_en: postData.title_en || undefined,
@@ -282,6 +288,10 @@ export const POST = withCronLog("scheduled-publish-manual", async (log) => {
             },
             siteUrl
           );
+          const gateTimeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("Pre-pub gate timeout (10s)")), 10_000)
+          );
+          const gateResult = await Promise.race([gatePromise, gateTimeout]);
 
           if (!gateResult.allowed) {
             const reason = gateResult.blockers.join("; ");

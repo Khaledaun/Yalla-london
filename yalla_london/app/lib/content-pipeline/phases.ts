@@ -267,8 +267,10 @@ export async function phaseDrafting(
     };
   }
 
-  // Batch: draft up to 3 sections per invocation if budget allows
-  const maxSectionsThisRun = Math.min(3, sections.length - currentIndex);
+  // Cap to 1 section per invocation — each AI call takes ~30s,
+  // and the cron has a 53s budget. 3 sections × 30s = 90s > 60s Vercel limit.
+  // Build-runner picks up the draft again on next run for the next section.
+  const maxSectionsThisRun = Math.min(1, sections.length - currentIndex);
   let sectionsWritten = 0;
 
   for (let i = 0; i < maxSectionsThisRun; i++) {
@@ -354,6 +356,23 @@ CRITICAL JSON RULES:
 
         sectionsWritten++;
         sectionSuccess = true;
+
+        // Immediately checkpoint to DB — prevents data loss on timeout/crash.
+        // If this fails, the section data is still in memory for the final save.
+        try {
+          const { prisma } = await import("@/lib/db");
+          await prisma.articleDraft.update({
+            where: { id: draft.id },
+            data: {
+              sections_data: existingSections as any,
+              sections_completed: currentIndex + sectionsWritten,
+              updated_at: new Date(),
+            },
+          });
+        } catch (saveErr) {
+          console.warn(`[drafting] Section ${sectionIdx + 1} checkpoint save failed (will retry at phase end):`, saveErr instanceof Error ? saveErr.message : saveErr);
+        }
+
         break; // Section succeeded, exit retry loop
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : String(error);

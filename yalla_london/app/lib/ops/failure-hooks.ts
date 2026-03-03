@@ -88,10 +88,32 @@ const RETRYABLE_CATEGORIES = new Set<SweeperLogEntry["errorCategory"]>(["json_pa
 
 // ─── Pipeline Failure Hook ──────────────────────────────────────────────
 
-export async function onPipelineFailure(ctx: PipelineFailureContext): Promise<void> {
+export async function onPipelineFailure(
+  ctx: PipelineFailureContext,
+  options?: { deadlineMs?: number },
+): Promise<void> {
   try {
     const category = classifyError(ctx.error);
     const detectedAt = new Date().toISOString();
+
+    // If budget is nearly exhausted, skip recovery and just log
+    if (options?.deadlineMs !== undefined && options.deadlineMs < 3000) {
+      console.log(`[failure-hook] Budget too low (${options.deadlineMs}ms) — logging only for draft ${ctx.draftId}`);
+      await logSweeperEvent({
+        eventType: "pipeline_failure",
+        source: "content-builder",
+        target: ctx.draftId,
+        failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) failed at "${ctx.phase}" — no budget for recovery`,
+        detectedAt,
+        diagnosis: `Error category: ${category}. Skipped recovery — only ${options.deadlineMs}ms remaining.`,
+        errorCategory: category,
+        fixApplied: null,
+        reactivatedAt: null,
+        outcome: "will_retry",
+        context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300), budgetMs: options.deadlineMs },
+      }).catch(() => {});
+      return;
+    }
 
     // Auth errors can't be auto-fixed
     if (category === "auth") {
@@ -192,6 +214,27 @@ export async function onPipelineFailure(ctx: PipelineFailureContext): Promise<vo
     }
   } catch (hookError) {
     console.error("[failure-hook] Pipeline hook error (non-fatal):", hookError);
+    // Persist hook errors to CronJobLog so they're visible on the dashboard
+    try {
+      const { prisma } = await import("@/lib/db");
+      await prisma.cronJobLog.create({
+        data: {
+          job_name: "failure-hook-error",
+          job_type: "reactive",
+          status: "failed",
+          started_at: new Date(),
+          completed_at: new Date(),
+          duration_ms: 0,
+          items_processed: 0,
+          items_succeeded: 0,
+          items_failed: 1,
+          error_message: `Pipeline hook crashed for draft ${ctx.draftId}: ${hookError instanceof Error ? hookError.message : String(hookError)}`,
+          result_summary: { draftId: ctx.draftId, phase: ctx.phase, siteId: ctx.siteId },
+        },
+      });
+    } catch {
+      // Last resort — if even logging fails, we've already written to console.error
+    }
   }
 }
 
@@ -358,9 +401,9 @@ async function wasRecentlyRecovered(draftId: string): Promise<boolean> {
 
     return !!recentRecovery;
   } catch (err) {
-    // If we can't check, allow recovery (better to recover twice than never)
-    console.warn(`[failure-hook] Could not check recent recovery for draft ${draftId}:`, err instanceof Error ? err.message : err);
-    return false;
+    // If we can't check, assume already recovered (safe side — prevents double-recovery loops)
+    console.warn(`[failure-hook] Could not check recent recovery for draft ${draftId} — assuming recovered (safe side):`, err instanceof Error ? err.message : err);
+    return true;
   }
 }
 

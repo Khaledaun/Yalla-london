@@ -24,7 +24,7 @@ const UpdateTopicSchema = z.object({
     sourceDomain: z.string()
   })).optional(),
   intent: z.enum(['info', 'transactional', 'event']).optional(),
-  suggested_page_type: z.enum(['guide', 'place', 'event', 'list', 'faq', 'news', 'itinerary']).optional(),
+  suggested_page_type: z.enum(['guide', 'comparison', 'hotel-review', 'restaurant-review', 'service-review', 'news', 'events', 'sales', 'listicle', 'deep-dive', 'seasonal', 'answer', 'place', 'event', 'list', 'faq', 'itinerary']).optional(),
   confidence_score: z.number().min(0).max(1).optional(),
 });
 

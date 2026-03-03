@@ -26,7 +26,7 @@ const BlogPostSchema = z.object({
   content_ar: z.string().min(1, 'Arabic content is required'),
   featured_image: z.string().url().optional(),
   published: z.boolean().default(false),
-  page_type: z.enum(['guide', 'place', 'event', 'list', 'faq', 'news', 'itinerary']).optional(),
+  page_type: z.enum(['guide', 'comparison', 'hotel-review', 'restaurant-review', 'service-review', 'news', 'events', 'sales', 'listicle', 'deep-dive', 'seasonal', 'answer', 'place', 'event', 'list', 'faq', 'itinerary']).optional(),
   category_id: z.string(),
   author_id: z.string(),
   tags: z.array(z.string()).default([]),

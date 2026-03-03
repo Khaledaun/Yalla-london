@@ -425,12 +425,24 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
     setSubmitLoading("gsc-sync");
     setSubmitResult(null);
     try {
-      const res = await fetch("/api/cron/gsc-sync", { method: "POST" });
+      // Route through admin departures API (server-side) so CRON_SECRET is attached.
+      // Direct fetch to /api/cron/gsc-sync from client-side returns 401 because
+      // CRON_SECRET is server-only and the client can't send the Bearer token.
+      const res = await fetch("/api/admin/departures", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: "/api/cron/gsc-sync" }),
+      });
+      if (!res.ok) {
+        setSubmitResult(`❌ GSC sync failed: HTTP ${res.status}`);
+        await fetchData();
+        return;
+      }
       const json = await res.json();
       if (json.success) {
-        const updated = json.totalIndexedUpdated || 0;
-        const newTracking = json.totalNewTracking || 0;
-        const pages = json.totalPagesProcessed || 0;
+        const updated = json.result?.totalIndexedUpdated || json.totalIndexedUpdated || 0;
+        const newTracking = json.result?.totalNewTracking || json.totalNewTracking || 0;
+        const pages = json.result?.totalPagesProcessed || json.totalPagesProcessed || 0;
         setSubmitResult(`✅ GSC sync complete: ${pages} pages scanned, ${updated} newly confirmed indexed, ${newTracking} new URLs tracked`);
       } else {
         setSubmitResult(`❌ GSC sync failed: ${json.error || json.message || "Unknown error"}`);
@@ -762,10 +774,16 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId }: { data: CockpitDat
     setActionLoading(label);
     setActionResult(null);
     try {
-      const res = await fetch(endpoint, {
+      // Cron routes require CRON_SECRET (server-only). Route them through the
+      // departures admin API which attaches the secret server-side.
+      const isCronRoute = endpoint.startsWith("/api/cron/");
+      const fetchUrl = isCronRoute ? "/api/admin/departures" : endpoint;
+      const fetchBody = isCronRoute ? { path: endpoint } : body;
+
+      const res = await fetch(fetchUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(fetchBody),
       });
       const json = await res.json();
       if (json.success === false) {

@@ -633,8 +633,8 @@ async function publishArticle(
 
     // Submit to IndexNow (fire-and-forget)
     try {
-      const domain = getSiteDomain(siteId);
-      const articleUrl = `https://${domain}/blog/${slug}`;
+      const domain = getSiteDomain(siteId); // Already includes https://
+      const articleUrl = `${domain}/blog/${slug}`;
       const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
       submitToIndexNow([articleUrl]).catch((e: Error) =>
         console.warn("[bulk-generate] IndexNow failed:", e.message)

@@ -130,51 +130,35 @@ These luxury hotels in Mayfair offer unparalleled service, exquisite dining, and
   }
 
   const handleRewriteWithAI = async () => {
+    if (!content.trim()) {
+      alert('Please add some content first, then click Rewrite with AI to improve it.')
+      return
+    }
     setIsRewriting(true)
-    // Simulate AI rewriting
-    setTimeout(() => {
-      const rewrittenContent = `
-# The Ultimate Guide to Mayfair's Most Luxurious Hotels
-
-Mayfair stands as London's crown jewel of sophistication, where history meets contemporary luxury in perfect harmony. This prestigious district is home to some of the world's most celebrated hotels, each offering an unparalleled experience of British elegance and world-class service.
-
-## The Ritz London: A Timeless Icon
-
-Since its grand opening in 1906, The Ritz London has epitomized luxury hospitality. This magnificent hotel on Piccadilly continues to set the standard for opulent accommodation with:
-
-- **136 Exquisite Rooms and Suites**: Each space is a masterpiece of Edwardian elegance, featuring original architectural details and modern amenities
-- **Michelin-Starred Culinary Excellence**: The Ritz Restaurant offers an unforgettable dining experience with innovative British cuisine
-- **World-Famous Afternoon Tea**: The Palm Court's legendary tea service is a quintessential London experience
-- **Luxury Wellness**: A state-of-the-art spa and fitness center for complete relaxation
-
-## The Connaught: Sophisticated Elegance
-
-The Connaught represents the perfect fusion of traditional British charm and contemporary luxury. This distinguished hotel offers:
-
-- **121 Individually Crafted Suites**: Each room tells a unique story of refined taste and comfort
-- **Triple Michelin-Starred Dining**: Three exceptional restaurants showcase the finest in culinary artistry
-- **Award-Winning Cocktails**: The Connaught Bar is globally recognized as one of the world's premier cocktail destinations
-- **Holistic Wellness**: A comprehensive spa offering treatments that restore both body and soul
-
-## The Berkeley: Modern Luxury Redefined
-
-The Berkeley brings a fresh perspective to luxury hospitality with its contemporary approach:
-
-- **190 Stylish Rooms and Suites**: Modern design meets timeless comfort in every space
-- **Rooftop Oasis**: A stunning pool area offering panoramic views of London's skyline
-- **Culinary Innovation**: Marcus restaurant delivers Michelin-starred dining with a modern twist
-- **Trendsetting Bar Scene**: The Blue Bar sets the standard for sophisticated nightlife
-
-## Your Perfect Mayfair Experience Awaits
-
-These exceptional hotels in Mayfair don't just provide accommodation—they offer gateways to London's most exclusive experiences. Whether you're seeking a romantic getaway, a business retreat, or a cultural adventure, these luxury establishments provide the perfect foundation for an unforgettable London stay.
-
-Each hotel's unique character and world-class amenities ensure that your visit to Mayfair will be nothing short of extraordinary.
-      `
-      setContent(rewrittenContent)
-      setSeoScore(92)
+    try {
+      const resp = await fetch('/api/admin/editor/rewrite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content,
+          keyword: primaryKeyword || title,
+          locale,
+          pageType,
+        }),
+      })
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}))
+        throw new Error(errData.error || `Server returned ${resp.status}`)
+      }
+      const data = await resp.json()
+      if (data.content) setContent(data.content)
+      if (data.seoScore) setSeoScore(data.seoScore)
+      if (data.metaDescription && !excerpt) setExcerpt(data.metaDescription)
+    } catch (err) {
+      alert('AI rewrite failed: ' + (err instanceof Error ? err.message : 'Unknown error'))
+    } finally {
       setIsRewriting(false)
-    }, 3000)
+    }
   }
 
   const handleSave = async () => {

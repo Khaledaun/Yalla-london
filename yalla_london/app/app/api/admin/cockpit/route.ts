@@ -263,28 +263,36 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     : allSiteIds;
 
   // ── 5-9. Run builders in parallel with per-builder timeout guards ──
-  // If any single builder takes > 8s, return empty state for that section
-  // rather than letting the entire cockpit API 504.
-  async function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T, label: string): Promise<T> {
-    return Promise.race([
-      promise,
-      new Promise<T>((resolve) =>
-        setTimeout(() => {
-          console.warn(`[cockpit] ${label} timed out after ${ms}ms — using empty fallback`);
-          resolve(fallback);
-        }, ms)
-      ),
-    ]);
-  }
-
+  // If any single builder takes > 8s or throws, return empty state for that section
+  // rather than letting the entire cockpit API 504. Errors are tracked and surfaced
+  // as alerts so Khaled can see what's wrong from his phone.
   const BUILDER_TIMEOUT = 8_000; // 8s per builder — well within 60s Vercel limit
 
+  // Track which builders failed so we can tell Khaled what's wrong
+  const builderErrors: string[] = [];
+
+  async function withErrorTracking<T>(promise: Promise<T>, ms: number, fallback: T, label: string): Promise<T> {
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+        ),
+      ]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[cockpit] ${label} failed: ${msg}`);
+      builderErrors.push(`${label}: ${msg.substring(0, 100)}`);
+      return fallback;
+    }
+  }
+
   const [pipeline, indexing, cronHealth, sites, revenue] = await Promise.all([
-    withTimeout(buildPipeline(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyPipeline(), "buildPipeline"),
-    withTimeout(buildIndexing(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyIndexing(), "buildIndexing"),
-    withTimeout(buildCronHealth(prisma), BUILDER_TIMEOUT, emptyCronHealth(), "buildCronHealth"),
-    withTimeout(buildSites(prisma, allSiteIds), BUILDER_TIMEOUT, [], "buildSites"),
-    withTimeout(buildRevenue(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyRevenue(), "buildRevenue"),
+    withErrorTracking(buildPipeline(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyPipeline(), "buildPipeline"),
+    withErrorTracking(buildIndexing(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyIndexing(), "buildIndexing"),
+    withErrorTracking(buildCronHealth(prisma), BUILDER_TIMEOUT, emptyCronHealth(), "buildCronHealth"),
+    withErrorTracking(buildSites(prisma, allSiteIds), BUILDER_TIMEOUT, [], "buildSites"),
+    withErrorTracking(buildRevenue(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyRevenue(), "buildRevenue"),
   ]);
 
   // ── 10. Alerts ────────────────────────────────────────
@@ -296,6 +304,17 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     sites,
   });
 
+  // Surface builder errors as a critical alert so Khaled sees them on his phone
+  if (builderErrors.length > 0) {
+    alerts.unshift({
+      severity: "critical",
+      code: "DATA_LOAD_PARTIAL",
+      message: `${builderErrors.length} dashboard section(s) failed to load`,
+      detail: builderErrors.join(" | "),
+      fix: "This usually means the database connection pool is overloaded. Wait 30 seconds and refresh. If it persists, check Supabase dashboard for connection pool status.",
+    });
+  }
+
   return NextResponse.json({
     system,
     pipeline,
@@ -304,6 +323,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     revenue,
     alerts,
     sites,
+    builderErrors: builderErrors.length > 0 ? builderErrors : undefined,
     timestamp: new Date().toISOString(),
   });
 });

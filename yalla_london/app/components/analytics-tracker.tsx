@@ -14,10 +14,10 @@ export function AnalyticsTracker() {
   useEffect(() => {
     // Initialize advanced tracking
     advancedAnalytics.initializeAdvancedTracking();
-    
+
     // Track schema markup on page load
     aeoAnalytics.trackSchemaMarkup();
-    
+
     // Detect if this is an AI crawler
     const aiCrawler = aeoAnalytics.detectAICrawler();
     if (aiCrawler) {
@@ -28,6 +28,28 @@ export function AnalyticsTracker() {
       });
     }
 
+    // Auto-track affiliate link clicks (rel="nofollow sponsored" or known affiliate domains)
+    const affiliateDomains = [
+      'booking.com', 'halalbooking.com', 'agoda.com', 'getyourguide.com',
+      'viator.com', 'klook.com', 'boatbookings.com', 'tripadvisor.com',
+      'hotels.com', 'expedia.com',
+    ];
+
+    const handleAffiliateClick = (e: MouseEvent) => {
+      const link = (e.target as HTMLElement).closest('a[href]') as HTMLAnchorElement | null;
+      if (!link) return;
+      const href = link.href;
+      const rel = link.getAttribute('rel') || '';
+      const isAffiliate = rel.includes('sponsored') ||
+        affiliateDomains.some(d => href.includes(d));
+      if (isAffiliate) {
+        const partner = affiliateDomains.find(d => href.includes(d)) || 'unknown';
+        trackAffiliateClick(partner, href);
+      }
+    };
+
+    document.addEventListener('click', handleAffiliateClick);
+    return () => document.removeEventListener('click', handleAffiliateClick);
   }, []);
 
   useEffect(() => {
@@ -96,6 +118,17 @@ export function trackBookingFlow(
 // Language switch tracking
 export function trackLanguageSwitch(fromLang: string, toLang: string) {
   advancedAnalytics.trackLanguageSwitch(fromLang, toLang);
+}
+
+// Affiliate click tracking
+export function trackAffiliateClick(partner: string, url: string, pageTitle?: string) {
+  advancedAnalytics.trackSEOEvent('affiliate_click', {
+    content_group2: 'monetization',
+    content_group3: partner,
+    custom_parameter: url,
+    page_title: pageTitle || document.title,
+    page_location: window.location.href,
+  });
 }
 
 // Search tracking (for future internal search feature)

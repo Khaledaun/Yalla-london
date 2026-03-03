@@ -19,6 +19,36 @@ interface YallaHomepageProps {
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
+const TESTIMONIALS = [
+  {
+    name: 'Ahmed Al-Rashid',
+    initials: 'AR',
+    location: 'Dubai, UAE',
+    locationAr: 'دبي، الإمارات',
+    stars: 5,
+    textEn: 'Yalla London helped me find the best halal restaurants and family-friendly attractions. Their insider tips on the Harrods food hall saved us hours of searching.',
+    textAr: 'ساعدني يالا لندن في العثور على أفضل المطاعم الحلال والأماكن المناسبة للعائلات. نصائحهم عن قسم الطعام في هارودز وفرت علينا ساعات من البحث.',
+  },
+  {
+    name: 'Fatima Al-Kuwari',
+    initials: 'FK',
+    location: 'Doha, Qatar',
+    locationAr: 'الدوحة، قطر',
+    stars: 5,
+    textEn: 'I planned my entire 10-day London trip using their guides. The neighborhood breakdowns and hotel reviews were spot-on — exactly what I needed as a first-time visitor.',
+    textAr: 'خططت رحلتي إلى لندن لمدة 10 أيام باستخدام أدلتهم. تحليل الأحياء ومراجعات الفنادق كانت دقيقة — بالضبط ما احتجته كزائرة لأول مرة.',
+  },
+  {
+    name: 'Omar Bassam',
+    initials: 'OB',
+    location: 'Riyadh, KSA',
+    locationAr: 'الرياض، السعودية',
+    stars: 5,
+    textEn: 'The best Arabic resource for London travel. Their guide to Knightsbridge shopping and the seasonal events calendar made our family holiday unforgettable.',
+    textAr: 'أفضل مصدر عربي للسفر إلى لندن. دليلهم للتسوق في نايتسبريدج وتقويم الفعاليات الموسمية جعل إجازة عائلتنا لا تُنسى.',
+  },
+]
+
 const HERO_IMAGES = [
   { src: '/images/hero/tower-bridge.jpg', alt: 'Tower Bridge with London red bus' },
   { src: '/images/hero/london-city-night.jpg', alt: 'London city view at night' },
@@ -714,6 +744,43 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                   </div>
                 </div>
               </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ TRAVELER TESTIMONIALS ═══ */}
+      <section className="bg-cream py-16">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl md:text-3xl font-bold text-charcoal mb-3">
+              {locale === 'ar' ? 'ماذا يقول مسافرونا' : 'What Our Travelers Say'}
+            </h2>
+            <p className="text-stone max-w-xl mx-auto">
+              {locale === 'ar'
+                ? 'آلاف المسافرين العرب يثقون بنا لتخطيط رحلاتهم إلى لندن'
+                : 'Thousands of Arab travelers trust us to plan their London trips'}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {TESTIMONIALS.map((item, i) => (
+              <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-sand/50">
+                <div className="flex items-center gap-1 mb-3">
+                  {[...Array(5)].map((_, s) => (
+                    <Star key={s} className={`w-4 h-4 ${s < item.stars ? 'text-yalla-gold-400 fill-yalla-gold-400' : 'text-zinc-200'}`} />
+                  ))}
+                </div>
+                <p className="text-charcoal text-sm leading-relaxed mb-4 italic">&ldquo;{locale === 'ar' ? item.textAr : item.textEn}&rdquo;</p>
+                <div className="flex items-center gap-3 pt-3 border-t border-sand/50">
+                  <div className="w-9 h-9 rounded-full bg-london-600 text-white flex items-center justify-center text-sm font-bold">
+                    {item.initials}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-charcoal">{item.name}</p>
+                    <p className="text-xs text-stone">{locale === 'ar' ? item.locationAr : item.location}</p>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         </div>

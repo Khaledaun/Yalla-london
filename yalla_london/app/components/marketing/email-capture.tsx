@@ -12,6 +12,7 @@
 
 import React, { useState } from 'react';
 import { FileText, Download, Mail, CheckCircle, Loader2, Gift, BookOpen } from 'lucide-react';
+import { trackNewsletterSignup } from '@/components/analytics-tracker';
 
 interface EmailCaptureProps {
   variant?: 'inline' | 'card' | 'hero' | 'minimal';
@@ -140,14 +141,7 @@ export function EmailCapture({
       if (data.success) {
         setStatus('success');
         onSuccess?.(email);
-
-        // Track conversion event
-        if (typeof window !== 'undefined' && (window as any).gtag) {
-          (window as any).gtag('event', 'lead_generated', {
-            event_category: 'Lead',
-            event_label: guideSlug,
-          });
-        }
+        trackNewsletterSignup(source || 'email_capture', locale);
       } else {
         throw new Error(data.error || 'Failed to subscribe');
       }

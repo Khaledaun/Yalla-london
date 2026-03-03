@@ -86,29 +86,33 @@ async function handlePost(request: NextRequest) {
     try {
       const content = await generateArticle(topic, language, site);
 
+      // Single-language output — Arabic translation is deferred to content pipeline
+      const isEn = language === "en";
+      const title = (content.title as string) || "";
+      const body = (content.body as string) || "";
       return NextResponse.json({
         success: true,
         topicId: topic.id,
         keyword: topic.keyword,
         language,
         content: {
-          titleEn: content.title || content.titleTranslation || "",
-          titleAr: content.titleTranslation || content.title || "",
-          bodyEn: content.body || content.bodyTranslation || "",
-          bodyAr: content.bodyTranslation || content.body || "",
-          excerptEn: content.excerpt || "",
-          excerptAr: content.excerptTranslation || "",
-          metaTitleEn: content.metaTitle || "",
-          metaTitleAr: content.metaTitleTranslation || "",
-          metaDescriptionEn: content.metaDescription || "",
-          metaDescriptionAr: content.metaDescriptionTranslation || "",
+          titleEn: isEn ? title : "",
+          titleAr: isEn ? "" : title,
+          bodyEn: isEn ? body : "",
+          bodyAr: isEn ? "" : body,
+          excerptEn: isEn ? (content.excerpt || "") : "",
+          excerptAr: isEn ? "" : (content.excerpt || ""),
+          metaTitleEn: isEn ? (content.metaTitle || "") : "",
+          metaTitleAr: isEn ? "" : (content.metaTitle || ""),
+          metaDescriptionEn: isEn ? (content.metaDescription || "") : "",
+          metaDescriptionAr: isEn ? "" : (content.metaDescription || ""),
           tags: content.tags || [],
           keywords: content.keywords || [],
           questions: content.questions || [],
           pageType: content.pageType || pageType,
           seoScore: content.seoScore || 80,
         },
-        wordCount: countWords((content.body as string) || ""),
+        wordCount: countWords(body),
       });
     } catch (err) {
       if (topic.id) {
@@ -326,16 +330,12 @@ async function generateArticle(
 
   const contentType = CONTENT_TYPES[topic.pageType] || CONTENT_TYPES.guide;
 
-  const baseSystemPrompt = language === "en" ? site.systemPromptEN : site.systemPromptAR;
-  const systemPrompt = `${baseSystemPrompt}
-
-CONTENT QUALITY REQUIREMENTS:
-- First-hand experience is the #1 ranking signal (Google Jan 2026 Authenticity Update)
-- Include sensory details: what you see, hear, smell, taste at specific locations
-- Add 2-3 "insider tips" per article — real advice a tourist guide would share
-- Include at least one honest limitation or "what most guides won't tell you" moment
-- NEVER use these AI-generic phrases: "nestled in the heart of", "whether you're a", "look no further", "in conclusion", "it's worth noting"
-- Vary sentence length: mix short punchy sentences with longer descriptive ones`;
+  // Use a compact system prompt — the full site prompts are 500+ tokens each and the
+  // content type guidelines already include quality requirements. Keep system prompt short
+  // to maximize output tokens within the AI timeout window.
+  const systemPrompt = language === "en"
+    ? `You are a luxury travel writer for "${site.name}" (${site.destination}). Write for Arab travelers. Include sensory details, insider tips, and honest observations. Never use generic phrases like "nestled in the heart of" or "whether you're a". Return only valid JSON.`
+    : `أنت كاتب سفر فاخر لـ "${site.name}" (${site.destination}). اكتب للمسافرين العرب. أضف تفاصيل حسية ونصائح داخلية. أعد JSON فقط.`;
 
   const typeGuidelines = language === "en"
     ? contentType.promptGuidelinesEN
@@ -346,6 +346,8 @@ CONTENT QUALITY REQUIREMENTS:
     .replace(/\{siteName\}/g, site.name)
     .replace(/\{destination\}/g, site.destination);
 
+  // Generate ONLY in the requested language — bilingual doubles output tokens and causes
+  // 504 timeouts. Arabic translation can be done separately by the content pipeline.
   const jsonSpec = language === "en"
     ? `
 
@@ -355,15 +357,10 @@ ${topic.questions.length ? `\nAnswer these questions (use as headings):\n${topic
 Return JSON:
 {
   "title": "Title with keyword (50-60 chars)",
-  "titleTranslation": "Arabic title",
   "body": "Full HTML (h2,h3,p,ul/ol,a). MINIMUM ${contentType.minWords} words.",
-  "bodyTranslation": "Full Arabic HTML translation",
   "excerpt": "Excerpt (120-160 chars)",
-  "excerptTranslation": "Arabic excerpt",
   "metaTitle": "SEO title (50-60 chars)",
-  "metaTitleTranslation": "Arabic meta title",
   "metaDescription": "SEO description (120-160 chars)",
-  "metaDescriptionTranslation": "Arabic meta description",
   "tags": ["tag1","tag2","tag3","tag4","tag5"],
   "keywords": ["primary","secondary1","secondary2"],
   "questions": ["Q1?","Q2?","Q3?"],
@@ -375,15 +372,10 @@ Return JSON:
 أرجع JSON:
 {
   "title": "عنوان (50-60 حرف)",
-  "titleTranslation": "English title",
   "body": "HTML كامل (${contentType.minWords}+ كلمة)",
-  "bodyTranslation": "Full English translation",
   "excerpt": "مقتطف (120-160 حرف)",
-  "excerptTranslation": "English excerpt",
   "metaTitle": "عنوان SEO (50-60 حرف)",
-  "metaTitleTranslation": "English meta title",
   "metaDescription": "وصف SEO (120-160 حرف)",
-  "metaDescriptionTranslation": "English meta description",
   "tags": ["وسم1","وسم2","وسم3"],
   "keywords": ["رئيسية","ثانوية"],
   "questions": ["سؤال1؟","سؤال2؟"],

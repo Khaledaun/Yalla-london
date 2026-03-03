@@ -124,12 +124,20 @@ export async function auditPage(
   const queryUrl = `${PSI_API_URL}?url=${encodeURIComponent(url)}&strategy=${strategy}&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO${apiKey ? `&key=${apiKey}` : ""}`;
 
   try {
-    const res = await fetch(queryUrl, {
-      signal: AbortSignal.timeout(30_000), // 30s timeout per page
-    });
+    // Retry once on 429 (rate limit) with 3s backoff
+    let res: Response | null = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 3000));
+      res = await fetch(queryUrl, {
+        signal: AbortSignal.timeout(30_000), // 30s timeout per page
+      });
+      if (res.status !== 429) break;
+      console.warn(`[site-auditor] Rate limited (429) on ${url} — retrying in 3s`);
+    }
 
-    if (!res.ok) {
-      const errorBody = await res.text().catch(() => "");
+    if (!res || !res.ok) {
+      const errorBody = res ? await res.text().catch(() => "") : "No response";
+      const status = res?.status ?? 0;
       return {
         url,
         strategy,
@@ -144,7 +152,7 @@ export async function auditPage(
         tbtMs: null,
         speedIndex: null,
         diagnostics: [],
-        error: `HTTP ${res.status}: ${errorBody.substring(0, 200)}`,
+        error: `HTTP ${status}: ${errorBody.substring(0, 200)}`,
       };
     }
 
@@ -282,8 +290,8 @@ export async function runSiteAudit(
     const result = await auditPage(url, strategy);
     pages.push(result);
 
-    // Small delay between requests to be respectful to the API
-    await new Promise((r) => setTimeout(r, 500));
+    // 1.5s delay between pages to avoid rate limiting (was 500ms — too aggressive)
+    await new Promise((r) => setTimeout(r, 1500));
   }
 
   // Calculate summary

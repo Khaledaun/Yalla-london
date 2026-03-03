@@ -135,30 +135,26 @@ export default function BulkGeneratePage() {
         return;
       }
 
+      // Use "queue" mode: creates ArticleDrafts in the pipeline and returns instantly (<3s).
+      // The content-builder cron processes them through the 8-phase pipeline automatically.
+      // This avoids the 504 timeout that "start" mode causes (AI generation takes 30-40s per article).
       const res = await fetch("/api/admin/bulk-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "start",
+          action: "queue",
           siteId,
           language,
           count: topicSource === "manual" ? keywords.length : count,
           topicSource,
           keywords,
           pageType,
-          autoPublish,
         }),
       });
 
-      // Handle non-JSON responses (504 timeout, 502 gateway, etc.)
-      // 504 is EXPECTED when generating 2+ articles — the AI call takes 25-35s each.
-      // Vercel kills the request at 60s, but the article may have been saved.
+      // Handle non-JSON responses (should be rare with queue mode — it returns in <3s)
       if (!res.ok && res.status >= 500) {
-        setError(
-          res.status === 504
-            ? `Generation timed out — Vercel's 60-second limit was reached. Your article(s) may still have been created. Check the Content Matrix tab, or try generating 1 article at a time.`
-            : `Server error (HTTP ${res.status}). Try generating fewer articles or tap "Continue" if a run already started.`
-        );
+        setError(`Server error (HTTP ${res.status}). Try again in a moment.`);
         setRunning(false);
         return;
       }
@@ -411,7 +407,7 @@ export default function BulkGeneratePage() {
                   <span className="text-lg font-bold text-white w-8 text-center">{count}</span>
                 </div>
                 <p className="text-xs text-zinc-500 mt-1">
-                  Each article takes ~30-40s. {count === 1 ? "Should complete in 1 phase." : count === 2 ? "May need 2 phases (tap Continue if first times out)." : `Will need ~${count} phases — tap Continue after each.`}
+                  Articles are queued in the pipeline and built automatically by the content-builder cron (every 15 min).
                 </p>
               </div>
             )}
@@ -504,17 +500,30 @@ export default function BulkGeneratePage() {
                   <span className="text-xs text-zinc-500">{result.elapsed}</span>
                 )}
               </div>
-              <div className="flex gap-4 mt-2">
-                <StatBadge label="Total" value={result.total} color="text-zinc-300" />
-                <StatBadge label="Generated" value={result.generated} color="text-blue-300" />
-                <StatBadge label="Published" value={result.published} color="text-emerald-300" />
-                <StatBadge label="Failed" value={result.failed} color="text-red-300" />
-                {(result.pending ?? 0) > 0 && (
-                  <StatBadge label="Pending" value={result.pending || 0} color="text-amber-300" />
-                )}
-              </div>
-              {result.message && (
-                <p className="text-xs text-zinc-400 mt-2">{result.message}</p>
+              {(result as unknown as Record<string, unknown>).mode === "queued" ? (
+                <>
+                  <div className="flex gap-4 mt-2">
+                    <StatBadge label="Queued" value={(result as unknown as Record<string, unknown>).queued as number || 0} color="text-emerald-300" />
+                  </div>
+                  {result.message && (
+                    <p className="text-xs text-emerald-400 mt-2">{result.message}</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="flex gap-4 mt-2">
+                    <StatBadge label="Total" value={result.total} color="text-zinc-300" />
+                    <StatBadge label="Generated" value={result.generated} color="text-blue-300" />
+                    <StatBadge label="Published" value={result.published} color="text-emerald-300" />
+                    <StatBadge label="Failed" value={result.failed} color="text-red-300" />
+                    {(result.pending ?? 0) > 0 && (
+                      <StatBadge label="Pending" value={result.pending || 0} color="text-amber-300" />
+                    )}
+                  </div>
+                  {result.message && (
+                    <p className="text-xs text-zinc-400 mt-2">{result.message}</p>
+                  )}
+                </>
               )}
             </div>
 

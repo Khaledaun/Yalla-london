@@ -290,7 +290,7 @@ interface IndexingArticleInfo {
   publishedAt: string | null;
   seoScore: number;
   wordCount: number;
-  indexingStatus: "indexed" | "submitted" | "not_indexed" | "error" | "never_submitted";
+  indexingStatus: "indexed" | "submitted" | "discovered" | "not_indexed" | "error" | "never_submitted";
   submittedAt: string | null;
   lastCrawledAt: string | null;
   lastInspectedAt: string | null;
@@ -310,7 +310,7 @@ interface IndexingPanelData {
   siteId: string;
   baseUrl: string;
   config: { hasIndexNowKey: boolean; hasGscCredentials: boolean; gscSiteUrl: string };
-  summary: { total: number; indexed: number; submitted: number; notIndexed: number; neverSubmitted: number; errors: number };
+  summary: { total: number; indexed: number; submitted: number; discovered: number; notIndexed: number; neverSubmitted: number; errors: number };
   healthDiagnosis: { status: string; message: string; detail: string; indexingRate: number };
   articles: IndexingArticleInfo[];
   systemIssues: Array<{ severity: string; category: string; message: string; detail: string; fixAction?: string }>;
@@ -447,13 +447,20 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
         return;
       }
       const json = await res.json();
-      if (json.success) {
-        const updated = json.result?.totalIndexedUpdated || json.totalIndexedUpdated || 0;
-        const newTracking = json.result?.totalNewTracking || json.totalNewTracking || 0;
-        const pages = json.result?.totalPagesProcessed || json.totalPagesProcessed || 0;
-        setSubmitResult(`✅ GSC sync complete: ${pages} pages scanned, ${updated} newly confirmed indexed, ${newTracking} new URLs tracked`);
+      // Departures API wraps cron response in { triggered, result: { ... } }
+      const cronResult = json.result && typeof json.result === "object" ? json.result : json;
+      if (json.triggered && (cronResult.success !== false)) {
+        const updated = cronResult.totalIndexedUpdated || 0;
+        const newTracking = cronResult.totalNewTracking || 0;
+        const pages = cronResult.totalPagesProcessed || 0;
+        if (cronResult.message?.includes("not configured")) {
+          setSubmitResult(`⚠️ ${cronResult.message}`);
+        } else {
+          setSubmitResult(`✅ GSC sync complete: ${pages} pages scanned, ${updated} newly confirmed indexed, ${newTracking} new URLs tracked`);
+        }
       } else {
-        setSubmitResult(`❌ GSC sync failed: ${json.error || json.message || "Unknown error"}`);
+        const errMsg = cronResult.error || cronResult.message || json.error || "Unknown error";
+        setSubmitResult(`❌ GSC sync failed: ${errMsg}`);
       }
       await fetchData();
     } catch (e) {
@@ -474,6 +481,7 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
   const statusLabel = {
     indexed: "✅ Indexed",
     submitted: "⏳ Submitted",
+    discovered: "🔍 Discovered",
     not_indexed: "⚠️ Not Indexed",
     error: "❌ Error",
     never_submitted: "— Not Submitted",
@@ -553,7 +561,7 @@ function IndexingPanel({ siteId, onClose }: { siteId: string; onClose: () => voi
                 ["Total", data.summary.total, "text-zinc-300", "all"],
                 ["Indexed", data.summary.indexed, "text-emerald-400", "indexed"],
                 ["Submitted", data.summary.submitted, "text-blue-400", "submitted"],
-                ["Not Indexed", data.summary.notIndexed, "text-amber-400", "not_indexed"],
+                ["Discovered", data.summary.discovered ?? 0, "text-amber-400", "discovered"],
                 ["Untracked", data.summary.neverSubmitted, "text-zinc-400", "never_submitted"],
                 ["Errors", data.summary.errors, "text-red-400", "error"],
               ].map(([label, val, color, filter]) => (

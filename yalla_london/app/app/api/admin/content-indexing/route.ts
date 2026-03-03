@@ -21,7 +21,7 @@ interface ArticleIndexingInfo {
   seoScore: number;
   wordCount: number;
   // Indexing status
-  indexingStatus: "indexed" | "submitted" | "not_indexed" | "error" | "never_submitted";
+  indexingStatus: "indexed" | "submitted" | "discovered" | "not_indexed" | "error" | "never_submitted";
   // Diagnostic info
   submittedAt: string | null;
   lastCrawledAt: string | null;
@@ -240,6 +240,8 @@ export async function GET(request: NextRequest) {
           indexingStatus = "error";
         } else if (record.status === "submitted") {
           indexingStatus = "submitted";
+        } else if (record.status === "discovered") {
+          indexingStatus = "discovered";
         } else {
           indexingStatus = "not_indexed";
         }
@@ -575,10 +577,11 @@ export async function GET(request: NextRequest) {
     const { getIndexingSummary } = await import("@/lib/seo/indexing-summary");
     const sharedSummary = await getIndexingSummary(siteId);
 
-    // Per-article counts from our local list (should match shared summary)
+    // Use shared summary for all counts (single source of truth)
     const indexed = sharedSummary.indexed;
     const submitted = sharedSummary.submitted;
-    const notIndexed = articles.filter((a) => a.indexingStatus === "not_indexed").length;
+    const discovered = sharedSummary.discovered;
+    const notIndexed = sharedSummary.deindexed + (sharedSummary.chronicFailures ?? 0);
     const neverSubmitted = sharedSummary.neverSubmitted;
     const errors = sharedSummary.errors;
 
@@ -864,11 +867,10 @@ export async function GET(request: NextRequest) {
         total: sharedSummary.total,
         indexed,
         submitted,
+        discovered,
         notIndexed,
         neverSubmitted,
         errors,
-        // Extra fields from shared utility for cockpit parity
-        discovered: sharedSummary.discovered,
         deindexed: sharedSummary.deindexed,
         rate: sharedSummary.rate,
         dailyQuotaRemaining: sharedSummary.dailyQuotaRemaining,

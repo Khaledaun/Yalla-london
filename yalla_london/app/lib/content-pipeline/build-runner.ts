@@ -61,7 +61,7 @@ export async function runContentBuilder(
           current_phase: {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
-          phase_attempts: { lt: 3 },
+          phase_attempts: { lt: 5 }, // Must match maxAttempts for drafting phase (line ~339)
           // Soft-lock: skip drafts actively being processed by another runner (within last 5 min)
           // 300s allows a full phase cycle to complete before another runner picks it up.
           // Previous 180s was too short — slow AI calls (30-50s) + overlapping crons

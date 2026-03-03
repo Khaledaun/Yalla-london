@@ -104,7 +104,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
       publishedCount = await prisma.blogPost.count({
         where: { published: true, siteId, deletedAt: null },
       });
-    } catch { /* table may not exist */ }
+    } catch (e) { console.warn("[indexing-summary] BlogPost.count fallback failed:", e instanceof Error ? e.message : e); }
   }
 
   // ── 2. Get all URLIndexingStatus records for this site ────────────────
@@ -134,7 +134,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
         updated_at: true,
       },
     });
-  } catch { /* table may not exist */ }
+  } catch (e) { console.warn("[indexing-summary] URLIndexingStatus query failed:", e instanceof Error ? e.message : e); }
 
   // ── 2b. Cross-reference with GscPagePerformance ────────────────────────
   // GSC Search Analytics is the ultimate source of truth for indexing.
@@ -149,7 +149,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
       take: 2000,
     });
     gscConfirmedUrls = new Set(gscRecords.map((r: { url: string }) => r.url));
-  } catch { /* GscPagePerformance table may not exist yet */ }
+  } catch (e) { console.warn("[indexing-summary] GscPagePerformance query failed:", e instanceof Error ? e.message : e); }
 
   // Build a url→status lookup from URLIndexingStatus for cross-referencing
   let trackingUrlMap = new Map<string, string>();
@@ -162,7 +162,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     for (const r of trackingWithUrls) {
       trackingUrlMap.set(r.url, r.status);
     }
-  } catch { /* non-critical */ }
+  } catch (e) { console.warn("[indexing-summary] trackingUrlMap query failed:", e instanceof Error ? e.message : e); }
 
   // ── 3. Resolve status for each tracking record ────────────────────────
 
@@ -257,7 +257,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
         },
       });
     }
-  } catch { /* non-critical */ }
+  } catch (e) { console.warn("[indexing-summary] stale submissions query failed:", e instanceof Error ? e.message : e); }
 
   // ── 5. Velocity: indexed in last 7 days + previous 7 days (trend) ────
 
@@ -277,7 +277,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
         },
       }),
     ]);
-  } catch { /* non-critical */ }
+  } catch (e) { console.warn("[indexing-summary] velocity query failed:", e instanceof Error ? e.message : e); }
 
   // ── 6. Channel breakdown ──────────────────────────────────────────────
 
@@ -290,7 +290,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
       prisma.uRLIndexingStatus.count({ where: { site_id: siteId, submitted_sitemap: true } }),
       prisma.uRLIndexingStatus.count({ where: { site_id: siteId, submitted_google_api: true } }),
     ]);
-  } catch { /* non-critical */ }
+  } catch (e) { console.warn("[indexing-summary] channel breakdown query failed:", e instanceof Error ? e.message : e); }
 
   // ── 7. Timestamps ─────────────────────────────────────────────────────
 
@@ -310,7 +310,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
       select: { last_inspected_at: true },
     });
     lastVerificationDate = lastVer?.last_inspected_at ?? null;
-  } catch { /* non-critical */ }
+  } catch (e) { console.warn("[indexing-summary] timestamps query failed:", e instanceof Error ? e.message : e); }
 
   // ── 8. Average time to index ──────────────────────────────────────────
 
@@ -332,7 +332,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
         deltas.reduce((a: number, b: number) => a + b, 0) / deltas.length / (1000 * 60 * 60 * 24)
       );
     }
-  } catch { /* non-critical */ }
+  } catch (e) { console.warn("[indexing-summary] avg time-to-index query failed:", e instanceof Error ? e.message : e); }
 
   // ── 9. Google Indexing API daily quota remaining ───────────────────────
 
@@ -348,7 +348,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
       },
     });
     dailyQuotaRemaining = Math.max(0, 200 - usedToday);
-  } catch { /* non-critical */ }
+  } catch (e) { console.warn("[indexing-summary] daily quota query failed:", e instanceof Error ? e.message : e); }
 
   // ── 10. Hreflang reciprocity check ────────────────────────────────────
   // Count pairs where one language version is indexed but its counterpart is not.
@@ -394,7 +394,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
         }
       } catch { /* URL parse error — skip */ }
     }
-  } catch { /* non-critical */ }
+  } catch (e) { console.warn("[indexing-summary] hreflang check failed:", e instanceof Error ? e.message : e); }
 
   // ── 11. Build blockers list ───────────────────────────────────────────
 
@@ -463,7 +463,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
     if (seoCronRuns === 0 && process.env.INDEXNOW_KEY) {
       blockers.push({ reason: "SEO submission cron hasn't run in 3 days — URLs not being sent to Google", count: 0, severity: "warning" });
     }
-  } catch { /* non-critical */ }
+  } catch (e) { console.warn("[indexing-summary] cron health check failed:", e instanceof Error ? e.message : e); }
 
   // Thin content check (word_count_en doesn't exist on BlogPost — compute from content_en)
   try {
@@ -481,7 +481,7 @@ export async function getIndexingSummary(siteId: string): Promise<IndexingSummar
         severity: "warning",
       });
     }
-  } catch { /* non-critical */ }
+  } catch (e) { console.warn("[indexing-summary] thin content check failed:", e instanceof Error ? e.message : e); }
 
   if (hreflangMismatchCount > 0) {
     blockers.push({

@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       branding: {
         primaryColor: siteConfig?.primaryColor || "#7c3aed",
         secondaryColor: siteConfig?.secondaryColor || "#d4af37",
-        logoUrl: `${siteUrl}/images/${siteConfig?.slug || "yalla-london"}-logo.svg`,
+        logoUrl: `${siteUrl}/images/${siteConfig?.slug || currentSiteId}-logo.svg`,
         siteName,
         contactEmail: `hello@${siteConfig?.domain || "zenitha.luxury"}`,
         website: siteUrl,

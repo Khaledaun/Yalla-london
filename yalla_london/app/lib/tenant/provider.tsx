@@ -41,10 +41,18 @@ export function useTenant(): TenantContextValue {
 
   if (!context) {
     // Return default values if not in a TenantProvider
-    // This allows the hook to work during development
+    // This allows the hook to work during development.
+    // Uses dynamic config for correct multi-site default.
+    let defaultId = 'yalla-london';
+    let defaultName = 'Yalla London';
+    try {
+      const sites = require('@/config/sites');
+      defaultId = sites.getDefaultSiteId();
+      defaultName = sites.getDefaultSiteName?.() || defaultName;
+    } catch { /* config not available in client bundle — use safe defaults */ }
     return {
-      siteId: 'yalla-london',
-      siteName: 'Yalla London',
+      siteId: defaultId,
+      siteName: defaultName,
       locale: 'en',
       hostname: 'localhost:3000',
       isRTL: false,

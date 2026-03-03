@@ -169,7 +169,7 @@ export async function runSweeper(): Promise<SweeperResult> {
             in: ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"],
           },
           updated_at: { lt: new Date(Date.now() - STUCK_THRESHOLD_MS) },
-          phase_attempts: { lt: 3 },
+          phase_attempts: { lt: 5 }, // Must match maxAttempts for drafting phase in build-runner.ts
         },
         take: MAX_RECOVERIES_PER_RUN,
       });

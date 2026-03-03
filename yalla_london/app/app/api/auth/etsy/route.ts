@@ -35,8 +35,9 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const { getDefaultSiteId } = await import("@/config/sites");
   const siteId =
-    request.nextUrl.searchParams.get("siteId") ?? "yalla-london";
+    request.nextUrl.searchParams.get("siteId") ?? getDefaultSiteId();
 
   // Generate PKCE values
   const codeVerifier = generateCodeVerifier();

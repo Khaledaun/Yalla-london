@@ -340,7 +340,8 @@ async function testGrokKey(): Promise<{ success: boolean; message: string }> {
       message: `Grok API key is valid. Active features: ${features.join(', ')}. Model: grok-4-1-fast ($0.20/$0.50 per 1M tokens)`,
     };
   } catch (error) {
-    return { success: false, message: `Failed to connect to xAI API: ${error instanceof Error ? error.message : 'Unknown error'}` };
+    console.warn("[api-keys] xAI API verification failed:", error instanceof Error ? error.message : error);
+    return { success: false, message: "Failed to verify xAI API key. Please check your configuration and try again." };
   }
 }
 

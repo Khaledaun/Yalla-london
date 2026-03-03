@@ -9,6 +9,9 @@
  * POST — "Do Now" trigger: { type: 'cron', path: '/api/cron/...' }
  */
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60; // POST triggers cron routes that can take up to 53s
+
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-middleware';
 import { getActiveSiteIds } from '@/config/sites';

@@ -395,7 +395,7 @@ Return JSON:
 
   const result = await generateJSON<Record<string, unknown>>(prompt, {
     systemPrompt,
-    maxTokens: 6000,
+    maxTokens: 3000,
     temperature: 0.7,
   });
 

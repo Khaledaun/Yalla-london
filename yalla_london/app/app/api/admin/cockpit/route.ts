@@ -263,10 +263,10 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     : allSiteIds;
 
   // ── 5-9. Run builders in parallel with per-builder timeout guards ──
-  // If any single builder takes > 8s or throws, return empty state for that section
-  // rather than letting the entire cockpit API 504. Errors are tracked and surfaced
-  // as alerts so Khaled can see what's wrong from his phone.
-  const BUILDER_TIMEOUT = 8_000; // 8s per builder — well within 60s Vercel limit
+  // DB latency on Supabase can be 3-5s. With old 8s timeout, only 3-5s remained
+  // for actual queries. 15s gives proper headroom. All 5 builders run in parallel,
+  // so worst case = 15s total (not 75s). Errors tracked and surfaced as alerts.
+  const BUILDER_TIMEOUT = 15_000;
 
   // Track which builders failed so we can tell Khaled what's wrong
   const builderErrors: string[] = [];
@@ -592,59 +592,50 @@ async function buildCronHealth(prisma: any): Promise<CronHealth> {
 // ─────────────────────────────────────────────
 
 async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSummary[]> {
-  // Process sites SEQUENTIALLY and run queries SEQUENTIALLY within each site
-  // to avoid connection pool exhaustion. The uRLIndexingStatus query has been removed —
-  // that table is already queried by buildIndexing() (getIndexingSummary), so querying
-  // it again per-site was redundant AND the main cause of pool timeouts.
+  // Run all per-site queries in parallel (Promise.all). With connection_limit=1 and
+  // pgbouncer=true, Prisma pipelines queries through a single connection — parallel
+  // calls don't open new connections, they just avoid sequential round-trip latency.
+  // This is critical when DB latency is 3-5s (Supabase): 4 sequential queries × 4s = 16s,
+  // but 4 parallel queries through pipelining ≈ 5-6s total.
   const PIPELINE_PHASES = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"];
-  const results: SiteSummary[] = [];
 
-  for (const siteId of activeSiteIds) {
+  const sitePromises = activeSiteIds.map(async (siteId) => {
     const siteConfig = SITES[siteId];
-    if (!siteConfig) continue;
+    if (!siteConfig) return null;
 
     try {
-      // Run queries SEQUENTIALLY (not Promise.all) to minimize pool pressure.
-      // Each query takes ~50-200ms; total ~400-800ms per site — acceptable.
-      const articleAgg = await prisma.blogPost.aggregate({
-        _count: { id: true },
-        _avg: { seo_score: true },
-        where: { siteId, published: true, deletedAt: null },
-      });
-
-      const topicsQueued = await prisma.topicProposal.count({
-        where: {
-          site_id: siteId,
-          status: { in: ["ready", "planned", "proposed"] },
-        },
-      });
-
-      const latestPost = await prisma.blogPost.findFirst({
-        where: { siteId, published: true, deletedAt: null },
-        orderBy: { created_at: "desc" },
-        select: { created_at: true },
-      });
-
-      // Single groupBy for both reservoir and pipeline counts
-      let reservoirCount = 0;
-      let inPipelineCount = 0;
-      try {
-        const draftGroups = await prisma.articleDraft.groupBy({
+      // Run all 4 queries in parallel — pipelined through single connection
+      const [articleAgg, topicsQueued, latestPost, draftGroups] = await Promise.all([
+        prisma.blogPost.aggregate({
+          _count: { id: true },
+          _avg: { seo_score: true },
+          where: { siteId, published: true, deletedAt: null },
+        }),
+        prisma.topicProposal.count({
+          where: {
+            site_id: siteId,
+            status: { in: ["ready", "planned", "proposed"] },
+          },
+        }),
+        prisma.blogPost.findFirst({
+          where: { siteId, published: true, deletedAt: null },
+          orderBy: { created_at: "desc" },
+          select: { created_at: true },
+        }),
+        prisma.articleDraft.groupBy({
           by: ["current_phase"],
           _count: { id: true },
           where: { site_id: siteId },
-        });
-        reservoirCount = draftGroups.find((g: any) => g.current_phase === "reservoir")?._count?.id ?? 0;
-        inPipelineCount = draftGroups
-          .filter((g: any) => PIPELINE_PHASES.includes(g.current_phase))
-          .reduce((sum: number, g: any) => sum + (g._count?.id ?? 0), 0);
-      } catch (draftErr) {
-        console.warn(`[cockpit] articleDraft query failed for ${siteId}:`, draftErr instanceof Error ? draftErr.message : draftErr);
-      }
+        }).catch(() => []),
+      ]);
 
+      const reservoirCount = draftGroups.find((g: any) => g.current_phase === "reservoir")?._count?.id ?? 0;
+      const inPipelineCount = draftGroups
+        .filter((g: any) => PIPELINE_PHASES.includes(g.current_phase))
+        .reduce((sum: number, g: any) => sum + (g._count?.id ?? 0), 0);
       const published = articleAgg._count.id;
 
-      results.push({
+      return {
         id: siteId,
         name: siteConfig.name,
         domain: getSiteDomain(siteId),
@@ -654,16 +645,16 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         inPipeline: inPipelineCount,
         avgSeoScore: Math.round(articleAgg._avg.seo_score ?? 0),
         topicsQueued,
-        indexRate: 0, // Derived from buildIndexing() — no need to re-query URLIndexingStatus per site
+        indexRate: 0,
         lastPublishedAt: latestPost?.created_at?.toISOString() ?? null,
         lastCronAt: null,
         isActive: siteConfig.status === "active",
         dataError: null,
-      } as SiteSummary);
+      } as SiteSummary;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.warn(`[cockpit] site summary failed for ${siteId}:`, errMsg);
-      results.push({
+      return {
         id: siteId,
         name: siteConfig.name,
         domain: getSiteDomain(siteId),
@@ -678,11 +669,12 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         lastCronAt: null,
         isActive: siteConfig.status === "active",
         dataError: `Failed to load site data: ${errMsg.substring(0, 120)}`,
-      } as SiteSummary);
+      } as SiteSummary;
     }
-  }
+  });
 
-  return results;
+  const settled = await Promise.all(sitePromises);
+  return settled.filter((s): s is SiteSummary => s !== null);
 }
 
 // ─────────────────────────────────────────────

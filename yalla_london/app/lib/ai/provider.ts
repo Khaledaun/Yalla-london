@@ -209,7 +209,7 @@ async function callGrok(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    signal: AbortSignal.timeout(30_000), // 30s max per AI call
+    signal: AbortSignal.timeout(25_000), // 25s max per AI call — leaves room within 60s Vercel limit
     body: JSON.stringify({
       model,
       max_tokens: options.maxTokens || 4096,
@@ -258,7 +258,7 @@ async function callClaude(
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
     },
-    signal: AbortSignal.timeout(30_000), // 30s max per AI call
+    signal: AbortSignal.timeout(25_000), // 25s max per AI call — leaves room within 60s Vercel limit
     body: JSON.stringify({
       model,
       max_tokens: options.maxTokens || 4096,
@@ -315,7 +315,7 @@ async function callOpenAI(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    signal: AbortSignal.timeout(30_000), // 30s max per AI call
+    signal: AbortSignal.timeout(25_000), // 25s max per AI call — leaves room within 60s Vercel limit
     body: JSON.stringify({
       model,
       max_tokens: options.maxTokens || 4096,
@@ -371,7 +371,7 @@ async function callGemini(
       headers: {
         'Content-Type': 'application/json',
       },
-      signal: AbortSignal.timeout(30_000), // 30s max per AI call
+      signal: AbortSignal.timeout(25_000), // 25s max per AI call — leaves room within 60s Vercel limit
       body: JSON.stringify({
         contents,
         systemInstruction: systemInstruction

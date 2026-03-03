@@ -108,7 +108,12 @@ function getLocaleLabel(locale: string): string {
 export async function phaseResearch(
   draft: DraftRecord,
   site: SiteConfig,
+  budgetRemainingMs?: number,
 ): Promise<PhaseResult> {
+  // Budget guard: need at least 12s for AI call + DB save
+  if (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) {
+    return { success: false, nextPhase: "research", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run` };
+  }
   const { generateJSON } = await import("@/lib/ai/provider");
   const lang = getLocaleLabel(draft.locale);
 
@@ -172,7 +177,12 @@ Return JSON:
 export async function phaseOutline(
   draft: DraftRecord,
   site: SiteConfig,
+  budgetRemainingMs?: number,
 ): Promise<PhaseResult> {
+  // Budget guard: need at least 12s for AI call + DB save
+  if (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) {
+    return { success: false, nextPhase: "outline", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run` };
+  }
   const { generateJSON } = await import("@/lib/ai/provider");
   const research = draft.research_data || {};
   const lang = getLocaleLabel(draft.locale);
@@ -422,7 +432,12 @@ CRITICAL JSON RULES:
 export async function phaseAssembly(
   draft: DraftRecord,
   site: SiteConfig,
+  budgetRemainingMs?: number,
 ): Promise<PhaseResult> {
+  // Budget guard: need at least 15s for AI call + possible expansion + DB save
+  if (budgetRemainingMs !== undefined && budgetRemainingMs < 15_000) {
+    return { success: false, nextPhase: "assembly", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run` };
+  }
   const { generateJSON } = await import("@/lib/ai/provider");
   const outline = (draft.outline_data || {}) as Record<string, unknown>;
   const sections = (draft.sections_data || []) as Array<Record<string, unknown>>;
@@ -480,7 +495,7 @@ Return JSON:
   try {
     const result = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. The final article MUST be at least 1,500 words — expand content if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
-      maxTokens: 4096,
+      maxTokens: 2500,
       temperature: 0.4,
     });
 
@@ -491,8 +506,10 @@ Return JSON:
     const actualWords = assembledHtml.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
     assembledWordCount = Math.max(assembledWordCount, actualWords);
 
-    // If still too short, run an expansion pass
-    if (assembledWordCount < 1200) {
+    // If still too short and we have budget, run an expansion pass
+    // Skip expansion if less than 20s remaining — it will be caught by content-auto-fix cron later
+    const canExpand = budgetRemainingMs === undefined || budgetRemainingMs > 20_000;
+    if (assembledWordCount < 1200 && canExpand) {
       try {
         const expansionPrompt = `You are a luxury travel editor expanding a short article to meet the 1,500-word minimum.
 
@@ -516,7 +533,7 @@ Return JSON:
 
         const expansionResult = await generateJSON<Record<string, unknown>>(expansionPrompt, {
           systemPrompt: `You are a luxury travel editor. Expand articles to meet minimum word counts while maintaining quality. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
-          maxTokens: 4096,
+          maxTokens: 2500,
           temperature: 0.5,
         });
 
@@ -562,7 +579,12 @@ Return JSON:
 export async function phaseImages(
   draft: DraftRecord,
   site: SiteConfig,
+  budgetRemainingMs?: number,
 ): Promise<PhaseResult> {
+  // Budget guard: need at least 10s for Unsplash API + image injection + DB save
+  if (budgetRemainingMs !== undefined && budgetRemainingMs < 10_000) {
+    return { success: false, nextPhase: "images", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run` };
+  }
   const html = draft.assembled_html || "";
   const keyword = draft.keyword.toLowerCase();
 
@@ -725,7 +747,12 @@ export async function phaseImages(
 export async function phaseSeo(
   draft: DraftRecord,
   site: SiteConfig,
+  budgetRemainingMs?: number,
 ): Promise<PhaseResult> {
+  // Budget guard: need at least 12s for AI call + DB save
+  if (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) {
+    return { success: false, nextPhase: "seo", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run` };
+  }
   const { generateJSON } = await import("@/lib/ai/provider");
   const research = draft.research_data || {};
   const outline = (draft.outline_data || {}) as Record<string, unknown>;
@@ -910,17 +937,17 @@ export async function runPhase(
 ): Promise<PhaseResult> {
   switch (draft.current_phase) {
     case "research":
-      return phaseResearch(draft, site);
+      return phaseResearch(draft, site, budgetRemainingMs);
     case "outline":
-      return phaseOutline(draft, site);
+      return phaseOutline(draft, site, budgetRemainingMs);
     case "drafting":
       return phaseDrafting(draft, site, budgetRemainingMs);
     case "assembly":
-      return phaseAssembly(draft, site);
+      return phaseAssembly(draft, site, budgetRemainingMs);
     case "images":
-      return phaseImages(draft, site);
+      return phaseImages(draft, site, budgetRemainingMs);
     case "seo":
-      return phaseSeo(draft, site);
+      return phaseSeo(draft, site, budgetRemainingMs);
     case "scoring":
       return phaseScoring(draft);
     default:

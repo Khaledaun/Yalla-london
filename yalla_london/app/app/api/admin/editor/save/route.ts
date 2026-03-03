@@ -101,7 +101,8 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     // Track URL in indexing system immediately
     try {
       const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
-      ensureUrlTracked(publicUrl, siteId || (await import("@/config/sites")).getDefaultSiteId(), `blog/${newArticle.slug}`).catch(() => {});
+      const { getDefaultSiteId } = await import("@/config/sites");
+      ensureUrlTracked(publicUrl, getDefaultSiteId(), `blog/${newArticle.slug}`).catch(() => {});
     } catch {
       // Non-fatal
     }

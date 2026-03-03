@@ -560,7 +560,7 @@ async function publishArticle(
     let suffix = 1;
     while (true) {
       const existing = await prisma.blogPost.findFirst({
-        where: { slug: slugAttempt, deletedAt: null },
+        where: { slug: slugAttempt, siteId, deletedAt: null },
       });
       if (!existing) break;
       suffix++;
@@ -593,6 +593,31 @@ async function publishArticle(
 
     const bodyHtml = (content.body as string) || "";
 
+    // ── Pre-publication gate check ─────────────────────────────────────
+    // Run all 14 quality checks before allowing publish. Fail-closed:
+    // if the gate fails, article is created as unpublished (draft).
+    let passesGate = false;
+    try {
+      const { runPrePublicationGate } = await import("@/lib/seo/orchestrator/pre-publication-gate");
+      const domain = getSiteDomain(siteId);
+      const gateResult = await runPrePublicationGate({
+        url: `${domain}/blog/${slug}`,
+        title: titleEn,
+        metaTitle: (content.metaTitle as string) || titleEn.substring(0, 60),
+        metaDescription: (content.metaDescription as string) || "",
+        content: bodyHtml,
+        seoScore: (content.seoScore as number) || 65,
+        locale: "en",
+      });
+      passesGate = !gateResult.blocked;
+      if (gateResult.blocked) {
+        console.warn(`[bulk-generate] Pre-pub gate BLOCKED "${titleEn}": ${gateResult.checks.filter(c => !c.passed && c.severity !== "warning").map(c => c.name).join(", ")}`);
+      }
+    } catch (gateErr) {
+      // Gate failure = fail-closed → publish as draft
+      console.warn("[bulk-generate] Pre-pub gate error (fail-closed):", gateErr instanceof Error ? gateErr.message : String(gateErr));
+    }
+
     // CRITICAL: title_ar and content_ar are required non-nullable String fields
     const blogPost = await prisma.blogPost.create({
       data: {
@@ -608,7 +633,7 @@ async function publishArticle(
         meta_description_ar: (content.metaDescriptionTranslation as string) || null,
         slug,
         tags: [...((content.tags as string[]) || []), "ai-generated", "bulk-generated", `site-${siteId}`],
-        published: true,
+        published: passesGate,
         siteId,
         category_id: categoryId,
         author_id: authorId,
@@ -621,7 +646,7 @@ async function publishArticle(
 
     article.blogPostId = blogPost.id;
     article.slug = slug;
-    article.status = "published";
+    article.status = passesGate ? "published" : "draft";
 
     // Mark topic as published
     if (article.topicId) {
@@ -631,8 +656,8 @@ async function publishArticle(
       }).catch((e: unknown) => console.warn("[bulk-generate] Topic status update failed:", e));
     }
 
-    // Submit to IndexNow (fire-and-forget)
-    try {
+    // Submit to IndexNow only if article passed the gate and was published
+    if (passesGate) try {
       const domain = getSiteDomain(siteId); // Already includes https://
       const articleUrl = `${domain}/blog/${slug}`;
       const { submitToIndexNow } = await import("@/lib/seo/indexing-service");

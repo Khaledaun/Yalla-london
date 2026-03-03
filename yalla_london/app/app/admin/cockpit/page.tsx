@@ -1042,6 +1042,26 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
               <span>{indexing.discovered ?? 0} discovered</span>
               <span>{indexing.neverSubmitted ?? 0} untracked</span>
             </div>
+            {(indexing.discovered ?? 0) > 0 && (
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/admin/content-indexing", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ action: "submit_discovered", siteId }),
+                    });
+                    const json = await res.json();
+                    if (json.success && json.submitted > 0) {
+                      onRefresh();
+                    }
+                  } catch { /* silently fail — refresh will show current state */ }
+                }}
+                className="mt-2 w-full text-xs bg-amber-700/30 hover:bg-amber-700/50 text-amber-300 border border-amber-700/50 rounded py-1.5 px-3 transition-colors"
+              >
+                Submit {indexing.discovered} discovered article{indexing.discovered === 1 ? "" : "s"} to Google
+              </button>
+            )}
             {indexing.dataSource === "lightweight" && (
               <div className="mt-1 text-[9px] text-zinc-600 italic">Numbers are approximate (blog posts only). Full count includes static pages.</div>
             )}

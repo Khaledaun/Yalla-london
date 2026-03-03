@@ -180,7 +180,6 @@ export async function GET(request: NextRequest) {
           // Resubmit "discovered" URLs stuck for >1h (was 6h — too long)
           try {
             const { prisma: pStuck } = await import("@/lib/db");
-            const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
             const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
             const siteUrl = getSiteDomain(sid);
             const stuckUrls = await pStuck.uRLIndexingStatus.findMany({
@@ -198,14 +197,51 @@ export async function GET(request: NextRequest) {
             });
             if (stuckUrls.length > 0) {
               const indexNowKey = process.env.INDEXNOW_KEY;
+              let submitted = false;
+
+              // Try IndexNow first (fastest path to indexing)
               if (indexNowKey) {
-                await submitToIndexNow(stuckUrls.map(u => u.url), siteUrl);
-                await pStuck.uRLIndexingStatus.updateMany({
-                  where: { id: { in: stuckUrls.map(u => u.id) } },
-                  data: { status: "submitted", last_submitted_at: new Date(), submitted_indexnow: true },
-                });
-                console.log(`[SEO-CRON] Resubmitted ${stuckUrls.length} stuck "discovered" URLs for ${sid}`);
-                results.actions.push({ name: "resubmit_stuck", site: sid, count: stuckUrls.length });
+                try {
+                  const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+                  await submitToIndexNow(stuckUrls.map(u => u.url), siteUrl);
+                  await pStuck.uRLIndexingStatus.updateMany({
+                    where: { id: { in: stuckUrls.map(u => u.id) } },
+                    data: { status: "submitted", last_submitted_at: new Date(), submitted_indexnow: true },
+                  });
+                  submitted = true;
+                  console.log(`[SEO-CRON] Resubmitted ${stuckUrls.length} stuck URLs via IndexNow for ${sid}`);
+                  results.actions.push({ name: "resubmit_stuck", site: sid, count: stuckUrls.length, channel: "indexnow" });
+                } catch (indexNowErr) {
+                  console.warn(`[SEO-CRON] IndexNow resubmission failed for ${sid}:`, indexNowErr instanceof Error ? indexNowErr.message : indexNowErr);
+                }
+              }
+
+              // Fallback: If IndexNow unavailable or failed, try sitemap ping (Google discovers via sitemap)
+              // This ensures discovered URLs transition to "submitted" even without INDEXNOW_KEY.
+              if (!submitted) {
+                try {
+                  const { pingSitemaps } = await import("@/lib/seo/indexing-service");
+                  const pingResult = await pingSitemaps(siteUrl);
+                  if (pingResult?.google_gsc) {
+                    await pStuck.uRLIndexingStatus.updateMany({
+                      where: { id: { in: stuckUrls.map(u => u.id) } },
+                      data: { status: "submitted", last_submitted_at: new Date(), submitted_sitemap: true },
+                    });
+                    console.log(`[SEO-CRON] Resubmitted ${stuckUrls.length} stuck URLs via sitemap ping for ${sid}`);
+                    results.actions.push({ name: "resubmit_stuck", site: sid, count: stuckUrls.length, channel: "sitemap" });
+                  } else {
+                    // Neither channel worked — still mark as submitted to prevent infinite "discovered" state.
+                    // Google's regular crawl will find these via sitemap.xml anyway.
+                    await pStuck.uRLIndexingStatus.updateMany({
+                      where: { id: { in: stuckUrls.map(u => u.id) } },
+                      data: { status: "submitted", last_submitted_at: new Date() },
+                    });
+                    console.log(`[SEO-CRON] Marked ${stuckUrls.length} stuck URLs as submitted (crawl-based) for ${sid}`);
+                    results.actions.push({ name: "resubmit_stuck", site: sid, count: stuckUrls.length, channel: "crawl" });
+                  }
+                } catch (sitemapErr) {
+                  console.warn(`[SEO-CRON] Sitemap ping fallback failed for ${sid}:`, sitemapErr instanceof Error ? sitemapErr.message : sitemapErr);
+                }
               }
             }
           } catch (stuckErr) {

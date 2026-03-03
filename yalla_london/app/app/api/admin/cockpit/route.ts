@@ -262,13 +262,29 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     ? allSiteIds.filter((id) => id === requestedSiteId)
     : allSiteIds;
 
-  // ── 5-9. Run all builders in PARALLEL (was sequential — caused 504 timeouts) ──
+  // ── 5-9. Run builders in parallel with per-builder timeout guards ──
+  // If any single builder takes > 8s, return empty state for that section
+  // rather than letting the entire cockpit API 504.
+  async function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T, label: string): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((resolve) =>
+        setTimeout(() => {
+          console.warn(`[cockpit] ${label} timed out after ${ms}ms — using empty fallback`);
+          resolve(fallback);
+        }, ms)
+      ),
+    ]);
+  }
+
+  const BUILDER_TIMEOUT = 8_000; // 8s per builder — well within 60s Vercel limit
+
   const [pipeline, indexing, cronHealth, sites, revenue] = await Promise.all([
-    buildPipeline(prisma, activeSiteIds),
-    buildIndexing(prisma, activeSiteIds),
-    buildCronHealth(prisma),
-    buildSites(prisma, allSiteIds),
-    buildRevenue(prisma, activeSiteIds),
+    withTimeout(buildPipeline(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyPipeline(), "buildPipeline"),
+    withTimeout(buildIndexing(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyIndexing(), "buildIndexing"),
+    withTimeout(buildCronHealth(prisma), BUILDER_TIMEOUT, emptyCronHealth(), "buildCronHealth"),
+    withTimeout(buildSites(prisma, allSiteIds), BUILDER_TIMEOUT, [], "buildSites"),
+    withTimeout(buildRevenue(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyRevenue(), "buildRevenue"),
   ]);
 
   // ── 10. Alerts ────────────────────────────────────────
@@ -556,15 +572,19 @@ async function buildCronHealth(prisma: any): Promise<CronHealth> {
 // ─────────────────────────────────────────────
 
 async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSummary[]> {
-  // Run all sites in PARALLEL (was serial for-loop — slow with N sites)
-  const results = await Promise.all(activeSiteIds.map(async (siteId) => {
+  // Process sites SEQUENTIALLY (one at a time) to avoid connection pool exhaustion.
+  // With 6 sites × 5 queries = 30 concurrent connections when parallel — exceeds pool.
+  // Sequential: max 5 concurrent queries at any point, well within pool limits.
+  const PIPELINE_PHASES = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"];
+  const results: SiteSummary[] = [];
+
+  for (const siteId of activeSiteIds) {
     const siteConfig = SITES[siteId];
-    if (!siteConfig) return null;
+    if (!siteConfig) continue;
 
     try {
-      const PIPELINE_PHASES = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"];
-
-      const [articleAgg, topicsQueued, indexingGroups, latestPost, reservoirCount, inPipelineCount] = await Promise.all([
+      // 5 queries per site (was 6 — merged two articleDraft.count() into one groupBy)
+      const [articleAgg, topicsQueued, indexingGroups, latestPost, draftGroups] = await Promise.all([
         prisma.blogPost.aggregate({
           _count: { id: true },
           _avg: { seo_score: true },
@@ -586,13 +606,19 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
           orderBy: { created_at: "desc" },
           select: { created_at: true },
         }),
-        prisma.articleDraft.count({
-          where: { site_id: siteId, current_phase: "reservoir" },
-        }),
-        prisma.articleDraft.count({
-          where: { site_id: siteId, current_phase: { in: PIPELINE_PHASES } },
+        // Single groupBy replaces two separate count() calls — saves 1 connection per site
+        prisma.articleDraft.groupBy({
+          by: ["current_phase"],
+          _count: { id: true },
+          where: { site_id: siteId },
         }),
       ]);
+
+      // Extract reservoir + in-pipeline counts from groupBy result
+      const reservoirCount = draftGroups.find((g: any) => g.current_phase === "reservoir")?._count?.id ?? 0;
+      const inPipelineCount = draftGroups
+        .filter((g: any) => PIPELINE_PHASES.includes(g.current_phase))
+        .reduce((sum: number, g: any) => sum + (g._count?.id ?? 0), 0);
 
       let totalUrls = 0;
       let indexedUrls = 0;
@@ -603,7 +629,7 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
 
       const published = articleAgg._count.id;
 
-      return {
+      results.push({
         id: siteId,
         name: siteConfig.name,
         domain: getSiteDomain(siteId),
@@ -618,11 +644,11 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         lastCronAt: null, // CronJobLog has no siteId column — shown as N/A
         isActive: siteConfig.status === "active",
         dataError: null,
-      } as SiteSummary;
+      } as SiteSummary);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.warn(`[cockpit] site summary failed for ${siteId}:`, errMsg);
-      return {
+      results.push({
         id: siteId,
         name: siteConfig.name,
         domain: getSiteDomain(siteId),
@@ -637,11 +663,11 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         lastCronAt: null,
         isActive: siteConfig.status === "active",
         dataError: `Failed to load site data: ${errMsg.substring(0, 120)}`,
-      } as SiteSummary;
+      } as SiteSummary);
     }
-  }));
+  }
 
-  return results.filter((r): r is SiteSummary => r !== null);
+  return results;
 }
 
 // ─────────────────────────────────────────────

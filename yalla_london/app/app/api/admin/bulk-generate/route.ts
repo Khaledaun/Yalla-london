@@ -50,8 +50,8 @@ interface RunState {
 // For cross-invocation persistence, we write to CronJobLog
 const activeRuns = new Map<string, RunState>();
 
-const BUDGET_MS = 45_000; // 45s budget — leaves 15s for CronJobLog write + response + Vercel overhead
-const PER_ARTICLE_ESTIMATE_MS = 40_000; // Ensures only 1 article per invocation (AI call ~30s + DB ops ~10s)
+const BUDGET_MS = 50_000; // 50s budget — leaves 10s for CronJobLog write + response + Vercel overhead
+const PER_ARTICLE_ESTIMATE_MS = 35_000; // AI call ~25-30s + DB ops ~5s — allows 1-2 articles per invocation
 
 async function handlePost(request: NextRequest) {
   const body = await request.json();

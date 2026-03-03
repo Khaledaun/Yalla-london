@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLanguage } from "@/components/language-provider";
 import { ZENITHA_CONTACT } from "@/components/zenitha/zenitha-config";
+import { trackBookingFlow } from "@/components/analytics-tracker";
 import {
   Send,
   CheckCircle2,
@@ -299,6 +300,10 @@ export default function InquiryPage() {
       }
       setReferenceNumber(data.referenceNumber || "ZY-2026-XXXX");
       setSubmitSuccess(true);
+      trackBookingFlow('start_booking', {
+        eventName: `Charter inquiry from ${formData.firstName}`,
+        eventType: formData.yachtTypes?.[0] || 'general',
+      });
     } catch {
       setServerError("Network error. Please check your connection and try again.");
     } finally {

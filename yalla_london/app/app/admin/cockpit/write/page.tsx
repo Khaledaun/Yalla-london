@@ -144,6 +144,7 @@ export default function SimpleWriterPage() {
 
   // AI Generate state
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiPhase, setAiPhase] = useState(0); // 0=idle, 1=outline, 2=writing, 3=polishing
   const [aiKeyword, setAiKeyword] = useState("");
   const [showAiPanel, setShowAiPanel] = useState(false);
 
@@ -152,6 +153,7 @@ export default function SimpleWriterPage() {
   const aiGenerate = useCallback(async (mode: "pick" | "generate") => {
     setAiGenerating(true);
     setSaveResult(null);
+    setAiPhase(0);
     try {
       if (mode === "pick") {
         const res = await fetch("/api/admin/ai-generate", {
@@ -170,42 +172,115 @@ export default function SimpleWriterPage() {
         return;
       }
 
-      // Generate full article
+      // ─── 3-Phase Article Generation ──────────────────────────────────
       const keyword = aiKeyword.trim();
       if (!keyword) {
         setSaveResult("Error: Enter a keyword or pick a topic first");
         return;
       }
 
-      const res = await fetch("/api/admin/ai-generate", {
+      // Phase 1: Research & Outline
+      setAiPhase(1);
+      setSaveResult("Phase 1/3: Planning outline and keywords…");
+
+      const res1 = await fetch("/api/admin/ai-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "generate",
+          action: "phase1_outline",
           keyword,
           language: "en",
         }),
       });
-      if (!res.ok) { setSaveResult(`Error: Server returned ${res.status}. Try again.`); return; }
-      const json = await res.json();
-      if (json.success && json.content) {
-        const c = json.content;
-        setTitleEn(c.titleEn || keyword);
-        setMetaTitleEn(c.metaTitleEn || "");
-        setMetaDescriptionEn(c.metaDescriptionEn || "");
-        setTags((c.tags || []).join(", "));
-        if (editorRef.current) {
-          editorRef.current.innerHTML = c.bodyEn || "";
-        }
-        setShowAiPanel(false);
-        setSaveResult(`AI generated ${json.wordCount || 0} words. Review and publish when ready.`);
-      } else {
-        setSaveResult(`Error: ${json.error || "Generation failed"}`);
+      if (!res1.ok) {
+        const err1 = await res1.json().catch(() => ({}));
+        setSaveResult(`Error in Phase 1: ${err1.error || `Server returned ${res1.status}`}`);
+        return;
       }
+      const json1 = await res1.json();
+      if (!json1.success || !json1.outline) {
+        setSaveResult(`Error in Phase 1: ${json1.error || "No outline returned"}`);
+        return;
+      }
+
+      // Show title immediately after Phase 1
+      const outline = json1.outline;
+      setTitleEn(outline.title || keyword);
+      setMetaTitleEn(outline.metaTitle || "");
+      setMetaDescriptionEn(outline.metaDescription || "");
+
+      // Phase 2: Write Full Article
+      setAiPhase(2);
+      setSaveResult("Phase 2/3: Writing full article…");
+
+      const res2 = await fetch("/api/admin/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "phase2_write",
+          keyword,
+          outline,
+          language: "en",
+        }),
+      });
+      if (!res2.ok) {
+        const err2 = await res2.json().catch(() => ({}));
+        setSaveResult(`Error in Phase 2: ${err2.error || `Server returned ${res2.status}`}`);
+        return;
+      }
+      const json2 = await res2.json();
+      if (!json2.success || !json2.body) {
+        setSaveResult(`Error in Phase 2: ${json2.error || "No body returned"}`);
+        return;
+      }
+
+      // Show body immediately after Phase 2
+      if (editorRef.current) {
+        editorRef.current.innerHTML = json2.body;
+      }
+
+      // Phase 3: Polish SEO
+      setAiPhase(3);
+      setSaveResult(`Phase 3/3: Polishing SEO (${json2.wordCount || 0} words written)…`);
+
+      const res3 = await fetch("/api/admin/ai-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "phase3_polish",
+          keyword,
+          outline,
+          body: json2.body,
+          language: "en",
+        }),
+      });
+      if (!res3.ok) {
+        const err3 = await res3.json().catch(() => ({}));
+        // Phase 3 is non-critical — article is already written
+        setSaveResult(`Article written (${json2.wordCount || 0} words) but SEO polish failed: ${err3.error || res3.status}. You can still publish.`);
+        setTags((outline.keywords || []).join(", "));
+        setShowAiPanel(false);
+        return;
+      }
+      const json3 = await res3.json();
+
+      // Apply Phase 3 refinements
+      if (json3.success && json3.content) {
+        const c = json3.content;
+        if (c.metaTitleEn) setMetaTitleEn(c.metaTitleEn);
+        if (c.metaDescriptionEn) setMetaDescriptionEn(c.metaDescriptionEn);
+        setTags((c.tags || outline.keywords || []).join(", "));
+      }
+
+      setShowAiPanel(false);
+      const finalWc = json3.wordCount || json2.wordCount || 0;
+      const improvements = json3.improvements?.length ? ` Improvements: ${json3.improvements.join(", ")}` : "";
+      setSaveResult(`AI generated ${finalWc} words in 3 phases. Review and publish when ready.${improvements}`);
     } catch (e) {
       setSaveResult(`Error: ${e instanceof Error ? e.message : "Network error"}`);
     } finally {
       setAiGenerating(false);
+      setAiPhase(0);
     }
   }, [aiKeyword]);
 
@@ -383,13 +458,25 @@ export default function SimpleWriterPage() {
                 {aiGenerating ? (
                   <span className="flex items-center justify-center gap-2">
                     <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Generating article…
+                    {aiPhase === 1 ? "Step 1/3: Planning outline…" :
+                     aiPhase === 2 ? "Step 2/3: Writing article…" :
+                     aiPhase === 3 ? "Step 3/3: Polishing SEO…" :
+                     "Generating…"}
                   </span>
                 ) : (
                   "Generate Full Article"
                 )}
               </button>
-              <p className="text-xs text-zinc-500">Writes ~1,500 words with SEO, internal links, and affiliate links. Review before publishing.</p>
+              {/* Phase progress bar */}
+              {aiGenerating && aiPhase > 0 && (
+                <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="h-full bg-violet-500 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.round((aiPhase / 3) * 100)}%` }}
+                  />
+                </div>
+              )}
+              <p className="text-xs text-zinc-500">3-phase generation: Outline → Write → Polish. ~1,500 words with SEO, internal links, and affiliate links.</p>
             </div>
           </div>
         )}

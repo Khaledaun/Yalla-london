@@ -4,6 +4,7 @@
 import React, { useState } from 'react'
 import { useLanguage } from './language-provider'
 import { getTranslation } from '@/lib/i18n'
+import { trackNewsletterSignup } from '@/components/analytics-tracker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -38,6 +39,7 @@ export function NewsletterSignup() {
 
       if (data.success) {
         setIsSubscribed(true)
+        trackNewsletterSignup('homepage_signup', language)
       } else {
         console.error('Subscription failed:', data.error)
         // Handle error - you might want to show an error message

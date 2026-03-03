@@ -2458,6 +2458,12 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                   ))}
                 </div>
                 <p className="text-xs text-zinc-500 mb-2">{auditResults[site.id].pagesAudited} pages audited</p>
+                {auditResults[site.id].avgPerformance === 0 && auditResults[site.id].avgSeo === 0 && (
+                  <div className="bg-red-950/30 border border-red-800/40 rounded p-2 mb-2 text-xs text-red-400">
+                    All audits failed. This usually means the Google PageSpeed API is rejecting requests.
+                    {!process.env.NEXT_PUBLIC_HAS_PSI_KEY && " No PageSpeed API key detected — consider adding PAGESPEED_API_KEY to Vercel env vars."}
+                  </div>
+                )}
                 {/* Per-page results */}
                 <div className="space-y-1 max-h-48 overflow-y-auto">
                   {auditResults[site.id].pages.map((p) => (
@@ -2465,7 +2471,9 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                       <span className="text-zinc-400 truncate max-w-[55%]">{(() => { try { return new URL(p.url).pathname; } catch { return p.url; } })()}</span>
                       <div className="flex gap-2 text-right shrink-0">
                         {p.error ? (
-                          <span className="text-red-400">Error</span>
+                          <span className="text-red-400" title={p.error}>
+                            {p.error.startsWith("HTTP ") ? p.error.substring(0, 20) : "API Error"}
+                          </span>
                         ) : (
                           <>
                             <span className={p.performance != null && p.performance >= 90 ? "text-emerald-400" : p.performance != null && p.performance >= 50 ? "text-amber-400" : "text-red-400"}>

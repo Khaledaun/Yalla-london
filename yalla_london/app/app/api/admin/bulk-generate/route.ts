@@ -79,6 +79,13 @@ async function handlePost(request: NextRequest) {
     return handleStart(body, request, site, siteId);
   }
 
+  // ─── QUEUE (new fast mode) ─────────────────────────────────────────────
+  // Creates ArticleDrafts in the pipeline instead of generating inline.
+  // Returns in <3s. The content-builder cron processes them asynchronously.
+  if (action === "queue") {
+    return handleQueue(body, siteId);
+  }
+
   // ─── PUBLISH_ALL ─────────────────────────────────────────────────────────
   if (action === "publish_all") {
     return handlePublishAll(body, request, siteId, getSiteDomain);
@@ -147,6 +154,107 @@ async function handleStatus(body: Record<string, unknown>, siteId: string) {
   }
 
   return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
+}
+
+// ─── QUEUE Handler (fast mode) ───────────────────────────────────────────────
+// Instead of generating content inline (which takes 30-40s per article and
+// causes Vercel 504 timeouts), this handler creates ArticleDrafts in the
+// content pipeline. The content-builder cron (runs every 15 min) will pick
+// them up and process through the 8-phase pipeline automatically.
+// Returns in <3s — no timeout risk.
+
+async function handleQueue(
+  body: Record<string, unknown>,
+  siteId: string,
+) {
+  const language: "en" | "ar" = (body.language as "en" | "ar") || "en";
+  const count = Math.min(Math.max((body.count as number) || 1, 1), 20);
+  const topicSource: "auto" | "manual" = (body.topicSource as "auto" | "manual") || "auto";
+  const manualKeywords: string[] = (body.keywords as string[]) || [];
+  const pageType = (body.pageType as string) || "guide";
+
+  const { prisma } = await import("@/lib/db");
+  const queued: Array<{ keyword: string; draftId: string; topicId: string | null }> = [];
+
+  if (topicSource === "manual" && manualKeywords.length > 0) {
+    // Create drafts from manual keywords
+    for (let i = 0; i < Math.min(manualKeywords.length, count); i++) {
+      const keyword = manualKeywords[i].trim();
+      if (!keyword) continue;
+
+      const draft = await prisma.articleDraft.create({
+        data: {
+          site_id: siteId,
+          keyword,
+          locale: language,
+          current_phase: "research",
+          generation_strategy: "bulk_queue_manual",
+          seo_meta: { pageType },
+        },
+      });
+      queued.push({ keyword, draftId: draft.id, topicId: null });
+    }
+  } else {
+    // Claim topics from the queue
+    const candidates = await prisma.topicProposal.findMany({
+      where: {
+        status: { in: ["ready", "queued", "planned", "proposed"] },
+        locale: language,
+        site_id: siteId,
+      },
+      orderBy: [{ confidence_score: "desc" }, { created_at: "asc" }],
+      take: count,
+    });
+
+    if (candidates.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: "No topics available. Generate topics first (Sites tab → Gen Topics), or use manual keywords.",
+      }, { status: 404 });
+    }
+
+    for (const c of candidates) {
+      // Atomically claim the topic
+      const claimed = await prisma.topicProposal.updateMany({
+        where: { id: c.id, status: { in: ["ready", "queued", "planned", "proposed"] } },
+        data: { status: "generating", updated_at: new Date() },
+      });
+      if (claimed.count === 0) continue;
+
+      const draft = await prisma.articleDraft.create({
+        data: {
+          site_id: siteId,
+          keyword: c.primary_keyword,
+          locale: language,
+          current_phase: "research",
+          topic_proposal_id: c.id,
+          generation_strategy: "bulk_queue_topic",
+          seo_meta: { pageType: c.suggested_page_type || pageType },
+        },
+      });
+      queued.push({ keyword: c.primary_keyword, draftId: draft.id, topicId: c.id });
+    }
+
+    if (queued.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: "All available topics are already being processed.",
+      }, { status: 409 });
+    }
+  }
+
+  return NextResponse.json({
+    success: true,
+    mode: "queued",
+    queued: queued.length,
+    message: `${queued.length} article${queued.length === 1 ? "" : "s"} queued in the content pipeline. The content-builder cron will process them automatically (runs every 15 minutes). Check the Pipeline tab for progress.`,
+    articles: queued.map((q) => ({
+      keyword: q.keyword,
+      draftId: q.draftId,
+      topicId: q.topicId,
+      status: "queued_in_pipeline",
+    })),
+  });
 }
 
 // ─── START Handler ───────────────────────────────────────────────────────────

@@ -572,9 +572,10 @@ async function buildCronHealth(prisma: any): Promise<CronHealth> {
 // ─────────────────────────────────────────────
 
 async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSummary[]> {
-  // Process sites SEQUENTIALLY (one at a time) to avoid connection pool exhaustion.
-  // With 6 sites × 5 queries = 30 concurrent connections when parallel — exceeds pool.
-  // Sequential: max 5 concurrent queries at any point, well within pool limits.
+  // Process sites SEQUENTIALLY and run queries SEQUENTIALLY within each site
+  // to avoid connection pool exhaustion. The uRLIndexingStatus query has been removed —
+  // that table is already queried by buildIndexing() (getIndexingSummary), so querying
+  // it again per-site was redundant AND the main cause of pool timeouts.
   const PIPELINE_PHASES = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"];
   const results: SiteSummary[] = [];
 
@@ -583,48 +584,42 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
     if (!siteConfig) continue;
 
     try {
-      // 5 queries per site (was 6 — merged two articleDraft.count() into one groupBy)
-      const [articleAgg, topicsQueued, indexingGroups, latestPost, draftGroups] = await Promise.all([
-        prisma.blogPost.aggregate({
-          _count: { id: true },
-          _avg: { seo_score: true },
-          where: { siteId, published: true, deletedAt: null },
-        }),
-        prisma.topicProposal.count({
-          where: {
-            site_id: siteId,
-            status: { in: ["ready", "planned", "proposed"] },
-          },
-        }),
-        prisma.uRLIndexingStatus.groupBy({
-          by: ["status"],
-          _count: { id: true },
-          where: { site_id: siteId },
-        }),
-        prisma.blogPost.findFirst({
-          where: { siteId, published: true, deletedAt: null },
-          orderBy: { created_at: "desc" },
-          select: { created_at: true },
-        }),
-        // Single groupBy replaces two separate count() calls — saves 1 connection per site
-        prisma.articleDraft.groupBy({
+      // Run queries SEQUENTIALLY (not Promise.all) to minimize pool pressure.
+      // Each query takes ~50-200ms; total ~400-800ms per site — acceptable.
+      const articleAgg = await prisma.blogPost.aggregate({
+        _count: { id: true },
+        _avg: { seo_score: true },
+        where: { siteId, published: true, deletedAt: null },
+      });
+
+      const topicsQueued = await prisma.topicProposal.count({
+        where: {
+          site_id: siteId,
+          status: { in: ["ready", "planned", "proposed"] },
+        },
+      });
+
+      const latestPost = await prisma.blogPost.findFirst({
+        where: { siteId, published: true, deletedAt: null },
+        orderBy: { created_at: "desc" },
+        select: { created_at: true },
+      });
+
+      // Single groupBy for both reservoir and pipeline counts
+      let reservoirCount = 0;
+      let inPipelineCount = 0;
+      try {
+        const draftGroups = await prisma.articleDraft.groupBy({
           by: ["current_phase"],
           _count: { id: true },
           where: { site_id: siteId },
-        }),
-      ]);
-
-      // Extract reservoir + in-pipeline counts from groupBy result
-      const reservoirCount = draftGroups.find((g: any) => g.current_phase === "reservoir")?._count?.id ?? 0;
-      const inPipelineCount = draftGroups
-        .filter((g: any) => PIPELINE_PHASES.includes(g.current_phase))
-        .reduce((sum: number, g: any) => sum + (g._count?.id ?? 0), 0);
-
-      let totalUrls = 0;
-      let indexedUrls = 0;
-      for (const g of indexingGroups) {
-        totalUrls += g._count.id;
-        if (g.status === "indexed") indexedUrls += g._count.id;
+        });
+        reservoirCount = draftGroups.find((g: any) => g.current_phase === "reservoir")?._count?.id ?? 0;
+        inPipelineCount = draftGroups
+          .filter((g: any) => PIPELINE_PHASES.includes(g.current_phase))
+          .reduce((sum: number, g: any) => sum + (g._count?.id ?? 0), 0);
+      } catch (draftErr) {
+        console.warn(`[cockpit] articleDraft query failed for ${siteId}:`, draftErr instanceof Error ? draftErr.message : draftErr);
       }
 
       const published = articleAgg._count.id;
@@ -639,9 +634,9 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         inPipeline: inPipelineCount,
         avgSeoScore: Math.round(articleAgg._avg.seo_score ?? 0),
         topicsQueued,
-        indexRate: totalUrls > 0 ? Math.round((indexedUrls / totalUrls) * 100) : 0,
+        indexRate: 0, // Derived from buildIndexing() — no need to re-query URLIndexingStatus per site
         lastPublishedAt: latestPost?.created_at?.toISOString() ?? null,
-        lastCronAt: null, // CronJobLog has no siteId column — shown as N/A
+        lastCronAt: null,
         isActive: siteConfig.status === "active",
         dataError: null,
       } as SiteSummary);

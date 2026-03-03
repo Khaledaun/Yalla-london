@@ -3423,7 +3423,7 @@ function CockpitPage() {
           <CronsTab />
         )}
         {activeTab === "sites" && cockpitData && (
-          <SitesTab sites={cockpitData.sites} onSelectSite={handleSiteSelect} onRefresh={fetchData} />
+          <SitesTab sites={cockpitData.sites} onSelectSite={handleSiteSelect} onRefresh={fetchCockpit} />
         )}
         {activeTab === "ai" && (
           <AIConfigTab />

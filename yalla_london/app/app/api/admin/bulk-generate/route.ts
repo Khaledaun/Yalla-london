@@ -639,8 +639,8 @@ async function publishArticle(
       submitToIndexNow([articleUrl]).catch((e: Error) =>
         console.warn("[bulk-generate] IndexNow failed:", e.message)
       );
-    } catch {
-      console.warn("[bulk-generate] IndexNow setup failed");
+    } catch (e) {
+      console.warn("[bulk-generate] IndexNow setup failed:", e);
     }
   } catch (err) {
     article.status = "failed";
@@ -729,7 +729,8 @@ async function restoreRunState(runId: string): Promise<RunState | null> {
       startedAt: log.started_at?.getTime() || Date.now(),
       phasesCompleted: (summary.phasesCompleted as number) || 1,
     };
-  } catch {
+  } catch (e) {
+    console.warn("[bulk-generate] restoreRunState failed:", e);
     return null;
   }
 }

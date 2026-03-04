@@ -139,6 +139,12 @@ export async function auditPage(
     if (!res || !res.ok) {
       const errorBody = res ? await res.text().catch(() => "") : "No response";
       const status = res?.status ?? 0;
+      let errorMsg = `HTTP ${status}: ${errorBody.substring(0, 200)}`;
+      if (status === 401 || status === 403) {
+        errorMsg = apiKey
+          ? `HTTP ${status}: API key rejected by Google. Your key may be the wrong type (must start with "AIza", not "AQ." or "ya29."). Go to Google Cloud Console → Credentials → Create API Key.`
+          : `HTTP ${status}: No API key set. Add GOOGLE_PAGESPEED_API_KEY to Vercel env vars.`;
+      }
       return {
         url,
         strategy,
@@ -153,7 +159,7 @@ export async function auditPage(
         tbtMs: null,
         speedIndex: null,
         diagnostics: [],
-        error: `HTTP ${status}: ${errorBody.substring(0, 200)}`,
+        error: errorMsg,
       };
     }
 

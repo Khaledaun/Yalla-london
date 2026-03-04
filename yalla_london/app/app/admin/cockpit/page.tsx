@@ -2350,7 +2350,14 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ siteId, strategy: "mobile" }),
       });
-      const json = await res.json();
+      if (!res.ok) {
+        let errorMsg = `Server error (${res.status})`;
+        try { const err = await res.json(); errorMsg = err.error || errorMsg; } catch { /* non-JSON response */ }
+        setPublishResult((prev) => ({ ...prev, [siteId]: `❌ Audit failed: ${errorMsg}` }));
+        return;
+      }
+      let json;
+      try { json = await res.json(); } catch { setPublishResult((prev) => ({ ...prev, [siteId]: "❌ Audit returned invalid response" })); return; }
       if (json.success) {
         setAuditResults((prev) => ({
           ...prev,

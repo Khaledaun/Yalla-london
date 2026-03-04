@@ -477,13 +477,13 @@ export async function generateCompletion(
 
     try {
       // Give this provider a share of the remaining budget, leaving room for fallbacks.
-      // First provider: up to 60% of total budget (handles large Arabic prompts).
-      // Subsequent providers: up to 25s each from remaining time.
+      // First provider: up to 50% of total budget (ensures time for 1-2 fallbacks).
+      // Subsequent providers: up to remaining time minus a small buffer.
       const isFirstAttempt = errors.length === 0;
       const providerCap = isFirstAttempt
-        ? Math.max(Math.floor(totalBudgetMs * 0.6), 25_000)
-        : 25_000;
-      const providerTimeout = Math.min(remaining - 1_000, providerCap);
+        ? Math.min(Math.floor(totalBudgetMs * 0.5), remaining - 8_000)  // Leave at least 8s for fallback
+        : remaining - 1_000;  // Subsequent providers get almost all remaining time
+      const providerTimeout = Math.max(Math.min(remaining - 1_000, providerCap), 5_000);
       const result = await callProvider(provider, messages, apiKey, {
         ...options,
         timeoutMs: providerTimeout,

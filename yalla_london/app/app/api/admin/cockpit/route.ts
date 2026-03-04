@@ -14,6 +14,7 @@
  *  - Per-site summary row for every active site
  */
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";

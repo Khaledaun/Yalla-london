@@ -1124,7 +1124,7 @@ export async function GET(request: NextRequest) {
     console.error("[london-news] Cron job failed:", error);
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "london-news", error: errorMessage }).catch(() => {});
+    onCronFailure({ jobName: "london-news", error: errorMessage }).catch(err => console.warn("[london-news] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     // Update research log with failure
     if (researchLogId) {

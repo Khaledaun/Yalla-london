@@ -53,6 +53,7 @@ export const GET = withAdminAuth(async (_request: NextRequest) => {
   ] = await Promise.all([
     safeQuery(() => prisma.topicProposal.groupBy({
       by: ["status"],
+      where: { site_id: { in: siteIds } },
       _count: { id: true },
     }), []),
     safeQuery(() => prisma.articleDraft.groupBy({
@@ -67,6 +68,7 @@ export const GET = withAdminAuth(async (_request: NextRequest) => {
     }), 0),
     safeQuery(() => prisma.uRLIndexingStatus.groupBy({
       by: ["status"],
+      where: { site_id: { in: siteIds } },
       _count: { id: true },
     }), []),
     safeQuery(() => prisma.uRLIndexingStatus.findMany({

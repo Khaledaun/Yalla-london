@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -64,39 +64,17 @@ interface MediaAsset {
 export function MediaUploadManager() {
   const { toast } = useToast()
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
-  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([
-    // Mock existing assets
-    {
-      id: '1',
-      filename: 'london-bridge-hero.jpg',
-      originalName: 'London Bridge Hero Image.jpg',
-      url: '/images/london-bridge.jpg',
-      thumbnailUrl: '/images/london-bridge-thumb.jpg',
-      type: 'image',
-      size: 2048000,
-      uploadedAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-      uploadedBy: 'John Doe',
-      tags: ['hero', 'london', 'bridge'],
-      isHeroImage: true,
-      description: 'Iconic London Bridge view for homepage hero',
-      altText: 'Beautiful view of London Bridge at sunset'
-    },
-    {
-      id: '2',
-      filename: 'london-markets.jpg',
-      originalName: 'London Markets Guide.jpg',
-      url: '/images/london-markets.jpg',
-      thumbnailUrl: '/images/london-markets-thumb.jpg',
-      type: 'image',
-      size: 1536000,
-      uploadedAt: new Date(Date.now() - 1000 * 60 * 60 * 48),
-      uploadedBy: 'Jane Smith',
-      tags: ['markets', 'food', 'guide'],
-      isHeroImage: false,
-      description: 'Bustling London market scene',
-      altText: 'Busy London market with fresh produce and vendors'
-    }
-  ])
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([])
+
+  // Fetch real media assets from API
+  useEffect(() => {
+    fetch('/api/admin/media')
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(data => {
+        if (Array.isArray(data.assets)) setMediaAssets(data.assets);
+      })
+      .catch(err => console.warn('[MediaUploadManager] Failed to load assets:', err instanceof Error ? err.message : err));
+  }, [])
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set())
   const [heroImageId, setHeroImageId] = useState<string>('1')
@@ -158,7 +136,7 @@ export function MediaUploadManager() {
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles: UploadedFile[] = acceptedFiles.map(file => ({
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      id: Date.now().toString() + crypto.getRandomValues(new Uint32Array(1))[0].toString(36),
       file,
       preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
       status: 'uploading',

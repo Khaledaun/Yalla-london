@@ -256,10 +256,10 @@ async function handleProcessQueue(request: NextRequest) {
     await logCronExecution("process-indexing-queue", "failed", {
       durationMs: Date.now() - cronStart,
       errorMessage: errMsg,
-    }).catch(() => {});
+    }).catch(err => console.warn("[process-indexing-queue] logCronExecution failed:", err instanceof Error ? err.message : err));
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "process-indexing-queue", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "process-indexing-queue", error: errMsg }).catch(err => console.warn("[process-indexing-queue] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { success: false, error: errMsg },

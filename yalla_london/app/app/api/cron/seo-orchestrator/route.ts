@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
     });
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "seo-orchestrator", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "seo-orchestrator", error: errMsg }).catch(err => console.warn("[seo-orchestrator] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { error: errMsg },

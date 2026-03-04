@@ -438,7 +438,7 @@ async function handleIndexing(request: NextRequest) {
     });
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "google-indexing", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "google-indexing", error: errMsg }).catch(err => console.warn("[google-indexing] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { success: false, error: errMsg },

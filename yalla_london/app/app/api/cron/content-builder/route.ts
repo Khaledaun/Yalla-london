@@ -65,7 +65,7 @@ async function handleContentBuilder(request: NextRequest) {
     // Fire failure hook if the builder returned a failure
     if (!result.success && result.message) {
       const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-      onCronFailure({ jobName: "content-builder", error: result.message }).catch(() => {});
+      onCronFailure({ jobName: "content-builder", error: result.message }).catch(err => console.warn("[content-builder] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
       // Wrap in try-catch: DB pool exhaustion should not prevent the route from returning
       await logCronExecution("content-builder", "failed", {
@@ -103,7 +103,7 @@ async function handleContentBuilder(request: NextRequest) {
     });
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "content-builder", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "content-builder", error: errMsg }).catch(err => console.warn("[content-builder] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { success: false, error: errMsg, timestamp: new Date().toISOString() },

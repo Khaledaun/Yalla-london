@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      onCronFailure({ jobName: "weekly-topics", error: new Error(failureMessage) }).catch(() => {});
+      onCronFailure({ jobName: "weekly-topics", error: new Error(failureMessage) }).catch(err => console.warn("[weekly-topics] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
       return NextResponse.json({
         success: false,
@@ -310,7 +310,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Fire failure hook — checks topic backlog and raises alert if critical
-    onCronFailure({ jobName: "weekly-topics", error }).catch(() => {});
+    onCronFailure({ jobName: "weekly-topics", error }).catch(err => console.warn("[weekly-topics] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { error: 'Weekly topic generation failed' },

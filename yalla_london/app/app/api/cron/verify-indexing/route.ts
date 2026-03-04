@@ -348,7 +348,7 @@ async function handleVerifyIndexing(request: NextRequest) {
               last_inspected_at: new Date(),
               last_error: errMsg.substring(0, 300),
             },
-          }).catch(() => {});
+          }).catch(err => console.warn("[verify-indexing] logSweeperEvent failed:", err instanceof Error ? err.message : err));
 
           siteErrors++;
           siteChecked++;
@@ -518,10 +518,10 @@ async function handleVerifyIndexing(request: NextRequest) {
     await logCronExecution("verify-indexing", "failed", {
       durationMs: Date.now() - cronStart,
       errorMessage: errMsg,
-    }).catch(() => {});
+    }).catch(err => console.warn("[verify-indexing] logCronExecution failed:", err instanceof Error ? err.message : err));
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "verify-indexing", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "verify-indexing", error: errMsg }).catch(err => console.warn("[verify-indexing] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { success: false, error: errMsg },

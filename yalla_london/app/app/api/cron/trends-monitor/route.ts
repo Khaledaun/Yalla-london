@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
     });
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "trends-monitor", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "trends-monitor", error: errMsg }).catch(err => console.warn("[trends-monitor] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { error: errMsg },

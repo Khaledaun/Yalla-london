@@ -168,7 +168,7 @@ async function handlePost(request: NextRequest) {
 
     const { runSiteAudit, saveAuditResults } = await import("@/lib/performance/site-auditor");
 
-    const hasApiKey = !!(process.env.PAGESPEED_API_KEY || process.env.PSI_API_KEY);
+    const hasApiKey = !!(process.env.PAGESPEED_API_KEY || process.env.GOOGLE_PAGESPEED_API_KEY || process.env.PSI_API_KEY);
 
     // Run audit (budget: 50s to leave room for DB save)
     const result = await runSiteAudit(siteId, baseUrl, strategy, 50_000);

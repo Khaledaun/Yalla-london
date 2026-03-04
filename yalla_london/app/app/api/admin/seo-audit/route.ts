@@ -163,7 +163,6 @@ async function runAudit(siteId: string) {
         meta_description_en: true,
         content_en: true,
         seo_score: true,
-        quality_score: true,
         featured_image: true,
       },
       take: 200,
@@ -274,18 +273,18 @@ async function runAudit(siteId: string) {
       });
     }
 
-    // Low quality scores
-    const lowQuality = publishedPosts.filter((p) => (p.quality_score || 0) < CONTENT_QUALITY.qualityGateScore && (p.quality_score || 0) > 0);
+    // Low SEO scores (BlogPost has seo_score, not quality_score)
+    const lowQuality = publishedPosts.filter((p) => (p.seo_score || 0) < CONTENT_QUALITY.qualityGateScore && (p.seo_score || 0) > 0);
     if (lowQuality.length > 0) {
       findings.push({
         id: "content-low-quality",
         severity: "high",
         category: "Content Quality",
-        title: `${lowQuality.length} articles have quality scores below ${CONTENT_QUALITY.qualityGateScore}`,
+        title: `${lowQuality.length} articles have SEO scores below ${CONTENT_QUALITY.qualityGateScore}`,
         description: "These articles passed the quality gate at a time when the threshold was lower. They don't meet current standards.",
         impact: "Low-quality articles dilute your site's topical authority",
         fix: "Re-run quality scoring and consider expanding or rewriting these articles.",
-        affected: lowQuality.map((p) => `/blog/${p.slug} (score: ${p.quality_score})`),
+        affected: lowQuality.map((p) => `/blog/${p.slug} (score: ${p.seo_score})`),
         count: lowQuality.length,
       });
     }

@@ -19,7 +19,7 @@ import { z } from 'zod';
 const BlogPostSchema = z.object({
   title_en: z.string().min(1, 'English title is required'),
   title_ar: z.string().min(1, 'Arabic title is required'),
-  slug: z.string().min(1, 'Slug is required').regex(/^[a-z0-9-]+$/, 'Invalid slug format'),
+  slug: z.string().min(1, 'Slug is required').transform(s => s.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '')).pipe(z.string().regex(/^[a-z0-9-]+$/, 'Invalid slug format')),
   excerpt_en: z.string().optional(),
   excerpt_ar: z.string().optional(),
   content_en: z.string().min(1, 'English content is required'),

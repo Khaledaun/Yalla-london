@@ -755,9 +755,9 @@ async function runAudit(siteId: string) {
       // Check how many published posts have Arabic content
       const [totalPublished, withArabic, withoutArabic] = await Promise.all([
         prisma.blogPost.count({ where: { siteId, published: true } }),
-        prisma.blogPost.count({ where: { siteId, published: true, content_ar: { not: null } } }),
+        prisma.blogPost.count({ where: { siteId, published: true, content_ar: { not: "" } } }),
         prisma.blogPost.findMany({
-          where: { siteId, published: true, OR: [{ content_ar: null }, { content_ar: "" }] },
+          where: { siteId, published: true, content_ar: "" },
           select: { slug: true, title_en: true },
           take: 15,
         }),

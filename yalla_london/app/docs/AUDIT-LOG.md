@@ -1302,7 +1302,7 @@ New comprehensive smoke test at `scripts/smoke-test.ts` covering 12 categories:
 
 | ID | Area | Description | Ref | Status | Added |
 |----|------|-------------|-----|--------|-------|
-| KG-001 | GA4 | Dashboard returns 0s for traffic — API calls stubbed | A3-D14 | Open | 2026-02-18 |
+| KG-001 | GA4 | Dashboard returns 0s for traffic — API calls stubbed. MCP bridge now works for Claude Code sessions. | A3-D14, S-MAR04-004 | **Partial** | 2026-02-18 |
 | KG-002 | Social APIs | Engagement stats require platform API integration; social cron is mock | A3-D21 | Open | 2026-02-18 |
 | KG-003 | Design Gen | No AI image/logo generation; PDF generator is mock | — | Open | 2026-02-18 |
 | KG-004 | Workflow | Automation Hub and Autopilot UIs are placeholders | — | Open | 2026-02-18 |
@@ -1336,7 +1336,7 @@ New comprehensive smoke test at `scripts/smoke-test.ts` covering 12 categories:
 | KG-032 | SEO | No Arabic SSR — hreflang promises /ar/ routes but server renders EN | A8-S5 | Open | 2026-02-18 |
 | KG-033 | SEO | ~~Related articles only from static content~~ (now queries DB BlogPosts + static, deduped) | A8-S5, A11-004 | **Resolved** | 2026-02-18 |
 | KG-034 | Multi-site | ~~Affiliate injection rules hardcoded to London destinations~~ | A8-S3,S5, A10-010–011 | **Resolved** | 2026-02-18 |
-| KG-035 | Dashboard | No traffic/revenue data — GA4 not connected | A8-Mon | Open | 2026-02-18 |
+| KG-035 | Dashboard | No traffic/revenue data — GA4 not connected. MCP bridge functional for Claude Code queries. Dashboard API still needs direct GA4 wiring. | A8-Mon, S-MAR04-004 | **Partial** | 2026-02-18 |
 | KG-036 | Dashboard | No push/email alerts for cron failures | A8-Mon | Open | 2026-02-18 |
 | KG-037 | Pipeline | ~~Scheduled-publish POST handler bypasses all quality gates~~ | A8-S3, A9-007–008 | **Resolved** | 2026-02-18 |
 | KG-038 | SEO | ~~Posts older than 24h may never be auto-submitted to IndexNow~~ (window extended to 7 days) | A8-S4, A11-002 | **Resolved** | 2026-02-18 |
@@ -1644,6 +1644,29 @@ Total test suite: 90 tests across 16 categories.
 - Comprehensive smoke test: 80/83 PASS (96%, 3 pre-existing path mismatches)
 - Checklist enhanced: new section R "Cockpit Data Consistency" (12 tests) added
 - Total checklist: 233 tests, 227 pass, 6 warnings, 0 failures (97%)
+
+---
+
+## Session Fixes: March 4, 2026 — Env Vars, Prisma Crash, MCP Integration
+
+**Date:** 2026-03-04
+**Scope:** PageSpeed API key mismatch, SEO audit Prisma crash, MCP Google server dotenv
+
+### Findings & Fixes
+
+| ID | Severity | Area | Finding | Fix |
+|----|----------|------|---------|-----|
+| S-MAR04-001 | HIGH | Performance | `GOOGLE_PAGESPEED_API_KEY` env var in Vercel not recognized — code only checked `PAGESPEED_API_KEY` / `PSI_API_KEY` | Added `GOOGLE_PAGESPEED_API_KEY` to fallback chain in `site-auditor.ts`, `performance-audit/route.ts`, `lighthouse-audit/route.ts` |
+| S-MAR04-002 | CRITICAL | SEO Audit | `seo-audit/route.ts` Prisma crash: `select: { title: true }` on BlogPost (field doesn't exist — uses `title_en`/`title_ar`) | Changed to `title_en: true` in both live page sampling (line 667) and Arabic coverage check (line 762) |
+| S-MAR04-003 | LOW | Cockpit | Warning message referenced wrong env var name `PAGESPEED_API_KEY` | Updated to `GOOGLE_PAGESPEED_API_KEY` |
+| S-MAR04-004 | HIGH | MCP Server | `mcp-google-server.ts` ran as standalone subprocess without `.env.local` — GA4/GSC credentials never loaded | Added dotenv loading with 4 path fallbacks (script-relative + cwd-relative for both `.env.local` and `.env`) |
+
+### Known Gap Updates
+
+| ID | Change | New Status |
+|----|--------|------------|
+| KG-001 | GA4 data now accessible via MCP tools in Claude Code sessions | **Partially Resolved** (MCP bridge works; dashboard API still returns 0s) |
+| KG-035 | GA4/GSC data queryable via MCP for Claude Code analysis | **Partially Resolved** (same — dashboard needs direct API wiring for Khaled's phone view) |
 
 ---
 

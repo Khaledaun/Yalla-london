@@ -112,6 +112,7 @@ async function handleIndexing(request: NextRequest) {
               updated_at: { gte: threeDaysAgo },
             },
             select: { slug: true },
+            take: 100,
           });
           const existingSlugs = new Set(
             newUrls.map((u) => u.split("/blog/")[1]).filter(Boolean),
@@ -138,6 +139,7 @@ async function handleIndexing(request: NextRequest) {
             const tracked = await prisma.uRLIndexingStatus.findMany({
               where: { site_id: siteId, slug: { in: allStaticSlugs } },
               select: { slug: true },
+              take: 200,
             });
             const trackedSlugs = new Set(tracked.map((t) => t.slug).filter(Boolean));
             const existingUrlSlugs = new Set(
@@ -172,11 +174,12 @@ async function handleIndexing(request: NextRequest) {
           const recentlySubmitted = await prisma.uRLIndexingStatus.findMany({
             where: {
               site_id: siteId,
-              url: { in: allUrls },
+              url: { in: allUrls.slice(0, 200) },
               submitted_indexnow: true,
               last_submitted_at: { gte: sixHoursAgo },
             },
             select: { url: true },
+            take: 500,
           });
           const recentSet = new Set(recentlySubmitted.map((r: { url: string }) => r.url));
           dedupedUrls = allUrls.filter((u) => !recentSet.has(u));
@@ -227,10 +230,11 @@ async function handleIndexing(request: NextRequest) {
           };
         }
 
-        // 3. Track submissions in URLIndexingStatus
+        // 3. Track submissions in URLIndexingStatus (cap at 100 to prevent OOM)
         try {
+          const urlsToTrack = allUrls.slice(0, 100);
           await Promise.allSettled(
-            allUrls.map((url) =>
+            urlsToTrack.map((url) =>
               prisma.uRLIndexingStatus.upsert({
                 where: { site_id_url: { site_id: siteId, url } },
                 create: {

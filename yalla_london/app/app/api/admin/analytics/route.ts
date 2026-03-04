@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { prisma } from "@/lib/db";
+import { getDefaultSiteId } from "@/config/sites";
 
 interface AnalyticsConfig {
   service: "ga4" | "google_search_console" | "custom";
@@ -54,20 +55,30 @@ interface AnalyticsMetrics {
 
 let analyticsConfigurations: Map<string, AnalyticsConfig> = new Map();
 
+// Detect credentials using the ACTUAL env var names used in the codebase
+const ga4HasCredentials = !!(
+  process.env.GA4_PROPERTY_ID &&
+  (process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL || process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL) &&
+  (process.env.GOOGLE_ANALYTICS_PRIVATE_KEY || process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY)
+);
+const gscHasCredentials = !!(
+  process.env.GSC_SITE_URL &&
+  (process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL) &&
+  (process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY)
+);
+
 // Initialize default configurations
 const DEFAULT_ANALYTICS_CONFIGS: AnalyticsConfig[] = [
   {
     service: "ga4",
     config_name: "Google Analytics 4",
-    status: process.env.GOOGLE_ANALYTICS_ID ? "configured" : "not_configured",
+    status: ga4HasCredentials ? "configured" : "not_configured",
     configuration: {
-      tracking_id_configured: !!process.env.GOOGLE_ANALYTICS_ID,
-      measurement_id_configured: !!process.env.GOOGLE_ANALYTICS_TRACKING_ID,
+      tracking_id_configured: !!(process.env.GA4_MEASUREMENT_ID || process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID),
+      measurement_id_configured: !!(process.env.GA4_MEASUREMENT_ID || process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID),
       property_id_configured: !!process.env.GA4_PROPERTY_ID,
-      client_id_configured: !!process.env.GOOGLE_ANALYTICS_CLIENT_ID,
-      client_secret_configured: !!process.env.GOOGLE_ANALYTICS_CLIENT_SECRET,
-      service_account_email_configured: !!process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL,
-      private_key_configured: !!process.env.GOOGLE_ANALYTICS_PRIVATE_KEY,
+      service_account_email_configured: !!(process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL || process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL),
+      private_key_configured: !!(process.env.GOOGLE_ANALYTICS_PRIVATE_KEY || process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY),
     },
     features: [
       "page_views_tracking",
@@ -89,13 +100,11 @@ const DEFAULT_ANALYTICS_CONFIGS: AnalyticsConfig[] = [
   {
     service: "google_search_console",
     config_name: "Google Search Console",
-    status: process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_ID
-      ? "configured"
-      : "not_configured",
+    status: gscHasCredentials ? "configured" : "not_configured",
     configuration: {
-      client_id_configured: !!process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_ID,
-      client_secret_configured: !!process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_SECRET,
-      site_url: process.env.NEXTAUTH_URL || "https://your-site.com",
+      client_id_configured: !!(process.env.GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL || process.env.GSC_CLIENT_EMAIL),
+      client_secret_configured: !!(process.env.GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY || process.env.GSC_PRIVATE_KEY),
+      site_url: process.env.GSC_SITE_URL || undefined,
     },
     features: [
       "search_performance",
@@ -120,7 +129,7 @@ DEFAULT_ANALYTICS_CONFIGS.forEach((config) => {
   analyticsConfigurations.set(config.service, config);
 });
 
-function getEmptyMetrics(service: string, period: string): AnalyticsMetrics {
+function emptyMetrics(service: string, period: string): AnalyticsMetrics {
   return {
     service,
     period: period as any,
@@ -137,6 +146,137 @@ function getEmptyMetrics(service: string, period: string): AnalyticsMetrics {
     top_pages: [],
     top_queries: [],
   };
+}
+
+/** Period string → days lookback */
+function periodToDays(period: string): number {
+  switch (period) {
+    case "24h": return 1;
+    case "7d": return 7;
+    case "30d": return 30;
+    case "90d": return 90;
+    default: return 7;
+  }
+}
+
+/**
+ * Pull real metrics from DB — falls back to zeros when no data exists.
+ * GA4 data comes from AnalyticsSnapshot (written by /api/cron/analytics).
+ * GSC per-page data comes from GscPagePerformance (written by /api/cron/gsc-sync).
+ */
+async function getMetricsFromDB(service: string, period: string, siteId: string): Promise<AnalyticsMetrics> {
+  try {
+    if (service === "ga4") {
+      // Get the most recent AnalyticsSnapshot for this site
+      const snapshot = await prisma.analyticsSnapshot.findFirst({
+        where: { site_id: siteId },
+        orderBy: { created_at: "desc" },
+      });
+
+      if (!snapshot) return emptyMetrics(service, period);
+
+      const dataJson = snapshot.data_json as any;
+      const perfMetrics = snapshot.performance_metrics as any;
+      const topQueriesRaw = (snapshot.top_queries as any[]) || [];
+
+      // GA4 metrics from performance_metrics JSON
+      const ga4Metrics = dataJson?.ga4?.metrics || {};
+      const topPages = (dataJson?.ga4?.topPages || []).slice(0, 10).map((p: any) => ({
+        page: p.path || p.pagePath || p.page || "",
+        views: p.pageViews || p.screenPageViews || 0,
+      }));
+
+      return {
+        service,
+        period: period as any,
+        metrics: {
+          page_views: perfMetrics?.pageViews || ga4Metrics.pageViews || 0,
+          unique_visitors: ga4Metrics.totalUsers || 0,
+          bounce_rate: perfMetrics?.bounceRate || ga4Metrics.bounceRate || 0,
+          avg_session_duration: perfMetrics?.avgDuration || ga4Metrics.avgSessionDuration || 0,
+          impressions: 0,
+          click_through_rate: 0,
+          avg_position: 0,
+          search_queries: topQueriesRaw.length,
+        },
+        top_pages: topPages,
+        top_queries: topQueriesRaw.slice(0, 10).map((q: any) => ({
+          query: q.query || "",
+          impressions: q.impressions || 0,
+          clicks: q.clicks || 0,
+          ctr: Math.round((q.ctr || 0) * 10000) / 100,
+          position: Math.round((q.position || 0) * 10) / 10,
+        })),
+      };
+    }
+
+    if (service === "google_search_console") {
+      const days = periodToDays(period);
+      const since = new Date(Date.now() - days * 86400000);
+
+      // Aggregate GSC per-page data
+      const agg = await prisma.gscPagePerformance.aggregate({
+        where: { site_id: siteId, date: { gte: since } },
+        _sum: { clicks: true, impressions: true },
+        _avg: { ctr: true, position: true },
+      });
+
+      const topPages = await prisma.gscPagePerformance.groupBy({
+        by: ["url"],
+        where: { site_id: siteId, date: { gte: since } },
+        _sum: { clicks: true, impressions: true },
+        _avg: { ctr: true, position: true },
+        orderBy: { _sum: { clicks: "desc" } },
+        take: 10,
+      });
+
+      // Top queries come from the latest AnalyticsSnapshot
+      const snapshot = await prisma.analyticsSnapshot.findFirst({
+        where: { site_id: siteId },
+        orderBy: { created_at: "desc" },
+        select: { top_queries: true },
+      });
+      const topQueriesRaw = (snapshot?.top_queries as any[]) || [];
+
+      const totalClicks = agg._sum.clicks || 0;
+      const totalImpressions = agg._sum.impressions || 0;
+
+      return {
+        service,
+        period: period as any,
+        metrics: {
+          page_views: 0,
+          unique_visitors: 0,
+          bounce_rate: 0,
+          avg_session_duration: 0,
+          impressions: totalImpressions,
+          click_through_rate: totalImpressions > 0
+            ? Math.round((totalClicks / totalImpressions) * 10000) / 100
+            : 0,
+          avg_position: Math.round((agg._avg.position || 0) * 10) / 10,
+          search_queries: topQueriesRaw.length,
+        },
+        top_pages: topPages.map((p) => ({
+          page: p.url,
+          views: p._sum.clicks || 0,
+          ctr: p._avg.ctr ? Math.round(p._avg.ctr * 10000) / 100 : 0,
+          position: p._avg.position ? Math.round(p._avg.position * 10) / 10 : 0,
+        })),
+        top_queries: topQueriesRaw.slice(0, 10).map((q: any) => ({
+          query: q.query || "",
+          impressions: q.impressions || 0,
+          clicks: q.clicks || 0,
+          ctr: Math.round((q.ctr || 0) * 10000) / 100,
+          position: Math.round((q.position || 0) * 10) / 10,
+        })),
+      };
+    }
+
+    return emptyMetrics(service, period);
+  } catch (err) {
+    console.warn(`[analytics] Failed to fetch ${service} metrics from DB:`, err);
+    return emptyMetrics(service, period);
+  }
 }
 
 function validateAnalyticsConfig(
@@ -177,6 +317,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const service = url.searchParams.get("service");
     const period = url.searchParams.get("period") || "7d";
     const includeMetrics = url.searchParams.get("include_metrics") === "true";
+    const siteId = request.headers.get("x-site-id") || getDefaultSiteId();
 
     if (service) {
       // Get specific service configuration and metrics
@@ -196,7 +337,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
       };
 
       if (includeMetrics && config.status === "configured") {
-        response.metrics = getEmptyMetrics(service, period);
+        response.metrics = await getMetricsFromDB(service, period, siteId);
       }
 
       return NextResponse.json(response);
@@ -204,6 +345,17 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
     // Get all analytics configurations
     const allConfigs = Array.from(analyticsConfigurations.values());
+
+    // Get latest snapshot timestamp for last_sync
+    let lastSync: string | undefined;
+    try {
+      const latest = await prisma.analyticsSnapshot.findFirst({
+        where: { site_id: siteId },
+        orderBy: { created_at: "desc" },
+        select: { created_at: true },
+      });
+      lastSync = latest?.created_at?.toISOString();
+    } catch { /* table may not exist yet */ }
 
     const response: any = {
       status: "success",
@@ -213,7 +365,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
         status: config.status,
         features: config.features,
         metrics_available: config.metrics_available,
-        last_sync: config.last_sync,
+        last_sync: lastSync || config.last_sync,
       })),
       summary: {
         total_services: allConfigs.length,
@@ -230,14 +382,15 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
     if (includeMetrics) {
       response.recent_metrics = {};
-      allConfigs.forEach((config) => {
+      for (const config of allConfigs) {
         if (config.status === "configured") {
-          response.recent_metrics[config.service] = getEmptyMetrics(
+          response.recent_metrics[config.service] = await getMetricsFromDB(
             config.service,
             period,
+            siteId,
           );
         }
-      });
+      }
     }
 
     return NextResponse.json(response);

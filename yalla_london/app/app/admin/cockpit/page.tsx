@@ -2161,6 +2161,85 @@ interface AuditSummary {
   createdAt: string;
 }
 
+// ─── SEO Master Audit Types ───────────────────────────────────────────────────
+
+interface SeoAuditFinding {
+  id: string;
+  severity: "critical" | "high" | "medium" | "low" | "info";
+  category: string;
+  title: string;
+  description: string;
+  impact: string;
+  fix: string;
+  affected: string[];
+  count: number;
+}
+
+interface SeoAuditSection {
+  name: string;
+  icon: string;
+  score: number;
+  maxScore: number;
+  findings: SeoAuditFinding[];
+}
+
+interface SeoAuditAction {
+  id: string;
+  label: string;
+  cron: string;
+  description: string;
+  safe: boolean;
+}
+
+interface SeoAuditResult {
+  healthScore: number;
+  siteId: string;
+  siteDomain: string;
+  siteName: string;
+  summary: string;
+  totalFindings: number;
+  criticalCount: number;
+  highCount: number;
+  mediumCount: number;
+  lowCount: number;
+  sections: SeoAuditSection[];
+  findings: SeoAuditFinding[];
+  trends: {
+    weeklyClicks: { current: number; previous: number; change: number };
+    weeklyImpressions: { current: number; previous: number; change: number };
+    indexingVelocity: { thisWeek: number; lastWeek: number; change: number };
+    contentVelocity: { thisWeek: number; lastWeek: number };
+    topGrowing: Array<{ url: string; clickGain: number }>;
+    topDeclining: Array<{ url: string; clickLoss: number }>;
+  };
+  availableActions: SeoAuditAction[];
+  indexingSummary: {
+    totalTracked: number;
+    indexed: number;
+    submitted: number;
+    discovered: number;
+    errors: number;
+    chronicFailures: number;
+    neverSubmitted: number;
+    indexRate: number;
+  };
+  durationMs: number;
+  timestamp: string;
+  reportId?: string;
+  saveError?: string;
+}
+
+interface SeoAuditHistoryItem {
+  id: string;
+  healthScore: number;
+  totalFindings: number;
+  criticalCount: number;
+  highCount: number;
+  summary: string;
+  triggeredBy: string;
+  createdAt: string;
+}
+
 // ─── Tab 5: Sites Overview ────────────────────────────────────────────────────
 
 function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; onSelectSite: (id: string) => void; onRefresh: () => void }) {
@@ -2171,6 +2250,95 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
   const [auditSiteId, setAuditSiteId] = useState<string | null>(null);
   const [auditLoading, setAuditLoading] = useState<string | null>(null);
   const [auditResults, setAuditResults] = useState<Record<string, AuditSummary>>({});
+
+  // ── Master SEO Audit state ──
+  const [seoAuditSiteId, setSeoAuditSiteId] = useState<string | null>(null);
+  const [seoAuditLoading, setSeoAuditLoading] = useState<string | null>(null);
+  const [seoAuditResult, setSeoAuditResult] = useState<Record<string, SeoAuditResult>>({});
+  const [seoAuditHistory, setSeoAuditHistory] = useState<Record<string, SeoAuditHistoryItem[]>>({});
+  const [seoAuditHistoryOpen, setSeoAuditHistoryOpen] = useState<string | null>(null);
+  const [seoAuditExpandedSection, setSeoAuditExpandedSection] = useState<string | null>(null);
+  const [seoAuditExpandedFinding, setSeoAuditExpandedFinding] = useState<string | null>(null);
+  const [seoAuditActionLoading, setSeoAuditActionLoading] = useState<string | null>(null);
+  const [seoAuditActionResult, setSeoAuditActionResult] = useState<Record<string, string>>({});
+
+  const runMasterAudit = async (siteId: string) => {
+    setSeoAuditLoading(siteId);
+    setSeoAuditExpandedSection(null);
+    setSeoAuditExpandedFinding(null);
+    try {
+      const res = await fetch("/api/admin/seo-audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save_report", siteId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSeoAuditResult((prev) => ({ ...prev, [siteId]: json as SeoAuditResult }));
+        setSeoAuditSiteId(siteId);
+        // Refresh history
+        loadAuditHistory(siteId);
+      } else {
+        setPublishResult((prev) => ({ ...prev, [siteId]: `❌ Audit failed: ${json.error}` }));
+      }
+    } catch (e) {
+      setPublishResult((prev) => ({ ...prev, [siteId]: `❌ Audit error: ${e instanceof Error ? e.message : "Network error"}` }));
+    } finally {
+      setSeoAuditLoading(null);
+    }
+  };
+
+  const loadAuditHistory = async (siteId: string) => {
+    try {
+      const res = await fetch(`/api/admin/seo-audit?siteId=${encodeURIComponent(siteId)}&history=true`);
+      const json = await res.json();
+      if (json.success && json.reports) {
+        setSeoAuditHistory((prev) => ({ ...prev, [siteId]: json.reports }));
+      }
+    } catch {
+      console.warn("[sites] Failed to load audit history");
+    }
+  };
+
+  const loadPreviousReport = async (reportId: string, siteId: string) => {
+    setSeoAuditLoading(siteId);
+    try {
+      const res = await fetch(`/api/admin/seo-audit?reportId=${encodeURIComponent(reportId)}`);
+      const json = await res.json();
+      if (json.success) {
+        setSeoAuditResult((prev) => ({ ...prev, [siteId]: json as SeoAuditResult }));
+        setSeoAuditSiteId(siteId);
+        setSeoAuditHistoryOpen(null);
+      }
+    } catch {
+      console.warn("[sites] Failed to load report");
+    } finally {
+      setSeoAuditLoading(null);
+    }
+  };
+
+  const runAuditAction = async (siteId: string, cronName: string, actionId: string) => {
+    setSeoAuditActionLoading(actionId);
+    try {
+      const res = await fetch("/api/admin/seo-audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run_cron", cron: cronName, siteId }),
+      });
+      const json = await res.json();
+      setSeoAuditActionResult((prev) => ({
+        ...prev,
+        [actionId]: json.success ? "✅ Done" : `❌ ${json.error || "Failed"}`,
+      }));
+    } catch (e) {
+      setSeoAuditActionResult((prev) => ({
+        ...prev,
+        [actionId]: `❌ ${e instanceof Error ? e.message : "Error"}`,
+      }));
+    } finally {
+      setSeoAuditActionLoading(null);
+    }
+  };
 
   const runAudit = async (siteId: string) => {
     setAuditLoading(siteId);
@@ -2390,6 +2558,26 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
               >
                 Audit Site
               </ActionButton>
+              <ActionButton
+                onClick={() => runMasterAudit(site.id)}
+                loading={seoAuditLoading === site.id}
+                variant="amber"
+              >
+                Master Audit
+              </ActionButton>
+              <button
+                onClick={() => {
+                  if (seoAuditHistoryOpen === site.id) {
+                    setSeoAuditHistoryOpen(null);
+                  } else {
+                    loadAuditHistory(site.id);
+                    setSeoAuditHistoryOpen(site.id);
+                  }
+                }}
+                className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-violet-400 border border-zinc-700"
+              >
+                Reports
+              </button>
               <button
                 onClick={() => setExpandedSite(isExpanded ? null : site.id)}
                 className="px-2 py-1 rounded text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-zinc-700"
@@ -2495,6 +2683,348 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 </div>
               </div>
             )}
+
+            {/* ══════ Previous Reports History Panel ══════ */}
+            {seoAuditHistoryOpen === site.id && (
+              <div className="mt-3 border-t border-zinc-800 pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-violet-400">Previous SEO Audit Reports</p>
+                  <button onClick={() => setSeoAuditHistoryOpen(null)} className="text-xs text-zinc-500 hover:text-zinc-300">✕ Close</button>
+                </div>
+                {(!seoAuditHistory[site.id] || seoAuditHistory[site.id].length === 0) ? (
+                  <p className="text-xs text-zinc-500">No saved reports yet. Run a Master Audit to create the first one.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {seoAuditHistory[site.id].map((report) => (
+                      <button
+                        key={report.id}
+                        onClick={() => loadPreviousReport(report.id, site.id)}
+                        className="w-full text-left bg-zinc-800/50 hover:bg-zinc-800 rounded-lg px-3 py-2 text-xs transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-bold ${
+                              report.healthScore >= 70 ? "text-emerald-400" :
+                              report.healthScore >= 40 ? "text-amber-400" : "text-red-400"
+                            }`}>
+                              {report.healthScore}/100
+                            </span>
+                            <span className="text-zinc-500">{timeAgo(report.createdAt)}</span>
+                          </div>
+                          <div className="flex gap-1.5">
+                            {report.criticalCount > 0 && (
+                              <span className="px-1.5 py-0.5 rounded bg-red-900/50 text-red-300 text-[10px]">{report.criticalCount} critical</span>
+                            )}
+                            {report.highCount > 0 && (
+                              <span className="px-1.5 py-0.5 rounded bg-orange-900/50 text-orange-300 text-[10px]">{report.highCount} high</span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-zinc-400 text-[11px] mt-1 line-clamp-1">{report.summary}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ══════ Master SEO Audit Results Panel ══════ */}
+            {seoAuditSiteId === site.id && seoAuditResult[site.id] && (() => {
+              const audit = seoAuditResult[site.id];
+              const severityColors: Record<string, string> = {
+                critical: "bg-red-900/50 text-red-300 border-red-700",
+                high: "bg-orange-900/50 text-orange-300 border-orange-700",
+                medium: "bg-amber-900/50 text-amber-300 border-amber-700",
+                low: "bg-blue-900/50 text-blue-300 border-blue-700",
+                info: "bg-zinc-800 text-zinc-400 border-zinc-700",
+              };
+              const severityDots: Record<string, string> = {
+                critical: "bg-red-500",
+                high: "bg-orange-500",
+                medium: "bg-amber-500",
+                low: "bg-blue-500",
+                info: "bg-zinc-500",
+              };
+              return (
+                <div className="mt-3 border-t border-violet-800/50 pt-3">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-violet-400">Master SEO Audit</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-zinc-500">{Math.round(audit.durationMs / 1000)}s</span>
+                      <button onClick={() => setSeoAuditSiteId(null)} className="text-xs text-zinc-500 hover:text-zinc-300">✕ Close</button>
+                    </div>
+                  </div>
+
+                  {/* Save warning */}
+                  {audit.saveError && (
+                    <div className="mb-2 bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-1.5 text-[11px] text-amber-300">
+                      {audit.saveError}
+                    </div>
+                  )}
+
+                  {/* Health Score + Summary */}
+                  <div className="bg-zinc-800/60 rounded-xl p-3 mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`text-2xl font-black ${
+                        audit.healthScore >= 70 ? "text-emerald-400" :
+                        audit.healthScore >= 40 ? "text-amber-400" : "text-red-400"
+                      }`}>
+                        {audit.healthScore}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Health Score</div>
+                        <div className="h-1.5 bg-zinc-700 rounded-full mt-1 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              audit.healthScore >= 70 ? "bg-emerald-500" :
+                              audit.healthScore >= 40 ? "bg-amber-500" : "bg-red-500"
+                            }`}
+                            style={{ width: `${audit.healthScore}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-zinc-300 mt-2">{audit.summary}</p>
+                    <div className="flex gap-2 mt-2 text-[10px]">
+                      {audit.criticalCount > 0 && <span className="px-1.5 py-0.5 rounded bg-red-900/50 text-red-300">{audit.criticalCount} critical</span>}
+                      {audit.highCount > 0 && <span className="px-1.5 py-0.5 rounded bg-orange-900/50 text-orange-300">{audit.highCount} high</span>}
+                      {audit.mediumCount > 0 && <span className="px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-300">{audit.mediumCount} medium</span>}
+                      {audit.lowCount > 0 && <span className="px-1.5 py-0.5 rounded bg-blue-900/50 text-blue-300">{audit.lowCount} low</span>}
+                    </div>
+                  </div>
+
+                  {/* Indexing Quick Stats */}
+                  <div className="grid grid-cols-4 gap-1.5 mb-3 text-center text-xs">
+                    <div className="bg-zinc-800/50 rounded-lg p-2">
+                      <div className={`font-bold ${audit.indexingSummary.indexRate >= 60 ? "text-emerald-400" : "text-red-400"}`}>
+                        {audit.indexingSummary.indexRate}%
+                      </div>
+                      <div className="text-zinc-500 text-[10px]">Indexed</div>
+                    </div>
+                    <div className="bg-zinc-800/50 rounded-lg p-2">
+                      <div className="font-bold text-blue-400">{audit.indexingSummary.submitted}</div>
+                      <div className="text-zinc-500 text-[10px]">Submitted</div>
+                    </div>
+                    <div className="bg-zinc-800/50 rounded-lg p-2">
+                      <div className={`font-bold ${audit.indexingSummary.discovered > 10 ? "text-amber-400" : "text-zinc-400"}`}>
+                        {audit.indexingSummary.discovered}
+                      </div>
+                      <div className="text-zinc-500 text-[10px]">Discovered</div>
+                    </div>
+                    <div className="bg-zinc-800/50 rounded-lg p-2">
+                      <div className={`font-bold ${audit.indexingSummary.errors > 0 ? "text-red-400" : "text-zinc-400"}`}>
+                        {audit.indexingSummary.errors}
+                      </div>
+                      <div className="text-zinc-500 text-[10px]">Errors</div>
+                    </div>
+                  </div>
+
+                  {/* Trends */}
+                  {audit.trends && (
+                    <div className="mb-3">
+                      <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Week-over-Week Trends</p>
+                      <div className="grid grid-cols-2 gap-1.5 text-xs">
+                        <div className="bg-zinc-800/50 rounded-lg px-2.5 py-2">
+                          <div className="text-zinc-500 text-[10px]">Clicks</div>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="font-bold text-zinc-200">{audit.trends.weeklyClicks.current}</span>
+                            {audit.trends.weeklyClicks.change !== 0 && (
+                              <span className={`text-[10px] font-medium ${audit.trends.weeklyClicks.change > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                {audit.trends.weeklyClicks.change > 0 ? "↑" : "↓"}{Math.abs(audit.trends.weeklyClicks.change)}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="bg-zinc-800/50 rounded-lg px-2.5 py-2">
+                          <div className="text-zinc-500 text-[10px]">Impressions</div>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="font-bold text-zinc-200">{audit.trends.weeklyImpressions.current}</span>
+                            {audit.trends.weeklyImpressions.change !== 0 && (
+                              <span className={`text-[10px] font-medium ${audit.trends.weeklyImpressions.change > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                {audit.trends.weeklyImpressions.change > 0 ? "↑" : "↓"}{Math.abs(audit.trends.weeklyImpressions.change)}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="bg-zinc-800/50 rounded-lg px-2.5 py-2">
+                          <div className="text-zinc-500 text-[10px]">Indexing Velocity</div>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="font-bold text-zinc-200">{audit.trends.indexingVelocity.thisWeek}</span>
+                            <span className="text-zinc-500 text-[10px]">vs {audit.trends.indexingVelocity.lastWeek} prev</span>
+                          </div>
+                        </div>
+                        <div className="bg-zinc-800/50 rounded-lg px-2.5 py-2">
+                          <div className="text-zinc-500 text-[10px]">Content Published</div>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="font-bold text-zinc-200">{audit.trends.contentVelocity.thisWeek}</span>
+                            <span className="text-zinc-500 text-[10px]">vs {audit.trends.contentVelocity.lastWeek} prev</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Top growing/declining */}
+                      {(audit.trends.topGrowing.length > 0 || audit.trends.topDeclining.length > 0) && (
+                        <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
+                          {audit.trends.topGrowing.length > 0 && (
+                            <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-lg px-2 py-1.5">
+                              <div className="text-emerald-400 font-medium mb-1">Top Growing</div>
+                              {audit.trends.topGrowing.slice(0, 3).map((p, i) => (
+                                <div key={i} className="text-zinc-400 truncate">
+                                  +{p.clickGain} {(() => { try { return new URL(p.url).pathname; } catch { return p.url; } })()}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {audit.trends.topDeclining.length > 0 && (
+                            <div className="bg-red-950/20 border border-red-800/30 rounded-lg px-2 py-1.5">
+                              <div className="text-red-400 font-medium mb-1">Top Declining</div>
+                              {audit.trends.topDeclining.slice(0, 3).map((p, i) => (
+                                <div key={i} className="text-zinc-400 truncate">
+                                  -{p.clickLoss} {(() => { try { return new URL(p.url).pathname; } catch { return p.url; } })()}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Sections with findings */}
+                  <div className="space-y-1.5 mb-3">
+                    <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1">Findings by Category</p>
+                    {audit.sections.map((section) => {
+                      const isExpanded = seoAuditExpandedSection === section.name;
+                      const criticals = section.findings.filter((f) => f.severity === "critical").length;
+                      const highs = section.findings.filter((f) => f.severity === "high").length;
+                      return (
+                        <div key={section.name}>
+                          <button
+                            onClick={() => setSeoAuditExpandedSection(isExpanded ? null : section.name)}
+                            className="w-full flex items-center justify-between bg-zinc-800/50 hover:bg-zinc-800 rounded-lg px-3 py-2 text-xs transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>{section.icon}</span>
+                              <span className="font-medium text-zinc-200">{section.name}</span>
+                              <span className="text-zinc-500">({section.findings.length})</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {criticals > 0 && <span className="w-2 h-2 rounded-full bg-red-500" />}
+                              {highs > 0 && <span className="w-2 h-2 rounded-full bg-orange-500" />}
+                              <span className={`text-[10px] font-bold ${
+                                section.score >= 80 ? "text-emerald-400" :
+                                section.score >= 50 ? "text-amber-400" : "text-red-400"
+                              }`}>
+                                {section.score}/{section.maxScore}
+                              </span>
+                              <span className="text-zinc-600">{isExpanded ? "▲" : "▼"}</span>
+                            </div>
+                          </button>
+                          {isExpanded && (
+                            <div className="mt-1 space-y-1 ml-2">
+                              {section.findings.map((finding) => {
+                                const findingExpanded = seoAuditExpandedFinding === finding.id;
+                                return (
+                                  <div key={finding.id}>
+                                    <button
+                                      onClick={() => setSeoAuditExpandedFinding(findingExpanded ? null : finding.id)}
+                                      className={`w-full text-left rounded-lg px-3 py-2 text-xs border ${severityColors[finding.severity]}`}
+                                    >
+                                      <div className="flex items-start gap-2">
+                                        <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${severityDots[finding.severity]}`} />
+                                        <div className="flex-1">
+                                          <div className="font-medium">{finding.title}</div>
+                                          {!findingExpanded && finding.count > 0 && (
+                                            <span className="text-[10px] opacity-70">({finding.count} affected)</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </button>
+                                    {findingExpanded && (
+                                      <div className="ml-4 mt-1 bg-zinc-900/80 border border-zinc-800 rounded-lg px-3 py-2 text-[11px] space-y-2">
+                                        <div>
+                                          <span className="text-zinc-500 font-medium">What it means: </span>
+                                          <span className="text-zinc-300">{finding.description}</span>
+                                        </div>
+                                        {finding.impact && (
+                                          <div>
+                                            <span className="text-zinc-500 font-medium">Impact: </span>
+                                            <span className="text-zinc-300">{finding.impact}</span>
+                                          </div>
+                                        )}
+                                        {finding.fix && (
+                                          <div>
+                                            <span className="text-zinc-500 font-medium">How to fix: </span>
+                                            <span className="text-zinc-300">{finding.fix}</span>
+                                          </div>
+                                        )}
+                                        {finding.affected.length > 0 && (
+                                          <div>
+                                            <span className="text-zinc-500 font-medium">Affected ({finding.count}): </span>
+                                            <div className="mt-1 max-h-24 overflow-y-auto space-y-0.5">
+                                              {finding.affected.slice(0, 10).map((a, i) => (
+                                                <div key={i} className="text-zinc-400 text-[10px] font-mono truncate">{a}</div>
+                                              ))}
+                                              {finding.affected.length > 10 && (
+                                                <div className="text-zinc-600 text-[10px]">... and {finding.affected.length - 10} more</div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Available Actions */}
+                  {audit.availableActions && audit.availableActions.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider mb-1.5">Quick Fix Actions</p>
+                      <div className="space-y-1">
+                        {audit.availableActions.map((action) => (
+                          <div key={action.id} className="flex items-center justify-between bg-zinc-800/50 rounded-lg px-3 py-2">
+                            <div className="flex-1 mr-2">
+                              <div className="text-xs font-medium text-zinc-200">{action.label}</div>
+                              <div className="text-[10px] text-zinc-500">{action.description}</div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {seoAuditActionResult[action.id] && (
+                                <span className={`text-[10px] ${seoAuditActionResult[action.id].startsWith("✅") ? "text-emerald-400" : "text-red-400"}`}>
+                                  {seoAuditActionResult[action.id]}
+                                </span>
+                              )}
+                              <ActionButton
+                                onClick={() => runAuditAction(site.id, action.cron, action.id)}
+                                loading={seoAuditActionLoading === action.id}
+                                variant="success"
+                                className="!px-2 !py-1 !text-[10px]"
+                              >
+                                Run
+                              </ActionButton>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between text-[10px] text-zinc-600 pt-2 border-t border-zinc-800">
+                    <span>{audit.siteName} — {new Date(audit.timestamp).toLocaleString()}</span>
+                    {audit.reportId && <span className="text-violet-500">Saved</span>}
+                  </div>
+                </div>
+              );
+            })()}
+
           </Card>
         );
       })}
@@ -2683,11 +3213,246 @@ function AIConfigTab() {
 
 // ─── Tab 7: Settings & Testing ────────────────────────────────────────────────
 
+interface ActionLogEntry {
+  id: string;
+  timestamp: string;
+  category: string;
+  action: string;
+  status: string;
+  siteId: string | null;
+  durationMs: number | null;
+  summary: string;
+  outcome: string | null;
+  error: string | null;
+  fix: string | null;
+  details: Record<string, unknown>;
+}
+
+interface ActionLogsData {
+  stats: { total: number; success: number; failed: number; partial: number; timeout: number; running: number; byCategory: Record<string, number> };
+  logs: ActionLogEntry[];
+  filters: { periods: string[]; categories: string[]; statuses: string[]; functions: string[] };
+  exportUrl?: string;
+}
+
+function ActionLogsPanel({ onClose }: { onClose: () => void }) {
+  const [data, setData] = useState<ActionLogsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState("24h");
+  const [category, setCategory] = useState("");
+  const [status, setStatus] = useState("");
+  const [func, setFunc] = useState("");
+  const [siteId, setSiteId] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [cleaning, setCleaning] = useState(false);
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ period });
+      if (category) params.set("category", category);
+      if (status) params.set("status", status);
+      if (func) params.set("function", func);
+      if (siteId) params.set("siteId", siteId);
+      const res = await fetch(`/api/admin/action-logs?${params}`);
+      const json = await res.json();
+      if (json.success) setData(json);
+    } catch { /* network error */ }
+    setLoading(false);
+  }, [period, category, status, func, siteId]);
+
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+  const copyJson = (entry: ActionLogEntry) => {
+    navigator.clipboard.writeText(JSON.stringify(entry, null, 2));
+    setCopied(entry.id);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  const exportAll = async () => {
+    const params = new URLSearchParams({ period, export: "json" });
+    if (category) params.set("category", category);
+    if (status) params.set("status", status);
+    if (func) params.set("function", func);
+    if (siteId) params.set("siteId", siteId);
+    const res = await fetch(`/api/admin/action-logs?${params}`);
+    const json = await res.json();
+    navigator.clipboard.writeText(JSON.stringify(json, null, 2));
+    setCopied("all");
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const cleanup = async () => {
+    setCleaning(true);
+    try {
+      await fetch("/api/admin/action-logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cleanup" }),
+      });
+      fetchLogs();
+    } catch { /* network error */ }
+    setCleaning(false);
+  };
+
+  const statusColor: Record<string, string> = {
+    success: "bg-emerald-900/40 text-emerald-300 border-emerald-800",
+    failed: "bg-red-900/40 text-red-300 border-red-800",
+    partial: "bg-amber-900/40 text-amber-300 border-amber-800",
+    timeout: "bg-orange-900/40 text-orange-300 border-orange-800",
+    running: "bg-blue-900/40 text-blue-300 border-blue-800",
+  };
+
+  const statusIcon: Record<string, string> = {
+    success: "✅", failed: "❌", partial: "⚠️", timeout: "⏳", running: "🔄",
+  };
+
+  const categoryIcon: Record<string, string> = {
+    cron: "⏰", "auto-fix": "🔧", "ai-call": "🤖", audit: "🔍", seo: "🔍",
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
+      {/* Header */}
+      <div className="bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between shrink-0">
+        <h2 className="text-sm font-semibold text-zinc-100">Action Logs</h2>
+        <div className="flex items-center gap-2">
+          <button onClick={exportAll} className="px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">
+            {copied === "all" ? "Copied!" : "Export All JSON"}
+          </button>
+          <button onClick={cleanup} disabled={cleaning} className="px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">
+            {cleaning ? "Cleaning..." : "Purge >21d"}
+          </button>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-100 text-lg px-2">✕</button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-zinc-900/80 border-b border-zinc-800 px-4 py-2 flex flex-wrap gap-2 shrink-0">
+        <select value={period} onChange={(e) => setPeriod(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+          {["1h", "12h", "24h", "3d", "7d", "14d", "21d"].map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+          <option value="">All types</option>
+          <option value="cron">Cron jobs</option>
+          <option value="auto-fix">Auto-fixes</option>
+          <option value="ai-call">AI calls</option>
+          <option value="audit">Audits</option>
+        </select>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+          <option value="">All statuses</option>
+          <option value="success">Success</option>
+          <option value="failed">Failed</option>
+          <option value="partial">Partial</option>
+          <option value="timeout">Timeout</option>
+        </select>
+        {data?.filters.functions && data.filters.functions.length > 0 && (
+          <select value={func} onChange={(e) => setFunc(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+            <option value="">All functions</option>
+            {data.filters.functions.map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+        )}
+        <select value={siteId} onChange={(e) => setSiteId(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+          <option value="">All sites</option>
+          <option value="yalla-london">Yalla London</option>
+          <option value="zenitha-yachts-med">Zenitha Yachts</option>
+          <option value="arabaldives">Arabaldives</option>
+          <option value="french-riviera">Yalla Riviera</option>
+          <option value="istanbul">Yalla Istanbul</option>
+          <option value="thailand">Yalla Thailand</option>
+        </select>
+      </div>
+
+      {/* Stats bar */}
+      {data?.stats && (
+        <div className="bg-zinc-900/60 border-b border-zinc-800 px-4 py-2 flex gap-3 text-xs shrink-0 overflow-x-auto">
+          <span className="text-zinc-400">{data.stats.total} total</span>
+          <span className="text-emerald-400">{data.stats.success} ok</span>
+          <span className="text-red-400">{data.stats.failed} failed</span>
+          {data.stats.timeout > 0 && <span className="text-orange-400">{data.stats.timeout} timeout</span>}
+          {data.stats.partial > 0 && <span className="text-amber-400">{data.stats.partial} partial</span>}
+          {data.stats.running > 0 && <span className="text-blue-400">{data.stats.running} running</span>}
+        </div>
+      )}
+
+      {/* Log entries */}
+      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
+        {loading ? (
+          <p className="text-zinc-500 text-xs text-center py-8">Loading logs...</p>
+        ) : !data || data.logs.length === 0 ? (
+          <p className="text-zinc-500 text-xs text-center py-8">No logs found for this period/filters.</p>
+        ) : (
+          data.logs.map((log) => (
+            <div key={log.id} className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+              {/* Log row */}
+              <button
+                onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                className="w-full px-3 py-2 flex items-start gap-2 text-left hover:bg-zinc-800/50"
+              >
+                <span className="text-sm shrink-0 mt-0.5">{statusIcon[log.status] || "•"}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-zinc-500">{categoryIcon[log.category] || ""} {log.category}</span>
+                    <span className="text-xs font-medium text-zinc-200 truncate">{log.action}</span>
+                    {log.siteId && <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500">{log.siteId}</span>}
+                    {log.durationMs != null && <span className="text-[10px] text-zinc-600">{(log.durationMs / 1000).toFixed(1)}s</span>}
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-0.5 line-clamp-2">{log.summary}</p>
+                  <span className="text-[10px] text-zinc-600">{new Date(log.timestamp).toLocaleString()}</span>
+                </div>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${statusColor[log.status] || "bg-zinc-800 text-zinc-400 border-zinc-700"}`}>
+                  {log.status}
+                </span>
+              </button>
+
+              {/* Expanded detail */}
+              {expandedId === log.id && (
+                <div className="px-3 pb-3 border-t border-zinc-800 space-y-2">
+                  {log.outcome && (
+                    <div className="mt-2">
+                      <p className="text-[10px] text-zinc-500 uppercase">Outcome</p>
+                      <p className="text-xs text-emerald-300">{log.outcome}</p>
+                    </div>
+                  )}
+                  {log.error && (
+                    <div>
+                      <p className="text-[10px] text-zinc-500 uppercase">Error</p>
+                      <p className="text-xs text-red-300">{log.error}</p>
+                    </div>
+                  )}
+                  {log.fix && (
+                    <div>
+                      <p className="text-[10px] text-zinc-500 uppercase">How to fix</p>
+                      <p className="text-xs text-amber-300">{log.fix}</p>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => copyJson(log)}
+                    className="mt-1 px-2 py-1 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded border border-zinc-700"
+                  >
+                    {copied === log.id ? "Copied!" : "Copy JSON"}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SettingsTab({ system }: { system: SystemStatus | null }) {
   const [flags, setFlags] = useState<Array<{ id: string; key: string; enabled: boolean; description: string }>>([]);
   const [flagsLoading, setFlagsLoading] = useState(true);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState<string | null>(null);
+  const [showActionLogs, setShowActionLogs] = useState(false);
 
   // Migration state
   const [migrationStatus, setMigrationStatus] = useState<"idle" | "scanning" | "migrating" | "done">("idle");
@@ -2890,6 +3655,9 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
         )}
 
         <div className="mt-3 border-t border-zinc-800 pt-3 flex flex-wrap gap-2">
+          <ActionButton onClick={() => setShowActionLogs(true)}>
+            📊 Action Logs
+          </ActionButton>
           <a href="/test-connections.html" target="_blank" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
             🔬 test-connections.html
           </a>
@@ -2906,7 +3674,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
       <Card>
         <SectionTitle>Database Migration</SectionTitle>
         <p className="text-zinc-500 text-xs mb-3">Scan for missing tables, columns, and indexes. Fix applies all pending schema changes.</p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <ActionButton onClick={runMigrationScan} loading={migrationStatus === "scanning"}>
             🔍 Scan Schema
           </ActionButton>
@@ -2915,6 +3683,50 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
             loading={migrationStatus === "migrating"}
           >
             🔧 Fix All
+          </ActionButton>
+          <ActionButton
+            variant="success"
+            onClick={async () => {
+              setMigrationStatus("scanning");
+              setMigrationError(null);
+              setMigrationResult(null);
+              try {
+                // Step 1: Scan
+                const scanRes = await fetch("/api/admin/db-migrate");
+                const scanJson = await scanRes.json();
+                if (!scanJson.success) throw new Error(scanJson.error || "Scan failed");
+                if (!scanJson.summary?.needsMigration) {
+                  setMigrationResult({ type: "scan", missingTables: 0, missingColumns: 0, missingIndexes: 0, needsMigration: false });
+                  setMigrationStatus("done");
+                  return;
+                }
+                // Step 2: Apply all fixes
+                setMigrationStatus("migrating");
+                const fixRes = await fetch("/api/admin/db-migrate", { method: "POST" });
+                const fixJson = await fixRes.json();
+                if (!fixJson.success) throw new Error(fixJson.error || "Migration failed");
+                setMigrationResult({
+                  type: "migrate",
+                  missingTables: fixJson.after?.missingTables ?? 0,
+                  missingColumns: fixJson.after?.missingColumns ?? 0,
+                  missingIndexes: 0,
+                  needsMigration: false,
+                  tablesCreated: fixJson.result?.tablesCreated ?? [],
+                  columnsAdded: fixJson.result?.columnsAdded ?? [],
+                  indexesCreated: fixJson.result?.indexesCreated ?? [],
+                  foreignKeysCreated: fixJson.result?.foreignKeysCreated ?? [],
+                  errors: fixJson.result?.errors ?? [],
+                  durationMs: fixJson.durationMs,
+                });
+                setMigrationStatus("done");
+              } catch (e) {
+                setMigrationError(e instanceof Error ? e.message : "Full migration failed");
+                setMigrationStatus("idle");
+              }
+            }}
+            loading={migrationStatus === "scanning" || migrationStatus === "migrating"}
+          >
+            🚀 Full Migration (Scan + Fix)
           </ActionButton>
         </div>
         {migrationError && (
@@ -3021,6 +3833,9 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
           </p>
         </div>
       </Card>
+
+      {/* Action Logs overlay */}
+      {showActionLogs && <ActionLogsPanel onClose={() => setShowActionLogs(false)} />}
     </div>
   );
 }

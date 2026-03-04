@@ -690,7 +690,7 @@ ${aioDirectives}
 
 Content Requirements (all mandatory — articles failing these will be rejected by the quality gate):
 - 1,500–2,000 words minimum (articles under 1,000 words are blocked from publishing)
-- Target Arab travelers visiting ${site.destination}
+- Target luxury travelers visiting ${site.destination}
 - Include practical tips, insider advice, luxury recommendations
 - Natural keyword integration: "${topic.keyword}" must appear in the title, first paragraph, and at least one H2
 - Secondary keywords to weave in naturally: ${topic.longtails?.join(", ") || ""}
@@ -701,7 +701,7 @@ Content Requirements (all mandatory — articles failing these will be rejected 
 Structure Requirements:
 - Use 4–6 H2 headings and H3 subheadings where appropriate. Never skip heading levels (no H1→H3).
 - Include 3+ internal links to other ${site.name} pages using descriptive anchor text (link to /blog/*, /hotels, /experiences, /restaurants, etc.)
-- Include 2+ affiliate/booking links (HalalBooking, Booking.com, GetYourGuide, Viator) with natural anchor text — never "click here"
+- Include 2+ affiliate/booking links (Booking.com, GetYourGuide, Viator, HalalBooking where relevant) with natural anchor text — never "click here"
 - End with a "Key Takeaways" section (3–5 bullet points) and a clear call-to-action
 ${topic.questions?.length ? `\nAnswer these questions within the article (use as H2 or H3 headings):\n${topic.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
 
@@ -727,7 +727,7 @@ Return JSON with these exact fields:
 
 المتطلبات (إلزامية — المقالات التي لا تستوفيها سيتم رفضها):
 - 1,500–2,000 كلمة كحد أدنى (المقالات أقل من 1,000 كلمة ستُحظر من النشر)
-- استهداف المسافرين العرب الذين يزورون ${site.destination}
+- استهداف المسافرين الباحثين عن الفخامة في ${site.destination}
 - تضمين نصائح عملية، معلومات داخلية، توصيات فاخرة
 - الكلمة المفتاحية "${topic.keyword}" يجب أن تظهر في العنوان والفقرة الأولى وعنوان H2 واحد على الأقل
 - دمج الكلمات المفتاحية الثانوية بشكل طبيعي: ${topic.longtails?.join("، ") || ""}
@@ -735,7 +735,7 @@ Return JSON with these exact fields:
 متطلبات الهيكل:
 - استخدم 4–6 عناوين H2 وعناوين H3 فرعية حسب الحاجة
 - أضف 3+ روابط داخلية لصفحات ${site.name} الأخرى بنص وصفي
-- أضف 2+ روابط حجز/شراكة (HalalBooking، Booking.com، GetYourGuide) بنص طبيعي
+- أضف 2+ روابط حجز/شراكة (Booking.com، GetYourGuide، HalalBooking حيث يناسب) بنص طبيعي
 - اختم بقسم "النقاط الرئيسية" (3–5 نقاط) ودعوة واضحة للعمل
 ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقال (استخدمها كعناوين H2 أو H3):\n${topic.questions.map((q: string) => `- ${q}`).join("\n")}` : ""}
 
@@ -802,7 +802,7 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
                 role: "system",
                 content:
                   language === "en"
-                    ? `You are a luxury travel content writer for ${site.name}. Write SEO-optimized content about ${site.destination} for Arab travelers. Respond with valid JSON only.`
+                    ? `You are a luxury travel content writer for ${site.name}. Write SEO-optimized content about ${site.destination} for luxury travelers. Respond with valid JSON only.`
                     : `أنت كاتب محتوى سفر فاخر لمنصة ${site.name}. اكتب محتوى محسّن لمحركات البحث عن ${site.destination}. أجب بـ JSON صالح فقط.`,
               },
               {
@@ -931,18 +931,18 @@ Structure:
 - Include a "Quick Facts" section with key takeaways
 - Add related questions and answers (People Also Ask style) — use these as H2/H3 headings
 - Include 3+ internal links to related ${site.name} content and 2+ booking/affiliate links
-- End with practical tips for Arab travelers and a call-to-action`;
+- End with practical tips and a call-to-action`;
 
     case "comparison":
       return `Write a detailed comparison article about "${keyword}" for ${site.name}.
 
 Structure:
 - Opening: Brief overview of what's being compared and why it matters
-- Comparison table in HTML: key criteria (price, quality, location, halal options, atmosphere)
+- Comparison table in HTML: key criteria (price, quality, location, dining options, atmosphere)
 - Detailed analysis of each option with pros and cons under H2/H3 headings
 - "Best For" sections: Best for families, Best for couples, Best for luxury, Best value
 - Final verdict with clear recommendation
-- Include real prices and practical booking tips with affiliate links (HalalBooking, Booking.com, etc.)
+- Include real prices and practical booking tips with affiliate links (Booking.com, GetYourGuide, etc.)
 - Include 3+ internal links to related ${site.name} guides`;
 
     case "deep-dive":
@@ -965,8 +965,8 @@ Structure:
 - Each item gets: name, description (2-3 sentences), why it's special, practical info (price, location, hours)
 - Include a "Quick Pick" summary at the top for scanners (AIO-optimized)
 - Add a comparison mini-table in HTML
-- Highlight halal-friendly and Arabic-speaking options
-- Include booking/reservation links (affiliate: HalalBooking, Booking.com, GetYourGuide)
+- Highlight standout features, unique offerings, and practical details
+- Include booking/reservation links (affiliate: Booking.com, GetYourGuide, Viator)
 - Include 3+ internal links to related ${site.name} articles`;
 
     case "seasonal":
@@ -976,7 +976,7 @@ Structure:
 - Lead with dates, times, and essential planning info under clear H2 headings
 - Include a day-by-day or week-by-week breakdown if applicable
 - Practical logistics: transport, accommodation, what to bring
-- Cultural context for Arab travelers
+- Cultural context and local insights
 - Budget breakdown (luxury vs. mid-range vs. budget) with booking links (affiliate: Booking.com, GetYourGuide)
 - Booking deadlines and advance planning tips
 - Include 3+ internal links to related ${site.name} seasonal content
@@ -1004,7 +1004,7 @@ Structure:
 function getAIOOptimizationDirectives(contentType: string): string {
   const base = `AIO & Citation Optimization (CRITICAL — 60%+ of searches now show AI Overviews):
 - ATOMIC ANSWER FORMAT: Under every H2 heading, write a 40–50 word direct answer FIRST — one self-contained paragraph that fully answers the heading's question. Then expand with supporting details. Google AI Overviews extract these atomic answers for citation.
-- Use clear, factual statements that AI can extract as snippets (e.g., "The best halal restaurant in Mayfair is X, located at Y")
+- Use clear, factual statements that AI can extract as snippets (e.g., "The best fine dining restaurant in Mayfair is X, located at Y")
 - Include specific data points: prices (£), ratings, distances, opening hours, dates
 - Structure FAQ answers as complete standalone paragraphs (AI extracts these for People Also Ask)
 - Use "According to..." or "Based on..." phrasing for verifiable claims
@@ -1124,8 +1124,8 @@ Content that reads like a summary of other sources ("second-hand knowledge") is 
 
 Authoritativeness:
 - Cite verifiable facts: opening hours, price ranges with £ symbols, booking requirements
-- Reference official ratings, awards, or certifications (e.g., "Michelin-starred", "5-star", "halal-certified by HMC")
-- Link concepts to broader context (e.g., "Part of the growing halal luxury dining scene in London")
+- Reference official ratings, awards, or certifications (e.g., "Michelin-starred", "5-star", "AA Rosette award-winning")
+- Link concepts to broader context (e.g., "Part of London's thriving luxury dining scene")
 - Include specific data points: distances, dates, capacities, ratings out of 5
 - UNIQUE DATA REQUIREMENT: Include at least 2 specific data points NOT commonly found on Wikipedia or TripAdvisor (e.g., current 2026 menu prices, verified seasonal opening hours, a direct quote from staff or locals)
 

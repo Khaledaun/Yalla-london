@@ -476,8 +476,14 @@ export async function generateCompletion(
     if (!apiKey) continue;
 
     try {
-      // Give this provider the remaining budget (capped at 25s per provider)
-      const providerTimeout = Math.min(remaining - 1_000, 25_000);
+      // Give this provider a share of the remaining budget, leaving room for fallbacks.
+      // First provider: up to 60% of total budget (handles large Arabic prompts).
+      // Subsequent providers: up to 25s each from remaining time.
+      const isFirstAttempt = errors.length === 0;
+      const providerCap = isFirstAttempt
+        ? Math.max(Math.floor(totalBudgetMs * 0.6), 25_000)
+        : 25_000;
+      const providerTimeout = Math.min(remaining - 1_000, providerCap);
       const result = await callProvider(provider, messages, apiKey, {
         ...options,
         timeoutMs: providerTimeout,

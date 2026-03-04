@@ -458,13 +458,15 @@ export async function phaseAssembly(
   const internalLinkPlan = (outline.internalLinkPlan as Array<Record<string, unknown>>) || [];
 
   const writeLang = isArabic(draft.locale) ? "Arabic" : "English";
+  // Arabic prompts are ~2.5x more token-dense — truncate harder to fit within timeout
+  const rawHtmlLimit = isArabic(draft.locale) ? 4000 : 6000;
 
   const prompt = `You are a senior editor for "${site.name}" (${site.destination} luxury travel).
 
 Review and polish this assembled ${writeLang} article about "${draft.keyword}".
 
 Raw article HTML (${totalWords} words, ${sections.length} sections):
-${rawHtml.substring(0, 6000)}
+${rawHtml.substring(0, rawHtmlLimit)}
 
 CRITICAL REQUIREMENT: The final article MUST be at least 1,500 words. If the raw content is under 1,500 words, you MUST expand every section with additional paragraphs, details, insider tips, and practical information until the total reaches 1,500+ words. Do not skip this.
 
@@ -493,8 +495,10 @@ Return JSON:
 }`;
 
   try {
-    // Pass remaining budget minus 5s buffer so the AI provider doesn't exceed cron limits
-    const assemblyTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
+    // Pass remaining budget minus buffer so the AI provider doesn't exceed cron limits.
+    // Arabic assembly needs more AI time (token-dense output), so use a smaller buffer.
+    const bufferMs = isArabic(draft.locale) ? 3_000 : 5_000;
+    const assemblyTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - bufferMs, 10_000) : 30_000;
     const result = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. The final article MUST be at least 1,500 words — expand content if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
       maxTokens: isArabic(draft.locale) ? 3500 : 2000,

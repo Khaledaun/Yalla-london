@@ -14,6 +14,20 @@
  *   GSC_SITE_URL
  */
 
+import { config } from "dotenv";
+import { resolve } from "path";
+import { fileURLToPath } from "url";
+
+// Load .env.local from the app directory (credentials live there, gitignored)
+const __script_dir = typeof __dirname !== "undefined"
+  ? __dirname
+  : resolve(fileURLToPath(import.meta.url), "..");
+config({ path: resolve(__script_dir, "../.env.local") });
+config({ path: resolve(__script_dir, "../.env") }); // fallback
+// Also try from cwd (repo root) in case MCP launches from there
+config({ path: resolve(process.cwd(), "yalla_london/app/.env.local") });
+config({ path: resolve(process.cwd(), "yalla_london/app/.env") });
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";

@@ -55,6 +55,10 @@ async function getLatestDbTimestamp(
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Overall timeout guard — return whatever we have after 45s to avoid Vercel 60s kill.
+  const sitemapStart = Date.now();
+  const SITEMAP_BUDGET_MS = 45_000;
+
   // Resolve base URL from tenant context (set by middleware)
   const headersList = await headers();
   const hostname = headersList.get("x-hostname") || getSiteDomain(getDefaultSiteId()).replace(/^https?:\/\//, '');
@@ -315,11 +319,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
   }
 
+  // Helper: check if we still have time budget
+  const hasBudget = () => Date.now() - sitemapStart < SITEMAP_BUDGET_MS;
+
   // Blog posts from database (scoped by siteId)
   const staticSlugs = new Set(allStaticPosts.map((p) => p.slug));
   let dbBlogPages: MetadataRoute.Sitemap = [];
   try {
-    const dbPosts = await prisma.blogPost.findMany({
+    const dbPosts = hasBudget() ? await prisma.blogPost.findMany({
       where: {
         published: true,
         deletedAt: null,
@@ -327,8 +334,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       },
       select: { slug: true, updated_at: true },
       orderBy: { updated_at: "desc" },
-      take: 1000,
-    });
+      take: 500,
+    }) : [];
     const dbSevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
     dbBlogPages = dbPosts
       .filter((post) => !staticSlugs.has(post.slug))
@@ -358,6 +365,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         siteId,
       },
       select: { id: true, updated_at: true },
+      orderBy: { updated_at: "desc" },
+      take: 200,
     });
     eventPages = events.map((event) => ({
       url: `${baseUrl}/events/${event.id}`,
@@ -482,6 +491,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         OR: [{ site_id: siteId }, { site_id: null }],
       },
       select: { slug: true, updated_at: true },
+      orderBy: { updated_at: "desc" },
+      take: 100,
     });
     shopProductPages = products.map((product) => ({
       url: `${baseUrl}/shop/${product.slug}`,

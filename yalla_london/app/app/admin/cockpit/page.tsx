@@ -2160,6 +2160,7 @@ interface AuditSummary {
   pagesAudited: number;
   pages: AuditPageResult[];
   createdAt: string;
+  warning?: string | null;
 }
 
 // ─── SEO Master Audit Types ───────────────────────────────────────────────────
@@ -2362,6 +2363,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
             pagesAudited: json.pagesAudited,
             pages: json.pages,
             createdAt: new Date().toISOString(),
+            warning: json.warning || null,
           },
         }));
         setAuditSiteId(siteId);
@@ -2650,8 +2652,13 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 <p className="text-xs text-zinc-500 mb-2">{auditResults[site.id].pagesAudited} pages audited</p>
                 {auditResults[site.id].avgPerformance === 0 && auditResults[site.id].avgSeo === 0 && (
                   <div className="bg-red-950/30 border border-red-800/40 rounded p-2 mb-2 text-xs text-red-400">
-                    All audits failed. This usually means the Google PageSpeed API is rejecting requests.
-                    {!process.env.NEXT_PUBLIC_HAS_PSI_KEY && " No PageSpeed API key detected — consider adding GOOGLE_PAGESPEED_API_KEY to Vercel env vars."}
+                    All audits failed. This usually means the Google PageSpeed API key is invalid or missing.
+                    Check that GOOGLE_PAGESPEED_API_KEY starts with &quot;AIza&quot; (API Key type, not OAuth).
+                  </div>
+                )}
+                {auditResults[site.id].warning && (
+                  <div className="bg-amber-950/30 border border-amber-800/40 rounded p-2 mb-2 text-xs text-amber-400">
+                    {auditResults[site.id].warning}
                   </div>
                 )}
                 {/* Per-page results */}

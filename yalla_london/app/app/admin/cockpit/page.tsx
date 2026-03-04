@@ -1658,7 +1658,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                                 onClick={async () => {
                                   setActionLoading(`publish-${item.id}`);
                                   try {
-                                    const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: item.id, locale: item.locale, count: 1 }) });
+                                    const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: item.id, locale: item.locale, count: 1, siteId: activeSiteId }) });
                                     const j = await r.json();
                                     setActionResult((prev) => ({ ...prev, [item.id]: j.success ? "✅ Published!" : `❌ ${j.error ?? "Failed"}` }));
                                     fetchData();
@@ -1683,6 +1683,7 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
                               )}
                               <ActionButton
                                 onClick={async () => {
+                                  if (!item.slug) { setActionResult((prev) => ({ ...prev, [item.id]: "❌ No slug — cannot submit" })); return; }
                                   setActionLoading(`index-${item.id}`);
                                   try {
                                     const r = await fetch(`/api/admin/content-indexing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "submit", slugs: [item.slug] }) });
@@ -1725,8 +1726,8 @@ function PipelineTab({ activeSiteId }: { activeSiteId: string }) {
   const fetchData = useCallback(() => {
     setLoading(true);
     setFetchError(null);
-    fetch(`/api/admin/content-generation-monitor?site_id=${activeSiteId}`)
-      .then((r) => r.json())
+    fetch(`/api/admin/content-generation-monitor?site_id=${encodeURIComponent(activeSiteId)}`)
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(setData)
       .catch((e) => { setFetchError(e instanceof Error ? e.message : "Failed to load pipeline data"); setData(null); })
       .finally(() => setLoading(false));
@@ -1878,7 +1879,7 @@ function CronsTab() {
     setLoading(true);
     setFetchError(null);
     fetch("/api/admin/cron-logs?hours=24&limit=100")
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(setData)
       .catch((e) => { setFetchError(e instanceof Error ? e.message : "Failed to load cron data"); setData(null); })
       .finally(() => setLoading(false));
@@ -2398,13 +2399,14 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
       const isCronRoute = endpoint.startsWith("/api/cron/");
       const fetchUrl = isCronRoute ? "/api/admin/departures" : endpoint;
       const fetchBody = isCronRoute ? { path: endpoint, ...body } : body;
-      await fetch(fetchUrl, {
+      const res = await fetch(fetchUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(fetchBody),
       });
-    } catch {
-      console.warn(`[sites] ${label} failed`);
+      if (!res.ok) console.warn(`[sites] ${label} returned HTTP ${res.status}`);
+    } catch (e) {
+      console.warn(`[sites] ${label} failed:`, e instanceof Error ? e.message : e);
     } finally {
       setActionLoading(null);
     }
@@ -3046,12 +3048,12 @@ function AIConfigTab() {
   useEffect(() => {
     setLoading(true);
     fetch("/api/admin/ai-config")
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((json) => {
         setData(json);
         setRoutes(json.routes ?? []);
       })
-      .catch(() => setData(null))
+      .catch((e) => { console.warn("[cockpit] ai-config load failed:", e instanceof Error ? e.message : e); setData(null); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -3256,9 +3258,10 @@ function ActionLogsPanel({ onClose }: { onClose: () => void }) {
       if (func) params.set("function", func);
       if (siteId) params.set("siteId", siteId);
       const res = await fetch(`/api/admin/action-logs?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (json.success) setData(json);
-    } catch { /* network error */ }
+    } catch (e) { console.warn("[cockpit] action-logs fetch failed:", e instanceof Error ? e.message : e); }
     setLoading(false);
   }, [period, category, status, func, siteId]);
 
@@ -3473,9 +3476,9 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
 
   useEffect(() => {
     fetch("/api/admin/feature-flags")
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((j) => setFlags((j.flags ?? []).map((f: { id: string; name: string; enabled: boolean; description: string }) => ({ id: f.id, key: f.name, enabled: f.enabled, description: f.description || "" }))))
-      .catch(() => setFlags([]))
+      .catch((e) => { console.warn("[cockpit] feature-flags load failed:", e instanceof Error ? e.message : e); setFlags([]); })
       .finally(() => setFlagsLoading(false));
   }, []);
 
@@ -3957,21 +3960,31 @@ function TasksTab({ siteId }: { siteId: string }) {
   };
 
   const dismissTask = async (taskId: string) => {
-    await fetch("/api/admin/dev-tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "dismiss", taskId }),
-    });
-    fetchTasks();
+    try {
+      const res = await fetch("/api/admin/dev-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "dismiss", taskId }),
+      });
+      if (!res.ok) console.warn("[cockpit] dismissTask failed:", res.status);
+      fetchTasks();
+    } catch (e) {
+      console.warn("[cockpit] dismissTask error:", e instanceof Error ? e.message : e);
+    }
   };
 
   const completeTask = async (taskId: string) => {
-    await fetch("/api/admin/dev-tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "complete", taskId }),
-    });
-    fetchTasks();
+    try {
+      const res = await fetch("/api/admin/dev-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete", taskId }),
+      });
+      if (!res.ok) console.warn("[cockpit] completeTask failed:", res.status);
+      fetchTasks();
+    } catch (e) {
+      console.warn("[cockpit] completeTask error:", e instanceof Error ? e.message : e);
+    }
   };
 
   const priorityColor = (p: string) => {

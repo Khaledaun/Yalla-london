@@ -299,10 +299,12 @@ export async function GET(req: NextRequest) {
 
   // Scheduled content publications
   try {
+    const activeSiteIds = getActiveSiteIds();
     const scheduled = await prisma.scheduledContent.findMany({
       where: {
         status: { in: ['scheduled', 'pending'] },
         scheduled_time: { gte: now },
+        site_id: { in: activeSiteIds },
       },
       orderBy: { scheduled_time: 'asc' },
       take: 20,

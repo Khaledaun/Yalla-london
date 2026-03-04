@@ -267,10 +267,10 @@ async function handlePost(request: NextRequest) {
 
   const data = {
     title_en: titleEn,
-    title_ar: body.titleAr || null,
+    title_ar: body.titleAr || titleEn, // Required field — fallback to English title
     slug,
     content_en: contentEn,
-    content_ar: body.contentAr || null,
+    content_ar: body.contentAr || contentEn, // Required field — fallback to English content
     meta_title_en: body.metaTitleEn || titleEn.substring(0, 60),
     meta_description_en: body.metaDescriptionEn || contentEn.replace(/<[^>]+>/g, " ").trim().substring(0, 155),
     meta_title_ar: body.metaTitleAr || null,
@@ -284,20 +284,54 @@ async function handlePost(request: NextRequest) {
   };
 
   let article;
-  if (body.id) {
-    // Update existing article
-    article = await prisma.blogPost.update({
-      where: { id: body.id },
-      data,
-    });
-  } else {
-    // Create new article
-    article = await prisma.blogPost.create({
-      data: {
-        ...data,
-        created_at: new Date(),
-      },
-    });
+  try {
+    if (body.id) {
+      // Update existing article
+      article = await prisma.blogPost.update({
+        where: { id: body.id },
+        data,
+      });
+    } else {
+      // Check for duplicate slug first
+      const existing = await prisma.blogPost.findFirst({
+        where: { slug, siteId, deletedAt: null },
+        select: { id: true },
+      });
+      if (existing) {
+        return NextResponse.json({
+          success: false,
+          error: `An article with the slug "${slug}" already exists. Change the title or edit the existing article.`,
+        }, { status: 409 });
+      }
+      // Create new article
+      article = await prisma.blogPost.create({
+        data: {
+          ...data,
+          created_at: new Date(),
+        },
+      });
+    }
+  } catch (dbError) {
+    const msg = dbError instanceof Error ? dbError.message : "Unknown database error";
+    // Check for common Prisma constraint violations
+    if (msg.includes("Unique constraint")) {
+      return NextResponse.json({
+        success: false,
+        error: "An article with this slug already exists. Please change the title.",
+      }, { status: 409 });
+    }
+    if (msg.includes("null") || msg.includes("Null constraint")) {
+      console.warn("[simple-write] Null constraint error:", msg);
+      return NextResponse.json({
+        success: false,
+        error: "A required field is missing. Please fill in all fields and try again.",
+      }, { status: 400 });
+    }
+    console.error("[simple-write] Database error:", msg);
+    return NextResponse.json({
+      success: false,
+      error: "Failed to save article. Please try again.",
+    }, { status: 500 });
   }
 
   // If publishing, submit to IndexNow

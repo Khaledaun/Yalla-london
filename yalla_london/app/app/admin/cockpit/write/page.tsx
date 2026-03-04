@@ -411,7 +411,31 @@ export default function SimpleWriterPage() {
           tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
         }),
       });
-      const json = await res.json();
+
+      // Handle non-OK responses before trying to parse JSON
+      if (!res.ok) {
+        let errorMsg = `Server error (${res.status})`;
+        try {
+          const errJson = await res.json();
+          errorMsg = errJson.error || errorMsg;
+        } catch {
+          // Safari throws "The string did not match the expected pattern" for non-JSON
+          errorMsg = res.status === 504
+            ? "Request timed out — please try again"
+            : `Server error (${res.status}). Please try again.`;
+        }
+        setSaveResult(`Error: ${errorMsg}`);
+        return;
+      }
+
+      let json;
+      try {
+        json = await res.json();
+      } catch {
+        setSaveResult("Error: Invalid response from server — please try again");
+        return;
+      }
+
       if (json.success) {
         setArticleId(json.id);
         setIsPublished(json.published);

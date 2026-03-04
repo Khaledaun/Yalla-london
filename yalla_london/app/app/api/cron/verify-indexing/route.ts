@@ -68,10 +68,10 @@ async function handleVerifyIndexing(request: NextRequest) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const twentyOneDaysAgo = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000);
 
-    // Per-site budget: 50 URLs per site per run
-    // Math: 50 URLs × 350ms rate-limit = 17.5s, leaving 35.5s for queue building + rate-drop checks.
-    // Safe after rate-limit reduction from 600ms → 350ms and query parallelization.
-    const MAX_PER_SITE = 50;
+    // Per-site budget: 35 URLs per site per run
+    // Math: 35 URLs × 250ms rate-limit = 8.75s, leaving 44s for queue building + rate-drop checks.
+    // Reduced from 50 to prevent 50s+ overruns (health check showed 78 cron runs exceeding 50s).
+    const MAX_PER_SITE = 35;
 
     let totalChecked = 0;
     let totalIndexed = 0;
@@ -224,6 +224,7 @@ async function handleVerifyIndexing(request: NextRequest) {
       let siteAutoResubmitted = 0;
       let siteChronicFailures = 0;
       let siteHreflangMismatches = 0;
+      let indexedUrlsForHreflang: string[] | undefined;
 
       for (const urlRecord of urlsToCheck) {
         if (Date.now() - cronStart > BUDGET_MS) break;
@@ -306,37 +307,9 @@ async function handleVerifyIndexing(request: NextRequest) {
 
             if (isIndexed) {
               siteIndexed++;
-              console.log(`[verify-indexing] ${url} → INDEXED (${inspection.coverageState})`);
-
-              // ── Hreflang reciprocity check ──
-              // When a URL is indexed, check if its counterpart (/ar/... or without /ar/) is also indexed.
-              // Mismatches hurt SEO — Google expects hreflang pairs to both be indexable.
-              try {
-                const urlObj = new URL(url);
-                const path = urlObj.pathname;
-                let counterpartPath: string | null = null;
-                if (path.startsWith("/ar/") || path === "/ar") {
-                  // AR URL → find EN counterpart
-                  counterpartPath = path === "/ar" ? "/" : path.replace(/^\/ar/, "");
-                } else {
-                  // EN URL → find AR counterpart
-                  counterpartPath = path === "/" ? "/ar" : `/ar${path}`;
-                }
-                if (counterpartPath) {
-                  const counterpartUrl = `${urlObj.origin}${counterpartPath}`;
-                  const counterpart = await prisma.uRLIndexingStatus.findFirst({
-                    where: { site_id: siteId, url: counterpartUrl },
-                    select: { status: true, indexing_state: true },
-                  });
-                  if (counterpart && counterpart.status !== "indexed" &&
-                      counterpart.indexing_state !== "INDEXED" && counterpart.indexing_state !== "PARTIALLY_INDEXED") {
-                    siteHreflangMismatches++;
-                    console.warn(`[verify-indexing] HREFLANG MISMATCH: ${url} is indexed but counterpart ${counterpartUrl} is ${counterpart.status}`);
-                  }
-                }
-              } catch (hreflangErr) {
-                console.warn("[verify-indexing] hreflang check failed:", hreflangErr instanceof Error ? hreflangErr.message : hreflangErr);
-              }
+              // Collect indexed URLs for batch hreflang check after the loop (avoids N+1 queries)
+              if (!indexedUrlsForHreflang) indexedUrlsForHreflang = [];
+              indexedUrlsForHreflang.push(url);
             } else {
               siteNotIndexed++;
               console.log(`[verify-indexing] ${url} → NOT INDEXED (${inspection.coverageState || inspection.indexingState})`);
@@ -362,9 +335,9 @@ async function handleVerifyIndexing(request: NextRequest) {
 
           siteChecked++;
 
-          // Rate limit: 350ms between requests (GSC handles ~3 req/s safely)
-          // Reduced from 600ms — 20 URLs × 350ms = 7s vs 35 URLs × 600ms = 21s
-          await new Promise((resolve) => setTimeout(resolve, 350));
+          // Rate limit: 250ms between requests (GSC handles ~4 req/s safely)
+          // Reduced from 350ms to prevent 50s+ overruns while still respecting API limits
+          await new Promise((resolve) => setTimeout(resolve, 250));
         } catch (inspectErr) {
           const errMsg = inspectErr instanceof Error ? inspectErr.message : String(inspectErr);
           console.error(`[verify-indexing] Failed to inspect ${url}:`, errMsg);
@@ -385,6 +358,49 @@ async function handleVerifyIndexing(request: NextRequest) {
             console.warn("[verify-indexing] Rate limited — stopping early");
             break;
           }
+        }
+      }
+
+      // ── Batch hreflang reciprocity check ──
+      // Instead of N+1 queries inside the loop, batch-check all indexed URLs at once.
+      if (indexedUrlsForHreflang && indexedUrlsForHreflang.length > 0 && Date.now() - cronStart < BUDGET_MS - 5_000) {
+        try {
+          const counterpartUrls: string[] = [];
+          const urlToCounterpart = new Map<string, string>();
+          for (const indexedUrl of indexedUrlsForHreflang) {
+            const urlObj = new URL(indexedUrl);
+            const path = urlObj.pathname;
+            let counterpartPath: string | null = null;
+            if (path.startsWith("/ar/") || path === "/ar") {
+              counterpartPath = path === "/ar" ? "/" : path.replace(/^\/ar/, "");
+            } else {
+              counterpartPath = path === "/" ? "/ar" : `/ar${path}`;
+            }
+            if (counterpartPath) {
+              const counterpartUrl = `${urlObj.origin}${counterpartPath}`;
+              counterpartUrls.push(counterpartUrl);
+              urlToCounterpart.set(indexedUrl, counterpartUrl);
+            }
+          }
+          if (counterpartUrls.length > 0) {
+            const counterparts = await prisma.uRLIndexingStatus.findMany({
+              where: { site_id: siteId, url: { in: counterpartUrls } },
+              select: { url: true, status: true, indexing_state: true },
+            });
+            const counterpartMap = new Map<string, { url: string; status: string | null; indexing_state: string | null }>(
+              counterparts.map((c: { url: string; status: string | null; indexing_state: string | null }) => [c.url, c])
+            );
+            for (const [indexedUrl, counterpartUrl] of urlToCounterpart) {
+              const counterpart = counterpartMap.get(counterpartUrl);
+              if (counterpart && counterpart.status !== "indexed" &&
+                  counterpart.indexing_state !== "INDEXED" && counterpart.indexing_state !== "PARTIALLY_INDEXED") {
+                siteHreflangMismatches++;
+                console.warn(`[verify-indexing] HREFLANG MISMATCH: ${indexedUrl} is indexed but counterpart ${counterpartUrl} is ${counterpart.status}`);
+              }
+            }
+          }
+        } catch (hreflangErr) {
+          console.warn("[verify-indexing] Batch hreflang check failed:", hreflangErr instanceof Error ? hreflangErr.message : hreflangErr);
         }
       }
 

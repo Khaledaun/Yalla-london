@@ -168,11 +168,43 @@ async function handleProcessQueue(request: NextRequest) {
           }
         }
 
-        // NOTE: Standard URLs (non-events/news) are NOT submitted here.
-        // IndexNow + sitemap submission is handled by google-indexing cron (9:15 daily).
-        // This cron only handles Google Indexing API for events/news.
-        if (standardUrls.length > 0) {
-          console.log(`[process-indexing-queue] ${standardUrls.length} standard URLs for ${siteId} — deferred to google-indexing cron`);
+        // ── 5. Submit standard "discovered" URLs via IndexNow ──
+        // These are URLs that syncAllUrlsToTracking() created but were missed by
+        // google-indexing cron's 3-day getNewUrls() window. Without this, older
+        // pages stay in "discovered" state forever — the google-indexing cron only
+        // picks up URLs from the last 3 days.
+        if (standardUrls.length > 0 && Date.now() - cronStart < BUDGET_MS) {
+          try {
+            const { submitToIndexNow } = await import("@/lib/seo/indexing-service");
+            const indexNowKey = process.env.INDEXNOW_KEY;
+            if (indexNowKey) {
+              // Cap at 50 per site per run to avoid timeout
+              const batch = standardUrls.slice(0, 50);
+              const inResults = await submitToIndexNow(batch, siteUrl, indexNowKey);
+              const success = inResults.some((r) => r.success);
+              if (success) {
+                // Update tracking records
+                await Promise.allSettled(
+                  batch.map((url) =>
+                    prisma.uRLIndexingStatus.update({
+                      where: { site_id_url: { site_id: siteId, url } },
+                      data: {
+                        status: "submitted",
+                        submitted_indexnow: true,
+                        last_submitted_at: new Date(),
+                      },
+                    }).catch((e: Error) => console.warn(`[process-indexing-queue] Track update failed for ${url}:`, e.message))
+                  )
+                );
+                siteIndexNowSubmitted = batch.length;
+                console.log(`[process-indexing-queue] Submitted ${batch.length} discovered standard URLs via IndexNow for ${siteId}`);
+              }
+            } else {
+              console.log(`[process-indexing-queue] ${standardUrls.length} standard URLs for ${siteId} — INDEXNOW_KEY not set, skipped`);
+            }
+          } catch (indexNowErr) {
+            console.warn(`[process-indexing-queue] IndexNow submission failed for ${siteId}:`, indexNowErr instanceof Error ? indexNowErr.message : indexNowErr);
+          }
         }
 
         totalApiSubmitted += siteApiSubmitted;

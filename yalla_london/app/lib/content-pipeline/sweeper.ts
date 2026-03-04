@@ -37,7 +37,7 @@ export interface SweeperAction {
   newPhase: string;
 }
 
-const STUCK_THRESHOLD_MS = 1 * 60 * 60 * 1000; // 1 hour (reduced from 2h — 33+ drafts were getting stuck)
+const STUCK_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes (reduced from 1h — drafts stuck in budget-exhaustion loops need faster recovery)
 const MAX_RECOVERIES_PER_RUN = 50; // Raised from 10 — need to handle 28+ stuck drafts in one sweep
 
 export async function runSweeper(): Promise<SweeperResult> {
@@ -561,14 +561,17 @@ function diagnoseProblem(errorText: string): Diagnosis {
     };
   }
 
-  // Timeout / budget expired
+  // Timeout / budget expired — special handling for assembly phase
+  // Assembly budget exhaustion is a chronic problem: the cron consistently runs out of
+  // time before assembly can complete. Resetting to the same phase just repeats the cycle.
+  // Instead, reset phase_attempts to 0 so it gets a fresh batch of retries.
   if (lower.includes("timeout") || lower.includes("budget") || lower.includes("timed out") || lower.includes("aborted")) {
     const failedPhase = extractPhaseFromError(errorText);
     return {
       retryable: true,
       resetToPhase: failedPhase,
-      explanation: "Request timed out. Server was likely under load. A retry at a quieter time should work.",
-      fixDescription: `Reset to "${failedPhase}" phase for retry`,
+      explanation: "Request timed out or budget exhausted. Resetting attempt counter for a fresh batch of tries at a less busy time.",
+      fixDescription: `Reset to "${failedPhase}" phase with fresh attempts (budget exhaustion recovery)`,
     };
   }
 

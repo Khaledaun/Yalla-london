@@ -132,12 +132,15 @@ async function handleGscSync(request: NextRequest) {
           console.warn(`[gsc-sync] ${siteId}: URL sync failed:`, syncErr instanceof Error ? syncErr.message : String(syncErr));
         }
 
-        // ── Step 1: Fetch CURRENT period per-page performance ──
-        const currentData = await gsc.getSearchAnalytics(
-          toDateStr(currentStart),
-          toDateStr(currentEnd),
-          ["page"],
-        );
+        // ── Step 1: Fetch CURRENT + PREVIOUS period in parallel ──
+        // Previously sequential (2 API calls × 5-10s = 10-20s). Parallel saves 5-10s.
+        const [currentData, previousDataParallel] = await Promise.all([
+          gsc.getSearchAnalytics(toDateStr(currentStart), toDateStr(currentEnd), ["page"]),
+          gsc.getSearchAnalytics(toDateStr(previousStart), toDateStr(previousEnd), ["page"]).catch((err: Error) => {
+            console.warn(`[gsc-sync] ${siteId}: Previous period fetch failed:`, err.message);
+            return null;
+          }),
+        ]);
 
         if (!currentData?.rows?.length) {
           console.log(`[gsc-sync] ${siteId}: No Search Analytics data available`);
@@ -265,58 +268,45 @@ async function handleGscSync(request: NextRequest) {
           console.warn(`[gsc-sync] ${siteId}: Failed to create missing tracking records:`, err instanceof Error ? err.message : String(err));
         }
 
-        // ── Step 5: Fetch PREVIOUS period for trend comparison ──
-        if (Date.now() - cronStart < BUDGET_MS - 8000) {
-          try {
-            const previousData = await gsc.getSearchAnalytics(
-              toDateStr(previousStart),
-              toDateStr(previousEnd),
-              ["page"],
-            );
+        // ── Step 5: Process PREVIOUS period data (already fetched in parallel) ──
+        if (previousDataParallel?.rows?.length && Date.now() - cronStart < BUDGET_MS - 5000) {
+          const prevSnapshotDate = new Date(toDateStr(previousEnd));
+          for (const row of previousDataParallel.rows) {
+            if (Date.now() - cronStart > BUDGET_MS - 3000) break;
+            const pageUrl = row.keys[0];
+            if (!pageUrl.includes(bareDomain)) continue;
 
-            if (previousData?.rows?.length) {
-              // Store previous period snapshots with their date
-              const prevSnapshotDate = new Date(toDateStr(previousEnd));
-              for (const row of previousData.rows) {
-                if (Date.now() - cronStart > BUDGET_MS - 3000) break;
-                const pageUrl = row.keys[0];
-                if (!pageUrl.includes(bareDomain)) continue;
+            sitePreviousClicks += row.clicks || 0;
+            sitePreviousImpressions += row.impressions || 0;
 
-                sitePreviousClicks += row.clicks || 0;
-                sitePreviousImpressions += row.impressions || 0;
-
-                try {
-                  await prisma.gscPagePerformance.upsert({
-                    where: {
-                      site_id_url_date: {
-                        site_id: siteId,
-                        url: pageUrl,
-                        date: prevSnapshotDate,
-                      },
-                    },
-                    create: {
-                      site_id: siteId,
-                      url: pageUrl,
-                      date: prevSnapshotDate,
-                      clicks: row.clicks || 0,
-                      impressions: row.impressions || 0,
-                      ctr: row.ctr || 0,
-                      position: row.position || 0,
-                    },
-                    update: {
-                      clicks: row.clicks || 0,
-                      impressions: row.impressions || 0,
-                      ctr: row.ctr || 0,
-                      position: row.position || 0,
-                    },
-                  });
-                } catch {
-                  // Skip individual upsert failures
-                }
-              }
+            try {
+              await prisma.gscPagePerformance.upsert({
+                where: {
+                  site_id_url_date: {
+                    site_id: siteId,
+                    url: pageUrl,
+                    date: prevSnapshotDate,
+                  },
+                },
+                create: {
+                  site_id: siteId,
+                  url: pageUrl,
+                  date: prevSnapshotDate,
+                  clicks: row.clicks || 0,
+                  impressions: row.impressions || 0,
+                  ctr: row.ctr || 0,
+                  position: row.position || 0,
+                },
+                update: {
+                  clicks: row.clicks || 0,
+                  impressions: row.impressions || 0,
+                  ctr: row.ctr || 0,
+                  position: row.position || 0,
+                },
+              });
+            } catch {
+              // Skip individual upsert failures
             }
-          } catch (prevErr) {
-            console.warn(`[gsc-sync] ${siteId}: Previous period fetch failed:`, prevErr instanceof Error ? prevErr.message : String(prevErr));
           }
         }
 

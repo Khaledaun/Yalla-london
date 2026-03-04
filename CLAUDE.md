@@ -1618,3 +1618,44 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 **Root cause:** 5 routes introduced with a non-existent import path. All corrected to `@/lib/admin-middleware`.
 
 **Rule added:** The canonical auth import path for all API routes is `@/lib/admin-middleware`. Never use `@/lib/auth/admin` — it does not exist.
+
+---
+
+### Session: March 4, 2026 — Env Var Fixes, SEO Audit Crash Fix, MCP Google Integration
+
+**PageSpeed API Key Mismatch (3 files fixed):**
+- **Root cause:** Vercel env var is named `GOOGLE_PAGESPEED_API_KEY` but code only checked for `PAGESPEED_API_KEY` and `PSI_API_KEY` — key was never found, causing rate-limited (429) and unauthorized (401) PageSpeed API responses
+- `lib/performance/site-auditor.ts`: Added `GOOGLE_PAGESPEED_API_KEY` to both `auditPage()` and `runSiteAudit()` env var lookups
+- `app/api/admin/performance-audit/route.ts`: Added `GOOGLE_PAGESPEED_API_KEY` to `hasApiKey` check
+- `app/api/seo/lighthouse-audit/route.ts`: Added `GOOGLE_PAGESPEED_API_KEY` to API key resolution chain
+
+**SEO Audit Prisma Crash (1 file, 2 queries fixed):**
+- **Root cause:** `app/api/admin/seo-audit/route.ts` used `select: { slug: true, title: true }` on BlogPost model, but BlogPost has no `title` field (uses `title_en`/`title_ar`). Caused Prisma runtime crash: "Unknown field 'title' for select statement on model 'BlogPost'"
+- Fixed both queries: live page sampling (line 667) and Arabic coverage check (line 762) — changed `title: true` to `title_en: true`
+
+**Cockpit Env Var Suggestion (1 file fixed):**
+- `app/admin/cockpit/page.tsx`: Updated warning message from "consider adding PAGESPEED_API_KEY" to "consider adding GOOGLE_PAGESPEED_API_KEY" to match actual Vercel configuration
+
+**MCP Google Server — Dotenv Integration (1 file fixed):**
+- **Root cause:** MCP server (`scripts/mcp-google-server.ts`) runs as standalone subprocess via `npx tsx`, not inside Next.js — never had access to `.env.local` credentials despite GA4 and GSC keys being present
+- Added `dotenv` loading at startup with 4 path fallbacks: `__script_dir/../.env.local`, `__script_dir/../.env`, `cwd/yalla_london/app/.env.local`, `cwd/yalla_london/app/.env`
+- Handles both CJS (`__dirname`) and ESM (`import.meta.url`) module resolution
+- Verified: `google_config_status` returns `configured: true` for both GA4 and GSC after fix
+
+**MCP Google Tools — Available Capabilities:**
+
+| Tool | What It Returns |
+|------|----------------|
+| `ga4_get_metrics` | Sessions, users, page views, bounce rate, engagement (any date range) |
+| `ga4_get_top_pages` | Page paths ranked by views (configurable limit) |
+| `ga4_get_traffic_sources` | Source/medium breakdown with sessions, users, bounce rate |
+| `gsc_get_search_performance` | 4 dimensions: query, page, country, device — clicks, impressions, CTR, position |
+| `gsc_get_sitemaps` | All submitted sitemaps with status |
+| `gsc_inspect_url` | Per-URL index status, crawl info, canonical, mobile usability |
+| `gsc_submit_url_for_indexing` | Push URL for re-indexing (JobPosting/BroadcastEvent only) |
+| `google_config_status` | Credential health check for both services |
+
+**Known Gaps Partially Resolved:**
+- KG-001 / KG-035 (GA4 not connected): **MCP bridge now functional** — Claude Code sessions can query GA4 and GSC directly. Dashboard API integration still needed for Khaled's phone view.
+
+**Rule added:** The correct PageSpeed API key env var name is `GOOGLE_PAGESPEED_API_KEY`. Always include it alongside `PAGESPEED_API_KEY` and `PSI_API_KEY` in fallback chains.

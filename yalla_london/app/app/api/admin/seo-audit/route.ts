@@ -664,7 +664,7 @@ async function runAudit(siteId: string) {
     try {
       const samplePosts = await prisma.blogPost.findMany({
         where: { siteId, published: true },
-        select: { slug: true, title: true },
+        select: { slug: true, title_en: true },
         take: 5,
         orderBy: { updated_at: "desc" },
       });
@@ -759,7 +759,7 @@ async function runAudit(siteId: string) {
         prisma.blogPost.count({ where: { siteId, published: true, content_ar: { not: null } } }),
         prisma.blogPost.findMany({
           where: { siteId, published: true, OR: [{ content_ar: null }, { content_ar: "" }] },
-          select: { slug: true, title: true },
+          select: { slug: true, title_en: true },
           take: 15,
         }),
       ]);

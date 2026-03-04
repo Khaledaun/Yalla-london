@@ -2649,7 +2649,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
                 {auditResults[site.id].avgPerformance === 0 && auditResults[site.id].avgSeo === 0 && (
                   <div className="bg-red-950/30 border border-red-800/40 rounded p-2 mb-2 text-xs text-red-400">
                     All audits failed. This usually means the Google PageSpeed API is rejecting requests.
-                    {!process.env.NEXT_PUBLIC_HAS_PSI_KEY && " No PageSpeed API key detected — consider adding PAGESPEED_API_KEY to Vercel env vars."}
+                    {!process.env.NEXT_PUBLIC_HAS_PSI_KEY && " No PageSpeed API key detected — consider adding GOOGLE_PAGESPEED_API_KEY to Vercel env vars."}
                   </div>
                 )}
                 {/* Per-page results */}

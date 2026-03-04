@@ -117,7 +117,7 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
   grok: 'grok-4-1-fast',
   claude: 'claude-sonnet-4-6',
   openai: 'gpt-4o',
-  gemini: 'gemini-pro',
+  gemini: 'gemini-2.0-flash',
 };
 
 // Provider priority — Grok first (cheapest, fastest, 2M context), then Claude, OpenAI, Gemini
@@ -132,7 +132,7 @@ async function getApiKey(provider: AIProvider): Promise<string | null> {
     grok: ['XAI_API_KEY', 'GROK_API_KEY'],
     claude: ['ANTHROPIC_API_KEY'],
     openai: ['OPENAI_API_KEY'],
-    gemini: ['GOOGLE_API_KEY'],
+    gemini: ['GEMINI_API_KEY', 'GOOGLE_AI_API_KEY', 'GOOGLE_API_KEY'],
   };
 
   // 1. Try DB sources (ModelProvider table, then ApiSettings)
@@ -368,7 +368,7 @@ async function callGemini(
   const systemInstruction = systemMessage?.content || options.systemPrompt;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: {
@@ -457,14 +457,31 @@ export async function generateCompletion(
   }
 
   // Try providers in priority order: grok → claude → openai → gemini
+  // Use the per-call timeout as a total budget for the fallback chain.
+  // This prevents cascading timeouts (4 providers × 25s = 100s > Vercel 60s).
+  const fallbackStart = Date.now();
+  const totalBudgetMs = options.timeoutMs || 25_000;
   const errors: string[] = [];
 
   for (const provider of PROVIDER_PRIORITY) {
+    const elapsed = Date.now() - fallbackStart;
+    const remaining = totalBudgetMs - elapsed;
+    // Need at least 5s for a meaningful attempt
+    if (remaining < 5_000) {
+      errors.push(`${provider}: skipped — only ${Math.round(remaining / 1000)}s remaining in budget`);
+      continue;
+    }
+
     const apiKey = await getApiKey(provider);
     if (!apiKey) continue;
 
     try {
-      const result = await callProvider(provider, messages, apiKey, options);
+      // Give this provider the remaining budget (capped at 25s per provider)
+      const providerTimeout = Math.min(remaining - 1_000, 25_000);
+      const result = await callProvider(provider, messages, apiKey, {
+        ...options,
+        timeoutMs: providerTimeout,
+      });
       logUsage(result, options);
       return result;
     } catch (error) {

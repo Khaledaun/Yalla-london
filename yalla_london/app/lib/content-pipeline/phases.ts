@@ -434,9 +434,9 @@ export async function phaseAssembly(
   site: SiteConfig,
   budgetRemainingMs?: number,
 ): Promise<PhaseResult> {
-  // Budget guard: need at least 15s for AI call + possible expansion + DB save
-  if (budgetRemainingMs !== undefined && budgetRemainingMs < 15_000) {
-    return { success: false, nextPhase: "assembly", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run` };
+  // Budget guard: need at least 28s for AI call (25s timeout) + DB save (3s)
+  if (budgetRemainingMs !== undefined && budgetRemainingMs < 28_000) {
+    return { success: false, nextPhase: "assembly", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining, need 28s) — will retry next run` };
   }
   const { generateJSON } = await import("@/lib/ai/provider");
   const outline = (draft.outline_data || {}) as Record<string, unknown>;
@@ -493,10 +493,13 @@ Return JSON:
 }`;
 
   try {
+    // Pass remaining budget minus 5s buffer so the AI provider doesn't exceed cron limits
+    const assemblyTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const result = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. The final article MUST be at least 1,500 words — expand content if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
       maxTokens: 2000,
       temperature: 0.4,
+      timeoutMs: assemblyTimeout,
     });
 
     const assembledHtml = (result.html as string) || rawHtml;
@@ -507,8 +510,8 @@ Return JSON:
     assembledWordCount = Math.max(assembledWordCount, actualWords);
 
     // If still too short and we have budget, run an expansion pass
-    // Skip expansion if less than 25s remaining — it will be caught by content-auto-fix cron later
-    const canExpand = budgetRemainingMs === undefined || budgetRemainingMs > 25_000;
+    // Skip expansion if less than 30s remaining — it will be caught by content-auto-fix cron later
+    const canExpand = budgetRemainingMs === undefined || budgetRemainingMs > 30_000;
     if (assembledWordCount < 1200 && canExpand) {
       try {
         const expansionPrompt = `You are a luxury travel editor expanding a short article to meet the 1,500-word minimum.
@@ -531,10 +534,12 @@ Return JSON:
   "wordCount": 1600
 }`;
 
+        const expansionTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
         const expansionResult = await generateJSON<Record<string, unknown>>(expansionPrompt, {
           systemPrompt: `You are a luxury travel editor. Expand articles to meet minimum word counts while maintaining quality. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
           maxTokens: 2000,
           temperature: 0.5,
+          timeoutMs: expansionTimeout,
         });
 
         const expandedHtml = (expansionResult.html as string) || assembledHtml;

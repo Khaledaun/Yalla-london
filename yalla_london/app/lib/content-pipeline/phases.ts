@@ -150,10 +150,15 @@ Return JSON:
 }${isArabic(draft.locale) ? "\n\nAll headings, questions, and subtopics should be in Arabic." : ""}`;
 
   try {
+    const researchTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const research = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a luxury travel SEO researcher for the ${site.destination} market targeting Arab travelers. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
       maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.4,
+      timeoutMs: researchTimeout,
+      siteId: draft.site_id,
+      taskType: "content_research",
+      calledFrom: "phases/research",
     });
 
     return {
@@ -227,10 +232,15 @@ Return JSON:
 ${isArabic(draft.locale) ? "ALL headings, key points, and text MUST be in Arabic." : ""}`;
 
   try {
+    const outlineTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const outline = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a luxury travel content architect. Create structured, SEO-optimized outlines. Articles must have 6-10 sections, target 1500-2500 words, include 3+ internal link opportunities and 2+ affiliate placements. Return only valid JSON. All string values must be properly escaped.${getLocaleDirectives(draft.locale, site)}`,
       maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.5,
+      timeoutMs: outlineTimeout,
+      siteId: draft.site_id,
+      taskType: "content_outline",
+      calledFrom: "phases/outline",
     });
 
     const sections = (outline.sections as OutlineSection[]) || [];
@@ -349,10 +359,15 @@ CRITICAL JSON RULES:
 
     for (let retry = 0; retry < maxSectionRetries; retry++) {
       try {
+        const sectionTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
         const result = await generateJSON<Record<string, unknown>>(prompt, {
           systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${getLocaleDirectives(draft.locale, site)}`,
           maxTokens: isArabic(draft.locale) ? 3500 : 2000,
           temperature: 0.7,
+          timeoutMs: sectionTimeout,
+          siteId: draft.site_id,
+          taskType: `content_drafting_s${i + 1}`,
+          calledFrom: "phases/drafting",
         });
 
         existingSections = [...existingSections, {
@@ -504,6 +519,9 @@ Return JSON:
       maxTokens: isArabic(draft.locale) ? 3500 : 2000,
       temperature: 0.4,
       timeoutMs: assemblyTimeout,
+      siteId: draft.site_id,
+      taskType: "content_assembly",
+      calledFrom: "phases/assembly",
     });
 
     const assembledHtml = (result.html as string) || rawHtml;
@@ -544,6 +562,9 @@ Return JSON:
           maxTokens: isArabic(draft.locale) ? 3500 : 2000,
           temperature: 0.5,
           timeoutMs: expansionTimeout,
+          siteId: draft.site_id,
+          taskType: "content_expansion",
+          calledFrom: "phases/assembly",
         });
 
         const expandedHtml = (expansionResult.html as string) || assembledHtml;
@@ -808,10 +829,15 @@ Return JSON:
 }`;
 
   try {
+    const seoTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const seoResult = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a technical SEO specialist for luxury travel. Optimize metadata for maximum search visibility. Return only valid JSON. All string values must be properly escaped.${isArabic(draft.locale) ? " Arabic meta tags should be in Arabic." : ""}`,
       maxTokens: isArabic(draft.locale) ? 1800 : 1200,
       temperature: 0.3,
+      timeoutMs: seoTimeout,
+      siteId: draft.site_id,
+      taskType: "content_seo",
+      calledFrom: "phases/seo",
     });
 
     // Store articleType in seo_meta so the cockpit gate_check can apply the right

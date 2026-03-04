@@ -318,13 +318,14 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     }
   }
 
-  const [pipeline, indexing, cronHealth, sites, revenue] = await Promise.all([
-    withErrorTracking(buildPipeline(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyPipeline(), "buildPipeline"),
-    withErrorTracking(buildIndexing(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyIndexing(), "buildIndexing"),
-    withErrorTracking(buildCronHealth(prisma), BUILDER_TIMEOUT, emptyCronHealth(), "buildCronHealth"),
-    withErrorTracking(buildSites(prisma, allSiteIds), BUILDER_TIMEOUT, [], "buildSites"),
-    withErrorTracking(buildRevenue(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyRevenue(), "buildRevenue"),
-  ]);
+  // Serialize builders to prevent connection pool exhaustion on Supabase.
+  // Each builder makes multiple DB queries — running all 5 in parallel fires
+  // 15-20+ queries simultaneously, exceeding PgBouncer's session-mode limits.
+  const pipeline = await withErrorTracking(buildPipeline(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyPipeline(), "buildPipeline");
+  const indexing = await withErrorTracking(buildIndexing(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyIndexing(), "buildIndexing");
+  const cronHealth = await withErrorTracking(buildCronHealth(prisma), BUILDER_TIMEOUT, emptyCronHealth(), "buildCronHealth");
+  const sites = await withErrorTracking(buildSites(prisma, allSiteIds), BUILDER_TIMEOUT, [], "buildSites");
+  const revenue = await withErrorTracking(buildRevenue(prisma, activeSiteIds), BUILDER_TIMEOUT, emptyRevenue(), "buildRevenue");
 
   // ── 10. Alerts ────────────────────────────────────────
   const alerts = computeAlerts({
@@ -657,9 +658,8 @@ async function buildCronHealth(prisma: any): Promise<CronHealth> {
 // ─────────────────────────────────────────────
 
 async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSummary[]> {
-  // Serialize per-site queries to avoid connection pool exhaustion.
-  // Each site runs 4 parallel queries internally (pipelined through one connection),
-  // but we process sites sequentially to keep total concurrent queries manageable.
+  // Process sites sequentially with individual query fallbacks.
+  // Each query has its own .catch() so one failure doesn't block the entire site.
   const PIPELINE_PHASES = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"];
   const results: SiteSummary[] = [];
 
@@ -668,29 +668,28 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
     if (!siteConfig) continue;
 
     try {
-      const [articleAgg, topicsQueued, latestPost, draftGroups] = await Promise.all([
-        prisma.blogPost.aggregate({
-          _count: { id: true },
-          _avg: { seo_score: true },
-          where: { siteId, published: true, deletedAt: null },
-        }),
-        prisma.topicProposal.count({
-          where: {
-            site_id: siteId,
-            status: { in: ["ready", "planned", "proposed"] },
-          },
-        }),
-        prisma.blogPost.findFirst({
-          where: { siteId, published: true, deletedAt: null },
-          orderBy: { created_at: "desc" },
-          select: { created_at: true },
-        }),
-        prisma.articleDraft.groupBy({
-          by: ["current_phase"],
-          _count: { id: true },
-          where: { site_id: siteId },
-        }).catch(() => []),
-      ]);
+      // Run queries sequentially to minimize connection pressure
+      const articleAgg = await prisma.blogPost.aggregate({
+        _count: { id: true },
+        _avg: { seo_score: true },
+        where: { siteId, published: true, deletedAt: null },
+      }).catch(() => ({ _count: { id: 0 }, _avg: { seo_score: null } }));
+
+      const topicsQueued = await prisma.topicProposal.count({
+        where: { site_id: siteId, status: { in: ["ready", "planned", "proposed"] } },
+      }).catch(() => 0);
+
+      const latestPost = await prisma.blogPost.findFirst({
+        where: { siteId, published: true, deletedAt: null },
+        orderBy: { created_at: "desc" },
+        select: { created_at: true },
+      }).catch(() => null);
+
+      const draftGroups = await prisma.articleDraft.groupBy({
+        by: ["current_phase"],
+        _count: { id: true },
+        where: { site_id: siteId },
+      }).catch(() => []);
 
       const reservoirCount = draftGroups.find((g: any) => g.current_phase === "reservoir")?._count?.id ?? 0;
       const inPipelineCount = draftGroups

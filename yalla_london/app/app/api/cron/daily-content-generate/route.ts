@@ -423,6 +423,26 @@ async function generateArticle(
     console.warn(`[${site.name}] Pre-publication gate error (non-fatal):`, gateError);
   }
 
+  // Duplicate title check — prevent keyword cannibalization
+  const candidateTitle = primaryLanguage === "en"
+    ? content.title
+    : content.titleTranslation || content.title;
+  if (candidateTitle && candidateTitle.length > 5) {
+    const existingWithTitle = await prisma.blogPost.findFirst({
+      where: {
+        siteId: site.id,
+        published: true,
+        deletedAt: null,
+        title_en: { equals: candidateTitle.trim(), mode: "insensitive" },
+      },
+      select: { id: true, slug: true },
+    }).catch(() => null);
+    if (existingWithTitle) {
+      console.warn(`[${site.name}] SKIPPED: duplicate title "${candidateTitle}" — already published as /blog/${existingWithTitle.slug}`);
+      return null;
+    }
+  }
+
   const blogPost = await prisma.blogPost.create({
     data: {
       title_en:

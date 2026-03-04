@@ -158,7 +158,7 @@ async function runAudit(siteId: string) {
       select: {
         id: true,
         slug: true,
-        title: true,
+        title_en: true,
         meta_title_en: true,
         meta_description_en: true,
         content_en: true,
@@ -325,7 +325,7 @@ async function runAudit(siteId: string) {
     // Duplicate titles
     const titleCounts = new Map<string, string[]>();
     for (const p of publishedPosts) {
-      const title = (p.meta_title_en || p.title || "").toLowerCase().trim();
+      const title = (p.meta_title_en || p.title_en || "").toLowerCase().trim();
       if (title.length > 5) {
         if (!titleCounts.has(title)) titleCounts.set(title, []);
         titleCounts.get(title)!.push(`/blog/${p.slug}`);

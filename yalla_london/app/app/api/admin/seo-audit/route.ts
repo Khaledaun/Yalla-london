@@ -1121,7 +1121,7 @@ async function runAudit(siteId: string) {
     { id: "run-gsc-sync", label: "Sync GSC performance data", cron: "gsc-sync", description: "Pulls latest click/impression data from Google Search Console", safe: true },
     { id: "run-verify-indexing", label: "Verify indexing status", cron: "verify-indexing", description: "Checks which pages are actually indexed via GSC URL Inspection API", safe: true },
     { id: "run-content-selector", label: "Publish ready articles", cron: "content-selector", description: "Promotes reservoir articles that pass quality gates to published BlogPosts", safe: true },
-    { id: "run-sweeper", label: "Recover stuck drafts", cron: "pipeline-sweeper", description: "Finds and recovers drafts stuck in the pipeline due to errors or timeouts", safe: true },
+    { id: "run-sweeper", label: "Recover stuck drafts", cron: "sweeper", description: "Finds and recovers drafts stuck in the pipeline due to errors or timeouts", safe: true },
   ];
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1279,7 +1279,7 @@ export async function POST(request: NextRequest) {
       const cronName = body.cron as string;
       const allowedCrons = [
         "google-indexing", "seo-agent", "content-builder", "content-auto-fix",
-        "gsc-sync", "verify-indexing", "content-selector", "pipeline-sweeper",
+        "gsc-sync", "verify-indexing", "content-selector", "sweeper",
       ];
       if (!allowedCrons.includes(cronName)) {
         return NextResponse.json({ success: false, error: `Unknown cron: ${cronName}` }, { status: 400 });
@@ -1289,9 +1289,8 @@ export async function POST(request: NextRequest) {
       const headers: Record<string, string> = {};
       if (cronSecret) headers["Authorization"] = `Bearer ${cronSecret}`;
 
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
+      // Use request origin (same as departures board) — avoids ternary precedence bug
+      const baseUrl = request.nextUrl.origin;
 
       try {
         const resp = await fetch(`${baseUrl}/api/cron/${cronName}`, {

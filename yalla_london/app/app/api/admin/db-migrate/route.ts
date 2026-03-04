@@ -720,6 +720,25 @@ const CREATE_TABLE_STATEMENTS: { table: string; model: string; sql: string }[] =
   CONSTRAINT "api_usage_logs_pkey" PRIMARY KEY ("id")
 )`,
   },
+  {
+    table: "seo_audit_reports",
+    model: "SeoAuditReport",
+    sql: `CREATE TABLE IF NOT EXISTS "seo_audit_reports" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT NOT NULL,
+  "healthScore" INTEGER NOT NULL DEFAULT 0,
+  "totalFindings" INTEGER NOT NULL DEFAULT 0,
+  "criticalCount" INTEGER NOT NULL DEFAULT 0,
+  "highCount" INTEGER NOT NULL DEFAULT 0,
+  "mediumCount" INTEGER NOT NULL DEFAULT 0,
+  "lowCount" INTEGER NOT NULL DEFAULT 0,
+  "report" JSONB NOT NULL,
+  "summary" TEXT,
+  "triggeredBy" TEXT NOT NULL DEFAULT 'manual',
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "seo_audit_reports_pkey" PRIMARY KEY ("id")
+)`,
+  },
 ];
 
 // Indexes for newly created tables
@@ -851,6 +870,11 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
     'CREATE INDEX IF NOT EXISTS "api_usage_logs_provider_createdAt_idx" ON "api_usage_logs"("provider", "createdAt")',
     'CREATE INDEX IF NOT EXISTS "api_usage_logs_taskType_createdAt_idx" ON "api_usage_logs"("taskType", "createdAt")',
     'CREATE INDEX IF NOT EXISTS "api_usage_logs_createdAt_idx" ON "api_usage_logs"("createdAt")',
+  ],
+
+  // ── SEO Audit Report Indexes ─────────────────────────────
+  seo_audit_reports: [
+    'CREATE INDEX IF NOT EXISTS "seo_audit_reports_siteId_createdAt_idx" ON "seo_audit_reports"("siteId", "createdAt")',
   ],
 };
 

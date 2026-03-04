@@ -482,8 +482,11 @@ export async function promoteToBlogPost(
   const enDraft = locale === "en" ? draft : pairedDraft;
   const arDraft = locale === "ar" ? draft : pairedDraft;
 
-  const enHtml = (enDraft?.assembled_html as string) || "";
-  const arHtml = (arDraft?.assembled_html as string) || "";
+  // Demote any <h1> in body content to <h2> — the page template already provides the H1
+  // via the article title. Multiple H1s cause SEO issues (detected by audit as "Multiple H1 tags").
+  const stripH1 = (html: string) => html.replace(/<h1(\s[^>]*)?>|<h1>/gi, "<h2$1>").replace(/<\/h1>/gi, "</h2>");
+  const enHtml = stripH1((enDraft?.assembled_html as string) || "");
+  const arHtml = stripH1((arDraft?.assembled_html as string) || "");
   const enTitle = (enDraft?.topic_title as string) || keyword;
   const arTitle = (arDraft?.topic_title as string) || "";
   const enSeoMeta = ((enDraft?.seo_meta || {}) as Record<string, unknown>);
@@ -539,6 +542,38 @@ export async function promoteToBlogPost(
     const randomBytes = await import("crypto").then(c => c.randomBytes(4).toString("hex"));
     slug = `${slug}-${randomBytes}`;
     console.log(`[content-selector] Slug collision detected — using "${slug}" instead`);
+  }
+
+  // Check for duplicate title — keyword cannibalization prevention.
+  // If an article with the exact same title (case-insensitive) already exists
+  // for this site, skip promotion. The audit flagged this as a critical issue.
+  const candidateTitle = (enTitle || "").trim();
+  if (candidateTitle.length > 5) {
+    try {
+      const existingTitle = await prisma.blogPost.findFirst({
+        where: {
+          siteId,
+          published: true,
+          deletedAt: null,
+          title_en: { equals: candidateTitle, mode: "insensitive" },
+        },
+        select: { id: true, slug: true },
+      });
+      if (existingTitle) {
+        console.warn(`[content-selector] SKIPPED draft ${draft.id}: duplicate title "${candidateTitle}" — already published as /blog/${existingTitle.slug}`);
+        // Mark the draft so it doesn't keep being selected every run
+        await prisma.articleDraft.update({
+          where: { id: draft.id as string },
+          data: {
+            last_error: `Duplicate title: already published as /blog/${existingTitle.slug}`,
+            updated_at: new Date(),
+          },
+        }).catch(() => {});
+        return null;
+      }
+    } catch (titleCheckErr) {
+      console.warn("[content-selector] Title duplicate check failed (non-fatal):", titleCheckErr instanceof Error ? titleCheckErr.message : titleCheckErr);
+    }
   }
 
   // Get or create category and system user

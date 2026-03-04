@@ -351,7 +351,7 @@ CRITICAL JSON RULES:
       try {
         const result = await generateJSON<Record<string, unknown>>(prompt, {
           systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${getLocaleDirectives(draft.locale, site)}`,
-          maxTokens: 2000,
+          maxTokens: isArabic(draft.locale) ? 3500 : 2000,
           temperature: 0.7,
         });
 
@@ -497,7 +497,7 @@ Return JSON:
     const assemblyTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
     const result = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. The final article MUST be at least 1,500 words — expand content if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
-      maxTokens: 2000,
+      maxTokens: isArabic(draft.locale) ? 3500 : 2000,
       temperature: 0.4,
       timeoutMs: assemblyTimeout,
     });
@@ -537,7 +537,7 @@ Return JSON:
         const expansionTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - 5_000, 10_000) : 25_000;
         const expansionResult = await generateJSON<Record<string, unknown>>(expansionPrompt, {
           systemPrompt: `You are a luxury travel editor. Expand articles to meet minimum word counts while maintaining quality. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
-          maxTokens: 2000,
+          maxTokens: isArabic(draft.locale) ? 3500 : 2000,
           temperature: 0.5,
           timeoutMs: expansionTimeout,
         });

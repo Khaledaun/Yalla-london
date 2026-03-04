@@ -366,11 +366,24 @@ export function ArticleEditor({
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save article')
+        let errorMsg = `Server error (${response.status})`;
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch {
+          // Non-JSON response (e.g. Vercel 504 timeout HTML page)
+          // Safari throws "The string did not match the expected pattern"
+          errorMsg = response.status === 504 ? 'Request timed out — please try again' : errorMsg;
+        }
+        throw new Error(errorMsg)
       }
 
-      const result = await response.json()
+      let result: { data?: { id?: string }; success?: boolean };
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error('Invalid response from server — please try again');
+      }
 
       // Update article with the ID from server
       if (result.data?.id) {

@@ -657,19 +657,17 @@ async function buildCronHealth(prisma: any): Promise<CronHealth> {
 // ─────────────────────────────────────────────
 
 async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSummary[]> {
-  // Run all per-site queries in parallel (Promise.all). With connection_limit=1 and
-  // pgbouncer=true, Prisma pipelines queries through a single connection — parallel
-  // calls don't open new connections, they just avoid sequential round-trip latency.
-  // This is critical when DB latency is 3-5s (Supabase): 4 sequential queries × 4s = 16s,
-  // but 4 parallel queries through pipelining ≈ 5-6s total.
+  // Serialize per-site queries to avoid connection pool exhaustion.
+  // Each site runs 4 parallel queries internally (pipelined through one connection),
+  // but we process sites sequentially to keep total concurrent queries manageable.
   const PIPELINE_PHASES = ["research", "outline", "drafting", "assembly", "images", "seo", "scoring"];
+  const results: SiteSummary[] = [];
 
-  const sitePromises = activeSiteIds.map(async (siteId) => {
+  for (const siteId of activeSiteIds) {
     const siteConfig = SITES[siteId];
-    if (!siteConfig) return null;
+    if (!siteConfig) continue;
 
     try {
-      // Run all 4 queries in parallel — pipelined through single connection
       const [articleAgg, topicsQueued, latestPost, draftGroups] = await Promise.all([
         prisma.blogPost.aggregate({
           _count: { id: true },
@@ -700,7 +698,7 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         .reduce((sum: number, g: any) => sum + (g._count?.id ?? 0), 0);
       const published = articleAgg._count.id;
 
-      return {
+      results.push({
         id: siteId,
         name: siteConfig.name,
         domain: getSiteDomain(siteId),
@@ -715,11 +713,11 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         lastCronAt: null,
         isActive: siteConfig.status === "active",
         dataError: null,
-      } as SiteSummary;
+      } as SiteSummary);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       console.warn(`[cockpit] site summary failed for ${siteId}:`, errMsg);
-      return {
+      results.push({
         id: siteId,
         name: siteConfig.name,
         domain: getSiteDomain(siteId),
@@ -734,12 +732,11 @@ async function buildSites(prisma: any, activeSiteIds: string[]): Promise<SiteSum
         lastCronAt: null,
         isActive: siteConfig.status === "active",
         dataError: `Failed to load site data: ${errMsg.substring(0, 120)}`,
-      } as SiteSummary;
+      } as SiteSummary);
     }
-  });
+  }
 
-  const settled = await Promise.all(sitePromises);
-  return settled.filter((s): s is SiteSummary => s !== null);
+  return results;
 }
 
 // ─────────────────────────────────────────────

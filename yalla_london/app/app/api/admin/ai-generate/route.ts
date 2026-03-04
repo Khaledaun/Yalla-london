@@ -116,6 +116,7 @@ Return JSON:
         systemPrompt,
         maxTokens: 800,
         temperature: 0.7,
+        timeoutMs: 50_000,
       });
 
       return NextResponse.json({
@@ -143,9 +144,185 @@ Return JSON:
     }
   }
 
-  // ─── PHASE 2: WRITE ───────────────────────────────────────────────────
-  // Generates: full article body HTML from the outline
-  // Heaviest call (~2500 output tokens, ~15-20s)
+  // ─── PHASE 2A: WRITE FIRST HALF ─────────────────────────────────────
+  // Writes the first half of the article headings (~1500 tokens, ~15-20s)
+  if (action === "phase2a_write") {
+    const keyword = body.keyword?.trim();
+    const outline = body.outline;
+    if (!keyword || !outline) {
+      return NextResponse.json({ success: false, error: "Keyword and outline are required" }, { status: 400 });
+    }
+
+    try {
+      const { generateJSON } = await import("@/lib/ai/provider");
+
+      const systemPrompt = language === "en"
+        ? `You are a luxury travel writer for "${site.name}" (${site.destination}). Write for Arab travelers. Include sensory details and insider tips. Never use generic phrases like "nestled in the heart of". Return only valid JSON.`
+        : `أنت كاتب سفر فاخر لـ "${site.name}" (${site.destination}). اكتب للمسافرين العرب. أعد JSON فقط.`;
+
+      const allHeadings: string[] = outline.headings || [];
+      const midpoint = Math.ceil(allHeadings.length / 2);
+      const firstHalf = allHeadings.slice(0, midpoint);
+
+      const headingsFormatted = firstHalf.map((h: string, i: number) => {
+        const subs = outline.subheadings?.[h];
+        if (subs && Array.isArray(subs) && subs.length > 0) {
+          return `${i + 1}. ${h}\n${subs.map((s: string) => `   - ${s}`).join("\n")}`;
+        }
+        return `${i + 1}. ${h}`;
+      }).join("\n");
+
+      const prompt = language === "en"
+        ? `Write the FIRST PART of an article about "${keyword}" for ${site.name} (${site.destination}).
+
+Title: ${outline.title}
+Keywords: ${(outline.keywords || [keyword]).join(", ")}
+
+Write ONLY these sections (the remaining sections will be written separately):
+${headingsFormatted}
+
+REQUIREMENTS:
+1. Start with a compelling opening paragraph (mention "${keyword}" in the first sentence)
+2. Each H2 section: 200-300 words, with sensory details
+3. HTML format: <h2>, <h3>, <p>, <ul>/<ol>, <a>
+4. Include 1-2 internal links: <a href="/blog/RELATED-TOPIC">anchor text</a>
+5. Include 1 affiliate link: <a href="https://booking.com/..." rel="nofollow sponsored">Book Now</a>
+6. Short paragraphs (2-3 sentences)
+7. Include at least 1 insider tip
+
+Return JSON:
+{
+  "body": "HTML content for the sections listed above"
+}`
+        : `اكتب الجزء الأول من مقالة عن "${keyword}" لـ ${site.name}.
+اكتب هذه الأقسام فقط:
+${headingsFormatted}
+
+أرجع JSON:
+{
+  "body": "HTML محتوى الأقسام"
+}`;
+
+      const result = await generateJSON<Record<string, unknown>>(prompt, {
+        systemPrompt,
+        maxTokens: 1500,
+        temperature: 0.7,
+        timeoutMs: 50_000,
+      });
+
+      const partBody = (result.body as string) || "";
+      return NextResponse.json({
+        success: true,
+        phase: "2a",
+        keyword,
+        language,
+        body: partBody,
+        wordCount: countWords(partBody),
+        sectionsWritten: firstHalf.length,
+        totalSections: allHeadings.length,
+      });
+    } catch (err) {
+      return NextResponse.json({
+        success: false,
+        error: `Phase 2a failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+      }, { status: 500 });
+    }
+  }
+
+  // ─── PHASE 2B: WRITE SECOND HALF ──────────────────────────────────────
+  // Writes the second half of the article headings (~1500 tokens, ~15-20s)
+  if (action === "phase2b_write") {
+    const keyword = body.keyword?.trim();
+    const outline = body.outline;
+    const previousBody = body.previousBody || "";
+    if (!keyword || !outline) {
+      return NextResponse.json({ success: false, error: "Keyword and outline are required" }, { status: 400 });
+    }
+
+    try {
+      const { generateJSON } = await import("@/lib/ai/provider");
+
+      const systemPrompt = language === "en"
+        ? `You are a luxury travel writer for "${site.name}" (${site.destination}). Write for Arab travelers. Include sensory details and honest observations. Return only valid JSON.`
+        : `أنت كاتب سفر فاخر لـ "${site.name}" (${site.destination}). اكتب للمسافرين العرب. أعد JSON فقط.`;
+
+      const allHeadings: string[] = outline.headings || [];
+      const midpoint = Math.ceil(allHeadings.length / 2);
+      const secondHalf = allHeadings.slice(midpoint);
+
+      const headingsFormatted = secondHalf.map((h: string, i: number) => {
+        const subs = outline.subheadings?.[h];
+        if (subs && Array.isArray(subs) && subs.length > 0) {
+          return `${midpoint + i + 1}. ${h}\n${subs.map((s: string) => `   - ${s}`).join("\n")}`;
+        }
+        return `${midpoint + i + 1}. ${h}`;
+      }).join("\n");
+
+      // Send a short preview of what was already written for continuity
+      const prevPreview = previousBody.substring(0, 500);
+
+      const prompt = language === "en"
+        ? `Continue writing the SECOND PART of an article about "${keyword}" for ${site.name} (${site.destination}).
+
+Title: ${outline.title}
+Keywords: ${(outline.keywords || [keyword]).join(", ")}
+
+Previously written (for continuity):
+${prevPreview}...
+
+Write ONLY these remaining sections:
+${headingsFormatted}
+
+REQUIREMENTS:
+1. Continue naturally from where the first part left off
+2. Each H2 section: 200-300 words, with sensory details
+3. HTML format: <h2>, <h3>, <p>, <ul>/<ol>, <a>
+4. Include 1-2 internal links: <a href="/blog/RELATED-TOPIC">anchor text</a>
+5. Include 1 affiliate link: <a href="https://booking.com/..." rel="nofollow sponsored">Book Now</a>
+6. End with a "Key Takeaways" summary and a clear CTA
+7. Mention one honest limitation — imperfection signals authenticity
+
+Return JSON:
+{
+  "body": "HTML content for the sections listed above"
+}`
+        : `أكمل الجزء الثاني من مقالة عن "${keyword}" لـ ${site.name}.
+اكتب هذه الأقسام المتبقية:
+${headingsFormatted}
+
+أرجع JSON:
+{
+  "body": "HTML محتوى الأقسام"
+}`;
+
+      const result = await generateJSON<Record<string, unknown>>(prompt, {
+        systemPrompt,
+        maxTokens: 1500,
+        temperature: 0.7,
+        timeoutMs: 50_000,
+      });
+
+      const partBody = (result.body as string) || "";
+      // Combine both halves
+      const fullBody = previousBody + "\n" + partBody;
+      return NextResponse.json({
+        success: true,
+        phase: "2b",
+        keyword,
+        language,
+        body: fullBody,
+        wordCount: countWords(fullBody),
+      });
+    } catch (err) {
+      return NextResponse.json({
+        success: false,
+        error: `Phase 2b failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+      }, { status: 500 });
+    }
+  }
+
+  // ─── PHASE 2 (legacy — kept for backward compat) ──────────────────────
+  // Single-call full article write. May timeout on slow providers.
   if (action === "phase2_write") {
     const keyword = body.keyword?.trim();
     const outline = body.outline;
@@ -173,44 +350,34 @@ Return JSON:
         ? `Write a full article about "${keyword}" for ${site.name} (${site.destination}).
 
 Title: ${outline.title}
-Target: ${outline.targetWordCount || contentType.targetWords}+ words MINIMUM
-Angle: ${outline.angleDescription || "Comprehensive guide"}
-Keywords to naturally include: ${(outline.keywords || [keyword]).join(", ")}
+Target: ${contentType.targetWords}+ words
+Keywords: ${(outline.keywords || [keyword]).join(", ")}
 
-ARTICLE OUTLINE — follow this structure:
+OUTLINE:
 ${headingsOutline}
 
 REQUIREMENTS:
-1. Write ${outline.targetWordCount || contentType.targetWords}+ words. Each H2 section should be 200-350 words.
-2. Use HTML format: <h2>, <h3>, <p>, <ul>/<ol>, <a>
-3. Include 2-3 insider tips that show genuine local knowledge
-4. Add sensory details (sights, sounds, smells, tastes)
-5. Include 3+ internal links: <a href="/blog/RELATED-TOPIC">descriptive anchor text</a>
-6. Include 2+ affiliate/booking links: <a href="https://booking.com/..." rel="nofollow sponsored">Book Now</a>
-7. End with a "Key Takeaways" section and clear CTA
-8. Short paragraphs (2-4 sentences each)
-9. Put the keyword "${keyword}" in the first paragraph and at least one H2
-10. Describe one limitation or honest caveat — imperfection signals authenticity
+1. Each H2 section: 200-300 words. HTML format: <h2>, <h3>, <p>, <ul>/<ol>, <a>
+2. 3+ internal links, 2+ affiliate links, end with Key Takeaways + CTA
+3. Keyword "${keyword}" in first paragraph and one H2
 
 Return JSON:
 {
-  "body": "Full HTML article (${outline.targetWordCount || contentType.targetWords}+ words)"
+  "body": "Full HTML article"
 }`
-        : `اكتب مقالة كاملة عن "${keyword}" لـ ${site.name} (${site.destination}).
-
-العنوان: ${outline.title}
-الهدف: ${outline.targetWordCount || contentType.targetWords}+ كلمة
+        : `اكتب مقالة كاملة عن "${keyword}" لـ ${site.name}.
 ${headingsOutline}
 
 أرجع JSON:
 {
-  "body": "HTML كامل (${outline.targetWordCount || contentType.targetWords}+ كلمة)"
+  "body": "HTML كامل"
 }`;
 
       const result = await generateJSON<Record<string, unknown>>(prompt, {
         systemPrompt,
-        maxTokens: 3000,
+        maxTokens: 2000,
         temperature: 0.7,
+        timeoutMs: 50_000,
       });
 
       const articleBody = (result.body as string) || "";
@@ -292,9 +459,10 @@ ${bodyPreview}${articleBody.length > 3000 ? "\n... [اختصار]" : ""}
         systemPrompt,
         maxTokens: 600,
         temperature: 0.5,
+        timeoutMs: 50_000,
       });
 
-      // Assemble final article content from all 3 phases
+      // Assemble final article content from all phases
       const isEn = language === "en";
       const title = (outline?.title as string) || keyword;
       const finalBody = articleBody;

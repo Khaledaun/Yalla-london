@@ -92,33 +92,33 @@ QUALITY:
     id: "hotel-review",
     label: "Hotel Review",
     labelAr: "مراجعة فندق",
-    description: "In-depth hotel reviews with halal amenities, prayer facilities, and Arab-traveler focus",
+    description: "In-depth hotel reviews with luxury amenities, dining, and practical traveler tips",
     minWords: 1200,
     targetWords: 1800,
     requireAffiliateLinks: true,
     requireAuthenticitySignals: true,
     minInternalLinks: 2,
-    promptGuidelinesEN: `Write a detailed HOTEL REVIEW about "{keyword}" for {siteName}, targeting Arab travelers visiting {destination}.
+    promptGuidelinesEN: `Write a detailed HOTEL REVIEW about "{keyword}" for {siteName}, targeting luxury travelers visiting {destination}.
 
 STRUCTURE (mandatory):
 - H2: First Impressions (lobby, check-in experience, welcome drink)
-- H2: Room & Suite Review (size, view, minibar halal options, prayer mat availability)
-- H2: Halal Dining Options (on-site restaurants, halal certification, room service)
-- H2: Facilities & Amenities (pool, spa, gym, ladies-only hours, prayer room)
-- H2: Location & Access (proximity to attractions, transport, halal restaurants nearby)
+- H2: Room & Suite Review (size, view, minibar, in-room amenities, comfort details)
+- H2: Dining & Restaurants (on-site restaurants, cuisine quality, room service, dietary options)
+- H2: Facilities & Amenities (pool, spa, gym, concierge, unique hotel features)
+- H2: Location & Access (proximity to attractions, transport links, nearby dining)
 - H2: Price & Value (room rates, when to book, money-saving tips)
-- "Quick Rating" box: Score out of 10 for Location, Rooms, Dining, Halal-Friendliness, Value
-- CTA with booking link (HalalBooking preferred, Booking.com fallback)
+- "Quick Rating" box: Score out of 10 for Location, Rooms, Dining, Service, Value
+- CTA with booking link (Booking.com, HalalBooking where relevant)
 - 2+ internal links to related hotel/area content, 2+ affiliate booking links
 
 QUALITY:
 - 1,200–1,800 words minimum
 - Mention specific room numbers, floor recommendations, or suite types
-- Include at least one honest negative (thin walls, slow WiFi, no halal breakfast on Mondays)
+- Include at least one honest negative (thin walls, slow WiFi, limited breakfast options)
 - Specific prices for rooms, restaurants, and services
 - Focus keyword "{keyword}" in title, first paragraph, one H2`,
-    promptGuidelinesAR: `اكتب مراجعة فندقية تفصيلية عن "{keyword}" لمنصة {siteName}، تستهدف المسافرين العرب.
-- 1,200+ كلمة، تقييم المطاعم الحلال، غرف الصلاة، خدمات عربية
+    promptGuidelinesAR: `اكتب مراجعة فندقية تفصيلية عن "{keyword}" لمنصة {siteName}، تستهدف المسافرين.
+- 1,200+ كلمة، تقييم المطاعم والمرافق والخدمات
 - 2+ روابط حجز، تقييم سريع من 10`,
   },
 
@@ -126,32 +126,32 @@ QUALITY:
     id: "restaurant-review",
     label: "Restaurant Review",
     labelAr: "مراجعة مطعم",
-    description: "Restaurant reviews focused on halal certification, Arab cuisine quality, and dining experience",
+    description: "Restaurant reviews focused on cuisine quality, atmosphere, and dining experience",
     minWords: 800,
     targetWords: 1500,
     requireAffiliateLinks: false,
     requireAuthenticitySignals: true,
     minInternalLinks: 2,
-    promptGuidelinesEN: `Write a detailed RESTAURANT REVIEW about "{keyword}" for {siteName}, targeting Arab travelers visiting {destination}.
+    promptGuidelinesEN: `Write a detailed RESTAURANT REVIEW about "{keyword}" for {siteName}, targeting luxury travelers visiting {destination}.
 
 STRUCTURE (mandatory):
 - H2: The Atmosphere (décor, seating, noise level, privacy, family-friendly)
-- H2: Halal Status & Certification (verified halal, partially halal, or halal-friendly — be specific)
 - H2: The Menu — Our Top Picks (3-5 specific dishes with descriptions and prices)
-- H2: Service & Experience (staff language, Arabic menus, prayer accommodation)
+- H2: Cuisine & Dietary Options (cuisine style, dietary accommodations available, standout flavors)
+- H2: Service & Experience (staff attentiveness, language support, overall hospitality)
 - H2: Practical Info (address, hours, reservations, dress code, parking)
-- Quick rating box: Taste, Halal Confidence, Ambience, Value, Service (out of 5)
+- Quick rating box: Taste, Ambience, Service, Value, Overall (out of 5)
 - 2+ internal links to area dining guides
 - Booking/reservation link if available
 
 QUALITY:
 - 800–1,500 words minimum
 - Name specific dishes, describe flavors and presentation
-- Be honest about halal certification level (fully certified vs "halal options available")
+- Note any dietary accommodations (vegetarian, gluten-free, halal where applicable)
 - Include a "Skip this if..." honest caveat
 - Focus keyword "{keyword}" in title, first paragraph, one H2`,
-    promptGuidelinesAR: `اكتب مراجعة مطعم تفصيلية عن "{keyword}" لمنصة {siteName}، تستهدف المسافرين العرب.
-- 800+ كلمة، حالة الحلال، أطباق محددة بالأسعار
+    promptGuidelinesAR: `اكتب مراجعة مطعم تفصيلية عن "{keyword}" لمنصة {siteName}، تستهدف المسافرين.
+- 800+ كلمة، أطباق محددة بالأسعار، خيارات غذائية
 - 2+ روابط داخلية، تقييم سريع من 5`,
   },
 
@@ -165,13 +165,13 @@ QUALITY:
     requireAffiliateLinks: true,
     requireAuthenticitySignals: true,
     minInternalLinks: 2,
-    promptGuidelinesEN: `Write a detailed SERVICE/EXPERIENCE REVIEW about "{keyword}" for {siteName}, targeting Arab travelers visiting {destination}.
+    promptGuidelinesEN: `Write a detailed SERVICE/EXPERIENCE REVIEW about "{keyword}" for {siteName}, targeting luxury travelers visiting {destination}.
 
 STRUCTURE (mandatory):
 - H2: What Is This Experience? (overview, who it's for, duration)
 - H2: Booking & Logistics (how to book, prices, schedule, accessibility)
 - H2: The Experience — Step by Step (walk readers through the experience chronologically)
-- H2: Arabic/Muslim-Friendly? (language support, prayer times respected, halal food, modest dress OK)
+- H2: Accessibility & Accommodations (language support, dietary options, dress code, family-friendliness)
 - H2: Is It Worth It? (honest value assessment, alternatives, who should skip it)
 - CTA with booking link (GetYourGuide, Viator preferred)
 - 2+ internal links to related experiences, 2+ affiliate links
@@ -181,8 +181,8 @@ QUALITY:
 - Describe specific moments from the experience with sensory detail
 - Include timing tips ("go in the morning to avoid crowds")
 - Focus keyword "{keyword}" in title, first paragraph, one H2`,
-    promptGuidelinesAR: `اكتب مراجعة تفصيلية عن تجربة/خدمة "{keyword}" لمنصة {siteName}، تستهدف المسافرين العرب.
-- 800+ كلمة، خطوات التجربة، مدى ملاءمتها للمسلمين
+    promptGuidelinesAR: `اكتب مراجعة تفصيلية عن تجربة/خدمة "{keyword}" لمنصة {siteName}، تستهدف المسافرين.
+- 800+ كلمة، خطوات التجربة، نصائح عملية
 - 2+ روابط حجز، نصائح توقيت`,
   },
 
@@ -232,7 +232,7 @@ STRUCTURE (mandatory):
 - H2: What Is It? (event overview, history, why it matters)
 - H2: Dates, Location & Tickets (specific dates, venue, pricing tiers, booking link)
 - H2: What to Expect (schedule highlights, not-to-miss moments)
-- H2: Arab Traveler Tips (halal food at venue, prayer facilities nearby, dress code, family areas)
+- H2: Practical Tips (food options at venue, nearby facilities, dress code, family areas)
 - H2: Getting There & Where to Stay (transport, recommended hotels nearby with booking links)
 - "Event Essentials" quick-reference box at the end
 - 2+ internal links, 2+ booking/affiliate links
@@ -240,7 +240,7 @@ STRUCTURE (mandatory):
 QUALITY:
 - 600–1,200 words
 - Include specific dates, times, and prices
-- Mention family-friendliness and halal food availability
+- Mention family-friendliness and food availability
 - Focus keyword "{keyword}" in title, first paragraph, one H2`,
     promptGuidelinesAR: `اكتب دليل فعالية عن "{keyword}" لمنصة {siteName}، تستهدف المسافرين العرب.
 - 600-1,200 كلمة، تواريخ وأسعار محددة، نصائح حلال
@@ -283,7 +283,7 @@ QUALITY:
     id: "listicle",
     label: "Listicle",
     labelAr: "قائمة",
-    description: "Numbered lists (e.g., 'Top 10 Halal Restaurants', '7 Best Hotels Under £200')",
+    description: "Numbered lists (e.g., 'Top 10 Restaurants in London', '7 Best Hotels Under £200')",
     minWords: 1200,
     targetWords: 1800,
     requireAffiliateLinks: true,
@@ -346,7 +346,7 @@ QUALITY:
     id: "seasonal",
     label: "Seasonal",
     labelAr: "موسمي",
-    description: "Seasonal travel content (Ramadan, Eid, summer, Christmas markets, etc.)",
+    description: "Seasonal travel content (summer, Christmas markets, spring festivals, etc.)",
     minWords: 1000,
     targetWords: 1500,
     requireAffiliateLinks: true,
@@ -367,7 +367,7 @@ STRUCTURE (mandatory):
 QUALITY:
 - 1,000–1,500 words
 - Include specific dates and seasonal events
-- Mention Ramadan/Eid considerations if relevant
+- Mention seasonal or cultural events if relevant to the travel period
 - Focus keyword "{keyword}" in title, first paragraph, one H2`,
     promptGuidelinesAR: `اكتب مقالة موسمية عن "{keyword}" لمنصة {siteName}، تستهدف المسافرين العرب.
 - 1,000+ كلمة، أحداث وتواريخ محددة، نصائح رمضان/عيد إن كان مناسباً

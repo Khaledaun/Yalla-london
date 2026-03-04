@@ -112,6 +112,14 @@ export async function GET(request: NextRequest) {
       };
 
       try {
+        // Per-article budget enforcement — skip if this article is taking too long
+        const checkArticleBudget = () => {
+          if (Date.now() - articleStart > PER_ARTICLE_BUDGET_MS) {
+            fix.notes.push(`Skipped remaining fixes — per-article budget (${PER_ARTICLE_BUDGET_MS / 1000}s) exceeded`);
+            return true;
+          }
+          return false;
+        };
         const siteId = article.siteId as string;
         const domain = getSiteDomain(siteId);
         const contentEN = (article.content_en as string) || "";
@@ -210,6 +218,7 @@ export async function GET(request: NextRequest) {
         }
 
         // ── Fix 4: Affiliate Links ────────────────────────────────────
+        if (checkArticleBudget()) { allFixes.push(fix); continue; }
         const affiliatePatterns = [/booking\.com/gi, /halalbooking\.com/gi, /agoda\.com/gi, /getyourguide\.com/gi, /viator\.com/gi, /klook\.com/gi];
         const hasAffiliates = affiliatePatterns.some((p) => p.test(updatedContentEN));
 
@@ -281,7 +290,7 @@ export async function GET(request: NextRequest) {
         }
 
         // ── Fix 7: Content Expansion (AI) ─────────────────────────────
-        if (wordCount < 1000 && updatedContentEN.length > 100 && (Date.now() - articleStart < PER_ARTICLE_BUDGET_MS - 20_000)) {
+        if (wordCount < 1000 && updatedContentEN.length > 100 && !checkArticleBudget() && (Date.now() - articleStart < PER_ARTICLE_BUDGET_MS - 20_000)) {
           try {
             const { generateCompletion } = await import("@/lib/ai/provider");
             const expansionPrompt = `You are an SEO content editor for a luxury travel site. Expand the following article section to add 400+ more words. Add:

@@ -3213,11 +3213,246 @@ function AIConfigTab() {
 
 // ─── Tab 7: Settings & Testing ────────────────────────────────────────────────
 
+interface ActionLogEntry {
+  id: string;
+  timestamp: string;
+  category: string;
+  action: string;
+  status: string;
+  siteId: string | null;
+  durationMs: number | null;
+  summary: string;
+  outcome: string | null;
+  error: string | null;
+  fix: string | null;
+  details: Record<string, unknown>;
+}
+
+interface ActionLogsData {
+  stats: { total: number; success: number; failed: number; partial: number; timeout: number; running: number; byCategory: Record<string, number> };
+  logs: ActionLogEntry[];
+  filters: { periods: string[]; categories: string[]; statuses: string[]; functions: string[] };
+  exportUrl?: string;
+}
+
+function ActionLogsPanel({ onClose }: { onClose: () => void }) {
+  const [data, setData] = useState<ActionLogsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState("24h");
+  const [category, setCategory] = useState("");
+  const [status, setStatus] = useState("");
+  const [func, setFunc] = useState("");
+  const [siteId, setSiteId] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [cleaning, setCleaning] = useState(false);
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ period });
+      if (category) params.set("category", category);
+      if (status) params.set("status", status);
+      if (func) params.set("function", func);
+      if (siteId) params.set("siteId", siteId);
+      const res = await fetch(`/api/admin/action-logs?${params}`);
+      const json = await res.json();
+      if (json.success) setData(json);
+    } catch { /* network error */ }
+    setLoading(false);
+  }, [period, category, status, func, siteId]);
+
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+  const copyJson = (entry: ActionLogEntry) => {
+    navigator.clipboard.writeText(JSON.stringify(entry, null, 2));
+    setCopied(entry.id);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  const exportAll = async () => {
+    const params = new URLSearchParams({ period, export: "json" });
+    if (category) params.set("category", category);
+    if (status) params.set("status", status);
+    if (func) params.set("function", func);
+    if (siteId) params.set("siteId", siteId);
+    const res = await fetch(`/api/admin/action-logs?${params}`);
+    const json = await res.json();
+    navigator.clipboard.writeText(JSON.stringify(json, null, 2));
+    setCopied("all");
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const cleanup = async () => {
+    setCleaning(true);
+    try {
+      await fetch("/api/admin/action-logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cleanup" }),
+      });
+      fetchLogs();
+    } catch { /* network error */ }
+    setCleaning(false);
+  };
+
+  const statusColor: Record<string, string> = {
+    success: "bg-emerald-900/40 text-emerald-300 border-emerald-800",
+    failed: "bg-red-900/40 text-red-300 border-red-800",
+    partial: "bg-amber-900/40 text-amber-300 border-amber-800",
+    timeout: "bg-orange-900/40 text-orange-300 border-orange-800",
+    running: "bg-blue-900/40 text-blue-300 border-blue-800",
+  };
+
+  const statusIcon: Record<string, string> = {
+    success: "✅", failed: "❌", partial: "⚠️", timeout: "⏳", running: "🔄",
+  };
+
+  const categoryIcon: Record<string, string> = {
+    cron: "⏰", "auto-fix": "🔧", "ai-call": "🤖", audit: "🔍", seo: "🔍",
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
+      {/* Header */}
+      <div className="bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between shrink-0">
+        <h2 className="text-sm font-semibold text-zinc-100">Action Logs</h2>
+        <div className="flex items-center gap-2">
+          <button onClick={exportAll} className="px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">
+            {copied === "all" ? "Copied!" : "Export All JSON"}
+          </button>
+          <button onClick={cleanup} disabled={cleaning} className="px-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700">
+            {cleaning ? "Cleaning..." : "Purge >21d"}
+          </button>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-100 text-lg px-2">✕</button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-zinc-900/80 border-b border-zinc-800 px-4 py-2 flex flex-wrap gap-2 shrink-0">
+        <select value={period} onChange={(e) => setPeriod(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+          {["1h", "12h", "24h", "3d", "7d", "14d", "21d"].map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+        <select value={category} onChange={(e) => setCategory(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+          <option value="">All types</option>
+          <option value="cron">Cron jobs</option>
+          <option value="auto-fix">Auto-fixes</option>
+          <option value="ai-call">AI calls</option>
+          <option value="audit">Audits</option>
+        </select>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+          <option value="">All statuses</option>
+          <option value="success">Success</option>
+          <option value="failed">Failed</option>
+          <option value="partial">Partial</option>
+          <option value="timeout">Timeout</option>
+        </select>
+        {data?.filters.functions && data.filters.functions.length > 0 && (
+          <select value={func} onChange={(e) => setFunc(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+            <option value="">All functions</option>
+            {data.filters.functions.map((f) => (
+              <option key={f} value={f}>{f}</option>
+            ))}
+          </select>
+        )}
+        <select value={siteId} onChange={(e) => setSiteId(e.target.value)} className="bg-zinc-800 text-zinc-300 text-xs rounded px-2 py-1 border border-zinc-700">
+          <option value="">All sites</option>
+          <option value="yalla-london">Yalla London</option>
+          <option value="zenitha-yachts-med">Zenitha Yachts</option>
+          <option value="arabaldives">Arabaldives</option>
+          <option value="french-riviera">Yalla Riviera</option>
+          <option value="istanbul">Yalla Istanbul</option>
+          <option value="thailand">Yalla Thailand</option>
+        </select>
+      </div>
+
+      {/* Stats bar */}
+      {data?.stats && (
+        <div className="bg-zinc-900/60 border-b border-zinc-800 px-4 py-2 flex gap-3 text-xs shrink-0 overflow-x-auto">
+          <span className="text-zinc-400">{data.stats.total} total</span>
+          <span className="text-emerald-400">{data.stats.success} ok</span>
+          <span className="text-red-400">{data.stats.failed} failed</span>
+          {data.stats.timeout > 0 && <span className="text-orange-400">{data.stats.timeout} timeout</span>}
+          {data.stats.partial > 0 && <span className="text-amber-400">{data.stats.partial} partial</span>}
+          {data.stats.running > 0 && <span className="text-blue-400">{data.stats.running} running</span>}
+        </div>
+      )}
+
+      {/* Log entries */}
+      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
+        {loading ? (
+          <p className="text-zinc-500 text-xs text-center py-8">Loading logs...</p>
+        ) : !data || data.logs.length === 0 ? (
+          <p className="text-zinc-500 text-xs text-center py-8">No logs found for this period/filters.</p>
+        ) : (
+          data.logs.map((log) => (
+            <div key={log.id} className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+              {/* Log row */}
+              <button
+                onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                className="w-full px-3 py-2 flex items-start gap-2 text-left hover:bg-zinc-800/50"
+              >
+                <span className="text-sm shrink-0 mt-0.5">{statusIcon[log.status] || "•"}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-zinc-500">{categoryIcon[log.category] || ""} {log.category}</span>
+                    <span className="text-xs font-medium text-zinc-200 truncate">{log.action}</span>
+                    {log.siteId && <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-500">{log.siteId}</span>}
+                    {log.durationMs != null && <span className="text-[10px] text-zinc-600">{(log.durationMs / 1000).toFixed(1)}s</span>}
+                  </div>
+                  <p className="text-xs text-zinc-400 mt-0.5 line-clamp-2">{log.summary}</p>
+                  <span className="text-[10px] text-zinc-600">{new Date(log.timestamp).toLocaleString()}</span>
+                </div>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${statusColor[log.status] || "bg-zinc-800 text-zinc-400 border-zinc-700"}`}>
+                  {log.status}
+                </span>
+              </button>
+
+              {/* Expanded detail */}
+              {expandedId === log.id && (
+                <div className="px-3 pb-3 border-t border-zinc-800 space-y-2">
+                  {log.outcome && (
+                    <div className="mt-2">
+                      <p className="text-[10px] text-zinc-500 uppercase">Outcome</p>
+                      <p className="text-xs text-emerald-300">{log.outcome}</p>
+                    </div>
+                  )}
+                  {log.error && (
+                    <div>
+                      <p className="text-[10px] text-zinc-500 uppercase">Error</p>
+                      <p className="text-xs text-red-300">{log.error}</p>
+                    </div>
+                  )}
+                  {log.fix && (
+                    <div>
+                      <p className="text-[10px] text-zinc-500 uppercase">How to fix</p>
+                      <p className="text-xs text-amber-300">{log.fix}</p>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => copyJson(log)}
+                    className="mt-1 px-2 py-1 text-[10px] bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded border border-zinc-700"
+                  >
+                    {copied === log.id ? "Copied!" : "Copy JSON"}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SettingsTab({ system }: { system: SystemStatus | null }) {
   const [flags, setFlags] = useState<Array<{ id: string; key: string; enabled: boolean; description: string }>>([]);
   const [flagsLoading, setFlagsLoading] = useState(true);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState<string | null>(null);
+  const [showActionLogs, setShowActionLogs] = useState(false);
 
   // Migration state
   const [migrationStatus, setMigrationStatus] = useState<"idle" | "scanning" | "migrating" | "done">("idle");
@@ -3420,6 +3655,9 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
         )}
 
         <div className="mt-3 border-t border-zinc-800 pt-3 flex flex-wrap gap-2">
+          <ActionButton onClick={() => setShowActionLogs(true)}>
+            📊 Action Logs
+          </ActionButton>
           <a href="/test-connections.html" target="_blank" className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700">
             🔬 test-connections.html
           </a>
@@ -3436,7 +3674,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
       <Card>
         <SectionTitle>Database Migration</SectionTitle>
         <p className="text-zinc-500 text-xs mb-3">Scan for missing tables, columns, and indexes. Fix applies all pending schema changes.</p>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <ActionButton onClick={runMigrationScan} loading={migrationStatus === "scanning"}>
             🔍 Scan Schema
           </ActionButton>
@@ -3445,6 +3683,50 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
             loading={migrationStatus === "migrating"}
           >
             🔧 Fix All
+          </ActionButton>
+          <ActionButton
+            variant="success"
+            onClick={async () => {
+              setMigrationStatus("scanning");
+              setMigrationError(null);
+              setMigrationResult(null);
+              try {
+                // Step 1: Scan
+                const scanRes = await fetch("/api/admin/db-migrate");
+                const scanJson = await scanRes.json();
+                if (!scanJson.success) throw new Error(scanJson.error || "Scan failed");
+                if (!scanJson.summary?.needsMigration) {
+                  setMigrationResult({ type: "scan", missingTables: 0, missingColumns: 0, missingIndexes: 0, needsMigration: false });
+                  setMigrationStatus("done");
+                  return;
+                }
+                // Step 2: Apply all fixes
+                setMigrationStatus("migrating");
+                const fixRes = await fetch("/api/admin/db-migrate", { method: "POST" });
+                const fixJson = await fixRes.json();
+                if (!fixJson.success) throw new Error(fixJson.error || "Migration failed");
+                setMigrationResult({
+                  type: "migrate",
+                  missingTables: fixJson.after?.missingTables ?? 0,
+                  missingColumns: fixJson.after?.missingColumns ?? 0,
+                  missingIndexes: 0,
+                  needsMigration: false,
+                  tablesCreated: fixJson.result?.tablesCreated ?? [],
+                  columnsAdded: fixJson.result?.columnsAdded ?? [],
+                  indexesCreated: fixJson.result?.indexesCreated ?? [],
+                  foreignKeysCreated: fixJson.result?.foreignKeysCreated ?? [],
+                  errors: fixJson.result?.errors ?? [],
+                  durationMs: fixJson.durationMs,
+                });
+                setMigrationStatus("done");
+              } catch (e) {
+                setMigrationError(e instanceof Error ? e.message : "Full migration failed");
+                setMigrationStatus("idle");
+              }
+            }}
+            loading={migrationStatus === "scanning" || migrationStatus === "migrating"}
+          >
+            🚀 Full Migration (Scan + Fix)
           </ActionButton>
         </div>
         {migrationError && (
@@ -3551,6 +3833,9 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
           </p>
         </div>
       </Card>
+
+      {/* Action Logs overlay */}
+      {showActionLogs && <ActionLogsPanel onClose={() => setShowActionLogs(false)} />}
     </div>
   );
 }

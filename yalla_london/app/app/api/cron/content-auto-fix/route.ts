@@ -87,6 +87,7 @@ async function handleAutoFix(request: NextRequest) {
     let unstuck = 0;
     let rejected = 0;
     for (const draft of stuckDrafts) {
+      if (Date.now() - cronStart > BUDGET_MS - 5_000) break; // budget guard per iteration
       const attempts = draft.phase_attempts || 0;
       const maxAttempts = draft.current_phase === "drafting" ? 5 : 3;
 
@@ -348,6 +349,7 @@ async function handleAutoFix(request: NextRequest) {
       });
 
       for (const post of longMetaPosts) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
         const desc = post.meta_description_en || "";
         if (desc.length > 160) {
           // Trim at last word boundary before META_MAX_CHARS
@@ -384,6 +386,7 @@ async function handleAutoFix(request: NextRequest) {
       });
 
       for (const post of longMetaPostsAr) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
         const desc = post.meta_description_ar || "";
         if (desc.length > 160) {
           let trimmed = desc.substring(0, META_MAX_CHARS);
@@ -419,6 +422,7 @@ async function handleAutoFix(request: NextRequest) {
       });
 
       for (const draft of draftsWithMeta) {
+        if (Date.now() - cronStart > BUDGET_MS - 2_000) break;
         const meta = draft.seo_meta as Record<string, unknown> | null;
         if (!meta) continue;
 
@@ -463,6 +467,7 @@ async function handleAutoFix(request: NextRequest) {
 
       const { injectInternalLinks } = await import("@/lib/auto-remediate/engine") as { injectInternalLinks: (id: string, siteId: string) => Promise<{ success: boolean }> };
       for (const post of postsNoLinks) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
         const linkCount = ((post.content_en || "").match(/class="internal-link"|href="\/blog\//gi) || []).length;
         if (linkCount < 1 && (post.content_en || "").length > 2000) {
           const result = await injectInternalLinks(post.id, post.siteId);
@@ -496,6 +501,7 @@ async function handleAutoFix(request: NextRequest) {
       const { injectAffiliateLinks } = await import("@/lib/auto-remediate/engine") as { injectAffiliateLinks: (id: string, siteId: string) => Promise<{ success: boolean }> };
 
       for (const post of postsNoAffiliates) {
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
         if (!affiliatePattern.test(post.content_en || "") && (post.content_en || "").length > 2000) {
           const result = await injectAffiliateLinks(post.id, post.siteId);
           if (result.success) results.affiliateLinksInjected++;
@@ -514,7 +520,8 @@ async function handleAutoFix(request: NextRequest) {
     try {
       const { fixDuplicateMetas } = await import("@/lib/auto-remediate/engine");
       for (const siteId of activeSiteIds) {
-        const fixes = await fixDuplicateMetas(siteId, 3);
+        if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
+        const fixes = await fixDuplicateMetas(siteId, 2);
         results.duplicateMetasFixed += fixes.filter((f) => f.success).length;
       }
     } catch (err) {

@@ -390,10 +390,10 @@ async function handleGscSync(request: NextRequest) {
     await logCronExecution("gsc-sync", "failed", {
       durationMs: Date.now() - cronStart,
       errorMessage: errMsg,
-    }).catch(() => {});
+    }).catch(err => console.warn("[gsc-sync] logCronExecution failed:", err instanceof Error ? err.message : err));
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "gsc-sync", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "gsc-sync", error: errMsg }).catch(err => console.warn("[gsc-sync] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { success: false, error: errMsg },

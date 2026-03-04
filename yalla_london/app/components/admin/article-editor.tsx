@@ -169,25 +169,15 @@ export function ArticleEditor({
   const [contentGenerationProgress, setContentGenerationProgress] = useState(0)
   const [newTag, setNewTag] = useState('')
 
-  // Mock media assets
-  const [mediaAssets] = useState<MediaAsset[]>([
-    {
-      id: '1',
-      url: '/images/london-bridge.jpg',
-      thumbnailUrl: '/images/london-bridge-thumb.jpg',
-      filename: 'london-bridge-hero.jpg',
-      altText: 'Beautiful view of London Bridge at sunset',
-      type: 'image'
-    },
-    {
-      id: '2',
-      url: '/images/london-markets.jpg',
-      thumbnailUrl: '/images/london-markets-thumb.jpg',
-      filename: 'london-markets.jpg',
-      altText: 'Busy London market with fresh produce and vendors',
-      type: 'image'
-    }
-  ])
+  // Media assets loaded from API
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([])
+
+  useEffect(() => {
+    fetch('/api/admin/media')
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(data => { if (Array.isArray(data.assets)) setMediaAssets(data.assets); })
+      .catch(err => console.warn('[ArticleEditor] Failed to load media:', err instanceof Error ? err.message : err));
+  }, [])
 
   // Auto-generate slug from title
   useEffect(() => {
@@ -207,46 +197,28 @@ export function ArticleEditor({
     setArticle(prev => ({ ...prev, readingTime }))
   }, [article.content])
 
-  // Mock topic research
+  // Topic research via API
   const performTopicResearch = async (query: string) => {
-    // Simulate API call
-    const mockSuggestions: TopicSuggestion[] = [
-      {
-        id: '1',
-        title: 'Best Hidden Gems in London 2024',
-        description: 'Discover secret spots and lesser-known attractions that locals love',
-        relevanceScore: 95,
-        trendingScore: 88,
-        competition: 'medium',
-        estimatedTraffic: 15000,
-        keywords: ['london hidden gems', 'secret london', 'off beaten path'],
-        suggestedLength: 2500
-      },
-      {
-        id: '2',
-        title: 'London Food Markets: A Complete Guide',
-        description: 'Comprehensive guide to the best food markets in London with insider tips',
-        relevanceScore: 92,
-        trendingScore: 76,
-        competition: 'high',
-        estimatedTraffic: 25000,
-        keywords: ['london food markets', 'borough market', 'street food london'],
-        suggestedLength: 3000
-      },
-      {
-        id: '3',
-        title: 'Free Things to Do in London This Weekend',
-        description: 'Budget-friendly activities and events happening in London',
-        relevanceScore: 89,
-        trendingScore: 91,
-        competition: 'low',
-        estimatedTraffic: 12000,
-        keywords: ['free london activities', 'weekend london', 'budget travel london'],
-        suggestedLength: 2000
-      }
-    ]
-
-    setTopicSuggestions(mockSuggestions)
+    try {
+      const res = await fetch(`/api/admin/topics?status=planned&limit=10`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const suggestions: TopicSuggestion[] = (data.topics || []).slice(0, 5).map((t: Record<string, unknown>, i: number) => ({
+        id: String(t.id || i),
+        title: String(t.title || ''),
+        description: String(t.primary_keyword || ''),
+        relevanceScore: Number(t.confidence_score) || 0,
+        trendingScore: 0,
+        competition: 'medium' as const,
+        estimatedTraffic: 0,
+        keywords: Array.isArray(t.longtails) ? t.longtails as string[] : [],
+        suggestedLength: 2000,
+      }));
+      setTopicSuggestions(suggestions);
+    } catch (err) {
+      console.warn('[ArticleEditor] Topic research failed:', err instanceof Error ? err.message : err);
+      setTopicSuggestions([]);
+    }
   }
 
   const selectTopicAndGenerateContent = async (topic: TopicSuggestion) => {
@@ -277,66 +249,46 @@ export function ArticleEditor({
       })
     }
 
-    // Generate mock content based on language and topic
-    const generatedContent = generateMockContent(topic, article.language)
-    setArticle(prev => ({ ...prev, content: generatedContent }))
-    
-    setIsGeneratingContent(false)
-    setIsTopicResearchOpen(false)
-    
+    // Generate content outline as starting point (no mock content)
+    const outline = generateContentOutline(topic, article.language);
+    setArticle(prev => ({ ...prev, content: outline }));
+
+    setIsGeneratingContent(false);
+    setIsTopicResearchOpen(false);
+
     toast({
-      title: "Content Generated Successfully",
-      description: `Article content has been generated for "${topic.title}"`,
-    })
+      title: "Outline Created",
+      description: `Content outline created for "${topic.title}" — expand each section with real content.`,
+    });
   }
 
-  const generateMockContent = (topic: TopicSuggestion, language: string) => {
+  const generateContentOutline = (topic: TopicSuggestion, language: string) => {
     if (language === 'ar') {
       return `# ${topic.title}
 
 ## مقدمة
-${topic.description}
+<!-- اكتب مقدمة جذابة عن: ${topic.description} -->
 
 ## النقاط الرئيسية
-
-### النقطة الأولى
-هذا النص هو مثال لنص يمكن أن يستبدل في نفس المساحة، لقد تم توليد هذا النص من مولد النص العربى.
-
-### النقطة الثانية
-حيث يمكنك أن تولد مثل هذا النص أو العديد من النصوص الأخرى إضافة إلى زيادة عدد الحروف التى يولدها التطبيق.
-
-### النقطة الثالثة
-إذا كنت تحتاج إلى عدد أكبر من الفقرات يتيح لك مولد النص العربى زيادة عدد الفقرات كما تريد.
+<!-- أضف 3-5 أقسام رئيسية مع محتوى أصلي -->
 
 ## الخلاصة
-النص المولد مفيد جداً لفهم كيف سيبدو النص النهائي وتخطيط التصميم.`
+<!-- اكتب خلاصة مع دعوة للعمل -->`;
     }
 
     return `# ${topic.title}
 
 ## Introduction
-${topic.description}
+<!-- Write an engaging introduction about: ${topic.description} -->
 
-## Main Points
+## Main Sections
+<!-- Add 3-5 main sections with original content, insider tips, and first-hand experience markers -->
 
-### Point One
-London is a city that never ceases to amaze. From its rich history to its vibrant modern culture, there's always something new to discover.
-
-### Point Two
-Whether you're a first-time visitor or a long-time resident, this guide will help you uncover some of the city's best-kept secrets.
-
-### Point Three
-Each recommendation comes with insider tips and practical information to help you make the most of your experience.
-
-## Key Highlights
-- Detailed information about each location
-- Insider tips from locals
-- Best times to visit
-- Transportation options
-- Budget considerations
+## Key Takeaways
+<!-- Summarize key points for AI Overview eligibility -->
 
 ## Conclusion
-London's charm lies in its diversity and the countless opportunities it offers for exploration and discovery.`
+<!-- Write conclusion with call-to-action and affiliate links -->`;
   }
 
   const addTag = () => {

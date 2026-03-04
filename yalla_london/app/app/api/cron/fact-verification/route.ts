@@ -590,7 +590,7 @@ export async function GET(request: NextRequest) {
     });
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "fact-verification", error: errorMessage }).catch(() => {});
+    onCronFailure({ jobName: "fact-verification", error: errorMessage }).catch(err => console.warn("[fact-verification] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       {

@@ -452,10 +452,10 @@ async function handleAffiliateInjection(request: NextRequest) {
     await logCronExecution("affiliate-injection", "failed", {
       durationMs: duration,
       errorMessage: errMsg,
-    }).catch(() => {});
+    }).catch(err => console.warn("[affiliate-injection] logCronExecution failed:", err instanceof Error ? err.message : err));
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "affiliate-injection", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "affiliate-injection", error: errMsg }).catch(err => console.warn("[affiliate-injection] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { error: errMsg },

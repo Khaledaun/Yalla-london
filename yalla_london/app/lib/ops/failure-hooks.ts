@@ -111,7 +111,7 @@ export async function onPipelineFailure(
         reactivatedAt: null,
         outcome: "will_retry",
         context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300), budgetMs: options.deadlineMs },
-      }).catch(() => {});
+      }).catch(err => console.warn("[failure-hooks] logSweeperEvent failed:", err instanceof Error ? err.message : err));
       return;
     }
 

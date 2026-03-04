@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
     });
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "analytics", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "analytics", error: errMsg }).catch(err => console.warn("[analytics] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { success: false, error: errMsg, durationMs },

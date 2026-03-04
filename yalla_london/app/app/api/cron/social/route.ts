@@ -204,7 +204,7 @@ async function handleSocialCron(request: NextRequest) {
     });
 
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    onCronFailure({ jobName: "social", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "social", error: errMsg }).catch(err => console.warn("[social] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { success: false, error: errMsg },

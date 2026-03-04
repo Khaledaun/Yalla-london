@@ -572,7 +572,7 @@ async function handleAutoFix(request: NextRequest) {
   // Fire onCronFailure if everything failed — ensures dashboard visibility
   if (hasErrors && totalFixed === 0) {
     const { onCronFailure } = await import("@/lib/ops/failure-hooks");
-    await onCronFailure({ jobName: "content-auto-fix", error: results.errors.join("; ") }).catch(() => {});
+    await onCronFailure({ jobName: "content-auto-fix", error: results.errors.join("; ") }).catch(err => console.warn("[content-auto-fix] onCronFailure hook failed:", err instanceof Error ? err.message : err));
   }
 
   await logCronExecution("content-auto-fix", hasErrors && totalFixed === 0 ? "failed" : "completed", {

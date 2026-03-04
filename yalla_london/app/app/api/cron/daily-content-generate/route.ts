@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Fire failure hook for automatic recovery
-    onCronFailure({ jobName: "daily-content-generate", error: errMsg }).catch(() => {});
+    onCronFailure({ jobName: "daily-content-generate", error: errMsg }).catch(err => console.warn("[daily-content-generate] onCronFailure hook failed:", err instanceof Error ? err.message : err));
 
     return NextResponse.json(
       { error: errMsg },
@@ -510,7 +510,7 @@ async function generateArticle(
   try {
     const { ensureUrlTracked } = await import("@/lib/seo/indexing-service");
     const postUrl = `${getSiteDomain(site.id)}/blog/${slug}`;
-    ensureUrlTracked(postUrl, site.id, `blog/${slug}`).catch(() => {});
+    ensureUrlTracked(postUrl, site.id, `blog/${slug}`).catch(err => console.warn('[daily-content-generate] ensureUrlTracked failed:', err instanceof Error ? err.message : err));
   } catch {
     // Non-fatal
   }

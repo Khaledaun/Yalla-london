@@ -351,7 +351,7 @@ CRITICAL JSON RULES:
       try {
         const result = await generateJSON<Record<string, unknown>>(prompt, {
           systemPrompt: `You are a luxury travel writer for Arab travelers. Write engaging, detailed, SEO-optimized content with genuine depth and specific local knowledge. Each section must meet the minimum word count. Use HTML formatting. Return ONLY valid JSON — all string values must have newlines escaped as \\n and quotes escaped as \\". Never include raw line breaks inside JSON string values.${getLocaleDirectives(draft.locale, site)}`,
-          maxTokens: 3000,
+          maxTokens: 2000,
           temperature: 0.7,
         });
 
@@ -495,7 +495,7 @@ Return JSON:
   try {
     const result = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. The final article MUST be at least 1,500 words — expand content if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
-      maxTokens: 2500,
+      maxTokens: 2000,
       temperature: 0.4,
     });
 
@@ -507,8 +507,8 @@ Return JSON:
     assembledWordCount = Math.max(assembledWordCount, actualWords);
 
     // If still too short and we have budget, run an expansion pass
-    // Skip expansion if less than 20s remaining — it will be caught by content-auto-fix cron later
-    const canExpand = budgetRemainingMs === undefined || budgetRemainingMs > 20_000;
+    // Skip expansion if less than 25s remaining — it will be caught by content-auto-fix cron later
+    const canExpand = budgetRemainingMs === undefined || budgetRemainingMs > 25_000;
     if (assembledWordCount < 1200 && canExpand) {
       try {
         const expansionPrompt = `You are a luxury travel editor expanding a short article to meet the 1,500-word minimum.
@@ -533,7 +533,7 @@ Return JSON:
 
         const expansionResult = await generateJSON<Record<string, unknown>>(expansionPrompt, {
           systemPrompt: `You are a luxury travel editor. Expand articles to meet minimum word counts while maintaining quality. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
-          maxTokens: 2500,
+          maxTokens: 2000,
           temperature: 0.5,
         });
 

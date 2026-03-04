@@ -278,7 +278,7 @@ async function handleIndexing(request: NextRequest) {
       }
     }
 
-    // ── Resubmit stuck pages (submitted >7d ago, not yet indexed) ────
+    // ── Resubmit stuck pages (submitted >7d ago OR never submitted) ────
     // ALL stuck pages resubmit via IndexNow (Bing/Yandex) + natural Google re-crawl.
     // The Google Indexing API is NOT used here — it only supports JobPosting and
     // BroadcastEvent schema, which our content doesn't have.
@@ -290,10 +290,15 @@ async function handleIndexing(request: NextRequest) {
         const stuckPages = await prisma.uRLIndexingStatus.findMany({
           where: {
             status: { in: ["submitted", "pending_review", "discovered"] },
-            last_submitted_at: { lt: sevenDaysAgo },
+            OR: [
+              // Submitted >7 days ago but still not indexed
+              { last_submitted_at: { lt: sevenDaysAgo } },
+              // Never submitted at all — stuck in "discovered" state
+              { last_submitted_at: null, submitted_indexnow: false },
+            ],
           },
           select: { url: true, site_id: true },
-          take: 20, // cap per run to avoid timeout
+          take: 30, // raised from 20 to handle backlog of never-submitted pages
         });
 
         if (stuckPages.length > 0) {

@@ -168,11 +168,15 @@ async function handlePost(request: NextRequest) {
 
     const { runSiteAudit, saveAuditResults } = await import("@/lib/performance/site-auditor");
 
+    const hasApiKey = !!(process.env.PAGESPEED_API_KEY || process.env.PSI_API_KEY);
+
     // Run audit (budget: 50s to leave room for DB save)
     const result = await runSiteAudit(siteId, baseUrl, strategy, 50_000);
 
     // Save to database
     await saveAuditResults(result);
+
+    const errorPages = result.pages.filter((p) => p.error);
 
     return NextResponse.json({
       success: true,
@@ -180,6 +184,10 @@ async function handlePost(request: NextRequest) {
       siteId,
       strategy,
       pagesAudited: result.pages.length,
+      ...(errorPages.length > 0 ? { pagesWithErrors: errorPages.length } : {}),
+      ...(!hasApiKey ? {
+        warning: `No PAGESPEED_API_KEY configured — audit limited to 5 pages with slower rate. Add the key in Vercel → Settings → Environment Variables for full audits.`,
+      } : {}),
       summary: result.summary,
       pages: result.pages.map((p) => ({
         url: p.url,

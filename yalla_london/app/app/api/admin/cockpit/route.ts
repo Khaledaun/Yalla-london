@@ -165,10 +165,40 @@ function hoursAgo(date: Date): number {
 }
 
 // ─────────────────────────────────────────────
+// Response cache — prevents connection pool exhaustion from rapid refreshes.
+// Auto-refresh (60s) + manual refresh can collide, causing the 2nd request
+// to wait on pool_timeout (5s) then fail. A 30s cache guarantees only 1 DB
+// round-trip per 30s, regardless of how many refreshes fire.
+// ─────────────────────────────────────────────
+
+interface CachedResponse {
+  data: unknown;
+  timestamp: number;
+  siteKey: string;
+}
+
+const CACHE_TTL_MS = 30_000; // 30 seconds
+let responseCache: CachedResponse | null = null;
+
+// ─────────────────────────────────────────────
 // GET handler
 // ─────────────────────────────────────────────
 
 export const GET = withAdminAuth(async (request: NextRequest) => {
+  // Check cache before hitting DB
+  const requestedSiteParam = new URL(request.url).searchParams.get("siteId") || "all";
+  if (
+    responseCache &&
+    responseCache.siteKey === requestedSiteParam &&
+    Date.now() - responseCache.timestamp < CACHE_TTL_MS
+  ) {
+    return NextResponse.json({
+      ...(responseCache.data as Record<string, unknown>),
+      cached: true,
+      cacheAge: Math.round((Date.now() - responseCache.timestamp) / 1000),
+    });
+  }
+
   const { prisma } = await import("@/lib/db");
 
   // ── 1. DB latency check ───────────────────────────────
@@ -315,7 +345,7 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     });
   }
 
-  return NextResponse.json({
+  const responseBody = {
     system,
     pipeline,
     indexing,
@@ -325,7 +355,18 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     sites,
     builderErrors: builderErrors.length > 0 ? builderErrors : undefined,
     timestamp: new Date().toISOString(),
-  });
+  };
+
+  // Cache the response to prevent pool exhaustion on rapid refreshes
+  if (builderErrors.length === 0) {
+    responseCache = {
+      data: responseBody,
+      timestamp: Date.now(),
+      siteKey: requestedSiteParam,
+    };
+  }
+
+  return NextResponse.json(responseBody);
 });
 
 // ─────────────────────────────────────────────

@@ -111,7 +111,7 @@ export async function auditPage(
   url: string,
   strategy: "mobile" | "desktop" = "mobile"
 ): Promise<PageAuditResult> {
-  const apiKey = process.env.PAGESPEED_API_KEY || process.env.PSI_API_KEY;
+  const apiKey = process.env.PAGESPEED_API_KEY || process.env.GOOGLE_PAGESPEED_API_KEY || process.env.PSI_API_KEY;
 
   const params = new URLSearchParams();
   params.set("url", url);
@@ -124,15 +124,16 @@ export async function auditPage(
   const queryUrl = `${PSI_API_URL}?url=${encodeURIComponent(url)}&strategy=${strategy}&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO${apiKey ? `&key=${apiKey}` : ""}`;
 
   try {
-    // Retry once on 429 (rate limit) with 3s backoff
+    // Retry up to 3 times on 429 (rate limit) with exponential backoff
     let res: Response | null = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 3000));
+    const backoffs = [0, 5000, 10000]; // 0s, 5s, 10s
+    for (let attempt = 0; attempt < backoffs.length; attempt++) {
+      if (backoffs[attempt] > 0) await new Promise((r) => setTimeout(r, backoffs[attempt]));
       res = await fetch(queryUrl, {
         signal: AbortSignal.timeout(30_000), // 30s timeout per page
       });
       if (res.status !== 429) break;
-      console.warn(`[site-auditor] Rate limited (429) on ${url} — retrying in 3s`);
+      console.warn(`[site-auditor] Rate limited (429) on ${url} — attempt ${attempt + 1}/${backoffs.length}`);
     }
 
     if (!res || !res.ok) {
@@ -276,7 +277,18 @@ export async function runSiteAudit(
   const runId = `perf-${siteId}-${Date.now()}-${randomUUID().substring(0, 6)}`;
   const startedAt = new Date().toISOString();
 
-  const urls = await getAuditUrls(siteId, baseUrl);
+  const hasApiKey = !!(process.env.PAGESPEED_API_KEY || process.env.GOOGLE_PAGESPEED_API_KEY || process.env.PSI_API_KEY);
+  let urls = await getAuditUrls(siteId, baseUrl);
+
+  // Without an API key, Google's free tier rate-limits aggressively.
+  // Limit to 5 most important pages and use longer delays to avoid 429s.
+  if (!hasApiKey && urls.length > 5) {
+    console.warn(`[site-auditor] No PAGESPEED_API_KEY — limiting audit to 5 pages (was ${urls.length})`);
+    urls = urls.slice(0, 5);
+  }
+
+  // With API key: 1.5s delay. Without: 5s delay to stay under free-tier rate limit.
+  const interPageDelayMs = hasApiKey ? 1500 : 5000;
   const pages: PageAuditResult[] = [];
   const start = Date.now();
 
@@ -290,8 +302,7 @@ export async function runSiteAudit(
     const result = await auditPage(url, strategy);
     pages.push(result);
 
-    // 1.5s delay between pages to avoid rate limiting (was 500ms — too aggressive)
-    await new Promise((r) => setTimeout(r, 1500));
+    await new Promise((r) => setTimeout(r, interPageDelayMs));
   }
 
   // Calculate summary

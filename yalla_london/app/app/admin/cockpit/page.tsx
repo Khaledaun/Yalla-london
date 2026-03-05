@@ -154,6 +154,31 @@ interface GateCheck {
   isBlocker: boolean;
 }
 
+interface ResearchedTopic {
+  rank: number;
+  keyword: string;
+  longTails: string[];
+  searchVolume: "high" | "medium" | "low";
+  estimatedMonthlySearches: string;
+  trend: "rising" | "stable" | "declining";
+  trendEvidence: string;
+  competition: "low" | "medium" | "high";
+  relevanceScore: number;
+  suggestedPageType: string;
+  contentAngle: string;
+  rationale: string;
+  questions: string[];
+}
+
+interface BulkQueueResult {
+  success: boolean;
+  mode?: string;
+  queued?: number;
+  message?: string;
+  error?: string;
+  articles?: Array<{ keyword: string; draftId: string; topicId: string | null; status: string }>;
+}
+
 interface ProviderInfo {
   id: string;
   name: string;
@@ -1343,6 +1368,16 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<Record<string, string>>({});
 
+  // ─── Topic Research & Bulk Create state ──────────────────────────────────
+  const [contentView, setContentView] = useState<"articles" | "research">("articles");
+  const [researchLoading, setResearchLoading] = useState(false);
+  const [researchError, setResearchError] = useState<string | null>(null);
+  const [researchedTopics, setResearchedTopics] = useState<ResearchedTopic[]>([]);
+  const [selectedTopics, setSelectedTopics] = useState<Set<number>>(new Set());
+  const [focusArea, setFocusArea] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkResult, setBulkResult] = useState<BulkQueueResult | null>(null);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
@@ -1366,6 +1401,88 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Reset research state when site changes
+  useEffect(() => {
+    setResearchedTopics([]);
+    setSelectedTopics(new Set());
+    setBulkResult(null);
+    setResearchError(null);
+  }, [activeSiteId]);
+
+  const runTopicResearch = async () => {
+    setResearchLoading(true);
+    setResearchError(null);
+    setResearchedTopics([]);
+    setSelectedTopics(new Set());
+    setBulkResult(null);
+    try {
+      const res = await fetch("/api/admin/topic-research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteId: activeSiteId,
+          count: 20,
+          focusArea: focusArea.trim() || undefined,
+          language: "en",
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || json.detail || `HTTP ${res.status}`);
+      setResearchedTopics(json.topics || []);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Research failed";
+      console.warn("[cockpit] Topic research failed:", msg);
+      setResearchError(msg);
+    } finally {
+      setResearchLoading(false);
+    }
+  };
+
+  const toggleTopicSelection = (rank: number) => {
+    setSelectedTopics((prev) => {
+      const next = new Set(prev);
+      if (next.has(rank)) {
+        next.delete(rank);
+      } else if (next.size < 5) {
+        next.add(rank);
+      }
+      return next;
+    });
+  };
+
+  const createBulkArticles = async () => {
+    const selected = researchedTopics.filter((t) => selectedTopics.has(t.rank));
+    if (selected.length === 0) return;
+
+    setBulkLoading(true);
+    setBulkResult(null);
+    try {
+      const res = await fetch("/api/admin/bulk-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "queue",
+          siteId: activeSiteId,
+          language: "en",
+          topicSource: "manual",
+          keywords: selected.map((t) => t.keyword),
+          pageType: "guide",
+          count: selected.length,
+        }),
+      });
+      const json = await res.json();
+      setBulkResult(json);
+      if (json.success) {
+        // Refresh article list after a short delay
+        setTimeout(() => fetchData(), 2000);
+      }
+    } catch (e) {
+      setBulkResult({ success: false, error: e instanceof Error ? e.message : "Failed to queue articles" });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const runGateCheck = async (item: ContentItem) => {
     if (item.type !== "draft") return;
     setGateLoading(item.id);
@@ -1380,7 +1497,6 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Network error";
       console.warn("[cockpit] runGateCheck failed:", msg);
-      // Store error as a visible gate check item so user sees what went wrong
       setGateResults((prev) => ({
         ...prev,
         [item.id]: [{ check: "gate_api", pass: false, label: `Gate check failed: ${msg}`, detail: "Tap 'Run gate check' to retry.", isBlocker: false }],
@@ -1421,15 +1537,6 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     return true;
   });
 
-  if (loading) return <div className="flex items-center justify-center h-48"><p className="text-zinc-500 text-sm">Loading content…</p></div>;
-
-  if (fetchError) return (
-    <Card className="text-center py-8 space-y-2">
-      <p className="text-red-400 text-sm">⚠️ Failed to load articles: {fetchError}</p>
-      <button onClick={fetchData} className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs">Retry</button>
-    </Card>
-  );
-
   const indexColor = (s: string | null) => {
     if (!s) return "text-zinc-500";
     if (s === "indexed") return "text-emerald-400";
@@ -1448,270 +1555,556 @@ function ContentTab({ activeSiteId }: { activeSiteId: string }) {
     return item.indexingStatus;
   };
 
+  const volumeColor = (v: string) => v === "high" ? "text-emerald-400" : v === "medium" ? "text-amber-400" : "text-zinc-400";
+  const trendIcon = (t: string) => t === "rising" ? "📈" : t === "declining" ? "📉" : "➡️";
+  const competitionColor = (c: string) => c === "low" ? "text-emerald-400" : c === "high" ? "text-red-400" : "text-amber-400";
+
   return (
     <div className="space-y-4">
-      {/* Summary */}
-      {data && (
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-          {[
-            ["Total", data.summary.total, "text-zinc-300"],
-            ["Published", data.summary.published, "text-emerald-400"],
-            ["Reservoir", data.summary.reservoir, "text-blue-400"],
-            ["Pipeline", data.summary.inPipeline, "text-amber-400"],
-            ["Rejected", data.summary.rejected, "text-red-400"],
-            ["Stuck", data.summary.stuck, "text-orange-400"],
-          ].map(([label, val, color]) => (
-            <Card key={label as string} className="text-center py-3">
-              <div className={`text-xl font-bold ${color}`}>{val}</div>
-              <div className="text-xs text-zinc-500 mt-0.5">{label}</div>
+      {/* ─── View Toggle: Articles | Research ──────────────────────────── */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setContentView("articles")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            contentView === "articles" ? "bg-blue-600 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+          }`}
+        >
+          Articles ({data?.summary.total ?? "…"})
+        </button>
+        <button
+          onClick={() => setContentView("research")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            contentView === "research" ? "bg-violet-600 text-white" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+          }`}
+        >
+          Research & Create
+        </button>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+           RESEARCH & BULK CREATE VIEW
+         ═══════════════════════════════════════════════════════════════════ */}
+      {contentView === "research" && (
+        <div className="space-y-4">
+          {/* Research controls */}
+          <Card>
+            <SectionTitle>SEO Topic Research</SectionTitle>
+            <p className="text-zinc-400 text-xs mb-3">
+              AI-powered keyword research finds 20 high-potential topics for your site.
+              Select up to 5 and create bulk articles instantly.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                placeholder="Focus area (optional): e.g. Ramadan, summer, luxury hotels…"
+                value={focusArea}
+                onChange={(e) => setFocusArea(e.target.value)}
+                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-violet-500"
+              />
+              <ActionButton
+                onClick={runTopicResearch}
+                loading={researchLoading}
+                variant="default"
+                className="whitespace-nowrap bg-violet-700 hover:bg-violet-600 border-violet-600 text-white"
+              >
+                Research Topics
+              </ActionButton>
+            </div>
+            {researchError && (
+              <p className="text-red-400 text-xs mt-2">Research failed: {researchError}</p>
+            )}
+          </Card>
+
+          {/* Research loading state */}
+          {researchLoading && (
+            <Card className="text-center py-8">
+              <div className="animate-pulse space-y-2">
+                <p className="text-violet-400 text-sm font-medium">Researching trending topics…</p>
+                <p className="text-zinc-500 text-xs">This takes 20-40 seconds. AI is analyzing search trends, competition, and relevance.</p>
+              </div>
             </Card>
-          ))}
+          )}
+
+          {/* Research results — topic picker */}
+          {researchedTopics.length > 0 && (
+            <>
+              {/* Selection summary bar */}
+              <Card className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <p className="text-zinc-100 text-sm font-medium">
+                    {researchedTopics.length} topics found — select up to 5
+                  </p>
+                  <p className="text-zinc-500 text-xs">
+                    {selectedTopics.size} selected{selectedTopics.size > 0 ? `: ${researchedTopics.filter((t) => selectedTopics.has(t.rank)).map((t) => t.keyword).join(", ")}` : ""}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {selectedTopics.size > 0 && (
+                    <button
+                      onClick={() => setSelectedTopics(new Set())}
+                      className="px-3 py-1.5 rounded-lg text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-400 border border-zinc-700"
+                    >
+                      Clear
+                    </button>
+                  )}
+                  <ActionButton
+                    onClick={createBulkArticles}
+                    loading={bulkLoading}
+                    disabled={selectedTopics.size === 0}
+                    variant="success"
+                    className="whitespace-nowrap"
+                  >
+                    Create {selectedTopics.size} Article{selectedTopics.size !== 1 ? "s" : ""}
+                  </ActionButton>
+                </div>
+              </Card>
+
+              {/* Bulk creation result */}
+              {bulkResult && (
+                <Card className={bulkResult.success ? "border-emerald-800 bg-emerald-950/20" : "border-red-800 bg-red-950/20"}>
+                  {bulkResult.success ? (
+                    <div>
+                      <p className="text-emerald-300 text-sm font-medium">
+                        {bulkResult.queued} article{(bulkResult.queued ?? 0) !== 1 ? "s" : ""} queued in pipeline
+                      </p>
+                      <p className="text-zinc-400 text-xs mt-1">{bulkResult.message}</p>
+                      {bulkResult.articles && bulkResult.articles.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {bulkResult.articles.map((a, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs">
+                              <span className="text-emerald-400">✓</span>
+                              <span className="text-zinc-300">{a.keyword}</span>
+                              <span className="text-zinc-600">→ pipeline</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => { setContentView("articles"); fetchData(); }}
+                        className="mt-3 px-3 py-1.5 rounded-lg text-xs bg-blue-700 hover:bg-blue-600 text-white"
+                      >
+                        View in Articles
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-red-300 text-sm">{bulkResult.error || "Failed to queue articles"}</p>
+                  )}
+                </Card>
+              )}
+
+              {/* Topic cards */}
+              <div className="space-y-2">
+                {researchedTopics.map((topic) => {
+                  const isSelected = selectedTopics.has(topic.rank);
+                  const atLimit = selectedTopics.size >= 5 && !isSelected;
+
+                  return (
+                    <Card
+                      key={topic.rank}
+                      className={`cursor-pointer transition-all ${
+                        isSelected
+                          ? "border-violet-500 bg-violet-950/20 ring-1 ring-violet-500/30"
+                          : atLimit
+                          ? "opacity-50 cursor-not-allowed"
+                          : "hover:border-zinc-600"
+                      }`}
+                    >
+                      <div
+                        onClick={() => !atLimit && toggleTopicSelection(topic.rank)}
+                        className="flex items-start gap-3"
+                      >
+                        {/* Checkbox */}
+                        <div className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
+                          isSelected ? "bg-violet-600 border-violet-500" : "border-zinc-600"
+                        }`}>
+                          {isSelected && <span className="text-white text-xs font-bold">✓</span>}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Header row */}
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-zinc-500 text-xs font-mono">#{topic.rank}</span>
+                            <span className="text-zinc-100 text-sm font-semibold">{topic.keyword}</span>
+                            <span className="text-xs">{trendIcon(topic.trend)}</span>
+                          </div>
+
+                          {/* Metrics row */}
+                          <div className="flex flex-wrap gap-3 text-[11px] mb-2">
+                            <span>
+                              Vol: <span className={`font-medium ${volumeColor(topic.searchVolume)}`}>{topic.searchVolume}</span>
+                              <span className="text-zinc-600 ml-1">({topic.estimatedMonthlySearches})</span>
+                            </span>
+                            <span>
+                              Competition: <span className={`font-medium ${competitionColor(topic.competition)}`}>{topic.competition}</span>
+                            </span>
+                            <span>
+                              Relevance: <span className={scoreColor(topic.relevanceScore)}>{topic.relevanceScore}/100</span>
+                            </span>
+                            <span className="text-zinc-500">
+                              {topic.suggestedPageType}
+                            </span>
+                          </div>
+
+                          {/* Long tails */}
+                          {topic.longTails.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {topic.longTails.map((lt, i) => (
+                                <span key={i} className="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 text-[10px] border border-zinc-700">
+                                  {lt}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Trend evidence + rationale */}
+                          {topic.trendEvidence && (
+                            <p className="text-zinc-500 text-[11px] mb-1">
+                              <span className="text-zinc-400 font-medium">Trend:</span> {topic.trendEvidence}
+                            </p>
+                          )}
+                          <p className="text-zinc-500 text-[11px]">
+                            <span className="text-zinc-400 font-medium">Why:</span> {topic.rationale}
+                          </p>
+
+                          {/* Content angle */}
+                          {topic.contentAngle && (
+                            <p className="text-violet-400/70 text-[11px] mt-1">
+                              Angle: {topic.contentAngle}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Empty state */}
+          {!researchLoading && researchedTopics.length === 0 && !researchError && (
+            <Card className="text-center py-12">
+              <p className="text-zinc-500 text-sm mb-2">No research results yet</p>
+              <p className="text-zinc-600 text-xs">Click &quot;Research Topics&quot; to discover high-performing keywords for your site.</p>
+            </Card>
+          )}
         </div>
       )}
 
-      {/* Filters + Search */}
-      <div className="flex flex-wrap gap-2">
-        <input
-          type="text"
-          placeholder="Search articles…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 min-w-[150px] bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
-        />
-        {["all", "published", "draft", "reservoir", "rejected", "stuck"].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${
-              filter === f ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
+      {/* ═══════════════════════════════════════════════════════════════════
+           ARTICLES VIEW (enhanced existing table)
+         ═══════════════════════════════════════════════════════════════════ */}
+      {contentView === "articles" && (
+        <>
+          {loading ? (
+            <div className="flex items-center justify-center h-48"><p className="text-zinc-500 text-sm">Loading content…</p></div>
+          ) : fetchError ? (
+            <Card className="text-center py-8 space-y-2">
+              <p className="text-red-400 text-sm">Failed to load articles: {fetchError}</p>
+              <button onClick={fetchData} className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs">Retry</button>
+            </Card>
+          ) : (
+            <>
+              {/* Summary cards */}
+              {data && (
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {[
+                    ["Total", data.summary.total, "text-zinc-300"],
+                    ["Published", data.summary.published, "text-emerald-400"],
+                    ["Reservoir", data.summary.reservoir, "text-blue-400"],
+                    ["Pipeline", data.summary.inPipeline, "text-amber-400"],
+                    ["Rejected", data.summary.rejected, "text-red-400"],
+                    ["Stuck", data.summary.stuck, "text-orange-400"],
+                  ].map(([label, val, color]) => (
+                    <Card key={label as string} className="text-center py-3">
+                      <div className={`text-xl font-bold ${color}`}>{val}</div>
+                      <div className="text-xs text-zinc-500 mt-0.5">{label}</div>
+                    </Card>
+                  ))}
+                </div>
+              )}
 
-      {/* Content table */}
-      {filtered.length === 0 ? (
-        <Card className="text-center py-8">
-          <p className="text-zinc-500 text-sm">No articles match the current filter.</p>
-        </Card>
-      ) : (
-        <Card className="p-0 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-zinc-800 text-zinc-500 text-left">
-                  <th className="px-3 py-2.5 font-medium min-w-[200px]">Page</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Created</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Published</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Crawled</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Google Status</th>
-                  <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Impr.</th>
-                  <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Clicks</th>
-                  <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">SEO</th>
-                  <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Words</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((item) => {
-                  const badge = statusBadge(item.status);
-                  const isExpanded = expandedId === item.id;
-                  const checks = gateResults[item.id];
+              {/* Quick actions row */}
+              <Card className="flex flex-wrap gap-2 items-center">
+                <ActionButton
+                  onClick={() => setContentView("research")}
+                  variant="default"
+                  className="bg-violet-700 hover:bg-violet-600 border-violet-600 text-white"
+                >
+                  Research & Create Topics
+                </ActionButton>
+                <ActionButton
+                  onClick={async () => {
+                    setActionLoading("run-builder");
+                    try {
+                      const r = await fetch("/api/cron/content-builder", { method: "POST" });
+                      const j = await r.json();
+                      setActionResult((prev) => ({ ...prev, __builder: j.success !== false ? "✅ Builder triggered" : `❌ ${j.error ?? "Failed"}` }));
+                      setTimeout(() => fetchData(), 3000);
+                    } catch (e) {
+                      setActionResult((prev) => ({ ...prev, __builder: `❌ ${e instanceof Error ? e.message : "Error"}` }));
+                    } finally { setActionLoading(null); }
+                  }}
+                  loading={actionLoading === "run-builder"}
+                >
+                  Run Pipeline
+                </ActionButton>
+                <ActionButton
+                  onClick={async () => {
+                    setActionLoading("run-selector");
+                    try {
+                      const r = await fetch("/api/cron/content-selector", { method: "POST" });
+                      const j = await r.json();
+                      setActionResult((prev) => ({ ...prev, __selector: j.success !== false ? "✅ Selector ran" : `❌ ${j.error ?? "Failed"}` }));
+                      setTimeout(() => fetchData(), 2000);
+                    } catch (e) {
+                      setActionResult((prev) => ({ ...prev, __selector: `❌ ${e instanceof Error ? e.message : "Error"}` }));
+                    } finally { setActionLoading(null); }
+                  }}
+                  loading={actionLoading === "run-selector"}
+                >
+                  Publish Ready
+                </ActionButton>
+                <ActionButton onClick={fetchData} loading={loading}>
+                  Refresh
+                </ActionButton>
+                {actionResult.__builder && <span className={`text-xs ${actionResult.__builder.startsWith("✅") ? "text-emerald-300" : "text-red-300"}`}>{actionResult.__builder}</span>}
+                {actionResult.__selector && <span className={`text-xs ${actionResult.__selector.startsWith("✅") ? "text-emerald-300" : "text-red-300"}`}>{actionResult.__selector}</span>}
+              </Card>
 
-                  return (
-                    <tr key={item.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors group">
-                      {/* Page name */}
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className={`inline-block px-1.5 py-0.5 rounded-full border text-[10px] font-medium leading-none ${badge.color}`}>
-                            {badge.label}
-                          </span>
-                        </div>
-                        <p className="text-zinc-100 font-medium truncate max-w-[280px]" title={item.title}>
-                          {item.title || item.slug || item.id}
-                        </p>
-                        {item.url && (
-                          <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate block max-w-[280px] text-[10px]">
-                            {item.url}
-                          </a>
-                        )}
-                        {/* Inline error */}
-                        {item.plainError && (
-                          <p className="text-red-400 mt-0.5 truncate max-w-[280px]" title={item.plainError}>{item.plainError}</p>
-                        )}
-                        {/* Action result */}
-                        {actionResult[item.id] && (
-                          <p className={`mt-0.5 ${actionResult[item.id].startsWith("✅") ? "text-emerald-300" : "text-red-300"}`}>
-                            {actionResult[item.id]}
-                          </p>
-                        )}
-                        {/* Expanded gate check panel */}
-                        {isExpanded && (
-                          <div className="mt-2 border-t border-zinc-800 pt-2">
-                            <p className="font-semibold text-zinc-400 mb-1.5">Why Isn{"'"}t This Published?</p>
-                            {gateLoading === item.id && <p className="text-zinc-500">Running gate checks…</p>}
-                            {checks && (
-                              <div className="space-y-1">
-                                {checks.map((c) => (
-                                  <div key={c.check} className={`flex items-start gap-1.5 rounded p-1 ${c.pass ? "bg-zinc-800/30" : c.isBlocker ? "bg-red-950/20" : "bg-amber-950/20"}`}>
-                                    <span className="shrink-0">{c.pass ? "✅" : c.isBlocker ? "❌" : "⚠️"}</span>
-                                    <div>
-                                      <span className={c.pass ? "text-zinc-400" : c.isBlocker ? "text-red-300" : "text-amber-300"}>{c.label}</span>
-                                      {!c.pass && c.detail && <p className="text-zinc-500 mt-0.5">{c.detail}</p>}
-                                    </div>
+              {/* Filters + Search */}
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  placeholder="Search articles…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="flex-1 min-w-[150px] bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-zinc-500"
+                />
+                {["all", "published", "draft", "reservoir", "rejected", "stuck"].map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${
+                      filter === f ? "bg-zinc-100 text-zinc-900" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+
+              {/* Content table */}
+              {filtered.length === 0 ? (
+                <Card className="text-center py-8">
+                  <p className="text-zinc-500 text-sm">No articles match the current filter.</p>
+                </Card>
+              ) : (
+                <Card className="p-0 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-zinc-800 text-zinc-500 text-left">
+                          <th className="px-3 py-2.5 font-medium min-w-[200px]">Page</th>
+                          <th className="px-3 py-2.5 font-medium whitespace-nowrap">Status</th>
+                          <th className="px-3 py-2.5 font-medium whitespace-nowrap">Created</th>
+                          <th className="px-3 py-2.5 font-medium whitespace-nowrap">Google</th>
+                          <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">SEO</th>
+                          <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Words</th>
+                          <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Clicks</th>
+                          <th className="px-3 py-2.5 font-medium whitespace-nowrap">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map((item) => {
+                          const badge = statusBadge(item.status);
+                          const isExpanded = expandedId === item.id;
+                          const checks = gateResults[item.id];
+
+                          return (
+                            <tr key={item.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors group">
+                              {/* Page name */}
+                              <td className="px-3 py-2.5">
+                                <p className="text-zinc-100 font-medium truncate max-w-[280px]" title={item.title}>
+                                  {item.title || item.slug || item.id}
+                                </p>
+                                {item.url && (
+                                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate block max-w-[280px] text-[10px]">
+                                    {item.url}
+                                  </a>
+                                )}
+                                {item.plainError && (
+                                  <p className="text-red-400 mt-0.5 truncate max-w-[280px] text-[10px]" title={item.plainError}>{item.plainError}</p>
+                                )}
+                                {actionResult[item.id] && (
+                                  <p className={`mt-0.5 text-[10px] ${actionResult[item.id].startsWith("✅") ? "text-emerald-300" : "text-red-300"}`}>
+                                    {actionResult[item.id]}
+                                  </p>
+                                )}
+                                {/* Expanded gate check panel */}
+                                {isExpanded && (
+                                  <div className="mt-2 border-t border-zinc-800 pt-2">
+                                    <p className="font-semibold text-zinc-400 mb-1.5">Why Isn{"'"}t This Published?</p>
+                                    {gateLoading === item.id && <p className="text-zinc-500">Running gate checks…</p>}
+                                    {checks && (
+                                      <div className="space-y-1">
+                                        {checks.map((c) => (
+                                          <div key={c.check} className={`flex items-start gap-1.5 rounded p-1 ${c.pass ? "bg-zinc-800/30" : c.isBlocker ? "bg-red-950/20" : "bg-amber-950/20"}`}>
+                                            <span className="shrink-0">{c.pass ? "✅" : c.isBlocker ? "❌" : "⚠️"}</span>
+                                            <div>
+                                              <span className={c.pass ? "text-zinc-400" : c.isBlocker ? "text-red-300" : "text-amber-300"}>{c.label}</span>
+                                              {!c.pass && c.detail && <p className="text-zinc-500 mt-0.5">{c.detail}</p>}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {!checks && !gateLoading && (
+                                      <button onClick={() => runGateCheck(item)} className="text-blue-400 hover:underline">Run gate check</button>
+                                    )}
                                   </div>
-                                ))}
-                              </div>
-                            )}
-                            {!checks && !gateLoading && (
-                              <button onClick={() => runGateCheck(item)} className="text-blue-400 hover:underline">Run gate check</button>
-                            )}
-                          </div>
-                        )}
-                      </td>
+                                )}
+                              </td>
 
-                      {/* Created */}
-                      <td className="px-3 py-2.5 text-zinc-400 whitespace-nowrap">{shortDate(item.generatedAt)}</td>
+                              {/* Status badge */}
+                              <td className="px-3 py-2.5 whitespace-nowrap">
+                                <span className={`inline-block px-1.5 py-0.5 rounded-full border text-[10px] font-medium leading-none ${badge.color}`}>
+                                  {badge.label}
+                                </span>
+                                {item.phase && item.type === "draft" && item.status !== "reservoir" && (
+                                  <p className="text-zinc-600 text-[10px] mt-0.5">{item.phase}</p>
+                                )}
+                              </td>
 
-                      {/* Published */}
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        {item.publishedAt ? (
-                          <span className="text-emerald-400">{shortDate(item.publishedAt)}</span>
-                        ) : (
-                          <span className="text-zinc-600">—</span>
-                        )}
-                      </td>
+                              {/* Created */}
+                              <td className="px-3 py-2.5 text-zinc-400 whitespace-nowrap">
+                                {shortDate(item.generatedAt)}
+                                {item.publishedAt && (
+                                  <p className="text-emerald-400 text-[10px]">Pub {shortDate(item.publishedAt)}</p>
+                                )}
+                              </td>
 
-                      {/* Crawled */}
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        {item.lastCrawledAt ? (
-                          <span className="text-zinc-400">{shortDate(item.lastCrawledAt)}</span>
-                        ) : (
-                          <span className="text-zinc-600">—</span>
-                        )}
-                      </td>
+                              {/* Google Status */}
+                              <td className="px-3 py-2.5 whitespace-nowrap">
+                                <span className={`font-medium ${indexColor(item.indexingStatus)}`}>
+                                  {indexLabel(item)}
+                                </span>
+                              </td>
 
-                      {/* Google Status */}
-                      <td className="px-3 py-2.5 whitespace-nowrap">
-                        <span className={`font-medium ${indexColor(item.indexingStatus)}`}>
-                          {indexLabel(item)}
-                        </span>
-                        {item.coverageState && item.indexingStatus !== "indexed" && (
-                          <p className="text-zinc-500 text-[10px] mt-0.5 max-w-[120px] truncate" title={item.coverageState}>
-                            {item.coverageState}
-                          </p>
-                        )}
-                      </td>
+                              {/* SEO Score */}
+                              <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                {item.seoScore !== null ? (
+                                  <span className={scoreColor(item.seoScore)}>{item.seoScore}</span>
+                                ) : (
+                                  <span className="text-zinc-600">—</span>
+                                )}
+                              </td>
 
-                      {/* Impressions */}
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                        {item.gscImpressions !== null ? (
-                          <span className="text-zinc-300">{item.gscImpressions.toLocaleString()}</span>
-                        ) : (
-                          <span className="text-zinc-600">—</span>
-                        )}
-                      </td>
+                              {/* Word Count */}
+                              <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                <span className={item.wordCount < 1000 ? "text-red-400" : item.wordCount < 1200 ? "text-amber-400" : "text-zinc-400"}>
+                                  {item.wordCount > 0 ? item.wordCount.toLocaleString() : "—"}
+                                </span>
+                              </td>
 
-                      {/* Clicks */}
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                        {item.gscClicks !== null ? (
-                          <span className={item.gscClicks > 0 ? "text-emerald-400 font-medium" : "text-zinc-300"}>{item.gscClicks.toLocaleString()}</span>
-                        ) : (
-                          <span className="text-zinc-600">—</span>
-                        )}
-                      </td>
+                              {/* Clicks */}
+                              <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                {item.gscClicks !== null ? (
+                                  <span className={item.gscClicks > 0 ? "text-emerald-400 font-medium" : "text-zinc-300"}>{item.gscClicks.toLocaleString()}</span>
+                                ) : (
+                                  <span className="text-zinc-600">—</span>
+                                )}
+                              </td>
 
-                      {/* SEO Score */}
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                        {item.seoScore !== null ? (
-                          <span className={scoreColor(item.seoScore)}>{item.seoScore}</span>
-                        ) : (
-                          <span className="text-zinc-600">—</span>
-                        )}
-                      </td>
-
-                      {/* Word Count */}
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                        <span className={item.wordCount < 1000 ? "text-red-400" : item.wordCount < 1200 ? "text-amber-400" : "text-zinc-400"}>
-                          {item.wordCount > 0 ? item.wordCount.toLocaleString() : "—"}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-3 py-2.5">
-                        <div className="flex flex-wrap gap-1">
-                          {item.type === "draft" && item.status !== "published" && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  if (isExpanded && checks) {
-                                    setExpandedId(null);
-                                  } else {
-                                    setExpandedId(item.id);
-                                    if (!checks) runGateCheck(item);
-                                  }
-                                }}
-                                className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 whitespace-nowrap"
-                              >
-                                {isExpanded ? "Hide" : "Why?"}
-                              </button>
-                              <ActionButton
-                                onClick={async () => {
-                                  setActionLoading(`publish-${item.id}`);
-                                  try {
-                                    const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: item.id, locale: item.locale, count: 1, siteId: activeSiteId }) });
-                                    const j = await r.json();
-                                    setActionResult((prev) => ({ ...prev, [item.id]: j.success ? "✅ Published!" : `❌ ${j.error ?? "Failed"}` }));
-                                    fetchData();
-                                  } catch (e) {
-                                    setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
-                                  } finally { setActionLoading(null); }
-                                }}
-                                loading={actionLoading === `publish-${item.id}`}
-                                variant="success"
-                              >
-                                Publish
-                              </ActionButton>
-                            </>
-                          )}
-                          {item.type === "published" && (
-                            <>
-                              {item.url && (
-                                <a href={item.url} target="_blank" rel="noopener noreferrer"
-                                  className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 whitespace-nowrap">
-                                  View
-                                </a>
-                              )}
-                              <ActionButton
-                                onClick={async () => {
-                                  if (!item.slug) { setActionResult((prev) => ({ ...prev, [item.id]: "❌ No slug — cannot submit" })); return; }
-                                  setActionLoading(`index-${item.id}`);
-                                  try {
-                                    const r = await fetch(`/api/admin/content-indexing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "submit", slugs: [item.slug] }) });
-                                    const j = await r.json();
-                                    setActionResult((prev) => ({ ...prev, [item.id]: j.success !== false ? "✅ Submitted" : `❌ ${j.error ?? "Failed"}` }));
-                                    fetchData();
-                                  } catch (e) {
-                                    setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
-                                  } finally { setActionLoading(null); }
-                                }}
-                                loading={actionLoading === `index-${item.id}`}
-                              >
-                                Index
-                              </ActionButton>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                              {/* Actions */}
+                              <td className="px-3 py-2.5">
+                                <div className="flex flex-wrap gap-1">
+                                  {item.type === "draft" && item.status !== "published" && (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          if (isExpanded && checks) {
+                                            setExpandedId(null);
+                                          } else {
+                                            setExpandedId(item.id);
+                                            if (!checks) runGateCheck(item);
+                                          }
+                                        }}
+                                        className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 whitespace-nowrap"
+                                      >
+                                        {isExpanded ? "Hide" : "Why?"}
+                                      </button>
+                                      {item.status === "reservoir" && (
+                                        <ActionButton
+                                          onClick={async () => {
+                                            setActionLoading(`publish-${item.id}`);
+                                            try {
+                                              const r = await fetch("/api/admin/force-publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftId: item.id, locale: item.locale, count: 1, siteId: activeSiteId }) });
+                                              const j = await r.json();
+                                              setActionResult((prev) => ({ ...prev, [item.id]: j.success ? "✅ Published!" : `❌ ${j.error ?? "Failed"}` }));
+                                              fetchData();
+                                            } catch (e) {
+                                              setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
+                                            } finally { setActionLoading(null); }
+                                          }}
+                                          loading={actionLoading === `publish-${item.id}`}
+                                          variant="success"
+                                        >
+                                          Publish
+                                        </ActionButton>
+                                      )}
+                                      {(item.status === "rejected" || item.hoursInPhase > 3) && (
+                                        <ActionButton
+                                          onClick={() => doAction("re_queue", item.id, "Re-queued")}
+                                          loading={actionLoading === `re_queue-${item.id}`}
+                                          variant="amber"
+                                        >
+                                          Retry
+                                        </ActionButton>
+                                      )}
+                                    </>
+                                  )}
+                                  {item.type === "published" && (
+                                    <>
+                                      {item.url && (
+                                        <a href={item.url} target="_blank" rel="noopener noreferrer"
+                                          className="px-1.5 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 whitespace-nowrap">
+                                          View
+                                        </a>
+                                      )}
+                                      <ActionButton
+                                        onClick={async () => {
+                                          if (!item.slug) { setActionResult((prev) => ({ ...prev, [item.id]: "❌ No slug" })); return; }
+                                          setActionLoading(`index-${item.id}`);
+                                          try {
+                                            const r = await fetch(`/api/admin/content-indexing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "submit", slugs: [item.slug] }) });
+                                            const j = await r.json();
+                                            setActionResult((prev) => ({ ...prev, [item.id]: j.success !== false ? "✅ Submitted" : `❌ ${j.error ?? "Failed"}` }));
+                                            fetchData();
+                                          } catch (e) {
+                                            setActionResult((prev) => ({ ...prev, [item.id]: `❌ ${e instanceof Error ? e.message : "Error"}` }));
+                                          } finally { setActionLoading(null); }
+                                        }}
+                                        loading={actionLoading === `index-${item.id}`}
+                                      >
+                                        Index
+                                      </ActionButton>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )}
+            </>
+          )}
+        </>
       )}
     </div>
   );
@@ -3900,12 +4293,45 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
         )}
       </Card>
 
+      {/* Cron Schedule Reference */}
+      <Card>
+        <SectionTitle>Cron Schedules & Quantities</SectionTitle>
+        <p className="text-zinc-500 text-xs mb-3">
+          Current cron timing and article generation quantities. To change schedules, update <code className="text-zinc-400">vercel.json</code> and redeploy.
+        </p>
+        <div className="space-y-2 text-xs">
+          {[
+            { name: "Content Builder", schedule: "*/15 * * * *", desc: "Every 15 min — advances 1-2 drafts per run through 8 phases", quantity: "1-2 drafts/run" },
+            { name: "Content Selector", schedule: "0 9,13,17,21 * * *", desc: "4x daily — promotes reservoir articles to published", quantity: "Up to 3 per run" },
+            { name: "Weekly Topics", schedule: "0 4 * * 1", desc: "Monday 4am UTC — generates topic proposals for all sites", quantity: "10-20 topics/site" },
+            { name: "Content Auto-Fix", schedule: "0 11,18 * * *", desc: "2x daily — expands short articles, trims meta descriptions", quantity: "Up to 10 per run" },
+            { name: "SEO Agent", schedule: "0 7,13,20 * * *", desc: "3x daily — auto-fixes meta, schema, internal links", quantity: "50 meta + 20 schema + 5 links" },
+            { name: "Diagnostic Sweep", schedule: "0 */2 * * *", desc: "Every 2 hours — diagnoses stuck drafts and failed crons", quantity: "All stuck items" },
+          ].map((cron) => (
+            <div key={cron.name} className="rounded-lg bg-zinc-800/50 p-2.5">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="text-zinc-200 font-medium">{cron.name}</span>
+                <code className="text-violet-400 font-mono text-[10px] bg-zinc-900 px-1.5 py-0.5 rounded">{cron.schedule}</code>
+              </div>
+              <p className="text-zinc-500">{cron.desc}</p>
+              <p className="text-zinc-600 mt-0.5">Quantity: <span className="text-zinc-400">{cron.quantity}</span></p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 border-t border-zinc-800 pt-2">
+          <p className="text-zinc-600 text-[11px]">
+            Tip: To increase article output, the content-builder runs every 15 min and processes 1-2 drafts each run.
+            More topics = more articles. Use &quot;Research &amp; Create&quot; in the Content tab to add topics on demand.
+          </p>
+        </div>
+      </Card>
+
       {/* Links */}
       <Card>
         <SectionTitle>System Info</SectionTitle>
         <div className="text-xs space-y-1 text-zinc-500">
           <p>Platform: Vercel Pro</p>
-          <p>Cockpit v1.0.0</p>
+          <p>Cockpit v2.0.0</p>
           <p>
             <Link href="/admin/cockpit/design" className="text-blue-400 hover:underline">→ Design Studio</Link>
           </p>

@@ -146,6 +146,10 @@
       "schedule": "0 22 * * *"
     },
     {
+      "path": "/api/cron/diagnostic-sweep",
+      "schedule": "0 */2 * * *"
+    },
+    {
       "path": "/api/cron/sweeper",
       "schedule": "45 8,14,20 * * *"
     },

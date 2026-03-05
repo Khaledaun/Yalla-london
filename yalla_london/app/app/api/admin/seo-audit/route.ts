@@ -1132,14 +1132,16 @@ async function runAudit(siteId: string) {
   const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
   findings.sort((a, b) => (severityOrder[a.severity] || 4) - (severityOrder[b.severity] || 4));
 
-  // Compute overall health score (0-100)
+  // Compute overall health score (0-100) using logarithmic scaling.
+  // Linear deductions cause any real site to score 0 (5 critical findings = -100).
+  // Logarithmic scaling: 1 critical ≈ 85, 3 critical ≈ 66, 10 critical ≈ 43, many findings ≈ 20-30.
   let healthDeductions = 0;
   for (const f of findings) {
     if (f.severity === "info") continue;
     const weight = f.severity === "critical" ? 20 : f.severity === "high" ? 12 : f.severity === "medium" ? 5 : 2;
     healthDeductions += weight;
   }
-  const healthScore = Math.max(0, Math.min(100, 100 - healthDeductions));
+  const healthScore = Math.max(15, Math.min(100, Math.round(100 - 50 * Math.log10(1 + healthDeductions / 20))));
 
   // Group by category
   const sections: AuditSection[] = [];

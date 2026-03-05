@@ -85,6 +85,14 @@ export async function runContentBuilder(
       });
 
       draft = allDrafts[0] || null;
+
+      // PHASE-AWARE BUDGET: Assembly is a "heavy" phase that needs the full cron budget.
+      // If the selected draft is in assembly, skip creating new drafts and give it the
+      // entire remaining budget. This prevents assembly from being starved by earlier work.
+      if (draft && (draft.current_phase as string) === "assembly") {
+        console.log(`[content-builder] Assembly phase detected for draft ${draft.id} — dedicating full budget`);
+        // Skip Step 2 entirely — go straight to Step 3
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("does not exist") || msg.includes("P2021")) {

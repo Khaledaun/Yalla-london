@@ -444,15 +444,13 @@ Requirements:
 - Natural Arabic (not literal translation)
 - Include relevant Arabic keywords`;
 
-    const response = await generateCompletion({
-      prompt,
-      maxTokens: 300,
-      taskType: "copywriting",
-      calledFrom: "auto-remediate:generateArabicMeta",
-    } as unknown as Parameters<typeof generateCompletion>[0]);
+    const response = await generateCompletion(
+      [{ role: "user", content: prompt }],
+      { maxTokens: 300, taskType: "copywriting", calledFrom: "auto-remediate:generateArabicMeta" }
+    );
 
     // Parse response
-    const jsonMatch = (response as unknown as string).match(/\{[\s\S]*\}/);
+    const jsonMatch = response.content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return { fixType: "arabic_meta_gen", targetId: blogPostId, success: false, before: {}, after: {}, error: "AI returned non-JSON" };
     }

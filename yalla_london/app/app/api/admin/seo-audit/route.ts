@@ -274,23 +274,10 @@ async function runAudit(siteId: string) {
     }
 
     // Low SEO scores (BlogPost has seo_score, not quality_score)
-    const lowQuality = publishedPosts.filter((p) => (p.seo_score || 0) < CONTENT_QUALITY.qualityGateScore && (p.seo_score || 0) > 0);
-    if (lowQuality.length > 0) {
-      findings.push({
-        id: "content-low-quality",
-        severity: "high",
-        category: "Content Quality",
-        title: `${lowQuality.length} articles have SEO scores below ${CONTENT_QUALITY.qualityGateScore}`,
-        description: "These articles passed the quality gate at a time when the threshold was lower. They don't meet current standards.",
-        impact: "Low-quality articles dilute your site's topical authority",
-        fix: "Re-run quality scoring and consider expanding or rewriting these articles.",
-        affected: lowQuality.map((p) => `/blog/${p.slug} (score: ${p.seo_score})`),
-        count: lowQuality.length,
-      });
-    }
-
-    // Low SEO scores
+    // Split into two mutually exclusive groups to avoid double-counting health deductions
     const lowSeo = publishedPosts.filter((p) => (p.seo_score || 0) < 50 && (p.seo_score || 0) > 0);
+    const lowQuality = publishedPosts.filter((p) => (p.seo_score || 0) >= 50 && (p.seo_score || 0) < CONTENT_QUALITY.qualityGateScore);
+
     if (lowSeo.length > 0) {
       findings.push({
         id: "content-low-seo",
@@ -302,6 +289,20 @@ async function runAudit(siteId: string) {
         fix: "Open each article in the editor and check: heading structure, internal links, keyword placement, and meta tags.",
         affected: lowSeo.map((p) => `/blog/${p.slug} (SEO: ${p.seo_score})`),
         count: lowSeo.length,
+      });
+    }
+
+    if (lowQuality.length > 0) {
+      findings.push({
+        id: "content-low-quality",
+        severity: "high",
+        category: "Content Quality",
+        title: `${lowQuality.length} articles have SEO scores between 50-${CONTENT_QUALITY.qualityGateScore - 1}`,
+        description: "These articles passed the quality gate at a time when the threshold was lower. They don't meet current standards.",
+        impact: "Below-threshold articles dilute your site's topical authority",
+        fix: "Re-run quality scoring and consider expanding or rewriting these articles.",
+        affected: lowQuality.map((p) => `/blog/${p.slug} (score: ${p.seo_score})`),
+        count: lowQuality.length,
       });
     }
 
@@ -318,6 +319,27 @@ async function runAudit(siteId: string) {
         fix: "Add relevant featured images to these articles through the editor.",
         affected: noImage.map((p) => `/blog/${p.slug}`),
         count: noImage.length,
+      });
+    }
+
+    // Stale content (not updated in 90+ days)
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000);
+    const stalePosts = publishedPosts.length > 0 ? await prisma.blogPost.findMany({
+      where: { siteId, published: true, updated_at: { lt: ninetyDaysAgo } },
+      select: { slug: true, updated_at: true },
+      take: 20,
+    }) : [];
+    if (stalePosts.length > 5) {
+      findings.push({
+        id: "content-stale",
+        severity: "medium",
+        category: "Content Quality",
+        title: `${stalePosts.length} articles haven't been updated in 90+ days`,
+        description: "Google's 2026 Authenticity Update rewards freshness. Stale content signals neglect and loses ranking authority over time.",
+        impact: "Competitors publishing fresher content on the same topics will outrank stale pages",
+        fix: "Prioritize updating your highest-traffic stale articles: add new information, update dates, refresh affiliate links, and expand thin sections.",
+        affected: stalePosts.slice(0, 15).map((p) => `/blog/${p.slug} (last updated: ${p.updated_at.toISOString().split("T")[0]})`),
+        count: stalePosts.length,
       });
     }
 
@@ -606,9 +628,11 @@ async function runAudit(siteId: string) {
     try {
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
+      // Include cron failures for this site OR multi-site runs (site_id: null)
+      const siteOrGlobal = { OR: [{ site_id: siteId }, { site_id: null }] };
       const [recentFailures, recentTimeouts] = await Promise.all([
         prisma.cronJobLog.findMany({
-          where: { status: "failed", started_at: { gte: twentyFourHoursAgo } },
+          where: { status: "failed", started_at: { gte: twentyFourHoursAgo }, ...siteOrGlobal },
           select: { job_name: true, error_message: true, started_at: true },
           orderBy: { started_at: "desc" },
           take: 10,
@@ -617,6 +641,7 @@ async function runAudit(siteId: string) {
           where: {
             started_at: { gte: twentyFourHoursAgo },
             duration_ms: { gte: 50000 },
+            ...siteOrGlobal,
           },
         }),
       ]);
@@ -661,12 +686,34 @@ async function runAudit(siteId: string) {
 
   if (Date.now() - auditStart < BUDGET_MS - 12_000) {
     try {
-      const samplePosts = await prisma.blogPost.findMany({
+      // Sample a mix: 2 most recent + 3 random older posts for broader coverage
+      const totalPublishedCount = await prisma.blogPost.count({ where: { siteId, published: true } });
+      const recentSample = await prisma.blogPost.findMany({
         where: { siteId, published: true },
         select: { slug: true, title_en: true },
-        take: 5,
+        take: 2,
         orderBy: { updated_at: "desc" },
       });
+      let randomSample: typeof recentSample = [];
+      if (totalPublishedCount > 2) {
+        const randomSkip = Math.max(0, Math.floor(Math.random() * (totalPublishedCount - 3)));
+        randomSample = await prisma.blogPost.findMany({
+          where: { siteId, published: true },
+          select: { slug: true, title_en: true },
+          take: 3,
+          skip: randomSkip,
+          orderBy: { created_at: "asc" },
+        });
+      }
+      // Deduplicate by slug
+      const seenSlugs = new Set(recentSample.map((p) => p.slug));
+      const samplePosts = [...recentSample];
+      for (const p of randomSample) {
+        if (!seenSlugs.has(p.slug) && samplePosts.length < 5) {
+          samplePosts.push(p);
+          seenSlugs.add(p.slug);
+        }
+      }
 
       const pageIssues: Array<{ slug: string; issues: string[] }> = [];
       for (const post of samplePosts) {
@@ -983,7 +1030,8 @@ async function runAudit(siteId: string) {
                   count: 1,
                 });
               }
-              if (robotsTxt.includes("Disallow: /\n") || robotsTxt.includes("Disallow: / \n")) {
+              // Match "Disallow: /" that is NOT followed by more path chars (e.g. /blog, /api)
+              if (/Disallow:\s*\/\s*$/m.test(robotsTxt)) {
                 findings.push({
                   id: "robots-blocks-all",
                   severity: "critical",
@@ -1123,6 +1171,7 @@ async function runAudit(siteId: string) {
     { id: "run-verify-indexing", label: "Verify indexing status", cron: "verify-indexing", description: "Checks which pages are actually indexed via GSC URL Inspection API", safe: true },
     { id: "run-content-selector", label: "Publish ready articles", cron: "content-selector", description: "Promotes reservoir articles that pass quality gates to published BlogPosts", safe: true },
     { id: "run-sweeper", label: "Recover stuck drafts", cron: "sweeper", description: "Finds and recovers drafts stuck in the pipeline due to errors or timeouts", safe: true },
+    { id: "auto-fix-all", label: "Auto-fix all issues", cron: "auto_fix_all", description: "Runs audit, then chains the right crons to fix all auto-fixable issues in one tap", safe: true },
   ];
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1260,6 +1309,28 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await runAudit(siteId);
+
+    // Auto-persist every audit for trend tracking (fire-and-forget)
+    try {
+      const { prisma: db } = await import("@/lib/db");
+      await db.seoAuditReport.create({
+        data: {
+          siteId,
+          healthScore: result.healthScore,
+          totalFindings: result.totalFindings,
+          criticalCount: result.criticalCount,
+          highCount: result.highCount,
+          mediumCount: result.mediumCount,
+          lowCount: result.lowCount,
+          report: result as unknown as Record<string, unknown>,
+          summary: result.summary,
+          triggeredBy: request.nextUrl.searchParams.get("triggeredBy") || "manual",
+        },
+      });
+    } catch (saveErr) {
+      console.warn("[seo-audit] Auto-save failed (table may not exist):", saveErr instanceof Error ? saveErr.message : saveErr);
+    }
+
     return NextResponse.json({ success: true, ...result });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -1315,6 +1386,79 @@ export async function POST(request: NextRequest) {
           error: cronErr instanceof Error ? cronErr.message : "Cron execution failed",
         }, { status: 500 });
       }
+    }
+
+    // ── ACTION: Auto-fix all — chains relevant crons based on audit findings ──
+    if (action === "auto_fix_all") {
+      const { getDefaultSiteId } = await import("@/config/sites");
+      const fixSiteId = body.siteId || getDefaultSiteId();
+
+      // Run audit first to determine which crons to fire
+      const auditResult = await runAudit(fixSiteId);
+      const findingIds = new Set(auditResult.findings.map((f: AuditFinding) => f.id));
+
+      // Map findings to cron jobs — most impactful first
+      const cronQueue: Array<{ cron: string; reason: string }> = [];
+
+      if (findingIds.has("content-no-meta-title") || findingIds.has("content-no-meta-desc") || findingIds.has("content-long-meta-title") || findingIds.has("content-long-meta-desc") || findingIds.has("links-orphan-pages") || findingIds.has("links-few-outbound")) {
+        cronQueue.push({ cron: "seo-agent", reason: "Fix missing/long meta tags + inject internal links" });
+      }
+      if (findingIds.has("content-thin")) {
+        cronQueue.push({ cron: "content-auto-fix", reason: "Expand thin articles under 1,000 words" });
+      }
+      if (findingIds.has("idx-never-submitted") || findingIds.has("idx-rate-high") || findingIds.has("idx-rate-critical")) {
+        cronQueue.push({ cron: "google-indexing", reason: "Submit unindexed URLs to IndexNow" });
+      }
+      if (findingIds.has("pipeline-stuck")) {
+        cronQueue.push({ cron: "sweeper", reason: "Recover stuck pipeline drafts" });
+      }
+      if (findingIds.has("pipeline-empty-reservoir")) {
+        cronQueue.push({ cron: "content-builder", reason: "Generate new content for empty reservoir" });
+      }
+      if (findingIds.has("gsc-no-data")) {
+        cronQueue.push({ cron: "gsc-sync", reason: "Pull missing GSC performance data" });
+      }
+
+      if (cronQueue.length === 0) {
+        return NextResponse.json({ success: true, message: "No auto-fixable issues found", auditScore: auditResult.healthScore, fixesRun: 0 });
+      }
+
+      const baseUrl = request.nextUrl.origin;
+      const cronSecret = process.env.CRON_SECRET;
+      const headers: Record<string, string> = {};
+      if (cronSecret) headers["Authorization"] = `Bearer ${cronSecret}`;
+
+      const results: Array<{ cron: string; reason: string; success: boolean; status?: number; error?: string }> = [];
+      const FIX_BUDGET_MS = 50_000;
+      const fixStart = Date.now();
+
+      // Run sequentially to stay within budget
+      for (const item of cronQueue) {
+        if (Date.now() - fixStart > FIX_BUDGET_MS) {
+          results.push({ ...item, success: false, error: "Skipped — budget exhausted" });
+          continue;
+        }
+        try {
+          const resp = await fetch(`${baseUrl}/api/cron/${item.cron}`, {
+            method: "POST",
+            headers,
+            signal: AbortSignal.timeout(Math.min(15_000, FIX_BUDGET_MS - (Date.now() - fixStart))),
+          });
+          results.push({ ...item, success: resp.ok, status: resp.status });
+        } catch (err) {
+          results.push({ ...item, success: false, error: err instanceof Error ? err.message : "Failed" });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        action: "auto_fix_all",
+        auditScore: auditResult.healthScore,
+        findingsCount: auditResult.totalFindings,
+        fixesRun: results.filter((r) => r.success).length,
+        fixesTotal: cronQueue.length,
+        results,
+      });
     }
 
     // ── ACTION: Save audit report ──

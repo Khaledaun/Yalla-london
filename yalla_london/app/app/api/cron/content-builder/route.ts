@@ -54,6 +54,22 @@ async function handleContentBuilder(request: NextRequest) {
   }
 
   try {
+    // Dedup guard: skip if another content-builder ran within the last 60 seconds.
+    // Prevents duplicate runs from overlapping Vercel cron + manual dashboard triggers.
+    try {
+      const { prisma } = await import("@/lib/db");
+      const recentRun = await prisma.cronJobLog.findFirst({
+        where: { job_name: "content-builder", started_at: { gte: new Date(Date.now() - 60_000) } },
+        orderBy: { started_at: "desc" },
+      });
+      if (recentRun) {
+        return NextResponse.json({ skipped: true, reason: "dedup", message: "Another content-builder ran within the last 60s", lastRunAt: recentRun.started_at });
+      }
+    } catch (dedupErr) {
+      // If dedup check fails (e.g., DB pool exhausted), proceed anyway — better to double-run than skip
+      console.warn("[content-builder] Dedup check failed (non-fatal):", dedupErr instanceof Error ? dedupErr.message : dedupErr);
+    }
+
     // Run the builder
     const { runContentBuilder } = await import("@/lib/content-pipeline/build-runner");
     const result = await runContentBuilder({ timeoutMs: 53_000 });

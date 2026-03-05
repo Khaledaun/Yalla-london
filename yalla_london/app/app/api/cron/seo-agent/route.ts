@@ -89,8 +89,10 @@ export async function GET(request: NextRequest) {
       resultSummary: { message: `completed=${loopResult.completed}, failed=${loopResult.failed}, skipped=${loopResult.skipped}` },
     });
 
+    // success = true only when at least one site completed without failure
+    const overallSuccess = loopResult.completed > 0 || loopResult.failed === 0;
     return NextResponse.json({
-      success: true,
+      success: overallSuccess,
       agent: "seo-autonomous-multisite",
       runAt: new Date().toISOString(),
       completed: loopResult.completed,
@@ -1227,39 +1229,42 @@ async function autoFixSEOIssues(
 }
 
 function calculateHealthScore(report: Record<string, any>): number {
-  let score = 100;
+  // Diminishing returns per category — prevents trivially hitting 0 on any real site.
+  // Max total deductions capped so a functioning site with issues scores 30-70, not 0.
+  let totalDeductions = 0;
 
-  // Content generation
-  if (report.contentStatus?.status === "stalled") score -= 20;
-  if (report.contentStatus?.status === "partial") score -= 10;
+  // Content generation (max 12 pts)
+  if (report.contentStatus?.status === "stalled") totalDeductions += 12;
+  else if (report.contentStatus?.status === "partial") totalDeductions += 6;
 
-  // Blog audit
-  if (report.blogAudit?.averageSEOScore < 70) score -= 15;
-  if (report.blogAudit?.postsWithIssues > 5) score -= 10;
+  // Blog audit (max 12 pts)
+  if (report.blogAudit?.averageSEOScore < 70) totalDeductions += 8;
+  if (report.blogAudit?.postsWithIssues > 5) totalDeductions += 4;
 
-  // Indexing
-  if (report.indexingStatus?.status === "credentials_missing") score -= 10;
+  // Indexing (max 8 pts)
+  if (report.indexingStatus?.status === "credentials_missing") totalDeductions += 8;
 
-  // Sitemap
-  if (report.sitemapHealth?.healthy === false) score -= 15;
+  // Sitemap (max 10 pts)
+  if (report.sitemapHealth?.healthy === false) totalDeductions += 10;
 
-  // Content gaps
-  if (report.contentGaps?.categoryGaps?.length > 2) score -= 10;
+  // Content gaps (max 6 pts)
+  if (report.contentGaps?.categoryGaps?.length > 2) totalDeductions += 6;
 
-  // GSC search performance
-  if (report.searchPerformance?.page1NoClicks > 0) score -= 10;
-  if (report.searchPerformance?.lowCTRPages > 3) score -= 10;
-  if (report.searchPerformance?.totals?.ctr < 3) score -= 5;
+  // GSC search performance (max 12 pts)
+  if (report.searchPerformance?.page1NoClicks > 0) totalDeductions += 5;
+  if (report.searchPerformance?.lowCTRPages > 3) totalDeductions += 5;
+  if (report.searchPerformance?.totals?.ctr < 3) totalDeductions += 2;
 
-  // GA4 traffic analysis
-  if (report.trafficAnalysis?.organicShare < 20) score -= 10;
-  if (report.trafficAnalysis?.bounceRate > 50) score -= 5;
+  // GA4 traffic analysis (max 8 pts)
+  if (report.trafficAnalysis?.organicShare < 20) totalDeductions += 5;
+  if (report.trafficAnalysis?.bounceRate > 50) totalDeductions += 3;
 
   // Bonus for fixes applied
   const fixCount = report.metaOptimizations?.length || 0;
-  if (fixCount > 0) score += Math.min(fixCount * 2, 10);
+  const bonus = fixCount > 0 ? Math.min(fixCount * 2, 10) : 0;
 
-  return Math.max(0, Math.min(100, score));
+  // Floor at 15 — a functioning site with real issues is never 0
+  return Math.max(15, Math.min(100, 100 - totalDeductions + bonus));
 }
 
 function getNextRunTime(): string {

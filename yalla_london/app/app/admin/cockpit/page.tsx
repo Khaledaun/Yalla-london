@@ -2267,6 +2267,48 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
   const [seoAuditActionLoading, setSeoAuditActionLoading] = useState<string | null>(null);
   const [seoAuditActionResult, setSeoAuditActionResult] = useState<Record<string, string>>({});
 
+  const [exportLoading, setExportLoading] = useState<string | null>(null);
+  const [diagnosticLoading, setDiagnosticLoading] = useState<string | null>(null);
+  const [diagnosticResult, setDiagnosticResult] = useState<Record<string, string>>({});
+
+  const exportAuditJson = async (siteId: string) => {
+    setExportLoading(siteId);
+    try {
+      const res = await fetch(`/api/admin/audit-export?siteId=${encodeURIComponent(siteId)}`);
+      if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `audit-${siteId}-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setPublishResult((prev) => ({ ...prev, [siteId]: `❌ Export failed: ${e instanceof Error ? e.message : "Network error"}` }));
+    } finally {
+      setExportLoading(null);
+    }
+  };
+
+  const runDiagnosticSweep = async (siteId: string) => {
+    setDiagnosticLoading(siteId);
+    try {
+      const res = await fetch("/api/cron/diagnostic-sweep", { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        setDiagnosticResult((prev) => ({ ...prev, [siteId]: `Fixed ${json.fixes?.filter((f: Record<string, unknown>) => f.success).length || 0} issues. ${json.summary || ""}` }));
+      } else {
+        setDiagnosticResult((prev) => ({ ...prev, [siteId]: `❌ ${json.error || "Diagnostic failed"}` }));
+      }
+    } catch (e) {
+      setDiagnosticResult((prev) => ({ ...prev, [siteId]: `❌ ${e instanceof Error ? e.message : "Network error"}` }));
+    } finally {
+      setDiagnosticLoading(null);
+    }
+  };
+
   const runMasterAudit = async (siteId: string) => {
     setSeoAuditLoading(siteId);
     setSeoAuditExpandedSection(null);
@@ -2579,6 +2621,19 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
               >
                 Master Audit
               </ActionButton>
+              <ActionButton
+                onClick={() => exportAuditJson(site.id)}
+                loading={exportLoading === site.id}
+                variant="amber"
+              >
+                Export JSON
+              </ActionButton>
+              <ActionButton
+                onClick={() => runDiagnosticSweep(site.id)}
+                loading={diagnosticLoading === site.id}
+              >
+                Diagnose
+              </ActionButton>
               <button
                 onClick={() => {
                   if (seoAuditHistoryOpen === site.id) {
@@ -2603,6 +2658,11 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
             {publishResult[site.id] && (
               <p className={`mt-2 text-xs rounded px-2 py-1 ${publishResult[site.id].startsWith("✅") ? "bg-emerald-950/30 text-emerald-300" : "bg-red-950/30 text-red-300"}`}>
                 {publishResult[site.id]}
+              </p>
+            )}
+            {diagnosticResult[site.id] && (
+              <p className={`mt-2 text-xs rounded px-2 py-1 ${diagnosticResult[site.id].startsWith("❌") ? "bg-red-950/30 text-red-300" : "bg-blue-950/30 text-blue-300"}`}>
+                {diagnosticResult[site.id]}
               </p>
             )}
 

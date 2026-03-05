@@ -449,15 +449,10 @@ export async function phaseAssembly(
   site: SiteConfig,
   budgetRemainingMs?: number,
 ): Promise<PhaseResult> {
-  // Budget guard: need at least 28s for AI call (25s timeout) + DB save (3s)
-  if (budgetRemainingMs !== undefined && budgetRemainingMs < 28_000) {
-    return { success: false, nextPhase: "assembly", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining, need 28s) — will retry next run` };
-  }
-  const { generateJSON } = await import("@/lib/ai/provider");
   const outline = (draft.outline_data || {}) as Record<string, unknown>;
   const sections = (draft.sections_data || []) as Array<Record<string, unknown>>;
 
-  // Assemble raw HTML from sections
+  // Assemble raw HTML from sections (needed for both AI and fallback paths)
   const rtlAttr = isArabic(draft.locale) ? ' dir="rtl" lang="ar"' : ' lang="en"';
   let rawHtml = "";
   let totalWords = 0;
@@ -468,6 +463,38 @@ export async function phaseAssembly(
     rawHtml += `<${tag}>${heading}</${tag}>\n${section.content || ""}\n\n`;
     totalWords += (section.wordCount as number) || 0;
   }
+
+  // RAW FALLBACK: If budget is critically low (<12s) or draft has been stuck (4+ attempts),
+  // skip AI polish entirely and concatenate sections directly. This guarantees forward
+  // progress — content-auto-fix cron can enhance the article later.
+  const attempts = draft.phase_attempts || 0;
+  const useFallback = (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) || attempts >= 4;
+
+  if (useFallback) {
+    console.log(`[phases/assembly] Using raw fallback for draft ${draft.id} (budget=${budgetRemainingMs ? Math.round(budgetRemainingMs / 1000) + 's' : 'unlimited'}, attempts=${attempts})`);
+    const intro = outline.introduction as Record<string, unknown> | undefined;
+    const conclusion = outline.conclusion as Record<string, unknown> | undefined;
+
+    let fallbackHtml = `<article${rtlAttr}>`;
+    if (intro?.hook) fallbackHtml += `<p>${intro.hook}</p>\n`;
+    fallbackHtml += rawHtml;
+    if (conclusion?.callToAction) fallbackHtml += `<h2>${isArabic(draft.locale) ? "الخلاصة" : "Conclusion"}</h2>\n<p>${conclusion.callToAction}</p>\n`;
+    fallbackHtml += `</article>`;
+
+    const fallbackWords = fallbackHtml.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
+    return {
+      success: true,
+      nextPhase: "images",
+      data: { assembled_html: fallbackHtml, word_count: fallbackWords },
+      aiModelUsed: "fallback-raw",
+    };
+  }
+
+  // Budget guard: need at least 12s for AI call + DB save
+  if (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) {
+    return { success: false, nextPhase: "assembly", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining, need 12s) — will retry next run` };
+  }
+  const { generateJSON } = await import("@/lib/ai/provider");
 
   const affiliatePlacements = (outline.affiliatePlacements as Array<Record<string, unknown>>) || [];
   const internalLinkPlan = (outline.internalLinkPlan as Array<Record<string, unknown>>) || [];
@@ -516,7 +543,7 @@ Return JSON:
     const assemblyTimeout = budgetRemainingMs !== undefined ? Math.max(budgetRemainingMs - bufferMs, 10_000) : 30_000;
     const result = await generateJSON<Record<string, unknown>>(prompt, {
       systemPrompt: `You are a luxury travel senior editor. Polish articles for quality, coherence, and SEO. The final article MUST be at least 1,500 words — expand content if the raw input is too short. Return only valid JSON.${getLocaleDirectives(draft.locale, site)}`,
-      maxTokens: isArabic(draft.locale) ? 3500 : 2000,
+      maxTokens: isArabic(draft.locale) ? 2500 : 1500,
       temperature: 0.4,
       timeoutMs: assemblyTimeout,
       siteId: draft.site_id,
@@ -532,8 +559,8 @@ Return JSON:
     assembledWordCount = Math.max(assembledWordCount, actualWords);
 
     // If still too short and we have budget, run an expansion pass
-    // Skip expansion if less than 30s remaining — it will be caught by content-auto-fix cron later
-    const canExpand = budgetRemainingMs === undefined || budgetRemainingMs > 30_000;
+    // Skip expansion if less than 18s remaining — it will be caught by content-auto-fix cron later
+    const canExpand = budgetRemainingMs === undefined || budgetRemainingMs > 18_000;
     if (assembledWordCount < 1200 && canExpand) {
       try {
         const expansionPrompt = `You are a luxury travel editor expanding a short article to meet the 1,500-word minimum.

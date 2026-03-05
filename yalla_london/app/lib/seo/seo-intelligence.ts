@@ -105,12 +105,16 @@ export async function analyzeSearchPerformance(
     .split("T")[0];
 
   try {
-    const [pageData, keywordData] = await Promise.all([
+    const [rawPageData, rawKeywordData] = await Promise.all([
       searchConsole.getTopPages(startDate, endDate, 50),
       searchConsole.getTopKeywords(startDate, endDate, 100),
     ]);
 
-    if (!pageData?.length && !keywordData?.length) {
+    // Guard: GSC can return error objects or non-array responses instead of arrays
+    const pageData = Array.isArray(rawPageData) ? rawPageData : [];
+    const keywordData = Array.isArray(rawKeywordData) ? rawKeywordData : [];
+
+    if (!pageData.length && !keywordData.length) {
       return null;
     }
 
@@ -122,7 +126,7 @@ export async function analyzeSearchPerformance(
       position: 0,
     };
 
-    const pages = (pageData || []).map((p: any) => ({
+    const pages = pageData.map((p: any) => ({
       url: p.keys?.[0] || p.url || "",
       clicks: p.clicks || 0,
       impressions: p.impressions || 0,
@@ -141,7 +145,7 @@ export async function analyzeSearchPerformance(
         ? pages.reduce((s: number, p: any) => s + p.position, 0) / pages.length
         : 0;
 
-    const keywords = (keywordData || []).map((k: any) => ({
+    const keywords = keywordData.map((k: any) => ({
       query: k.keys?.[0] || k.query || "",
       clicks: k.clicks || 0,
       impressions: k.impressions || 0,
@@ -422,7 +426,7 @@ Return JSON: { "title": "...", "description": "..." }`;
 
     const result = await generateJSON<{ title: string; description: string }>(
       prompt,
-      { temperature: 0.4, maxTokens: 200 }
+      { temperature: 0.4, maxTokens: 200, taskType: "seo_optimization", calledFrom: "seo-intelligence:autoOptimizeMeta" }
     );
 
     // Validate lengths
@@ -462,7 +466,7 @@ export async function autoOptimizeLowCTRMeta(
     ...searchData.lowCTRPages,
   ]
     .filter((p) => p.fix === "auto_optimize_meta")
-    .slice(0, 8); // 8 per run (was 2) — agent runs 3x daily = up to 24 meta improvements/day
+    .slice(0, 3); // 3 per run — keeps AI calls within budget guard (agent runs 3x daily = up to 9 meta improvements/day)
 
   if (pagesToOptimize.length === 0) return optimizations;
 
@@ -479,8 +483,15 @@ export async function autoOptimizeLowCTRMeta(
     ...searchData.contentGapKeywords.map((k) => k.query),
   ].slice(0, 20);
 
+  const loopStart = Date.now();
   for (const page of pagesToOptimize) {
     if (!page.slug || page.slug === "") continue;
+
+    // Budget guard: if we've spent more than 12s in this loop, stop gracefully
+    if (Date.now() - loopStart > 12_000) {
+      console.log(`[autoOptimizeLowCTRMeta] Budget exhausted after ${optimizations.length} optimizations, stopping`);
+      break;
+    }
 
     // Find the blog post in the database
     const post = await prisma.blogPost.findFirst({
@@ -739,6 +750,8 @@ Keep the existing content but enhance and expand it. Return ONLY the expanded HT
                 "You are a luxury travel content specialist writing for Arab travelers. Write detailed, helpful, SEO-optimized content. Return HTML only.",
               maxTokens: 2048,
               temperature: 0.6,
+              taskType: "content_expansion",
+              calledFrom: "seo-intelligence:flagContentForStrengthening",
             }
           );
 

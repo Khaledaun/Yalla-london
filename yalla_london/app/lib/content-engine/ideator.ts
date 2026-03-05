@@ -669,6 +669,8 @@ export async function runIdeator(input: IdeatorInput): Promise<IdeatorOutput> {
         systemPrompt,
         temperature: 0.85, // Higher creativity for ideation
         maxTokens: 4096,
+        taskType: "content_generation",
+        calledFrom: "content-engine:ideator",
       }
     );
 

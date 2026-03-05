@@ -517,7 +517,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
       <div className="sticky top-0 z-10 bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
         <div>
           <h2 className="text-sm font-bold text-white">🔍 Indexing Status</h2>
-          <p className="text-xs text-zinc-500">{siteId} — all published articles</p>
+          <p className="text-xs text-zinc-500">{siteId} — published articles only (GSC counts all URLs incl. /ar/ variants &amp; static pages)</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -1041,6 +1041,9 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
               <span>{indexing.submitted} pending</span>
               <span>{indexing.discovered ?? 0} discovered</span>
               <span>{indexing.neverSubmitted ?? 0} untracked</span>
+            </div>
+            <div className="mt-2 px-2 py-1.5 bg-zinc-800/50 rounded text-[10px] text-zinc-500 leading-relaxed">
+              These numbers count tracked blog articles only. Google Search Console shows higher totals because it also counts /ar/ Arabic pages, static pages, and historically discovered URLs.
             </div>
             {(indexing.discovered ?? 0) > 0 && (
               <button

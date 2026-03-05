@@ -575,6 +575,8 @@ CONTENT QUALITY REQUIREMENTS:
         systemPrompt,
         maxTokens: 6000,
         temperature: 0.7,
+        taskType: "content_generation",
+        calledFrom: "bulk-generate",
       });
 
       const bodyHtml = (result.body as string) || (result.bodyTranslation as string) || "";

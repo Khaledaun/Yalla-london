@@ -105,6 +105,8 @@ export async function generateVideoFromPrompt(
       maxTokens: 4000,
       temperature: 0.7,
       systemPrompt: SYSTEM_PROMPT,
+      taskType: "video_generation",
+      calledFrom: "prompt-to-video",
     });
 
     const parsed = parseAIResponse(raw, width, height, fps);

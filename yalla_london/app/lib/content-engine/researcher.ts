@@ -870,6 +870,8 @@ export async function runResearcher(
       systemPrompt: `You are a content research AI specializing in luxury travel markets. You provide data-driven research in structured JSON. Always respond with the exact JSON schema requested. Do not include markdown formatting, explanations, or commentary outside the JSON structure.`,
       maxTokens: 4096,
       temperature: 0.7,
+      taskType: "topic_research",
+      calledFrom: "content-engine:researcher",
     });
 
     researchOutput = validateAndNormalize(rawResponse, siteConfig);

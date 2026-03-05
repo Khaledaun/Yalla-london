@@ -107,13 +107,13 @@ export default function SeoCommandCenter() {
       const res = await fetch('/api/admin/seo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'apply_quick_fix', postId: fix.id, fixType: fix.issue.includes('meta title') ? 'meta_title' : fix.issue.includes('meta description') ? 'meta_description' : 'image' }),
+        body: JSON.stringify({ action: 'apply_quick_fix', articleId: fix.id, fixType: fix.issue.includes('meta title') ? 'missing_meta_title' : fix.issue.includes('meta description') ? 'missing_meta_description' : 'missing_featured_image' }),
       })
       if (res.ok) {
         await loadData()
       }
-    } catch {
-      // Silently fail — user will see no change
+    } catch (err) {
+      console.warn('[seo-command] Quick fix failed:', err instanceof Error ? err.message : err)
     } finally {
       setApplying(null)
     }

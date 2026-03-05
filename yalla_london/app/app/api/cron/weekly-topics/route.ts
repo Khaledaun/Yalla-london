@@ -435,6 +435,8 @@ Return a strict JSON array: [{title, slug, rationale, sources: ["domain.com"]}]`
     generateJSON<any[]>(prompt, {
       maxTokens: 1024,
       temperature: 0.5,
+      taskType: "topic_research",
+      calledFrom: "weekly-topics",
     }),
     new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('AI topic generation timed out after 30s')), 30_000)

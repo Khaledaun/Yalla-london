@@ -672,6 +672,8 @@ async function generateSocialPost(
     systemPrompt: siteConfig?.systemPromptEN || `You are a luxury travel social media writer.`,
     temperature: 0.8,
     maxTokens: 1024,
+    taskType: "copywriting",
+    calledFrom: "content-engine:scripter:social",
   });
 
   // Enforce char limits — truncate if AI exceeded them
@@ -727,6 +729,8 @@ async function generateBlogArticle(
       || `You are a senior travel content writer specializing in luxury destinations.`,
     temperature: 0.7,
     maxTokens: 8192,
+    taskType: "content_generation",
+    calledFrom: "content-engine:scripter:blog",
   });
 
   const title = result.title || angle.title || angle.hook || 'Untitled Article';
@@ -761,6 +765,8 @@ async function generateEmailCampaign(
       || `You are an email marketing specialist for luxury travel.`,
     temperature: 0.7,
     maxTokens: 4096,
+    taskType: "copywriting",
+    calledFrom: "content-engine:scripter:email",
   });
 
   return {
@@ -793,6 +799,8 @@ async function generateVideoScript(
       || `You are a video content creator for luxury travel.`,
     temperature: 0.8,
     maxTokens: 2048,
+    taskType: "video_generation",
+    calledFrom: "content-engine:scripter:video",
   });
 
   const scenes = Array.isArray(result.scenes)

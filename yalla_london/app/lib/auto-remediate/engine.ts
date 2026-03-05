@@ -448,6 +448,7 @@ Requirements:
       prompt,
       maxTokens: 300,
       taskType: "copywriting",
+      calledFrom: "auto-remediate:generateArabicMeta",
     } as unknown as Parameters<typeof generateCompletion>[0]);
 
     // Parse response

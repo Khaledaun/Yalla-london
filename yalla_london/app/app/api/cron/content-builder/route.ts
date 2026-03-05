@@ -72,7 +72,6 @@ async function handleContentBuilder(request: NextRequest) {
       }
 
       // Write "started" marker IMMEDIATELY so a concurrent invocation sees it.
-      // This entry will be updated with results when the run completes.
       await prisma.cronJobLog.create({
         data: {
           job_name: "content-builder",
@@ -86,6 +85,21 @@ async function handleContentBuilder(request: NextRequest) {
           result_summary: { phase: "started", dedup_marker: true },
         },
       });
+
+      // ACT-THEN-CHECK: Two invocations can both pass the initial check and both write
+      // markers before either sees the other's. Re-check after writing: if 2+ markers
+      // exist in the window, this invocation is the duplicate — abort.
+      const markerCount = await prisma.cronJobLog.count({
+        where: {
+          job_name: "content-builder",
+          status: "running",
+          started_at: { gte: new Date(Date.now() - 90_000) },
+        },
+      });
+      if (markerCount > 1) {
+        console.log(`[content-builder] Race condition detected: ${markerCount} markers in window — aborting duplicate`);
+        return NextResponse.json({ skipped: true, reason: "dedup-race", message: `${markerCount} concurrent content-builders detected — this one yielding` });
+      }
     } catch (dedupErr) {
       // If dedup check fails (e.g., DB pool exhausted), proceed anyway — better to double-run than skip
       console.warn("[content-builder] Dedup check failed (non-fatal):", dedupErr instanceof Error ? dedupErr.message : dedupErr);

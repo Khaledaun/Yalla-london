@@ -136,6 +136,28 @@ export async function onPipelineFailure(
 
     // If the draft was just rejected (3rd attempt), try immediate recovery
     if (ctx.wasRejected && RETRYABLE_CATEGORIES.has(category)) {
+      // ASSEMBLY TIMEOUT SAFETY NET: Do NOT reset assembly drafts that timed out.
+      // The assembly phase has a raw fallback (concatenate sections without AI) that fires
+      // at phase_attempts >= 1. Resetting attempts here would defeat that protection and
+      // create an infinite timeout→reset→timeout loop. Let the raw fallback handle it.
+      if (ctx.phase === "assembly" && category === "timeout") {
+        console.log(`[failure-hook] Draft ${ctx.draftId} rejected at assembly due to timeout — NOT resetting (raw fallback will handle on next run)`);
+        await logSweeperEvent({
+          eventType: "pipeline_failure",
+          source: "content-builder",
+          target: ctx.draftId,
+          failureDescription: `Draft "${ctx.keyword || ctx.draftId}" (${ctx.locale || "en"}) rejected at assembly due to timeout — raw fallback will handle`,
+          detectedAt,
+          diagnosis: `Assembly timeout. NOT resetting — the assembly phase raw fallback (attempts >= 1) will use direct HTML concatenation on the next run.`,
+          errorCategory: category,
+          fixApplied: "No reset — raw assembly fallback will fire on next builder run",
+          reactivatedAt: null,
+          outcome: "will_retry",
+          context: { phase: ctx.phase, locale: ctx.locale, keyword: ctx.keyword, siteId: ctx.siteId, error: ctx.error.substring(0, 300), reason: "assembly_timeout_raw_fallback" },
+        });
+        return;
+      }
+
       // Check if this draft was already recovered recently (prevent loops)
       const alreadyRecovered = await wasRecentlyRecovered(ctx.draftId);
       if (alreadyRecovered) {
@@ -520,6 +542,14 @@ async function runTargetedSweep(siteId?: string): Promise<number> {
         // Try multiple patterns to extract the failed phase from the rejection reason
         const phaseMatch = reason.match(/phase "(\w+)"/) || reason.match(/\b(research|outline|drafting|assembly|images|seo|scoring)\b/);
         const failedPhase = phaseMatch ? phaseMatch[1] : "research"; // default to "research" — first phase, minimizes wasted work
+
+        // ASSEMBLY TIMEOUT: Don't reset — the raw fallback (attempts >= 1) handles it.
+        // Resetting here would create an infinite timeout loop.
+        if (failedPhase === "assembly" && reason.includes("timeout")) {
+          console.log(`[failure-hook] Sweep skipping assembly-timeout draft ${draft.id} — raw fallback will handle`);
+          continue;
+        }
+
         const currentAttempts = draft.phase_attempts ?? 0;
 
         // Stop recovering drafts that have already been retried too many times

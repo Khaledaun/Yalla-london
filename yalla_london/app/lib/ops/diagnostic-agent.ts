@@ -231,8 +231,32 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
     switch (diagnosis.category) {
       case "timeout":
       case "budget_exhaustion": {
-        // Reset attempts and unlock for retry with fresh budget.
-        // The updated build-runner will give assembly a dedicated run.
+        // ASSEMBLY SPECIAL CASE: Do NOT reset attempts to 0.
+        // The assembly phase has a raw fallback at attempts >= 1 that concatenates sections
+        // directly without AI. Resetting to 0 would cause it to try the AI call again,
+        // which will just timeout again — creating an infinite loop.
+        // Instead, ensure attempts >= 1 so the raw fallback fires on next builder run.
+        if (draft.current_phase === "assembly") {
+          const newAttempts = Math.max(draft.phase_attempts || 0, 1);
+          await prisma.articleDraft.update({
+            where: { id: draft.id },
+            data: {
+              phase_attempts: newAttempts,
+              phase_started_at: null,
+              last_error: `[diagnostic-agent] Assembly timeout — raw fallback will fire (attempts=${newAttempts})`,
+              updated_at: new Date(),
+            },
+          });
+          return {
+            diagnosis,
+            fixApplied: "assembly_unlock_for_raw_fallback",
+            success: true,
+            before,
+            after: { phase: draft.current_phase, attempts: newAttempts, phase_started_at: null },
+          };
+        }
+
+        // Non-assembly phases: Reset attempts and unlock for retry with fresh budget.
         await prisma.articleDraft.update({
           where: { id: draft.id },
           data: {

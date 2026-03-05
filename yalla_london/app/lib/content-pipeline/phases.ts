@@ -464,11 +464,16 @@ export async function phaseAssembly(
     totalWords += (section.wordCount as number) || 0;
   }
 
-  // RAW FALLBACK: If budget is critically low (<12s) or draft has been stuck (4+ attempts),
+  // RAW FALLBACK: If budget is critically low (<12s) or draft has ANY previous assembly failure,
   // skip AI polish entirely and concatenate sections directly. This guarantees forward
   // progress — content-auto-fix cron can enhance the article later.
+  //
+  // Threshold: attempts >= 1 (was 4). Assembly AI calls are the #1 source of timeouts
+  // because they require large prompts (6000+ chars of HTML) and large responses (1500+ tokens).
+  // After a single failure, retrying with the same budget/provider will almost certainly fail again.
+  // Raw fallback produces complete articles instantly — the auto-fix cron polishes them later.
   const attempts = draft.phase_attempts || 0;
-  const useFallback = (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) || attempts >= 4;
+  const useFallback = (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) || attempts >= 1;
 
   if (useFallback) {
     console.log(`[phases/assembly] Using raw fallback for draft ${draft.id} (budget=${budgetRemainingMs ? Math.round(budgetRemainingMs / 1000) + 's' : 'unlimited'}, attempts=${attempts})`);

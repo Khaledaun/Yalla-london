@@ -54,17 +54,38 @@ async function handleContentBuilder(request: NextRequest) {
   }
 
   try {
-    // Dedup guard: skip if another content-builder ran within the last 60 seconds.
+    // Dedup guard: skip if another content-builder started within the last 90 seconds.
     // Prevents duplicate runs from overlapping Vercel cron + manual dashboard triggers.
+    //
+    // CRITICAL FIX: Previously checked for completed logs (written at END of run),
+    // so two simultaneous runs both saw nothing and both proceeded. Now we write a
+    // "started" marker IMMEDIATELY after passing the dedup check, so the second
+    // invocation sees it within milliseconds.
+    const { prisma } = await import("@/lib/db");
     try {
-      const { prisma } = await import("@/lib/db");
       const recentRun = await prisma.cronJobLog.findFirst({
-        where: { job_name: "content-builder", started_at: { gte: new Date(Date.now() - 60_000) } },
+        where: { job_name: "content-builder", started_at: { gte: new Date(Date.now() - 90_000) } },
         orderBy: { started_at: "desc" },
       });
       if (recentRun) {
-        return NextResponse.json({ skipped: true, reason: "dedup", message: "Another content-builder ran within the last 60s", lastRunAt: recentRun.started_at });
+        return NextResponse.json({ skipped: true, reason: "dedup", message: "Another content-builder ran within the last 90s", lastRunAt: recentRun.started_at });
       }
+
+      // Write "started" marker IMMEDIATELY so a concurrent invocation sees it.
+      // This entry will be updated with results when the run completes.
+      await prisma.cronJobLog.create({
+        data: {
+          job_name: "content-builder",
+          job_type: "scheduled",
+          status: "running",
+          started_at: new Date(),
+          duration_ms: 0,
+          items_processed: 0,
+          items_succeeded: 0,
+          items_failed: 0,
+          result_summary: { phase: "started", dedup_marker: true },
+        },
+      });
     } catch (dedupErr) {
       // If dedup check fails (e.g., DB pool exhausted), proceed anyway — better to double-run than skip
       console.warn("[content-builder] Dedup check failed (non-fatal):", dedupErr instanceof Error ? dedupErr.message : dedupErr);

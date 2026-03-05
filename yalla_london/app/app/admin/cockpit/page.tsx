@@ -18,6 +18,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { ShieldCheck, ChevronDown } from "lucide-react";
 
 // ─── Types from API responses ────────────────────────────────────────────────
 

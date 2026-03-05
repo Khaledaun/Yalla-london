@@ -56,8 +56,7 @@ export async function updateAuditRunStatus(
 ): Promise<void> {
   const { prisma } = await import('@/lib/db');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data: Record<string, any> = {};
+  const data: Record<string, unknown> = {};
 
   if (updates.status !== undefined) data.status = updates.status;
   if (updates.totalUrls !== undefined) data.totalUrls = updates.totalUrls;
@@ -463,8 +462,7 @@ export async function getAuditIssues(params: {
   const limit = Math.min(params.limit ?? 50, 100);
   const skip = (page - 1) * limit;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: Record<string, any> = { siteId: params.siteId };
+  const where: Record<string, unknown> = { siteId: params.siteId };
 
   if (params.runId) where.auditRunId = params.runId;
   if (params.severity) where.severity = params.severity;
@@ -475,8 +473,7 @@ export async function getAuditIssues(params: {
   // Determine sort
   const sortBy = params.sortBy ?? 'severity';
   const sortOrder = params.sortOrder ?? 'asc';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const orderBy: Record<string, any> =
+  const orderBy: Record<string, unknown> =
     sortBy === 'severity'
       ? { severity: sortOrder } // P0 < P1 < P2 alphabetically works for asc
       : { [sortBy]: sortOrder };
@@ -546,8 +543,7 @@ export async function updateIssueStatus(
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data: Record<string, any> = { status: newStatus };
+  const data: Record<string, unknown> = { status: newStatus };
 
   if (newStatus === 'ignored') {
     data.ignoredAt = new Date();

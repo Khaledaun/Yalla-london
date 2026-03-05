@@ -147,8 +147,7 @@ async function stepInventory(
 // ---------------------------------------------------------------------------
 
 async function stepCrawl(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  run: any,
+  run: any, // Prisma dynamic return type
   remainingMs: () => number,
   _startTimeMs: number
 ): Promise<StepRunnerResult> {
@@ -245,8 +244,7 @@ async function stepCrawl(
 // ---------------------------------------------------------------------------
 
 async function stepValidate(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  run: any,
+  run: any, // Prisma dynamic return type
   _startTimeMs: number
 ): Promise<StepRunnerResult> {
   // Load config

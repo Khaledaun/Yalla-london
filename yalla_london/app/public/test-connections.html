@@ -105,6 +105,9 @@
     <button class="tab-btn grp-btn" data-group="topics" onclick="toggleGroup(this,'topics')">Topics &amp; Reservoir</button>
     <button class="tab-btn grp-btn" data-group="crons" onclick="toggleGroup(this,'crons')">Cron Schedule</button>
     <button class="tab-btn grp-btn" data-group="ai-costs" onclick="toggleGroup(this,'ai-costs')">AI Tokens</button>
+    <button class="tab-btn grp-btn" data-group="audit-system" onclick="toggleGroup(this,'audit-system')">SEO Audit Engine</button>
+    <button class="tab-btn grp-btn" data-group="design" onclick="toggleGroup(this,'design')">Design &amp; Email</button>
+    <button class="tab-btn grp-btn" data-group="ops" onclick="toggleGroup(this,'ops')">Departures &amp; Ops</button>
     <button class="tab-btn grp-btn" data-group="etsy" onclick="toggleGroup(this,'etsy')">Etsy Commerce</button>
   </div>
 </div>
@@ -188,7 +191,8 @@ const GROUP_SECTIONS = {
   general:  ['ga4', 'assets', 'pages', 'meta', 'db', 'ai', 'healthmon', 'seoreports', 'multisite', 'dbcheck', 'settings-ai'],
   yalla:    ['ga4', 'assets', 'pages', 'meta', 'db', 'ai', 'healthmon', 'seoreports', 'multisite', 'dbcheck', 'settings-ai',
              'pipeline', 'publish', 'topics', 'trends', 'analytics', 'seoagent', 'orchestrator', 'blogaudit',
-             'indexing', 'ga4server', 'contentaudit', 'xapi'],
+             'indexing', 'ga4server', 'contentaudit', 'xapi',
+             'audit-engine', 'audit-cron', 'design-system', 'email-system', 'departures', 'content-ops'],
   yachts:   ['ga4', 'assets', 'pages', 'meta', 'db', 'ai', 'healthmon', 'dbcheck', 'settings-ai',
              'yachts-public', 'yachts-admin'],
   pipeline: ['pipeline', 'pipeline-deep', 'publish', 'topics', 'trends'],
@@ -196,6 +200,9 @@ const GROUP_SECTIONS = {
   topics:   ['topic-pipeline', 'reservoir', 'pipeline-deep'],
   crons:    ['upcoming-crons', 'healthmon'],
   'ai-costs': ['ai-tokens'],
+  'audit-system': ['audit-engine', 'audit-cron'],
+  design:   ['design-system', 'email-system'],
+  ops:      ['departures', 'content-ops'],
   etsy:     ['etsy'],
 };
 
@@ -3236,6 +3243,207 @@ async function runAllTests() {
         '4. <strong>Test sync</strong>: trigger /api/cron/etsy-sync manually from cockpit to verify connection<br>' +
         '5. <strong>Commerce trends</strong>: runs weekly to discover trending products — verify Grok/AI provider is configured');
     } catch (e) { log('  ERROR in section 31: ' + e.message); addResult('etsy', 'Etsy Config', 'fail', 'JS Error: ' + e.message); }
+    }
+
+    // ── 32. SEO Audit Engine ──
+    if (shouldRunSection("audit-engine")) {
+    log('  Testing SEO Audit Engine APIs...');
+    addSection('audit-engine', '32. SEO Audit Engine — Health, Issues, Export');
+    try {
+      // GET overview + history
+      const overviewResp = await testFetch('/api/admin/audit-system?siteId=yalla-london', { headers: cronHeaders });
+      if (overviewResp.ok && overviewResp.json) {
+        const d = overviewResp.json;
+        addResult('audit-engine', 'Audit Overview API', 'pass',
+          'success=' + d.success +
+          (d.overview?.healthScore !== null ? ' | healthScore=' + d.overview.healthScore : ' | no completed audits yet') +
+          (d.overview?.isRunning ? ' | AUDIT RUNNING' : '') +
+          ' | history=' + (d.history?.length ?? 0) + ' runs');
+        if (d.overview) addJsonBlock('audit-engine', d.overview);
+      } else {
+        addResult('audit-engine', 'Audit Overview API', overviewResp.status === 401 ? 'warn' : 'fail',
+          'HTTP ' + (overviewResp.status || '?'));
+      }
+
+      // GET issues list
+      const issuesResp = await testFetch('/api/admin/audit-system/issues?siteId=yalla-london&limit=5', { headers: cronHeaders });
+      if (issuesResp.ok && issuesResp.json) {
+        const d = issuesResp.json;
+        addResult('audit-engine', 'Issues List API', 'pass',
+          'total=' + (d.pagination?.total ?? 0) + ' issues | page=' + (d.pagination?.page ?? 1) +
+          ' | returned=' + (d.issues?.length ?? 0));
+      } else {
+        addResult('audit-engine', 'Issues List API', issuesResp.status === 401 ? 'warn' : 'fail',
+          'HTTP ' + (issuesResp.status || '?'));
+      }
+
+      // GET export (JSON)
+      const exportResp = await testFetch('/api/admin/audit-system/export?siteId=yalla-london&format=json', { headers: cronHeaders });
+      if (exportResp.ok && exportResp.json) {
+        addResult('audit-engine', 'Export API (JSON)', 'pass',
+          'runId=' + (exportResp.json.run?.id ?? 'none').substring(0, 8) + '... | issues=' + (exportResp.json.issues?.length ?? 0));
+      } else if (exportResp.status === 404) {
+        addResult('audit-engine', 'Export API (JSON)', 'warn', 'No completed audit runs yet');
+      } else {
+        addResult('audit-engine', 'Export API (JSON)', exportResp.status === 401 ? 'warn' : 'fail',
+          'HTTP ' + (exportResp.status || '?'));
+      }
+
+      // Multi-site: test each active site
+      const sites = ['yalla-london', 'zenitha-yachts-med'];
+      for (const site of sites) {
+        const siteResp = await testFetch('/api/admin/audit-system?siteId=' + encodeURIComponent(site), { headers: cronHeaders });
+        if (siteResp.ok && siteResp.json?.success) {
+          const o = siteResp.json.overview;
+          addResult('audit-engine', 'Site: ' + site, 'pass',
+            'healthScore=' + (o?.healthScore ?? 'n/a') +
+            ' | openIssues=' + (o?.openIssues?.total ?? 0) +
+            ' | lastAudit=' + (o?.lastAuditAt ? new Date(o.lastAuditAt).toLocaleString() : 'never'));
+        } else {
+          addResult('audit-engine', 'Site: ' + site, 'warn',
+            'HTTP ' + (siteResp.status || '?') + ' — site may not have audit data yet');
+        }
+      }
+    } catch (e) { log('  ERROR in section 32: ' + e.message); addResult('audit-engine', 'Audit Engine', 'fail', 'JS Error: ' + e.message); }
+    }
+
+    // ── 32b. SEO Audit Cron ──
+    if (shouldRunSection("audit-cron")) {
+    log('  Testing SEO Audit Cron...');
+    addSection('audit-cron', '32b. SEO Audit Runner Cron');
+    try {
+      const cronResp = await testFetch('/api/cron/seo-audit-runner', { headers: cronHeaders });
+      if (cronResp.ok && cronResp.json) {
+        const d = cronResp.json;
+        const siteResults = d.result?.sites || d.sites || [];
+        addResult('audit-cron', 'Audit Runner Cron', 'pass',
+          'nightlyWindow=' + (d.result?.nightlyWindow ?? d.nightlyWindow ?? 'n/a') +
+          ' | sites=' + siteResults.length);
+        for (const s of siteResults) {
+          addResult('audit-cron', '  ↳ ' + s.siteId, s.action === 'error' ? 'fail' : 'pass',
+            s.action + ': ' + s.message);
+        }
+      } else {
+        addResult('audit-cron', 'Audit Runner Cron', cronResp.status === 401 ? 'warn' : 'fail',
+          'HTTP ' + (cronResp.status || '?'));
+      }
+
+      // Also test content-auto-fix and diagnostic-sweep crons
+      const autoFixResp = await testFetch('/api/cron/content-auto-fix', { headers: cronHeaders });
+      addResult('audit-cron', 'Content Auto-Fix Cron',
+        autoFixResp.ok ? 'pass' : (autoFixResp.status === 401 ? 'warn' : 'fail'),
+        autoFixResp.ok ? 'Operational' : 'HTTP ' + (autoFixResp.status || '?'));
+
+      const diagResp = await testFetch('/api/cron/diagnostic-sweep', { headers: cronHeaders });
+      addResult('audit-cron', 'Diagnostic Sweep Cron',
+        diagResp.ok ? 'pass' : (diagResp.status === 401 ? 'warn' : 'fail'),
+        diagResp.ok ? 'Operational' : 'HTTP ' + (diagResp.status || '?'));
+    } catch (e) { log('  ERROR in section 32b: ' + e.message); addResult('audit-cron', 'Audit Cron', 'fail', 'JS Error: ' + e.message); }
+    }
+
+    // ── 33. Design System & Brand Kit ──
+    if (shouldRunSection("design-system")) {
+    log('  Testing Design System APIs...');
+    addSection('design-system', '33. Design System — Designs, Brand Kit, Video');
+    try {
+      const designsResp = await testFetch('/api/admin/designs', { headers: cronHeaders });
+      addResult('design-system', 'Designs Gallery API',
+        designsResp.ok ? 'pass' : (designsResp.status === 401 ? 'warn' : 'fail'),
+        designsResp.ok ? 'items=' + (designsResp.json?.designs?.length ?? designsResp.json?.length ?? 0) : 'HTTP ' + (designsResp.status || '?'));
+
+      const brandResp = await testFetch('/api/admin/brand-kit', { headers: cronHeaders });
+      addResult('design-system', 'Brand Kit API',
+        brandResp.ok ? 'pass' : (brandResp.status === 401 ? 'warn' : 'fail'),
+        brandResp.ok ? 'Operational' : 'HTTP ' + (brandResp.status || '?'));
+
+      const brandAssetsResp = await testFetch('/api/admin/brand-assets', { headers: cronHeaders });
+      addResult('design-system', 'Brand Assets API',
+        brandAssetsResp.ok ? 'pass' : (brandAssetsResp.status === 401 ? 'warn' : 'fail'),
+        brandAssetsResp.ok ? 'Operational' : 'HTTP ' + (brandAssetsResp.status || '?'));
+
+      const videoResp = await testFetch('/api/admin/video-studio', { headers: cronHeaders });
+      addResult('design-system', 'Video Studio API',
+        videoResp.ok ? 'pass' : (videoResp.status === 401 ? 'warn' : 'fail'),
+        videoResp.ok ? 'Operational' : 'HTTP ' + (videoResp.status || '?'));
+    } catch (e) { log('  ERROR in section 33: ' + e.message); addResult('design-system', 'Design System', 'fail', 'JS Error: ' + e.message); }
+    }
+
+    // ── 34. Email System ──
+    if (shouldRunSection("email-system")) {
+    log('  Testing Email System APIs...');
+    addSection('email-system', '34. Email System — Templates, Campaigns, Center');
+    try {
+      const templatesResp = await testFetch('/api/admin/email-templates', { headers: cronHeaders });
+      addResult('email-system', 'Email Templates API',
+        templatesResp.ok ? 'pass' : (templatesResp.status === 401 ? 'warn' : 'fail'),
+        templatesResp.ok ? 'Operational' : 'HTTP ' + (templatesResp.status || '?'));
+
+      const campaignsResp = await testFetch('/api/admin/email-campaigns', { headers: cronHeaders });
+      addResult('email-system', 'Email Campaigns API',
+        campaignsResp.ok ? 'pass' : (campaignsResp.status === 401 ? 'warn' : 'fail'),
+        campaignsResp.ok ? 'Operational' : 'HTTP ' + (campaignsResp.status || '?'));
+
+      const centerResp = await testFetch('/api/admin/email-center', { headers: cronHeaders });
+      addResult('email-system', 'Email Center API',
+        centerResp.ok ? 'pass' : (centerResp.status === 401 ? 'warn' : 'fail'),
+        centerResp.ok ? 'Operational' : 'HTTP ' + (centerResp.status || '?'));
+    } catch (e) { log('  ERROR in section 34: ' + e.message); addResult('email-system', 'Email System', 'fail', 'JS Error: ' + e.message); }
+    }
+
+    // ── 35. Departures & Operations ──
+    if (shouldRunSection("departures")) {
+    log('  Testing Departures & Operations APIs...');
+    addSection('departures', '35. Departures Board & Operations');
+    try {
+      const depResp = await testFetch('/api/admin/departures', { headers: cronHeaders });
+      if (depResp.ok && depResp.json) {
+        const items = depResp.json.items || depResp.json.departures || [];
+        addResult('departures', 'Departures Board API', 'pass',
+          'items=' + items.length +
+          ' | overdue=' + items.filter(i => i.status === 'overdue').length +
+          ' | ready=' + items.filter(i => i.status === 'ready').length);
+      } else {
+        addResult('departures', 'Departures Board API',
+          depResp.status === 401 ? 'warn' : 'fail',
+          'HTTP ' + (depResp.status || '?'));
+      }
+
+      const forceResp = await testFetch('/api/admin/force-publish', {
+        method: 'POST',
+        headers: { ...cronHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locale: 'both', count: 0, dryRun: true }),
+      });
+      addResult('departures', 'Force Publish API',
+        forceResp.ok || forceResp.status === 401 ? (forceResp.status === 401 ? 'warn' : 'pass') : 'fail',
+        forceResp.ok ? 'Operational' : 'HTTP ' + (forceResp.status || '?'));
+
+      const auditExportResp = await testFetch('/api/admin/audit-export', { headers: cronHeaders });
+      addResult('departures', 'Audit Export API',
+        auditExportResp.ok ? 'pass' : (auditExportResp.status === 401 ? 'warn' : 'fail'),
+        auditExportResp.ok ? 'Operational' : 'HTTP ' + (auditExportResp.status || '?'));
+    } catch (e) { log('  ERROR in section 35: ' + e.message); addResult('departures', 'Departures', 'fail', 'JS Error: ' + e.message); }
+    }
+
+    // ── 36. Content Ops — Topic Research & Content Engine ──
+    if (shouldRunSection("content-ops")) {
+    log('  Testing Content Ops APIs...');
+    addSection('content-ops', '36. Content Ops — Topic Research & Content Engine');
+    try {
+      const pipelineResp = await testFetch('/api/admin/content-engine/pipeline', { headers: cronHeaders });
+      addResult('content-ops', 'Content Engine Pipeline',
+        pipelineResp.ok ? 'pass' : (pipelineResp.status === 401 ? 'warn' : 'fail'),
+        pipelineResp.ok ? 'items=' + (pipelineResp.json?.pipelines?.length ?? 0) : 'HTTP ' + (pipelineResp.status || '?'));
+
+      const perfResp = await testFetch('/api/admin/content-engine/performance', { headers: cronHeaders });
+      addResult('content-ops', 'Content Engine Performance',
+        perfResp.ok ? 'pass' : (perfResp.status === 401 ? 'warn' : 'fail'),
+        perfResp.ok ? 'Operational' : 'HTTP ' + (perfResp.status || '?'));
+
+      const newSiteResp = await testFetch('/api/admin/new-site', { headers: cronHeaders });
+      addResult('content-ops', 'New Site Wizard API',
+        newSiteResp.ok ? 'pass' : (newSiteResp.status === 401 ? 'warn' : 'fail'),
+        newSiteResp.ok ? 'Operational' : 'HTTP ' + (newSiteResp.status || '?'));
+    } catch (e) { log('  ERROR in section 36: ' + e.message); addResult('content-ops', 'Content Ops', 'fail', 'JS Error: ' + e.message); }
     }
 
   } else if ((testMode === 'full' || testMode === 'groups') && !cronSecret) {

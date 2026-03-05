@@ -40,39 +40,51 @@ const handler = withCronLog("seo-audit-runner", async (log) => {
       continue;
     }
 
-    // Check for active run
-    const activeRun = await getActiveAuditRun(siteId);
+    try {
+      // Check for active run
+      const activeRun = await getActiveAuditRun(siteId);
 
-    if (activeRun) {
-      // Advance the existing run
-      const stepResult = await advanceAuditStep(siteId, startMs);
+      if (activeRun) {
+        // Advance the existing run
+        const stepResult = await advanceAuditStep(siteId, startMs);
 
+        results.push({
+          siteId,
+          action: stepResult.advanced ? "advanced" : "skipped",
+          message: stepResult.message,
+        });
+
+        log.addSite(siteId);
+        log.trackItem(stepResult.advanced);
+      } else if (isNightlyWindow()) {
+        // No active run + nightly window → create new run
+        const runId = await createAuditRun(siteId, "full", "scheduled");
+
+        results.push({
+          siteId,
+          action: "created",
+          message: `New nightly audit created: ${runId}`,
+        });
+
+        log.addSite(siteId);
+        log.trackItem(true);
+      } else {
+        results.push({
+          siteId,
+          action: "idle",
+          message: "No active run, not in nightly window",
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[seo-audit-runner] Site ${siteId} failed:`, msg);
       results.push({
         siteId,
-        action: stepResult.advanced ? "advanced" : "skipped",
-        message: stepResult.message,
+        action: "error",
+        message: msg.slice(0, 200),
       });
-
       log.addSite(siteId);
-      log.trackItem(stepResult.advanced);
-    } else if (isNightlyWindow()) {
-      // No active run + nightly window → create new run
-      const runId = await createAuditRun(siteId, "full", "scheduled");
-
-      results.push({
-        siteId,
-        action: "created",
-        message: `New nightly audit created: ${runId}`,
-      });
-
-      log.addSite(siteId);
-      log.trackItem(true);
-    } else {
-      results.push({
-        siteId,
-        action: "idle",
-        message: "No active run, not in nightly window",
-      });
+      log.trackItem(false);
     }
   }
 

@@ -55,6 +55,8 @@ interface AuditIssue {
   url: string;
   title: string;
   description: string;
+  evidence: unknown;
+  suggestedFix: unknown;
   status: string;
   fingerprint: string;
   firstDetectedAt: string;
@@ -65,6 +67,16 @@ interface AuditIssue {
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
+
+// Known sites — populated from first API call or hardcoded fallback
+const KNOWN_SITES = [
+  { id: "yalla-london", name: "Yalla London" },
+  { id: "zenitha-yachts-med", name: "Zenitha Yachts" },
+  { id: "arabaldives", name: "Arabaldives" },
+  { id: "french-riviera", name: "Yalla Riviera" },
+  { id: "istanbul", name: "Yalla Istanbul" },
+  { id: "thailand", name: "Yalla Thailand" },
+];
 
 export default function SiteHealthPage() {
   const [siteId, setSiteId] = useState<string>("");
@@ -174,7 +186,7 @@ export default function SiteHealthPage() {
         await fetchOverview();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
+      setError("Could not connect to server. Check your network and try again.");
     } finally {
       setTriggering(false);
     }
@@ -188,7 +200,7 @@ export default function SiteHealthPage() {
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ issueId, status: newStatus }),
+          body: JSON.stringify({ issueId, status: newStatus, siteId: overview.siteId }),
         }
       );
       if (res.ok) {
@@ -298,7 +310,30 @@ export default function SiteHealthPage() {
     <div style={{ padding: 16, fontFamily: "system-ui", maxWidth: 960, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-        <h1 style={{ fontSize: 20, margin: 0 }}>Site Health</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <h1 style={{ fontSize: 20, margin: 0 }}>Site Health</h1>
+          <select
+            value={siteId}
+            onChange={(e) => {
+              setSiteId(e.target.value);
+              setOverview(null);
+              setIssues([]);
+              setHistory([]);
+              setLoading(true);
+            }}
+            style={{
+              padding: "6px 10px",
+              borderRadius: 6,
+              border: "1px solid #e2e8f0",
+              fontSize: 12,
+              backgroundColor: "#fff",
+            }}
+          >
+            {KNOWN_SITES.map((site) => (
+              <option key={site.id} value={site.id}>{site.name}</option>
+            ))}
+          </select>
+        </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={triggerAudit}
@@ -644,9 +679,14 @@ function IssuesTab({
                 )}
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{issue.title}</div>
-              <div style={{ fontSize: 12, color: "#64748b", wordBreak: "break-all", marginBottom: 8 }}>
+              <div style={{ fontSize: 12, color: "#64748b", wordBreak: "break-all", marginBottom: 4 }}>
                 {issue.url}
               </div>
+              {issue.suggestedFix && (
+                <div style={{ fontSize: 11, color: "#16a34a", backgroundColor: "#f0fdf4", padding: "4px 8px", borderRadius: 4, marginBottom: 8 }}>
+                  Fix: {typeof issue.suggestedFix === "string" ? issue.suggestedFix : JSON.stringify(issue.suggestedFix)}
+                </div>
+              )}
 
               {/* Actions */}
               {issue.status === "open" && (

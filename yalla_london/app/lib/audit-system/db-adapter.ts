@@ -92,10 +92,16 @@ export async function getActiveAuditRun(siteId: string) {
 }
 
 /**
- * Gets a specific audit run by ID.
+ * Gets a specific audit run by ID, optionally scoped by siteId.
  */
-export async function getAuditRun(runId: string) {
+export async function getAuditRun(runId: string, siteId?: string) {
   const { prisma } = await import('@/lib/db');
+
+  if (siteId) {
+    return prisma.auditRun.findFirst({
+      where: { id: runId, siteId },
+    });
+  }
 
   return prisma.auditRun.findUnique({
     where: { id: runId },
@@ -402,7 +408,7 @@ export async function getAuditRunHistory(
 ) {
   const { prisma } = await import('@/lib/db');
 
-  return prisma.auditRun.findMany({
+  const runs = await prisma.auditRun.findMany({
     where: { siteId },
     orderBy: { startedAt: 'desc' },
     take: limit,
@@ -413,6 +419,9 @@ export async function getAuditRunHistory(
       mode: true,
       triggeredBy: true,
       totalUrls: true,
+      processedUrls: true,
+      currentBatch: true,
+      totalBatches: true,
       totalIssues: true,
       p0Count: true,
       p1Count: true,
@@ -424,6 +433,13 @@ export async function getAuditRunHistory(
       errorMessage: true,
     },
   });
+
+  // Normalize dates to ISO strings for consistent JSON output
+  return runs.map((run) => ({
+    ...run,
+    startedAt: run.startedAt.toISOString(),
+    completedAt: run.completedAt?.toISOString() ?? null,
+  }));
 }
 
 /**
@@ -465,15 +481,37 @@ export async function getAuditIssues(params: {
       ? { severity: sortOrder } // P0 < P1 < P2 alphabetically works for asc
       : { [sortBy]: sortOrder };
 
-  const [issues, total] = await Promise.all([
+  const [rawIssues, total] = await Promise.all([
     prisma.auditIssue.findMany({
       where,
       orderBy,
       skip,
       take: limit,
+      select: {
+        id: true,
+        severity: true,
+        category: true,
+        url: true,
+        title: true,
+        description: true,
+        evidence: true,
+        suggestedFix: true,
+        status: true,
+        fingerprint: true,
+        firstDetectedAt: true,
+        lastDetectedAt: true,
+        detectionCount: true,
+      },
     }),
     prisma.auditIssue.count({ where }),
   ]);
+
+  // Normalize dates to ISO strings
+  const issues = rawIssues.map((issue) => ({
+    ...issue,
+    firstDetectedAt: issue.firstDetectedAt.toISOString(),
+    lastDetectedAt: issue.lastDetectedAt.toISOString(),
+  }));
 
   return {
     issues,
@@ -487,14 +525,26 @@ export async function getAuditIssues(params: {
 }
 
 /**
- * Update an issue's lifecycle status.
+ * Update an issue's lifecycle status, scoped by siteId for safety.
  */
 export async function updateIssueStatus(
   issueId: string,
   newStatus: 'open' | 'ignored' | 'fixed' | 'wontfix',
+  siteId?: string,
   userId?: string
 ): Promise<void> {
   const { prisma } = await import('@/lib/db');
+
+  // Verify issue belongs to the expected site if siteId provided
+  if (siteId) {
+    const issue = await prisma.auditIssue.findFirst({
+      where: { id: issueId, siteId },
+      select: { id: true },
+    });
+    if (!issue) {
+      throw new Error(`Issue ${issueId} not found for site ${siteId}`);
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: Record<string, any> = { status: newStatus };

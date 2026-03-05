@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { getDefaultSiteId } from "@/config/sites";
 
 export async function GET(
   request: NextRequest,
@@ -19,11 +20,13 @@ export async function GET(
 
   try {
     const { runId } = await params;
+    const siteId =
+      request.nextUrl.searchParams.get("siteId") ?? getDefaultSiteId();
     const { getAuditRun, getAuditIssues } = await import(
       "@/lib/audit-system/db-adapter"
     );
 
-    const run = await getAuditRun(runId);
+    const run = await getAuditRun(runId, siteId);
     if (!run) {
       return NextResponse.json(
         { success: false, error: "Audit run not found" },
@@ -57,6 +60,9 @@ export async function GET(
       limit,
     });
 
+    // Only include large markdown blobs if explicitly requested
+    const includeReport = request.nextUrl.searchParams.get("include") === "report";
+
     return NextResponse.json({
       success: true,
       run: {
@@ -77,11 +83,13 @@ export async function GET(
         hardGatesPassed: run.hardGatesPassed,
         hardGates: run.hardGatesJson,
         softGates: run.softGatesJson,
-        reportMarkdown: run.reportMarkdown,
-        fixPlanMarkdown: run.fixPlanMarkdown,
         startedAt: run.startedAt.toISOString(),
         completedAt: run.completedAt?.toISOString() ?? null,
         errorMessage: run.errorMessage,
+        ...(includeReport ? {
+          reportMarkdown: run.reportMarkdown,
+          fixPlanMarkdown: run.fixPlanMarkdown,
+        } : {}),
       },
       issues: issueResult.issues,
       pagination: issueResult.pagination,
@@ -107,7 +115,7 @@ export async function PUT(
     await params; // consume params to avoid Next.js warning
 
     const body = await request.json();
-    const { issueId, status: newStatus } = body;
+    const { issueId, status: newStatus, siteId } = body;
 
     if (!issueId || !newStatus) {
       return NextResponse.json(
@@ -131,7 +139,7 @@ export async function PUT(
       "@/lib/audit-system/db-adapter"
     );
 
-    await updateIssueStatus(issueId, newStatus);
+    await updateIssueStatus(issueId, newStatus, siteId || getDefaultSiteId());
 
     return NextResponse.json({
       success: true,

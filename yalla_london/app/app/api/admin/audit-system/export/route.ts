@@ -23,9 +23,9 @@ export async function GET(request: NextRequest) {
     const format = request.nextUrl.searchParams.get("format") ?? "json";
     const runId = request.nextUrl.searchParams.get("runId") ?? undefined;
 
-    // Get the run (latest completed or specific)
+    // Get the run (latest completed or specific, always scoped by siteId)
     const run = runId
-      ? await prisma.auditRun.findUnique({ where: { id: runId } })
+      ? await prisma.auditRun.findFirst({ where: { id: runId, siteId } })
       : await prisma.auditRun.findFirst({
           where: { siteId, status: "completed" },
           orderBy: { completedAt: "desc" },
@@ -45,6 +45,9 @@ export async function GET(request: NextRequest) {
     });
 
     if (format === "csv") {
+      const csvEscape = (val: string) =>
+        `"${val.replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`;
+
       const csvRows = [
         // Header
         [
@@ -52,6 +55,8 @@ export async function GET(request: NextRequest) {
           "Category",
           "URL",
           "Title",
+          "Description",
+          "Suggested Fix",
           "Status",
           "First Detected",
           "Detection Count",
@@ -61,8 +66,10 @@ export async function GET(request: NextRequest) {
           [
             issue.severity,
             issue.category,
-            `"${issue.url}"`,
-            `"${issue.title.replace(/"/g, '""')}"`,
+            csvEscape(issue.url),
+            csvEscape(issue.title),
+            csvEscape(issue.description ?? ""),
+            csvEscape(typeof issue.suggestedFix === "string" ? issue.suggestedFix : JSON.stringify(issue.suggestedFix ?? "")),
             issue.status,
             issue.firstDetectedAt.toISOString(),
             issue.detectionCount,

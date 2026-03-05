@@ -54,7 +54,7 @@ export async function runLighthouseAudits(
 ): Promise<{ issues: MasterAuditIssue[]; results: PSIResult[] }> {
   const apiKey = getApiKey();
   if (!apiKey) {
-    console.log('[lighthouse-runner] No API key configured, skipping');
+    console.warn('[lighthouse-runner] No API key configured (GOOGLE_PAGESPEED_API_KEY), skipping Lighthouse audits');
     return { issues: [], results: [] };
   }
 

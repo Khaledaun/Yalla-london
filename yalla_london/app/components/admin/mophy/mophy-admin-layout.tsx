@@ -85,6 +85,7 @@ const navigation = [
     icon: TrendingUp,
     href: '/admin/seo',
     items: [
+      { label: 'Site Health',            href: '/admin/site-health' },
       { label: 'Indexing Center',      href: '/admin/seo' },
       { label: 'SEO Audits',           href: '/admin/seo-audits' },
       { label: 'SEO Report',           href: '/admin/seo/report' },

@@ -82,6 +82,8 @@ export async function generatePDFContent(
   if (await isAIAvailable()) {
     const result = await generateText(prompt, {
       maxTokens: 4000,
+      taskType: "content_generation",
+      calledFrom: "pdf-generator",
     });
 
     // Parse AI response into sections (generateText returns string directly)

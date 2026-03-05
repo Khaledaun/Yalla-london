@@ -426,7 +426,7 @@ Return JSON: { "title": "...", "description": "..." }`;
 
     const result = await generateJSON<{ title: string; description: string }>(
       prompt,
-      { temperature: 0.4, maxTokens: 200 }
+      { temperature: 0.4, maxTokens: 200, taskType: "seo_optimization", calledFrom: "seo-intelligence:autoOptimizeMeta" }
     );
 
     // Validate lengths
@@ -750,6 +750,8 @@ Keep the existing content but enhance and expand it. Return ONLY the expanded HT
                 "You are a luxury travel content specialist writing for Arab travelers. Write detailed, helpful, SEO-optimized content. Return HTML only.",
               maxTokens: 2048,
               temperature: 0.6,
+              taskType: "content_expansion",
+              calledFrom: "seo-intelligence:flagContentForStrengthening",
             }
           );
 

@@ -417,6 +417,8 @@ Rules:
       temperature: 0.4,
       maxTokens: 4096,
       systemPrompt: 'You are a data-driven content performance analyst. Respond only with valid JSON.',
+      taskType: "content_generation",
+      calledFrom: "content-engine:analyst",
     });
 
     // Validate essential structure

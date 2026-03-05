@@ -789,6 +789,8 @@ ${topic.questions?.length ? `\nأجب عن هذه الأسئلة في المقا
         systemPrompt,
         maxTokens: 6000,
         temperature: 0.7,
+        taskType: "content_generation",
+        calledFrom: "daily-content-generate",
       }),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error(`AI generation timed out after ${Math.round(aiTimeoutMs / 1000)}s`)), aiTimeoutMs)

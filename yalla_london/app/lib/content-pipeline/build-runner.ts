@@ -138,6 +138,7 @@ export async function runContentBuilder(
         let topicProposalId: string | null = null;
         let strategy = "template_cycle";
         let locale = "en";
+        let claimedCandidate: { id: string; primary_keyword: string; locale: string | null; longtails: string[]; questions: string[] } | null = null;
 
         try {
           // Find a candidate topic
@@ -171,6 +172,13 @@ export async function runContentBuilder(
               topicProposalId = candidate.id;
               locale = candidate.locale || "en";
               strategy = "topic_db";
+              claimedCandidate = {
+                id: candidate.id,
+                primary_keyword: candidate.primary_keyword,
+                locale: candidate.locale,
+                longtails: candidate.longtails || [],
+                questions: candidate.questions || [],
+              };
             }
           }
         } catch (topicErr) {
@@ -192,6 +200,33 @@ export async function runContentBuilder(
           strategy = "template_cycle";
         }
 
+        // Pre-populate research_data from TopicProposal metadata (if available)
+        // This allows the research phase to skip the AI call, saving ~15s per article.
+        let prePopulatedResearch: Record<string, unknown> | undefined;
+        if (topicProposalId && claimedCandidate) {
+          const hasLongtails = Array.isArray(claimedCandidate.longtails) && claimedCandidate.longtails.length > 0;
+          const hasQuestions = Array.isArray(claimedCandidate.questions) && claimedCandidate.questions.length > 0;
+          if (hasLongtails || hasQuestions) {
+            prePopulatedResearch = {
+              keywordData: {
+                primary: keyword,
+                secondary: (claimedCandidate.longtails || []).slice(0, 3),
+                longTail: claimedCandidate.longtails || [],
+                questions: claimedCandidate.questions || [],
+              },
+              contentStrategy: {
+                recommendedWordCount: 1800,
+                recommendedHeadings: 8,
+                toneGuidance: "luxury, authoritative, helpful for Arab travelers",
+                uniqueAngle: "",
+                affiliateOpportunities: [],
+              },
+              _prePopulated: true,
+              _source: "topic_proposal",
+            };
+          }
+        }
+
         const enDraft = await prisma.articleDraft.create({
           data: {
             site_id: siteId,
@@ -201,6 +236,7 @@ export async function runContentBuilder(
             topic_proposal_id: topicProposalId,
             generation_strategy: strategy,
             phase_started_at: new Date(),
+            research_data: prePopulatedResearch,
           },
         });
 

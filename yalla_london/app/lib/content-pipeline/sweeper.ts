@@ -150,6 +150,15 @@ export async function runSweeper(): Promise<SweeperResult> {
         continue;
       }
 
+      // ASSEMBLY TIMEOUT: Do NOT reset — the raw fallback (attempts >= 1) handles it.
+      // Resetting here creates an infinite timeout→reset→timeout loop.
+      const failedPhase = extractPhaseFromError(reason);
+      if (failedPhase === "assembly" && (reason.includes("timeout") || reason.includes("timed out") || reason.includes("aborted") || reason.includes("budget"))) {
+        console.log(`[sweeper] Skipping assembly-timeout draft ${draftId} (${keyword} ${locale}) — raw fallback will handle`);
+        skipped++;
+        continue;
+      }
+
       // Apply fix — increment phase_attempts instead of resetting to 0
       // This preserves the total attempt count so the cap above eventually triggers.
       try {
@@ -270,6 +279,13 @@ export async function runSweeper(): Promise<SweeperResult> {
 
       const diagnosis = diagnoseProblem(lastError || `Phase "${phase}" failed 3 times`);
       if (!diagnosis.retryable) {
+        skipped++;
+        continue;
+      }
+
+      // ASSEMBLY TIMEOUT: Do NOT reset — the raw fallback (attempts >= 1) handles it.
+      if (phase === "assembly" && (lastError.includes("timeout") || lastError.includes("timed out") || lastError.includes("aborted") || lastError.includes("budget"))) {
+        console.log(`[sweeper] Skipping failing assembly-timeout draft ${draftId} (${keyword} ${locale}) — raw fallback will handle`);
         skipped++;
         continue;
       }

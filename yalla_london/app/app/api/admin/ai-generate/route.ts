@@ -117,6 +117,8 @@ Return JSON:
         maxTokens: 800,
         temperature: 0.7,
         timeoutMs: 50_000,
+        taskType: "content_generation",
+        calledFrom: "ai-generate:outline",
       });
 
       return NextResponse.json({
@@ -208,6 +210,8 @@ ${headingsFormatted}
         maxTokens: 1500,
         temperature: 0.7,
         timeoutMs: 50_000,
+        taskType: "content_generation",
+        calledFrom: "ai-generate",
       });
 
       const partBody = (result.body as string) || "";
@@ -300,6 +304,8 @@ ${headingsFormatted}
         maxTokens: 1500,
         temperature: 0.7,
         timeoutMs: 50_000,
+        taskType: "content_generation",
+        calledFrom: "ai-generate",
       });
 
       const partBody = (result.body as string) || "";
@@ -378,6 +384,8 @@ ${headingsOutline}
         maxTokens: 2000,
         temperature: 0.7,
         timeoutMs: 50_000,
+        taskType: "content_generation",
+        calledFrom: "ai-generate",
       });
 
       const articleBody = (result.body as string) || "";
@@ -460,6 +468,8 @@ ${bodyPreview}${articleBody.length > 3000 ? "\n... [اختصار]" : ""}
         maxTokens: 600,
         temperature: 0.5,
         timeoutMs: 50_000,
+        taskType: "content_generation",
+        calledFrom: "ai-generate",
       });
 
       // Assemble final article content from all phases
@@ -830,6 +840,8 @@ Return JSON:
     systemPrompt,
     maxTokens: 3000,
     temperature: 0.7,
+    taskType: "content_generation",
+    calledFrom: "ai-generate:fullWrite",
   });
 
   return result;

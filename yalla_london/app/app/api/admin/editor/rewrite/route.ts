@@ -79,6 +79,8 @@ Return JSON:
       systemPrompt: `You are a luxury travel senior editor. Rewrite articles for quality, authenticity, and SEO. Return only valid JSON with properly escaped strings.`,
       maxTokens: 2500,
       temperature: 0.6,
+      taskType: "content_generation",
+      calledFrom: "editor:rewrite",
     });
 
     return NextResponse.json({

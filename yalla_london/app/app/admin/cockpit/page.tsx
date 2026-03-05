@@ -517,7 +517,7 @@ function IndexingPanel({ siteId, onClose, onSummaryUpdate }: { siteId: string; o
       <div className="sticky top-0 z-10 bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between gap-3 flex-shrink-0">
         <div>
           <h2 className="text-sm font-bold text-white">🔍 Indexing Status</h2>
-          <p className="text-xs text-zinc-500">{siteId} — all published articles</p>
+          <p className="text-xs text-zinc-500">{siteId} — published articles only (GSC counts all URLs incl. /ar/ variants &amp; static pages)</p>
         </div>
         <div className="flex items-center gap-2">
           <button

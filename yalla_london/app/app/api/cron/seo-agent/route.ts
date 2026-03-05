@@ -209,19 +209,38 @@ async function runSEOAgent(prisma: any, siteId: string, siteUrl?: string) {
       issues.push(...searchData.issues);
 
       // 9. AUTO-OPTIMIZE LOW-CTR META TITLES/DESCRIPTIONS (AI-powered)
-      report.metaOptimizations = await autoOptimizeLowCTRMeta(
-        prisma,
-        searchData,
-        issues,
-        fixes
-      );
+      if (!hasBudget(15_000)) {
+        console.log(`[seo-agent:${siteId}] Budget low (${budgetLeft()}ms left), skipping AI meta optimization`);
+        report.metaOptimizations = [];
+      } else {
+        try {
+          report.metaOptimizations = await withTimeout(
+            autoOptimizeLowCTRMeta(prisma, searchData, issues, fixes),
+            Math.min(15_000, budgetLeft() - 5_000),
+            "autoOptimizeLowCTRMeta"
+          );
+        } catch (metaOptError) {
+          console.warn(`[seo-agent:${siteId}] AI meta optimization skipped (non-fatal):`, metaOptError instanceof Error ? metaOptError.message : metaOptError);
+          report.metaOptimizations = [];
+        }
+      }
 
       // 10. FLAG ALMOST-PAGE-1 CONTENT FOR STRENGTHENING
-      report.contentStrengthening = await flagContentForStrengthening(
-        prisma,
-        searchData,
-        fixes
-      );
+      if (!hasBudget(10_000)) {
+        console.log(`[seo-agent:${siteId}] Budget low (${budgetLeft()}ms left), skipping content strengthening`);
+        report.contentStrengthening = { expanded: 0, flagged: 0, posts: [] };
+      } else {
+        try {
+          report.contentStrengthening = await withTimeout(
+            flagContentForStrengthening(prisma, searchData, fixes),
+            Math.min(12_000, budgetLeft() - 5_000),
+            "flagContentForStrengthening"
+          );
+        } catch (strengthenError) {
+          console.warn(`[seo-agent:${siteId}] Content strengthening skipped (non-fatal):`, strengthenError instanceof Error ? strengthenError.message : strengthenError);
+          report.contentStrengthening = { expanded: 0, flagged: 0, posts: [] };
+        }
+      }
     } else {
       report.searchPerformance = { status: "no_data" };
     }

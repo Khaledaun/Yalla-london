@@ -84,6 +84,8 @@ export async function runSweeper(): Promise<SweeperResult> {
           site_id: { in: activeSiteIds },
           current_phase: "rejected",
           rejection_reason: { not: null },
+          // Skip permanently failed drafts (marked by MAX_RECOVERIES_EXCEEDED)
+          last_error: { not: "MAX_RECOVERIES_EXCEEDED" },
           // Only sweep recent rejections (last 24h)
           completed_at: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
         },
@@ -111,10 +113,32 @@ export async function runSweeper(): Promise<SweeperResult> {
       const draftId = draft.id as string;
       const keyword = (draft.keyword as string) || "unknown";
       const locale = (draft.locale as string) || "en";
+      const currentAttempts = (draft.phase_attempts as number) || 0;
 
       // Skip if already recovered by failure hooks recently
       if (recentlyRecoveredIds.has(draftId)) {
         console.log(`[sweeper] Skipping draft ${draftId} — already recovered by failure hook`);
+        skipped++;
+        continue;
+      }
+
+      // PERMANENT FAILURE CAP: If phase_attempts >= 10, this draft has been
+      // recovered too many times. Mark as permanently_failed and stop wasting compute.
+      if (currentAttempts >= 10) {
+        console.log(`[sweeper] Draft ${draftId} (${keyword} ${locale}) has ${currentAttempts} total attempts — marking as permanently failed`);
+        try {
+          await prisma.articleDraft.update({
+            where: { id: draftId },
+            data: {
+              current_phase: "rejected",
+              rejection_reason: `Permanently failed: ${currentAttempts} total attempts across multiple recovery cycles. Original: ${reason.substring(0, 200)}`,
+              last_error: "MAX_RECOVERIES_EXCEEDED",
+              updated_at: new Date(),
+            },
+          });
+        } catch (permErr) {
+          console.warn(`[sweeper] Failed to mark draft ${draftId} as permanently failed:`, permErr instanceof Error ? permErr.message : permErr);
+        }
         skipped++;
         continue;
       }
@@ -126,13 +150,14 @@ export async function runSweeper(): Promise<SweeperResult> {
         continue;
       }
 
-      // Apply fix
+      // Apply fix — increment phase_attempts instead of resetting to 0
+      // This preserves the total attempt count so the cap above eventually triggers.
       try {
         await prisma.articleDraft.update({
           where: { id: draftId },
           data: {
             current_phase: diagnosis.resetToPhase,
-            phase_attempts: 0,
+            phase_attempts: currentAttempts + 1,
             last_error: null,
             rejection_reason: null,
             completed_at: null,
@@ -249,12 +274,34 @@ export async function runSweeper(): Promise<SweeperResult> {
         continue;
       }
 
+      // PERMANENT FAILURE CAP: same as section 1
+      const failAttempts = (draft.phase_attempts as number) || 0;
+      if (failAttempts >= 10) {
+        console.log(`[sweeper] Draft ${draftId} (${keyword} ${locale}) has ${failAttempts} total attempts — rejecting permanently`);
+        try {
+          await prisma.articleDraft.update({
+            where: { id: draftId },
+            data: {
+              current_phase: "rejected",
+              rejection_reason: `Permanently failed: ${failAttempts} total attempts. Last error: ${lastError.substring(0, 200)}`,
+              last_error: "MAX_RECOVERIES_EXCEEDED",
+              completed_at: new Date(),
+              updated_at: new Date(),
+            },
+          });
+        } catch (permErr) {
+          console.warn(`[sweeper] Failed to permanently reject draft ${draftId}:`, permErr instanceof Error ? permErr.message : permErr);
+        }
+        skipped++;
+        continue;
+      }
+
       try {
         await prisma.articleDraft.update({
           where: { id: draftId },
           data: {
             current_phase: diagnosis.resetToPhase,
-            phase_attempts: 0,
+            phase_attempts: failAttempts + 1,
             last_error: null,
             phase_started_at: new Date(),
             updated_at: new Date(),

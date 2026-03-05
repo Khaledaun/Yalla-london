@@ -491,6 +491,8 @@ async function runTargetedSweep(siteId?: string): Promise<number> {
     const whereClause: Record<string, unknown> = {
       current_phase: "rejected",
       rejection_reason: { not: null },
+      // Skip permanently failed drafts
+      last_error: { not: "MAX_RECOVERIES_EXCEEDED" },
       completed_at: { gte: new Date(Date.now() - 6 * 60 * 60 * 1000) },
     };
     if (siteId) whereClause.site_id = siteId;

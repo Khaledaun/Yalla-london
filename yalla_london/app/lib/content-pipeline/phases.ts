@@ -110,6 +110,21 @@ export async function phaseResearch(
   site: SiteConfig,
   budgetRemainingMs?: number,
 ): Promise<PhaseResult> {
+  // ─── Skip AI if research_data was pre-populated (e.g., from topic-research API) ──
+  // When drafts are created via "Research & Create" in the cockpit, they arrive
+  // with research_data already populated from the AI topic research. Skipping the
+  // research AI call saves ~15s per article and preserves the user-selected content angle.
+  const existing = draft.research_data as Record<string, unknown> | null;
+  if (existing && (existing as Record<string, unknown>)._prePopulated === true) {
+    console.log(`[phases/research] Draft ${draft.id} has pre-populated research — skipping AI call`);
+    return {
+      success: true,
+      nextPhase: "outline",
+      data: { research_data: existing },
+      aiModelUsed: "pre-populated",
+    };
+  }
+
   // Budget guard: need at least 12s for AI call + DB save
   if (budgetRemainingMs !== undefined && budgetRemainingMs < 12_000) {
     return { success: false, nextPhase: "research", data: {}, error: `Budget too low (${Math.round(budgetRemainingMs / 1000)}s remaining) — will retry next run` };
@@ -190,11 +205,29 @@ export async function phaseOutline(
   }
   const { generateJSON } = await import("@/lib/ai/provider");
   const research = draft.research_data || {};
+  const seoMeta = (draft.seo_meta || {}) as Record<string, unknown>;
   const lang = getLocaleLabel(draft.locale);
+
+  // Extract pre-populated metadata from topic research (if available)
+  const researchKwd = (research as Record<string, unknown>).keywordData as Record<string, unknown> | undefined;
+  const longTails = (seoMeta.longTails as string[]) || (researchKwd?.longTail as string[]) || [];
+  const questions = (seoMeta.questions as string[]) || (researchKwd?.questions as string[]) || [];
+  const contentAngle = (seoMeta.contentAngle as string) || ((research as Record<string, unknown>).contentStrategy as Record<string, unknown>)?.uniqueAngle || "";
+
+  // Build enrichment clause only if pre-populated data exists
+  const enrichment = (longTails.length > 0 || questions.length > 0 || contentAngle)
+    ? `\n\nPRE-RESEARCHED GUIDANCE (incorporate these):${
+      longTails.length > 0 ? `\n- Target long-tail keywords: ${longTails.slice(0, 5).join(", ")}` : ""
+    }${
+      questions.length > 0 ? `\n- Answer these questions in dedicated sections: ${questions.slice(0, 4).join("; ")}` : ""
+    }${
+      contentAngle ? `\n- Content angle: ${contentAngle}` : ""
+    }`
+    : "";
 
   const prompt = `You are a content architect for "${site.name}" (${site.destination} luxury travel for Arab travelers).
 
-Based on this research data, create a detailed article outline for a ${lang} article on "${draft.keyword}".
+Based on this research data, create a detailed article outline for a ${lang} article on "${draft.keyword}".${enrichment}
 
 Research: ${JSON.stringify(research).substring(0, 2000)}
 

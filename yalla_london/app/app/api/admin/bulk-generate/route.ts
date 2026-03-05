@@ -163,21 +163,131 @@ async function handleStatus(body: Record<string, unknown>, siteId: string) {
 // them up and process through the 8-phase pipeline automatically.
 // Returns in <3s — no timeout risk.
 
+interface ResearchedTopicInput {
+  keyword: string;
+  longTails?: string[];
+  searchVolume?: string;
+  estimatedMonthlySearches?: string;
+  trend?: string;
+  trendEvidence?: string;
+  competition?: string;
+  relevanceScore?: number;
+  suggestedPageType?: string;
+  contentAngle?: string;
+  rationale?: string;
+  questions?: string[];
+}
+
 async function handleQueue(
   body: Record<string, unknown>,
   siteId: string,
 ) {
   const language: "en" | "ar" = (body.language as "en" | "ar") || "en";
   const count = Math.min(Math.max((body.count as number) || 1, 1), 20);
-  const topicSource: "auto" | "manual" = (body.topicSource as "auto" | "manual") || "auto";
+  const topicSource: "auto" | "manual" | "researched" = (body.topicSource as "auto" | "manual" | "researched") || "auto";
   const manualKeywords: string[] = (body.keywords as string[]) || [];
+  const researchedTopics: ResearchedTopicInput[] = (body.researchedTopics as ResearchedTopicInput[]) || [];
   const pageType = (body.pageType as string) || "guide";
 
   const { prisma } = await import("@/lib/db");
   const queued: Array<{ keyword: string; draftId: string; topicId: string | null }> = [];
 
-  if (topicSource === "manual" && manualKeywords.length > 0) {
-    // Create drafts from manual keywords
+  // ─── RESEARCHED: Topics from AI topic research with full metadata ────────
+  // Creates TopicProposal records + ArticleDrafts with pre-populated research_data.
+  // The research phase will skip AI (data already present) → saves ~15s per article.
+  if (topicSource === "researched" && researchedTopics.length > 0) {
+    for (let i = 0; i < Math.min(researchedTopics.length, count); i++) {
+      const topic = researchedTopics[i];
+      const keyword = topic.keyword?.trim();
+      if (!keyword) continue;
+
+      // 1. Create TopicProposal for tracking and attribution
+      const proposal = await prisma.topicProposal.create({
+        data: {
+          site_id: siteId,
+          title: keyword,
+          locale: language,
+          primary_keyword: keyword,
+          longtails: topic.longTails || [],
+          featured_longtails: (topic.longTails || []).slice(0, 2),
+          questions: topic.questions || [],
+          intent: "info",
+          suggested_page_type: topic.suggestedPageType || pageType,
+          status: "generating",
+          confidence_score: (topic.relevanceScore ?? 70) / 100,
+          evergreen: topic.trend !== "rising",
+          source_weights_json: {
+            source: "topic-research-api",
+            site: siteId,
+            searchVolume: topic.searchVolume || "unknown",
+            estimatedMonthlySearches: topic.estimatedMonthlySearches || "unknown",
+            trend: topic.trend || "stable",
+            trendEvidence: topic.trendEvidence || "",
+            competition: topic.competition || "medium",
+            contentAngle: topic.contentAngle || "",
+            rationale: topic.rationale || "",
+          },
+          authority_links_json: {},
+        },
+      });
+
+      // 2. Build pre-populated research_data so the research phase can skip AI
+      const prePopulatedResearch = {
+        serpInsights: {
+          topCompetitorHeadings: [],
+          avgWordCount: 1800,
+          commonSubtopics: (topic.longTails || []).slice(0, 3),
+          contentGaps: [],
+        },
+        targetAudience: {
+          searchIntent: "informational",
+          audienceNeeds: topic.questions || [],
+          painPoints: [],
+        },
+        keywordData: {
+          primary: keyword,
+          secondary: (topic.longTails || []).slice(0, 3),
+          longTail: topic.longTails || [],
+          questions: topic.questions || [],
+        },
+        contentStrategy: {
+          recommendedWordCount: 1800,
+          recommendedHeadings: 8,
+          toneGuidance: "luxury, authoritative, helpful for Arab travelers",
+          uniqueAngle: topic.contentAngle || "",
+          affiliateOpportunities: [],
+        },
+        _prePopulated: true, // Flag for research phase to detect
+        _source: "topic-research-api",
+        _searchVolume: topic.searchVolume || "unknown",
+        _trend: topic.trend || "stable",
+        _competition: topic.competition || "medium",
+        _rationale: topic.rationale || "",
+      };
+
+      // 3. Create ArticleDraft with research_data already populated
+      const draft = await prisma.articleDraft.create({
+        data: {
+          site_id: siteId,
+          keyword,
+          locale: language,
+          current_phase: "research", // Research phase will see pre-populated data and skip AI
+          topic_proposal_id: proposal.id,
+          generation_strategy: "bulk_queue_researched",
+          research_data: prePopulatedResearch,
+          seo_meta: {
+            pageType: topic.suggestedPageType || pageType,
+            contentAngle: topic.contentAngle || "",
+            longTails: topic.longTails || [],
+            questions: topic.questions || [],
+          },
+        },
+      });
+      queued.push({ keyword, draftId: draft.id, topicId: proposal.id });
+    }
+  }
+  // ─── MANUAL: Keywords typed by user ──────────────────────────────────────
+  else if (topicSource === "manual" && manualKeywords.length > 0) {
     for (let i = 0; i < Math.min(manualKeywords.length, count); i++) {
       const keyword = manualKeywords[i].trim();
       if (!keyword) continue;
@@ -194,8 +304,9 @@ async function handleQueue(
       });
       queued.push({ keyword, draftId: draft.id, topicId: null });
     }
-  } else {
-    // Claim topics from the queue
+  }
+  // ─── AUTO: Claim from TopicProposal queue ────────────────────────────────
+  else {
     const candidates = await prisma.topicProposal.findMany({
       where: {
         status: { in: ["ready", "queued", "planned", "proposed"] },
@@ -221,6 +332,18 @@ async function handleQueue(
       });
       if (claimed.count === 0) continue;
 
+      // Pre-populate research_data from TopicProposal metadata
+      const topicResearch = {
+        keywordData: {
+          primary: c.primary_keyword,
+          secondary: (c.longtails || []).slice(0, 3),
+          longTail: c.longtails || [],
+          questions: c.questions || [],
+        },
+        _prePopulated: true,
+        _source: "topic_proposal",
+      };
+
       const draft = await prisma.articleDraft.create({
         data: {
           site_id: siteId,
@@ -229,6 +352,7 @@ async function handleQueue(
           current_phase: "research",
           topic_proposal_id: c.id,
           generation_strategy: "bulk_queue_topic",
+          research_data: (c.longtails?.length > 0 || c.questions?.length > 0) ? topicResearch : undefined,
           seo_meta: { pageType: c.suggested_page_type || pageType },
         },
       });
@@ -241,6 +365,13 @@ async function handleQueue(
         error: "All available topics are already being processed.",
       }, { status: 409 });
     }
+  }
+
+  if (queued.length === 0) {
+    return NextResponse.json({
+      success: false,
+      error: "No valid topics to queue. Check your input.",
+    }, { status: 400 });
   }
 
   return NextResponse.json({

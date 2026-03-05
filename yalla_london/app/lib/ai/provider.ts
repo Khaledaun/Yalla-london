@@ -477,11 +477,13 @@ export async function generateCompletion(
 
     try {
       // Give this provider a share of the remaining budget, leaving room for fallbacks.
-      // First provider: up to 50% of total budget (ensures time for 1-2 fallbacks).
-      // Subsequent providers: up to remaining time minus a small buffer.
+      // For larger budgets (>30s, typical of dedicated admin routes), give the first
+      // provider 70% — enough time for complex content generation (1500+ tokens).
+      // For smaller budgets (<30s, typical of cron jobs sharing time), use 50/50 split.
       const isFirstAttempt = errors.length === 0;
+      const firstProviderShare = totalBudgetMs > 30_000 ? 0.70 : 0.50;
       const providerCap = isFirstAttempt
-        ? Math.min(Math.floor(totalBudgetMs * 0.5), remaining - 8_000)  // Leave at least 8s for fallback
+        ? Math.min(Math.floor(totalBudgetMs * firstProviderShare), remaining - 5_000)  // Leave at least 5s for fallback
         : remaining - 1_000;  // Subsequent providers get almost all remaining time
       const providerTimeout = Math.max(Math.min(remaining - 1_000, providerCap), 5_000);
       const result = await callProvider(provider, messages, apiKey, {

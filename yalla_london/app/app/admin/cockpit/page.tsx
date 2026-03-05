@@ -2275,7 +2275,10 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
     setExportLoading(siteId);
     try {
       const res = await fetch(`/api/admin/audit-export?siteId=${encodeURIComponent(siteId)}`);
-      if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.hint || body.detail || `Export failed: ${res.status}`);
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -2296,6 +2299,7 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
     setDiagnosticLoading(siteId);
     try {
       const res = await fetch("/api/cron/diagnostic-sweep", { method: "POST" });
+      if (!res.ok) throw new Error(res.status === 401 ? "Not authorized — check admin login" : `Server error: ${res.status}`);
       const json = await res.json();
       if (json.success) {
         setDiagnosticResult((prev) => ({ ...prev, [siteId]: `Fixed ${json.fixes?.filter((f: Record<string, unknown>) => f.success).length || 0} issues. ${json.summary || ""}` }));

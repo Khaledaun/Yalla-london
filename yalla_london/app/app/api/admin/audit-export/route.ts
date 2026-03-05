@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 
       // 6. Indexing Stats
       prisma.$queryRawUnsafe(
-        `SELECT status, COUNT(*) as count FROM url_indexing_statuses WHERE site_id = $1 GROUP BY status`,
+        `SELECT status, COUNT(*) as count FROM url_indexing_status WHERE site_id = $1 GROUP BY status`,
         siteId,
       ).catch(() => []),
 
@@ -228,9 +228,18 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[audit-export] Failed:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[audit-export] Failed:", msg);
+    // Surface the actual error type so we can debug from the dashboard
+    const isTableMissing = msg.includes("does not exist") || msg.includes("P2021") || msg.includes("relation");
+    const isConnectionError = msg.includes("connect") || msg.includes("pool") || msg.includes("ECONNREFUSED");
+    const hint = isTableMissing
+      ? "One or more database tables are missing. Run 'npx prisma db push' to sync schema."
+      : isConnectionError
+        ? "Database connection failed. Check DATABASE_URL in Vercel env vars."
+        : "Unexpected error during audit export.";
     return NextResponse.json(
-      { error: "Failed to generate audit export" },
+      { error: "Failed to generate audit export", hint, detail: msg.substring(0, 200) },
       { status: 500 },
     );
   }

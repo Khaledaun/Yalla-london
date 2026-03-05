@@ -18,11 +18,18 @@ import { logCronExecution } from "@/lib/cron-logger";
 async function handleDiagnosticSweep(request: NextRequest) {
   const cronStart = Date.now();
 
-  // Auth: standard pattern
+  // Auth: accept CRON_SECRET (for scheduled runs) OR admin session (for dashboard button)
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const hasCronAuth = !cronSecret || authHeader === `Bearer ${cronSecret}`;
+  if (!hasCronAuth) {
+    // Fallback: check if caller is an authenticated admin (cockpit dashboard calls)
+    try {
+      const { requireAdmin } = await import("@/lib/admin-middleware");
+      await requireAdmin(request);
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   // Healthcheck mode

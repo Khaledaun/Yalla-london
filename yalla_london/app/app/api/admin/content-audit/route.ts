@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminOrCron } from "@/lib/admin-middleware";
-import { getAllSiteIds, getSiteConfig } from "@/config/sites";
+import { getAllSiteIds, getDefaultSiteId, getSiteConfig } from "@/config/sites";
 
 /**
  * GET /api/admin/content-audit
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     }
 
     for (const row of postCountsBySite) {
-      const sid = row.siteId ?? "yalla-london";
+      const sid = row.siteId ?? getDefaultSiteId();
       if (!siteStats[sid]) {
         siteStats[sid] = {
           siteName: sid,

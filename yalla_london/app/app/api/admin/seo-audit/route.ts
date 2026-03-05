@@ -698,7 +698,8 @@ async function runAudit(siteId: string) {
           if (!h2Matches || h2Matches.length < 2) issues.push("Fewer than 2 H2 headings (content lacks structure)");
 
           // Check for internal links
-          const internalLinkRegex = new RegExp(`href=["'](?:https?://(?:www\\.)?${siteConfig?.domain || "yalla-london.com"})?/[^"']*["']`, "gi");
+          const auditDomain = siteConfig?.domain || siteDomain.replace(/^https?:\/\/(www\.)?/, "");
+          const internalLinkRegex = new RegExp(`href=["'](?:https?://(?:www\\.)?${auditDomain})?/[^"']*["']`, "gi");
           const internalLinks = html.match(internalLinkRegex);
           if (!internalLinks || internalLinks.length < 3) {
             issues.push(`Only ${internalLinks?.length || 0} internal links (minimum 3 recommended)`);
@@ -825,7 +826,7 @@ async function runAudit(siteId: string) {
         take: 100,
       });
 
-      const domain = siteConfig?.domain || "yalla-london.com";
+      const domain = siteConfig?.domain || siteDomain.replace(/^https?:\/\/(www\.)?/, "");
       let orphanPages = 0;
       const orphanSlugs: string[] = [];
 

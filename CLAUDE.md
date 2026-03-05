@@ -1659,3 +1659,209 @@ Vercel build was failing with `Module not found: Can't resolve '@/lib/auth/admin
 - KG-001 / KG-035 (GA4 not connected): **MCP bridge now functional** — Claude Code sessions can query GA4 and GSC directly. Dashboard API integration still needed for Khaled's phone view.
 
 **Rule added:** The correct PageSpeed API key env var name is `GOOGLE_PAGESPEED_API_KEY`. Always include it alongside `PAGESPEED_API_KEY` and `PSI_API_KEY` in fallback chains.
+
+### Session: March 4, 2026 — Production Stability Audit: 73 Fixes Across 7 Rounds
+
+**Comprehensive cockpit + dashboard audit resolving all runtime crashes, data leaks, and silent failures observed in production.**
+
+**Round 1 — Cockpit Zero-Error Sweep (15 fixes):**
+- Added `res.ok` validation to 5 fetch calls in cockpit (pipeline monitor, cron logs, feature flags, AI config, sites quickAction) — Safari was crashing on non-JSON error responses
+- Added `siteId` to force-publish request body (was missing)
+- Added null guard on `item.slug` before indexing submit
+- Added error logging to 3 fire-and-forget catch blocks (dismissTask, completeTask, action-logs)
+- Added `encodeURIComponent` to pipeline monitor siteId query param
+- Departures API: added `site_id` scoping to ScheduledContent query (was global — cross-site leak)
+
+**Rounds 2-3 — Multi-Site Scoping (21 unscoped queries fixed):**
+- `topics/route.ts`: All queries scoped by `site_id` from header/param/default
+- `topics/queue/route.ts`: All 6 count queries + main findMany scoped by `site_id`
+- `command-center/overview/route.ts`: TopicProposal.groupBy + URLIndexingStatus.groupBy scoped
+- `command-center/affiliates/route.ts`: **AffiliateClick + Conversion groupBy scoped** — was leaking financial data across sites
+
+**Round 4 — Mock Data Purge (6 components cleaned):**
+- MediaUploadManager: replaced 2 hardcoded fake assets with real API fetch
+- CRMSubscriberManager: replaced 3 fake subscribers with real API fetch
+- ArticleEditor: replaced mock topic research + content generation with real API calls
+- Replaced `Math.random()` ID generation with `crypto.getRandomValues()`
+
+**Round 5 — Error Visibility (21 empty catch blocks fixed):**
+- 15 `onCronFailure().catch(() => {})` patterns across all cron routes now log with context
+- 4 `logCronExecution().catch(() => {})` patterns fixed
+- 1 `ensureUrlTracked().catch(() => {})` + 1 `logSweeperEvent().catch(() => {})` fixed
+- Standard pattern: `.catch(err => console.warn("[job-name] hook failed:", err.message))`
+
+**Prisma Schema Mismatches Fixed (4 critical):**
+1. `seo-audit/route.ts`: `select: { title: true }` on BlogPost → `title_en: true` (3 locations). BlogPost uses `title_en`/`title_ar`, not `title`
+2. `seo-audit/route.ts`: `quality_score: true` on BlogPost → `seo_score` (field only exists on ArticleDraft)
+3. `content/route.ts`: `featured_image` Zod `z.string().url()` rejected empty strings → now accepts empty + transforms to undefined
+4. `content/route.ts`: slug regex `/^[a-z0-9-]+$/` rejected uppercase → auto-lowercases via `.transform().pipe()` chain
+
+**SEO Audit Tab Fixes (3 critical):**
+1. Quick Fix actions all failing — `baseUrl` ternary precedence bug caused `https://undefined/api/...` requests. Fixed with `request.nextUrl.origin`
+2. `pipeline-sweeper` cron name mismatch — route is `/api/cron/sweeper`, not `pipeline-sweeper`
+3. `seo_audit_reports` table added to Fix Database button's `CREATE_TABLE_STATEMENTS`
+
+**Content Quality Fixes (2):**
+1. Duplicate title prevention — title uniqueness check added to `select-runner.ts` and `daily-content-generate` before publish/create
+2. Multiple H1 fix — AI body content `<h1>` tags demoted to `<h2>` in `promoteToBlogPost()` (page template already provides H1)
+
+**DB Connection Pool Fix:**
+- `cockpit/route.ts`: serialized all 5 dashboard builders (was `Promise.all` with 15-20+ concurrent queries, exhausting Supabase PgBouncer pool)
+- `buildSites()`: changed from parallel `Promise.all(sites.map(...))` to sequential for-loop (12+ concurrent queries → max 4)
+
+**Result: 73 total fixes. TypeScript: 0 errors. Build: compiles successfully.**
+
+### Session: March 4-5, 2026 — Content Pipeline Reliability Overhaul
+
+**Major production reliability fixes across the entire content pipeline, AI provider system, and admin tools. ~40 fixes resolving timeouts, infinite loops, crash patterns, and data integrity issues.**
+
+**Prisma Null Validation Fixes (2 critical patterns):**
+1. `content-auto-fix` cron + `seo-audit`: BlogPost `content_en`/`content_ar` are non-nullable String fields — `{ not: null }` is invalid Prisma syntax on required fields. Changed to `{ not: "" }` across 4 queries
+2. `simple-write` publish flow: `title_ar`/`content_ar` sent as `null` but are required. Now fall back to English values. Added try/catch with user-friendly error messages for constraint violations + duplicate slug pre-check
+
+**Arabic Content Fixes (3 critical):**
+1. Token truncation: `maxTokens` for Arabic drafting/assembly/expansion raised from 2000 to 3500 — Arabic text is ~2.5x more token-dense than English
+2. Assembly timeout: raw HTML prompt truncated from 6000 to 4000 chars for Arabic; safety buffer reduced from 5s to 3s giving AI 2 extra seconds
+3. Default non-cron assembly timeout raised from 25s to 30s
+
+**AI Provider Timeout Cascade Fix (critical, 3 iterations):**
+- **Root cause:** First provider consumed 100% of budget (via `Math.max` bug) leaving 0s for fallbacks
+- **Fix 1:** First provider capped at 50% of budget, guaranteeing 8s+ for fallbacks
+- **Fix 2:** For large budgets (>30s, admin routes), first provider gets 70% (35s)
+- **Fix 3:** Provider chain now shares remaining budget dynamically; providers skipped when <5s remaining
+- Added `timeoutMs` to all 6 pipeline phase AI calls that were missing it
+
+**Assembly Timeout Infinite Loop Fix (critical, resolved across 4 files):**
+- `phases.ts`: Raw fallback threshold lowered from `attempts>=4` to `attempts>=1` — after first timeout, next run uses raw HTML concatenation (instant, no AI call)
+- `failure-hooks.ts`: No longer resets assembly timeout drafts (was undoing raw fallback protection)
+- `diagnostic-agent.ts`: Preserves `attempts>=1` for assembly (triggers raw fallback)
+- `sweeper.ts`: Added assembly-timeout skip in sections 1 (rejected) and 3 (failing) — was endlessly resetting timeout drafts
+- Assembly phase gets dedicated run with full budget (no other drafts processed simultaneously)
+- Assembly budget guard: 28s→12s, maxTokens 2000→1500, expansion threshold 25s→18s
+
+**Content-Builder Duplicate Run Fix:**
+- **Root cause:** Two simultaneous Vercel invocations both passed dedup check before either wrote the marker
+- **Fix:** Write "started" marker IMMEDIATELY after dedup check passes. Second invocation re-counts markers in 90s window and yields if 2+ exist
+- Window increased from 60s to 90s for safety margin
+
+**Infinite Draft Recovery Loop Fix:**
+- **Root cause:** Sweeper reset `phase_attempts` to 0, wiping the lifetime counter that failure-hooks used for its >=8 cap
+- **Fix:** Sweeper now increments instead of resetting. Added permanent failure cap at 10 total attempts — marks drafts with `last_error=MAX_RECOVERIES_EXCEEDED` and excludes from all future sweep queries
+
+**SEO Agent Reliability Fixes:**
+- Budget guards + try/catch around `autoOptimizeLowCTRMeta` and `flagContentForStrengthening` AI calls
+- Batch reduced from 8→3 with inner-loop 12s budget guard
+- Agent now reports `completed=1` even if optional AI steps skipped (was falsely reporting `failed=1`)
+- `seo-intelligence.ts`: Array.isArray guards on GSC API responses (can return error objects instead of arrays)
+- `seo-command` Quick Fix: field name `postId` → `articleId` (every per-article fix was silently failing with 404)
+
+**Sitemap Timeout Fix:**
+- Added 45s budget guard
+- Limited unbounded Event/Product queries (`take:200/100`)
+- BlogPost limit reduced from 1000→500
+
+**Gemini Provider Update:**
+- Endpoint `v1beta` → `v1`, model `gemini-pro` → `gemini-2.0-flash`
+- Added `GEMINI_API_KEY` and `GOOGLE_AI_API_KEY` env var checks
+
+**Safari Compatibility Fixes (3):**
+- `article-editor.tsx`: wrap `response.json()` in try-catch (Safari throws on non-JSON)
+- `cockpit`: check `res.ok` before `res.json()` on Audit Site button
+- `simple-write`: check `res.ok` before parsing, handle non-JSON gracefully
+
+**SEO Health Score Fix:**
+- `seo-agent`: diminishing returns per category, floor at 15 (was trivially reaching 0)
+- `seo-audit`: logarithmic scaling (was linear — 5 critical findings = score 0)
+
+**AI Cost Tracking Completion:**
+- Added `taskType`/`calledFrom` metadata to ALL ~25 AI callers across the codebase
+- Previously ~15 callers had null metadata in `ApiUsageLog`, making cost attribution impossible
+- Fixed callers in: content-generator, site-generator, ai-generate, bulk-generate, editor/rewrite, seo-intelligence, auto-remediate, weekly-topics, daily-content-generate, content-engine (4 agents), prompt-to-video, pdf-generator
+
+**New Features:**
+1. **Diagnostic Agent** (`lib/ops/diagnostic-agent.ts`): 3-phase engine — Diagnose (stuck drafts + failed crons, classify root cause) → Fix (reset timeouts, force raw assembly, repair bad data, reject stuck loops) → Verify (confirm fix, log to AutoFixLog)
+2. **Diagnostic Sweep Cron** (every 2h): runs diagnostic agent automatically
+3. **JSON Audit Export** (`/api/admin/audit-export`): aggregates CronJobLog, SeoAuditReport, BlogPost stats, ArticleDraft pipeline, indexing, AI costs, AutoFixLog into downloadable JSON
+4. **Cockpit Export JSON + Diagnose buttons** per site with result display
+5. **GSC vs Dashboard Indexing Explanation Note** — explains why GSC shows higher totals (counts /ar/ pages, static pages, historical URLs) while dashboard tracks published blog articles only
+
+**PageSpeed Audit Improvement:**
+- Detect 401/403 and show clear message that key must be API Key type (`AIza...`), not OAuth credential (`AQ....`)
+- Cockpit shows warning banner from API response when no key configured
+
+### Session: March 5, 2026 — SEO Topic Research + Bulk Article Creation + Pipeline Integration
+
+**New Feature: SEO Topic Research (`/api/admin/topic-research`):**
+- AI-powered keyword discovery returning 20 topics with search volume estimates, trend direction, competition level, and relevance scores
+- Focus area input for targeted research (e.g., "ramadan london", "luxury hotels mayfair")
+- Per-site context-aware prompts using site destination and keyword config
+
+**Enhanced Cockpit Content Tab (2 views):**
+- **Research & Create view**: topic research panel → select up to 5 topics → bulk create button queues articles into content pipeline with full metadata
+- **Articles view**: streamlined table with quick action buttons (Run Pipeline, Publish Ready, Refresh), re-queue/retry for stuck/rejected drafts, improved status badges
+
+**Topic Research → Pipeline Integration (4 fixes):**
+1. Cockpit UI passes full research metadata (longTails, questions, contentAngle, trend, competition, suggestedPageType) to bulk-generate using new `topicSource="researched"` mode
+2. Bulk-generate: new "researched" path creates `TopicProposal` records + pre-populates `ArticleDraft.research_data` with structured research — pipeline skips AI research call (~15s saved per article)
+3. Research phase: detects `_prePopulated` flag and skips AI call when data already present
+4. Outline phase: extracts pre-populated longTails, questions, contentAngle from `seo_meta`/`research_data` and injects as "PRE-RESEARCHED GUIDANCE" into AI prompt
+
+**Cron Schedule Reference Panel:**
+- Added to cockpit Settings tab showing all cron timings, quantities, and descriptions
+
+**Sweeper-Agent Assembly Reset Fix:**
+- Sweeper was resetting assembly timeout drafts, undoing raw fallback protection
+- Added assembly-timeout skip in sections 1 (rejected) and 3 (failing)
+
+**Content-Builder Dedup Race Condition Fix (v2):**
+- After writing "started" marker, re-count markers in 90s window
+- If 2+ markers exist, this invocation is the duplicate and yields
+- Eliminates empty `resultSummary: {}` duplicate runs visible in production
+
+**Hardcoded Domain Fallbacks Cleaned:**
+- `seo-audit`: 2 domain fallbacks → `getSiteDomain()`
+- `content-audit`: siteId fallback → `getDefaultSiteId()`
+
+### Current Platform Status (March 5, 2026)
+
+**What Works End-to-End:**
+- Content pipeline: Topics → 8-phase ArticleDraft → Reservoir → BlogPost (published, bilingual, with affiliates) ✅
+- SEO agent: IndexNow submission, schema injection, meta optimization, internal link injection ✅
+- 14-check pre-publication gate (route, ar-route, SEO minimums, score, headings, word count, internal links, readability, alt text, author, structured data, authenticity, affiliates, AIO readiness) ✅
+- Per-content-type quality gates (blog 1000w, news 150w, information 300w, guide 400w) ✅
+- AI cost tracking with per-task attribution across all providers ✅
+- Cockpit mission control with 7 tabs, mobile-first, auto-refresh ✅
+- Departures board with live countdown timers and Do Now buttons ✅
+- AI topic research with pipeline integration (metadata flows through all phases) ✅
+- Diagnostic agent auto-remediation every 2h ✅
+- Multi-site scoping on all DB queries ✅
+- Zenitha Yachts hermetically separated ✅
+
+**Known Remaining Issues:**
+
+| Area | Issue | Severity |
+|------|-------|----------|
+| GA4 Dashboard | Traffic metrics on dashboard still return 0s (MCP works, API integration pending) | MEDIUM |
+| Social APIs | Engagement stats require platform API integration | LOW |
+| Workflow Control | Automation Hub/Autopilot UIs still placeholders | LOW |
+| Feature Flags | DB-backed but not wired to runtime behavior | LOW |
+| Brand Templates | Only Yalla London template exists for other sites | MEDIUM |
+| Author Profiles | Generic "Editorial" author on all articles (needs specific profiles for E-E-A-T) | MEDIUM |
+| OG Images | Per-site OG image files don't exist yet (code references `{slug}-og.jpg`) | MEDIUM |
+| Login Security | No rate limiting on admin login endpoint | MEDIUM |
+| Orphan Models | 16+ Prisma models never referenced in code | LOW |
+
+### Critical Rules Learned (March 4-5 Sessions)
+
+1. **BlogPost has no `title` field** — always use `title_en`/`title_ar`. Never `select: { title: true }` on BlogPost.
+2. **BlogPost has no `quality_score` field** — use `seo_score`. `quality_score` is on ArticleDraft only.
+3. **Prisma null comparisons on required fields are invalid** — `{ not: null }` crashes on non-nullable String fields. Use `{ not: "" }` instead.
+4. **BlogPost `title_ar`/`content_ar` are required (non-nullable)** — always provide fallback values, never send `null`.
+5. **Arabic text is ~2.5x more token-dense** — use `maxTokens: 3500` minimum for Arabic content generation.
+6. **Assembly phase needs raw fallback after first timeout** — `attempts>=1` triggers instant HTML concatenation instead of repeated AI calls.
+7. **Content-builder dedup must write marker BEFORE processing** — act-then-check pattern prevents duplicate Vercel invocations.
+8. **Sweeper must never reset assembly timeout drafts** — it undoes the raw fallback protection.
+9. **Dashboard builders must run sequentially** — `Promise.all` with 15+ queries exhausts Supabase PgBouncer pool.
+10. **The canonical auth import is `@/lib/admin-middleware`** — never use `@/lib/auth/admin` (doesn't exist).
+11. **The correct PageSpeed env var is `GOOGLE_PAGESPEED_API_KEY`** — always include alongside `PAGESPEED_API_KEY` and `PSI_API_KEY`.
+12. **Safari requires `res.ok` check before `res.json()`** — Safari throws "string did not match expected pattern" on non-JSON responses.

@@ -133,5 +133,10 @@
     "/affiliate-disclosure"
   ],
   "includeArVariants": true,
-  "outputDir": "docs/master-audit"
+  "outputDir": "docs/master-audit",
+  "keyUrls": ["/", "/blog", "/hotels", "/experiences", "/recommendations"],
+  "nightlyWindow": {
+    "hour": 2,
+    "maxMinute": 30
+  }
 }

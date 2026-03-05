@@ -18,6 +18,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { ShieldCheck, ChevronDown } from "lucide-react";
 
 // ─── Types from API responses ────────────────────────────────────────────────
 
@@ -1275,6 +1276,24 @@ function MissionTab({ data, onRefresh, onSwitchTab, siteId, onUpdateIndexing }: 
           </p>
         )}
       </Card>
+
+      {/* Site Health Quick Link */}
+      <Link href="/admin/site-health" className="block">
+        <Card className="hover:border-zinc-600 transition-colors cursor-pointer">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                <ShieldCheck className="w-4 h-4 text-indigo-400" />
+              </div>
+              <div>
+                <div className="text-xs font-medium text-zinc-200">Site Health Monitor</div>
+                <div className="text-[10px] text-zinc-500">SEO audit, issues, health score</div>
+              </div>
+            </div>
+            <ChevronDown className="w-4 h-4 text-zinc-500 -rotate-90" />
+          </div>
+        </Card>
+      </Link>
 
       {/* Recent cron activity */}
       <Card>

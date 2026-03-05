@@ -4141,3 +4141,92 @@ model SeoAuditReport {
   @@index([siteId, createdAt])
   @@map("seo_audit_reports")
 }
+
+// ─── SEO Audit System (automated, DB-backed, multi-step) ─────────────────────
+
+/// AuditRun — Tracks each audit execution through multi-step cron pipeline.
+/// Status progresses: pending → inventory → crawling → validating → completed.
+/// State is persisted between cron invocations to work within Vercel's 60s limit.
+model AuditRun {
+  id              String   @id @default(cuid())
+  siteId          String
+  status          String   @default("pending") // pending | inventory | crawling | validating | completed | failed
+  mode            String   @default("full")    // full | quick
+  triggeredBy     String   @default("scheduled") // scheduled | manual | ci
+
+  // Progress tracking
+  totalUrls       Int      @default(0)
+  processedUrls   Int      @default(0)
+  currentBatch    Int      @default(0)
+  totalBatches    Int      @default(0)
+
+  // Inventory + crawl state (JSON blobs for continuation between cron invocations)
+  urlInventory    Json?    // string[] of all URLs to audit
+  crawlResults    Json?    // Map<url, CrawlResult> serialized as object
+  sitemapXml      String?  @db.Text
+
+  // Results (populated after validation step)
+  totalIssues     Int      @default(0)
+  p0Count         Int      @default(0)
+  p1Count         Int      @default(0)
+  p2Count         Int      @default(0)
+  healthScore     Int?     // 0-100 computed score
+  hardGatesPassed Boolean?
+  hardGatesJson   Json?    // HardGateResult[]
+  softGatesJson   Json?    // SoftGateResult[]
+  reportMarkdown  String?  @db.Text  // EXEC_SUMMARY.md content
+  fixPlanMarkdown String?  @db.Text  // FIX_PLAN.md content
+  configSnapshot  Json?    // AuditConfig snapshot for reproducibility
+
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  errorMessage    String?  @db.Text
+
+  // Relations
+  issues          AuditIssue[]
+
+  @@index([siteId, status])
+  @@index([siteId, startedAt])
+  @@map("audit_runs")
+}
+
+/// AuditIssue — Individual SEO issue with lifecycle tracking.
+/// Issues are fingerprinted for cross-run dedup: same issue across runs is tracked
+/// via the fingerprint field, with detectionCount incrementing each time.
+model AuditIssue {
+  id              String   @id @default(cuid())
+  auditRunId      String
+  siteId          String
+  url             String
+  category        String   // http | canonical | hreflang | sitemap | schema | links | metadata | robots | performance | risk
+  severity        String   // P0 | P1 | P2
+  title           String
+  description     String   @db.Text
+  evidence        Json?    // { file?, jsonPath?, snippet? }
+  suggestedFix    Json?    // { scope, target, notes }
+
+  // Lifecycle
+  status          String   @default("open") // open | ignored | fixed | wontfix
+  ignoredAt       DateTime?
+  ignoredBy       String?
+  fixedAt         DateTime?
+  fixedInRunId    String?  // Which audit run confirmed the fix
+
+  // Cross-run dedup
+  fingerprint     String   // hash(siteId + url + category + title) for cross-run tracking
+  firstDetectedAt DateTime @default(now())
+  lastDetectedAt  DateTime @default(now())
+  detectionCount  Int      @default(1) // How many consecutive runs found this
+
+  createdAt       DateTime @default(now())
+
+  // Relations
+  auditRun        AuditRun @relation(fields: [auditRunId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, status])
+  @@index([auditRunId])
+  @@index([fingerprint])
+  @@index([siteId, category])
+  @@index([siteId, severity])
+  @@map("audit_issues")
+}

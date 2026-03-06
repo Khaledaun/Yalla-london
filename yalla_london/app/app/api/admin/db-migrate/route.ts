@@ -739,6 +739,182 @@ const CREATE_TABLE_STATEMENTS: { table: string; model: string; sql: string }[] =
   CONSTRAINT "seo_audit_reports_pkey" PRIMARY KEY ("id")
 )`,
   },
+  // ── GSC Page Performance ──────────────────────────
+  {
+    table: "gsc_page_performance",
+    model: "GscPagePerformance",
+    sql: `CREATE TABLE IF NOT EXISTS "gsc_page_performance" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "site_id" TEXT NOT NULL,
+  "url" TEXT NOT NULL,
+  "date" DATE NOT NULL,
+  "clicks" INTEGER NOT NULL DEFAULT 0,
+  "impressions" INTEGER NOT NULL DEFAULT 0,
+  "ctr" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "position" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "gsc_page_performance_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  // ── Performance Audits ────────────────────────────
+  {
+    table: "performance_audits",
+    model: "PerformanceAuditResult",
+    sql: `CREATE TABLE IF NOT EXISTS "performance_audits" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT NOT NULL,
+  "url" TEXT NOT NULL,
+  "strategy" TEXT NOT NULL DEFAULT 'mobile',
+  "performanceScore" DOUBLE PRECISION,
+  "accessibilityScore" DOUBLE PRECISION,
+  "bestPracticesScore" DOUBLE PRECISION,
+  "seoScore" DOUBLE PRECISION,
+  "lcpMs" DOUBLE PRECISION,
+  "clsScore" DOUBLE PRECISION,
+  "inpMs" DOUBLE PRECISION,
+  "fcpMs" DOUBLE PRECISION,
+  "tbtMs" DOUBLE PRECISION,
+  "speedIndex" DOUBLE PRECISION,
+  "diagnostics" JSONB,
+  "runId" TEXT NOT NULL,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "performance_audits_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  // ── Auto Fix Logs ─────────────────────────────────
+  {
+    table: "auto_fix_logs",
+    model: "AutoFixLog",
+    sql: `CREATE TABLE IF NOT EXISTS "auto_fix_logs" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT NOT NULL,
+  "targetType" TEXT NOT NULL,
+  "targetId" TEXT NOT NULL,
+  "fixType" TEXT NOT NULL,
+  "agent" TEXT NOT NULL,
+  "before" JSONB,
+  "after" JSONB,
+  "success" BOOLEAN NOT NULL DEFAULT true,
+  "error" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "auto_fix_logs_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  // ── Dev Tasks ─────────────────────────────────────
+  {
+    table: "dev_tasks",
+    model: "DevTask",
+    sql: `CREATE TABLE IF NOT EXISTS "dev_tasks" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT NOT NULL,
+  "title" TEXT NOT NULL,
+  "description" TEXT,
+  "category" TEXT NOT NULL,
+  "priority" TEXT NOT NULL DEFAULT 'medium',
+  "status" TEXT NOT NULL DEFAULT 'pending',
+  "dueDate" TIMESTAMP(3),
+  "source" TEXT NOT NULL DEFAULT 'manual',
+  "sourceRef" TEXT,
+  "actionLabel" TEXT,
+  "actionApi" TEXT,
+  "actionPayload" JSONB,
+  "completedAt" TIMESTAMP(3),
+  "completedBy" TEXT,
+  "metadata" JSONB,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "dev_tasks_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  // ── System Diagnostics ────────────────────────────
+  {
+    table: "system_diagnostics",
+    model: "SystemDiagnostic",
+    sql: `CREATE TABLE IF NOT EXISTS "system_diagnostics" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "siteId" TEXT,
+  "runId" TEXT NOT NULL,
+  "mode" TEXT NOT NULL,
+  "groups" TEXT[],
+  "totalTests" INTEGER NOT NULL DEFAULT 0,
+  "passed" INTEGER NOT NULL DEFAULT 0,
+  "warnings" INTEGER NOT NULL DEFAULT 0,
+  "failed" INTEGER NOT NULL DEFAULT 0,
+  "healthScore" INTEGER NOT NULL DEFAULT 0,
+  "verdict" TEXT NOT NULL DEFAULT 'unknown',
+  "results" JSONB NOT NULL,
+  "envStatus" JSONB,
+  "recommendations" JSONB,
+  "fixesAttempted" INTEGER NOT NULL DEFAULT 0,
+  "fixesSucceeded" INTEGER NOT NULL DEFAULT 0,
+  "durationMs" INTEGER,
+  "ranBy" TEXT,
+  "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "system_diagnostics_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  // ── Audit Runs (Master Audit Engine) ──────────────
+  {
+    table: "audit_runs",
+    model: "AuditRun",
+    sql: `CREATE TABLE IF NOT EXISTS "audit_runs" (
+  "id" TEXT NOT NULL,
+  "siteId" TEXT NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'pending',
+  "mode" TEXT NOT NULL DEFAULT 'full',
+  "triggeredBy" TEXT NOT NULL DEFAULT 'scheduled',
+  "totalUrls" INTEGER NOT NULL DEFAULT 0,
+  "processedUrls" INTEGER NOT NULL DEFAULT 0,
+  "currentBatch" INTEGER NOT NULL DEFAULT 0,
+  "totalBatches" INTEGER NOT NULL DEFAULT 0,
+  "urlInventory" JSONB,
+  "crawlResults" JSONB,
+  "sitemapXml" TEXT,
+  "totalIssues" INTEGER NOT NULL DEFAULT 0,
+  "p0Count" INTEGER NOT NULL DEFAULT 0,
+  "p1Count" INTEGER NOT NULL DEFAULT 0,
+  "p2Count" INTEGER NOT NULL DEFAULT 0,
+  "healthScore" INTEGER,
+  "hardGatesPassed" BOOLEAN,
+  "hardGatesJson" JSONB,
+  "softGatesJson" JSONB,
+  "reportMarkdown" TEXT,
+  "fixPlanMarkdown" TEXT,
+  "configSnapshot" JSONB,
+  "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "completedAt" TIMESTAMP(3),
+  "errorMessage" TEXT,
+  CONSTRAINT "audit_runs_pkey" PRIMARY KEY ("id")
+)`,
+  },
+  // ── Audit Issues (Master Audit Engine) ────────────
+  {
+    table: "audit_issues",
+    model: "AuditIssue",
+    sql: `CREATE TABLE IF NOT EXISTS "audit_issues" (
+  "id" TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+  "auditRunId" TEXT NOT NULL,
+  "siteId" TEXT NOT NULL,
+  "url" TEXT NOT NULL,
+  "category" TEXT NOT NULL,
+  "severity" TEXT NOT NULL,
+  "title" TEXT NOT NULL,
+  "description" TEXT NOT NULL,
+  "evidence" JSONB,
+  "suggestedFix" JSONB,
+  "status" TEXT NOT NULL DEFAULT 'open',
+  "ignoredAt" TIMESTAMP(3),
+  "ignoredBy" TEXT,
+  "fixedAt" TIMESTAMP(3),
+  "fixedInRunId" TEXT,
+  "fingerprint" TEXT NOT NULL,
+  "firstDetectedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "lastDetectedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "detectionCount" INTEGER NOT NULL DEFAULT 1,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "audit_issues_pkey" PRIMARY KEY ("id")
+)`,
+  },
 ];
 
 // Indexes for newly created tables
@@ -876,6 +1052,57 @@ const NEW_TABLE_INDEXES: Record<string, string[]> = {
   seo_audit_reports: [
     'CREATE INDEX IF NOT EXISTS "seo_audit_reports_siteId_createdAt_idx" ON "seo_audit_reports"("siteId", "createdAt")',
   ],
+
+  // ── GSC Page Performance Indexes ───────────────────────
+  gsc_page_performance: [
+    'CREATE UNIQUE INDEX IF NOT EXISTS "gsc_page_performance_site_id_url_date_key" ON "gsc_page_performance"("site_id", "url", "date")',
+    'CREATE INDEX IF NOT EXISTS "gsc_page_performance_site_id_date_idx" ON "gsc_page_performance"("site_id", "date")',
+    'CREATE INDEX IF NOT EXISTS "gsc_page_performance_site_id_url_idx" ON "gsc_page_performance"("site_id", "url")',
+  ],
+
+  // ── Performance Audits Indexes ─────────────────────────
+  performance_audits: [
+    'CREATE INDEX IF NOT EXISTS "performance_audits_siteId_createdAt_idx" ON "performance_audits"("siteId", "createdAt")',
+    'CREATE INDEX IF NOT EXISTS "performance_audits_runId_idx" ON "performance_audits"("runId")',
+    'CREATE INDEX IF NOT EXISTS "performance_audits_url_strategy_idx" ON "performance_audits"("url", "strategy")',
+  ],
+
+  // ── Auto Fix Logs Indexes ──────────────────────────────
+  auto_fix_logs: [
+    'CREATE INDEX IF NOT EXISTS "auto_fix_logs_siteId_createdAt_idx" ON "auto_fix_logs"("siteId", "createdAt")',
+    'CREATE INDEX IF NOT EXISTS "auto_fix_logs_fixType_idx" ON "auto_fix_logs"("fixType")',
+    'CREATE INDEX IF NOT EXISTS "auto_fix_logs_targetId_idx" ON "auto_fix_logs"("targetId")',
+  ],
+
+  // ── Dev Tasks Indexes ──────────────────────────────────
+  dev_tasks: [
+    'CREATE INDEX IF NOT EXISTS "dev_tasks_siteId_status_idx" ON "dev_tasks"("siteId", "status")',
+    'CREATE INDEX IF NOT EXISTS "dev_tasks_priority_status_idx" ON "dev_tasks"("priority", "status")',
+    'CREATE INDEX IF NOT EXISTS "dev_tasks_dueDate_idx" ON "dev_tasks"("dueDate")',
+    'CREATE INDEX IF NOT EXISTS "dev_tasks_source_sourceRef_idx" ON "dev_tasks"("source", "sourceRef")',
+  ],
+
+  // ── System Diagnostics Indexes ─────────────────────────
+  system_diagnostics: [
+    'CREATE UNIQUE INDEX IF NOT EXISTS "system_diagnostics_runId_key" ON "system_diagnostics"("runId")',
+    'CREATE INDEX IF NOT EXISTS "system_diagnostics_siteId_created_at_idx" ON "system_diagnostics"("siteId", "created_at")',
+    'CREATE INDEX IF NOT EXISTS "system_diagnostics_verdict_idx" ON "system_diagnostics"("verdict")',
+  ],
+
+  // ── Audit Runs Indexes ─────────────────────────────────
+  audit_runs: [
+    'CREATE INDEX IF NOT EXISTS "audit_runs_siteId_status_idx" ON "audit_runs"("siteId", "status")',
+    'CREATE INDEX IF NOT EXISTS "audit_runs_siteId_startedAt_idx" ON "audit_runs"("siteId", "startedAt")',
+  ],
+
+  // ── Audit Issues Indexes ───────────────────────────────
+  audit_issues: [
+    'CREATE INDEX IF NOT EXISTS "audit_issues_siteId_status_idx" ON "audit_issues"("siteId", "status")',
+    'CREATE INDEX IF NOT EXISTS "audit_issues_auditRunId_idx" ON "audit_issues"("auditRunId")',
+    'CREATE INDEX IF NOT EXISTS "audit_issues_fingerprint_idx" ON "audit_issues"("fingerprint")',
+    'CREATE INDEX IF NOT EXISTS "audit_issues_siteId_category_idx" ON "audit_issues"("siteId", "category")',
+    'CREATE INDEX IF NOT EXISTS "audit_issues_siteId_severity_idx" ON "audit_issues"("siteId", "severity")',
+  ],
 };
 
 // ─── Unique Constraints ──────────────────────────────────────────────────────
@@ -901,6 +1128,8 @@ const FOREIGN_KEYS: { name: string; sql: string }[] = [
   // Design System FKs
   { name: "pdf_downloads_pdfGuideId_fkey", sql: 'ALTER TABLE "pdf_downloads" ADD CONSTRAINT "pdf_downloads_pdfGuideId_fkey" FOREIGN KEY ("pdfGuideId") REFERENCES "pdf_guides"("id") ON DELETE RESTRICT ON UPDATE CASCADE' },
   { name: "content_performance_pipelineId_fkey", sql: 'ALTER TABLE "content_performance" ADD CONSTRAINT "content_performance_pipelineId_fkey" FOREIGN KEY ("pipelineId") REFERENCES "content_pipelines"("id") ON DELETE RESTRICT ON UPDATE CASCADE' },
+  // Audit Engine FKs
+  { name: "audit_issues_auditRunId_fkey", sql: 'ALTER TABLE "audit_issues" ADD CONSTRAINT "audit_issues_auditRunId_fkey" FOREIGN KEY ("auditRunId") REFERENCES "audit_runs"("id") ON DELETE CASCADE ON UPDATE CASCADE' },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

@@ -92,7 +92,7 @@ export async function gatherContext(siteId?: string): Promise<AssistantContext> 
         name: config?.name,
         domain: config?.domain,
         locale: config?.locale,
-        isActive: config?.isActive,
+        status: config?.status,
       }
     } catch {
       // config may fail

@@ -498,6 +498,16 @@ export async function promoteToBlogPost(
     return null;
   }
 
+  // Empty content guard — prevent publishing articles with insufficient English content
+  if (enHtml && enHtml.trim().length < 500) {
+    console.warn(`[content-selector] Skipping draft ${draft.id} — content_en too short (${enHtml.trim().length} chars)`);
+    await prisma.articleDraft.update({
+      where: { id: draft.id as string },
+      data: { last_error: "Empty content_en — skipped promotion" },
+    }).catch(err => console.warn("[select-runner] DB update failed:", err instanceof Error ? err.message : err));
+    return null;
+  }
+
   const hasEn = !!enHtml;
   const hasAr = !!arHtml;
   const isBilingual = hasEn && hasAr;
@@ -545,27 +555,39 @@ export async function promoteToBlogPost(
   }
 
   // Check for duplicate title — keyword cannibalization prevention.
-  // If an article with the exact same title (case-insensitive) already exists
-  // for this site, skip promotion. The audit flagged this as a critical issue.
+  // Uses normalized comparison: strips years, common filler words (guide, best, etc.),
+  // and punctuation so "Best London Hotels 2026" matches "Top London Hotels Guide 2025".
+  // This prevents near-duplicate articles that compete for the same SERP position.
+  const normalizeForDedup = (t: string) => t.toLowerCase()
+    .replace(/\b20\d{2}\b/g, '')
+    .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/g, '')
+    .replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+
   const candidateTitle = (enTitle || "").trim();
   if (candidateTitle.length > 5) {
     try {
-      const existingTitle = await prisma.blogPost.findFirst({
+      const normalizedCandidate = normalizeForDedup(candidateTitle);
+      // Fetch recent published titles for this site and compare normalized forms
+      const recentTitles = await prisma.blogPost.findMany({
         where: {
           siteId,
           published: true,
           deletedAt: null,
-          title_en: { equals: candidateTitle, mode: "insensitive" },
         },
-        select: { id: true, slug: true },
+        select: { id: true, slug: true, title_en: true },
+        orderBy: { created_at: "desc" },
+        take: 200,
       });
-      if (existingTitle) {
-        console.warn(`[content-selector] SKIPPED draft ${draft.id}: duplicate title "${candidateTitle}" — already published as /blog/${existingTitle.slug}`);
+      const existingMatch = recentTitles.find(
+        (p: { title_en: string }) => normalizeForDedup(p.title_en || "") === normalizedCandidate,
+      );
+      if (existingMatch) {
+        console.warn(`[content-selector] SKIPPED draft ${draft.id}: normalized duplicate title "${candidateTitle}" ≈ "${existingMatch.title_en}" — already published as /blog/${existingMatch.slug}`);
         // Mark the draft so it doesn't keep being selected every run
         await prisma.articleDraft.update({
           where: { id: draft.id as string },
           data: {
-            last_error: `Duplicate title: already published as /blog/${existingTitle.slug}`,
+            last_error: `Normalized duplicate title: "${candidateTitle}" ≈ existing "/blog/${existingMatch.slug}"`,
             updated_at: new Date(),
           },
         }).catch(() => {});
@@ -574,6 +596,18 @@ export async function promoteToBlogPost(
     } catch (titleCheckErr) {
       console.warn("[content-selector] Title duplicate check failed (non-fatal):", titleCheckErr instanceof Error ? titleCheckErr.message : titleCheckErr);
     }
+  }
+
+  // ── Slug artifact rejection ──────────────────────────────────────────────
+  // Reject slugs that contain hash/hex artifacts (e.g. "-a1b2c3d4") or
+  // malformed suffixes like "-155-chars". These are symptoms of upstream bugs
+  // (collision appenders, truncated meta descriptions) that produce ugly URLs
+  // which hurt CTR and look unprofessional in SERPs.
+  const SLUG_ARTIFACT_PATTERN = /-[0-9a-f]{4,}$|-\d+-chars$/;
+  if (SLUG_ARTIFACT_PATTERN.test(slug)) {
+    console.warn(`[content-selector] Rejecting artifact slug: ${slug}`);
+    await prisma.articleDraft.update({ where: { id: draft.id as string }, data: { last_error: `Slug artifact detected: ${slug}` } });
+    return null;
   }
 
   // Get or create category and system user
@@ -719,16 +753,19 @@ export async function promoteToBlogPost(
           meta_title_ar: arMetaTitle,
           meta_description_en: enMetaDesc,
           meta_description_ar: arMetaDesc,
-          tags: [
-            ...keywords.slice(0, 5),
-            "auto-generated",
-            "reservoir-pipeline",
-            "needs-review",
-            isBilingual ? "bilingual" : `primary-${locale}`,
-            ...missingLanguageTags,
-            `site-${siteId}`,
-            site.destination.toLowerCase(),
-          ],
+          tags: (() => {
+            // Internal pipeline tags are kept for operational tracking but filtered
+            // from public-facing metadata in generateMetadata() and BlogPostClient.
+            const INTERNAL_TAGS_SET = new Set(["auto-generated", "reservoir-pipeline", "needs-review", "needs-expansion"]);
+            const allTags = [
+              ...keywords.slice(0, 5),
+              isBilingual ? "bilingual" : `primary-${locale}`,
+              ...missingLanguageTags,
+              site.destination.toLowerCase(),
+            ];
+            // Only store clean public tags on BlogPost — internal tags added noise to sitemaps, RSS, and OG tags
+            return allTags.filter(t => !INTERNAL_TAGS_SET.has(t) && !t.startsWith("site-") && !t.startsWith("primary-") && !t.startsWith("missing-"));
+          })(),
           published: true,
           featured_image: featuredImage,
           siteId,

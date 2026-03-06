@@ -211,6 +211,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     keywordStr = Array.isArray(kw) ? kw.join(", ") : tags.join(", ");
   }
 
+  // Filter out internal pipeline tags from public-facing metadata
+  const INTERNAL_TAGS = new Set(["auto-generated", "reservoir-pipeline", "needs-review", "needs-expansion"]);
+  const publicTags = tags.filter((t: string) => !INTERNAL_TAGS.has(t) && !t.startsWith("site-") && !t.startsWith("primary-") && !t.startsWith("missing-"));
+
+  // noindex articles with empty or extremely thin content — prevents indexing placeholder pages
+  const contentEn = post.content_en || "";
+  const hasSubstantiveContent = !!(contentEn.trim() && contentEn.trim().length > 100);
+
   return {
     title,
     description,
@@ -238,7 +246,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       modifiedTime: updatedAt,
       authors: [`${siteName} Editorial`],
       section: categoryName,
-      tags,
+      tags: publicTags,
       images: image
         ? [{ url: image, width: 1200, height: 630, alt: post.title_en }]
         : [],
@@ -251,10 +259,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: image ? [image] : [],
     },
     robots: {
-      index: true,
+      index: hasSubstantiveContent,
       follow: true,
       googleBot: {
-        index: true,
+        index: hasSubstantiveContent,
         follow: true,
         "max-video-preview": -1,
         "max-image-preview": "large",
@@ -266,7 +274,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       "article:modified_time": updatedAt,
       "article:author": `${siteName} Editorial`,
       "article:section": categoryName,
-      "article:tag": tags.join(","),
+      "article:tag": publicTags.join(","),
     },
   };
 }

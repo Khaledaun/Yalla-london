@@ -9,6 +9,33 @@ interface StructuredDataProps {
   siteId?: string
 }
 
+// Social media links per site for Organization.sameAs
+const SOCIAL_LINKS: Record<string, string[]> = {
+  "yalla-london": [
+    "https://instagram.com/yalla.london",
+    "https://x.com/yallalondon",
+  ],
+  "arabaldives": [
+    "https://instagram.com/arabaldives",
+  ],
+  "french-riviera": [
+    "https://instagram.com/yallariviera",
+  ],
+  "istanbul": [
+    "https://instagram.com/yallaistanbul",
+  ],
+  "thailand": [
+    "https://instagram.com/yallathailand",
+  ],
+  "zenitha-yachts-med": [
+    "https://instagram.com/zenithayachts",
+  ],
+};
+
+function getSocialLinks(siteId: string): string[] {
+  return SOCIAL_LINKS[siteId] || [];
+}
+
 export function StructuredData({ type = 'website', data, language = 'en', siteId }: StructuredDataProps) {
 
   // Resolve site identity — use siteId if provided, fall back to default
@@ -54,7 +81,7 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
         "email": contactEmail,
         "contactType": "customer service"
       },
-      "sameAs": [] as string[],
+      "sameAs": getSocialLinks(resolvedSiteId),
       // Zenitha Yachts-specific fields for yacht charter entity classification
       ...(isZenitha ? {
         "areaServed": [
@@ -81,7 +108,7 @@ export function StructuredData({ type = 'website', data, language = 'en', siteId
       "name": localizedName,
       "url": baseUrl,
       "description": localizedDescription,
-      "inLanguage": [language],
+      "inLanguage": ["en-GB", "ar-SA"],
       "publisher": {
         "@type": "Organization",
         "name": siteName,

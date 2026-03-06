@@ -35,6 +35,17 @@ interface BlogListClientProps {
   posts: BlogPostData[]
 }
 
+// Format raw-slug titles into readable Title Case.
+// Detects raw slugs (all lowercase, contains hyphens, no spaces) and converts them
+// to presentable titles. This prevents ugly slug-based titles from rendering when
+// the pipeline produces an article whose title_en is a raw slug instead of a proper title.
+const formatTitle = (title: string) => {
+  if (title === title.toLowerCase() && title.includes('-') && !/[A-Z]/.test(title) && !title.includes(' ')) {
+    return title.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+  return title;
+};
+
 export default function BlogListClient({ posts }: BlogListClientProps) {
   const { language, isRTL } = useLanguage()
   const t = (key: string) => getTranslation(language, key)
@@ -158,7 +169,7 @@ export default function BlogListClient({ posts }: BlogListClientProps) {
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredPosts.map((post, index) => {
-              const title = language === 'en' ? post.title_en : post.title_ar
+              const title = formatTitle(language === 'en' ? post.title_en : post.title_ar)
               const excerpt = language === 'en' ? post.excerpt_en : post.excerpt_ar
               const categoryName = post.category
                 ? (language === 'en' ? post.category.name_en : post.category.name_ar)

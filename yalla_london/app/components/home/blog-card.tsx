@@ -32,6 +32,18 @@ interface BlogCardProps {
 export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCardProps) {
   const isRTL = locale === 'ar'
 
+  // Format raw-slug titles into human-readable form.
+  // Detects slugs that were stored as titles (all lowercase, hyphens, no spaces)
+  // and converts them: "best-halal-restaurants-london" → "Best Halal Restaurants London"
+  const formatTitle = (title: string) => {
+    if (title === title.toLowerCase() && title.includes('-') && !/[A-Z]/.test(title) && !title.includes(' ')) {
+      return title.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    }
+    return title
+  }
+
+  const displayTitle = formatTitle(article.title)
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return ''
     const date = new Date(dateString)
@@ -50,14 +62,14 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
         <div className="relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden border border-gold-200/30">
           <Image
             src={article.featuredImage || 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=300&h=300&fit=crop&q=80'}
-            alt={article.title}
+            alt={displayTitle}
             fill
             className="object-cover group-hover:scale-110 transition-transform duration-500"
           />
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="font-semibold text-warm-charcoal dark:text-cream-100 group-hover:text-burgundy-800 transition-colors line-clamp-2 text-sm leading-snug">
-            <Link href={blogUrl}>{article.title}</Link>
+            <Link href={blogUrl}>{displayTitle}</Link>
           </h4>
           <div className="flex items-center gap-2 mt-2 text-xs text-warm-gray">
             {article.author && (
@@ -82,7 +94,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
         <Link href={blogUrl}>
           <Image
             src={article.featuredImage || 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=1200&h=675&fit=crop&q=80'}
-            alt={article.title}
+            alt={displayTitle}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-700"
           />
@@ -114,7 +126,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
         {/* Title */}
         <h3 className="text-xl md:text-2xl font-serif font-bold text-warm-charcoal dark:text-cream-100 group-hover:text-burgundy-800 transition-colors leading-tight">
           <Link href={blogUrl} className="hover:text-burgundy-700">
-            {article.title}
+            {displayTitle}
           </Link>
         </h3>
 
@@ -182,7 +194,7 @@ export function BlogCard({ article, locale = 'en', variant = 'default' }: BlogCa
                 <Facebook size={14} />
               </a>
               <a
-                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + blogUrl : blogUrl)}&text=${encodeURIComponent(article.title)}`}
+                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin + blogUrl : blogUrl)}&text=${encodeURIComponent(displayTitle)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-cream-200 dark:bg-cream-800 flex items-center justify-center text-warm-gray hover:bg-sky-500 hover:text-white transition-all duration-300"

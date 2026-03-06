@@ -1,7 +1,7 @@
 import React from "react";
 import { Metadata } from "next";
 import { headers } from "next/headers";
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
 import {
   getDefaultSiteId,
   getSiteConfig,
@@ -25,17 +25,17 @@ export async function generateMetadata(): Promise<Metadata> {
     title,
     description,
     alternates: {
-      canonical: `${baseUrl}/inquiry`,
+      canonical: await getLocaleAwareCanonical("/inquiry"),
       languages: {
-        "en-GB": `${baseUrl}/inquiry`,
+        "en-GB": await getLocaleAwareCanonical("/inquiry"),
         "ar-SA": `${baseUrl}/ar/inquiry`,
-        "x-default": `${baseUrl}/inquiry`,
+        "x-default": await getLocaleAwareCanonical("/inquiry"),
       },
     },
     openGraph: {
       title,
       description,
-      url: `${baseUrl}/inquiry`,
+      url: await getLocaleAwareCanonical("/inquiry"),
       siteName,
       type: "website",
       locale: "en_GB",

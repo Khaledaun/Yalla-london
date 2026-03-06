@@ -54,6 +54,7 @@ export interface DiagnosticResult {
   fixes: DiagnosticFix[];
   verifications: DiagnosticVerification[];
   summary: string;
+  duplicateTitles?: number;
 }
 
 // ─── Phase 1: DIAGNOSE ──────────────────────────────────────────────────────
@@ -528,9 +529,44 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
   const fixedCount = verifications.filter((v) => v.verified && v.fix.success).length;
   const failedCount = verifications.filter((v) => !v.verified || !v.fix.success).length;
 
-  const summary = allDiagnoses.length === 0
-    ? "All clear — no stuck drafts or failed crons"
-    : `Diagnosed ${allDiagnoses.length} issues (${draftDiagnoses.length} drafts, ${cronDiagnoses.length} crons). Fixed: ${fixedCount}, Failed: ${failedCount}`;
+  // ─── Phase 4: DUPLICATE TITLE CHECK ─────────────────────────────────
+  // Scan published articles for near-duplicate titles (normalized comparison)
+  let duplicateCount = 0;
+  try {
+    const { prisma } = await import("@/lib/db");
+    const { getActiveSiteIds } = await import("@/config/sites");
+
+    const normalizeTitle = (t: string) => t.toLowerCase()
+      .replace(/\b20\d{2}\b/g, '')
+      .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/g, '')
+      .replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+
+    for (const sid of getActiveSiteIds()) {
+      const published = await prisma.blogPost.findMany({
+        where: { siteId: sid, published: true },
+        select: { id: true, slug: true, title_en: true },
+      });
+
+      const seen = new Map<string, string>();
+      for (const post of published) {
+        const normalized = normalizeTitle(post.title_en);
+        if (normalized.length < 10) continue;
+        const existing = seen.get(normalized);
+        if (existing) {
+          console.warn(`[diagnostic] Duplicate title detected: "${post.slug}" ≈ "${existing}" (site: ${sid})`);
+          duplicateCount++;
+        } else {
+          seen.set(normalized, post.slug);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("[diagnostic] Duplicate check failed:", e instanceof Error ? e.message : e);
+  }
+
+  const summary = allDiagnoses.length === 0 && duplicateCount === 0
+    ? "All clear — no stuck drafts, failed crons, or duplicate titles"
+    : `Diagnosed ${allDiagnoses.length} issues (${draftDiagnoses.length} drafts, ${cronDiagnoses.length} crons). Fixed: ${fixedCount}, Failed: ${failedCount}. Duplicate titles found: ${duplicateCount}`;
 
   return {
     timestamp: new Date().toISOString(),
@@ -540,5 +576,6 @@ export async function runDiagnosticSweep(siteId?: string): Promise<DiagnosticRes
     fixes,
     verifications,
     summary,
+    duplicateTitles: duplicateCount,
   };
 }

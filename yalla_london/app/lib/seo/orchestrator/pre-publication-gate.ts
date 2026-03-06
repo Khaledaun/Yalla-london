@@ -98,6 +98,23 @@ export async function runPrePublicationGate(
     baseUrl = getSiteDomain(getDefaultSiteId());
   }
 
+  // ── Slug artifact detection (early rejection) ──────────────────────
+  // Detect hash/hex artifacts in the URL slug that indicate upstream bugs
+  // (e.g. "-a1b2c3d4" collision suffixes, "-155-chars" truncation artifacts).
+  // These produce ugly URLs that hurt CTR and look unprofessional in SERPs.
+  const SLUG_ARTIFACT_PATTERN = /-[0-9a-f]{4,}$|-\d+-chars$/;
+  const urlSlug = targetUrl.split("/").pop() || "";
+  if (urlSlug && SLUG_ARTIFACT_PATTERN.test(urlSlug)) {
+    const artifactCheck: GateCheck = {
+      name: "Slug Artifact",
+      passed: false,
+      message: `Slug contains hash/hex artifact: "${urlSlug}" — regenerate with a clean slug before publishing`,
+      severity: "blocker",
+    };
+    checks.push(artifactCheck);
+    blockers.push(artifactCheck.message);
+  }
+
   // ── 1. Route existence check ────────────────────────────────────────
   // Verify the target URL will actually resolve (not return 404)
   // Skipped during bulk audits (skipRouteCheck) to avoid slow HTTP calls

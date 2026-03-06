@@ -15,7 +15,7 @@ import { CookieConsentBanner } from "@/components/cookie-consent-banner";
 import { brandConfig } from "@/config/brand-config";
 // HreflangTags component removed — hreflang is handled by generateMetadata().alternates.languages
 // in each layout/page file. The component was causing duplicate hreflang tags on every page.
-import { getBaseUrl } from "@/lib/url-utils";
+import { getBaseUrl, getLocaleAwareCanonical } from "@/lib/url-utils";
 import { getDefaultSiteId, getSiteConfig, getSiteDescription, getSiteTagline, getSiteNameAr, isYachtSite as checkIsYachtSite } from "@/config/sites";
 import type { Language } from "@/lib/types";
 
@@ -81,7 +81,7 @@ export async function generateMetadata(): Promise<Metadata> {
       },
     },
     alternates: {
-      canonical: baseUrl,
+      canonical: await getLocaleAwareCanonical(),
       languages: {
         "en-GB": baseUrl,
         "ar-SA": `${baseUrl}/ar`,

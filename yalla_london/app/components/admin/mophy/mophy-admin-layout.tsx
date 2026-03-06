@@ -49,6 +49,7 @@ const navigation = [
       { label: 'Topics & Pipeline',  href: '/admin/topics' },
       { label: 'Content Engine',     href: '/admin/content-engine' },
       { label: 'Indexing & SEO',     href: '/admin/seo' },
+      { label: 'Public SEO Audit',  href: '/admin/seo-audit-public' },
     ],
   },
   {

@@ -81,7 +81,7 @@ async function handleAutoFix(request: NextRequest) {
         updated_at: { lt: oneHourAgo },
       },
       select: { id: true, current_phase: true, keyword: true, phase_attempts: true },
-      take: 50,
+      take: 20,
     });
 
     let unstuck = 0;
@@ -338,32 +338,28 @@ async function handleAutoFix(request: NextRequest) {
   // ── 5. META DESCRIPTION TRIM — BlogPosts ──────────────────────────────────
   if (Date.now() - cronStart < BUDGET_MS - 5_000) {
     try {
-      const longMetaPosts = await prisma.blogPost.findMany({
-        where: {
-          siteId: { in: activeSiteIds },
-          deletedAt: null,
-          meta_description_en: { not: null },
-        },
-        select: { id: true, meta_description_en: true },
-        take: 100,
-      });
+      // Only fetch posts that actually need trimming (>160 chars).
+      // Previously fetched 100 posts including ones that didn't need changes,
+      // exhausting the DB connection pool with unnecessary reads + individual updates.
+      const longMetaPosts = await prisma.$queryRawUnsafe<Array<{ id: string; meta_description_en: string }>>(
+        `SELECT id, meta_description_en FROM "BlogPost" WHERE "siteId" = ANY($1::text[]) AND "deletedAt" IS NULL AND "meta_description_en" IS NOT NULL AND LENGTH("meta_description_en") > 160 LIMIT 20`,
+        activeSiteIds,
+      );
 
       for (const post of longMetaPosts) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
         const desc = post.meta_description_en || "";
-        if (desc.length > 160) {
-          // Trim at last word boundary before META_MAX_CHARS
-          let trimmed = desc.substring(0, META_MAX_CHARS);
-          const lastSpace = trimmed.lastIndexOf(" ");
-          if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
-          trimmed = trimmed.replace(/[.,;:!?]$/, "") + "…";
+        // Trim at last word boundary before META_MAX_CHARS
+        let trimmed = desc.substring(0, META_MAX_CHARS);
+        const lastSpace = trimmed.lastIndexOf(" ");
+        if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
+        trimmed = trimmed.replace(/[.,;:!?]$/, "") + "…";
 
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: { meta_description_en: trimmed },
-          });
-          results.metaTrimmedPosts++;
-        }
+        await prisma.blogPost.update({
+          where: { id: post.id },
+          data: { meta_description_en: trimmed },
+        });
+        results.metaTrimmedPosts++;
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -375,31 +371,24 @@ async function handleAutoFix(request: NextRequest) {
   // ── 5b. META DESCRIPTION TRIM — BlogPosts (Arabic) ──────────────────────
   if (Date.now() - cronStart < BUDGET_MS - 5_000) {
     try {
-      const longMetaPostsAr = await prisma.blogPost.findMany({
-        where: {
-          siteId: { in: activeSiteIds },
-          deletedAt: null,
-          meta_description_ar: { not: null },
-        },
-        select: { id: true, meta_description_ar: true },
-        take: 100,
-      });
+      const longMetaPostsAr = await prisma.$queryRawUnsafe<Array<{ id: string; meta_description_ar: string }>>(
+        `SELECT id, meta_description_ar FROM "BlogPost" WHERE "siteId" = ANY($1::text[]) AND "deletedAt" IS NULL AND "meta_description_ar" IS NOT NULL AND LENGTH("meta_description_ar") > 160 LIMIT 20`,
+        activeSiteIds,
+      );
 
       for (const post of longMetaPostsAr) {
         if (Date.now() - cronStart > BUDGET_MS - 3_000) break;
         const desc = post.meta_description_ar || "";
-        if (desc.length > 160) {
-          let trimmed = desc.substring(0, META_MAX_CHARS);
-          const lastSpace = trimmed.lastIndexOf(" ");
-          if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
-          trimmed = trimmed.replace(/[.,;:!?،؛]$/, "") + "…";
+        let trimmed = desc.substring(0, META_MAX_CHARS);
+        const lastSpace = trimmed.lastIndexOf(" ");
+        if (lastSpace > META_MAX_CHARS - 20) trimmed = trimmed.substring(0, lastSpace);
+        trimmed = trimmed.replace(/[.,;:!?،؛]$/, "") + "…";
 
-          await prisma.blogPost.update({
-            where: { id: post.id },
-            data: { meta_description_ar: trimmed },
-          });
-          results.metaTrimmedPosts++;
-        }
+        await prisma.blogPost.update({
+          where: { id: post.id },
+          data: { meta_description_ar: trimmed },
+        });
+        results.metaTrimmedPosts++;
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -418,7 +407,7 @@ async function handleAutoFix(request: NextRequest) {
           seo_meta: { not: null },
         },
         select: { id: true, seo_meta: true },
-        take: 100,
+        take: 20,
       });
 
       for (const draft of draftsWithMeta) {

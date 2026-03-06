@@ -548,13 +548,15 @@ export async function generateCompletion(
       // consuming the entire budget and starving all fallbacks.
       // For larger budgets (>30s), first provider gets 45% (was 70%).
       // For smaller budgets (<30s), first provider gets 40% (was 50%).
-      const MAX_PER_PROVIDER_MS = 18_000;
+      const MAX_PER_PROVIDER_MS = 15_000;
       const isFirstAttempt = errors.length === 0;
-      const firstProviderShare = totalBudgetMs > 30_000 ? 0.45 : 0.40;
+      // First provider gets 35% max — leaves 65% for 4 fallback providers.
+      // Previous 40-45% meant Grok consumed too much and Gemini/Perplexity got skipped.
+      const firstProviderShare = totalBudgetMs > 30_000 ? 0.35 : 0.30;
       const providerCap = isFirstAttempt
-        ? Math.min(Math.floor(totalBudgetMs * firstProviderShare), remaining - 8_000, MAX_PER_PROVIDER_MS)
-        : Math.min(remaining - 3_000, MAX_PER_PROVIDER_MS);  // Leave 3s for next fallback
-      const providerTimeout = Math.max(Math.min(remaining - 3_000, providerCap), 5_000);
+        ? Math.min(Math.floor(totalBudgetMs * firstProviderShare), remaining - 10_000, MAX_PER_PROVIDER_MS)
+        : Math.min(remaining - 5_000, MAX_PER_PROVIDER_MS);  // Leave 5s for next fallback (was 3s)
+      const providerTimeout = Math.max(Math.min(remaining - 5_000, providerCap), 5_000);
       const result = await callProvider(provider, messages, apiKey, {
         ...options,
         timeoutMs: providerTimeout,

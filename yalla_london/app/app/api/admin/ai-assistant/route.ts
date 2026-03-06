@@ -42,23 +42,26 @@ export async function POST(request: NextRequest) {
 
     // Build conversation
     const history = Array.isArray(conversationHistory) ? conversationHistory.slice(-10) : [];
-    const fullPrompt = `${SYSTEM_PROMPT}
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: 'system', content: `${SYSTEM_PROMPT}\n\n${contextText}` },
+    ];
 
-${contextText}
+    // Add conversation history
+    for (const m of history) {
+      const role = m.role === 'assistant' ? 'assistant' as const : 'user' as const;
+      messages.push({ role, content: m.content });
+    }
 
----
-
-${history.length > 0 ? 'Previous messages:\n' + history.map((m: { role: string; content: string }) => `${m.role}: ${m.content}`).join('\n') + '\n\n---\n\n' : ''}User message: ${message}
-
-Respond helpfully and concisely.`;
+    messages.push({ role: 'user', content: message });
 
     const { generateCompletion } = await import("@/lib/ai/provider");
-    const response = await generateCompletion(fullPrompt, {
+    const result = await generateCompletion(messages, {
       taskType: 'coding-assistant',
       calledFrom: 'api/admin/ai-assistant',
       siteId: siteId || undefined,
       timeoutMs: 45000,
     });
+    const response = result.content;
 
     // Extract any patches from the response
     const patches: Array<{ file: string; diff: string }> = [];

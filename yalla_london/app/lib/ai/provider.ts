@@ -772,6 +772,7 @@ export async function getProvidersStatus(): Promise<
     claude: { configured: false, active: false },
     openai: { configured: false, active: false },
     gemini: { configured: false, active: false },
+    perplexity: { configured: false, active: false },
   };
 
   for (const provider of PROVIDER_PRIORITY) {

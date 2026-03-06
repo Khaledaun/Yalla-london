@@ -9,6 +9,7 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { prisma } from "@/lib/db";
+import { getDefaultSiteId } from "@/config/sites";
 import { z } from "zod";
 
 // Partner types
@@ -75,8 +76,11 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const { page, limit, type, search, active } = validation.data;
     const offset = (page - 1) * limit;
 
+    // Scope by site
+    const siteId = searchParams.get("siteId") ?? request.headers.get("x-site-id") ?? getDefaultSiteId();
+
     // Build where clause
-    const where: any = {};
+    const where: any = { siteId };
 
     if (type) {
       where.partner_type = type;
@@ -176,7 +180,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     // Create affiliate record
     const affiliate = await prisma.affiliatePartner.create({
       data: {
-        siteId: "default",
+        siteId: getDefaultSiteId(),
         name: data.name,
         slug: data.tracking_id || data.name.toLowerCase().replace(/\s+/g, "-"),
         partner_type: data.partner_type,

@@ -1,723 +1,310 @@
 'use client'
 
-import { useState } from 'react'
-import Image from 'next/image'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  DollarSign,
-  Plus,
-  Edit,
-  Trash2,
-  Copy,
-  ExternalLink,
-  TrendingUp,
-  Users,
-  Eye,
-  Calendar,
-  Star,
-  Building,
-  Gift,
-  MapPin,
-  Phone,
-  Globe,
-  Save,
-  Search,
-  Filter
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import {
+  DollarSign, TrendingUp, Eye, Users, AlertCircle, Loader2, RefreshCw,
+  Tag, BarChart3,
 } from 'lucide-react'
-import { toast } from 'sonner'
+import { StatusSummary } from '@/components/admin/status-summary'
+import type { StatusCard } from '@/components/admin/status-summary'
 
-interface AffiliateHotel {
+// ── Types ───────────────────────────────────────────────────────────────────
+
+interface AffiliatePartner {
   id: string
   name: string
-  code: string
-  description: string
-  location: string
-  website: string
-  phone: string
-  commission: number
-  status: 'active' | 'inactive'
-  category: 'luxury' | 'boutique' | 'budget' | 'business'
-  rating: number
-  imageUrl: string
-  amenities: string[]
-  lastUpdated: string
-}
-
-interface AffiliateOffer {
-  id: string
-  title: string
-  code: string
-  description: string
-  category: 'restaurant' | 'tour' | 'shopping' | 'entertainment' | 'transport'
-  discount: string
-  validUntil: string
-  status: 'active' | 'expired' | 'inactive'
+  partner_type: string
+  partner_name: string
+  affiliate_url: string
+  tracking_id?: string
+  commission_rate?: number
+  description?: string
+  tags: string[]
+  is_active: boolean
   clicks: number
   conversions: number
   revenue: number
-  lastUpdated: string
+  created_at: string
+  last_clicked_at?: string
 }
 
-interface AffiliateAnalytics {
-  totalClicks: number
-  totalConversions: number
-  totalRevenue: number
-  conversionRate: number
-  topPerformingHotels: string[]
-  topPerformingOffers: string[]
-  monthlyRevenue: number[]
+interface AffiliateStats {
+  [key: string]: number
 }
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+const TYPE_LABELS: Record<string, string> = {
+  hotel: 'Hotels',
+  ticket: 'Tickets',
+  restaurant: 'Restaurants',
+  attraction: 'Attractions',
+  experience: 'Experiences',
+  shopping: 'Shopping',
+  transport: 'Transport',
+  car: 'Car Rental',
+}
+
+const TYPE_COLORS: Record<string, string> = {
+  hotel: '#2563EB',
+  ticket: '#D97706',
+  restaurant: '#16A34A',
+  attraction: '#7C3AED',
+  experience: '#EC4899',
+  shopping: '#EAB308',
+  transport: '#0EA5E9',
+  car: '#EF4444',
+}
+
+// ── Component ───────────────────────────────────────────────────────────────
 
 export default function AffiliatesContent() {
-  const [hotels, setHotels] = useState<AffiliateHotel[]>([
+  const [affiliates, setAffiliates] = useState<AffiliatePartner[]>([])
+  const [stats, setStats] = useState<AffiliateStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/affiliate-pool?limit=100')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setAffiliates(data.affiliates || [])
+      setStats(data.stats || null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load affiliate data')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // ── Computed values ─────────────────────────────────────────────────────
+
+  const totalClicks = useMemo(() => affiliates.reduce((s, a) => s + (a.clicks || 0), 0), [affiliates])
+  const totalConversions = useMemo(() => affiliates.reduce((s, a) => s + (a.conversions || 0), 0), [affiliates])
+  const totalRevenue = useMemo(() => affiliates.reduce((s, a) => s + (a.revenue || 0), 0), [affiliates])
+  const conversionRate = totalClicks > 0 ? ((totalConversions / totalClicks) * 100).toFixed(1) : '0.0'
+  const activeCount = useMemo(() => affiliates.filter(a => a.is_active).length, [affiliates])
+  const totalCount = affiliates.length
+
+  const topPerformers = useMemo(() =>
+    [...affiliates].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 5),
+    [affiliates]
+  )
+
+  const typeBreakdown = useMemo((): [string, number][] => {
+    if (!stats) return []
+    return (Object.entries(stats) as [string, number][])
+      .filter(([, count]) => count > 0)
+      .sort(([, a], [, b]) => b - a)
+  }, [stats])
+
+  // ── Status cards ──────────────────────────────────────────────────────
+
+  const statusCards: StatusCard[] = useMemo(() => [
     {
-      id: '1',
-      name: 'The Ritz London',
-      code: 'YALLA10',
-      description: 'Luxury 5-star hotel in the heart of London with world-class service and amenities.',
-      location: '150 Piccadilly, London W1J 9BR',
-      website: 'https://www.theritzlondon.com',
-      phone: '+44 20 7493 8181',
-      commission: 15,
-      status: 'active',
-      category: 'luxury',
-      rating: 4.8,
-      imageUrl: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800',
-      amenities: ['Spa', 'Restaurant', 'Concierge', 'Room Service', 'WiFi'],
-      lastUpdated: '2024-01-15'
+      heading: 'NOW',
+      summary: activeCount > 0
+        ? `${activeCount} active affiliate partners generating revenue`
+        : 'No active affiliate partners. Add partners in the Pool tab.',
+      metric: activeCount,
+      detail: `of ${totalCount} total`,
+      accent: activeCount > 0 ? 'green' as const : 'amber' as const,
     },
     {
-      id: '2',
-      name: 'The Savoy',
-      code: 'YALLA15',
-      description: 'Iconic luxury hotel on the Strand with stunning Thames views and exceptional dining.',
-      location: 'Strand, London WC2R 0EU',
-      website: 'https://www.fairmont.com/savoy-london',
-      phone: '+44 20 7836 4343',
-      commission: 12,
-      status: 'active',
-      category: 'luxury',
-      rating: 4.9,
-      imageUrl: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800',
-      amenities: ['Spa', 'Multiple Restaurants', 'Bar', 'Concierge', 'Valet Parking'],
-      lastUpdated: '2024-01-14'
+      heading: 'REVENUE',
+      summary: totalRevenue > 0
+        ? `£${totalRevenue.toLocaleString()} earned from ${totalConversions} conversions`
+        : 'No revenue tracked yet. Affiliate clicks will appear here.',
+      metric: totalRevenue > 0 ? `£${totalRevenue.toLocaleString()}` : '—',
+      detail: totalClicks > 0 ? `${conversionRate}% conversion rate` : undefined,
+      accent: totalRevenue > 0 ? 'blue' as const : 'neutral' as const,
     },
     {
-      id: '3',
-      name: 'Claridge\'s',
-      code: 'YALLA20',
-      description: 'Art Deco luxury hotel in Mayfair, known for its timeless elegance and impeccable service.',
-      location: 'Brook Street, London W1K 4HR',
-      website: 'https://www.claridges.co.uk',
-      phone: '+44 20 7629 8860',
-      commission: 18,
-      status: 'active',
-      category: 'luxury',
-      rating: 4.7,
-      imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800',
-      amenities: ['Spa', 'Restaurant', 'Afternoon Tea', 'Concierge', 'WiFi'],
-      lastUpdated: '2024-01-13'
-    }
-  ])
-
-  const [offers, setOffers] = useState<AffiliateOffer[]>([
-    {
-      id: '1',
-      title: 'Restaurant Deals',
-      code: 'EAT20',
-      description: '20% off at selected London restaurants',
-      category: 'restaurant',
-      discount: '20% off',
-      validUntil: '2024-12-31',
-      status: 'active',
-      clicks: 1247,
-      conversions: 89,
-      revenue: 2340,
-      lastUpdated: '2024-01-15'
+      heading: 'ATTENTION',
+      summary: totalCount === 0
+        ? 'No affiliate partners configured. Start by adding partners in the Pool tab.'
+        : totalClicks === 0
+          ? 'Partners exist but no clicks tracked. Check injection cron is running.'
+          : `${totalClicks.toLocaleString()} total clicks across all partners`,
+      metric: totalClicks > 0 ? totalClicks.toLocaleString() : '!',
+      accent: totalCount === 0 ? 'red' as const : totalClicks === 0 ? 'amber' as const : 'green' as const,
     },
-    {
-      id: '2',
-      title: 'Tour Discounts',
-      code: 'TOUR25',
-      description: '25% off London walking tours and experiences',
-      category: 'tour',
-      discount: '25% off',
-      validUntil: '2024-06-30',
-      status: 'active',
-      clicks: 892,
-      conversions: 67,
-      revenue: 1890,
-      lastUpdated: '2024-01-14'
-    },
-    {
-      id: '3',
-      title: 'Shopping Offers',
-      code: 'SHOP15',
-      description: '15% off at London shopping destinations',
-      category: 'shopping',
-      discount: '15% off',
-      validUntil: '2024-03-31',
-      status: 'active',
-      clicks: 654,
-      conversions: 45,
-      revenue: 1120,
-      lastUpdated: '2024-01-13'
-    }
-  ])
+  ], [activeCount, totalCount, totalRevenue, totalConversions, totalClicks, conversionRate])
 
-  const [analytics, setAnalytics] = useState<AffiliateAnalytics>({
-    totalClicks: 2793,
-    totalConversions: 201,
-    totalRevenue: 5350,
-    conversionRate: 7.2,
-    topPerformingHotels: ['The Ritz London', 'The Savoy', 'Claridge\'s'],
-    topPerformingOffers: ['Restaurant Deals', 'Tour Discounts', 'Shopping Offers'],
-    monthlyRevenue: [4200, 4800, 5350, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-  })
+  // ── Render ────────────────────────────────────────────────────────────
 
-  const [selectedHotel, setSelectedHotel] = useState<AffiliateHotel | null>(null)
-  const [selectedOffer, setSelectedOffer] = useState<AffiliateOffer | null>(null)
-  const [isAddingHotel, setIsAddingHotel] = useState(false)
-  const [isAddingOffer, setIsAddingOffer] = useState(false)
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
-    toast.success('Copied to clipboard!')
-  }
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'luxury':
-        return <Star className="h-4 w-4 text-yellow-500" />
-      case 'boutique':
-        return <Building className="h-4 w-4 text-purple-500" />
-      case 'budget':
-        return <DollarSign className="h-4 w-4 text-green-500" />
-      case 'business':
-        return <Building className="h-4 w-4 text-blue-500" />
-      default:
-        return <Building className="h-4 w-4 text-gray-500" />
-    }
-  }
-
-  const getOfferCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'restaurant':
-        return <Gift className="h-4 w-4 text-red-500" />
-      case 'tour':
-        return <MapPin className="h-4 w-4 text-blue-500" />
-      case 'shopping':
-        return <DollarSign className="h-4 w-4 text-green-500" />
-      case 'entertainment':
-        return <Star className="h-4 w-4 text-purple-500" />
-      case 'transport':
-        return <Globe className="h-4 w-4 text-gray-500" />
-      default:
-        return <Gift className="h-4 w-4 text-gray-500" />
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
-        return <Badge className="bg-green-500">Active</Badge>
-      case 'inactive':
-        return <Badge className="bg-gray-500">Inactive</Badge>
-      case 'expired':
-        return <Badge className="bg-red-500">Expired</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
-  }
-
-  const getConversionRate = (clicks: number, conversions: number) => {
-    return clicks > 0 ? ((conversions / clicks) * 100).toFixed(1) : '0.0'
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <DollarSign className="h-8 w-8 text-yellow-500" />
-                Affiliate Program
-              </h1>
-              <p className="text-gray-600 mt-1">Manage affiliate codes, hotels, and offers</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline">
-                <TrendingUp className="h-4 w-4 mr-2" />
-                Analytics
-              </Button>
-              <Button className="bg-yellow-500 hover:bg-yellow-600">
-                <Plus className="h-4 w-4 mr-2" />
-                Add New
-              </Button>
-            </div>
+  if (error) {
+    return (
+      <div className="p-4">
+        <div className="rounded-xl p-4 flex items-center gap-3" style={{ backgroundColor: 'rgba(200,50,43,0.06)' }}>
+          <AlertCircle style={{ width: 18, height: 18, color: '#C8322B' }} />
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#C8322B' }}>{error}</p>
+            <button onClick={fetchData} className="mt-1 text-xs underline" style={{ color: '#C8322B' }}>
+              Retry
+            </button>
           </div>
         </div>
       </div>
+    )
+  }
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Analytics Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-yellow-100 text-sm">Total Revenue</p>
-                  <p className="text-3xl font-bold">£{analytics.totalRevenue.toLocaleString()}</p>
-                </div>
-                <DollarSign className="h-8 w-8 text-yellow-200" />
-              </div>
-            </CardContent>
-          </Card>
+  return (
+    <div className="space-y-6 pb-8">
+      {/* Status triptych */}
+      <StatusSummary cards={statusCards} loading={loading} />
 
-          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm">Total Clicks</p>
-                  <p className="text-3xl font-bold">{analytics.totalClicks.toLocaleString()}</p>
-                </div>
-                <Eye className="h-8 w-8 text-blue-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm">Conversions</p>
-                  <p className="text-3xl font-bold">{analytics.totalConversions}</p>
-                </div>
-                <Users className="h-8 w-8 text-green-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm">Conversion Rate</p>
-                  <p className="text-3xl font-bold">{analytics.conversionRate}%</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-purple-200" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs defaultValue="hotels" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="hotels">Affiliate Hotels</TabsTrigger>
-            <TabsTrigger value="offers">Affiliate Offers</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
-
-          {/* Affiliate Hotels Tab */}
-          <TabsContent value="hotels" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Hotels List */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Affiliate Hotels</h3>
-                  <Button
-                    onClick={() => setIsAddingHotel(true)}
-                    className="bg-yellow-500 hover:bg-yellow-600"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Hotel
-                  </Button>
-                </div>
-                {hotels.map((hotel) => (
-                  <Card 
-                    key={hotel.id} 
-                    className={`cursor-pointer transition-all ${
-                      selectedHotel?.id === hotel.id ? 'ring-2 ring-yellow-500' : 'hover:shadow-md'
-                    }`}
-                    onClick={() => setSelectedHotel(hotel)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-4">
-                        <Image
-                          src={hotel.imageUrl}
-                          alt={hotel.name}
-                          width={64}
-                          height={64}
-                          className="w-16 h-16 object-cover rounded-lg"
-                          unoptimized
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium text-gray-900">{hotel.name}</h4>
-                            {getCategoryIcon(hotel.category)}
-                            {getStatusBadge(hotel.status)}
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{hotel.description}</p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span>Code: {hotel.code}</span>
-                            <span>Commission: {hotel.commission}%</span>
-                            <span>Rating: {hotel.rating}/5</span>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {/* Hotel Details */}
-              <div>
-                {selectedHotel ? (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Building className="h-5 w-5" />
-                        Hotel Details
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <Image
-                          src={selectedHotel.imageUrl}
-                          alt={selectedHotel.name}
-                          width={96}
-                          height={96}
-                          className="w-24 h-24 object-cover rounded-lg"
-                          unoptimized
-                        />
-                        <div>
-                          <h3 className="text-xl font-bold">{selectedHotel.name}</h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            {getCategoryIcon(selectedHotel.category)}
-                            <span className="text-sm text-gray-600 capitalize">{selectedHotel.category}</span>
-                            <span className="text-sm text-gray-600">•</span>
-                            <span className="text-sm text-gray-600">{selectedHotel.rating}/5 ⭐</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Affiliate Code</Label>
-                          <div className="flex items-center gap-2">
-                            <Input value={selectedHotel.code} readOnly />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => copyToClipboard(selectedHotel.code)}
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div>
-                          <Label>Commission Rate</Label>
-                          <Input value={`${selectedHotel.commission}%`} readOnly />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>Description</Label>
-                        <Textarea value={selectedHotel.description} readOnly rows={3} />
-                      </div>
-
-                      <div>
-                        <Label>Location</Label>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm">{selectedHotel.location}</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>Contact Information</Label>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Globe className="h-4 w-4 text-gray-400" />
-                            <a
-                              href={selectedHotel.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline text-sm"
-                            >
-                              {selectedHotel.website}
-                            </a>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">{selectedHotel.phone}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>Amenities</Label>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {selectedHotel.amenities.map((amenity) => (
-                            <Badge key={amenity} variant="outline" className="text-xs">
-                              {amenity}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button variant="outline" className="flex-1">
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Hotel
-                        </Button>
-                        <Button variant="outline" className="flex-1">
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          View Website
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card>
-                    <CardContent className="p-12 text-center">
-                      <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Hotel</h3>
-                      <p className="text-gray-600">Choose a hotel from the list to view details</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Affiliate Offers Tab */}
-          <TabsContent value="offers" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Offers List */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold">Affiliate Offers</h3>
-                  <Button
-                    onClick={() => setIsAddingOffer(true)}
-                    className="bg-yellow-500 hover:bg-yellow-600"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Offer
-                  </Button>
-                </div>
-                {offers.map((offer) => (
-                  <Card 
-                    key={offer.id} 
-                    className={`cursor-pointer transition-all ${
-                      selectedOffer?.id === offer.id ? 'ring-2 ring-yellow-500' : 'hover:shadow-md'
-                    }`}
-                    onClick={() => setSelectedOffer(offer)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            {getOfferCategoryIcon(offer.category)}
-                            <h4 className="font-medium text-gray-900">{offer.title}</h4>
-                            {getStatusBadge(offer.status)}
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{offer.description}</p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span>Code: {offer.code}</span>
-                            <span>Discount: {offer.discount}</span>
-                            <span>Valid until: {offer.validUntil}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-green-600">£{offer.revenue}</div>
-                          <div className="text-xs text-gray-500">Revenue</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              {/* Offer Details */}
-              <div>
-                {selectedOffer ? (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Gift className="h-5 w-5" />
-                        Offer Details
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        {getOfferCategoryIcon(selectedOffer.category)}
-                        <h3 className="text-xl font-bold">{selectedOffer.title}</h3>
-                        {getStatusBadge(selectedOffer.status)}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Affiliate Code</Label>
-                          <div className="flex items-center gap-2">
-                            <Input value={selectedOffer.code} readOnly />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => copyToClipboard(selectedOffer.code)}
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div>
-                          <Label>Discount</Label>
-                          <Input value={selectedOffer.discount} readOnly />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label>Description</Label>
-                        <Textarea value={selectedOffer.description} readOnly rows={3} />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label>Valid Until</Label>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm">{selectedOffer.validUntil}</span>
-                          </div>
-                        </div>
-                        <div>
-                          <Label>Category</Label>
-                          <div className="flex items-center gap-2">
-                            {getOfferCategoryIcon(selectedOffer.category)}
-                            <span className="text-sm capitalize">{selectedOffer.category}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">{selectedOffer.clicks}</div>
-                          <div className="text-xs text-gray-600">Clicks</div>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-green-600">{selectedOffer.conversions}</div>
-                          <div className="text-xs text-gray-600">Conversions</div>
-                        </div>
-                        <div className="text-center p-3 bg-gray-50 rounded-lg">
-                          <div className="text-2xl font-bold text-purple-600">
-                            {getConversionRate(selectedOffer.clicks, selectedOffer.conversions)}%
-                          </div>
-                          <div className="text-xs text-gray-600">Conversion Rate</div>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button variant="outline" className="flex-1">
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Offer
-                        </Button>
-                        <Button variant="outline" className="flex-1">
-                          <TrendingUp className="h-4 w-4 mr-2" />
-                          View Analytics
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card>
-                    <CardContent className="p-12 text-center">
-                      <Gift className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">Select an Offer</h3>
-                      <p className="text-gray-600">Choose an offer from the list to view details</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Performing Hotels</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {analytics.topPerformingHotels.map((hotel, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-yellow-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                            {index + 1}
-                          </div>
-                          <span className="font-medium">{hotel}</span>
-                        </div>
-                        <Badge className="bg-green-500">Top Performer</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Performing Offers</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {analytics.topPerformingOffers.map((offer, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-yellow-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                            {index + 1}
-                          </div>
-                          <span className="font-medium">{offer}</span>
-                        </div>
-                        <Badge className="bg-green-500">Top Performer</Badge>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Revenue Trend</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-end justify-between gap-2">
-                  {analytics.monthlyRevenue.map((revenue, index) => (
-                    <div key={index} className="flex flex-col items-center gap-2">
-                      <div
-                        className="bg-yellow-500 rounded-t w-8 transition-all duration-500"
-                        style={{ height: `${(revenue / Math.max(...analytics.monthlyRevenue)) * 200}px` }}
-                      />
-                      <span className="text-xs text-gray-600">
-                        {new Date(2024, index).toLocaleDateString('en', { month: 'short' })}
-                      </span>
-                      <span className="text-xs font-medium">£{revenue}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+      {/* Refresh */}
+      <div className="flex justify-end">
+        <button
+          onClick={fetchData}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all active:scale-[0.97]"
+          style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 10,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+            color: '#6366F1',
+            border: '1px solid rgba(99,102,241,0.3)',
+          }}
+        >
+          {loading ? <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" /> : <RefreshCw style={{ width: 12, height: 12 }} />}
+          Refresh
+        </button>
       </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 style={{ width: 24, height: 24, color: '#6366F1' }} className="animate-spin" />
+        </div>
+      ) : (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: 'Total Clicks', value: totalClicks.toLocaleString(), icon: Eye, color: '#2563EB' },
+              { label: 'Conversions', value: totalConversions.toLocaleString(), icon: Users, color: '#16A34A' },
+              { label: 'Revenue', value: `£${totalRevenue.toLocaleString()}`, icon: DollarSign, color: '#D97706' },
+              { label: 'Conv. Rate', value: `${conversionRate}%`, icon: TrendingUp, color: '#7C3AED' },
+            ].map(kpi => (
+              <div
+                key={kpi.label}
+                className="rounded-xl p-4"
+                style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat)' }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <kpi.icon style={{ width: 14, height: 14, color: kpi.color }} />
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#78716C', textTransform: 'uppercase', letterSpacing: 1 }}>
+                    {kpi.label}
+                  </span>
+                </div>
+                <div style={{ fontFamily: "'Anybody', sans-serif", fontSize: 22, fontWeight: 800, color: '#1C1917' }}>
+                  {kpi.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Type Breakdown */}
+          {typeBreakdown.length > 0 && (
+            <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat)' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <BarChart3 style={{ width: 14, height: 14, color: '#78716C' }} />
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
+                  Partners by Type
+                </span>
+              </div>
+              <div className="space-y-2">
+                {typeBreakdown.map(([type, count]) => {
+                  const pct = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0
+                  return (
+                    <div key={type} className="flex items-center gap-3">
+                      <span style={{ fontSize: 11, color: '#44403C', width: 90 }}>
+                        {TYPE_LABELS[type] || type}
+                      </span>
+                      <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(120,113,108,0.1)' }}>
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: TYPE_COLORS[type] || '#78716C' }}
+                        />
+                      </div>
+                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#78716C', width: 30, textAlign: 'right' }}>
+                        {count}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Top Performers */}
+          {topPerformers.length > 0 && (
+            <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--neu-bg, #EDE9E1)', boxShadow: 'var(--neu-flat)' }}>
+              <div className="flex items-center gap-2 mb-3">
+                <TrendingUp style={{ width: 14, height: 14, color: '#16A34A' }} />
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#78716C' }}>
+                  Top Performers
+                </span>
+              </div>
+              <div className="space-y-2">
+                {topPerformers.map((partner, i) => (
+                  <div
+                    key={partner.id}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg"
+                    style={{ backgroundColor: i === 0 ? 'rgba(22,163,74,0.06)' : 'transparent' }}
+                  >
+                    <span style={{ fontFamily: "'Anybody', sans-serif", fontSize: 14, fontWeight: 800, color: '#78716C', width: 20, textAlign: 'center' }}>
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#1C1917' }} className="truncate">
+                        {partner.name}
+                      </p>
+                      <div className="flex items-center gap-3 mt-0.5">
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#78716C' }}>
+                          {TYPE_LABELS[partner.partner_type] || partner.partner_type}
+                        </span>
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#78716C' }}>
+                          {partner.clicks} clicks
+                        </span>
+                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9, color: '#78716C' }}>
+                          {partner.conversions} conv.
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ fontFamily: "'Anybody', sans-serif", fontSize: 15, fontWeight: 700, color: '#16A34A' }}>
+                      £{(partner.revenue || 0).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {affiliates.length === 0 && (
+            <div className="text-center py-12">
+              <DollarSign style={{ width: 32, height: 32, color: '#A8A29E', margin: '0 auto 12px' }} />
+              <p style={{ fontSize: 15, fontWeight: 600, color: '#44403C', marginBottom: 4 }}>
+                No affiliate partners yet
+              </p>
+              <p style={{ fontSize: 12, color: '#78716C', maxWidth: 300, margin: '0 auto' }}>
+                Add affiliate partners in the Pool tab to start tracking clicks, conversions, and revenue.
+              </p>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

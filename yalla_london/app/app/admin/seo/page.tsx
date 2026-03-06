@@ -8,12 +8,14 @@ const IndexingContent = dynamic(() => import("./indexing-content"), { ssr: false
 const SEOAuditsContent = dynamic(() => import("@/app/admin/seo-audits/page"), { ssr: false });
 const SiteHealthContent = dynamic(() => import("@/app/admin/site-health/page"), { ssr: false });
 const SEOReportContent = dynamic(() => import("@/app/admin/seo/report/page"), { ssr: false });
+const AuditContent = dynamic(() => import("./audit-content"), { ssr: false });
 
 const tabs = [
   { id: "indexing", label: "Indexing" },
   { id: "audits", label: "SEO Audits" },
   { id: "health", label: "Site Health" },
   { id: "report", label: "Report" },
+  { id: "master-audit", label: "Master Audit" },
 ];
 
 export default function SEOHubPage() {
@@ -25,6 +27,7 @@ export default function SEOHubPage() {
           case "audits": return <SEOAuditsContent />;
           case "health": return <SiteHealthContent />;
           case "report": return <SEOReportContent />;
+          case "master-audit": return <AuditContent />;
           default: return <IndexingContent />;
         }
       }}

@@ -91,7 +91,7 @@ export async function gatherContext(siteId?: string): Promise<AssistantContext> 
         id: config?.id,
         name: config?.name,
         domain: config?.domain,
-        locales: config?.locales,
+        locale: config?.locale,
         isActive: config?.isActive,
       }
     } catch {

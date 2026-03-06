@@ -3497,6 +3497,196 @@ async function runAllTests() {
     } catch (e) { log('  ERROR in section 22: ' + e.message); addResult('dbcheck', 'Schema Scan', 'warn', 'JS Error: ' + e.message); }
   }
 
+  // ── 23. AI Provider Fallback Test ──
+  if (shouldRunSection("aifallback")) {
+    log('  Testing AI provider fallback chain...');
+    addSection('aifallback', '23. AI Provider Fallback Chain');
+    try {
+      const configResp = await testFetch('/api/admin/ai-config', { headers: authHeaders });
+      if (configResp.ok && configResp.json) {
+        const cfg = configResp.json;
+        const providers = cfg.providers || [];
+        const routes = cfg.routes || [];
+        addResult('aifallback', 'Providers Found', providers.length > 0 ? 'pass' : 'fail',
+          providers.length + ' AI providers configured');
+        for (const p of providers) {
+          addResult('aifallback', 'Provider: ' + p.provider, p.status === 'active' ? 'pass' : 'warn',
+            p.status + (p.latency ? ' — ' + p.latency + 'ms' : ''));
+        }
+        addResult('aifallback', 'Task Routes', routes.length > 0 ? 'pass' : 'warn',
+          routes.length + ' task routing rules defined');
+        // Test all providers
+        const testResp = await testFetch('/api/admin/ai-config', { headers: authHeaders, method: 'POST', body: JSON.stringify({ action: 'test_all' }) });
+        if (testResp.ok && testResp.json) {
+          const results = testResp.json.results || [];
+          for (const r of results) {
+            addResult('aifallback', 'Live Test: ' + r.provider, r.success ? 'pass' : 'fail',
+              r.success ? r.latency + 'ms response' : (r.error || 'Failed'),
+              !r.success ? 'Provider <code>' + r.provider + '</code> is unreachable. The fallback cascade in <code>lib/ai/provider.ts</code> will skip it and try the next provider. First provider gets 50% of time budget, remaining providers share the rest.' : undefined);
+          }
+        }
+        addJsonBlock('aifallback', cfg);
+      } else {
+        addResult('aifallback', 'AI Config', configResp.status === 401 ? 'warn' : 'fail',
+          'HTTP ' + configResp.status + ' — ' + (configResp.json?.error || ''));
+      }
+    } catch (e) { log('  ERROR in section 23: ' + e.message); addResult('aifallback', 'AI Fallback', 'fail', e.message); }
+  }
+
+  // ── 24. Sitemap & Robots Validation ──
+  if (shouldRunSection("sitemaprobots")) {
+    log('  Testing sitemap.xml and robots.txt...');
+    addSection('sitemaprobots', '24. Sitemap & Robots Validation');
+    try {
+      // Test robots.txt
+      const robotsResp = await testFetch('/robots.txt');
+      if (robotsResp.ok) {
+        const text = robotsResp.text || '';
+        const hasSitemap = text.toLowerCase().includes('sitemap:');
+        const hasDisallow = text.toLowerCase().includes('disallow:');
+        addResult('sitemaprobots', 'robots.txt', 'pass', 'HTTP 200 — ' + text.length + ' bytes');
+        addResult('sitemaprobots', 'Sitemap directive', hasSitemap ? 'pass' : 'warn',
+          hasSitemap ? 'Sitemap URL declared in robots.txt' : 'No Sitemap: directive found in robots.txt',
+          !hasSitemap ? 'Add <code>Sitemap: https://yourdomain.com/sitemap.xml</code> to robots.txt for better crawl discovery.' : undefined);
+        addResult('sitemaprobots', 'Disallow rules', hasDisallow ? 'pass' : 'warn',
+          hasDisallow ? 'Disallow rules present' : 'No Disallow rules — entire site is crawlable');
+      } else {
+        addResult('sitemaprobots', 'robots.txt', 'fail', 'HTTP ' + robotsResp.status);
+      }
+
+      // Test sitemap.xml
+      const sitemapResp = await testFetch('/sitemap.xml');
+      if (sitemapResp.ok) {
+        const text = sitemapResp.text || '';
+        const urlCount = (text.match(/<loc>/g) || []).length;
+        const hasXml = text.includes('<?xml') || text.includes('<urlset') || text.includes('<sitemapindex');
+        addResult('sitemaprobots', 'sitemap.xml', hasXml ? 'pass' : 'warn',
+          hasXml ? 'Valid XML — ' + urlCount + ' URLs found' : 'Response is not valid XML',
+          !hasXml ? 'The sitemap response does not appear to be valid XML. Check <code>app/sitemap.ts</code> for errors.' : undefined);
+        if (urlCount === 0) {
+          addResult('sitemaprobots', 'Sitemap URLs', 'warn', 'Sitemap contains 0 URLs — may be empty or generating dynamically');
+        } else {
+          addResult('sitemaprobots', 'URL Count', 'pass', urlCount + ' URLs in sitemap');
+        }
+      } else {
+        addResult('sitemaprobots', 'sitemap.xml', 'fail', 'HTTP ' + sitemapResp.status,
+          'Sitemap not accessible. Check that <code>app/sitemap.ts</code> exists and exports a valid sitemap function.');
+      }
+
+      // Test llms.txt
+      const llmsResp = await testFetch('/llms.txt');
+      addResult('sitemaprobots', 'llms.txt (AI crawlers)', llmsResp.ok ? 'pass' : 'warn',
+        llmsResp.ok ? 'HTTP 200 — AI search context available' : 'HTTP ' + llmsResp.status + ' — not available',
+        !llmsResp.ok ? 'The <code>/llms.txt</code> endpoint provides context for AI search crawlers (ChatGPT, Perplexity, etc). It is served by <code>app/llms.txt/route.ts</code>.' : undefined);
+    } catch (e) { log('  ERROR in section 24: ' + e.message); addResult('sitemaprobots', 'Sitemap/Robots', 'fail', e.message); }
+  }
+
+  // ── 25. Affiliate Tagging Validation ──
+  if (shouldRunSection("affiliatetag")) {
+    log('  Testing affiliate link tagging...');
+    addSection('affiliatetag', '25. Affiliate Tagging Validation');
+    try {
+      const affResp = await testFetch('/api/admin/command-center/affiliates', { headers: authHeaders });
+      if (affResp.ok && affResp.json) {
+        const data = affResp.json;
+        const links = data.links || data.affiliateLinks || [];
+        const totalLinks = links.length || data.totalLinks || 0;
+        addResult('affiliatetag', 'Affiliate Links', totalLinks > 0 ? 'pass' : 'warn',
+          totalLinks + ' affiliate links in database');
+
+        // Check UTM completeness
+        let utmComplete = 0, utmMissing = 0;
+        for (const link of links.slice(0, 50)) {
+          const url = link.url || link.affiliate_url || '';
+          if (url.includes('utm_source') && url.includes('utm_medium')) {
+            utmComplete++;
+          } else if (url.length > 0) {
+            utmMissing++;
+          }
+        }
+        if (totalLinks > 0) {
+          addResult('affiliatetag', 'UTM Tagging', utmMissing === 0 ? 'pass' : 'warn',
+            utmComplete + ' with UTM params, ' + utmMissing + ' missing UTM tags (of ' + Math.min(50, totalLinks) + ' checked)',
+            utmMissing > 0 ? 'Affiliate links without UTM parameters cannot be properly attributed. Add <code>utm_source</code>, <code>utm_medium</code>, and <code>utm_campaign</code> to all links.' : undefined);
+        }
+
+        addJsonBlock('affiliatetag', { totalLinks, utmComplete, utmMissing, sample: links.slice(0, 3) });
+      } else if (affResp.status === 401) {
+        addResult('affiliatetag', 'Affiliates API', 'warn', 'HTTP 401 — auth required');
+      } else {
+        addResult('affiliatetag', 'Affiliates API', 'warn', 'HTTP ' + affResp.status);
+      }
+
+      // Check affiliate injection cron
+      const injResp = await testFetch('/api/cron/affiliate-injection?healthcheck=true', { headers: cronHeaders });
+      addResult('affiliatetag', 'Injection Cron', injResp.ok ? 'pass' : 'warn',
+        injResp.ok ? 'Affiliate injection cron operational' : 'HTTP ' + injResp.status,
+        !injResp.ok ? 'The affiliate injection cron (<code>/api/cron/affiliate-injection</code>) auto-inserts affiliate links into published articles.' : undefined);
+    } catch (e) { log('  ERROR in section 25: ' + e.message); addResult('affiliatetag', 'Affiliates', 'fail', e.message); }
+  }
+
+  // ── 26. Etsy Commerce Auth ──
+  if (shouldRunSection("etsyauth")) {
+    log('  Testing Etsy commerce integration...');
+    addSection('etsyauth', '26. Etsy Commerce Auth & Shop Access');
+    try {
+      const etsyResp = await testFetch('/api/admin/commerce/etsy', { headers: authHeaders });
+      if (etsyResp.ok && etsyResp.json) {
+        const data = etsyResp.json;
+        addResult('etsyauth', 'Etsy API', 'pass', 'Connection successful');
+        if (data.shop) {
+          addResult('etsyauth', 'Shop Access', 'pass', 'Shop: ' + (data.shop.shop_name || data.shop.name || 'Connected'));
+        }
+        if (data.listings) {
+          addResult('etsyauth', 'Listings', 'pass', (data.listings.count || data.listings.length || 0) + ' listings found');
+        }
+        addJsonBlock('etsyauth', data);
+      } else if (etsyResp.status === 401) {
+        addResult('etsyauth', 'Etsy API', 'warn', 'HTTP 401 — Etsy OAuth token may be expired',
+          'Refresh the Etsy OAuth token via the Commerce Hub (<code>/admin/cockpit/commerce</code>) or set <code>ETSY_API_KEY</code> and <code>ETSY_OAUTH_TOKEN</code> env vars.');
+      } else if (etsyResp.status === 404) {
+        addResult('etsyauth', 'Etsy API', 'warn', 'Endpoint not deployed — Etsy integration not yet active');
+      } else {
+        addResult('etsyauth', 'Etsy API', 'warn', 'HTTP ' + etsyResp.status + ' — ' + (etsyResp.json?.error || ''));
+      }
+    } catch (e) { log('  ERROR in section 26: ' + e.message); addResult('etsyauth', 'Etsy', 'fail', e.message); }
+  }
+
+  // ── 27. Cron Endpoints Health (Non-Redirect Check) ──
+  if (shouldRunSection("cronhealth")) {
+    log('  Validating cron endpoints return 200 (not redirects)...');
+    addSection('cronhealth', '27. Cron Endpoint Redirect Check');
+    const cronPaths = [
+      '/api/cron/content-builder', '/api/cron/content-selector', '/api/cron/sweeper',
+      '/api/cron/seo-agent', '/api/cron/weekly-topics', '/api/cron/daily-content-generate',
+      '/api/cron/scheduled-publish', '/api/cron/analytics', '/api/cron/trends-monitor',
+      '/api/cron/london-news', '/api/cron/content-auto-fix', '/api/cron/diagnostic-sweep',
+    ];
+    let cronPass = 0, cronFail = 0;
+    for (const path of cronPaths) {
+      try {
+        const resp = await testFetch(path + '?healthcheck=true', { headers: cronHeaders, redirect: 'manual' });
+        const name = path.split('/').pop();
+        if (resp.status >= 300 && resp.status < 400) {
+          addResult('cronhealth', name, 'fail', 'HTTP ' + resp.status + ' REDIRECT — Vercel Cron will NOT follow this',
+            'Cron endpoint returned a redirect. Vercel Cron does NOT follow redirects — this cron will silently fail in production. Check if middleware is redirecting this path.');
+          cronFail++;
+        } else if (resp.status === 200) {
+          addResult('cronhealth', name, 'pass', 'HTTP 200 OK');
+          cronPass++;
+        } else {
+          addResult('cronhealth', name, resp.status === 401 ? 'warn' : 'fail', 'HTTP ' + resp.status);
+          if (resp.status !== 401) cronFail++;
+        }
+      } catch (e) {
+        addResult('cronhealth', path.split('/').pop(), 'fail', 'Error: ' + e.message);
+        cronFail++;
+      }
+    }
+    addResult('cronhealth', 'Summary', cronFail === 0 ? 'pass' : 'fail',
+      cronPass + '/' + cronPaths.length + ' crons return 200, ' + cronFail + ' issues');
+  }
+
   // ── Final Status ──
   log('All tests complete: ' + pass + ' passed, ' + warn + ' warnings, ' + fail + ' failed');
 

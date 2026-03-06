@@ -96,7 +96,7 @@ Use these mandatory Arabic content directives:
 - أضف "نصيحة من الداخل" واحدة على الأقل في كل قسم
 - اختم بدعوة واضحة للعمل بالعربية
 
-HTML MUST include dir="rtl" on the root element.`;
+IMPORTANT: Use SINGLE QUOTES for ALL HTML attributes (e.g., <a href='https://...'> NOT <a href="https://...">). Double quotes inside HTML will break JSON output.`;
 }
 
 function getLocaleLabel(locale: string): string {
@@ -385,7 +385,8 @@ Return JSON:
   "keywords_used": ["kw1", "kw2"]
 }
 
-Write in ${writeLang}. Use HTML tags: h2, h3, p, ul, ol, li, strong, em. NO markdown.${isArabic(draft.locale) ? '\nUse Arabic punctuation (، ؛ ؟). Do NOT add dir="rtl" or lang attributes to any HTML element — the outer wrapper adds them automatically.' : ""}
+Write in ${writeLang}. Use HTML tags: h2, h3, p, ul, ol, li, strong, em. NO markdown.
+IMPORTANT: Use SINGLE QUOTES for ALL HTML attributes (e.g., <a href='https://...'> NOT <a href="https://...">). Double quotes in HTML attributes will break JSON parsing.${isArabic(draft.locale) ? '\nUse Arabic punctuation (، ؛ ؟). Do NOT add dir="rtl" or lang attributes to any HTML element — the outer wrapper adds them automatically.' : ""}
 
 CRITICAL JSON RULES:
 - Return ONLY valid JSON. No markdown fences, no comments.
@@ -494,7 +495,7 @@ export async function phaseAssembly(
   const sections = (draft.sections_data || []) as Array<Record<string, unknown>>;
 
   // Assemble raw HTML from sections (needed for both AI and fallback paths)
-  const rtlAttr = isArabic(draft.locale) ? ' dir="rtl" lang="ar"' : ' lang="en"';
+  const rtlAttr = isArabic(draft.locale) ? " dir='rtl' lang='ar'" : " lang='en'";
   let rawHtml = "";
   let totalWords = 0;
   for (const section of sections) {
@@ -576,7 +577,7 @@ CRITICAL FACTUAL ACCURACY RULE:
 - Every restaurant, hotel, attraction, or business named must be a real establishment
 - For lists (hotels, restaurants, spas): include the real address or website URL for each venue
 - Violation of this rule makes the entire article unusable and harmful to site trust
-${isArabic(draft.locale) ? '10. Wrap the entire article in <article dir="rtl" lang="ar">...</article>\n11. Ensure all Arabic punctuation is correct (، ؛ ؟)' : ""}
+${isArabic(draft.locale) ? "10. Wrap the entire article in <article dir='rtl' lang='ar'>...</article>\n11. Ensure all Arabic punctuation is correct (، ؛ ؟)\n12. Use SINGLE QUOTES for ALL HTML attributes (e.g., href='...' class='...' — never href=\"...\")" : ""}
 
 Internal link targets: ${JSON.stringify(internalLinkPlan).substring(0, 500)}
 

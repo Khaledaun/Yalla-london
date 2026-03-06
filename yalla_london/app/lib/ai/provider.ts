@@ -544,15 +544,17 @@ export async function generateCompletion(
 
     try {
       // Give this provider a share of the remaining budget, leaving room for fallbacks.
-      // For larger budgets (>30s, typical of dedicated admin routes), give the first
-      // provider 70% — enough time for complex content generation (1500+ tokens).
-      // For smaller budgets (<30s, typical of cron jobs sharing time), use 50/50 split.
+      // Hard cap of 18s per individual provider prevents one slow provider from
+      // consuming the entire budget and starving all fallbacks.
+      // For larger budgets (>30s), first provider gets 45% (was 70%).
+      // For smaller budgets (<30s), first provider gets 40% (was 50%).
+      const MAX_PER_PROVIDER_MS = 18_000;
       const isFirstAttempt = errors.length === 0;
-      const firstProviderShare = totalBudgetMs > 30_000 ? 0.70 : 0.50;
+      const firstProviderShare = totalBudgetMs > 30_000 ? 0.45 : 0.40;
       const providerCap = isFirstAttempt
-        ? Math.min(Math.floor(totalBudgetMs * firstProviderShare), remaining - 5_000)  // Leave at least 5s for fallback
-        : remaining - 1_000;  // Subsequent providers get almost all remaining time
-      const providerTimeout = Math.max(Math.min(remaining - 1_000, providerCap), 5_000);
+        ? Math.min(Math.floor(totalBudgetMs * firstProviderShare), remaining - 8_000, MAX_PER_PROVIDER_MS)
+        : Math.min(remaining - 3_000, MAX_PER_PROVIDER_MS);  // Leave 3s for next fallback
+      const providerTimeout = Math.max(Math.min(remaining - 3_000, providerCap), 5_000);
       const result = await callProvider(provider, messages, apiKey, {
         ...options,
         timeoutMs: providerTimeout,
@@ -656,6 +658,13 @@ export async function generateJSON<T>(
  * JSON.parse on Arabic HTML content sections.
  */
 function escapeControlCharsInStrings(s: string): string {
+  // Pre-processing: convert HTML attribute double quotes to single quotes.
+  // Pattern: word="value" → word='value' (e.g., href="url" → href='url')
+  // This prevents the state machine from mis-tracking string boundaries
+  // when AI returns unescaped HTML attributes inside JSON string values.
+  // Safe because JSON key-value pairs use ": " (colon-space), not "=" (equals).
+  s = s.replace(/(\w[\w-]*)="([^"\\]{0,500})"/g, "$1='$2'");
+
   let result = '';
   let inString = false;
   let escaped = false;

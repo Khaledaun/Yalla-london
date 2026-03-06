@@ -197,8 +197,8 @@ export async function diagnoseFailedCrons(): Promise<Diagnosis[]> {
  * - Reset phase_started_at locks left behind by crashed crons
  * - Clear stale "running" CronJobLog entries from crashed runs
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function applyCronFix(prisma: any, diagnosis: Diagnosis): Promise<DiagnosticFix> {
+async function applyCronFix(diagnosis: Diagnosis): Promise<DiagnosticFix> {
+  const { prisma } = await import("@/lib/db");
   const cronName = diagnosis.details.match(/Cron "([^"]+)"/)?.[1] || "";
   const before: Record<string, unknown> = { cronName, category: diagnosis.category };
 
@@ -324,7 +324,7 @@ export async function applyDiagnosticFix(diagnosis: Diagnosis): Promise<Diagnost
 
   if (diagnosis.targetType !== "draft") {
     // Cron failures: attempt targeted remediation based on error category
-    return applyCronFix(prisma, diagnosis);
+    return applyCronFix(diagnosis);
   }
 
   try {

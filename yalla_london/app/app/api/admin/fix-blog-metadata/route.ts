@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminOrCronAuth } from "@/lib/admin-middleware";
+import { logManualAction } from "@/lib/action-logger";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -201,6 +202,13 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
     const fixes = analyzeAndPlanFixes(articles);
 
     if (fixes.length === 0) {
+      logManualAction(request, {
+        action: "fix-blog-metadata",
+        resource: "blogpost",
+        siteId,
+        success: true,
+        summary: `No metadata issues found — all ${articles.length} articles compliant`,
+      }).catch(() => {});
       return NextResponse.json({
         success: true,
         message: "No metadata issues found — all articles are compliant!",
@@ -251,17 +259,35 @@ export const POST = withAdminOrCronAuth(async (request: NextRequest) => {
       }
     }
 
+    const okCount = results.filter((r) => r.status === "ok").length;
+    logManualAction(request, {
+      action: "fix-blog-metadata",
+      resource: "blogpost",
+      siteId,
+      success: applied > 0,
+      summary: `Fixed metadata on ${okCount} articles (${applied} fields updated${failed > 0 ? `, ${failed} failed` : ""})`,
+      details: { totalArticles: articles.length, articlesFixed: okCount, fixesApplied: applied, fixesFailed: failed },
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
-      message: `Fixed metadata on ${results.filter((r) => r.status === "ok").length} articles (${applied} fields updated${failed > 0 ? `, ${failed} failed` : ""})`,
+      message: `Fixed metadata on ${okCount} articles (${applied} fields updated${failed > 0 ? `, ${failed} failed` : ""})`,
       totalArticles: articles.length,
-      articlesFixed: results.filter((r) => r.status === "ok").length,
+      articlesFixed: okCount,
       fixesApplied: applied,
       fixesFailed: failed,
       results,
     });
   } catch (error) {
     console.error("[fix-blog-metadata] POST error:", error);
+    logManualAction(request, {
+      action: "fix-blog-metadata",
+      resource: "blogpost",
+      success: false,
+      summary: "Failed to fix metadata",
+      error: error instanceof Error ? error.message : "Unknown error",
+      fix: "Check database connectivity and BlogPost schema fields.",
+    }).catch(() => {});
     return NextResponse.json(
       { error: "Failed to fix metadata" },
       { status: 500 }

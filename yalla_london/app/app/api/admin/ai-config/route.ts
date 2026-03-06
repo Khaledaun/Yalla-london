@@ -21,6 +21,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminOrCronAuth } from "@/lib/admin-middleware";
 import { getAllRoutes, saveRoutes, TASK_LABELS, TaskType } from "@/lib/ai/provider-config";
+import { logManualAction } from "@/lib/action-logger";
 
 // ─────────────────────────────────────────────
 // Types
@@ -244,9 +245,11 @@ export const PUT = withAdminOrCronAuth(async (req: NextRequest) => {
       );
     }
 
+    logManualAction(req, { action: "save-ai-routes", resource: "ai-config", success: true, summary: `Saved ${routesToSave.length} AI route assignment(s)`, details: { routeCount: routesToSave.length, routes: routesToSave.map(r => `${r.taskType}: ${r.primary}`) } }).catch(() => {});
     return NextResponse.json({ success: true, updated: routesToSave.length });
   } catch (err) {
     console.warn("[ai-config] PUT handler error:", err instanceof Error ? err.message : err);
+    logManualAction(req, { action: "save-ai-routes", resource: "ai-config", success: false, summary: "Failed to save AI config", error: err instanceof Error ? err.message : String(err), fix: "Check database connectivity." }).catch(() => {});
     return NextResponse.json({ error: "Failed to save AI config" }, { status: 500 });
   }
 });
@@ -359,9 +362,13 @@ export const POST = withAdminOrCronAuth(async (req: NextRequest) => {
       }),
     );
 
+    const passed = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+    logManualAction(req, { action: "test-all-providers", resource: "ai-config", success: passed > 0, summary: `Tested ${results.length} providers: ${passed} passed, ${failed} failed`, details: { results: results.map(r => ({ provider: r.provider, success: r.success, latencyMs: r.latencyMs, error: r.error })) } }).catch(() => {});
     return NextResponse.json({ results });
   } catch (err) {
     console.warn("[ai-config] POST handler error:", err instanceof Error ? err.message : err);
+    logManualAction(req, { action: "test-all-providers", resource: "ai-config", success: false, summary: "Provider test crashed", error: err instanceof Error ? err.message : String(err) }).catch(() => {});
     return NextResponse.json({ error: "Provider test failed" }, { status: 500 });
   }
 });

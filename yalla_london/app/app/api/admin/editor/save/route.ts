@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/admin-middleware'
 import { getBaseUrl } from '@/lib/url-utils'
+import { logManualAction } from '@/lib/action-logger'
 
 export const POST = withAdminAuth(async (request: NextRequest) => {
   try {
@@ -107,6 +108,15 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       // Non-fatal
     }
 
+    logManualAction(request, {
+      action: "editor-save-article",
+      resource: "blogpost",
+      resourceId: newArticle.id,
+      success: true,
+      summary: `Created article "${title}" (slug: ${computedSlug}, ${content.length} chars)`,
+      details: { slug: computedSlug, pageType: pageType || "guide", contentLength: content.length, hasSeoScore: !!seoScore, keywordCount: keywordsJson.length, authorityLinkCount: authorityLinksJson.length }
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       message: 'Article saved successfully!',
@@ -122,6 +132,14 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
   } catch (error) {
     console.error('Error saving article:', error)
+    logManualAction(request, {
+      action: "editor-save-article",
+      resource: "blogpost",
+      success: false,
+      summary: `Failed to save article "${body?.title || "unknown"}"`,
+      error: error instanceof Error ? error.message : "Unknown error",
+      fix: "Check Prisma schema alignment, required fields, and database connectivity."
+    }).catch(() => {});
     return NextResponse.json(
       {
         error: 'Failed to save article',

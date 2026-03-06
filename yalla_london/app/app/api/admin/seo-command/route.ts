@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/admin-middleware'
 import { prisma } from '@/lib/db'
 import { getDefaultSiteId } from '@/config/sites'
+import { logManualAction } from '@/lib/action-logger'
 
 // GET - Fetch SEO data and issues from real database
 export const GET = withAdminAuth(async (request: NextRequest) => {
@@ -376,6 +377,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
           }
         }
 
+        logManualAction(request, { action: `quick-fix-${fixId}`, resource: "blogpost", siteId, success: true, summary: `Applied quick fix "${fixId}": ${fixed} item(s) fixed`, details: { fixId, fixed } }).catch(() => {});
         return NextResponse.json({
           success: true,
           message: `Applied ${fixId}: ${fixed} items fixed`,
@@ -389,6 +391,8 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     }
   } catch (error) {
     console.error('[seo-command] POST error:', error)
+    const action = 'quick-fix';
+    logManualAction(request, { action, resource: "blogpost", success: false, summary: "Quick fix crashed", error: error instanceof Error ? error.message : String(error), fix: "Check database connectivity and SEO configuration." }).catch(() => {});
     return NextResponse.json(
       { error: 'Failed to process request' },
       { status: 500 }

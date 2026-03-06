@@ -10,6 +10,7 @@ import { prisma } from '@/lib/db';
 import { requirePermission } from '@/lib/rbac';
 import { z } from 'zod';
 import { requireAdmin } from "@/lib/admin-middleware";
+import { logManualAction } from "@/lib/action-logger";
 
 // Zod schemas for validation
 const TopicGenerationSchema = z.object({
@@ -160,6 +161,14 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    logManualAction(request, {
+      action: "generate-topics",
+      resource: "topic",
+      success: true,
+      summary: `Generated ${count} topics for categories: ${categories.join(", ")} (locale: ${locale})`,
+      details: { count, categories, locale, priority, policyApplied: !!policy },
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       message: `Generated ${count} topics successfully`,
@@ -170,7 +179,16 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Topic generation error:', error);
-    
+
+    logManualAction(request, {
+      action: "generate-topics",
+      resource: "topic",
+      success: false,
+      summary: "Failed to generate topics",
+      error: error instanceof Error ? error.message : "Unknown error",
+      fix: "Check AI provider config, feature flags, and database connectivity.",
+    }).catch(() => {});
+
     // Log error in audit trail
     try {
       const permissionCheck = await requirePermission(request, 'create_content');
@@ -192,7 +210,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to generate topics',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

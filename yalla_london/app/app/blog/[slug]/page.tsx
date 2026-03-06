@@ -36,6 +36,54 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   ]);
 }
 
+// ─── Author (TeamMember) lookup ────────────────────────────────────────────
+
+interface AuthorInfo {
+  name_en: string;
+  name_ar: string;
+  title_en: string;
+  bio_en: string;
+  bio_ar: string;
+  slug: string;
+  avatar_url?: string | null;
+  linkedin_url?: string | null;
+  twitter_url?: string | null;
+  instagram_url?: string | null;
+}
+
+const getAuthorForSite = cache(async function getAuthorForSite(siteId: string): Promise<AuthorInfo | null> {
+  try {
+    const { prisma } = await import("@/lib/db");
+    // Find the featured TeamMember for this site (or global)
+    const member = await withTimeout(
+      prisma.teamMember.findFirst({
+        where: {
+          OR: [{ site_id: siteId }, { site_id: null }],
+          is_featured: true,
+          is_active: true,
+        },
+        orderBy: { display_order: "asc" },
+        select: {
+          name_en: true,
+          name_ar: true,
+          title_en: true,
+          bio_en: true,
+          bio_ar: true,
+          slug: true,
+          avatar_url: true,
+          linkedin_url: true,
+          twitter_url: true,
+          instagram_url: true,
+        },
+      }),
+      2000,
+    );
+    return member as AuthorInfo | null;
+  } catch {
+    return null;
+  }
+});
+
 async function getDbPost(slug: string, siteId: string) {
   try {
     const { prisma } = await import("@/lib/db");
@@ -67,6 +115,7 @@ async function getDbPost(slug: string, siteId: string) {
           keywords_json: true,
           seo_score: true,
           page_type: true,
+          author_id: true,
           category: { select: { id: true, name_en: true, name_ar: true, slug: true } },
         },
       }),
@@ -219,11 +268,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const contentEn = post.content_en || "";
   const hasSubstantiveContent = !!(contentEn.trim() && contentEn.trim().length > 100);
 
+  // Fetch real author name for E-E-A-T (cached — shared with page component)
+  const author = await getAuthorForSite(siteId);
+  const authorName = author?.name_en || `${siteName} Editorial`;
+
   return {
     title,
     description,
     keywords: keywordStr,
-    authors: [{ name: `${siteName} Editorial` }],
+    authors: [{ name: authorName }],
     creator: siteName,
     publisher: siteName,
     alternates: {
@@ -244,7 +297,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: "article",
       publishedTime: createdAt,
       modifiedTime: updatedAt,
-      authors: [`${siteName} Editorial`],
+      authors: [authorName],
       section: categoryName,
       tags: publicTags,
       images: image
@@ -272,7 +325,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     other: {
       "article:published_time": createdAt,
       "article:modified_time": updatedAt,
-      "article:author": `${siteName} Editorial`,
+      "article:author": authorName,
       "article:section": categoryName,
       "article:tag": publicTags.join(","),
     },
@@ -340,6 +393,7 @@ function generateStructuredData(
   source: "db" | "static",
   siteInfo: { siteName: string; siteDomain: string; siteSlug: string; locale: string },
   categoriesCache?: any[],
+  author?: AuthorInfo | null,
 ) {
   const { siteName, siteDomain, siteSlug, locale } = siteInfo;
   const baseUrl =
@@ -385,7 +439,12 @@ function generateStructuredData(
     image: post.featured_image || "",
     datePublished: createdAt,
     dateModified: updatedAt,
-    author: {
+    author: author ? {
+      "@type": "Person",
+      name: author.name_en,
+      url: `${baseUrl}/about#${author.slug}`,
+      ...(author.linkedin_url ? { sameAs: [author.linkedin_url, author.twitter_url, author.instagram_url].filter(Boolean) } : {}),
+    } : {
       "@type": "Person",
       name: `${siteName} Editorial`,
       url: baseUrl,
@@ -448,7 +507,7 @@ function generateStructuredData(
 
 // ─── Transform for client component ────────────────────────────────────────
 
-function transformForClient(post: any, source: "db" | "static", categoriesCache?: any[]) {
+function transformForClient(post: any, source: "db" | "static", categoriesCache?: any[], author?: AuthorInfo | null) {
   let category = null;
 
   if (source === "db" && post.category) {
@@ -502,6 +561,18 @@ function transformForClient(post: any, source: "db" | "static", categoriesCache?
     reading_time: readingTime,
     tags: post.tags || [],
     category,
+    author: author ? {
+      name_en: author.name_en,
+      name_ar: author.name_ar || "",
+      title_en: author.title_en,
+      bio_en: author.bio_en,
+      bio_ar: author.bio_ar || "",
+      slug: author.slug,
+      avatar_url: author.avatar_url || null,
+      linkedin_url: author.linkedin_url || null,
+      twitter_url: author.twitter_url || null,
+      instagram_url: author.instagram_url || null,
+    } : null,
   };
 }
 
@@ -569,15 +640,17 @@ export default async function BlogPostPage({ params }: Props) {
     categoriesCache = categories;
   }
 
-  // Both functions are now synchronous (no async imports, no DB calls) —
-  // they just transform the already-fetched post object.
+  // Fetch named author for E-E-A-T (cached — shared with generateMetadata)
+  const author = await getAuthorForSite(siteId);
+
   const structuredData = generateStructuredData(
     result.post,
     result.source,
     { siteName, siteDomain, siteSlug, locale },
     categoriesCache,
+    author,
   );
-  const clientPost = transformForClient(result.post, result.source, categoriesCache);
+  const clientPost = transformForClient(result.post, result.source, categoriesCache, author);
 
   return (
     <>

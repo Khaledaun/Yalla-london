@@ -233,7 +233,7 @@ export default function SiteHealthPage() {
     if (trend === "improving") return "▲";
     if (trend === "declining") return "▼";
     if (trend === "stable") return "—";
-    return "?";
+    return ""; // unknown trend — don't show confusing "?" next to score
   };
 
   const severityBadge = (severity: string) => {
@@ -528,20 +528,29 @@ function OverviewTab({
         </div>
       </div>
 
-      {/* Hard Gates */}
-      {overview.latestRun?.hardGatesPassed !== null && (
+      {/* Hard Gates — only show when the audit actually produced a health score */}
+      {overview.latestRun?.hardGatesPassed !== null && overview.latestRun?.healthScore !== null && (
         <div style={{ marginBottom: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Hard Gates</h3>
-          <div style={{
-            padding: 12,
-            borderRadius: 6,
-            backgroundColor: overview.latestRun?.hardGatesPassed ? "#dcfce7" : "#fee2e2",
-            color: overview.latestRun?.hardGatesPassed ? "#16a34a" : "#dc2626",
-            fontWeight: 600,
-            fontSize: 13,
-          }}>
-            {overview.latestRun?.hardGatesPassed ? "ALL GATES PASSED" : "GATES FAILED — Action Required"}
-          </div>
+          {overview.latestRun?.hardGatesPassed ? (
+            <div style={{ padding: 12, borderRadius: 6, backgroundColor: "#dcfce7", color: "#16a34a", fontWeight: 600, fontSize: 13 }}>
+              ALL GATES PASSED
+            </div>
+          ) : overview.openIssues.total === 0 ? (
+            <div style={{ padding: 12, borderRadius: 6, backgroundColor: "#fef3c7", color: "#92400e", fontWeight: 600, fontSize: 13 }}>
+              Previous audit had gate failures — all issues since resolved. Re-run audit to verify.
+            </div>
+          ) : (
+            <div style={{ padding: 12, borderRadius: 6, backgroundColor: "#fee2e2", color: "#dc2626", fontWeight: 600, fontSize: 13 }}>
+              GATES FAILED — Action Required
+            </div>
+          )}
+        </div>
+      )}
+      {/* Show info when audit has no health score */}
+      {overview.latestRun && overview.latestRun.healthScore === null && !overview.isRunning && (
+        <div style={{ padding: 12, borderRadius: 6, backgroundColor: "#f1f5f9", color: "#475569", fontSize: 13, marginBottom: 20 }}>
+          Last audit did not produce a health score. Tap &quot;Run Audit&quot; to get fresh results.
         </div>
       )}
 

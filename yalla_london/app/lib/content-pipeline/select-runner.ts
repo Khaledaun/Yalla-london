@@ -641,8 +641,28 @@ export async function promoteToBlogPost(
     });
   }
 
+  // ── Title cleanup ──────────────────────────────────────────────────────────
+  // Pipeline keywords/topic_titles can arrive as raw slugs ("best luxury spas london 2026")
+  // or all-lowercase. Clean them to proper Title Case before saving to BlogPost
+  // so the blog listing never shows ugly slug-style titles in production.
+  const TITLE_SMALL_WORDS = new Set(["in", "for", "and", "the", "of", "to", "a", "an", "with", "by", "at", "on", "is"]);
+  const cleanTitle = (t: string): string => {
+    if (!t) return t;
+    // Already has mixed/upper case — leave as-is (was likely written properly)
+    if (/[A-Z]/.test(t) && /[a-z]/.test(t)) return t;
+    // All lowercase — title-case it
+    const words = t.replace(/-/g, " ").split(/\s+/);
+    return words
+      .map((w, i) => {
+        if (/^\d{4}$/.test(w)) return w;
+        if (i > 0 && TITLE_SMALL_WORDS.has(w)) return w;
+        return w.charAt(0).toUpperCase() + w.slice(1);
+      })
+      .join(" ");
+  };
+
   // Extract meta fields
-  const enMetaTitle = (enSeoMeta.metaTitle as string) || enTitle;
+  const enMetaTitle = cleanTitle((enSeoMeta.metaTitle as string) || enTitle);
   const arMetaTitle = (arSeoMeta.metaTitle as string) || arTitle;
   const enMetaDesc = (enSeoMeta.metaDescription as string) || "";
   const arMetaDesc = (arSeoMeta.metaDescription as string) || "";
@@ -657,6 +677,9 @@ export async function promoteToBlogPost(
   const featuredImage = ((enImages.featured as Record<string, unknown>)?.url as string)
     || ((arImages.featured as Record<string, unknown>)?.url as string)
     || null;
+
+  const cleanedEnTitle = cleanTitle(enTitle || keyword);
+  const cleanedArTitle = arTitle; // Arabic doesn't use title case
 
   // Create the bilingual BlogPost
   const missingLanguageTags = [];
@@ -742,8 +765,8 @@ export async function promoteToBlogPost(
     try {
       blogPost = await prisma.blogPost.create({
         data: {
-          title_en: enTitle || keyword,
-          title_ar: arTitle || "",
+          title_en: cleanedEnTitle,
+          title_ar: cleanedArTitle || "",
           slug,
           excerpt_en: enMetaDesc,
           excerpt_ar: arMetaDesc,

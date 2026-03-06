@@ -35,13 +35,26 @@ interface BlogListClientProps {
   posts: BlogPostData[]
 }
 
-// Format raw-slug titles into readable Title Case.
-// Detects raw slugs (all lowercase, contains hyphens, no spaces) and converts them
-// to presentable titles. This prevents ugly slug-based titles from rendering when
-// the pipeline produces an article whose title_en is a raw slug instead of a proper title.
+// Format raw-slug or all-lowercase titles into readable Title Case.
+// Detects: (1) hyphenated slugs like "best-luxury-spas-london-2026" and
+// (2) all-lowercase space-separated titles like "best luxury spas london 2026 women friendly halal".
+// Small words (in, for, and, the, of, to, a, an, with, by, at, on, is) stay lowercase unless first word.
+const SMALL_WORDS = new Set(['in', 'for', 'and', 'the', 'of', 'to', 'a', 'an', 'with', 'by', 'at', 'on', 'is']);
 const formatTitle = (title: string) => {
-  if (title === title.toLowerCase() && title.includes('-') && !/[A-Z]/.test(title) && !title.includes(' ')) {
-    return title.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const isSlug = !title.includes(' ') && title.includes('-') && !/[A-Z]/.test(title);
+  const isAllLowercase = title === title.toLowerCase() && title.length > 10 && !/[A-Z]/.test(title);
+
+  if (isSlug || isAllLowercase) {
+    const words = title.replace(/-/g, ' ').split(/\s+/);
+    return words
+      .map((w, i) => {
+        if (i === 0) return w.charAt(0).toUpperCase() + w.slice(1);
+        // Preserve year numbers as-is
+        if (/^\d{4}$/.test(w)) return w;
+        if (SMALL_WORDS.has(w)) return w;
+        return w.charAt(0).toUpperCase() + w.slice(1);
+      })
+      .join(' ');
   }
   return title;
 };

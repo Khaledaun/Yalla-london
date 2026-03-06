@@ -219,11 +219,28 @@ export default async function BlogPage() {
         : null,
     }));
 
-  // 3. Merge and sort by date (newest first)
-  const allPosts = [...staticPosts, ...dbPostsTransformed].sort(
+  // 3. Merge, deduplicate near-identical titles, and sort by date (newest first)
+  // Prevents duplicate-looking entries (e.g. two "Best Halal Fine Dining London 2025 Comparison")
+  // by keeping only the newest post per normalized title.
+  const normalizeForListingDedup = (t: string) =>
+    t.toLowerCase()
+      .replace(/\b20\d{2}\b/g, "")
+      .replace(/\b(comparison|guide|review|complete|ultimate|best|top)\b/g, "")
+      .replace(/[^a-z0-9\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const merged = [...staticPosts, ...dbPostsTransformed].sort(
     (a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
+  const seenTitles = new Set<string>();
+  const allPosts = merged.filter((post) => {
+    const norm = normalizeForListingDedup(post.title_en);
+    if (norm.length > 5 && seenTitles.has(norm)) return false;
+    if (norm.length > 5) seenTitles.add(norm);
+    return true;
+  });
 
   const structuredData = generateStructuredData(allPosts, { siteName, siteSlug, baseUrl });
 

@@ -101,85 +101,85 @@ const articles = {
   en: [
     {
       id: '2',
-      slug: 'complete-london-guide-arab-visitors',
+      slug: 'spring-london-2026-best-things-to-do-arab-visitors',
       category: 'Travel',
-      title: 'Complete London Guide for Arab Visitors',
-      excerpt: 'Everything you need to know for your first visit — visa, transport, halal food, and prayer facilities.',
+      title: 'Spring in London 2026: Best Things to Do',
+      excerpt: 'Cherry blossoms, outdoor markets, and longer days — your complete guide to London this spring.',
       image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80',
-      date: 'Jan 12, 2026',
+      date: 'Mar 3, 2026',
       readTime: '8 min read',
     },
     {
       id: '3',
-      slug: 'harrods-vs-selfridges-comparison',
+      slug: 'harrods-vs-selfridges-which-better-2025',
       category: 'Shopping',
       title: 'Harrods vs Selfridges: Which is Better?',
       excerpt: 'A detailed comparison of London\'s two iconic department stores for luxury shoppers.',
       image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80',
-      date: 'Jan 10, 2026',
+      date: 'Feb 20, 2026',
       readTime: '6 min read',
     },
     {
       id: '4',
-      slug: 'london-new-years-eve-fireworks-2025-complete-guide',
-      category: 'Events',
-      title: 'London New Year\'s Eve Fireworks 2026',
-      excerpt: 'The complete guide to the best viewing spots, tickets, and tips for the iconic NYE fireworks.',
-      image: 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=600&q=80',
-      date: 'Jan 5, 2026',
-      readTime: '4 min read',
+      slug: 'best-halal-restaurants-central-london-2025',
+      category: 'Dining',
+      title: 'Best Halal Restaurants in Central London',
+      excerpt: '25+ vetted halal restaurants across Mayfair, Soho and Knightsbridge with honest reviews.',
+      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
+      date: 'Feb 15, 2026',
+      readTime: '7 min read',
     },
   ],
   ar: [
     {
       id: '2',
-      slug: 'complete-london-guide-arab-visitors',
+      slug: 'spring-london-2026-best-things-to-do-arab-visitors',
       category: 'سفر',
-      title: 'دليل لندن الشامل للزوار العرب',
-      excerpt: 'كل ما تحتاج معرفته لزيارتك الأولى — التأشيرة والمواصلات والطعام الحلال ومرافق الصلاة.',
+      title: 'الربيع في لندن 2026: أفضل الأنشطة',
+      excerpt: 'أزهار الكرز والأسواق المفتوحة وأيام أطول — دليلك الشامل للندن في الربيع.',
       image: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80',
-      date: '12 يناير 2026',
+      date: '3 مارس 2026',
       readTime: '8 دقائق',
     },
     {
       id: '3',
-      slug: 'harrods-vs-selfridges-comparison',
+      slug: 'harrods-vs-selfridges-which-better-2025',
       category: 'تسوق',
       title: 'هارودز أم سيلفريدجز: أيهما أفضل؟',
       excerpt: 'مقارنة تفصيلية بين أشهر متجرين في لندن للمتسوقين الفاخرين.',
       image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80',
-      date: '10 يناير 2026',
+      date: '20 فبراير 2026',
       readTime: '6 دقائق',
     },
     {
       id: '4',
-      slug: 'london-new-years-eve-fireworks-2025-complete-guide',
-      category: 'فعاليات',
-      title: 'ألعاب رأس السنة في لندن 2026',
-      excerpt: 'الدليل الشامل لأفضل أماكن المشاهدة والتذاكر ونصائح لألعاب رأس السنة.',
-      image: 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=600&q=80',
-      date: '5 يناير 2026',
-      readTime: '4 دقائق',
+      slug: 'best-halal-restaurants-central-london-2025',
+      category: 'مطاعم',
+      title: 'أفضل المطاعم الحلال في وسط لندن',
+      excerpt: 'أكثر من 25 مطعماً حلالاً في مايفير وسوهو ونايتسبريدج مع تقييمات صادقة.',
+      image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&q=80',
+      date: '15 فبراير 2026',
+      readTime: '7 دقائق',
     },
   ],
 }
 
 const events = {
   en: [
-    { id: '1', title: 'Chelsea vs Arsenal', venue: 'Stamford Bridge', day: '22', month: 'Feb', price: 'From £120', image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=400&q=80' },
-    { id: '2', title: 'Tottenham vs Man City', venue: 'Tottenham Stadium', day: '01', month: 'Mar', price: 'From £95', image: 'https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?w=400&q=80' },
-    { id: '3', title: 'Hamilton — West End', venue: 'Victoria Palace Theatre', day: '08', month: 'Mar', price: 'From £35', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
-    { id: '4', title: 'Crystal Palace vs Liverpool', venue: 'Selhurst Park', day: '15', month: 'Mar', price: 'From £75', image: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=80' },
-    { id: '5', title: 'West Ham vs Arsenal', venue: 'London Stadium', day: '05', month: 'Apr', price: 'From £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
-    { id: '6', title: 'London Marathon 2026', venue: 'Greenwich to The Mall', day: '26', month: 'Apr', price: 'Free to watch', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
+    { id: '1', title: 'Crystal Palace vs Liverpool', venue: 'Selhurst Park', day: '15', month: 'Mar', price: 'From £75', image: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=80' },
+    { id: '2', title: 'The Lion King — West End', venue: 'Lyceum Theatre', day: '22', month: 'Mar', price: 'From £45', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
+    { id: '3', title: 'West Ham vs Arsenal', venue: 'London Stadium', day: '05', month: 'Apr', price: 'From £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
+    { id: '4', title: 'London Marathon 2026', venue: 'Greenwich to The Mall', day: '26', month: 'Apr', price: 'Free to watch', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
+    { id: '5', title: 'Chelsea Flower Show', venue: 'Royal Hospital Chelsea', day: '19', month: 'May', price: 'From £40', image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=400&q=80' },
+    { id: '6', title: 'Ramadan in London', venue: 'Various Venues', day: '28', month: 'Mar', price: 'Various', image: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?w=400&q=80' },
   ],
   ar: [
-    { id: '1', title: 'تشيلسي ضد آرسنال', venue: 'ستامفورد بريدج', day: '22', month: 'فبراير', price: 'من £120', image: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=400&q=80' },
-    { id: '2', title: 'توتنهام ضد مانشستر سيتي', venue: 'ملعب توتنهام', day: '01', month: 'مارس', price: 'من £95', image: 'https://images.unsplash.com/photo-1489944440615-453fc2b6a9a9?w=400&q=80' },
-    { id: '3', title: 'هاميلتون — ويست إند', venue: 'مسرح فيكتوريا بالاس', day: '08', month: 'مارس', price: 'من £35', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
-    { id: '4', title: 'كريستال بالاس ضد ليفربول', venue: 'سيلهرست بارك', day: '15', month: 'مارس', price: 'من £75', image: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=80' },
-    { id: '5', title: 'وست هام ضد آرسنال', venue: 'ملعب لندن', day: '05', month: 'أبريل', price: 'من £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
-    { id: '6', title: 'ماراثون لندن 2026', venue: 'غرينيتش إلى ذا مول', day: '26', month: 'أبريل', price: 'مجاني للمشاهدة', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
+    { id: '1', title: 'كريستال بالاس ضد ليفربول', venue: 'سيلهرست بارك', day: '15', month: 'مارس', price: 'من £75', image: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=80' },
+    { id: '2', title: 'الأسد الملك — ويست إند', venue: 'مسرح ليسيوم', day: '22', month: 'مارس', price: 'من £45', image: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=400&q=80' },
+    { id: '3', title: 'وست هام ضد آرسنال', venue: 'ملعب لندن', day: '05', month: 'أبريل', price: 'من £85', image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80' },
+    { id: '4', title: 'ماراثون لندن 2026', venue: 'غرينيتش إلى ذا مول', day: '26', month: 'أبريل', price: 'مجاني للمشاهدة', image: 'https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=400&q=80' },
+    { id: '5', title: 'معرض تشيلسي للزهور', venue: 'مستشفى تشيلسي الملكي', day: '19', month: 'مايو', price: 'من £40', image: 'https://images.unsplash.com/photo-1490750967868-88aa4f44baee?w=400&q=80' },
+    { id: '6', title: 'رمضان في لندن', venue: 'أماكن متعددة', day: '28', month: 'مارس', price: 'متنوع', image: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?w=400&q=80' },
   ],
 }
 
@@ -227,7 +227,7 @@ const hotels = {
 const text = {
   en: {
     trending: 'Trending',
-    trendingItems: ['Arsenal vs Chelsea tickets selling fast', 'Harrods winter sale begins', 'New Year fireworks 2026 guide'],
+    trendingItems: ['London Marathon 2026 entries open', 'Ramadan in London guide — iftar spots', 'Spring in London — best parks and walks'],
     latestStories: 'Latest Stories',
     viewAll: 'View All',
     readMore: 'Read More',
@@ -235,7 +235,7 @@ const text = {
     getTickets: 'Get Tickets',
     pdfGuides: 'Travel Guides',
     guidesSubtitle: 'Expert PDF guides crafted for Arab visitors',
-    downloadNow: 'Download',
+    downloadNow: 'Coming Soon',
     topExperiences: 'Top Experiences',
     bookNow: 'Book Now',
     luxuryHotels: 'Luxury Hotels',
@@ -260,7 +260,7 @@ const text = {
   },
   ar: {
     trending: 'الأكثر رواجاً',
-    trendingItems: ['تذاكر آرسنال ضد تشيلسي تنفذ بسرعة', 'بداية تخفيضات هارودز الشتوية', 'دليل ألعاب رأس السنة 2026'],
+    trendingItems: ['ماراثون لندن 2026 — التسجيل مفتوح', 'رمضان في لندن — أماكن الإفطار', 'الربيع في لندن — أفضل الحدائق والمشي'],
     latestStories: 'أحدث المقالات',
     viewAll: 'عرض الكل',
     readMore: 'اقرأ المزيد',
@@ -268,7 +268,7 @@ const text = {
     getTickets: 'احصل على التذاكر',
     pdfGuides: 'أدلة السفر',
     guidesSubtitle: 'أدلة PDF متخصصة مصممة للزوار العرب',
-    downloadNow: 'تحميل',
+    downloadNow: 'قريباً',
     topExperiences: 'أفضل التجارب',
     bookNow: 'احجز الآن',
     luxuryHotels: 'فنادق فاخرة',
@@ -679,9 +679,9 @@ export function YallaHomepage({ locale = 'en' }: YallaHomepageProps) {
                 <div className="p-5">
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-bold text-charcoal">{guide.price}</span>
-                    <Link href="/shop" className="flex items-center gap-2 px-4 py-2.5 bg-charcoal text-white text-sm font-semibold rounded-lg hover:bg-charcoal-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-london-600 transition-colors">
-                      <Download className="w-4 h-4" /> {t.downloadNow}
-                    </Link>
+                    <span className="flex items-center gap-2 px-4 py-2.5 bg-stone/20 text-stone text-sm font-semibold rounded-lg cursor-default">
+                      <Clock className="w-4 h-4" /> {t.downloadNow}
+                    </span>
                   </div>
                 </div>
               </div>

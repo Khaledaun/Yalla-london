@@ -245,7 +245,14 @@ export default function ShopPage() {
       <div className="pb-12 bg-gradient-to-b from-charcoal to-charcoal-light">
         <div className="max-w-6xl mx-auto px-6 pt-8 text-center">
           <h1 className="text-4xl md:text-5xl font-display font-bold text-white mb-4">{t.title}</h1>
-          <p className="text-xl text-cream-300 mb-8">{t.subtitle}</p>
+          <p className="text-xl text-cream-300 mb-4">{t.subtitle}</p>
+          {/* Coming Soon Banner */}
+          <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-yalla-gold-500/20 border border-yalla-gold-500/40 rounded-full mb-8">
+            <Sparkles className="w-4 h-4 text-yalla-gold-400" />
+            <span className="text-sm font-semibold text-yalla-gold-300">
+              {isRTL ? 'قريباً — الأدلة قيد التطوير' : 'Coming Soon — Guides are being prepared'}
+            </span>
+          </div>
 
           {/* Trust Badges */}
           <div className="flex items-center justify-center gap-8 flex-wrap">

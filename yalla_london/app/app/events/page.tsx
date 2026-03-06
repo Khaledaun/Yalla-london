@@ -42,41 +42,42 @@ interface EventItem {
 }
 
 // Fallback events shown only when DB has no events yet
+// Dates should be kept in the future — update quarterly
 const FALLBACK_EVENTS: EventItem[] = [
   {
     id: "fallback-1",
     title: {
-      en: "Arsenal vs Chelsea - Premier League",
-      ar: "\u0623\u0631\u0633\u0646\u0627\u0644 \u0636\u062f \u062a\u0634\u064a\u0644\u0633\u064a - \u0627\u0644\u062f\u0648\u0631\u064a \u0627\u0644\u0625\u0646\u062c\u0644\u064a\u0632\u064a \u0627\u0644\u0645\u0645\u062a\u0627\u0632",
+      en: "London Marathon 2026",
+      ar: "ماراثون لندن 2026",
     },
     description: {
-      en: "Experience the North London derby at the iconic Emirates Stadium with VIP hospitality packages.",
-      ar: "\u0627\u062e\u062a\u0628\u0631 \u062f\u064a\u0631\u0628\u064a \u0634\u0645\u0627\u0644 \u0644\u0646\u062f\u0646 \u0641\u064a \u0627\u0633\u062a\u0627\u062f \u0627\u0644\u0625\u0645\u0627\u0631\u0627\u062a \u0627\u0644\u0623\u064a\u0642\u0648\u0646\u064a \u0645\u0639 \u0628\u0627\u0642\u0627\u062a \u0627\u0644\u0636\u064a\u0627\u0641\u0629 VIP.",
+      en: "The world's most iconic marathon runs from Greenwich to The Mall. Free to watch from many vantage points along the route.",
+      ar: "أشهر ماراثون في العالم من غرينيتش إلى ذا مول. مجاني للمشاهدة من نقاط عديدة على الطريق.",
     },
-    date: "2026-03-15",
-    time: "15:00",
-    venue: "Emirates Stadium",
-    category: "Football",
-    price: "From \u00a3120",
+    date: "2026-04-26",
+    time: "09:00",
+    venue: "Greenwich to The Mall",
+    category: "Experience",
+    price: "Free to watch",
     image:
-      "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&h=600&fit=crop",
+      "https://images.unsplash.com/photo-1513593771513-7b58b6c4af38?w=800&h=600&fit=crop",
     rating: 4.9,
-    bookingUrl: "https://www.stubhub.co.uk/arsenal-tickets/performer/2161/",
-    affiliateTag: "stubhub",
-    ticketProvider: "StubHub",
-    vipAvailable: true,
+    bookingUrl: "https://www.tcslondonmarathon.com/",
+    affiliateTag: "",
+    ticketProvider: "Official",
+    vipAvailable: false,
   },
   {
     id: "fallback-2",
     title: {
       en: "The Lion King - Musical Theatre",
-      ar: "\u0627\u0644\u0623\u0633\u062f \u0627\u0644\u0645\u0644\u0643 - \u0645\u0633\u0631\u062d \u0645\u0648\u0633\u064a\u0642\u064a",
+      ar: "الأسد الملك - مسرح موسيقي",
     },
     description: {
       en: "The award-winning musical that brings the Pride Lands to life with stunning costumes and music.",
-      ar: "\u0627\u0644\u0645\u0633\u0631\u062d\u064a\u0629 \u0627\u0644\u0645\u0648\u0633\u064a\u0642\u064a\u0629 \u0627\u0644\u062d\u0627\u0626\u0632\u0629 \u0639\u0644\u0649 \u062c\u0648\u0627\u0626\u0632.",
+      ar: "المسرحية الموسيقية الحائزة على جوائز التي تنقل أراضي العزة إلى الحياة.",
     },
-    date: "2026-03-20",
+    date: "2026-04-15",
     time: "19:30",
     venue: "Lyceum Theatre",
     category: "Theatre",
@@ -94,13 +95,13 @@ const FALLBACK_EVENTS: EventItem[] = [
     id: "fallback-3",
     title: {
       en: "Thames Luxury Dinner Cruise",
-      ar: "\u0631\u062d\u0644\u0629 \u0639\u0634\u0627\u0621 \u0641\u0627\u062e\u0631\u0629 \u0639\u0644\u0649 \u0646\u0647\u0631 \u0627\u0644\u062a\u0627\u064a\u0645\u0632",
+      ar: "رحلة عشاء فاخرة على نهر التايمز",
     },
     description: {
       en: "Fine dining on the Thames with views of Tower Bridge, Big Ben, and the London Eye. Halal menu available.",
-      ar: "\u0639\u0634\u0627\u0621 \u0641\u0627\u062e\u0631 \u0639\u0644\u0649 \u0627\u0644\u062a\u0627\u064a\u0645\u0632 \u0645\u0639 \u0625\u0637\u0644\u0627\u0644\u0629 \u0639\u0644\u0649 \u062a\u0627\u0648\u0631 \u0628\u0631\u064a\u062f\u062c \u0648\u0628\u064a\u062c \u0628\u0646 \u0648\u0644\u0646\u062f\u0646 \u0622\u064a.",
+      ar: "عشاء فاخر على التايمز مع إطلالة على تاور بريدج وبيج بن ولندن آي.",
     },
-    date: "2026-03-22",
+    date: "2026-04-20",
     time: "19:00",
     venue: "Westminster Pier",
     category: "Experience",

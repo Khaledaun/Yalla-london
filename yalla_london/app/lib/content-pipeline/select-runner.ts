@@ -641,23 +641,6 @@ export async function promoteToBlogPost(
     });
   }
 
-  // Extract meta fields
-  const enMetaTitle = cleanTitle((enSeoMeta.metaTitle as string) || enTitle);
-  const arMetaTitle = (arSeoMeta.metaTitle as string) || arTitle;
-  const enMetaDesc = (enSeoMeta.metaDescription as string) || "";
-  const arMetaDesc = (arSeoMeta.metaDescription as string) || "";
-  const keywords = (enSeoMeta.keywords as string[]) || (arSeoMeta.keywords as string[]) || [keyword];
-  const schemaType = (outline.schemaType as string) || "";
-  const pageType = schemaType === "FAQPage" ? "faq"
-    : schemaType === "HowTo" || schemaType === "Guide" ? "guide"
-    : "blog"; // default to blog for standard articles
-
-  const enImages = (enDraft?.images_data || {}) as Record<string, unknown>;
-  const arImages = (arDraft?.images_data || {}) as Record<string, unknown>;
-  const featuredImage = ((enImages.featured as Record<string, unknown>)?.url as string)
-    || ((arImages.featured as Record<string, unknown>)?.url as string)
-    || null;
-
   // ── Title cleanup ──────────────────────────────────────────────────────────
   // Pipeline keywords/topic_titles can arrive as raw slugs ("best luxury spas london 2026")
   // or all-lowercase. Clean them to proper Title Case before saving to BlogPost
@@ -677,6 +660,24 @@ export async function promoteToBlogPost(
       })
       .join(" ");
   };
+
+  // Extract meta fields
+  const enMetaTitle = cleanTitle((enSeoMeta.metaTitle as string) || enTitle);
+  const arMetaTitle = (arSeoMeta.metaTitle as string) || arTitle;
+  const enMetaDesc = (enSeoMeta.metaDescription as string) || "";
+  const arMetaDesc = (arSeoMeta.metaDescription as string) || "";
+  const keywords = (enSeoMeta.keywords as string[]) || (arSeoMeta.keywords as string[]) || [keyword];
+  const schemaType = (outline.schemaType as string) || "";
+  const pageType = schemaType === "FAQPage" ? "faq"
+    : schemaType === "HowTo" || schemaType === "Guide" ? "guide"
+    : "blog"; // default to blog for standard articles
+
+  const enImages = (enDraft?.images_data || {}) as Record<string, unknown>;
+  const arImages = (arDraft?.images_data || {}) as Record<string, unknown>;
+  const featuredImage = ((enImages.featured as Record<string, unknown>)?.url as string)
+    || ((arImages.featured as Record<string, unknown>)?.url as string)
+    || null;
+
   const cleanedEnTitle = cleanTitle(enTitle || keyword);
   const cleanedArTitle = arTitle; // Arabic doesn't use title case
 

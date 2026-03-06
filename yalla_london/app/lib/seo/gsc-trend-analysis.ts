@@ -52,21 +52,43 @@ export async function getPerformanceTrend(
 
   const days = period === "7d" ? 7 : 28;
   const now = new Date();
+
+  // ── IMPORTANT: gsc-sync stores 7-day CUMULATIVE totals from GSC per snapshot date.
+  // We must NOT sum across snapshot dates (that would inflate by Nx).
+  // Instead, read only the LATEST snapshot for "current" and the latest snapshot
+  // from the previous period for "previous".
   const currentStart = new Date(now.getTime() - days * 86400000);
-  const previousStart = new Date(now.getTime() - days * 2 * 86400000);
-  const previousEnd = currentStart;
+  const previousCutoff = new Date(now.getTime() - days * 2 * 86400000);
+
+  // Find the most recent snapshot date (the "current" 7-day aggregate)
+  const latestSnapshot = await prisma.gscPagePerformance.findFirst({
+    where: { site_id: siteId, date: { gte: currentStart } },
+    orderBy: { date: "desc" },
+    select: { date: true },
+  });
+
+  // Find the most recent snapshot date BEFORE the current period (the "previous" aggregate)
+  const previousSnapshot = await prisma.gscPagePerformance.findFirst({
+    where: { site_id: siteId, date: { gte: previousCutoff, lt: currentStart } },
+    orderBy: { date: "desc" },
+    select: { date: true },
+  });
 
   const [currentAgg, previousAgg] = await Promise.all([
-    prisma.gscPagePerformance.aggregate({
-      where: { site_id: siteId, date: { gte: currentStart } },
-      _sum: { clicks: true, impressions: true },
-      _avg: { position: true, ctr: true },
-    }),
-    prisma.gscPagePerformance.aggregate({
-      where: { site_id: siteId, date: { gte: previousStart, lt: previousEnd } },
-      _sum: { clicks: true, impressions: true },
-      _avg: { position: true, ctr: true },
-    }),
+    latestSnapshot
+      ? prisma.gscPagePerformance.aggregate({
+          where: { site_id: siteId, date: latestSnapshot.date },
+          _sum: { clicks: true, impressions: true },
+          _avg: { position: true, ctr: true },
+        })
+      : Promise.resolve({ _sum: { clicks: null, impressions: null }, _avg: { position: null, ctr: null } }),
+    previousSnapshot
+      ? prisma.gscPagePerformance.aggregate({
+          where: { site_id: siteId, date: previousSnapshot.date },
+          _sum: { clicks: true, impressions: true },
+          _avg: { position: true, ctr: true },
+        })
+      : Promise.resolve({ _sum: { clicks: null, impressions: null }, _avg: { position: null, ctr: null } }),
   ]);
 
   const curClicks = currentAgg._sum.clicks ?? 0;
@@ -78,18 +100,22 @@ export async function getPerformanceTrend(
   const curCtr = currentAgg._avg.ctr ?? 0;
   const prevCtr = previousAgg._avg.ctr ?? 0;
 
-  // Get per-page totals for droppers/gainers
+  // Get per-page totals for droppers/gainers (using same single-snapshot dates)
   const [currentPages, previousPages] = await Promise.all([
-    prisma.gscPagePerformance.groupBy({
-      by: ["url"],
-      where: { site_id: siteId, date: { gte: currentStart } },
-      _sum: { clicks: true, impressions: true },
-    }),
-    prisma.gscPagePerformance.groupBy({
-      by: ["url"],
-      where: { site_id: siteId, date: { gte: previousStart, lt: previousEnd } },
-      _sum: { clicks: true, impressions: true },
-    }),
+    latestSnapshot
+      ? prisma.gscPagePerformance.groupBy({
+          by: ["url"],
+          where: { site_id: siteId, date: latestSnapshot.date },
+          _sum: { clicks: true, impressions: true },
+        })
+      : Promise.resolve([]),
+    previousSnapshot
+      ? prisma.gscPagePerformance.groupBy({
+          by: ["url"],
+          where: { site_id: siteId, date: previousSnapshot.date },
+          _sum: { clicks: true, impressions: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   type SumFields = { clicks: number | null; impressions: number | null };

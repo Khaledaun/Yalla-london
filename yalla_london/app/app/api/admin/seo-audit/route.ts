@@ -74,7 +74,27 @@ async function runAudit(siteId: string) {
     }),
   ]);
 
-  const indexRate = totalTracked > 0 ? Math.round((indexedCount / totalTracked) * 100) : 0;
+  // GSC reconciliation: count URLs confirmed indexed by Google (impressions > 0)
+  let gscConfirmedIndexed = 0;
+  try {
+    const gscRows = await prisma.gscPagePerformance.groupBy({
+      by: ["url"],
+      where: { site_id: siteId, impressions: { gt: 0 } },
+    });
+    gscConfirmedIndexed = gscRows.length;
+  } catch { /* table may not exist */ }
+
+  // Use the higher of tracking-confirmed vs GSC-confirmed as true indexed count
+  const effectiveIndexed = Math.max(indexedCount, gscConfirmedIndexed);
+
+  // Use published articles as denominator instead of tracking records
+  // (tracking includes static pages and /ar/ variants which inflate the total)
+  const publishedArticles = await prisma.blogPost.count({
+    where: { siteId: siteId, published: true, deletedAt: null },
+  }).catch(() => totalTracked);
+  const effectiveTotal = Math.max(totalTracked, publishedArticles);
+
+  const indexRate = effectiveTotal > 0 ? Math.round((effectiveIndexed / effectiveTotal) * 100) : 0;
 
   if (indexRate < 30) {
     findings.push({

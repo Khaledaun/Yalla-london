@@ -2795,10 +2795,14 @@ function SitesTab({ sites, onSelectSite, onRefresh }: { sites: SiteSummary[]; on
   const runAuditAction = async (siteId: string, cronName: string, actionId: string) => {
     setSeoAuditActionLoading(actionId);
     try {
+      // auto_fix_all is its own action handler, not a run_cron target
+      const isAutoFixAll = cronName === "auto_fix_all";
       const res = await fetch("/api/admin/seo-audit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "run_cron", cron: cronName, siteId }),
+        body: JSON.stringify(isAutoFixAll
+          ? { action: "auto_fix_all", siteId }
+          : { action: "run_cron", cron: cronName, siteId }),
       });
       const json = await res.json();
       setSeoAuditActionResult((prev) => ({
@@ -4086,6 +4090,7 @@ function SettingsTab({ system }: { system: SystemStatus | null }) {
     { key: "ANTHROPIC_API_KEY", status: system?.ai.activeProviders.includes("claude") ?? false, capability: "Claude — AR translation + editing", emoji: "🧠" },
     { key: "OPENAI_API_KEY", status: system?.ai.activeProviders.includes("openai") ?? false, capability: "OpenAI DALL-E — AI image generation", emoji: "🎨" },
     { key: "GOOGLE_AI_API_KEY", status: system?.ai.activeProviders.includes("gemini") ?? false, capability: "Gemini — alternative AI provider", emoji: "✨" },
+    { key: "PERPLEXITY_API_KEY", status: system?.ai.activeProviders.includes("perplexity") ?? false, capability: "Perplexity — web-grounded AI research", emoji: "🔎" },
     { key: "INDEXNOW_KEY", status: system?.indexNow.configured ?? false, capability: "IndexNow — instant Google indexing", emoji: "🔍" },
     { key: "GSC_CREDENTIALS", status: system?.gsc.configured ?? false, capability: "Google Search Console — search analytics", emoji: "📊" },
     { key: "CRON_SECRET", status: system?.cronSecret.configured ?? false, capability: "Cron job authentication", emoji: "⏰" },

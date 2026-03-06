@@ -9,6 +9,7 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAuth } from '@/lib/admin-middleware';
 import { prisma } from '@/lib/db';
+import { logManualAction } from '@/lib/action-logger';
 import { z } from 'zod';
 
 const BlogPostUpdateSchema = z.object({
@@ -265,23 +266,35 @@ export const DELETE = withAdminAuth(async (request: NextRequest) => {
       );
     }
     
-    // Check if blog post exists
-    const existingPost = await prisma.blogPost.findUnique({
-      where: { id }
+    // 1. Pre-check
+    const existing = await prisma.blogPost.findUnique({
+      where: { id },
+      select: { id: true, title_en: true },
     });
-    
-    if (!existingPost) {
+    if (!existing) {
+      logManualAction(request, { action: "delete-blogpost", resource: "blogpost", resourceId: id, success: false, summary: "Record not found", error: "Record does not exist" }).catch(() => {});
       return NextResponse.json(
         { error: 'Blog post not found' },
         { status: 404 }
       );
     }
-    
-    // Delete the blog post
+
+    // 2. Execute
     await prisma.blogPost.delete({
       where: { id }
     });
-    
+
+    // 3. Post-verify
+    const stillExists = await prisma.blogPost.findUnique({ where: { id }, select: { id: true } });
+    if (stillExists) {
+      logManualAction(request, { action: "delete-blogpost", resource: "blogpost", resourceId: id, success: false, summary: "Delete verification failed", error: "Record still exists after delete" }).catch(() => {});
+      return NextResponse.json(
+        { error: 'Delete failed — record still exists' },
+        { status: 500 }
+      );
+    }
+
+    logManualAction(request, { action: "delete-blogpost", resource: "blogpost", resourceId: id, success: true, summary: `Deleted "${existing.title_en}"` }).catch(() => {});
     return NextResponse.json({
       success: true,
       message: 'Blog post deleted successfully'

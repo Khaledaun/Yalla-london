@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { sendEmail } from "@/lib/email/sender";
 import { getDefaultSiteId, getActiveSiteIds } from "@/config/sites";
+import { logManualAction } from "@/lib/action-logger";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -282,6 +283,17 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
     const providerStatus = buildProviderStatus();
 
+    logManualAction(request, {
+      action: "email-center-action",
+      resource: "email",
+      success: result.success,
+      summary: result.success
+        ? `Test email sent to ${to} via ${providerStatus.activeProvider}`
+        : `Test email to ${to} failed`,
+      details: { subAction: "test_send", to, provider: providerStatus.activeProvider },
+      ...(result.success ? {} : { error: result.error || "Unknown send error", fix: "Check email provider configuration in Vercel env vars (RESEND_API_KEY, SENDGRID_API_KEY, or SMTP_*)." }),
+    }).catch(() => {});
+
     return NextResponse.json({
       success: result.success,
       error: result.success ? undefined : result.error,
@@ -320,11 +332,32 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         select: { id: true },
       });
 
+      logManualAction(request, {
+        action: "email-center-action",
+        resource: "email-template",
+        resourceId: template.id,
+        siteId,
+        success: true,
+        summary: `Created email template '${name}'`,
+        details: { subAction: "create_template", name, subject },
+      }).catch(() => {});
+
       return NextResponse.json({ success: true, id: template.id });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to create template";
       console.warn("[email-center] create_template failed:", message);
+
+      logManualAction(request, {
+        action: "email-center-action",
+        resource: "email-template",
+        siteId,
+        success: false,
+        summary: `Failed to create email template '${name}'`,
+        error: message,
+        fix: "Check that the EmailTemplate table exists in the database. Run 'npx prisma db push' if needed.",
+      }).catch(() => {});
+
       return NextResponse.json(
         { success: false, error: "Could not save template — database error" },
         { status: 500 },
@@ -371,11 +404,31 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
         data: { status: "sending" },
       });
 
+      logManualAction(request, {
+        action: "email-center-action",
+        resource: "email-campaign",
+        resourceId: campaignId,
+        success: true,
+        summary: `Started sending campaign '${campaign.name}'`,
+        details: { subAction: "send_campaign", campaignId, campaignName: campaign.name, recipientCount: campaign.recipientCount },
+      }).catch(() => {});
+
       return NextResponse.json({ success: true });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to update campaign";
       console.warn("[email-center] send_campaign failed:", message);
+
+      logManualAction(request, {
+        action: "email-center-action",
+        resource: "email-campaign",
+        resourceId: campaignId,
+        success: false,
+        summary: "Failed to start email campaign",
+        error: message,
+        fix: "Check that the EmailCampaign table exists and the campaign ID is valid.",
+      }).catch(() => {});
+
       return NextResponse.json(
         {
           success: false,

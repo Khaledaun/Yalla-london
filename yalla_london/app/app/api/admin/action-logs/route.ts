@@ -389,6 +389,56 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // SOURCE 5: AuditLog — manual dashboard actions (button taps)
+    // Records written by lib/action-logger.ts logManualAction()
+    // All manual actions have action prefixed with "manual:"
+    // ══════════════════════════════════════════════════════════════════
+    if (!category || category === "manual") {
+      try {
+        const where: Record<string, unknown> = {
+          timestamp: { gte: cutoff },
+          action: { startsWith: "manual:" },
+        };
+        if (status === "success") where.success = true;
+        else if (status === "failed") where.success = false;
+
+        const manualLogs = await prisma.auditLog.findMany({
+          where,
+          orderBy: { timestamp: "desc" },
+          take: Math.min(limit, 200),
+        });
+
+        for (const log of manualLogs) {
+          const details = (log.details as Record<string, unknown>) || {};
+          const actionName = log.action.replace("manual:", "");
+
+          logs.push({
+            id: log.id,
+            timestamp: log.timestamp.toISOString(),
+            category: "manual",
+            action: actionName,
+            status: log.success ? "success" : "failed",
+            siteId: (details.siteId as string) || null,
+            durationMs: (details.durationMs as number) || null,
+            summary: (details.summary as string) || `${actionName} ${log.success ? "succeeded" : "failed"}`,
+            outcome: log.success ? (details.summary as string) || null : null,
+            error: log.success ? null : (log.errorMessage || (details.error as string) || null),
+            fix: log.success ? null : ((details.fix as string) || "Check the full error details in the JSON export."),
+            details: {
+              resource: log.resource,
+              resourceId: log.resourceId,
+              ipAddress: log.ipAddress,
+              userAgent: log.userAgent,
+              ...details,
+            },
+          });
+        }
+      } catch (manualErr) {
+        console.warn("[action-logs] AuditLog manual query failed:", manualErr instanceof Error ? manualErr.message : manualErr);
+      }
+    }
+
     // ── Sort all logs by timestamp descending ──
     logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
@@ -408,13 +458,14 @@ export async function GET(request: NextRequest) {
         autoFix: trimmedLogs.filter(l => l.category === "auto-fix").length,
         aiCall: trimmedLogs.filter(l => l.category === "ai-call").length,
         audit: trimmedLogs.filter(l => l.category === "audit").length,
+        manual: trimmedLogs.filter(l => l.category === "manual").length,
       },
     };
 
     // ── Available filters for UI ──
     const availableFilters = {
       periods: ["1h", "12h", "24h", "3d", "7d", "14d", "21d"] as PeriodKey[],
-      categories: ["cron", "auto-fix", "ai-call", "audit"],
+      categories: ["cron", "auto-fix", "ai-call", "audit", "manual"],
       statuses: ["success", "failed", "partial", "timeout", "running"],
       functions: [...new Set(trimmedLogs.filter(l => l.category === "cron").map(l => l.action))].sort(),
     };

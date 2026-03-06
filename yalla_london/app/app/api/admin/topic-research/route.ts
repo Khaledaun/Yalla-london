@@ -21,6 +21,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
+import { logManualAction } from "@/lib/action-logger";
 
 interface ResearchedTopic {
   rank: number;
@@ -142,6 +143,16 @@ Return JSON array of ${count} topics, ordered by potential impact (highest first
 
     const durationMs = Date.now() - cronStart;
 
+    logManualAction(request, {
+      action: "topic-research",
+      resource: "topic",
+      siteId,
+      success: true,
+      summary: `Researched ${validTopics.length} topics for ${site.name}${focusArea ? ` (focus: ${focusArea})` : ""}`,
+      details: { topicCount: validTopics.length, focusArea: focusArea || null, destination, durationMs },
+      durationMs,
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       siteId,
@@ -157,6 +168,17 @@ Return JSON array of ${count} topics, ordered by potential impact (highest first
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[topic-research] Failed:", msg);
+
+    logManualAction(request, {
+      action: "topic-research",
+      resource: "topic",
+      siteId,
+      success: false,
+      summary: "Topic research failed",
+      error: msg,
+      fix: "Check AI provider configuration in the AI Config tab. The provider may be down or rate-limited.",
+    }).catch(() => {});
+
     return NextResponse.json(
       { error: "Topic research failed", detail: msg.substring(0, 200) },
       { status: 500 },

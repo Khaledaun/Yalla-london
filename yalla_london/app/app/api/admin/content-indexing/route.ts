@@ -3,6 +3,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-middleware";
+import { logManualAction } from "@/lib/action-logger";
 
 /**
  * Content Indexing Tab API
@@ -959,6 +960,7 @@ export async function POST(request: NextRequest) {
             },
           });
 
+          logManualAction(request, { action: "verify-url", resource: "indexing", resourceId: actionUrl, siteId, success: true, summary: `URL verified: ${isIndexed ? "INDEXED" : "NOT indexed"} (${inspection.indexingState})`, details: { isIndexed, indexingState: inspection.indexingState, coverageState: inspection.coverageState, status } }).catch(() => {});
           return NextResponse.json({
             success: true,
             action: "verify_url",
@@ -970,6 +972,7 @@ export async function POST(request: NextRequest) {
             status,
           });
         } else {
+          logManualAction(request, { action: "verify-url", resource: "indexing", resourceId: actionUrl, siteId, success: true, summary: "GSC returned no data — URL may not be in Google's index yet" }).catch(() => {});
           return NextResponse.json({
             success: true,
             action: "verify_url",
@@ -979,6 +982,7 @@ export async function POST(request: NextRequest) {
           });
         }
       } catch (verifyErr) {
+        logManualAction(request, { action: "verify-url", resource: "indexing", resourceId: actionUrl, siteId, success: false, summary: "URL verification failed", error: verifyErr instanceof Error ? verifyErr.message : String(verifyErr), fix: "Check GSC credentials in Settings tab." }).catch(() => {});
         return NextResponse.json({
           success: false,
           error: `Verification failed: ${verifyErr instanceof Error ? verifyErr.message : String(verifyErr)}`,
@@ -1039,6 +1043,7 @@ export async function POST(request: NextRequest) {
           channel = "sitemap";
         }
 
+        logManualAction(request, { action: "submit-discovered", resource: "indexing", siteId, success: submitted > 0, summary: `Submitted ${submitted} discovered URL(s) via ${channel}`, details: { submitted, total: discoveredUrls.length, channel } }).catch(() => {});
         return NextResponse.json({
           success: true,
           action: "submit_discovered",
@@ -1047,6 +1052,7 @@ export async function POST(request: NextRequest) {
           channel,
         });
       } catch (err) {
+        logManualAction(request, { action: "submit-discovered", resource: "indexing", siteId, success: false, summary: "Submit discovered failed", error: err instanceof Error ? err.message : String(err), fix: "Check IndexNow key and GSC credentials." }).catch(() => {});
         return NextResponse.json({
           success: false,
           error: `Submit discovered failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -1133,6 +1139,7 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        logManualAction(request, { action: "resubmit-stuck", resource: "indexing", siteId, success: resubmitted > 0, summary: `Resubmitted ${resubmitted} stuck URL(s) via ${channel}`, details: { resubmitted, totalStuck: stuckUrls.length, channel } }).catch(() => {});
         return NextResponse.json({
           success: true,
           action: "resubmit_stuck",
@@ -1141,6 +1148,7 @@ export async function POST(request: NextRequest) {
           channel,
         });
       } catch (resubErr) {
+        logManualAction(request, { action: "resubmit-stuck", resource: "indexing", siteId, success: false, summary: "Resubmit stuck failed", error: resubErr instanceof Error ? resubErr.message : String(resubErr), fix: "Check IndexNow key and network connectivity." }).catch(() => {});
         return NextResponse.json({
           success: false,
           error: `Resubmit failed: ${resubErr instanceof Error ? resubErr.message : String(resubErr)}`,
@@ -1266,6 +1274,7 @@ export async function POST(request: NextRequest) {
         ? Math.round(results.reduce((sum, r) => sum + r.score, 0) / results.length)
         : 0;
 
+      logManualAction(request, { action: "compliance-audit", resource: "blogpost", siteId, success: true, summary: `Compliance audit: ${passing} passing, ${failing} failing, ${totalFixed} auto-fixes applied (avg score: ${avgScore})`, details: { totalPosts: results.length, passing, failing, avgScore, totalFixed } }).catch(() => {});
       return NextResponse.json({
         success: true,
         action: "compliance_audit",
@@ -1386,6 +1395,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    logManualAction(request, { action: `indexing-${action}`, resource: "indexing", siteId, success: indexNowSuccess || gscSuccess, summary: `Submitted ${urls.length} URL(s) for indexing (IndexNow: ${indexNowSuccess ? "OK" : "failed"}, GSC: ${gscSuccess ? "OK" : "failed"})`, error: (!indexNowSuccess && !gscSuccess) ? "No submission channel succeeded" : undefined, fix: (!indexNowSuccess && !gscSuccess) ? "Check INDEXNOW_KEY env var and GSC credentials in Settings." : undefined, details: { submitted: urls.length, dbUpdated, indexNowSuccess, gscSuccess } }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       submitted: urls.length,
@@ -1395,6 +1406,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Content indexing submit error:", error);
+    logManualAction(request, { action: "indexing-submit", resource: "indexing", success: false, summary: "Indexing submission crashed", error: error instanceof Error ? error.message : String(error), fix: "Check IndexNow key and GSC config in Settings tab." }).catch(() => {});
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Submission failed" },
       { status: 500 }

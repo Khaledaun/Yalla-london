@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { SITES } from "@/config/sites";
+import { logManualAction } from "@/lib/action-logger";
 
 // ---------------------------------------------------------------------------
 // GET — Validate a proposed siteId + domain before creation
@@ -169,6 +170,17 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       status: s.status === "done" ? "ok" : s.status === "error" ? "failed" : "skipped",
     }));
 
+    logManualAction(request, {
+      action: "create-new-site",
+      resource: "site",
+      resourceId: result.siteId,
+      success: result.success,
+      summary: result.success
+        ? `Created new site '${result.siteId}' with ${result.topicsCreated} seed topics`
+        : `Site creation for '${result.siteId}' completed with errors`,
+      details: { siteId: result.siteId, topicsCreated: result.topicsCreated, stepsCompleted: normalizedSteps.filter((s: { status: string }) => s.status === "ok").length, errors: result.errors },
+    }).catch(() => {});
+
     return NextResponse.json({
       success: result.success,
       siteId: result.siteId,
@@ -182,6 +194,16 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
     const message =
       err instanceof Error ? err.message : "Site creation failed";
     console.warn("[new-site] buildNewSite error:", message);
+
+    logManualAction(request, {
+      action: "create-new-site",
+      resource: "site",
+      success: false,
+      summary: "New site creation failed",
+      error: message,
+      fix: "Check that the database is accessible and the site ID is valid. Review the error message for details.",
+    }).catch(() => {});
+
     return NextResponse.json(
       { success: false, error: message },
       { status: 500 },

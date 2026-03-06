@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAdminOrCron } from '@/lib/admin-middleware';
+import { logManualAction } from '@/lib/action-logger';
 import { getDefaultSiteId } from '@/config/sites';
 
 // H-007 fix: count words from DB-side text length estimate instead of fetching full content
@@ -320,13 +321,37 @@ export async function DELETE(request: NextRequest) {
 
     // C-003 fix: verify the record belongs to the requesting site before deletion
     if (type === 'published') {
-      const post = await prisma.blogPost.findFirst({ where: { id, siteId } });
-      if (!post) return NextResponse.json({ error: 'Article not found' }, { status: 404 });
+      // 1. Pre-check
+      const existing = await prisma.blogPost.findFirst({ where: { id, siteId }, select: { id: true, title_en: true } });
+      if (!existing) {
+        logManualAction(request, { action: "delete-article", resource: "blogpost", resourceId: id, success: false, summary: "Article not found", error: "Record does not exist" }).catch(() => {});
+        return NextResponse.json({ error: 'Article not found' }, { status: 404 });
+      }
+      // 2. Execute
       await prisma.blogPost.delete({ where: { id } });
+      // 3. Post-verify
+      const stillExists = await prisma.blogPost.findUnique({ where: { id }, select: { id: true } });
+      if (stillExists) {
+        logManualAction(request, { action: "delete-article", resource: "blogpost", resourceId: id, success: false, summary: "Delete verification failed", error: "Record still exists after delete" }).catch(() => {});
+        return NextResponse.json({ error: 'Delete failed — record still exists' }, { status: 500 });
+      }
+      logManualAction(request, { action: "delete-article", resource: "blogpost", resourceId: id, success: true, summary: `Deleted "${existing.title_en}"` }).catch(() => {});
     } else {
-      const draft = await prisma.articleDraft.findFirst({ where: { id, site_id: siteId } });
-      if (!draft) return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
+      // 1. Pre-check
+      const existing = await prisma.articleDraft.findFirst({ where: { id, site_id: siteId }, select: { id: true, keyword: true } });
+      if (!existing) {
+        logManualAction(request, { action: "delete-draft", resource: "articleDraft", resourceId: id, success: false, summary: "Draft not found", error: "Record does not exist" }).catch(() => {});
+        return NextResponse.json({ error: 'Draft not found' }, { status: 404 });
+      }
+      // 2. Execute
       await prisma.articleDraft.delete({ where: { id } });
+      // 3. Post-verify
+      const stillExists = await prisma.articleDraft.findUnique({ where: { id }, select: { id: true } });
+      if (stillExists) {
+        logManualAction(request, { action: "delete-draft", resource: "articleDraft", resourceId: id, success: false, summary: "Delete verification failed", error: "Record still exists after delete" }).catch(() => {});
+        return NextResponse.json({ error: 'Delete failed — record still exists' }, { status: 500 });
+      }
+      logManualAction(request, { action: "delete-draft", resource: "articleDraft", resourceId: id, success: true, summary: `Deleted draft "${existing.keyword}"` }).catch(() => {});
     }
 
     return NextResponse.json({ success: true });

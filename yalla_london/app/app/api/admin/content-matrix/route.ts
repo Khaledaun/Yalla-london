@@ -34,6 +34,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { getActiveSiteIds, getDefaultSiteId } from "@/config/sites";
 import { interpretError } from "@/lib/error-interpreter";
+import { logManualAction } from "@/lib/action-logger";
 
 // ─────────────────────────────────────────────
 // Types
@@ -571,9 +572,11 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
           isBlocker: !c.passed && c.severity !== "warning",
         }));
 
+        logManualAction(req, { action: "gate-check", resource: "draft", resourceId: draftId, success: true, summary: `Gate check on "${draft.keyword}": ${checks.filter((c: { pass: boolean }) => c.pass).length}/${checks.length} passed`, details: { checks } }).catch(() => {});
         return NextResponse.json({ checks });
       } catch (err) {
         console.warn("[content-matrix] gate_check failed:", err instanceof Error ? err.message : err);
+        logManualAction(req, { action: "gate-check", resource: "draft", resourceId: draftId, success: false, summary: "Gate check crashed", error: err instanceof Error ? err.message : String(err), fix: "Check database connectivity and pre-publication gate code." }).catch(() => {});
         return NextResponse.json(
           { success: false, error: "Gate check failed" },
           { status: 500 },
@@ -588,6 +591,12 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       }
 
       try {
+        const existing = await prisma.articleDraft.findUnique({ where: { id: draftId }, select: { id: true, keyword: true, current_phase: true } });
+        if (!existing) {
+          logManualAction(req, { action: "re-queue", resource: "draft", resourceId: draftId, success: false, summary: "Draft not found", error: "Record does not exist" }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Draft not found" }, { status: 404 });
+        }
+
         await prisma.articleDraft.update({
           where: { id: draftId },
           data: {
@@ -597,10 +606,20 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
             rejection_reason: null,
           },
         });
-        return NextResponse.json({ success: true, message: "Draft re-queued for processing" });
+
+        // Verify
+        const updated = await prisma.articleDraft.findUnique({ where: { id: draftId }, select: { current_phase: true } });
+        if (updated?.current_phase !== "research") {
+          logManualAction(req, { action: "re-queue", resource: "draft", resourceId: draftId, success: false, summary: `Re-queue failed verification — "${existing.keyword}" still in ${updated?.current_phase}`, error: "Verification failed" }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Re-queue appeared to succeed but the draft phase didn't change" }, { status: 500 });
+        }
+
+        logManualAction(req, { action: "re-queue", resource: "draft", resourceId: draftId, success: true, summary: `Draft "${existing.keyword}" re-queued (was: ${existing.current_phase} → research)` }).catch(() => {});
+        return NextResponse.json({ success: true, message: `Draft "${existing.keyword}" re-queued for processing` });
       } catch (err) {
         console.warn("[content-matrix] re_queue failed:", err instanceof Error ? err.message : err);
-        return NextResponse.json({ success: false, error: "Failed to re-queue draft" }, { status: 500 });
+        logManualAction(req, { action: "re-queue", resource: "draft", resourceId: draftId, success: false, summary: "Re-queue failed", error: err instanceof Error ? err.message : String(err), fix: "Check database connectivity." }).catch(() => {});
+        return NextResponse.json({ success: false, error: `Failed to re-queue: ${err instanceof Error ? err.message : "Unknown error"}` }, { status: 500 });
       }
     }
 
@@ -611,11 +630,28 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       }
 
       try {
+        // Verify draft exists before attempting delete
+        const existingDraft = await prisma.articleDraft.findUnique({ where: { id: draftId }, select: { id: true, keyword: true } });
+        if (!existingDraft) {
+          logManualAction(req, { action: "delete-draft", resource: "draft", resourceId: draftId, success: false, summary: "Draft not found — nothing to delete", error: "Record does not exist", fix: "The draft may have already been deleted. Refresh the page." }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Draft not found — it may have already been deleted" }, { status: 404 });
+        }
+
         await prisma.articleDraft.delete({ where: { id: draftId } });
-        return NextResponse.json({ success: true });
+
+        // VERIFY the delete actually worked
+        const stillExists = await prisma.articleDraft.findUnique({ where: { id: draftId }, select: { id: true } });
+        if (stillExists) {
+          logManualAction(req, { action: "delete-draft", resource: "draft", resourceId: draftId, success: false, summary: `Delete returned OK but draft "${existingDraft.keyword}" still exists`, error: "Delete verification failed — record still in database", fix: "Database may have a constraint preventing deletion. Check for related records." }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Delete appeared to succeed but the draft still exists in the database" }, { status: 500 });
+        }
+
+        logManualAction(req, { action: "delete-draft", resource: "draft", resourceId: draftId, success: true, summary: `Draft "${existingDraft.keyword}" deleted and verified gone` }).catch(() => {});
+        return NextResponse.json({ success: true, message: `Draft "${existingDraft.keyword}" deleted` });
       } catch (err) {
         console.warn("[content-matrix] delete_draft failed:", err instanceof Error ? err.message : err);
-        return NextResponse.json({ success: false, error: "Failed to delete draft" }, { status: 500 });
+        logManualAction(req, { action: "delete-draft", resource: "draft", resourceId: draftId, success: false, summary: "Delete failed", error: err instanceof Error ? err.message : String(err), fix: "Draft may not exist or has related records preventing deletion. Try refreshing the page." }).catch(() => {});
+        return NextResponse.json({ success: false, error: `Failed to delete draft: ${err instanceof Error ? err.message : "Unknown error"}` }, { status: 500 });
       }
     }
 
@@ -626,6 +662,17 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       }
 
       try {
+        // Verify post exists before attempting soft-delete
+        const existingPost = await prisma.blogPost.findUnique({ where: { id: blogPostId }, select: { id: true, title_en: true, published: true, deletedAt: true } });
+        if (!existingPost) {
+          logManualAction(req, { action: "delete-post", resource: "blogpost", resourceId: blogPostId, success: false, summary: "Blog post not found — nothing to delete", error: "Record does not exist", fix: "The post may have already been deleted. Refresh the page." }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Blog post not found — it may have already been deleted" }, { status: 404 });
+        }
+        if (existingPost.deletedAt) {
+          logManualAction(req, { action: "delete-post", resource: "blogpost", resourceId: blogPostId, success: false, summary: `Post "${existingPost.title_en}" was already deleted`, error: "Already deleted" }).catch(() => {});
+          return NextResponse.json({ success: false, error: "This post was already deleted" }, { status: 409 });
+        }
+
         await prisma.blogPost.update({
           where: { id: blogPostId },
           data: {
@@ -633,10 +680,20 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
             published: false,
           },
         });
-        return NextResponse.json({ success: true });
+
+        // VERIFY the soft-delete actually worked
+        const updated = await prisma.blogPost.findUnique({ where: { id: blogPostId }, select: { deletedAt: true, published: true } });
+        if (!updated?.deletedAt) {
+          logManualAction(req, { action: "delete-post", resource: "blogpost", resourceId: blogPostId, success: false, summary: `Soft-delete returned OK but post "${existingPost.title_en}" is not marked deleted`, error: "Delete verification failed", fix: "Database update may have been rolled back. Try again." }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Delete appeared to succeed but the post is not marked as deleted" }, { status: 500 });
+        }
+
+        logManualAction(req, { action: "delete-post", resource: "blogpost", resourceId: blogPostId, success: true, summary: `Post "${existingPost.title_en}" soft-deleted and verified` }).catch(() => {});
+        return NextResponse.json({ success: true, message: `Post "${existingPost.title_en}" deleted` });
       } catch (err) {
         console.warn("[content-matrix] delete_post failed:", err instanceof Error ? err.message : err);
-        return NextResponse.json({ success: false, error: "Failed to delete post" }, { status: 500 });
+        logManualAction(req, { action: "delete-post", resource: "blogpost", resourceId: blogPostId, success: false, summary: "Delete failed", error: err instanceof Error ? err.message : String(err), fix: "Post may not exist or database error. Refresh the page and try again." }).catch(() => {});
+        return NextResponse.json({ success: false, error: `Failed to delete post: ${err instanceof Error ? err.message : "Unknown error"}` }, { status: 500 });
       }
     }
 
@@ -647,14 +704,34 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
       }
 
       try {
+        const existingPost = await prisma.blogPost.findUnique({ where: { id: blogPostId }, select: { id: true, title_en: true, published: true } });
+        if (!existingPost) {
+          logManualAction(req, { action: "unpublish", resource: "blogpost", resourceId: blogPostId, success: false, summary: "Post not found", error: "Record does not exist" }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Post not found" }, { status: 404 });
+        }
+        if (!existingPost.published) {
+          logManualAction(req, { action: "unpublish", resource: "blogpost", resourceId: blogPostId, success: false, summary: `Post "${existingPost.title_en}" is already unpublished`, error: "Already unpublished" }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Post is already unpublished" }, { status: 409 });
+        }
+
         await prisma.blogPost.update({
           where: { id: blogPostId },
           data: { published: false },
         });
-        return NextResponse.json({ success: true });
+
+        // Verify
+        const updated = await prisma.blogPost.findUnique({ where: { id: blogPostId }, select: { published: true } });
+        if (updated?.published !== false) {
+          logManualAction(req, { action: "unpublish", resource: "blogpost", resourceId: blogPostId, success: false, summary: `Unpublish failed verification — post "${existingPost.title_en}" is still published`, error: "Verification failed" }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Unpublish appeared to succeed but the post is still published" }, { status: 500 });
+        }
+
+        logManualAction(req, { action: "unpublish", resource: "blogpost", resourceId: blogPostId, success: true, summary: `Post "${existingPost.title_en}" unpublished and verified` }).catch(() => {});
+        return NextResponse.json({ success: true, message: `Post "${existingPost.title_en}" unpublished` });
       } catch (err) {
         console.warn("[content-matrix] unpublish failed:", err instanceof Error ? err.message : err);
-        return NextResponse.json({ success: false, error: "Failed to unpublish post" }, { status: 500 });
+        logManualAction(req, { action: "unpublish", resource: "blogpost", resourceId: blogPostId, success: false, summary: "Unpublish failed", error: err instanceof Error ? err.message : String(err), fix: "Post may not exist or database error." }).catch(() => {});
+        return NextResponse.json({ success: false, error: `Failed to unpublish: ${err instanceof Error ? err.message : "Unknown error"}` }, { status: 500 });
       }
     }
 
@@ -662,17 +739,32 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
     // rewrite — Reset draft to research phase to trigger a fresh AI rewrite
     // -------------------------------------------------------------------------
     if (action === "rewrite") {
-      const draftId = (body.draftId as string | undefined) ?? "";
-      if (!draftId) return NextResponse.json({ error: "draftId is required" }, { status: 400 });
+      const rewriteDraftId = (body.draftId as string | undefined) ?? "";
+      if (!rewriteDraftId) return NextResponse.json({ error: "draftId is required" }, { status: 400 });
       try {
+        const existing = await prisma.articleDraft.findUnique({ where: { id: rewriteDraftId }, select: { id: true, keyword: true, current_phase: true } });
+        if (!existing) {
+          logManualAction(req, { action: "rewrite", resource: "draft", resourceId: rewriteDraftId, success: false, summary: "Draft not found", error: "Record does not exist" }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Draft not found" }, { status: 404 });
+        }
+
         await prisma.articleDraft.update({
-          where: { id: draftId },
+          where: { id: rewriteDraftId },
           data: { current_phase: "research", last_error: null },
         });
-        return NextResponse.json({ success: true, message: "Draft reset to research phase — will be rewritten on next content builder run" });
+
+        const updated = await prisma.articleDraft.findUnique({ where: { id: rewriteDraftId }, select: { current_phase: true } });
+        if (updated?.current_phase !== "research") {
+          logManualAction(req, { action: "rewrite", resource: "draft", resourceId: rewriteDraftId, success: false, summary: `Rewrite reset failed verification for "${existing.keyword}"`, error: "Verification failed" }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Rewrite reset appeared to succeed but draft phase didn't change" }, { status: 500 });
+        }
+
+        logManualAction(req, { action: "rewrite", resource: "draft", resourceId: rewriteDraftId, success: true, summary: `Draft "${existing.keyword}" queued for rewrite (was: ${existing.current_phase})` }).catch(() => {});
+        return NextResponse.json({ success: true, message: `Draft "${existing.keyword}" reset to research phase — will be rewritten on next content builder run` });
       } catch (err) {
         console.warn("[content-matrix] rewrite failed:", err instanceof Error ? err.message : err);
-        return NextResponse.json({ success: false, error: "Failed to queue rewrite" }, { status: 500 });
+        logManualAction(req, { action: "rewrite", resource: "draft", resourceId: rewriteDraftId, success: false, summary: "Rewrite queue failed", error: err instanceof Error ? err.message : String(err), fix: "Check database connectivity." }).catch(() => {});
+        return NextResponse.json({ success: false, error: `Failed to queue rewrite: ${err instanceof Error ? err.message : "Unknown error"}` }, { status: 500 });
       }
     }
 
@@ -687,6 +779,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
         if (!draft) return NextResponse.json({ success: false, error: "Draft not found" }, { status: 404 });
         const { enhanceReservoirDraft } = await import("@/lib/content-pipeline/enhance-runner");
         const result = await enhanceReservoirDraft(draft as Record<string, unknown>);
+        logManualAction(req, { action: "enhance", resource: "draft", resourceId: draftId, success: result.success, summary: result.success ? `Expanded — score: ${result.previousScore} → ${result.newScore}` : `Expand failed: ${result.error}`, error: result.success ? undefined : result.error, fix: result.success ? undefined : "AI provider may be down. Check AI Config tab." }).catch(() => {});
         return NextResponse.json({
           success: result.success,
           message: result.success
@@ -695,6 +788,7 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
         });
       } catch (err) {
         console.warn("[content-matrix] enhance failed:", err instanceof Error ? err.message : err);
+        logManualAction(req, { action: "enhance", resource: "draft", resourceId: draftId, success: false, summary: "Enhance crashed", error: err instanceof Error ? err.message : String(err), fix: "Check AI provider configuration in AI Config tab." }).catch(() => {});
         return NextResponse.json({ success: false, error: "Failed to run expand — check AI provider configuration" }, { status: 500 });
       }
     }

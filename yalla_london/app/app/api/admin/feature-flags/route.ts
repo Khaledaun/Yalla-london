@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { prisma } from "@/lib/db";
 import { invalidateFlagCache } from "@/lib/feature-flags";
+import { logManualAction } from "@/lib/action-logger";
 
 /**
  * Feature Flags API — Backed by real database (FeatureFlag table).
@@ -110,6 +111,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
           },
         });
         invalidateFlagCache();
+        logManualAction(request, { action: "add-flag", resource: "feature-flag", resourceId: flag.id, success: true, summary: `Created flag "${flag.name}" (${flag.enabled ? "enabled" : "disabled"})` }).catch(() => {});
         return NextResponse.json({
           success: true,
           message: "Feature flag created",
@@ -128,6 +130,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
           data: { enabled: data.enabled },
         });
         invalidateFlagCache();
+        logManualAction(request, { action: "toggle-flag", resource: "feature-flag", resourceId: flag.id, success: true, summary: `Flag "${flag.name}" ${flag.enabled ? "enabled" : "disabled"}` }).catch(() => {});
         return NextResponse.json({
           success: true,
           message: `Feature flag ${flag.enabled ? "enabled" : "disabled"}`,
@@ -147,6 +150,7 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
           },
         });
         invalidateFlagCache();
+        logManualAction(request, { action: "update-flag", resource: "feature-flag", resourceId: flag.id, success: true, summary: `Updated flag "${flag.name}"` }).catch(() => {});
         return NextResponse.json({
           success: true,
           message: "Feature flag updated",
@@ -160,13 +164,26 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
       }
 
       case "delete-flag": {
+        // Verify flag exists before deleting
+        const existing = await prisma.featureFlag.findUnique({ where: { id: data.flagId }, select: { id: true, name: true } });
+        if (!existing) {
+          logManualAction(request, { action: "delete-flag", resource: "feature-flag", resourceId: data.flagId, success: false, summary: "Flag not found", error: "Record does not exist" }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Flag not found" }, { status: 404 });
+        }
         await prisma.featureFlag.delete({
           where: { id: data.flagId },
         });
+        // Verify deletion
+        const stillExists = await prisma.featureFlag.findUnique({ where: { id: data.flagId }, select: { id: true } });
+        if (stillExists) {
+          logManualAction(request, { action: "delete-flag", resource: "feature-flag", resourceId: data.flagId, success: false, summary: `Delete verification failed for flag "${existing.name}"`, error: "Verification failed" }).catch(() => {});
+          return NextResponse.json({ success: false, error: "Delete appeared to succeed but the flag still exists" }, { status: 500 });
+        }
         invalidateFlagCache();
+        logManualAction(request, { action: "delete-flag", resource: "feature-flag", resourceId: data.flagId, success: true, summary: `Flag "${existing.name}" deleted and verified` }).catch(() => {});
         return NextResponse.json({
           success: true,
-          message: "Feature flag deleted",
+          message: `Feature flag "${existing.name}" deleted`,
         });
       }
 

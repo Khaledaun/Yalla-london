@@ -12,6 +12,7 @@ export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
+import { logManualAction } from "@/lib/action-logger";
 
 async function handleGet(request: NextRequest) {
   const { prisma } = await import("@/lib/db");
@@ -178,6 +179,15 @@ async function handlePost(request: NextRequest) {
 
     const errorPages = result.pages.filter((p) => p.error);
 
+    logManualAction(request, {
+      action: "performance-audit",
+      resource: "site",
+      siteId,
+      success: true,
+      summary: `Performance audit completed for ${siteId} (${strategy}): ${result.pages.length} pages audited`,
+      details: { runId: result.runId, strategy, pagesAudited: result.pages.length, pagesWithErrors: errorPages.length },
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       runId: result.runId,
@@ -203,6 +213,17 @@ async function handlePost(request: NextRequest) {
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.warn("[performance-audit] Audit failed:", errMsg);
+
+    logManualAction(request, {
+      action: "performance-audit",
+      resource: "site",
+      siteId,
+      success: false,
+      summary: `Performance audit failed for ${siteId}`,
+      error: errMsg,
+      fix: "Check that GOOGLE_PAGESPEED_API_KEY is configured in Vercel env vars. If the error is a timeout, try again.",
+    }).catch(() => {});
+
     return NextResponse.json({
       success: false,
       error: `Performance audit failed: ${errMsg.substring(0, 200)}`,

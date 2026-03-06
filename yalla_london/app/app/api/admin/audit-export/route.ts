@@ -20,6 +20,7 @@ export const dynamic = "force-dynamic";
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { logManualAction } from "@/lib/action-logger";
 
 export async function GET(request: NextRequest) {
   // Auth
@@ -220,6 +221,15 @@ export async function GET(request: NextRequest) {
     const dateStr = now.toISOString().split("T")[0];
     const filename = `audit-${siteId}-${dateStr}.json`;
 
+    logManualAction(request, {
+      action: "audit-export",
+      resource: "site",
+      siteId,
+      success: true,
+      summary: `Audit export generated for ${siteId} (${dateStr})`,
+      details: { filename, publishedArticles: (exportData.overview.publishedArticles as Record<string, unknown>)?._count, totalDrafts: exportData.overview.totalDrafts },
+    }).catch(() => {});
+
     return new NextResponse(jsonString, {
       status: 200,
       headers: {
@@ -238,6 +248,17 @@ export async function GET(request: NextRequest) {
       : isConnectionError
         ? "Database connection failed. Check DATABASE_URL in Vercel env vars."
         : "Unexpected error during audit export.";
+
+    logManualAction(request, {
+      action: "audit-export",
+      resource: "site",
+      siteId,
+      success: false,
+      summary: "Audit export failed",
+      error: msg,
+      fix: hint,
+    }).catch(() => {});
+
     return NextResponse.json(
       { error: "Failed to generate audit export", hint, detail: msg.substring(0, 200) },
       { status: 500 },

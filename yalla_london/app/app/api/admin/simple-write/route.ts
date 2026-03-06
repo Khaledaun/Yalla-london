@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
+import { logManualAction } from "@/lib/action-logger";
 
 async function handleGet(request: NextRequest) {
   const { prisma } = await import("@/lib/db");
@@ -202,11 +203,27 @@ async function handlePost(request: NextRequest) {
 
   // ─── DELETE ──────────────────────────────────────────────────────────────────
   if (action === "delete" && body.id) {
+    const existingPost = await prisma.blogPost.findUnique({ where: { id: body.id }, select: { id: true, title_en: true, deletedAt: true } });
+    if (!existingPost) {
+      logManualAction(request, { action: "simple-write-delete", resource: "blogpost", resourceId: body.id, siteId, success: false, summary: "Post not found", error: "Record does not exist" }).catch(() => {});
+      return NextResponse.json({ success: false, error: "Article not found" }, { status: 404 });
+    }
+    if (existingPost.deletedAt) {
+      logManualAction(request, { action: "simple-write-delete", resource: "blogpost", resourceId: body.id, siteId, success: false, summary: "Post already deleted", error: "Already deleted" }).catch(() => {});
+      return NextResponse.json({ success: false, error: "Article already deleted" }, { status: 409 });
+    }
     await prisma.blogPost.update({
       where: { id: body.id },
       data: { deletedAt: new Date() },
     });
-    return NextResponse.json({ success: true, message: "Article deleted" });
+    // Verify
+    const verified = await prisma.blogPost.findUnique({ where: { id: body.id }, select: { deletedAt: true } });
+    if (!verified?.deletedAt) {
+      logManualAction(request, { action: "simple-write-delete", resource: "blogpost", resourceId: body.id, siteId, success: false, summary: `Delete verification failed for "${existingPost.title_en}"`, error: "Verification failed" }).catch(() => {});
+      return NextResponse.json({ success: false, error: "Delete appeared to succeed but verification failed" }, { status: 500 });
+    }
+    logManualAction(request, { action: "simple-write-delete", resource: "blogpost", resourceId: body.id, siteId, success: true, summary: `Article "${existingPost.title_en}" deleted and verified` }).catch(() => {});
+    return NextResponse.json({ success: true, message: `Article "${existingPost.title_en}" deleted` });
   }
 
   // ─── SAVE or PUBLISH ────────────────────────────────────────────────────────
@@ -350,6 +367,9 @@ async function handlePost(request: NextRequest) {
       console.warn("[simple-write] IndexNow setup failed:", e instanceof Error ? e.message : e);
     }
   }
+
+  const isNew = !body.id;
+  logManualAction(request, { action: shouldPublish ? "simple-write-publish" : "simple-write-save", resource: "blogpost", resourceId: article.id, siteId, success: true, summary: `${isNew ? "Created" : "Updated"} ${shouldPublish ? "and published" : "as draft"}: "${titleEn}" (${wordCount} words)`, details: { slug, wordCount, published: shouldPublish, isNew } }).catch(() => {});
 
   return NextResponse.json({
     success: true,

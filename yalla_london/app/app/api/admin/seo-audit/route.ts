@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import { logManualAction } from "@/lib/action-logger";
 
 /**
  * SEO Audit API — Comprehensive technical SEO audit from real data
@@ -1373,6 +1374,7 @@ export async function POST(request: NextRequest) {
           signal: AbortSignal.timeout(55_000), // 55s timeout — leave 5s for response
         });
         const result = await resp.json().catch(() => ({ status: resp.status }));
+        logManualAction(request, { action: `run-cron-${cronName}`, resource: "cron", resourceId: cronName, success: resp.ok, summary: resp.ok ? `Triggered ${cronName} successfully (${resp.status})` : `Trigger ${cronName} failed (${resp.status})`, error: !resp.ok ? `HTTP ${resp.status}` : undefined, fix: !resp.ok ? "Check cron endpoint logs." : undefined }).catch(() => {});
         return NextResponse.json({
           success: resp.ok,
           cron: cronName,
@@ -1380,6 +1382,7 @@ export async function POST(request: NextRequest) {
           result: typeof result === "object" ? result : { message: String(result) },
         });
       } catch (cronErr) {
+        logManualAction(request, { action: `run-cron-${cronName}`, resource: "cron", resourceId: cronName, success: false, summary: `Cron ${cronName} execution failed`, error: cronErr instanceof Error ? cronErr.message : "Cron execution failed", fix: "Check cron endpoint and network." }).catch(() => {});
         return NextResponse.json({
           success: false,
           cron: cronName,
@@ -1450,12 +1453,14 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      const fixesRun = results.filter((r) => r.success).length;
+      logManualAction(request, { action: "auto-fix-all", resource: "seo-audit", siteId: fixSiteId, success: fixesRun > 0, summary: `Auto-fix: ran ${fixesRun}/${cronQueue.length} crons (audit score: ${auditResult.healthScore}, ${auditResult.totalFindings} findings)`, details: { auditScore: auditResult.healthScore, findings: auditResult.totalFindings, fixesRun, fixesTotal: cronQueue.length, results: results.map(r => ({ cron: r.cron, success: r.success, reason: r.reason })) } }).catch(() => {});
       return NextResponse.json({
         success: true,
         action: "auto_fix_all",
         auditScore: auditResult.healthScore,
         findingsCount: auditResult.totalFindings,
-        fixesRun: results.filter((r) => r.success).length,
+        fixesRun,
         fixesTotal: cronQueue.length,
         results,
       });

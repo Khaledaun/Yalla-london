@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { SITES } from "@/config/sites";
+import { logManualAction } from "@/lib/action-logger";
 
 // ---------------------------------------------------------------------------
 // GET — Validate a proposed siteId + domain before creation

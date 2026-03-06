@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
+import { logManualAction } from "@/lib/action-logger";
 
 /**
  * GET /api/admin/news
@@ -137,23 +138,58 @@ export const POST = withAdminAuth(async (request: NextRequest) => {
 
     switch (action) {
       case "archive": {
+        // 1. Pre-check
+        const archiveTarget = await prisma.newsItem.findUnique({ where: { id }, select: { id: true, headline_en: true, status: true } });
+        if (!archiveTarget) {
+          logManualAction(request, { action: "archive-news", resource: "newsItem", resourceId: id, success: false, summary: "Record not found", error: "Record does not exist" }).catch(() => {});
+          return NextResponse.json({ error: "News item not found" }, { status: 404 });
+        }
+        // 2. Execute
         await prisma.newsItem.update({
           where: { id },
           data: { status: "archived" },
         });
+        // 3. Post-verify
+        const archivedRecord = await prisma.newsItem.findUnique({ where: { id }, select: { id: true, status: true } });
+        if (!archivedRecord || archivedRecord.status !== "archived") {
+          logManualAction(request, { action: "archive-news", resource: "newsItem", resourceId: id, success: false, summary: "Archive verification failed", error: "Status not updated to archived" }).catch(() => {});
+          return NextResponse.json({ error: "Archive failed — status not updated" }, { status: 500 });
+        }
+        logManualAction(request, { action: "archive-news", resource: "newsItem", resourceId: id, success: true, summary: `Archived "${archiveTarget.headline_en}"` }).catch(() => {});
         return NextResponse.json({ success: true, action: "archived" });
       }
 
       case "publish": {
+        // Pre-check
+        const publishTarget = await prisma.newsItem.findUnique({ where: { id }, select: { id: true, headline_en: true, status: true } });
+        if (!publishTarget) {
+          logManualAction(request, { action: "publish-news", resource: "newsItem", resourceId: id, success: false, summary: "Record not found", error: "Record does not exist" }).catch(() => {});
+          return NextResponse.json({ error: "News item not found" }, { status: 404 });
+        }
         await prisma.newsItem.update({
           where: { id },
           data: { status: "published", published_at: new Date() },
         });
+        logManualAction(request, { action: "publish-news", resource: "newsItem", resourceId: id, success: true, summary: `Published "${publishTarget.headline_en}"` }).catch(() => {});
         return NextResponse.json({ success: true, action: "published" });
       }
 
       case "delete": {
+        // 1. Pre-check
+        const existing = await prisma.newsItem.findUnique({ where: { id }, select: { id: true, headline_en: true } });
+        if (!existing) {
+          logManualAction(request, { action: "delete-news", resource: "newsItem", resourceId: id, success: false, summary: "Record not found", error: "Record does not exist" }).catch(() => {});
+          return NextResponse.json({ error: "News item not found" }, { status: 404 });
+        }
+        // 2. Execute
         await prisma.newsItem.delete({ where: { id } });
+        // 3. Post-verify
+        const stillExists = await prisma.newsItem.findUnique({ where: { id }, select: { id: true } });
+        if (stillExists) {
+          logManualAction(request, { action: "delete-news", resource: "newsItem", resourceId: id, success: false, summary: "Delete verification failed", error: "Record still exists after delete" }).catch(() => {});
+          return NextResponse.json({ error: "Delete failed — record still exists" }, { status: 500 });
+        }
+        logManualAction(request, { action: "delete-news", resource: "newsItem", resourceId: id, success: true, summary: `Deleted "${existing.headline_en}"` }).catch(() => {});
         return NextResponse.json({ success: true, action: "deleted" });
       }
 

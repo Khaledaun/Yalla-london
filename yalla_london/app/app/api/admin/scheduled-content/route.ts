@@ -5,6 +5,7 @@ export const revalidate = 0;
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAdmin } from "@/lib/admin-middleware";
+import { logManualAction } from '@/lib/action-logger';
 
 
 // Get all scheduled content
@@ -187,10 +188,35 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    // 1. Pre-check
+    const existing = await prisma.scheduledContent.findUnique({
+      where: { id: contentId },
+      select: { id: true, title: true },
+    });
+    if (!existing) {
+      logManualAction(request, { action: "delete-scheduled-content", resource: "scheduledContent", resourceId: contentId, success: false, summary: "Record not found", error: "Record does not exist" }).catch(() => {});
+      return NextResponse.json(
+        { error: 'Scheduled content not found' },
+        { status: 404 }
+      );
+    }
+
+    // 2. Execute
     await prisma.scheduledContent.delete({
       where: { id: contentId }
     });
 
+    // 3. Post-verify
+    const stillExists = await prisma.scheduledContent.findUnique({ where: { id: contentId }, select: { id: true } });
+    if (stillExists) {
+      logManualAction(request, { action: "delete-scheduled-content", resource: "scheduledContent", resourceId: contentId, success: false, summary: "Delete verification failed", error: "Record still exists after delete" }).catch(() => {});
+      return NextResponse.json(
+        { error: 'Delete failed — record still exists' },
+        { status: 500 }
+      );
+    }
+
+    logManualAction(request, { action: "delete-scheduled-content", resource: "scheduledContent", resourceId: contentId, success: true, summary: `Deleted "${existing.title}"` }).catch(() => {});
     return NextResponse.json({
       success: true,
       message: 'Scheduled content deleted successfully'

@@ -21,6 +21,7 @@ export const maxDuration = 300; // 5 minutes — publish all ready articles
 import { NextRequest, NextResponse } from "next/server";
 import { withAdminAuth } from "@/lib/admin-middleware";
 import { getDefaultSiteId, getActiveSiteIds } from "@/config/sites";
+import { logManualAction } from "@/lib/action-logger";
 
 export const POST = withAdminAuth(async (req: NextRequest) => {
   const start = Date.now();
@@ -181,6 +182,15 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
 
     log(`[launch] Done in ${durationSec}s — ${published.length} published, ${failed.length} failed, ${indexedCount} indexed`);
 
+    logManualAction(req, {
+      action: "launch-sequence",
+      resource: "blogpost",
+      siteId: siteIds.join(","),
+      success: true,
+      summary: `Published ${published.length} article(s) in ${durationSec}s. ${indexedCount} submitted to Google. ${failed.length} failed.`,
+      details: { publishedCount: published.length, failedCount: failed.length, indexedCount, durationMs },
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       message: published.length > 0
@@ -195,6 +205,16 @@ export const POST = withAdminAuth(async (req: NextRequest) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[launch] Fatal error:", msg);
+
+    logManualAction(req, {
+      action: "launch-sequence",
+      resource: "blogpost",
+      success: false,
+      summary: "Launch sequence failed with a fatal error",
+      error: msg,
+      fix: "Check the logs for details. The content builder or database may be unavailable.",
+    }).catch(() => {});
+
     return NextResponse.json(
       { success: false, error: msg, logs, durationMs: Date.now() - start },
       { status: 500 },

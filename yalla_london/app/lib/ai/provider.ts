@@ -13,7 +13,7 @@
 import { prisma } from '@/lib/db';
 import { decrypt } from '@/lib/encryption';
 
-export type AIProvider = 'grok' | 'claude' | 'openai' | 'gemini';
+export type AIProvider = 'grok' | 'claude' | 'openai' | 'gemini' | 'perplexity';
 
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -60,6 +60,10 @@ const MODEL_PRICING: Record<string, [number, number]> = {
   'gemini-pro': [0.125, 0.375],
   'gemini-1.5-pro': [3.50, 10.50],
   'gemini-1.5-flash': [0.075, 0.30],
+  'gemini-2.0-flash': [0.10, 0.40],
+  // Perplexity
+  'sonar-pro': [3.00, 15.00],
+  'sonar': [1.00, 1.00],
 };
 
 function estimateCost(model: string, promptTokens: number, completionTokens: number): number {
@@ -118,10 +122,11 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
   claude: 'claude-sonnet-4-6',
   openai: 'gpt-4o',
   gemini: 'gemini-2.0-flash',
+  perplexity: 'sonar-pro',
 };
 
-// Provider priority — Grok first (cheapest, fastest, 2M context), then Claude, OpenAI, Gemini
-const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'claude', 'openai', 'gemini'];
+// Provider priority — Grok first (cheapest, fastest, 2M context), then Claude, OpenAI, Gemini, Perplexity
+const PROVIDER_PRIORITY: AIProvider[] = ['grok', 'claude', 'openai', 'gemini', 'perplexity'];
 
 /**
  * Get API key for a provider from the database
@@ -133,6 +138,7 @@ async function getApiKey(provider: AIProvider): Promise<string | null> {
     claude: ['ANTHROPIC_API_KEY'],
     openai: ['OPENAI_API_KEY'],
     gemini: ['GEMINI_API_KEY', 'GOOGLE_AI_API_KEY', 'GOOGLE_API_KEY'],
+    perplexity: ['PERPLEXITY_API_KEY', 'PPLX_API_KEY'],
   };
 
   // 1. Try DB sources (ModelProvider table, then ApiSettings)
@@ -408,6 +414,61 @@ async function callGemini(
 }
 
 /**
+ * Call Perplexity API — OpenAI-compatible chat completions
+ * Endpoint: https://api.perplexity.ai/chat/completions
+ * Models: sonar-pro ($3/$15/1M), sonar ($1/$1/1M)
+ */
+async function callPerplexity(
+  messages: AIMessage[],
+  apiKey: string,
+  options: AICompletionOptions
+): Promise<AICompletionResult> {
+  const model = options.model || DEFAULT_MODELS.perplexity;
+
+  const formattedMessages = messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  if (options.systemPrompt && !messages.some((m) => m.role === 'system')) {
+    formattedMessages.unshift({ role: 'system', content: options.systemPrompt });
+  }
+
+  const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    signal: AbortSignal.timeout(options.timeoutMs || 25_000),
+    body: JSON.stringify({
+      model,
+      messages: formattedMessages,
+      max_tokens: options.maxTokens || 4096,
+      temperature: options.temperature ?? 0.7,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Perplexity API error (${response.status}): ${error}`);
+  }
+
+  const data = await response.json();
+
+  return {
+    content: data.choices[0].message.content,
+    provider: 'perplexity',
+    model,
+    usage: {
+      promptTokens: data.usage?.prompt_tokens || 0,
+      completionTokens: data.usage?.completion_tokens || 0,
+      totalTokens: data.usage?.total_tokens || 0,
+    },
+  };
+}
+
+/**
  * Route a call to the appropriate provider
  */
 async function callProvider(
@@ -425,6 +486,8 @@ async function callProvider(
       return callOpenAI(messages, apiKey, options);
     case 'gemini':
       return callGemini(messages, apiKey, options);
+    case 'perplexity':
+      return callPerplexity(messages, apiKey, options);
   }
 }
 
@@ -468,7 +531,7 @@ export async function generateCompletion(
     const remaining = totalBudgetMs - elapsed;
     // Need at least 5s for a meaningful attempt
     if (remaining < 5_000) {
-      errors.push(`${provider}: skipped — only ${Math.round(remaining / 1000)}s remaining in budget`);
+      errors.push(`${provider}: skipped — only ${Math.max(0, Math.round(remaining / 1000))}s remaining in budget`);
       continue;
     }
 
@@ -500,7 +563,13 @@ export async function generateCompletion(
   }
 
   const finalErr = `All AI providers failed: ${errors.join('; ')}`;
-  logUsage(null, options, finalErr);
+  // Log with the first attempted provider so it doesn't show as "unknown/unknown"
+  const firstTriedProvider = PROVIDER_PRIORITY.find(p => errors.some(e => e.startsWith(`${p}:`)));
+  logUsage(null, {
+    ...options,
+    provider: firstTriedProvider || options.provider || ('unknown' as AIProvider),
+    model: firstTriedProvider ? DEFAULT_MODELS[firstTriedProvider] : options.model,
+  }, finalErr);
   throw new Error(finalErr);
 }
 
@@ -703,6 +772,7 @@ export async function getProvidersStatus(): Promise<
     claude: { configured: false, active: false },
     openai: { configured: false, active: false },
     gemini: { configured: false, active: false },
+    perplexity: { configured: false, active: false },
   };
 
   for (const provider of PROVIDER_PRIORITY) {

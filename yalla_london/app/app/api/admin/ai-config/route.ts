@@ -51,6 +51,7 @@ interface ProviderKeyStatus {
   ANTHROPIC_API_KEY: boolean;
   OPENAI_API_KEY: boolean;
   GOOGLE_AI_API_KEY: boolean;
+  PERPLEXITY_API_KEY: boolean;
 }
 
 // Provider metadata — used for UI display
@@ -59,6 +60,7 @@ const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
   claude: "Anthropic Claude",
   openai: "OpenAI GPT",
   gemini: "Google Gemini",
+  perplexity: "Perplexity AI",
 };
 
 const PROVIDER_ENV_KEYS: Record<string, string[]> = {
@@ -66,6 +68,7 @@ const PROVIDER_ENV_KEYS: Record<string, string[]> = {
   claude: ["ANTHROPIC_API_KEY"],
   openai: ["OPENAI_API_KEY"],
   gemini: ["GOOGLE_AI_API_KEY", "GOOGLE_API_KEY"],
+  perplexity: ["PERPLEXITY_API_KEY", "PPLX_API_KEY"],
 };
 
 function providerHasKey(name: string): boolean {
@@ -86,6 +89,7 @@ export const GET = withAdminOrCronAuth(async (_req: NextRequest) => {
       ANTHROPIC_API_KEY: !!process.env.ANTHROPIC_API_KEY,
       OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
       GOOGLE_AI_API_KEY: !!(process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_API_KEY),
+      PERPLEXITY_API_KEY: !!(process.env.PERPLEXITY_API_KEY || process.env.PPLX_API_KEY),
     };
 
     // ── Providers from DB ─────────────────────────────────

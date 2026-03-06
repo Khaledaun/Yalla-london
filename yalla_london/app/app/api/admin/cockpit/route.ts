@@ -96,7 +96,7 @@ interface IndexingStatus {
   gscImpressionsTrend: number | null;
   lastGscSync: string | null;
   // Data source indicator so frontend can show "(approx)" when using fallback
-  dataSource: "full" | "lightweight" | "error";
+  dataSource: "full" | "lightweight" | "lightweight+gsc" | "error";
   // Impression drop diagnostic (only populated when trend is negative)
   impressionDiagnostic: {
     gscDelayNote: string | null;
@@ -223,11 +223,13 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
   const googleKey = process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_API_KEY;
+  const perplexityKey = process.env.PERPLEXITY_API_KEY || process.env.PPLX_API_KEY;
 
   if (xaiKey) activeProviders.push("grok");
   if (anthropicKey) activeProviders.push("claude");
   if (openaiKey) activeProviders.push("openai");
   if (googleKey) activeProviders.push("gemini");
+  if (perplexityKey) activeProviders.push("perplexity");
 
   const aiStatus: SystemStatus["ai"] = {
     configured: activeProviders.length > 0,
@@ -519,8 +521,50 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
       else indexing.neverSubmitted += count;
     }
 
-    indexing.total = total;
-    indexing.rate = total > 0 ? Math.round((indexing.indexed / total) * 100) : 0;
+    // ── GSC reconciliation: promote URLs confirmed indexed by Google ──
+    // Without this, the cockpit undercounts indexed and overcounts submitted.
+    try {
+      const gscIndexedCount = await prisma.gscPagePerformance.groupBy({
+        by: ["url"],
+        where: { site_id: targetSiteId, impressions: { gt: 0 } },
+      }).then((rows: { url: string }[]) => rows.length);
+
+      // GSC-confirmed minus already-counted = promotion candidates
+      const promotable = Math.max(0, gscIndexedCount - indexing.indexed);
+      if (promotable > 0) {
+        // Move from submitted → indexed (GSC says they're in)
+        const fromSubmitted = Math.min(promotable, indexing.submitted);
+        indexing.submitted -= fromSubmitted;
+        indexing.indexed += fromSubmitted;
+        // Any remaining come from discovered/neverSubmitted
+        const remaining = promotable - fromSubmitted;
+        if (remaining > 0) {
+          const fromDiscovered = Math.min(remaining, indexing.discovered);
+          indexing.discovered -= fromDiscovered;
+          indexing.indexed += fromDiscovered;
+        }
+      }
+    } catch {
+      // GSC table may not exist yet — continue without reconciliation
+    }
+
+    // ── Published baseline: use BlogPost count as the true denominator ──
+    const publishedCount = await prisma.blogPost.count({
+      where: { siteId: targetSiteId, published: true, deletedAt: null },
+    }).catch(() => 0);
+
+    // The total should reflect published articles, not just tracking records.
+    // Tracking records can include static pages, /ar/ variants, etc. which inflates the total.
+    // Use the larger of published count and tracking count so we never undercount.
+    indexing.total = Math.max(total, publishedCount);
+
+    // Recalculate neverSubmitted = published articles without any tracking record
+    const trackedCount = total;
+    if (publishedCount > trackedCount) {
+      indexing.neverSubmitted = publishedCount - trackedCount;
+    }
+
+    indexing.rate = indexing.total > 0 ? Math.round((indexing.indexed / indexing.total) * 100) : 0;
 
     // Quick velocity check — indexed in last 7 days
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -532,18 +576,7 @@ async function buildIndexing(prisma: any, activeSiteIds: string[]): Promise<Inde
       },
     }).catch(() => 0);
 
-    // If no URLIndexingStatus records exist, fall back to BlogPost count
-    if (total === 0) {
-      const publishedCount = await prisma.blogPost.count({
-        where: { siteId: targetSiteId, published: true, deletedAt: null },
-      }).catch(() => 0);
-      if (publishedCount > 0) {
-        indexing.total = publishedCount;
-        indexing.neverSubmitted = publishedCount;
-      }
-    }
-
-    indexing.dataSource = "lightweight";
+    indexing.dataSource = "lightweight+gsc";
   } catch (summaryErr) {
     console.warn("[cockpit] indexing query failed:", summaryErr instanceof Error ? summaryErr.message : summaryErr);
     indexing.dataSource = "error";

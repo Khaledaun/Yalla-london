@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
-  Lightbulb,
   Search,
   Calendar,
   Zap,
@@ -11,7 +10,11 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
+  SlidersHorizontal,
 } from 'lucide-react'
+import { StatusSummary } from '@/components/admin/status-summary'
+import { ResponsiveTable, Column } from '@/components/admin/responsive-table'
+import { BottomSheet } from '@/components/admin/bottom-sheet'
 
 interface Topic {
   id: string;
@@ -49,6 +52,7 @@ export default function TopicsContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   useEffect(() => {
     fetchTopics()
@@ -90,245 +94,387 @@ export default function TopicsContent() {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'queued': return 'bg-blue-100 text-blue-800'
-      case 'planned': return 'bg-indigo-100 text-indigo-800'
-      case 'ready': return 'bg-yellow-100 text-yellow-800'
-      case 'published': return 'bg-green-100 text-green-800'
-      case 'generating': return 'bg-orange-100 text-orange-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'published': return <CheckCircle className="h-3 w-3" />
-      case 'queued': case 'planned': return <Clock className="h-3 w-3" />
-      case 'ready': return <Zap className="h-3 w-3" />
-      default: return <AlertCircle className="h-3 w-3" />
-    }
-  }
-
-  const filteredTopics = topics.filter(topic => {
+  const filteredTopics = useMemo(() => topics.filter(topic => {
     const matchesSearch = topic.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          topic.primary_keyword.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesLocale = filterLocale === 'all' || topic.locale === filterLocale
     const matchesStatus = filterStatus === 'all' || topic.status === filterStatus
     return matchesSearch && matchesLocale && matchesStatus
-  })
+  }), [topics, searchTerm, filterLocale, filterStatus])
+
+  const activeFilterCount = (filterLocale !== 'all' ? 1 : 0) + (filterStatus !== 'all' ? 1 : 0)
+
+  // Status Summary cards — Now / Next / Attention
+  const statusCards = useMemo(() => {
+    if (!stats) return []
+    return [
+      {
+        heading: 'NOW',
+        summary: stats.queued > 0
+          ? `${stats.queued} topics queued for content generation`
+          : 'No topics currently generating',
+        metric: stats.queued,
+        detail: 'queued for generation',
+        accent: stats.queued > 0 ? 'blue' as const : 'neutral' as const,
+      },
+      {
+        heading: 'NEXT',
+        summary: stats.ready > 0
+          ? `${stats.ready} topics ready to be queued`
+          : `${stats.planned} topics planned`,
+        metric: stats.ready || stats.planned,
+        detail: stats.ready > 0 ? 'ready to queue' : 'planned topics',
+        accent: 'green' as const,
+      },
+      {
+        heading: 'BACKLOG',
+        summary: `${stats.enBacklog} English, ${stats.arBacklog} Arabic topics waiting`,
+        metric: stats.totalBacklog,
+        detail: 'total in backlog',
+        accent: stats.totalBacklog > 20 ? 'amber' as const : 'neutral' as const,
+      },
+    ]
+  }, [stats])
+
+  // Table columns
+  const columns: Column<Topic>[] = useMemo(() => [
+    {
+      key: 'title',
+      label: 'Topic',
+      render: (topic) => (
+        <div>
+          <div style={{ fontWeight: 600, color: '#1C1917', fontSize: 13 }}>{topic.title}</div>
+          <div style={{ fontSize: 11, color: '#78716C', marginTop: 2 }}>
+            {topic.primary_keyword}
+          </div>
+          {topic.longtails?.length > 0 && (
+            <div className="hidden md:block" style={{ fontSize: 10, color: '#A8A29E', marginTop: 2 }}>
+              {topic.longtails.slice(0, 2).join(' · ')}
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            <span style={{ fontSize: 10, color: '#78716C' }}>{topic.suggested_page_type || 'guide'}</span>
+            {topic.evergreen && (
+              <span className="px-1.5 py-0.5 rounded-full" style={{ fontSize: 9, backgroundColor: 'rgba(22,163,74,0.1)', color: '#16A34A' }}>Evergreen</span>
+            )}
+            {topic.season && (
+              <span className="px-1.5 py-0.5 rounded-full" style={{ fontSize: 9, backgroundColor: 'rgba(37,99,235,0.1)', color: '#2563EB' }}>{topic.season}</span>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'locale',
+      label: 'Locale',
+      render: (topic) => (
+        <span className="px-2 py-0.5 rounded-full" style={{
+          fontSize: 10,
+          fontWeight: 600,
+          backgroundColor: topic.locale === 'en' ? 'rgba(37,99,235,0.1)' : 'rgba(22,163,74,0.1)',
+          color: topic.locale === 'en' ? '#2563EB' : '#16A34A',
+        }}>
+          {topic.locale.toUpperCase()}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (topic) => {
+        const icons: Record<string, typeof CheckCircle> = { published: CheckCircle, queued: Clock, planned: Clock, ready: Zap }
+        const colors: Record<string, string> = { queued: '#2563EB', planned: '#6366F1', ready: '#D97706', published: '#16A34A', generating: '#EA580C' }
+        const Icon = icons[topic.status] || AlertCircle
+        const color = colors[topic.status] || '#78716C'
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full"
+                style={{ fontSize: 10, fontWeight: 600, backgroundColor: `${color}15`, color }}>
+            <Icon style={{ width: 12, height: 12 }} />
+            {topic.status}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'score',
+      label: 'Score',
+      hideOnMobile: true,
+      render: (topic) => topic.confidence_score != null ? (
+        <span style={{
+          fontWeight: 600,
+          fontSize: 12,
+          color: topic.confidence_score >= 70 ? '#16A34A' : topic.confidence_score >= 40 ? '#D97706' : '#DC2626',
+        }}>
+          {Math.round(topic.confidence_score)}%
+        </span>
+      ) : (
+        <span style={{ color: '#A8A29E' }}>—</span>
+      ),
+    },
+    {
+      key: 'scheduled',
+      label: 'Scheduled',
+      hideOnMobile: true,
+      render: (topic) => topic.planned_at ? (
+        <span className="inline-flex items-center gap-1" style={{ fontSize: 12, color: '#1C1917' }}>
+          <Calendar style={{ width: 12, height: 12, color: '#78716C' }} />
+          {new Date(topic.planned_at).toLocaleDateString()}
+        </span>
+      ) : (
+        <span style={{ fontSize: 12, color: '#A8A29E' }}>Not scheduled</span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      hideOnMobile: true,
+      render: (topic) => (
+        topic.status !== 'published' && topic.status !== 'queued' ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); queueForGeneration(topic.id) }}
+            disabled={actionLoading === topic.id}
+            className="p-2 rounded-lg transition-all active:scale-95 disabled:opacity-50"
+            style={{ color: '#D97706', minHeight: 44, minWidth: 44 }}
+            title="Queue for Generation"
+          >
+            {actionLoading === topic.id ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Zap className="h-4 w-4" />
+            )}
+          </button>
+        ) : <span />
+      ),
+    },
+  ], [actionLoading])
+
+  // Filter controls (shared between inline desktop and mobile bottom sheet)
+  const filterControls = (
+    <div className="grid grid-cols-1 gap-4">
+      <div>
+        <label style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 9,
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: 1.5,
+          color: '#78716C',
+          display: 'block',
+          marginBottom: 8,
+        }}>
+          Locale
+        </label>
+        <select
+          value={filterLocale}
+          onChange={(e) => setFilterLocale(e.target.value)}
+          className="w-full px-3 py-2.5 rounded-xl border-none"
+          style={{
+            backgroundColor: 'var(--neu-bg, #EDE9E1)',
+            boxShadow: 'var(--neu-inset)',
+            fontSize: 13,
+            color: '#1C1917',
+            minHeight: 44,
+          }}
+        >
+          <option value="all">All Locales</option>
+          <option value="en">English</option>
+          <option value="ar">Arabic</option>
+        </select>
+      </div>
+      <div>
+        <label style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 9,
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: 1.5,
+          color: '#78716C',
+          display: 'block',
+          marginBottom: 8,
+        }}>
+          Status
+        </label>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="w-full px-3 py-2.5 rounded-xl border-none"
+          style={{
+            backgroundColor: 'var(--neu-bg, #EDE9E1)',
+            boxShadow: 'var(--neu-inset)',
+            fontSize: 13,
+            color: '#1C1917',
+            minHeight: 44,
+          }}
+        >
+          <option value="all">All Statuses</option>
+          <option value="planned">Planned</option>
+          <option value="queued">Queued</option>
+          <option value="ready">Ready</option>
+          <option value="published">Published</option>
+        </select>
+      </div>
+    </div>
+  )
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Lightbulb className="h-8 w-8 text-yellow-500" />
-              Topics & Pipeline
-            </h1>
-            <p className="text-gray-600 mt-1">
-              {stats ? `${stats.totalBacklog} topics in backlog — ${stats.queued} queued, ${stats.ready} ready` : 'Loading pipeline...'}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={fetchTopics}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
-
+      {/* Error banner */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
-          <AlertCircle className="h-5 w-5 text-red-500" />
-          <span className="text-red-700">{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-700 text-sm">Dismiss</button>
+        <div className="mb-4 p-3 rounded-xl flex items-center gap-3"
+             style={{ backgroundColor: 'rgba(200,50,43,0.08)', border: '1px solid rgba(200,50,43,0.2)' }}>
+          <AlertCircle style={{ width: 16, height: 16, color: '#C8322B', flexShrink: 0 }} />
+          <span style={{ fontSize: 12, color: '#C8322B', flex: 1 }}>{error}</span>
+          <button onClick={() => setError(null)}
+                  style={{ fontSize: 11, color: '#C8322B', fontWeight: 600, minHeight: 44, minWidth: 44 }}>
+            Dismiss
+          </button>
         </div>
       )}
 
-      {/* Stats Cards */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
-          {[
-            { label: 'Planned', value: stats.planned, color: 'text-indigo-600' },
-            { label: 'Queued', value: stats.queued, color: 'text-blue-600' },
-            { label: 'Ready', value: stats.ready, color: 'text-yellow-600' },
-            { label: 'Published', value: stats.published, color: 'text-green-600' },
-            { label: 'EN Backlog', value: stats.enBacklog, color: 'text-blue-600' },
-            { label: 'AR Backlog', value: stats.arBacklog, color: 'text-green-600' },
-            { label: 'Total', value: stats.totalBacklog, color: 'text-gray-900' },
-          ].map((stat) => (
-            <div key={stat.label} className="bg-white p-4 rounded-lg border border-gray-200 text-center">
-              <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-              <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Status Summary — Now / Next / Backlog */}
+      <StatusSummary cards={statusCards} loading={loading} />
 
-      {/* Filters */}
-      <div className="bg-white p-6 rounded-lg border border-gray-200 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search topics or keywords..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent w-full"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Locale</label>
-            <select
-              value={filterLocale}
-              onChange={(e) => setFilterLocale(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-            >
-              <option value="all">All Locales</option>
-              <option value="en">English</option>
-              <option value="ar">Arabic</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-            >
-              <option value="all">All Statuses</option>
-              <option value="planned">Planned</option>
-              <option value="queued">Queued</option>
-              <option value="ready">Ready</option>
-              <option value="published">Published</option>
-            </select>
-          </div>
+      {/* Search + Filter bar */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2" style={{ width: 16, height: 16, color: '#78716C' }} />
+          <input
+            type="text"
+            placeholder="Search topics..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border-none"
+            style={{
+              backgroundColor: 'var(--neu-bg, #EDE9E1)',
+              boxShadow: 'var(--neu-inset)',
+              fontSize: 13,
+              color: '#1C1917',
+              minHeight: 44,
+            }}
+          />
         </div>
+
+        {/* Mobile: filter button */}
+        <button
+          onClick={() => setFiltersOpen(true)}
+          className="md:hidden flex items-center gap-1.5 px-3 py-2.5 rounded-xl transition-all relative"
+          style={{
+            backgroundColor: 'var(--neu-bg, #EDE9E1)',
+            boxShadow: 'var(--neu-flat)',
+            minHeight: 44,
+            minWidth: 44,
+          }}
+        >
+          <SlidersHorizontal style={{ width: 16, height: 16, color: '#78716C' }} />
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: '#C8322B', color: '#FAF8F4', fontSize: 9, fontWeight: 700 }}>
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+
+        {/* Desktop: inline filters */}
+        <div className="hidden md:flex items-center gap-2">
+          <select
+            value={filterLocale}
+            onChange={(e) => setFilterLocale(e.target.value)}
+            className="px-3 py-2.5 rounded-xl border-none"
+            style={{
+              backgroundColor: 'var(--neu-bg, #EDE9E1)',
+              boxShadow: 'var(--neu-inset)',
+              fontSize: 12,
+              color: '#1C1917',
+              minHeight: 44,
+            }}
+          >
+            <option value="all">All Locales</option>
+            <option value="en">EN</option>
+            <option value="ar">AR</option>
+          </select>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-2.5 rounded-xl border-none"
+            style={{
+              backgroundColor: 'var(--neu-bg, #EDE9E1)',
+              boxShadow: 'var(--neu-inset)',
+              fontSize: 12,
+              color: '#1C1917',
+              minHeight: 44,
+            }}
+          >
+            <option value="all">All Statuses</option>
+            <option value="planned">Planned</option>
+            <option value="queued">Queued</option>
+            <option value="ready">Ready</option>
+            <option value="published">Published</option>
+          </select>
+        </div>
+
+        {/* Refresh */}
+        <button
+          onClick={fetchTopics}
+          className="flex items-center justify-center rounded-xl transition-all"
+          style={{
+            backgroundColor: 'var(--neu-bg, #EDE9E1)',
+            boxShadow: 'var(--neu-flat)',
+            minHeight: 44,
+            minWidth: 44,
+          }}
+        >
+          <RefreshCw style={{ width: 16, height: 16, color: '#78716C' }}
+                     className={loading ? 'animate-spin' : ''} />
+        </button>
       </div>
 
-      {/* Topics Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Topics ({filteredTopics.length})</h2>
-        </div>
+      {/* Mobile filter bottom sheet */}
+      <BottomSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters">
+        {filterControls}
+        <button
+          onClick={() => setFiltersOpen(false)}
+          className="w-full mt-4 py-3 rounded-xl transition-all"
+          style={{
+            fontFamily: "'IBM Plex Mono', monospace",
+            fontSize: 11,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: 1,
+            color: '#FAF8F4',
+            backgroundColor: '#C8322B',
+            minHeight: 48,
+          }}
+        >
+          Apply Filters ({filteredTopics.length} results)
+        </button>
+      </BottomSheet>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-yellow-500" />
-          </div>
-        ) : filteredTopics.length === 0 ? (
-          <div className="py-12 text-center text-gray-500">
-            {topics.length === 0 ? 'No topics in the pipeline yet.' : 'No topics match your filters.'}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Topic</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Locale</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scheduled</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredTopics.map((topic) => (
-                  <tr key={topic.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{topic.title}</div>
-                        <div className="text-sm text-gray-500">
-                          <span className="font-medium">Keyword:</span> {topic.primary_keyword}
-                        </div>
-                        {topic.longtails && topic.longtails.length > 0 && (
-                          <div className="text-xs text-gray-400 mt-1">
-                            {topic.longtails.slice(0, 2).join(' · ')}
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500">{topic.suggested_page_type || 'guide'}</span>
-                          {topic.evergreen && (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">Evergreen</span>
-                          )}
-                          {topic.season && (
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">{topic.season}</span>
-                          )}
-                          {topic.site_id && (
-                            <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">{topic.site_id}</span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        topic.locale === 'en' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                      }`}>
-                        {topic.locale.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(topic.status)}`}>
-                        {getStatusIcon(topic.status)}
-                        {topic.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {topic.confidence_score != null ? (
-                        <span className={`font-medium ${topic.confidence_score >= 70 ? 'text-green-600' : topic.confidence_score >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
-                          {Math.round(topic.confidence_score)}%
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {topic.planned_at ? (
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <span>{new Date(topic.planned_at).toLocaleDateString()}</span>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">Not scheduled</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center gap-2">
-                        {topic.status !== 'published' && topic.status !== 'queued' && (
-                          <button
-                            onClick={() => queueForGeneration(topic.id)}
-                            disabled={actionLoading === topic.id}
-                            className="text-yellow-600 hover:text-yellow-900 disabled:opacity-50"
-                            title="Queue for Generation"
-                          >
-                            {actionLoading === topic.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Zap className="h-4 w-4" />
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* Topics count header */}
+      <div className="mb-3" style={{
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 10,
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: 1.5,
+        color: '#78716C',
+      }}>
+        {filteredTopics.length} topics
       </div>
+
+      {/* Responsive table / cards */}
+      <ResponsiveTable<Topic>
+        columns={columns}
+        data={filteredTopics}
+        keyExtractor={(t) => t.id}
+        onRowClick={(topic) => {
+          if (topic.status !== 'published' && topic.status !== 'queued') {
+            queueForGeneration(topic.id)
+          }
+        }}
+        loading={loading}
+        loadingRows={5}
+        emptyMessage={topics.length === 0 ? 'No topics in the pipeline yet.' : 'No topics match your filters.'}
+      />
     </div>
   )
 }
